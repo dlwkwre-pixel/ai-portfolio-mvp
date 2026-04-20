@@ -5,50 +5,31 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-function formatRiskLevel(value: string | null) {
-  if (!value) return "No Risk Set";
-
-  const map: Record<string, string> = {
-    low: "Conservative",
-    Low: "Conservative",
-    moderate: "Moderate",
-    Moderate: "Moderate",
-    high: "Aggressive",
-    High: "Aggressive",
-    conservative: "Conservative",
-    Conservative: "Conservative",
-    aggressive: "Aggressive",
-    Aggressive: "Aggressive",
-  };
-
-  return map[value] ?? value;
-}
-export default function HomePage() {
+export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
+  async function handleSignUp(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
+    setLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (!email || !password) {
-      setErrorMessage("Please enter both email and password.");
-      return;
-    }
-
-    setLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
     if (error) {
@@ -57,10 +38,18 @@ export default function HomePage() {
       return;
     }
 
-    setSuccessMessage("Signed in successfully.");
+    if (data.session) {
+      setSuccessMessage("Account created successfully.");
+      setLoading(false);
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    setSuccessMessage(
+      "Account created. Check your email to confirm your account, then sign in."
+    );
     setLoading(false);
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
@@ -97,32 +86,15 @@ export default function HomePage() {
 
             <div className="max-w-2xl">
               <h1 className="text-5xl font-semibold leading-tight text-white sm:text-6xl">
-                Your Portfolio.
+                Build your investing
                 <br />
-                Tuned Smarter.
+                operating system.
               </h1>
 
               <p className="mt-6 max-w-xl text-xl leading-9 text-slate-300">
-                AI-powered portfolio strategy, tracking, and decision-making —
-                built for disciplined investors.
+                Create portfolios, assign strategies, track holdings, and review
+                AI recommendations in one place.
               </p>
-            </div>
-
-            <div className="mt-14 max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-              <div className="grid grid-cols-3 gap-4 text-sm text-slate-300">
-                <div>
-                  <p className="text-slate-400">Portfolios</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">3</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Strategies</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">5</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">AI Runs</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">24</p>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -133,10 +105,24 @@ export default function HomePage() {
 
           <div className="relative z-10 w-full max-w-md rounded-[28px] border border-slate-200/80 bg-white/90 p-8 shadow-2xl shadow-slate-300/30 backdrop-blur">
             <h2 className="text-center text-4xl font-semibold tracking-tight text-slate-800">
-              Welcome back
+              Create account
             </h2>
 
-            <form className="mt-10 space-y-6" onSubmit={handleSignIn}>
+            <form className="mt-10 space-y-6" onSubmit={handleSignUp}>
+              <div>
+                <label className="mb-2 block text-lg font-medium text-slate-600">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-4 text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  required
+                />
+              </div>
+
               <div>
                 <label className="mb-2 block text-lg font-medium text-slate-600">
                   Email
@@ -147,6 +133,7 @@ export default function HomePage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-4 text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  required
                 />
               </div>
 
@@ -160,6 +147,7 @@ export default function HomePage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-4 text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  required
                 />
               </div>
 
@@ -178,27 +166,18 @@ export default function HomePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-xl font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                className="block w-full rounded-2xl bg-blue-600 px-4 py-4 text-center text-xl font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? "Creating Account..." : "Create Account"}
               </button>
 
-              <div className="text-center">
-                <button
-                  type="button"
-                  className="text-lg font-medium text-blue-600 hover:text-blue-500"
-                >
-                  Forgot password?
-                </button>
-              </div>
-
               <div className="border-t border-slate-200 pt-6 text-center text-lg text-slate-500">
-                Don&apos;t have an account?{" "}
+                Already have an account?{" "}
                 <Link
-                  href="/signup"
+                  href="/"
                   className="font-semibold text-blue-600 hover:text-blue-500"
                 >
-                  Create account
+                  Sign in
                 </Link>
               </div>
             </form>
