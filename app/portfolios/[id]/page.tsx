@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import AddHoldingForm from "./add-holding-form";
+import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
 import AssignStrategyForm from "./assign-strategy-form";
@@ -13,14 +14,11 @@ import PortfolioPerformanceSection from "./portfolio-performance-section";
 import BenchmarkComparisonSection from "./benchmark-comparison-section";
 
 type PortfolioPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 };
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
-
   return `$${Number(value).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -29,7 +27,6 @@ function formatMoney(value: number | null | undefined) {
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
-
   return `${Number(value).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -38,7 +35,6 @@ function formatPercent(value: number | null | undefined) {
 
 function formatAccountType(value: string | null) {
   if (!value) return "—";
-
   const map: Record<string, string> = {
     taxable: "Brokerage",
     brokerage: "Brokerage",
@@ -46,43 +42,43 @@ function formatAccountType(value: string | null) {
     speculative: "Margin",
     margin: "Margin",
     paper_trade: "Paper Trade",
+    roth_ira: "Roth IRA",
+    traditional_ira: "Traditional IRA",
   };
-
   return map[value] ?? value.replaceAll("_", " ");
 }
 
 function formatRiskLevel(value: string | null) {
   if (!value) return "No Risk Set";
-
   const map: Record<string, string> = {
-    low: "Conservative",
-    Low: "Conservative",
-    moderate: "Moderate",
-    Moderate: "Moderate",
-    high: "Aggressive",
-    High: "Aggressive",
-    conservative: "Conservative",
-    Conservative: "Conservative",
-    aggressive: "Aggressive",
-    Aggressive: "Aggressive",
+    low: "Conservative", Low: "Conservative",
+    moderate: "Moderate", Moderate: "Moderate",
+    high: "Aggressive", High: "Aggressive",
+    conservative: "Conservative", Conservative: "Conservative",
+    aggressive: "Aggressive", Aggressive: "Aggressive",
   };
-
   return map[value] ?? value;
 }
 
-export default async function SinglePortfolioPage({
-  params,
-}: PortfolioPageProps) {
+function accountTypeStyle(value: string | null) {
+  const type = (value || "").toLowerCase();
+  if (["taxable", "brokerage"].includes(type))
+    return { dot: "bg-blue-400", badge: "border-blue-500/20 bg-blue-500/10 text-blue-300" };
+  if (["retirement", "roth_ira", "traditional_ira"].includes(type))
+    return { dot: "bg-emerald-400", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
+  if (["speculative", "margin"].includes(type))
+    return { dot: "bg-amber-400", badge: "border-amber-500/20 bg-amber-500/10 text-amber-300" };
+  if (["paper_trade", "paper trade"].includes(type))
+    return { dot: "bg-purple-400", badge: "border-purple-500/20 bg-purple-500/10 text-purple-300" };
+  return { dot: "bg-slate-400", badge: "border-white/10 bg-white/5 text-slate-400" };
+}
+
+export default async function SinglePortfolioPage({ params }: PortfolioPageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/");
-  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/");
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios")
@@ -91,9 +87,7 @@ export default async function SinglePortfolioPage({
     .eq("user_id", user.id)
     .single();
 
-  if (portfolioError || !portfolio) {
-    notFound();
-  }
+  if (portfolioError || !portfolio) notFound();
 
   const { data: holdings, error: holdingsError } = await supabase
     .from("holdings")
@@ -101,18 +95,16 @@ export default async function SinglePortfolioPage({
     .eq("portfolio_id", portfolio.id)
     .order("ticker", { ascending: true });
 
-  if (holdingsError) {
-    throw new Error(holdingsError.message);
-  }
+  if (holdingsError) throw new Error(holdingsError.message);
 
   const valuation = await getPortfolioValuation({
-    holdings: (holdings ?? []).map((holding) => ({
-      id: holding.id,
-      ticker: holding.ticker,
-      company_name: holding.company_name,
-      asset_type: holding.asset_type,
-      shares: holding.shares,
-      average_cost_basis: holding.average_cost_basis,
+    holdings: (holdings ?? []).map((h) => ({
+      id: h.id,
+      ticker: h.ticker,
+      company_name: h.company_name,
+      asset_type: h.asset_type,
+      shares: h.shares,
+      average_cost_basis: h.average_cost_basis,
     })),
     cashBalance: Number(portfolio.cash_balance ?? 0),
   });
@@ -123,9 +115,7 @@ export default async function SinglePortfolioPage({
     .eq("portfolio_id", portfolio.id)
     .order("created_at", { ascending: false });
 
-  if (notesError) {
-    throw new Error(notesError.message);
-  }
+  if (notesError) throw new Error(notesError.message);
 
   const { data: cashLedger, error: cashLedgerError } = await supabase
     .from("cash_ledger")
@@ -134,9 +124,7 @@ export default async function SinglePortfolioPage({
     .order("effective_at", { ascending: false })
     .limit(8);
 
-  if (cashLedgerError) {
-    throw new Error(cashLedgerError.message);
-  }
+  if (cashLedgerError) throw new Error(cashLedgerError.message);
 
   const { data: strategies, error: strategiesError } = await supabase
     .from("strategies")
@@ -145,31 +133,18 @@ export default async function SinglePortfolioPage({
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
-  if (strategiesError) {
-    throw new Error(strategiesError.message);
-  }
+  if (strategiesError) throw new Error(strategiesError.message);
 
   const { data: activeAssignment, error: activeAssignmentError } = await supabase
     .from("portfolio_strategy_assignments")
     .select(`
       *,
-      strategies (
-        id,
-        name,
-        description,
-        style,
-        risk_level
-      ),
+      strategies (id, name, description, style, risk_level),
       strategy_versions (
-        id,
-        version_number,
-        prompt_text,
-        max_position_pct,
-        min_position_pct,
-        turnover_preference,
-        holding_period_bias,
-        cash_min_pct,
-        cash_max_pct
+        id, version_number, prompt_text,
+        max_position_pct, min_position_pct,
+        turnover_preference, holding_period_bias,
+        cash_min_pct, cash_max_pct
       )
     `)
     .eq("portfolio_id", portfolio.id)
@@ -179,9 +154,7 @@ export default async function SinglePortfolioPage({
     .limit(1)
     .maybeSingle();
 
-  if (activeAssignmentError) {
-    throw new Error(activeAssignmentError.message);
-  }
+  if (activeAssignmentError) throw new Error(activeAssignmentError.message);
 
   let latestAvailableVersionNumber: number | null = null;
 
@@ -194,437 +167,323 @@ export default async function SinglePortfolioPage({
       .limit(1)
       .maybeSingle();
 
-    if (latestVersionError) {
-      throw new Error(latestVersionError.message);
-    }
-
+    if (latestVersionError) throw new Error(latestVersionError.message);
     latestAvailableVersionNumber = latestVersion?.version_number ?? null;
   }
 
-  const currentVersionNumber =
-    activeAssignment?.strategy_versions?.version_number ?? null;
-
+  const currentVersionNumber = activeAssignment?.strategy_versions?.version_number ?? null;
   const shouldShowUpgradeButton =
     currentVersionNumber !== null &&
     latestAvailableVersionNumber !== null &&
     latestAvailableVersionNumber > currentVersionNumber;
 
-  const totalShares =
-    holdings?.reduce((sum, holding) => sum + Number(holding.shares ?? 0), 0) ?? 0;
+  const totalShares = holdings?.reduce((sum, h) => sum + Number(h.shares ?? 0), 0) ?? 0;
+  const style = accountTypeStyle(portfolio.account_type);
+
+  const statCards = [
+    { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)) },
+    { label: "Holdings Value", value: formatMoney(valuation.holdings_value) },
+    { label: "Total Value", value: formatMoney(valuation.total_portfolio_value), highlight: true },
+    { label: "Positions", value: holdings?.length ?? 0 },
+  ];
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-5 text-white lg:px-6 lg:py-6">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="mb-4">
-          <Link
-            href="/portfolios"
-            className="inline-flex items-center text-sm text-slate-400 transition hover:text-white"
-          >
-            ← Back to portfolios
-          </Link>
-        </div>
+    <main
+      className="min-h-screen bg-[#040d1a] text-white"
+      style={{ fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+        .sidebar-link { transition: all 0.15s ease; color: #94a3b8; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.06); color: white; }
+        .sidebar-link.active { background: rgba(37,99,235,0.15); border: 1px solid rgba(37,99,235,0.25); color: #93c5fd; }
+        .card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); }
+        .card-inner { border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+        .card-hover { transition: all 0.15s ease; }
+        .card-hover:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+        .cta-btn { background: linear-gradient(135deg,#2563eb,#4f46e5); box-shadow: 0 4px 16px rgba(37,99,235,0.3); transition: all 0.2s ease; }
+        .cta-btn:hover { box-shadow: 0 6px 24px rgba(37,99,235,0.45); transform: translateY(-1px); }
+        .dash-glow { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56,139,253,0.1) 0%, transparent 60%); }
+        .mobile-active { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); color: #93c5fd; }
+        .table-row:hover td { background: rgba(255,255,255,0.03); }
+        .input-field { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s ease; }
+        .input-field:focus { outline: none; border-color: rgba(56,139,253,0.6); background: rgba(56,139,253,0.07); box-shadow: 0 0 0 3px rgba(56,139,253,0.12); }
+        details summary::-webkit-details-marker { display: none; }
+      `}</style>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-sky-400">
-                Portfolio Detail
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-                {portfolio.name}
-              </h1>
-              <p className="mt-1 text-sm text-slate-400">
-                {formatAccountType(portfolio.account_type)}
-              </p>
+      <div className="dash-glow pointer-events-none fixed inset-0 z-0" />
 
-              {portfolio.description ? (
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                  {portfolio.description}
-                </p>
-              ) : null}
-
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
-                  Benchmark: {portfolio.benchmark_symbol || "SPY"}
-                </span>
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
-                  Base: {portfolio.base_currency}
-                </span>
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300 capitalize">
-                  Status: {portfolio.status}
-                </span>
-                <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
-                  Created: {new Date(portfolio.created_at).toLocaleDateString()}
-                </span>
+      <div className="relative z-10 flex min-h-screen">
+        {/* Sidebar */}
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-white/5 bg-white/2 lg:flex">
+          <div className="px-5 pb-4 pt-6">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+                <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-blue-400" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
+                  <circle cx="5" cy="16" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="11" cy="12" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="16" cy="15" r="1.2" fill="currentColor" stroke="none" />
+                  <circle cx="20" cy="7" r="1.2" fill="currentColor" stroke="none" />
+                </svg>
               </div>
-            </div>
-
-            <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:w-[520px]">
-              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Cash
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {formatMoney(Number(portfolio.cash_balance))}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Holdings
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {formatMoney(valuation.holdings_value)}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Total Value
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {formatMoney(valuation.total_portfolio_value)}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Positions
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {holdings?.length ?? 0}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 sm:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Total Shares
-                </p>
-                <p className="mt-1 text-xl font-semibold">
-                  {totalShares.toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 4,
-                  })}
-                </p>
-              </div>
+              <span className="text-base font-semibold tracking-tight">BuyTune.io</span>
             </div>
           </div>
-        </section>
-
-        <section className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_400px]">
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Holdings</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Current positions with live market valuation.
-                  </p>
-                </div>
-
-                <div className="w-full sm:w-auto">
-                  <AddHoldingForm portfolioId={portfolio.id} />
-                </div>
-              </div>
-
-              {valuation.valued_holdings.length > 0 ? (
-                <div className="mt-4 overflow-x-auto rounded-xl border border-slate-800">
-                  <table className="min-w-full divide-y divide-slate-800">
-                    <thead className="bg-slate-950/70">
-                      <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                        <th className="px-3 py-3 font-medium">Ticker</th>
-                        <th className="px-3 py-3 font-medium">Company</th>
-                        <th className="px-3 py-3 font-medium">Shares</th>
-                        <th className="px-3 py-3 font-medium">Avg Cost</th>
-                        <th className="px-3 py-3 font-medium">Price</th>
-                        <th className="px-3 py-3 font-medium">Value</th>
-                        <th className="px-3 py-3 font-medium">Unrealized</th>
-                        <th className="px-3 py-3 font-medium">Weight</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 bg-slate-900">
-                      {valuation.valued_holdings.map((holding) => (
-                        <tr key={holding.id} className="text-sm text-slate-200">
-                          <td className="px-3 py-3 font-semibold">{holding.ticker}</td>
-                          <td className="px-3 py-3">{holding.company_name || "—"}</td>
-                          <td className="px-3 py-3">
-                            {holding.shares_number.toLocaleString(undefined, {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 6,
-                            })}
-                          </td>
-                          <td className="px-3 py-3">
-                            {formatMoney(holding.average_cost_basis_number)}
-                          </td>
-                          <td className="px-3 py-3">
-                            {formatMoney(holding.current_price)}
-                          </td>
-                          <td className="px-3 py-3">
-                            {formatMoney(holding.market_value)}
-                          </td>
-                          <td
-                            className={`px-3 py-3 font-medium ${
-                              holding.unrealized_pl !== null && holding.unrealized_pl > 0
-                                ? "text-emerald-300"
-                                : holding.unrealized_pl !== null && holding.unrealized_pl < 0
-                                  ? "text-red-300"
-                                  : "text-slate-200"
-                            }`}
-                          >
-                            <div>{formatMoney(holding.unrealized_pl)}</div>
-                            <div className="text-[11px] text-slate-500">
-                              {formatPercent(holding.unrealized_pl_pct)}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            {formatPercent(holding.weight_pct)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
-                  <p className="text-sm text-slate-400">
-                    No holdings yet. Add your first position to start building this
-                    portfolio.
-                  </p>
-                </div>
-              )}
+          <nav className="flex-1 px-3 pt-2">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Navigation</p>
+            <div className="space-y-1">
+              {[
+                { href: "/dashboard", label: "Dashboard", active: false },
+                { href: "/portfolios", label: "Portfolios", active: true },
+                { href: "/strategies", label: "Strategies", active: false },
+              ].map((item) => (
+                <Link key={item.href} href={item.href} className={`sidebar-link flex items-center rounded-xl px-3 py-2.5 text-sm font-medium ${item.active ? "active" : ""}`}>
+                  {item.label}
+                </Link>
+              ))}
             </div>
+          </nav>
+          <div className="border-t border-white/5 px-3 pb-6 pt-4">
+            <Link href="/portfolios" className="block rounded-xl border border-white/8 bg-white/4 px-4 py-2.5 text-center text-sm text-slate-400 transition hover:text-white">
+              ← All Portfolios
+            </Link>
+          </div>
+        </aside>
 
-            <PortfolioPerformanceSection
-              portfolioId={portfolio.id}
-              cashBalance={Number(portfolio.cash_balance ?? 0)}
-            />
-
-            <TransactionHistorySection portfolioId={portfolio.id} />
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Portfolio Notes</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Thesis, context, and account-level notes.
-                  </p>
-                </div>
-
-                <div className="w-full sm:w-auto">
-                  <AddNoteForm portfolioId={portfolio.id} />
-                </div>
-              </div>
-
-              {notes && notes.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {notes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="rounded-xl border border-slate-800 bg-slate-950 px-4 py-4"
-                    >
-                      <h3 className="text-base font-semibold leading-tight text-white">
-                        {note.title}
-                      </h3>
-
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-300">
-                        {note.content || "—"}
-                      </p>
-
-                      <p className="mt-4 text-xs text-slate-500">
-                        {new Date(note.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
-                  <p className="text-sm text-slate-400">
-                    No notes yet. This is where account-specific context will live.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <BenchmarkComparisonSection
-              portfolioId={portfolio.id}
-              benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
-            />
+        {/* Main */}
+        <div className="flex-1 overflow-x-hidden">
+          {/* Mobile nav */}
+          <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-3 lg:hidden">
+            {[
+              { href: "/dashboard", label: "Dashboard", active: false },
+              { href: "/portfolios", label: "Portfolios", active: true },
+              { href: "/strategies", label: "Strategies", active: false },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition ${item.active ? "mobile-active border-blue-500/30" : "border-white/8 bg-white/4 text-slate-400"}`}>
+                {item.label}
+              </Link>
+            ))}
           </div>
 
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <div className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
+
+            {/* Header */}
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-xl font-semibold">Assigned Strategy</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  This portfolio’s current investing framework.
-                </p>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`h-2.5 w-2.5 rounded-full ${style.dot}`} />
+                  <p className="text-xs font-medium uppercase tracking-widest text-blue-400">Portfolio Detail</p>
+                </div>
+                <h1 className="text-2xl font-semibold tracking-tight">{portfolio.name}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${style.badge}`}>
+                    {formatAccountType(portfolio.account_type)}
+                  </span>
+                  <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] text-slate-400">
+                    {portfolio.benchmark_symbol || "SPY"}
+                  </span>
+                  <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] capitalize text-slate-400">
+                    {portfolio.status}
+                  </span>
+                  <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] text-slate-400">
+                    {portfolio.base_currency}
+                  </span>
+                </div>
+                {portfolio.description && (
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{portfolio.description}</p>
+                )}
               </div>
+              <div className="text-sm text-slate-500">
+                Created {new Date(portfolio.created_at).toLocaleDateString()}
+              </div>
+            </div>
 
-              <div className="mt-4">
-                <AssignStrategyForm
+            {/* Stat cards */}
+            <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {statCards.map((stat) => (
+                <div key={stat.label} className={`rounded-2xl p-5 ${stat.highlight ? "border border-blue-500/20 bg-blue-500/8" : "card"}`}>
+                  <p className="text-xs font-medium uppercase tracking-widest text-slate-500">{stat.label}</p>
+                  <p className={`mt-2 text-2xl font-semibold ${stat.highlight ? "text-blue-300" : "text-white"}`}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Main grid */}
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_380px]">
+
+              {/* Left column */}
+              <div className="space-y-5">
+
+                {/* Holdings */}
+                <div className="card rounded-2xl p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Holdings</h2>
+                      <p className="mt-0.5 text-sm text-slate-500">Current positions with live market valuation.</p>
+                    </div>
+                    <AddHoldingForm portfolioId={portfolio.id} />
+                  </div>
+
+                  <HoldingsTable
+                    portfolioId={portfolio.id}
+                    holdings={valuation.valued_holdings.map((h) => ({
+                      ...h,
+                      notes: (holdings ?? []).find((raw) => raw.id === h.id)?.notes ?? null,
+                    }))}
+                  />
+                </div>
+
+                <PortfolioPerformanceSection
                   portfolioId={portfolio.id}
-                  strategies={(strategies ?? []).map((strategy) => ({
-                    id: strategy.id,
-                    name: strategy.name,
-                  }))}
+                  cashBalance={Number(portfolio.cash_balance ?? 0)}
+                />
+
+                <TransactionHistorySection portfolioId={portfolio.id} />
+
+                {/* Notes */}
+                <div className="card rounded-2xl p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Portfolio Notes</h2>
+                      <p className="mt-0.5 text-sm text-slate-500">Thesis, context, and account-level notes.</p>
+                    </div>
+                    <AddNoteForm portfolioId={portfolio.id} />
+                  </div>
+
+                  {notes && notes.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {notes.map((note) => (
+                        <div key={note.id} className="card-inner rounded-xl px-4 py-4">
+                          <h3 className="text-sm font-semibold text-white">{note.title}</h3>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{note.content || "—"}</p>
+                          <p className="mt-3 text-xs text-slate-600">{new Date(note.created_at).toLocaleDateString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="card-inner mt-4 rounded-xl p-5">
+                      <p className="text-sm text-slate-500">No notes yet. This is where account-specific context lives.</p>
+                    </div>
+                  )}
+                </div>
+
+                <BenchmarkComparisonSection
+                  portfolioId={portfolio.id}
+                  benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
                 />
               </div>
 
-              {activeAssignment?.strategies ? (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold">
-                        {activeAssignment.strategies.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-slate-400">
-                        {activeAssignment.strategies.style || "Custom Strategy"}
-                      </p>
-                    </div>
+              {/* Right column */}
+              <div className="space-y-5">
 
-                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
-                      {formatRiskLevel(activeAssignment.strategies.risk_level)}
-                    </span>
+                {/* Assigned Strategy */}
+                <div className="card rounded-2xl p-5">
+                  <h2 className="text-base font-semibold text-white">Assigned Strategy</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">This portfolio's current investing framework.</p>
+
+                  <div className="mt-4">
+                    <AssignStrategyForm
+                      portfolioId={portfolio.id}
+                      strategies={(strategies ?? []).map((s) => ({ id: s.id, name: s.name }))}
+                    />
                   </div>
 
-                  {activeAssignment.strategies.description ? (
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
-                      {activeAssignment.strategies.description}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-4 space-y-2 text-sm text-slate-400">
-                    <p>
-                      Current Assigned Version:{" "}
-                      {activeAssignment.strategy_versions?.version_number ?? "—"}
-                    </p>
-                    <p>
-                      Latest Available Version: {latestAvailableVersionNumber ?? "—"}
-                    </p>
-                    <p>
-                      Max Position %:{" "}
-                      {activeAssignment.strategy_versions?.max_position_pct ?? "—"}
-                    </p>
-                    <p>
-                      Turnover:{" "}
-                      {activeAssignment.strategy_versions?.turnover_preference ?? "—"}
-                    </p>
-                    <p>
-                      Holding Bias:{" "}
-                      {activeAssignment.strategy_versions?.holding_period_bias ?? "—"}
-                    </p>
-                  </div>
-
-                  {shouldShowUpgradeButton &&
-                  currentVersionNumber !== null &&
-                  latestAvailableVersionNumber !== null ? (
-                    <div className="mt-4">
-                      <UpgradeStrategyVersionButton
-                        portfolioId={portfolio.id}
-                        currentVersionNumber={currentVersionNumber}
-                        latestVersionNumber={latestAvailableVersionNumber}
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
-                  <p className="text-sm text-slate-400">No strategy assigned yet.</p>
-                </div>
-              )}
-            </div>
-
-            <AIRecommendationsSection portfolioId={portfolio.id} />
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <div>
-                <h2 className="text-xl font-semibold">Cash Activity</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Track deposits, withdrawals, dividends, fees, and adjustments.
-                </p>
-              </div>
-
-              <div className="mt-4">
-                <AddCashActivityForm portfolioId={portfolio.id} />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <h2 className="text-xl font-semibold">Portfolio Status</h2>
-
-              <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <div className="flex items-center justify-between gap-4">
-                  <span>Status</span>
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs capitalize">
-                    {portfolio.status}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span>Active</span>
-                  <span>{portfolio.is_active ? "Yes" : "No"}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span>Base Currency</span>
-                  <span>{portfolio.base_currency}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span>Benchmark</span>
-                  <span>{portfolio.benchmark_symbol || "SPY"}</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <span>Created</span>
-                  <span>{new Date(portfolio.created_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-              <h2 className="text-xl font-semibold">Recent Cash Activity</h2>
-
-              {cashLedger && cashLedger.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {cashLedger.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="rounded-xl border border-slate-800 bg-slate-950 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium capitalize">
-                          {entry.reason.replaceAll("_", " ")}
-                        </p>
-                        <p
-                          className={
-                            entry.direction === "IN"
-                              ? "text-sm font-semibold text-emerald-300"
-                              : "text-sm font-semibold text-red-300"
-                          }
-                        >
-                          {entry.direction === "IN" ? "+" : "-"}
-                          {formatMoney(Number(entry.amount))}
-                        </p>
+                  {activeAssignment?.strategies ? (
+                    <div className="card-inner mt-4 rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-white">{activeAssignment.strategies.name}</h3>
+                          <p className="mt-0.5 text-xs text-slate-400">{activeAssignment.strategies.style || "Custom Strategy"}</p>
+                        </div>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-300">
+                          {formatRiskLevel(activeAssignment.strategies.risk_level)}
+                        </span>
                       </div>
 
-                      <p className="mt-2 text-xs text-slate-500">
-                        {new Date(entry.effective_at).toLocaleString()}
-                      </p>
+                      {activeAssignment.strategies.description && (
+                        <p className="mt-2 text-xs leading-5 text-slate-400">{activeAssignment.strategies.description}</p>
+                      )}
+
+                      <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs text-slate-500">
+                        <span>Version: v{activeAssignment.strategy_versions?.version_number ?? "—"}</span>
+                        <span>Latest: v{latestAvailableVersionNumber ?? "—"}</span>
+                        <span>Max Pos: {activeAssignment.strategy_versions?.max_position_pct ?? "—"}%</span>
+                        <span>Turnover: {activeAssignment.strategy_versions?.turnover_preference ?? "—"}</span>
+                        <span className="col-span-2">Holding: {activeAssignment.strategy_versions?.holding_period_bias ?? "—"}</span>
+                      </div>
+
+                      {shouldShowUpgradeButton && currentVersionNumber !== null && latestAvailableVersionNumber !== null && (
+                        <div className="mt-3">
+                          <UpgradeStrategyVersionButton
+                            portfolioId={portfolio.id}
+                            currentVersionNumber={currentVersionNumber}
+                            latestVersionNumber={latestAvailableVersionNumber}
+                          />
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="card-inner mt-4 rounded-xl p-4">
+                      <p className="text-sm text-slate-500">No strategy assigned yet.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
-                  <p className="text-sm text-slate-400">
-                    No cash activity yet. Deposits, withdrawals, dividends, and
-                    other movements will appear here.
-                  </p>
+
+                {/* AI Recommendations */}
+                <AIRecommendationsSection portfolioId={portfolio.id} />
+
+                {/* Cash Activity */}
+                <div className="card rounded-2xl p-5">
+                  <h2 className="text-base font-semibold text-white">Cash Activity</h2>
+                  <p className="mt-0.5 text-sm text-slate-500">Deposits, withdrawals, dividends, and fees.</p>
+                  <div className="mt-4">
+                    <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
+                  </div>
+
+                  {cashLedger && cashLedger.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {cashLedger.map((entry) => (
+                        <div key={entry.id} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium capitalize text-white">
+                              {entry.reason.replaceAll("_", " ")}
+                            </p>
+                            <p className="text-xs text-slate-600">{new Date(entry.effective_at).toLocaleString()}</p>
+                          </div>
+                          <p className={`text-sm font-semibold ${entry.direction === "IN" ? "text-emerald-400" : "text-red-400"}`}>
+                            {entry.direction === "IN" ? "+" : "-"}{formatMoney(Number(entry.amount))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Portfolio Status */}
+                <div className="card rounded-2xl p-5">
+                  <h2 className="text-base font-semibold text-white">Portfolio Info</h2>
+                  <div className="mt-4 space-y-2">
+                    {[
+                      { label: "Status", value: portfolio.status },
+                      { label: "Active", value: portfolio.is_active ? "Yes" : "No" },
+                      { label: "Currency", value: portfolio.base_currency },
+                      { label: "Benchmark", value: portfolio.benchmark_symbol || "SPY" },
+                      { label: "Total Shares", value: totalShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }) },
+                      { label: "Created", value: new Date(portfolio.created_at).toLocaleDateString() },
+                    ].map((item) => (
+                      <div key={item.label} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
+                        <p className="text-xs uppercase tracking-widest text-slate-500">{item.label}</p>
+                        <p className="text-sm font-medium capitalize text-white">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
-        </section>
+        </div>
       </div>
     </main>
   );

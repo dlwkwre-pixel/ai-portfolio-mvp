@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AddRecommendationForm from "./add-recommendation-form";
 import AIRecommendationRunsList from "./ai-recommendation-runs-list";
+import RunAiControls from "./run-ai-controls";
 
 type AIRecommendationsSectionProps = {
   portfolioId: string;
@@ -41,18 +42,58 @@ export default async function AIRecommendationsSection({
     recommendations = items ?? [];
   }
 
+  const latestRun = runs?.[0] ?? null;
+  const pendingRunCount =
+    runs?.filter((run) =>
+      ["pending", "running", "queued"].includes(
+        String(run.status ?? "").toLowerCase()
+      )
+    ).length ?? 0;
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-white">AI Recommendations</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Recommendation history grouped by review session.
-          </p>
-        </div>
+      <div>
+        <h2 className="text-xl font-semibold text-white">AI Recommendations</h2>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">
+          On-demand portfolio reviews using the full portfolio, strategy, cash,
+          holdings, notes, and recent activity context.
+        </p>
 
-        <div className="text-xs text-slate-500">
-          {runs?.length ?? 0} run{(runs?.length ?? 0) === 1 ? "" : "s"}
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
+            {runs?.length ?? 0} run{(runs?.length ?? 0) === 1 ? "" : "s"}
+          </span>
+          <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
+            {pendingRunCount} pending
+          </span>
+          <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-slate-300">
+            Latest:{" "}
+            {latestRun
+              ? new Date(latestRun.created_at).toLocaleDateString()
+              : "—"}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <RunAiControls
+          portfolioId={portfolioId}
+          pendingRunCount={pendingRunCount}
+          latestRunCreatedAt={latestRun?.created_at ?? null}
+        />
+
+        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+          <p className="text-[11px] uppercase tracking-wide text-slate-500">
+            Run Behavior
+          </p>
+          <p className="mt-1 text-sm leading-6 text-slate-300">
+            AI runs on demand and saves a full recommendation session instead of
+            polling continuously.
+          </p>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            This keeps API usage controlled while still letting you generate a
+            full portfolio review whenever you want updated suggestions.
+          </p>
         </div>
       </div>
 
@@ -71,8 +112,8 @@ export default async function AIRecommendationsSection({
       ) : (
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
           <p className="text-sm text-slate-400">
-            No recommendation runs yet. Add a recommendation to seed the first
-            review session.
+            No recommendation runs yet. Run AI for a full portfolio review or add
+            a manual recommendation to seed the first session.
           </p>
         </div>
       )}

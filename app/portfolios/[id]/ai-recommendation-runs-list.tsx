@@ -84,18 +84,24 @@ function formatRunType(value: string | null) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function truncateText(value: string | null | undefined, maxLength = 180) {
+  if (!value) return "Recommendation Review";
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 3)}...`;
+}
+
 function badgeClassForStatus(value: string | null) {
   const normalized = (value || "").toLowerCase();
 
-  if (normalized === "accepted" || normalized === "executed") {
+  if (normalized === "accepted" || normalized === "executed" || normalized === "completed") {
     return "bg-emerald-500/10 text-emerald-300";
   }
 
-  if (normalized === "rejected") {
+  if (normalized === "rejected" || normalized === "failed") {
     return "bg-red-500/10 text-red-300";
   }
 
-  if (normalized === "watchlist") {
+  if (normalized === "watchlist" || normalized === "pending" || normalized === "running" || normalized === "queued") {
     return "bg-amber-500/10 text-amber-300";
   }
 
@@ -166,7 +172,7 @@ export default function AIRecommendationRunsList({
           items,
         };
       })
-      .filter((run) => run.items.length > 0);
+      .filter((run) => run.items.length > 0 || statusFilter === "all");
   }, [runs, recommendations, sortBy, statusFilter]);
 
   const visibleRuns = showAllRuns
@@ -260,8 +266,8 @@ export default function AIRecommendationRunsList({
                           </span>
                         </div>
 
-                        <h3 className="mt-3 text-lg font-semibold text-white">
-                          {run.summary || "Recommendation Review"}
+                        <h3 className="mt-3 text-base font-semibold leading-7 text-white">
+                          {truncateText(run.summary, 180)}
                         </h3>
 
                         <div className="mt-2 space-y-1 text-sm text-slate-400">
@@ -288,6 +294,17 @@ export default function AIRecommendationRunsList({
 
                   {isExpanded ? (
                     <div className="border-t border-slate-800 px-4 pb-4 pt-4">
+                      {run.summary ? (
+                        <div className="mb-4 rounded-xl border border-slate-800 bg-slate-900 px-4 py-4">
+                          <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                            Portfolio Summary
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-slate-200">
+                            {run.summary}
+                          </p>
+                        </div>
+                      ) : null}
+
                       <div className="space-y-4">
                         {run.items.map((item) => (
                           <div

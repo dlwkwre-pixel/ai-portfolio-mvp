@@ -22,33 +22,26 @@ export default function AddNoteForm({ portfolioId }: AddNoteFormProps) {
       <button
         type="button"
         onClick={toggleOpen}
-        className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/8 hover:text-white"
       >
-        {isOpen ? "Close Form" : "Add Note"}
+        {isOpen ? "Cancel" : "+ Add Note"}
       </button>
 
-      {isOpen ? (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
-          <div>
-            <h3 className="text-lg font-semibold text-white">Add Portfolio Note</h3>
-            <p className="mt-1 text-sm text-slate-400">
-              Save context, thesis, or reminders for this account.
-            </p>
-          </div>
+      {isOpen && (
+        <div className="mt-4 rounded-xl border border-white/8 bg-white/3 p-4">
+          <h3 className="text-sm font-semibold text-white">Add Portfolio Note</h3>
+          <p className="mt-0.5 text-xs text-slate-500">Save context, thesis, or reminders for this account.</p>
 
           <form
             className="mt-4 grid gap-3"
             action={(formData) => {
               setErrorMessage("");
-
               startTransition(async () => {
                 try {
                   await createPortfolioNote(formData);
                   setIsOpen(false);
                 } catch (error) {
-                  setErrorMessage(
-                    error instanceof Error ? error.message : "Something went wrong."
-                  );
+                  setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
                 }
               });
             }}
@@ -56,55 +49,55 @@ export default function AddNoteForm({ portfolioId }: AddNoteFormProps) {
             <input type="hidden" name="portfolio_id" value={portfolioId} />
 
             <div>
-              <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500">
                 Note Title
               </label>
               <input
                 name="title"
                 type="text"
                 placeholder="Why this account exists"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500">
                 Note Content
               </label>
               <textarea
                 name="content"
                 placeholder="This is my long-term taxable growth account. I want to keep turnover low and only add high-conviction names."
-                className="min-h-32 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="min-h-28 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
-            {errorMessage ? (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+            {errorMessage && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
                 {errorMessage}
               </div>
-            ) : null}
+            )}
 
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
               >
                 {isPending ? "Saving..." : "Save Note"}
               </button>
-
               <button
                 type="button"
                 onClick={toggleOpen}
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-sm text-slate-400 transition hover:text-white"
               >
                 Cancel
               </button>
             </div>
           </form>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
