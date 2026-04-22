@@ -105,7 +105,6 @@ export default async function AIRecommendationsSection({
         <div className="mt-4">
           <AIRecommendationRunsList
             portfolioId={portfolioId}
-            runs={runs}
             recommendations={recommendations}
           />
         </div>
