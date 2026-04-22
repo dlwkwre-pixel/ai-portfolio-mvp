@@ -320,9 +320,9 @@ export default function LandingPage() {
       <section className="border-y border-white/5 bg-white/2 py-12">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
           {[
-            { value: 2400, suffix: "+", label: "AI analyses run" },
-            { value: 98, suffix: "%", label: "Recommendation accuracy" },
-            { value: 850, suffix: "+", label: "Portfolios tracked" },
+            { value: 0, suffix: "", label: "No ads, ever" },
+            { value: 100, suffix: "%", label: "Free to use" },
+            { value: 2, suffix: " AI", label: "Models analyzing your portfolio" },
             { value: 5, suffix: "min", label: "Avg. setup time" },
           ].map((s) => (
             <div key={s.label} className="text-center">
@@ -385,63 +385,6 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="px-6 py-24">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-widest text-blue-400">Pricing</p>
-            <h2 className="text-4xl font-light tracking-tight sm:text-5xl" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
-              Simple, transparent pricing
-            </h2>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Free */}
-            <div className="rounded-2xl border border-white/8 bg-white/2 p-8">
-              <p className="text-sm font-medium text-slate-400">Free</p>
-              <p className="mt-3 text-4xl font-semibold text-white">$0</p>
-              <p className="mt-1 text-sm text-slate-500">Forever free</p>
-              <ul className="mt-8 space-y-3 text-sm text-slate-300">
-                {["1 portfolio", "5 AI analyses / month", "Basic performance tracking", "Transaction ledger"].map(f => (
-                  <li key={f} className="flex items-center gap-2">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-blue-400">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="mt-8 block rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10">
-                Get started free
-              </Link>
-            </div>
-
-            {/* Pro */}
-            <div className="relative rounded-2xl border border-blue-500/30 bg-gradient-to-b from-blue-500/10 to-transparent p-8">
-              <div className="absolute -top-3 right-6 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
-                Popular
-              </div>
-              <p className="text-sm font-medium text-blue-300">Pro</p>
-              <p className="mt-3 text-4xl font-semibold text-white">$19</p>
-              <p className="mt-1 text-sm text-slate-500">per month</p>
-              <ul className="mt-8 space-y-3 text-sm text-slate-300">
-                {["Unlimited portfolios", "Unlimited AI analyses", "Advanced strategy versioning", "Risk-tuned recommendations", "Priority support", "Export reports"].map(f => (
-                  <li key={f} className="flex items-center gap-2">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-blue-400">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="cta-btn mt-8 block rounded-xl px-6 py-3 text-center text-sm font-semibold text-white">
-                Start free trial
-              </Link>
-            </div>
           </div>
         </div>
       </section>
