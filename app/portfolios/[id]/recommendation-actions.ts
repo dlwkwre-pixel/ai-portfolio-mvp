@@ -215,29 +215,31 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
   const client = new OpenAI({
     apiKey,
     baseURL: "https://api.x.ai/v1",
-    timeout: 120000,
+    timeout: 300000, // 5 min — live search takes longer
   });
 
   const systemPrompt = [
-    "You are an institutional-quality portfolio analyst.",
+    "You are an institutional-quality portfolio analyst with deep knowledge of equities, ETFs, and portfolio construction.",
+    "You have access to real-time web search and X (Twitter) search — use them to get current stock prices, recent earnings, analyst sentiment, and market news for each holding and any new buy candidates.",
+    "Search X for market sentiment and trending discussion on each ticker before making recommendations.",
     "Evaluate the entire portfolio and strategy context before making any recommendation.",
-    "Use ONLY the portfolio context provided. Do not assume external facts.",
     "Respect current holdings, cash balance, benchmark, account type, strategy rules, concentration, turnover preference, and holding period bias.",
     "You may recommend: buy, add, trim, sell, hold, rebalance, or raise_cash.",
-    "Prefer high-quality, finance-first reasoning over quantity.",
+    "For new buy candidates, search for current opportunities that fit the strategy style and risk level.",
+    "Prefer high-quality, finance-first reasoning grounded in current data.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
 
-  const userPrompt = `Analyze this portfolio and return a strict JSON object:
+  const userPrompt = `Search for current market data and sentiment on each holding, then analyze this portfolio and return a strict JSON object:
 
 {
-  "summary": "short portfolio-level summary (2-3 sentences)",
+  "summary": "short portfolio-level summary with current market context (2-3 sentences)",
   "recommendations": [
     {
       "action_type": "buy|add|trim|sell|hold|rebalance|raise_cash",
       "ticker": "string",
       "company_name": "string|null",
-      "thesis": "string (investment-grade, concise)",
+      "thesis": "string (investment-grade, include current price/news context)",
       "rationale": "string|null",
       "risks": "string|null",
       "conviction": "Low|Moderate|High|Very High|null",
@@ -255,28 +257,31 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
 }
 
 Rules:
+- Search for current price, recent news, and X sentiment for EACH existing holding before making a recommendation.
 - Provide a recommendation for EVERY holding in the portfolio — no holding should be skipped.
-- Additionally recommend new buys if cash is available and the strategy supports it.
-- For each existing holding choose: hold, add, trim, or sell based on strategy rules, concentration, and portfolio health.
+- Additionally suggest 1-3 NEW buy candidates if cash is available and the strategy supports it. Search for current opportunities that fit the strategy style, risk level, and gaps in the portfolio. Name real tickers with current price context.
+- For each existing holding choose: hold, add, trim, or sell based on strategy rules, current price action, concentration, and portfolio health.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
 - Keep sizing realistic relative to available cash and portfolio size.
-- Keep thesis concise but investment-grade (1-2 sentences).
+- Keep thesis concise but investment-grade, grounded in current data (1-2 sentences).
 - Return JSON only, no markdown fences.
 
 Portfolio context:
 ${JSON.stringify(context, null, 2)}`.trim();
 
-  const response = await client.chat.completions.create({
+  const response = await client.responses.create({
     model: "grok-3",
-    messages: [
+    input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    temperature: 0.2,
-    max_tokens: 4000,
-  });
+    tools: [
+      { type: "web_search" },
+      { type: "x_search" },
+    ],
+  } as any);
 
-  const outputText = response.choices[0]?.message?.content?.trim();
+  const outputText = response.output_text?.trim();
   if (!outputText) throw new Error("Grok returned an empty response.");
 
   const parsed = JSON.parse(extractJsonText(outputText)) as {
@@ -666,33 +671,80 @@ export async function updateRecommendationStatus(formData: FormData) {
     });
   if (historyError) throw new Error(historyError.message);
 
-  // Auto-create draft transaction when accepting buy/add/trim/sell
-  if (newStatus === "accepted" && item.ticker) {
+  // Auto-create draft transaction when accepting OR executing buy/add/trim/sell
+  if ((newStatus === "accepted" || newStatus === "executed") && item.ticker) {
     const action = (item.action_type || "").toLowerCase();
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
 
     if (isBuy || isSell) {
       const transactionType = isBuy ? "buy" : "sell";
-      const quantity = item.share_quantity ?? null;
-      // Use target price as suggested price, otherwise leave null for user to fill in
-      const pricePerShare = item.target_price_1 ?? null;
-      const grossAmount = quantity && pricePerShare ? quantity * pricePerShare : item.sizing_dollars ?? null;
+      const quantity = item.share_quantity ? Number(item.share_quantity) : null;
+      const pricePerShare = item.target_price_1 ? Number(item.target_price_1) : null;
+      const grossAmount = quantity && pricePerShare
+        ? quantity * pricePerShare
+        : item.sizing_dollars ? Number(item.sizing_dollars) : null;
 
-      // Only insert draft if we have at least a ticker
       if (grossAmount && grossAmount > 0) {
-        const netCashImpact = isBuy ? -(grossAmount) : grossAmount;
+        const fees = 0;
+        const netCashImpact = isBuy ? -(grossAmount + fees) : grossAmount - fees;
+        const ticker = item.ticker.toUpperCase();
+
+        // Update holdings
+        if (isBuy && quantity) {
+          const { data: existingHolding } = await supabase
+            .from("holdings").select("*").eq("portfolio_id", portfolioId).eq("ticker", ticker).maybeSingle();
+
+          if (!existingHolding) {
+            await supabase.from("holdings").insert({
+              portfolio_id: portfolioId,
+              ticker,
+              company_name: item.company_name || null,
+              shares: quantity,
+              average_cost_basis: pricePerShare ?? grossAmount / quantity,
+              asset_type: "stock",
+            });
+          } else {
+            const oldShares = Number(existingHolding.shares ?? 0);
+            const oldAvgCost = Number(existingHolding.average_cost_basis ?? 0);
+            const newShares = oldShares + quantity;
+            const newAvgCost = pricePerShare
+              ? (oldShares * oldAvgCost + quantity * pricePerShare) / newShares
+              : oldAvgCost;
+            await supabase.from("holdings").update({ shares: newShares, average_cost_basis: newAvgCost }).eq("id", existingHolding.id);
+          }
+        }
+
+        if (isSell && quantity) {
+          const { data: existingHolding } = await supabase
+            .from("holdings").select("*").eq("portfolio_id", portfolioId).eq("ticker", ticker).maybeSingle();
+
+          if (existingHolding) {
+            const remainingShares = Number(existingHolding.shares ?? 0) - quantity;
+            if (remainingShares <= 0) {
+              await supabase.from("holdings").delete().eq("id", existingHolding.id);
+            } else {
+              await supabase.from("holdings").update({ shares: remainingShares }).eq("id", existingHolding.id);
+            }
+          }
+        }
+
+        // Update cash balance
+        const newCashBalance = Number(portfolio.cash_balance ?? 0) + netCashImpact;
+        await supabase.from("portfolios").update({ cash_balance: newCashBalance }).eq("id", portfolioId);
+
+        // Insert transaction record
         await supabase.from("portfolio_transactions").insert({
           portfolio_id: portfolioId,
           transaction_type: transactionType,
-          ticker: item.ticker.toUpperCase(),
+          ticker,
           company_name: item.company_name || null,
           quantity,
           price_per_share: pricePerShare,
           gross_amount: grossAmount,
-          fees: 0,
+          fees,
           net_cash_impact: netCashImpact,
-          notes: `Draft from AI recommendation. Review and confirm actual execution price.`,
+          notes: `Auto-created from AI recommendation. Edit if actual price differs.`,
           traded_at: new Date().toISOString(),
         });
       }

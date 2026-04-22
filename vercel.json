@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/portfolios/[id]/recommendation-actions.ts": {
+      "maxDuration": 300
+    }
+  }
+}
