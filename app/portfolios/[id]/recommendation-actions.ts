@@ -110,10 +110,10 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     { data: recentRuns, error: recentRunsError },
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolioId).order("ticker", { ascending: true }),
-    supabase.from("portfolio_transactions").select("*").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(150),
-    supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolioId).order("effective_at", { ascending: false }).limit(100),
-    supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(50),
-    supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: false }).limit(60),
+    supabase.from("portfolio_transactions").select("*").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
+    supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolioId).order("effective_at", { ascending: false }).limit(10),
+    supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(5),
+    supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: false }).limit(5),
     supabase.from("portfolio_strategy_assignments").select(`
       *,
       strategies (id, name, description, style, risk_level),
@@ -270,7 +270,7 @@ Portfolio context:
 ${JSON.stringify(context, null, 2)}`.trim();
 
   const response = await client.responses.create({
-    model: "grok-4",
+    model: "grok-4-fast",
     input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -410,8 +410,8 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       strategy_version_id: activeAssignment?.strategy_version_id ?? null,
       run_type: "ai_review",
       triggered_by: "manual",
-      model_name: "grok-4",
-      model_version: "grok-4",
+      model_name: "grok-4-fast",
+      model_version: "grok-4-fast",
       summary: "AI review in progress...",
       status: "pending",
     })
