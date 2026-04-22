@@ -3,5 +3,11 @@
     "app/portfolios/[id]/recommendation-actions.ts": {
       "maxDuration": 300
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily-snapshot",
+      "schedule": "0 20 * * *"
+    }
+  ]
 }
