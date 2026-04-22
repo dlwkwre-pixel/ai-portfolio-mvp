@@ -111,7 +111,7 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
     <div className="mt-4 space-y-4">
       {/* Filter + sort bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-xl border border-white/8 bg-white/3 p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/8 bg-white/3 p-1">
           {["open", "all", "proposed", "accepted", "rejected", "executed"].map((f) => (
             <button
               key={f}
