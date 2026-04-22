@@ -255,11 +255,13 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
 }
 
 Rules:
-- Return 0-5 recommendations maximum.
-- If no action is warranted, return empty array and explain in summary.
-- Keep sizing realistic relative to available cash and portfolio size.
+- Provide a recommendation for EVERY holding in the portfolio — no holding should be skipped.
+- Additionally recommend new buys if cash is available and the strategy supports it.
+- For each existing holding choose: hold, add, trim, or sell based on strategy rules, concentration, and portfolio health.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
-- Return JSON only, no markdown.
+- Keep sizing realistic relative to available cash and portfolio size.
+- Keep thesis concise but investment-grade (1-2 sentences).
+- Return JSON only, no markdown fences.
 
 Portfolio context:
 ${JSON.stringify(context, null, 2)}`.trim();
