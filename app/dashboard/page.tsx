@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import SignOutButton from "@/app/components/sign-out-button";
+import Sidebar from "@/app/components/sidebar";
+import MobileNav from "@/app/components/mobile-nav";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -322,70 +323,11 @@ export default async function DashboardPage() {
       <div className="dash-glow pointer-events-none fixed inset-0 z-0" />
 
       <div className="relative z-10 flex min-h-screen">
-        {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 flex-col border-r border-white/5 bg-white/2 lg:flex">
-          <div className="px-5 pb-4 pt-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-blue-400" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-                  <circle cx="5" cy="16" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="11" cy="12" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="16" cy="15" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="20" cy="7" r="1.2" fill="currentColor" stroke="none" />
-                </svg>
-              </div>
-              <span className="text-base font-semibold tracking-tight">BuyTune.io</span>
-            </div>
-          </div>
-
-          <nav className="flex-1 px-3 pt-2">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Navigation</p>
-            <div className="space-y-1">
-              {[
-                { href: "/dashboard", label: "Dashboard", active: true },
-                { href: "/portfolios", label: "Portfolios", active: false },
-                { href: "/strategies", label: "Strategies", active: false },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${item.active ? "active" : ""}`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
-
-          <div className="border-t border-white/5 px-3 pb-6 pt-4">
-            <p className="mb-3 truncate px-1 text-xs text-slate-600">{user.email}</p>
-            <SignOutButton />
-          </div>
-        </aside>
+        <Sidebar userEmail={user.email} />
 
         {/* Main content */}
         <div className="flex-1 overflow-x-hidden">
-          {/* Mobile nav — active state on Dashboard */}
-          <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-3 lg:hidden">
-            {[
-              { href: "/dashboard", label: "Dashboard", active: true },
-              { href: "/portfolios", label: "Portfolios", active: false },
-              { href: "/strategies", label: "Strategies", active: false },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition ${
-                  item.active
-                    ? "mobile-active border-blue-500/30"
-                    : "border-white/8 bg-white/4 text-slate-400"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <MobileNav />
 
           <div className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8">
 

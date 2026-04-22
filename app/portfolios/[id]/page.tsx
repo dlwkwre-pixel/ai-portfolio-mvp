@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Sidebar from "@/app/components/sidebar";
+import MobileNav from "@/app/components/mobile-nav";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
@@ -214,57 +216,12 @@ export default async function SinglePortfolioPage({ params }: PortfolioPageProps
       <div className="dash-glow pointer-events-none fixed inset-0 z-0" />
 
       <div className="relative z-10 flex min-h-screen">
-        {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 flex-col border-r border-white/5 bg-white/2 lg:flex">
-          <div className="px-5 pb-4 pt-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-blue-400" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-                  <circle cx="5" cy="16" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="11" cy="12" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="16" cy="15" r="1.2" fill="currentColor" stroke="none" />
-                  <circle cx="20" cy="7" r="1.2" fill="currentColor" stroke="none" />
-                </svg>
-              </div>
-              <span className="text-base font-semibold tracking-tight">BuyTune.io</span>
-            </div>
-          </div>
-          <nav className="flex-1 px-3 pt-2">
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Navigation</p>
-            <div className="space-y-1">
-              {[
-                { href: "/dashboard", label: "Dashboard", active: false },
-                { href: "/portfolios", label: "Portfolios", active: true },
-                { href: "/strategies", label: "Strategies", active: false },
-              ].map((item) => (
-                <Link key={item.href} href={item.href} className={`sidebar-link flex items-center rounded-xl px-3 py-2.5 text-sm font-medium ${item.active ? "active" : ""}`}>
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
-          <div className="border-t border-white/5 px-3 pb-6 pt-4">
-            <Link href="/portfolios" className="block rounded-xl border border-white/8 bg-white/4 px-4 py-2.5 text-center text-sm text-slate-400 transition hover:text-white">
-              ← All Portfolios
-            </Link>
-          </div>
-        </aside>
+        <Sidebar userEmail={user?.email} />
 
         {/* Main */}
         <div className="flex-1 overflow-x-hidden">
           {/* Mobile nav */}
-          <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-3 lg:hidden">
-            {[
-              { href: "/dashboard", label: "Dashboard", active: false },
-              { href: "/portfolios", label: "Portfolios", active: true },
-              { href: "/strategies", label: "Strategies", active: false },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition ${item.active ? "mobile-active border-blue-500/30" : "border-white/8 bg-white/4 text-slate-400"}`}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <MobileNav />
 
           <div className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
 
