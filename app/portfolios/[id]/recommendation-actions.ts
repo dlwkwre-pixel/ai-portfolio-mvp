@@ -270,7 +270,7 @@ Portfolio context:
 ${JSON.stringify(context, null, 2)}`.trim();
 
   const response = await client.responses.create({
-    model: "grok-3",
+    model: "grok-4",
     input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -410,8 +410,8 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       strategy_version_id: activeAssignment?.strategy_version_id ?? null,
       run_type: "ai_review",
       triggered_by: "manual",
-      model_name: "grok-3",
-      model_version: "grok-3",
+      model_name: "grok-4",
+      model_version: "grok-4",
       summary: "AI review in progress...",
       status: "pending",
     })
