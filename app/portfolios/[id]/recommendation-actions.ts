@@ -629,12 +629,13 @@ export async function updateRecommendationStatus(formData: FormData) {
   if (!newStatus) throw new Error("New status is required.");
 
   const { data: portfolio, error: portfolioError } = await supabase
-    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+    .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
   if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
 
+  // Fetch full recommendation item for transaction creation
   const { data: item, error: itemError } = await supabase
     .from("recommendation_items")
-    .select("id, recommendation_status")
+    .select("id, recommendation_status, action_type, ticker, company_name, share_quantity, sizing_dollars, sizing_pct, target_price_1")
     .eq("id", recommendationItemId).eq("portfolio_id", portfolioId).single();
   if (itemError || !item) throw new Error("Recommendation item not found.");
 
@@ -664,6 +665,39 @@ export async function updateRecommendationStatus(formData: FormData) {
       notes: note || null,
     });
   if (historyError) throw new Error(historyError.message);
+
+  // Auto-create draft transaction when accepting buy/add/trim/sell
+  if (newStatus === "accepted" && item.ticker) {
+    const action = (item.action_type || "").toLowerCase();
+    const isBuy = action === "buy" || action === "add";
+    const isSell = action === "sell" || action === "trim";
+
+    if (isBuy || isSell) {
+      const transactionType = isBuy ? "buy" : "sell";
+      const quantity = item.share_quantity ?? null;
+      // Use target price as suggested price, otherwise leave null for user to fill in
+      const pricePerShare = item.target_price_1 ?? null;
+      const grossAmount = quantity && pricePerShare ? quantity * pricePerShare : item.sizing_dollars ?? null;
+
+      // Only insert draft if we have at least a ticker
+      if (grossAmount && grossAmount > 0) {
+        const netCashImpact = isBuy ? -(grossAmount) : grossAmount;
+        await supabase.from("portfolio_transactions").insert({
+          portfolio_id: portfolioId,
+          transaction_type: transactionType,
+          ticker: item.ticker.toUpperCase(),
+          company_name: item.company_name || null,
+          quantity,
+          price_per_share: pricePerShare,
+          gross_amount: grossAmount,
+          fees: 0,
+          net_cash_impact: netCashImpact,
+          notes: `Draft from AI recommendation. Review and confirm actual execution price.`,
+          traded_at: new Date().toISOString(),
+        });
+      }
+    }
+  }
 
   revalidatePath(`/portfolios/${portfolioId}`);
   revalidatePath("/dashboard");
