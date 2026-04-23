@@ -11,6 +11,18 @@ type InitialHolding = {
   average_cost_basis: string;
 };
 
+const BENCHMARKS = [
+  { value: "SPY", label: "SPY — S&P 500" },
+  { value: "QQQ", label: "QQQ — Nasdaq 100" },
+  { value: "DIA", label: "DIA — Dow Jones" },
+  { value: "IWM", label: "IWM — Russell 2000" },
+  { value: "VTI", label: "VTI — Total US Market" },
+  { value: "VT", label: "VT — Total World Market" },
+  { value: "AGG", label: "AGG — US Bonds" },
+  { value: "GLD", label: "GLD — Gold" },
+  { value: "BTC-USD", label: "BTC-USD — Bitcoin" },
+];
+
 export default function NewPortfolioForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -28,11 +40,26 @@ export default function NewPortfolioForm() {
   // Holdings
   const [holdings, setHoldings] = useState<InitialHolding[]>([]);
   const [newHolding, setNewHolding] = useState<InitialHolding>({
-    ticker: "",
-    company_name: "",
-    shares: "",
-    average_cost_basis: "",
+    ticker: "", company_name: "", shares: "", average_cost_basis: "",
   });
+  const [lookingUpTicker, setLookingUpTicker] = useState(false);
+
+  async function handleTickerBlur(ticker: string) {
+    if (!ticker || newHolding.company_name) return;
+    setLookingUpTicker(true);
+    try {
+      const res = await fetch(`/api/market-data/${ticker.trim().toUpperCase()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const name = data?.profile?.name;
+        if (name) setNewHolding((prev) => ({ ...prev, company_name: name }));
+      }
+    } catch {
+      // fail silently
+    } finally {
+      setLookingUpTicker(false);
+    }
+  }
 
   function addHolding() {
     if (!newHolding.ticker || !newHolding.shares) return;
@@ -45,15 +72,11 @@ export default function NewPortfolioForm() {
   }
 
   function resetForm() {
-    setName("");
-    setAccountType("");
-    setCashBalance("");
-    setBenchmarkSymbol("SPY");
-    setDescription("");
+    setName(""); setAccountType(""); setCashBalance("");
+    setBenchmarkSymbol("SPY"); setDescription("");
     setHoldings([]);
     setNewHolding({ ticker: "", company_name: "", shares: "", average_cost_basis: "" });
-    setStep(1);
-    setErrorMessage("");
+    setStep(1); setErrorMessage("");
   }
 
   function handleClose() {
@@ -66,7 +89,6 @@ export default function NewPortfolioForm() {
       setErrorMessage("Portfolio name and account type are required.");
       return;
     }
-
     setErrorMessage("");
 
     const formData = new FormData();
@@ -81,7 +103,6 @@ export default function NewPortfolioForm() {
       try {
         const result = await createPortfolio(formData);
         handleClose();
-        // If createPortfolio returns the new portfolio id, navigate to it
         if (result && typeof result === "object" && "id" in result) {
           router.push(`/portfolios/${result.id}`);
         }
@@ -120,6 +141,7 @@ export default function NewPortfolioForm() {
             <span className="text-xs text-slate-500">{step === 1 ? "Portfolio details" : "Add holdings (optional)"}</span>
           </div>
 
+          {/* ── STEP 1 ── */}
           {step === 1 && (
             <>
               <h2 className="text-lg font-semibold text-white">Create Portfolio</h2>
@@ -127,7 +149,7 @@ export default function NewPortfolioForm() {
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Portfolio Name</label>
+                  <label className={labelClass}>Portfolio Name *</label>
                   <input
                     type="text"
                     placeholder="Main Account"
@@ -138,12 +160,8 @@ export default function NewPortfolioForm() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Account Type</label>
-                  <select
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
-                    className={selectClass}
-                  >
+                  <label className={labelClass}>Account Type *</label>
+                  <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className={selectClass}>
                     <option value="">Select type</option>
                     <option value="brokerage">Brokerage</option>
                     <option value="roth_ira">Roth IRA</option>
@@ -170,14 +188,12 @@ export default function NewPortfolioForm() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Benchmark Symbol</label>
-                  <input
-                    type="text"
-                    placeholder="SPY"
-                    value={benchmarkSymbol}
-                    onChange={(e) => setBenchmarkSymbol(e.target.value)}
-                    className={inputClass}
-                  />
+                  <label className={labelClass}>Benchmark</label>
+                  <select value={benchmarkSymbol} onChange={(e) => setBenchmarkSymbol(e.target.value)} className={selectClass}>
+                    {BENCHMARKS.map((b) => (
+                      <option key={b.value} value={b.value}>{b.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -200,7 +216,10 @@ export default function NewPortfolioForm() {
               <div className="mt-5 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => { if (!name || !accountType) { setErrorMessage("Portfolio name and account type are required."); return; } setErrorMessage(""); setStep(2); }}
+                  onClick={() => {
+                    if (!name || !accountType) { setErrorMessage("Portfolio name and account type are required."); return; }
+                    setErrorMessage(""); setStep(2);
+                  }}
                   className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white"
                   style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
                 >
@@ -225,42 +244,48 @@ export default function NewPortfolioForm() {
             </>
           )}
 
+          {/* ── STEP 2 ── */}
           {step === 2 && (
             <>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-white">Add Initial Holdings</h2>
-                  <p className="mt-1 text-sm text-slate-400">Optionally add your existing positions to <span className="text-white font-medium">{name}</span>.</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Optionally add your existing positions to <span className="font-medium text-white">{name}</span>.
+                  </p>
                 </div>
                 <button type="button" onClick={() => setStep(1)} className="text-xs text-slate-500 transition hover:text-white">
                   ← Back
                 </button>
               </div>
 
-              {/* Add holding row */}
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
                 <div>
-                  <label className={labelClass}>Ticker</label>
+                  <label className={labelClass}>Ticker *</label>
                   <input
                     type="text"
                     placeholder="AAPL"
                     value={newHolding.ticker}
                     onChange={(e) => setNewHolding((prev) => ({ ...prev, ticker: e.target.value.toUpperCase() }))}
+                    onBlur={(e) => handleTickerBlur(e.target.value)}
                     className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Company (optional)</label>
+                  <label className={labelClass}>
+                    Company
+                    {lookingUpTicker && <span className="ml-1 text-[10px] text-blue-400">Looking up...</span>}
+                  </label>
                   <input
                     type="text"
-                    placeholder="Apple Inc."
+                    placeholder="Auto-filled from ticker"
                     value={newHolding.company_name}
                     onChange={(e) => setNewHolding((prev) => ({ ...prev, company_name: e.target.value }))}
                     className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Shares</label>
+                  <label className={labelClass}>Shares *</label>
                   <input
                     type="number"
                     step="0.0001"
@@ -294,9 +319,8 @@ export default function NewPortfolioForm() {
                 + Add to list
               </button>
 
-              {/* Holdings list */}
               {holdings.length > 0 && (
-                <div className="mt-5 rounded-xl border border-white/5 overflow-hidden">
+                <div className="mt-5 overflow-hidden rounded-xl border border-white/5">
                   <table className="min-w-full divide-y divide-white/5">
                     <thead>
                       <tr className="text-left text-[10px] uppercase tracking-widest text-slate-500">
@@ -315,11 +339,7 @@ export default function NewPortfolioForm() {
                           <td className="px-3 py-2.5 text-slate-300">{h.shares}</td>
                           <td className="px-3 py-2.5 text-slate-300">{h.average_cost_basis ? `$${h.average_cost_basis}` : "—"}</td>
                           <td className="px-3 py-2.5">
-                            <button
-                              type="button"
-                              onClick={() => removeHolding(i)}
-                              className="text-xs text-red-400/60 transition hover:text-red-400"
-                            >
+                            <button type="button" onClick={() => removeHolding(i)} className="text-xs text-red-400/60 transition hover:text-red-400">
                               Remove
                             </button>
                           </td>
