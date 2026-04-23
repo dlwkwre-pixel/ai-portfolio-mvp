@@ -334,26 +334,3 @@ export async function getTickerMarketContext(tickers: string[]): Promise<
 
   return results;
 }
-
-export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string } | null> {
-  const apiKey = getApiKey();
-  const normalizedSymbol = symbol.trim().toUpperCase();
-  if (!normalizedSymbol) return null;
-
-  const url = new URL("https://finnhub.io/api/v1/stock/profile2");
-  url.searchParams.set("symbol", normalizedSymbol);
-  url.searchParams.set("token", apiKey);
-
-  try {
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      next: { revalidate: 86400 },
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (!data || !data.name) return null;
-    return { name: data.name, logo: data.logo ?? "", weburl: data.weburl ?? "" };
-  } catch {
-    return null;
-  }
-}
