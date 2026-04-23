@@ -627,7 +627,7 @@ export async function updateRecommendationStatus(formData: FormData) {
   if (itemError || !item) throw new Error("Recommendation item not found.");
 
   const userDecisionMap: Record<string, string | null> = {
-    proposed: null, accepted: "accepted", rejected: "rejected",
+    proposed: null, rejected: "rejected",
     watchlist: "watchlist", executed: "executed",
   };
 
@@ -653,8 +653,8 @@ export async function updateRecommendationStatus(formData: FormData) {
     });
   if (historyError) throw new Error(historyError.message);
 
-  // Auto-create transaction when accepting OR executing buy/add/trim/sell
-  if ((newStatus === "accepted" || newStatus === "executed") && item.ticker) {
+  // Auto-create transaction when marking as executed
+  if (newStatus === "executed" && item.ticker) {
     const action = (item.action_type || "").toLowerCase();
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
@@ -729,6 +729,41 @@ export async function updateRecommendationStatus(formData: FormData) {
       }
     }
   }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function deleteRecommendationItem(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in to delete a recommendation.");
+
+  const recommendationItemId = String(formData.get("recommendation_item_id") || "").trim();
+  const portfolioId = String(formData.get("portfolio_id") || "").trim();
+
+  if (!recommendationItemId) throw new Error("Recommendation item ID is required.");
+  if (!portfolioId) throw new Error("Portfolio ID is required.");
+
+  // Verify the portfolio belongs to the user
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
+
+  // Delete status history first (foreign key constraint)
+  await supabase
+    .from("recommendation_item_status_history")
+    .delete()
+    .eq("recommendation_item_id", recommendationItemId);
+
+  // Delete the recommendation item
+  const { error: deleteError } = await supabase
+    .from("recommendation_items")
+    .delete()
+    .eq("id", recommendationItemId)
+    .eq("portfolio_id", portfolioId);
+
+  if (deleteError) throw new Error(deleteError.message);
 
   revalidatePath(`/portfolios/${portfolioId}`);
   revalidatePath("/dashboard");

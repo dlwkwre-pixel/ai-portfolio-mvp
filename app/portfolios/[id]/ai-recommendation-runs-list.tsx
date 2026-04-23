@@ -82,7 +82,7 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
     let result = [...recommendations];
 
     if (statusFilter === "open") {
-      result = result.filter((item) => ["proposed", "accepted", "watchlist"].includes(item.recommendation_status || ""));
+      result = result.filter((item) => ["proposed", "watchlist"].includes(item.recommendation_status || ""));
     } else if (statusFilter !== "all") {
       result = result.filter((item) => (item.recommendation_status || "") === statusFilter);
     }
@@ -111,8 +111,8 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
     <div className="mt-4 space-y-4">
       {/* Filter + sort bar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-white/8 bg-white/3 p-1">
-          {["open", "all", "proposed", "accepted", "rejected", "executed"].map((f) => (
+        <div className="flex gap-1 rounded-xl border border-white/8 bg-white/3 p-1">
+          {["open", "all", "proposed", "watchlist", "executed", "rejected"].map((f) => (
             <button
               key={f}
               type="button"
