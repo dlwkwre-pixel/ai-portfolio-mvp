@@ -15,6 +15,7 @@ import TransactionHistorySection from "./transaction-history-section";
 import PortfolioPerformanceSection from "./portfolio-performance-section";
 import BenchmarkComparisonSection from "./benchmark-comparison-section";
 import PortfolioTabs from "./portfolio-tabs";
+import EarningsAlertBanner from "./earnings-alert-banner";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -168,6 +169,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </div>
               ))}
             </div>
+
+<EarningsAlertBanner tickers={(holdings ?? []).map((h) => h.ticker)} />
 
             {/* Tabs */}
             <div className="mb-6">

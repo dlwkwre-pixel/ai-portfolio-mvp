@@ -1,6 +1,7 @@
 "use server";
 
 import OpenAI from "openai";
+import { getTickerMarketContext } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
@@ -140,7 +141,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
       .eq("portfolio_id", portfolioId)
       .in("recommendation_run_id", recentRunIds)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(10);
 
     if (itemsError) throw new Error(itemsError.message);
     recentRecommendationItems = items ?? [];
@@ -170,6 +171,17 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     unrealized_pl_pct: holding.unrealized_pl_pct,
     weight_pct: holding.weight_pct,
   }));
+
+  // Fetch live market context: news, analyst ratings, price targets per ticker
+  let marketContext: Record<string, unknown> = {};
+  const tickers = (holdings ?? []).map((h: any) => h.ticker).filter(Boolean);
+  if (tickers.length > 0) {
+    try {
+      marketContext = await getTickerMarketContext(tickers);
+    } catch {
+      // Non-fatal — Grok still runs without market context
+    }
+  }
 
   return {
     generated_at: new Date().toISOString(),
@@ -204,10 +216,11 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_snapshots: snapshots ?? [],
     recent_recommendation_runs: recentRuns ?? [],
     recent_recommendation_items: recentRecommendationItems,
+    market_context: marketContext,
   };
 }
 
-// --- Grok: Buy/Hold/Sell Recommendations ---
+// --- Grok: Buy/Hold/Sell Recommendations with live search ---
 async function callGrokForRecommendations(context: unknown): Promise<AiRunResponse> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new Error("Missing XAI_API_KEY in environment variables.");
@@ -215,13 +228,14 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
   const client = new OpenAI({
     apiKey,
     baseURL: "https://api.x.ai/v1",
-    timeout: 300000, // 5 min — live search takes longer
+    timeout: 300000,
   });
 
   const systemPrompt = [
     "You are an institutional-quality portfolio analyst with deep knowledge of equities, ETFs, and portfolio construction.",
     "You have access to real-time web search and X (Twitter) search — use them to get current stock prices, recent earnings, analyst sentiment, and market news for each holding and any new buy candidates.",
     "Search X for market sentiment and trending discussion on each ticker before making recommendations.",
+    "The portfolio context already includes Finnhub market data (news, analyst ratings, price targets) — use this alongside your live search.",
     "Evaluate the entire portfolio and strategy context before making any recommendation.",
     "Respect current holdings, cash balance, benchmark, account type, strategy rules, concentration, turnover preference, and holding period bias.",
     "You may recommend: buy, add, trim, sell, hold, rebalance, or raise_cash.",
@@ -302,20 +316,12 @@ ${JSON.stringify(context, null, 2)}`.trim();
   return { summary, recommendations };
 }
 
-// --- Gemini Flash: Portfolio Health Report (free tier, cross-check) ---
+// --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
 async function callGeminiForHealthReport(context: unknown): Promise<HealthReport> {
   const apiKey = process.env.GEMINI_API_KEY;
 
-  // If no Gemini key, return empty health report gracefully
   if (!apiKey) {
-    return {
-      overall_score: null,
-      risk_assessment: null,
-      concentration_analysis: null,
-      gaps_and_weaknesses: null,
-      strengths: null,
-      suggested_focus: null,
-    };
+    return { overall_score: null, risk_assessment: null, concentration_analysis: null, gaps_and_weaknesses: null, strengths: null, suggested_focus: null };
   }
 
   const prompt = `You are a portfolio health analyst. Analyze this investment portfolio and return ONLY a valid JSON object (no markdown, no preamble):
@@ -359,15 +365,7 @@ ${JSON.stringify(context, null, 2)}`;
       suggested_focus: typeof parsed.suggested_focus === "string" ? parsed.suggested_focus : null,
     };
   } catch {
-    // If Gemini fails for any reason, return empty — don't block the main Grok run
-    return {
-      overall_score: null,
-      risk_assessment: null,
-      concentration_analysis: null,
-      gaps_and_weaknesses: null,
-      strengths: null,
-      suggested_focus: null,
-    };
+    return { overall_score: null, risk_assessment: null, concentration_analysis: null, gaps_and_weaknesses: null, strengths: null, suggested_focus: null };
   }
 }
 
@@ -401,7 +399,6 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   const context = await buildPortfolioAiContext(portfolioId, user.id);
   const activeAssignment = (context as any).strategy?.assignment ?? null;
 
-  // Create the run record
   const { data: run, error: runError } = await supabase
     .from("recommendation_runs")
     .insert({
@@ -421,13 +418,11 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   if (runError || !run) throw new Error(runError?.message || "Failed to create AI recommendation run.");
 
   try {
-    // Run Grok and Gemini in parallel for speed
     const [grokResult, geminiResult] = await Promise.all([
       callGrokForRecommendations(context),
       callGeminiForHealthReport(context),
     ]);
 
-    // Insert recommendation items from Grok
     let insertedItemIds: string[] = [];
     if (grokResult.recommendations.length > 0) {
       const { data: insertedItems, error: insertItemsError } = await supabase
@@ -468,7 +463,6 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       });
     }
 
-    // Build combined summary including health report if available
     let completionSummary = grokResult.summary || "AI review completed.";
     if (geminiResult.overall_score !== null) {
       completionSummary += ` | Health Score: ${geminiResult.overall_score}/100.`;
@@ -477,16 +471,9 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       completionSummary += ` Focus: ${geminiResult.suggested_focus}`;
     }
 
-    // Store health report in run metadata if your schema supports it
-    // Otherwise it's appended to summary above
     const { error: updateRunError } = await supabase
       .from("recommendation_runs")
-      .update({
-        status: "completed",
-        summary: truncateText(completionSummary, 500),
-        // Store health report as JSON string in model_version field as a lightweight approach
-        // If you add a health_report column to recommendation_runs this would go there instead
-      })
+      .update({ status: "completed", summary: truncateText(completionSummary, 500) })
       .eq("id", run.id)
       .eq("portfolio_id", portfolioId);
 
@@ -503,21 +490,17 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI recommendation run failed.";
-
     await supabase
       .from("recommendation_runs")
       .update({ status: "failed", summary: truncateText(`AI run failed: ${message}`, 500) })
       .eq("id", run.id)
       .eq("portfolio_id", portfolioId);
-
     revalidatePath(`/portfolios/${portfolioId}`);
     revalidatePath("/dashboard");
-
     throw new Error(message);
   }
 }
 
-// Keep all existing exports unchanged below
 export async function createManualRecommendation(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -637,7 +620,6 @@ export async function updateRecommendationStatus(formData: FormData) {
     .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
   if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
 
-  // Fetch full recommendation item for transaction creation
   const { data: item, error: itemError } = await supabase
     .from("recommendation_items")
     .select("id, recommendation_status, action_type, ticker, company_name, share_quantity, sizing_dollars, sizing_pct, target_price_1")
@@ -671,7 +653,7 @@ export async function updateRecommendationStatus(formData: FormData) {
     });
   if (historyError) throw new Error(historyError.message);
 
-  // Auto-create draft transaction when accepting OR executing buy/add/trim/sell
+  // Auto-create transaction when accepting OR executing buy/add/trim/sell
   if ((newStatus === "accepted" || newStatus === "executed") && item.ticker) {
     const action = (item.action_type || "").toLowerCase();
     const isBuy = action === "buy" || action === "add";
@@ -690,7 +672,6 @@ export async function updateRecommendationStatus(formData: FormData) {
         const netCashImpact = isBuy ? -(grossAmount + fees) : grossAmount - fees;
         const ticker = item.ticker.toUpperCase();
 
-        // Update holdings
         if (isBuy && quantity) {
           const { data: existingHolding } = await supabase
             .from("holdings").select("*").eq("portfolio_id", portfolioId).eq("ticker", ticker).maybeSingle();
@@ -729,11 +710,9 @@ export async function updateRecommendationStatus(formData: FormData) {
           }
         }
 
-        // Update cash balance
         const newCashBalance = Number(portfolio.cash_balance ?? 0) + netCashImpact;
         await supabase.from("portfolios").update({ cash_balance: newCashBalance }).eq("id", portfolioId);
 
-        // Insert transaction record
         await supabase.from("portfolio_transactions").insert({
           portfolio_id: portfolioId,
           transaction_type: transactionType,
