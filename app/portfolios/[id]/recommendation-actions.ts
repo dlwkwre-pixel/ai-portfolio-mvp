@@ -231,20 +231,40 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
     timeout: 300000,
   });
 
+  const ctx = context as any;
+  const availableCash = ctx?.portfolio?.cash_balance ?? ctx?.current_valuation?.cash_balance ?? 0;
+
   const systemPrompt = [
     "You are an institutional-quality portfolio analyst with deep knowledge of equities, ETFs, and portfolio construction.",
     "You have access to real-time web search and X (Twitter) search — use them to get current stock prices, recent earnings, analyst sentiment, and market news for each holding and any new buy candidates.",
+    "ALWAYS search for the current live price of a stock before setting any price targets or sizing.",
     "Search X for market sentiment and trending discussion on each ticker before making recommendations.",
     "The portfolio context already includes Finnhub market data (news, analyst ratings, price targets) — use this alongside your live search.",
     "Evaluate the entire portfolio and strategy context before making any recommendation.",
     "Respect current holdings, cash balance, benchmark, account type, strategy rules, concentration, turnover preference, and holding period bias.",
+    "CASH IS A HARD CONSTRAINT — never recommend buying more than the available cash balance allows.",
     "You may recommend: buy, add, trim, sell, hold, rebalance, or raise_cash.",
     "For new buy candidates, search for current opportunities that fit the strategy style and risk level.",
     "Prefer high-quality, finance-first reasoning grounded in current data.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
 
-  const userPrompt = `Search for current market data and sentiment on each holding, then analyze this portfolio and return a strict JSON object:
+  const userPrompt = `Search for current market data and sentiment on each holding, then analyze this portfolio and return a strict JSON object.
+
+CRITICAL CONSTRAINTS — YOU MUST FOLLOW THESE EXACTLY:
+
+1. CASH HARD LIMIT: Available cash is $${availableCash.toLocaleString()}. The combined sizing_dollars of ALL buy/add recommendations MUST NOT exceed this amount. This is non-negotiable. If you have multiple buy candidates, size them so they all fit within the available cash together. Do not suggest a single buy that exceeds available cash.
+
+2. TARGET PRICE RULES: Always search for the current live price before setting target prices.
+   - target_price_1 = your 12-month analyst price target (where you expect the stock to trade)
+   - For BUY/ADD: target_price_1 MUST be HIGHER than the current price (it's where you think it's going)
+   - For SELL/TRIM: target_price_1 MUST be LOWER than the current price
+   - Never set a target price below current price for a buy recommendation
+   - If you are unsure of the current price, search for it before responding
+
+3. SIZING CONSISTENCY: share_quantity × price_per_share should equal sizing_dollars. All three must be consistent with each other and with available cash.
+
+Return this exact JSON shape:
 
 {
   "summary": "short portfolio-level summary with current market context (2-3 sentences)",
@@ -253,7 +273,7 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
       "action_type": "buy|add|trim|sell|hold|rebalance|raise_cash",
       "ticker": "string",
       "company_name": "string|null",
-      "thesis": "string (investment-grade, include current price/news context)",
+      "thesis": "string (include current price and why target is realistic)",
       "rationale": "string|null",
       "risks": "string|null",
       "conviction": "Low|Moderate|High|Very High|null",
@@ -270,14 +290,12 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
   ]
 }
 
-Rules:
-- Search for current price, recent news, and X sentiment for EACH existing holding before making a recommendation.
-- Provide a recommendation for EVERY holding in the portfolio — no holding should be skipped.
-- Additionally suggest 1-3 NEW buy candidates if cash is available and the strategy supports it. Search for current opportunities that fit the strategy style, risk level, and gaps in the portfolio. Name real tickers with current price context.
-- For each existing holding choose: hold, add, trim, or sell based on strategy rules, current price action, concentration, and portfolio health.
+Additional rules:
+- Search for current price, recent news, and X sentiment for EACH holding before recommending.
+- Provide a recommendation for EVERY existing holding — none should be skipped.
+- Suggest 1-3 NEW buy candidates only if cash remains after sizing existing add recommendations, and only if the strategy supports new positions. Name real tickers and verify their current price.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
-- Keep sizing realistic relative to available cash and portfolio size.
-- Keep thesis concise but investment-grade, grounded in current data (1-2 sentences).
+- Keep thesis concise but investment-grade (1-2 sentences), always mentioning current price context.
 - Return JSON only, no markdown fences.
 
 Portfolio context:

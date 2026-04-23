@@ -16,6 +16,7 @@ import PortfolioPerformanceSection from "./portfolio-performance-section";
 import BenchmarkComparisonSection from "./benchmark-comparison-section";
 import PortfolioTabs from "./portfolio-tabs";
 import EarningsAlertBanner from "./earnings-alert-banner";
+import PortfolioHeader from "./portfolio-header";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -109,12 +110,13 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   const shouldShowUpgradeButton = currentVersionNumber !== null && latestAvailableVersionNumber !== null && latestAvailableVersionNumber > currentVersionNumber;
   const totalShares = holdings?.reduce((sum, h) => sum + Number(h.shares ?? 0), 0) ?? 0;
   const style = accountTypeStyle(portfolio.account_type);
+  const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
 
   const statCards = [
-    { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)) },
-    { label: "Holdings Value", value: formatMoney(valuation.holdings_value) },
-    { label: "Total Value", value: formatMoney(valuation.total_portfolio_value), highlight: true },
-    { label: "Positions", value: holdings?.length ?? 0 },
+    { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)), isMoney: true },
+    { label: "Holdings Value", value: formatMoney(valuation.holdings_value), isMoney: true },
+    { label: "Total Value", value: formatMoney(valuation.total_portfolio_value), isMoney: true, highlight: true },
+    { label: "Positions", value: String(holdings?.length ?? 0), isMoney: false },
   ];
 
   return (
@@ -126,7 +128,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
         .cta-btn { background: linear-gradient(135deg,#2563eb,#4f46e5); box-shadow: 0 4px 16px rgba(37,99,235,0.3); transition: all 0.2s ease; }
         .cta-btn:hover { box-shadow: 0 6px 24px rgba(37,99,235,0.45); transform: translateY(-1px); }
         .dash-glow { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56,139,253,0.1) 0%, transparent 60%); }
-        .table-row:hover td { background: rgba(255,255,255,0.03); }
         details summary::-webkit-details-marker { display: none; }
       `}</style>
 
@@ -140,37 +141,21 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
           <div className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
 
-            {/* Header */}
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className={`h-2.5 w-2.5 rounded-full ${style.dot}`} />
-                  <p className="text-xs font-medium uppercase tracking-widest text-blue-400">Portfolio</p>
-                </div>
-                <h1 className="text-2xl font-semibold tracking-tight">{portfolio.name}</h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${style.badge}`}>
-                    {formatAccountType(portfolio.account_type)}
-                  </span>
-                  <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] text-slate-400">{portfolio.benchmark_symbol || "SPY"}</span>
-                  <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] capitalize text-slate-400">{portfolio.status}</span>
-                </div>
-                {portfolio.description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{portfolio.description}</p>}
-              </div>
-              <div className="text-sm text-slate-500">Created {new Date(portfolio.created_at).toLocaleDateString()}</div>
-            </div>
+            {/* Header + stat cards with privacy toggle — client component */}
+            <PortfolioHeader
+              portfolioName={portfolio.name}
+              portfolioDescription={portfolio.description}
+              accountTypeLabel={formatAccountType(portfolio.account_type)}
+              benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
+              status={portfolio.status}
+              createdAt={new Date(portfolio.created_at).toLocaleDateString()}
+              styleDot={style.dot}
+              styleBadge={style.badge}
+              statCards={statCards}
+            />
 
-            {/* Stat cards */}
-            <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {statCards.map((stat) => (
-                <div key={stat.label} className={`rounded-2xl p-5 ${stat.highlight ? "border border-blue-500/20 bg-blue-500/8" : "card"}`}>
-                  <p className="text-xs font-medium uppercase tracking-widest text-slate-500">{stat.label}</p>
-                  <p className={`mt-2 text-2xl font-semibold ${stat.highlight ? "text-blue-300" : "text-white"}`}>{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-<EarningsAlertBanner tickers={(holdings ?? []).map((h) => h.ticker)} />
+            {/* Earnings alert */}
+            <EarningsAlertBanner tickers={tickers} />
 
             {/* Tabs */}
             <div className="mb-6">
@@ -181,7 +166,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             {activeTab === "overview" && (
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
                 <div className="space-y-5">
-                  {/* Holdings */}
                   <div className="card rounded-2xl p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -198,12 +182,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       }))}
                     />
                   </div>
-
                   <PortfolioPerformanceSection portfolioId={portfolio.id} cashBalance={Number(portfolio.cash_balance ?? 0)} />
                   <BenchmarkComparisonSection portfolioId={portfolio.id} benchmarkSymbol={portfolio.benchmark_symbol || "SPY"} />
                 </div>
 
-                {/* Right column */}
                 <div className="space-y-5">
                   {/* Strategy */}
                   <div className="card rounded-2xl p-5">
@@ -223,7 +205,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                             {formatRiskLevel(activeAssignment.strategies.risk_level)}
                           </span>
                         </div>
-                        {activeAssignment.strategies.description && <p className="mt-2 text-xs leading-5 text-slate-400">{activeAssignment.strategies.description}</p>}
+                        {activeAssignment.strategies.description && (
+                          <p className="mt-2 text-xs leading-5 text-slate-400">{activeAssignment.strategies.description}</p>
+                        )}
                         <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs text-slate-500">
                           <span>Version: v{activeAssignment.strategy_versions?.version_number ?? "—"}</span>
                           <span>Latest: v{latestAvailableVersionNumber ?? "—"}</span>
@@ -292,26 +276,18 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             {/* ── AI ANALYSIS TAB ── */}
             {activeTab === "ai" && (
               <div className="space-y-5">
-                {/* Big run button at top */}
                 <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-transparent p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white">AI Portfolio Analysis</h2>
-                      <p className="mt-1 text-sm text-slate-400">
-                        Grok analyzes every holding against your strategy and gives buy/hold/trim/sell recommendations.
-                        Gemini Flash cross-checks with a portfolio health score.
-                      </p>
-                      {activeAssignment?.strategies && (
-                        <p className="mt-2 text-xs text-blue-400">
-                          Strategy: <span className="font-medium">{activeAssignment.strategies.name}</span>
-                          {" · "}{formatRiskLevel(activeAssignment.strategies.risk_level)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                  <h2 className="text-xl font-semibold text-white">AI Portfolio Analysis</h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Grok searches the web and X for current prices, news, and sentiment on each holding — then gives buy/hold/trim/sell recommendations grounded in live data.
+                  </p>
+                  {activeAssignment?.strategies && (
+                    <p className="mt-2 text-xs text-blue-400">
+                      Strategy: <span className="font-medium">{activeAssignment.strategies.name}</span>
+                      {" · "}{formatRiskLevel(activeAssignment.strategies.risk_level)}
+                    </p>
+                  )}
                 </div>
-
-                {/* AI section full width */}
                 <AIRecommendationsSection portfolioId={portfolio.id} />
               </div>
             )}
@@ -322,7 +298,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 <div className="card rounded-2xl p-5">
                   <h2 className="text-base font-semibold text-white">Transaction Ledger</h2>
                   <p className="mt-0.5 text-sm text-slate-400">
-                    All trades and cash events. Accepting AI recommendations automatically creates draft transactions here for you to review and confirm.
+                    All trades and cash events. Executing an AI recommendation auto-creates a draft transaction here for you to review and confirm.
                   </p>
                 </div>
                 <TransactionHistorySection portfolioId={portfolio.id} />
@@ -332,7 +308,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             {/* ── NOTES TAB ── */}
             {activeTab === "notes" && (
               <div className="grid gap-5 xl:grid-cols-2">
-                {/* Notes */}
                 <div className="card rounded-2xl p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -358,7 +333,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                   )}
                 </div>
 
-                {/* Portfolio Info */}
                 <div className="card rounded-2xl p-5">
                   <h2 className="text-base font-semibold text-white">Portfolio Info</h2>
                   <div className="mt-4 space-y-2">

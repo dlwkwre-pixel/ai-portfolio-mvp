@@ -154,7 +154,7 @@ export default function NewPortfolioForm() {
                 </div>
 
                 <div>
-                  <label className={labelClass}>Starting Cash Balance</label>
+                  <label className={labelClass}>Uninvested Cash</label>
                   <input
                     type="number"
                     step="0.01"
@@ -164,6 +164,9 @@ export default function NewPortfolioForm() {
                     onChange={(e) => setCashBalance(e.target.value)}
                     className={inputClass}
                   />
+                  <p className="mt-1.5 text-[10px] text-slate-600">
+                    Cash sitting uninvested — not your total portfolio value. Add stock positions in the next step.
+                  </p>
                 </div>
 
                 <div>
