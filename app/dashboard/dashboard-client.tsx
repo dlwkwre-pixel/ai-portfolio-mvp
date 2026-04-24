@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { savePortfolioOrder } from "./portfolio-order-actions";
+import { savePortfolioOrder } from "@/app/dashboard/portfolio-order-actions";
 
 type Stat = {
   label: string;
