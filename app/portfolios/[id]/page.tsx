@@ -143,6 +143,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* Header + stat cards with privacy toggle — client component */}
             <PortfolioHeader
+              portfolioId={portfolio.id}
               portfolioName={portfolio.name}
               portfolioDescription={portfolio.description}
               accountTypeLabel={formatAccountType(portfolio.account_type)}

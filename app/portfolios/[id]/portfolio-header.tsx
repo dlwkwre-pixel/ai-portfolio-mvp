@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EditPortfolioForm from "./edit-portfolio-form";
 
 type StatCard = {
   label: string;
@@ -10,6 +11,7 @@ type StatCard = {
 };
 
 type PortfolioHeaderProps = {
+  portfolioId: string;
   portfolioName: string;
   portfolioDescription: string | null;
   accountTypeLabel: string;
@@ -22,6 +24,7 @@ type PortfolioHeaderProps = {
 };
 
 export default function PortfolioHeader({
+  portfolioId,
   portfolioName,
   portfolioDescription,
   accountTypeLabel,
@@ -65,6 +68,15 @@ export default function PortfolioHeader({
           )}
         </div>
         <div className="flex items-center gap-3">
+          <EditPortfolioForm
+            portfolio={{
+              id: portfolioId,
+              name: portfolioName,
+              description: portfolioDescription,
+              benchmark_symbol: benchmarkSymbol,
+              status,
+            }}
+          />
           {/* Privacy toggle */}
           <button
             type="button"

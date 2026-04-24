@@ -224,3 +224,36 @@ export async function createPortfolioSnapshot(formData: FormData) {
 
   revalidatePath(`/portfolios/${portfolioId}`);
 }
+// ADD THIS FUNCTION TO THE BOTTOM OF app/portfolios/[id]/actions.ts
+
+export async function updatePortfolio(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const benchmarkSymbol = String(formData.get("benchmark_symbol") || "SPY").trim();
+  const status = String(formData.get("status") || "active").trim();
+  const description = String(formData.get("description") || "").trim();
+
+  if (!portfolioId) throw new Error("Portfolio ID is required.");
+  if (!name) throw new Error("Portfolio name is required.");
+
+  const { error } = await supabase
+    .from("portfolios")
+    .update({
+      name,
+      benchmark_symbol: benchmarkSymbol,
+      status,
+      description: description || null,
+    })
+    .eq("id", portfolioId)
+    .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  revalidatePath("/portfolios");
+  revalidatePath("/dashboard");
+}
