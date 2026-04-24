@@ -102,13 +102,13 @@ export default function NewStrategyForm() {
 
             <div className="md:col-span-2">
               <label className={labelClass}>Description</label>
-              <textarea name="description" placeholder="Concentrated growth strategy focused on quality compounders." className={`${inputClass} min-h-20`} />
+              <textarea name="description" placeholder="Concentrated growth strategy focused on quality compounders." spellCheck={true} className={`${inputClass} min-h-20`} />
             </div>
 
             <div className="md:col-span-2">
               <label className={labelClass}>AI Prompt / Rules</label>
               <p className="mb-2 text-xs text-slate-600">This is sent to the AI when analyzing this portfolio. Be specific about what matters to you.</p>
-              <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats, healthy balance sheets, disciplined sizing, and strong long-term compounding potential." className={`${inputClass} min-h-32`} />
+              <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats, healthy balance sheets, disciplined sizing, and strong long-term compounding potential." spellCheck={true} className={`${inputClass} min-h-32`} />
             </div>
 
             {errorMessage && (
