@@ -29,7 +29,6 @@ export default async function PortfolioChartSection({
     .maybeSingle();
 
   if (!todaySnapshot) {
-    // Get current holdings to calculate live value
     const { data: holdings } = await supabase
       .from("holdings")
       .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
@@ -43,27 +42,37 @@ export default async function PortfolioChartSection({
       cashBalance,
     });
 
-    // Insert today's snapshot silently
     await supabase.from("portfolio_snapshots").insert({
       portfolio_id: portfolioId,
       total_value: valuation.total_portfolio_value,
       cash_balance: cashBalance,
       snapshot_date: new Date().toISOString(),
       notes: "Auto snapshot",
-    }).then(() => {});  // fire and forget
+    }).then(() => {});
   }
 
-  // Fetch all snapshots for chart
-  const { data: snapshots } = await supabase
-    .from("portfolio_snapshots")
-    .select("snapshot_date, total_value")
-    .eq("portfolio_id", portfolioId)
-    .order("snapshot_date", { ascending: true });
+  // Fetch snapshots and cash flows in parallel
+  const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
+    supabase
+      .from("portfolio_snapshots")
+      .select("snapshot_date, total_value")
+      .eq("portfolio_id", portfolioId)
+      .order("snapshot_date", { ascending: true }),
+    supabase
+      .from("cash_ledger")
+      .select("effective_at, direction, amount")
+      .eq("portfolio_id", portfolioId)
+      .order("effective_at", { ascending: true }),
+  ]);
 
-  // Get benchmark comparison data
   const comparison = await getBenchmarkComparison({
     snapshots: snapshots ?? [],
     benchmarkSymbol: benchmarkSymbol || "SPY",
+    cashFlows: (cashFlows ?? []).map((cf) => ({
+      effective_at: cf.effective_at,
+      direction: cf.direction,
+      amount: cf.amount,
+    })),
   });
 
   return (
@@ -75,8 +84,10 @@ export default async function PortfolioChartSection({
       chartData={comparison.chartData}
       benchmarkSymbol={comparison.benchmarkSymbol}
       portfolioReturnPct={comparison.portfolioReturnPct}
+      portfolioTwrPct={comparison.portfolioTwrPct}
       benchmarkReturnPct={comparison.benchmarkReturnPct}
       excessReturnPct={comparison.excessReturnPct}
+      excessTwrPct={comparison.excessTwrPct}
       startDateLabel={comparison.startDateLabel}
       endDateLabel={comparison.endDateLabel}
       hasEnoughSnapshots={comparison.hasEnoughSnapshots}

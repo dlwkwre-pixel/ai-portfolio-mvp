@@ -14,7 +14,14 @@ type Snapshot = {
 type ChartDataPoint = {
   date: string;
   portfolio_return_pct: number;
+  portfolio_twr_pct: number;
   benchmark_return_pct: number | null;
+};
+
+type StatItem = {
+  label: string;
+  value: string;
+  positive: boolean;
 };
 
 type PortfolioChartClientProps = {
@@ -22,8 +29,10 @@ type PortfolioChartClientProps = {
   chartData: ChartDataPoint[];
   benchmarkSymbol: string;
   portfolioReturnPct: number | null;
+  portfolioTwrPct: number | null;
   benchmarkReturnPct: number | null;
   excessReturnPct: number | null;
+  excessTwrPct: number | null;
   startDateLabel: string | null;
   endDateLabel: string | null;
   hasEnoughSnapshots: boolean;
@@ -33,26 +42,23 @@ const TIMEFRAMES = [
   { label: "1W", days: 7 },
   { label: "1M", days: 30 },
   { label: "3M", days: 90 },
-  { label: "YTD", days: -1 }, // special case
+  { label: "YTD", days: -1 },
   { label: "1Y", days: 365 },
-  { label: "All", days: 0 }, // 0 = all
+  { label: "All", days: 0 },
 ];
 
 const CHART_MODES = [
   { label: "Value ($)", value: "value" },
-  { label: "Return (%)", value: "return" },
+  { label: "Total Return (%)", value: "return" },
+  { label: "Investment Return (%)", value: "twr" },
 ];
 
 function filterByTimeframe<T extends { date: string }>(data: T[], days: number): T[] {
-  if (days === 0) return data; // all
+  if (days === 0) return data;
   const now = new Date();
-  let cutoff: Date;
-  if (days === -1) {
-    // YTD
-    cutoff = new Date(now.getFullYear(), 0, 1);
-  } else {
-    cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  }
+  const cutoff = days === -1
+    ? new Date(now.getFullYear(), 0, 1)
+    : new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   return data.filter((d) => new Date(d.date) >= cutoff);
 }
 
@@ -75,19 +81,29 @@ function compactDate(value: string) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+const tooltipStyle = {
+  backgroundColor: "#0f172a",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: "12px",
+  color: "#ffffff",
+  fontSize: "12px",
+};
+
 export default function PortfolioChartClient({
   snapshots,
   chartData,
   benchmarkSymbol,
   portfolioReturnPct,
+  portfolioTwrPct,
   benchmarkReturnPct,
   excessReturnPct,
+  excessTwrPct,
   startDateLabel,
   endDateLabel,
   hasEnoughSnapshots,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return">("value");
+  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
 
@@ -101,7 +117,6 @@ export default function PortfolioChartClient({
     [chartData, selectedDays]
   );
 
-  // Calculate value change for selected timeframe
   const valueChange = useMemo(() => {
     if (filteredSnapshots.length < 2) return null;
     const first = filteredSnapshots[0].total_value;
@@ -117,10 +132,24 @@ export default function PortfolioChartClient({
 
   const isPositive = valueChange ? valueChange.isPositive : (portfolioReturnPct ?? 0) >= 0;
 
+  const returnStats: StatItem[] = [
+    { label: "Portfolio", value: formatPercent(portfolioReturnPct), positive: (portfolioReturnPct ?? 0) >= 0 },
+    { label: benchmarkSymbol, value: formatPercent(benchmarkReturnPct), positive: (benchmarkReturnPct ?? 0) >= 0 },
+    { label: "Excess", value: formatPercent(excessReturnPct), positive: (excessReturnPct ?? 0) >= 0 },
+  ];
+
+  const twrStats: StatItem[] = [
+    { label: "Inv. Return", value: formatPercent(portfolioTwrPct), positive: (portfolioTwrPct ?? 0) >= 0 },
+    { label: benchmarkSymbol, value: formatPercent(benchmarkReturnPct), positive: (benchmarkReturnPct ?? 0) >= 0 },
+    { label: "Excess", value: formatPercent(excessTwrPct), positive: (excessTwrPct ?? 0) >= 0 },
+  ];
+
+  const activeStats = chartMode === "twr" ? twrStats : returnStats;
+
   return (
     <div className="mb-6 rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
 
-      {/* Header row */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
         <div>
           <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
@@ -139,13 +168,12 @@ export default function PortfolioChartClient({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* Chart mode toggle */}
           <div className="flex rounded-xl border border-white/8 bg-white/3 p-0.5">
             {CHART_MODES.map((mode) => (
               <button
                 key={mode.value}
                 type="button"
-                onClick={() => setChartMode(mode.value as "value" | "return")}
+                onClick={() => setChartMode(mode.value as "value" | "return" | "twr")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   chartMode === mode.value ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
@@ -155,7 +183,6 @@ export default function PortfolioChartClient({
             ))}
           </div>
 
-          {/* Timeframe filters */}
           <div className="flex rounded-xl border border-white/8 bg-white/3 p-0.5">
             {TIMEFRAMES.map((tf) => (
               <button
@@ -173,25 +200,33 @@ export default function PortfolioChartClient({
         </div>
       </div>
 
-      {/* Stats row */}
-      {hasEnoughSnapshots && chartMode === "return" && (
-        <div className="mb-4 grid grid-cols-3 gap-2">
-          {[
-            { label: "Portfolio", value: formatPercent(portfolioReturnPct), positive: (portfolioReturnPct ?? 0) >= 0 },
-            { label: benchmarkSymbol, value: formatPercent(benchmarkReturnPct), positive: (benchmarkReturnPct ?? 0) >= 0 },
-            { label: "Excess", value: formatPercent(excessReturnPct), positive: (excessReturnPct ?? 0) >= 0 },
-          ].map((stat) => (
-            <div key={stat.label} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2.5 text-center">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500">{stat.label}</p>
-              <p className={`mt-1 text-base font-semibold ${stat.positive ? "text-emerald-400" : "text-red-400"}`}>
-                {stat.value}
-              </p>
+      {/* Stats row for return/twr modes */}
+      {hasEnoughSnapshots && (chartMode === "return" || chartMode === "twr") && (
+        <div className="mb-4 space-y-2">
+          {chartMode === "twr" && (
+            <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
+              <span className="font-semibold">Investment Return</span> strips out deposits and withdrawals — showing only how well your investments actually performed.
             </div>
-          ))}
+          )}
+          {chartMode === "return" && (
+            <div className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-slate-500">
+              <span className="font-semibold text-slate-400">Total Return</span> includes deposits — good for tracking total wealth growth (e.g. Roth IRA contributions).
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            {activeStats.map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-white/5 bg-white/2 px-3 py-2.5 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">{stat.label}</p>
+                <p className={`mt-1 text-base font-semibold ${stat.positive ? "text-emerald-400" : "text-red-400"}`}>
+                  {stat.value}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Chart */}
+      {/* Charts */}
       {snapshots.length < 2 ? (
         <div className="flex h-48 items-center justify-center rounded-xl border border-white/5 bg-white/2">
           <div className="text-center">
@@ -219,13 +254,13 @@ export default function PortfolioChartClient({
               <Tooltip
                 formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Portfolio Value"]}
                 labelFormatter={(label) => compactDate(label)}
-                contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "#ffffff", fontSize: "12px" }}
+                contentStyle={tooltipStyle}
               />
               <Area type="monotone" dataKey="total_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      ) : (
+      ) : chartMode === "return" ? (
         <div className="h-56 min-w-0">
           {filteredChartData.length < 2 ? (
             <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
@@ -237,14 +272,37 @@ export default function PortfolioChartClient({
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
                 <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
                 <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
-                <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={56}
-                  tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
+                <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={56} tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
                 <Tooltip
-                  formatter={(value, name) => [formatPercent(Number(value)), name === "portfolio_return_pct" ? "Portfolio" : benchmarkSymbol]}
+                  formatter={(value, name) => [formatPercent(Number(value)), name === "portfolio_return_pct" ? "Total Return" : benchmarkSymbol]}
                   labelFormatter={(label) => compactDate(label)}
-                  contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "#ffffff", fontSize: "12px" }}
+                  contentStyle={tooltipStyle}
                 />
                 <Line type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
+                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      ) : (
+        <div className="h-56 min-w-0">
+          {filteredChartData.length < 2 ? (
+            <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
+              <p className="text-sm text-slate-400">No data for this timeframe.</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
+                <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
+                <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={56} tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
+                <Tooltip
+                  formatter={(value, name) => [formatPercent(Number(value)), name === "portfolio_twr_pct" ? "Inv. Return" : benchmarkSymbol]}
+                  labelFormatter={(label) => compactDate(label)}
+                  contentStyle={tooltipStyle}
+                />
+                <Line type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
                 <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
               </LineChart>
             </ResponsiveContainer>
@@ -253,10 +311,16 @@ export default function PortfolioChartClient({
       )}
 
       {/* Legend */}
-      {chartMode === "return" && hasEnoughSnapshots && (
+      {(chartMode === "return" || chartMode === "twr") && hasEnoughSnapshots && (
         <div className="mt-3 flex gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded bg-sky-400" />Portfolio</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded bg-slate-500" />{benchmarkSymbol}</span>
+          <span className="flex items-center gap-1.5">
+            <span className={`h-2 w-4 rounded ${chartMode === "twr" ? "bg-violet-400" : "bg-sky-400"}`} />
+            {chartMode === "twr" ? "Inv. Return (TWR)" : "Total Return"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-4 rounded bg-slate-500" />
+            {benchmarkSymbol}
+          </span>
           {startDateLabel && endDateLabel && (
             <span className="ml-auto text-slate-600">{startDateLabel} → {endDateLabel}</span>
           )}
