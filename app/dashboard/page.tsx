@@ -5,14 +5,11 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
 
+// All date formatting happens server-side using toISOString
+// and is passed as raw strings to the client which formats in local timezone
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
   return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString(undefined, { month: "numeric", day: "numeric", year: "2-digit", hour: "numeric", minute: "2-digit" });
 }
 
 function formatAccountType(value: string | null) {
@@ -20,6 +17,7 @@ function formatAccountType(value: string | null) {
   const map: Record<string, string> = {
     taxable: "Brokerage", brokerage: "Brokerage", retirement: "Retirement",
     speculative: "Margin", margin: "Margin", paper_trade: "Paper Trade",
+    roth_ira: "Roth IRA", traditional_ira: "Traditional IRA",
   };
   return map[value] ?? value.replaceAll("_", " ");
 }
@@ -27,7 +25,7 @@ function formatAccountType(value: string | null) {
 function accountTypeStyle(value: string | null) {
   const type = (value || "").toLowerCase();
   if (["taxable", "brokerage"].includes(type)) return { dot: "bg-blue-400", badge: "border-blue-500/20 bg-blue-500/10 text-blue-300" };
-  if (["retirement"].includes(type)) return { dot: "bg-emerald-400", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
+  if (["retirement", "roth_ira", "traditional_ira"].includes(type)) return { dot: "bg-emerald-400", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
   if (["speculative", "margin"].includes(type)) return { dot: "bg-amber-400", badge: "border-amber-500/20 bg-amber-500/10 text-amber-300" };
   if (["paper_trade"].includes(type)) return { dot: "bg-purple-400", badge: "border-purple-500/20 bg-purple-500/10 text-purple-300" };
   return { dot: "bg-slate-400", badge: "border-white/10 bg-white/5 text-slate-400" };
@@ -52,6 +50,15 @@ function statusBadgeClass(status: string | null | undefined) {
   return "bg-white/5 text-slate-300 border border-white/10";
 }
 
+function actionBadgeStyle(action: string | null) {
+  const a = (action || "").toLowerCase();
+  if (a === "buy" || a === "add") return "border-emerald-500/25 bg-emerald-500/15 text-emerald-300";
+  if (a === "sell") return "border-red-500/25 bg-red-500/15 text-red-300";
+  if (a === "trim") return "border-amber-500/25 bg-amber-500/15 text-amber-300";
+  if (a === "hold") return "border-slate-500/25 bg-slate-500/15 text-slate-300";
+  return "border-white/10 bg-white/5 text-slate-400";
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -59,8 +66,9 @@ export default async function DashboardPage() {
 
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
-    .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type")
+    .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, dashboard_order")
     .eq("user_id", user.id)
+    .order("dashboard_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (portfoliosError) throw new Error(portfoliosError.message);
 
@@ -75,6 +83,7 @@ export default async function DashboardPage() {
   let runs: any[] = [];
   let recentTransactions: any[] = [];
   let recentCashActivity: any[] = [];
+  let latestRecommendations: any[] = [];
 
   if (portfolioIds.length > 0) {
     const [
@@ -89,22 +98,34 @@ export default async function DashboardPage() {
     runs = recommendationRuns ?? [];
     recentTransactions = transactions ?? [];
     recentCashActivity = cashEntries ?? [];
+
+    // Get latest proposed recommendations per portfolio for summary cards
+    const { data: recItems } = await supabase
+      .from("recommendation_items")
+      .select("id, portfolio_id, action_type, ticker, thesis, conviction, recommendation_status, created_at")
+      .in("portfolio_id", portfolioIds)
+      .eq("recommendation_status", "proposed")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    latestRecommendations = recItems ?? [];
   }
 
   const portfolioNameById = new Map((portfolios ?? []).map((p) => [p.id, p.name]));
   const totalCashTracked = activePortfolios.reduce((sum, p) => sum + Number(p.cash_balance ?? 0), 0);
-  const lastRunTime = runs[0] ? formatDateTime(runs[0].created_at) : "No runs yet";
 
-  // Build unified activity feed
+  // Build unified activity feed — pass raw ISO strings, client formats to local timezone
   const transactionActivity = recentTransactions.map((t) => {
     const amount = Number(t.net_cash_impact ?? 0);
     return {
       id: `tx-${t.id}`, kind: "transaction" as const,
       portfolioId: t.portfolio_id, portfolioName: portfolioNameById.get(t.portfolio_id) || "Unknown",
       title: `${formatTitleCase(t.transaction_type)}${t.ticker ? ` · ${t.ticker}` : ""}`,
-      occurredAt: t.traded_at, amount,
+      occurredAt: t.traded_at, // raw ISO string for client to format
+      amount,
       amountTone: (amount > 0 ? "positive" : amount < 0 ? "negative" : "neutral") as "positive" | "negative" | "neutral",
       href: `/portfolios/${t.portfolio_id}`,
+      aiStatus: null,
+      statusBadgeClass: null,
     };
   });
 
@@ -115,9 +136,12 @@ export default async function DashboardPage() {
       id: `cash-${entry.id}`, kind: "cash" as const,
       portfolioId: entry.portfolio_id, portfolioName: portfolioNameById.get(entry.portfolio_id) || "Unknown",
       title: `${formatTitleCase(entry.reason)} Cash`,
-      occurredAt: entry.effective_at, amount: signedAmount,
+      occurredAt: entry.effective_at,
+      amount: signedAmount,
       amountTone: (signedAmount > 0 ? "positive" : signedAmount < 0 ? "negative" : "neutral") as "positive" | "negative" | "neutral",
       href: `/portfolios/${entry.portfolio_id}`,
+      aiStatus: null,
+      statusBadgeClass: null,
     };
   });
 
@@ -125,10 +149,12 @@ export default async function DashboardPage() {
     id: `run-${run.id}`, kind: "ai" as const,
     portfolioId: run.portfolio_id, portfolioName: portfolioNameById.get(run.portfolio_id) || "Unknown",
     title: truncateText(run.summary, 140),
-    occurredAt: run.created_at, amount: null,
+    occurredAt: run.created_at,
+    amount: null,
     amountTone: "neutral" as const,
-    href: `/portfolios/${run.portfolio_id}`,
+    href: `/portfolios/${run.portfolio_id}?tab=ai`,
     aiStatus: run.status,
+    statusBadgeClass: statusBadgeClass(run.status),
   }));
 
   const unifiedFeed = [...transactionActivity, ...cashActivity, ...aiActivity]
@@ -139,23 +165,40 @@ export default async function DashboardPage() {
     { label: "Active Portfolios", value: String(activePortfolios.length), sub: `${archivedPortfolios.length} archived`, isMoney: false },
     { label: "Total Cash Tracked", value: formatMoney(totalCashTracked), sub: "across active portfolios", isMoney: true },
     { label: "Active Strategies", value: String(activeStrategiesCount ?? 0), sub: "in strategy library", isMoney: false },
-    { label: "Last AI Run", value: lastRunTime, sub: "most recent analysis", isMoney: false },
+    { label: "Last AI Run", value: runs[0]?.created_at ?? null, sub: "most recent analysis", isMoney: false, isDate: true },
   ];
 
-  // Serialize portfolio data for client
+  // Build per-portfolio AI summary cards
+  const recsByPortfolio = new Map<string, any[]>();
+  for (const rec of latestRecommendations) {
+    const existing = recsByPortfolio.get(rec.portfolio_id) ?? [];
+    if (existing.length < 3) existing.push(rec);
+    recsByPortfolio.set(rec.portfolio_id, existing);
+  }
+
   const portfolioRows = activePortfolios.slice(0, 6).map((p) => ({
-    id: p.id, name: p.name, account_type: p.account_type,
+    id: p.id,
+    name: p.name,
+    account_type: p.account_type,
     cash_balance: Number(p.cash_balance ?? 0),
-    benchmark_symbol: p.benchmark_symbol, created_at: p.created_at, status: p.status,
+    benchmark_symbol: p.benchmark_symbol,
+    created_at: p.created_at,
+    status: p.status,
     style: accountTypeStyle(p.account_type),
     accountTypeLabel: formatAccountType(p.account_type),
     cashLabel: formatMoney(Number(p.cash_balance ?? 0)),
     dateLabel: new Date(p.created_at).toLocaleDateString(),
+    aiSummary: (recsByPortfolio.get(p.id) ?? []).map((r) => ({
+      id: r.id,
+      action_type: r.action_type,
+      ticker: r.ticker,
+      thesis: r.thesis ? truncateText(r.thesis, 80) : null,
+      conviction: r.conviction,
+      badgeStyle: actionBadgeStyle(r.action_type),
+    })),
   }));
 
-  const archivedRows = archivedPortfolios.map((p) => ({
-    id: p.id, name: p.name,
-  }));
+  const archivedRows = archivedPortfolios.map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <main className="min-h-screen bg-[#040d1a] text-white" style={{ fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
@@ -181,7 +224,6 @@ export default async function DashboardPage() {
 
           <div className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8">
 
-            {/* Header */}
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-medium uppercase tracking-widest text-blue-400">Dashboard</p>
@@ -189,35 +231,24 @@ export default async function DashboardPage() {
                 <p className="mt-0.5 text-sm text-slate-500">Welcome back, {user.email?.split("@")[0]}</p>
               </div>
               <div className="flex gap-2">
-                <Link href="/portfolios" className="cta-btn rounded-xl px-4 py-2.5 text-sm font-semibold text-white">
-                  View Portfolios
-                </Link>
-                <Link href="/strategies" className="rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/8">
-                  Strategies
-                </Link>
+                <Link href="/portfolios" className="cta-btn rounded-xl px-4 py-2.5 text-sm font-semibold text-white">View Portfolios</Link>
+                <Link href="/strategies" className="rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/8">Strategies</Link>
               </div>
             </div>
 
-            {/* Client section — handles privacy mode + all interactive content */}
             <DashboardClient
               stats={stats}
               portfolioRows={portfolioRows}
               archivedRows={archivedRows}
-              unifiedFeed={unifiedFeed.map((item) => ({
-                ...item,
-                amountLabel: item.amount !== null ? formatMoney(item.amount) : null,
-                occurredAtLabel: formatDateTime(item.occurredAt),
-                statusBadgeClass: item.kind === "ai" && item.aiStatus ? statusBadgeClass(item.aiStatus) : null,
-              }))}
+              unifiedFeed={unifiedFeed}
               workspaceSnapshot={{
                 account: user.email?.split("@")[0] ?? user.email ?? "—",
                 activePortfolios: activePortfolios.length,
                 archivedPortfolios: archivedPortfolios.length,
                 totalCash: formatMoney(totalCashTracked),
-                lastAiRun: lastRunTime,
+                lastAiRunIso: runs[0]?.created_at ?? null,
               }}
             />
-
           </div>
         </div>
       </div>

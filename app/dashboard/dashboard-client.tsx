@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 type Stat = {
   label: string;
-  value: string;
+  value: string | null;
   sub: string;
   isMoney: boolean;
+  isDate?: boolean;
+};
+
+type AiSummaryItem = {
+  id: string;
+  action_type: string | null;
+  ticker: string | null;
+  thesis: string | null;
+  conviction: string | null;
+  badgeStyle: string;
 };
 
 type PortfolioRow = {
@@ -22,6 +32,7 @@ type PortfolioRow = {
   accountTypeLabel: string;
   cashLabel: string;
   dateLabel: string;
+  aiSummary: AiSummaryItem[];
 };
 
 type FeedItem = {
@@ -30,10 +41,8 @@ type FeedItem = {
   portfolioId: string;
   portfolioName: string;
   title: string;
-  occurredAt: string;
-  occurredAtLabel: string;
+  occurredAt: string; // raw ISO string
   amount: number | null;
-  amountLabel: string | null;
   amountTone: "positive" | "negative" | "neutral";
   href: string;
   aiStatus?: string | null;
@@ -45,8 +54,22 @@ type WorkspaceSnapshot = {
   activePortfolios: number;
   archivedPortfolios: number;
   totalCash: string;
-  lastAiRun: string;
+  lastAiRunIso: string | null;
 };
+
+// Format ISO string in user's local timezone
+function formatLocalDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString(undefined, {
+    month: "numeric", day: "numeric", year: "2-digit",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function formatLocalDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString();
+}
 
 const kindIcon = {
   transaction: (
@@ -66,9 +89,13 @@ const kindIcon = {
   ),
 };
 
+function formatMoney(value: number) {
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function DashboardClient({
   stats,
-  portfolioRows,
+  portfolioRows: initialPortfolioRows,
   archivedRows,
   unifiedFeed,
   workspaceSnapshot,
@@ -80,11 +107,27 @@ export default function DashboardClient({
   workspaceSnapshot: WorkspaceSnapshot;
 }) {
   const [isPrivate, setIsPrivate] = useState(false);
+  const [portfolioRows, setPortfolioRows] = useState(initialPortfolioRows);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const hide = (value: string, isMoney = false) => {
     if (!isPrivate) return value;
     return isMoney ? "$••••••" : "••••••";
   };
+
+  function movePortfolio(id: string, direction: "up" | "down") {
+    setPortfolioRows((prev) => {
+      const idx = prev.findIndex((p) => p.id === id);
+      if (idx < 0) return prev;
+      if (direction === "up" && idx === 0) return prev;
+      if (direction === "down" && idx === prev.length - 1) return prev;
+      const next = [...prev];
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  }
 
   return (
     <div>
@@ -96,9 +139,7 @@ export default function DashboardClient({
             type="button"
             onClick={() => setIsPrivate((p) => !p)}
             className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
-              isPrivate
-                ? "border-purple-500/30 bg-purple-500/15 text-purple-300"
-                : "border-white/10 bg-white/4 text-slate-400 hover:bg-white/8 hover:text-white"
+              isPrivate ? "border-purple-500/30 bg-purple-500/15 text-purple-300" : "border-white/10 bg-white/4 text-slate-400 hover:bg-white/8 hover:text-white"
             }`}
           >
             {isPrivate ? (
@@ -125,7 +166,12 @@ export default function DashboardClient({
           {stats.map((stat) => (
             <div key={stat.label} className="rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
               <p className="text-xs font-medium uppercase tracking-widest text-slate-500">{stat.label}</p>
-              <p className="mt-3 text-2xl font-semibold text-white">{hide(stat.value, stat.isMoney)}</p>
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {stat.isDate
+                  ? (isPrivate ? "••••••" : formatLocalDateTime(stat.value))
+                  : hide(stat.value ?? "—", stat.isMoney)
+                }
+              </p>
               <p className="mt-0.5 text-xs text-slate-600">{stat.sub}</p>
             </div>
           ))}
@@ -138,21 +184,49 @@ export default function DashboardClient({
 
           {/* Active Portfolios */}
           <div className="card rounded-2xl p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-semibold text-white">Active Portfolios</h2>
                 <p className="mt-0.5 text-sm text-slate-500">Accounts you are actively managing.</p>
               </div>
-              <Link href="/portfolios" className="text-xs text-blue-400 transition hover:text-blue-300">View all →</Link>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReordering((r) => !r)}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                    reordering ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/10 bg-white/4 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {reordering ? "Done" : "Reorder"}
+                </button>
+                <Link href="/portfolios" className="text-xs text-blue-400 transition hover:text-blue-300">View all →</Link>
+              </div>
             </div>
 
-            <div className="mt-4 space-y-2.5">
+            <div className="space-y-2.5">
               {portfolioRows.length > 0 ? (
-                portfolioRows.map((portfolio) => (
-                  <div key={portfolio.id} className="card-inner card-hover rounded-xl px-4 py-3.5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className={`h-2 w-2 shrink-0 rounded-full ${portfolio.style.dot}`} />
+                portfolioRows.map((portfolio, idx) => (
+                  <div key={portfolio.id} className="card-inner rounded-xl overflow-hidden">
+                    <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        {/* Reorder buttons */}
+                        {reordering && (
+                          <div className="flex shrink-0 flex-col gap-0.5 mt-0.5">
+                            <button type="button" onClick={() => movePortfolio(portfolio.id, "up")} disabled={idx === 0}
+                              className="rounded p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+                                <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                            <button type="button" onClick={() => movePortfolio(portfolio.id, "down")} disabled={idx === portfolioRows.length - 1}
+                              className="rounded p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+                                <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        <div className={`h-2 w-2 shrink-0 rounded-full mt-1.5 ${portfolio.style.dot}`} />
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-sm font-semibold text-white">{portfolio.name}</h3>
@@ -166,7 +240,7 @@ export default function DashboardClient({
                           <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                             <span>Cash: {hide(portfolio.cashLabel, true)}</span>
                             <span>·</span>
-                            <span>{portfolio.dateLabel}</span>
+                            <span>{formatLocalDate(portfolio.created_at)}</span>
                             <span>·</span>
                             <span className="capitalize">{portfolio.status}</span>
                           </div>
@@ -176,6 +250,35 @@ export default function DashboardClient({
                         Open →
                       </Link>
                     </div>
+
+                    {/* AI Summary card */}
+                    {portfolio.aiSummary.length > 0 && (
+                      <div className="border-t border-white/5 px-4 py-3 bg-blue-500/3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-blue-400">
+                          Latest AI Recommendations
+                        </p>
+                        <div className="space-y-1.5">
+                          {portfolio.aiSummary.map((rec) => (
+                            <Link
+                              key={rec.id}
+                              href={`/portfolios/${portfolio.id}?tab=ai`}
+                              className="flex items-start gap-2 rounded-lg p-1.5 transition hover:bg-white/5"
+                            >
+                              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${rec.badgeStyle}`}>
+                                {(rec.action_type || "—").replace("_", " ")}
+                              </span>
+                              <span className="text-xs font-semibold text-white">{rec.ticker}</span>
+                              {rec.thesis && (
+                                <span className="hidden truncate text-xs text-slate-500 sm:inline">— {rec.thesis}</span>
+                              )}
+                            </Link>
+                          ))}
+                        </div>
+                        <Link href={`/portfolios/${portfolio.id}?tab=ai`} className="mt-2 inline-block text-[10px] text-blue-400/60 hover:text-blue-400 transition">
+                          View all recommendations →
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -247,17 +350,17 @@ export default function DashboardClient({
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-slate-500">
-                          {item.portfolioName} · {item.occurredAtLabel}
+                          {item.portfolioName} · {formatLocalDateTime(item.occurredAt)}
                         </p>
                       </div>
                     </div>
-                    {item.amountLabel !== null && (
+                    {item.amount !== null && (
                       <span className={`shrink-0 text-sm font-semibold ${
                         item.amountTone === "positive" ? "text-emerald-400"
                         : item.amountTone === "negative" ? "text-red-400"
                         : "text-slate-400"
                       }`}>
-                        {isPrivate ? "$••••" : (item.amount !== null && item.amount > 0 ? "+" : "") + item.amountLabel}
+                        {isPrivate ? "$••••" : (item.amount > 0 ? "+" : "") + formatMoney(item.amount)}
                       </span>
                     )}
                   </Link>
@@ -277,16 +380,19 @@ export default function DashboardClient({
             <h2 className="text-base font-semibold text-white">Workspace Snapshot</h2>
             <div className="mt-4 space-y-2">
               {[
-                { label: "Account", value: workspaceSnapshot.account, isMoney: false },
-                { label: "Active Portfolios", value: String(workspaceSnapshot.activePortfolios), isMoney: false },
-                { label: "Archived Portfolios", value: String(workspaceSnapshot.archivedPortfolios), isMoney: false },
-                { label: "Total Cash", value: workspaceSnapshot.totalCash, isMoney: true },
-                { label: "Last AI Run", value: workspaceSnapshot.lastAiRun, isMoney: false },
+                { label: "Account", value: workspaceSnapshot.account, isMoney: false, isDate: false },
+                { label: "Active Portfolios", value: String(workspaceSnapshot.activePortfolios), isMoney: false, isDate: false },
+                { label: "Archived Portfolios", value: String(workspaceSnapshot.archivedPortfolios), isMoney: false, isDate: false },
+                { label: "Total Cash", value: workspaceSnapshot.totalCash, isMoney: true, isDate: false },
+                { label: "Last AI Run", value: workspaceSnapshot.lastAiRunIso, isMoney: false, isDate: true },
               ].map((item) => (
                 <div key={item.label} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
                   <p className="text-xs uppercase tracking-widest text-slate-500">{item.label}</p>
                   <p className="max-w-[55%] truncate text-right text-sm font-medium text-white">
-                    {hide(item.value, item.isMoney)}
+                    {item.isDate
+                      ? (isPrivate ? "••••••" : formatLocalDateTime(item.value))
+                      : hide(item.value ?? "—", item.isMoney)
+                    }
                   </p>
                 </div>
               ))}

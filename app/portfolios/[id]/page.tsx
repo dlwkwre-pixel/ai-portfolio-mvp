@@ -13,10 +13,10 @@ import UpgradeStrategyVersionButton from "./upgrade-strategy-version-button";
 import AIRecommendationsSection from "./ai-recommendations-section";
 import TransactionHistorySection from "./transaction-history-section";
 import PortfolioPerformanceSection from "./portfolio-performance-section";
-import BenchmarkComparisonSection from "./benchmark-comparison-section";
 import PortfolioTabs from "./portfolio-tabs";
 import EarningsAlertBanner from "./earnings-alert-banner";
 import PortfolioHeader from "./portfolio-header";
+import PortfolioChartSection from "./portfolio-chart-section";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -182,8 +182,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       }))}
                     />
                   </div>
+                  <PortfolioChartSection portfolioId={portfolio.id} benchmarkSymbol={portfolio.benchmark_symbol || "SPY"} cashBalance={Number(portfolio.cash_balance ?? 0)} />
                   <PortfolioPerformanceSection portfolioId={portfolio.id} cashBalance={Number(portfolio.cash_balance ?? 0)} />
-                  <BenchmarkComparisonSection portfolioId={portfolio.id} benchmarkSymbol={portfolio.benchmark_symbol || "SPY"} />
                 </div>
 
                 <div className="space-y-5">
