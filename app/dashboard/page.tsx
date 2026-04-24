@@ -66,8 +66,9 @@ export default async function DashboardPage() {
 
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
-    .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type")
+    .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, display_order")
     .eq("user_id", user.id)
+    .order("display_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (portfoliosError) throw new Error(portfoliosError.message);
 

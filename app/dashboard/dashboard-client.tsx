@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useTransition } from "react";
+import { savePortfolioOrder } from "./portfolio-order-actions";
 
 type Stat = {
   label: string;
@@ -108,8 +109,8 @@ export default function DashboardClient({
 }) {
   const [isPrivate, setIsPrivate] = useState(false);
   const [portfolioRows, setPortfolioRows] = useState(initialPortfolioRows);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [isSaving, startSaveTransition] = useTransition();
 
   const hide = (value: string, isMoney = false) => {
     if (!isPrivate) return value;
@@ -192,12 +193,23 @@ export default function DashboardClient({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setReordering((r) => !r)}
-                  className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+                  onClick={() => {
+                    if (reordering) {
+                      // Save order when clicking Done
+                      startSaveTransition(async () => {
+                        await savePortfolioOrder(portfolioRows.map((p) => p.id));
+                        setReordering(false);
+                      });
+                    } else {
+                      setReordering(true);
+                    }
+                  }}
+                  disabled={isSaving}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
                     reordering ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/10 bg-white/4 text-slate-400 hover:text-white"
                   }`}
                 >
-                  {reordering ? "Done" : "Reorder"}
+                  {isSaving ? "Saving..." : reordering ? "Done" : "Reorder"}
                 </button>
                 <Link href="/portfolios" className="text-xs text-blue-400 transition hover:text-blue-300">View all →</Link>
               </div>
