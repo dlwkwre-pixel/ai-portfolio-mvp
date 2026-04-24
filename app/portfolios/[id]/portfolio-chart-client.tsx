@@ -43,7 +43,7 @@ const CHART_MODES = [
   { label: "Return (%)", value: "return" },
 ];
 
-function filterByTimeframe(data: { date: string }[], days: number): typeof data {
+function filterByTimeframe<T extends { date: string }>(data: T[], days: number): T[] {
   if (days === 0) return data; // all
   const now = new Date();
   let cutoff: Date;
