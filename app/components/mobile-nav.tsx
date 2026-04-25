@@ -13,18 +13,35 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-white/2 px-4 py-3 lg:hidden">
+    <div style={{
+      display: "flex",
+      gap: "6px",
+      overflowX: "auto",
+      borderBottom: "1px solid var(--border-subtle)",
+      background: "var(--sidebar-bg)",
+      padding: "10px 16px",
+      fontFamily: "var(--font-body)",
+    }}
+      className="lg:hidden"
+    >
       {navItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium transition ${
-              isActive
-                ? "border-blue-500/30 bg-blue-500/15 text-blue-300"
-                : "border-white/8 bg-white/4 text-slate-400"
-            }`}
+            style={{
+              flexShrink: 0,
+              padding: "6px 14px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: 500,
+              textDecoration: "none",
+              color: isActive ? "var(--nav-active-text)" : "var(--text-tertiary)",
+              background: isActive ? "var(--nav-active-bg)" : "var(--card-bg)",
+              border: `1px solid ${isActive ? "var(--nav-active-border)" : "var(--card-border)"}`,
+              transition: "var(--transition-base)",
+            }}
           >
             {item.label}
           </Link>
