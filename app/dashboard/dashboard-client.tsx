@@ -61,6 +61,29 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Stats */}
+      {/* Stats row with privacy toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+        <p style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Overview</p>
+        <button
+          type="button"
+          onClick={() => setIsPrivate(p => !p)}
+          className="bt-btn bt-btn-ghost bt-btn-sm"
+          style={{ gap: "6px" }}
+        >
+          {isPrivate ? (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.091 1.092a4 4 0 00-5.557-5.557z" clipRule="evenodd"/>
+              <path d="M10.748 13.93l2.523 2.523a9.987 9.987 0 01-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 010-1.186A10.007 10.007 0 012.839 6.02L6.07 9.252a4 4 0 004.678 4.678z"/>
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
+              <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41z" clipRule="evenodd"/>
+            </svg>
+          )}
+          {isPrivate ? "Show values" : "Privacy mode"}
+        </button>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px" }}>
         {[
           { label: "Total Value", value: hide(totalValueLabel, true), sub: `${portfolioRows.length} portfolios` },
@@ -86,9 +109,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
               <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Click to open · Reorder with arrows</p>
             </div>
             <div style={{ display: "flex", gap: "6px" }}>
-              <button type="button" onClick={() => setIsPrivate(p => !p)} className="bt-btn bt-btn-ghost bt-btn-sm">
-                {isPrivate ? "Show" : "Privacy"}
-              </button>
+
               <button type="button" onClick={() => reordering ? startSave(async () => { await savePortfolioOrder(portfolioRows.map(p => p.id)); setReordering(false); }) : setReordering(true)} disabled={isSaving} className="bt-btn bt-btn-ghost bt-btn-sm">
                 {isSaving ? "Saving..." : reordering ? "Done" : "Reorder"}
               </button>
@@ -176,7 +197,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
                   {item.kind === "ai" ? (
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/></svg>
                   ) : (
-                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.798 7.45c.512-.67 1.135-.95 1.702-.95s1.19.28 1.702.95a.75.75 0 001.192-.91C12.637 5.55 11.596 5 10.5 5s-2.137.55-2.894 1.54A5.205 5.205 0 006.83 8H5.75a.75.75 0 000 1.5h.77a6.333 6.333 0 000 1h-.77a.75.75 0 000 1.5h1.08c.183.528.442 1.023.776 1.46.757.99 1.798 1.54 2.894 1.54s2.137-.55 2.894-1.54a.75.75 0 00-1.192-.91c-.512.67-1.135.95-1.702.95s-1.19-.28-1.702-.95a3.505 3.505 0 01-.343-.55h1.795a.75.75 0 000-1.5H8.026a4.835 4.835 0 010-1h2.224a.75.75 0 000-1.5H8.455c.098-.195.212-.38.343-.55z" clipRule="evenodd"/></svg>
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M13.707 3.293a1 1 0 010 1.414L9.414 9H17a1 1 0 110 2H9.414l4.293 4.293a1 1 0 01-1.414 1.414l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 0z"/></svg>
                   )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -185,7 +206,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
                 </div>
                 {item.amount !== null && (
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, flexShrink: 0, color: item.amount >= 0 ? "var(--green)" : "var(--red)" }}>
-                    {isPrivate ? "$••••" : (item.amount > 0 ? "+" : "") + formatMoney(item.amount)}
+                    {isPrivate ? "$••••••" : (item.amount > 0 ? "+" : "") + formatMoney(item.amount)}
                   </span>
                 )}
               </Link>
