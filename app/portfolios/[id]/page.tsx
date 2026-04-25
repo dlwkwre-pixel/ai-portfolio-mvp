@@ -1,9 +1,8 @@
-import Link from "next/link";
-import Sidebar from "@/app/components/sidebar";
-import MobileNav from "@/app/components/mobile-nav";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import Sidebar from "@/app/components/sidebar";
+import MobileNav from "@/app/components/mobile-nav";
 import AddHoldingForm from "./add-holding-form";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
@@ -15,8 +14,9 @@ import TransactionHistorySection from "./transaction-history-section";
 import PortfolioPerformanceSection from "./portfolio-performance-section";
 import PortfolioTabs from "./portfolio-tabs";
 import EarningsAlertBanner from "./earnings-alert-banner";
-import PortfolioHeader from "./portfolio-header";
 import PortfolioChartSection from "./portfolio-chart-section";
+import EditPortfolioForm from "./edit-portfolio-form";
+import PortfolioHeader from "./portfolio-header";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -48,13 +48,22 @@ function formatRiskLevel(value: string | null) {
   return map[value] ?? value;
 }
 
-function accountTypeStyle(value: string | null) {
-  const type = (value || "").toLowerCase();
-  if (["taxable", "brokerage"].includes(type)) return { dot: "bg-blue-400", badge: "border-blue-500/20 bg-blue-500/10 text-blue-300" };
-  if (["retirement", "roth_ira", "traditional_ira"].includes(type)) return { dot: "bg-emerald-400", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
-  if (["speculative", "margin"].includes(type)) return { dot: "bg-amber-400", badge: "border-amber-500/20 bg-amber-500/10 text-amber-300" };
-  if (["paper_trade", "paper trade"].includes(type)) return { dot: "bg-purple-400", badge: "border-purple-500/20 bg-purple-500/10 text-purple-300" };
-  return { dot: "bg-slate-400", badge: "border-white/10 bg-white/5 text-slate-400" };
+function accountDotColor(value: string | null) {
+  const t = (value || "").toLowerCase();
+  if (["brokerage", "taxable"].includes(t)) return "#3b82f6";
+  if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#00d395";
+  if (["margin", "speculative"].includes(t)) return "#f59e0b";
+  if (["paper_trade", "paper trade"].includes(t)) return "#a78bfa";
+  return "#64748b";
+}
+
+function accountPillStyle(value: string | null) {
+  const t = (value || "").toLowerCase();
+  if (["brokerage", "taxable"].includes(t)) return "bt-pill bt-pill-brokerage";
+  if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "bt-pill bt-pill-ira";
+  if (["margin", "speculative"].includes(t)) return "bt-pill bt-pill-margin";
+  if (["paper_trade", "paper trade"].includes(t)) return "bt-pill bt-pill-paper";
+  return "bt-pill";
 }
 
 export default async function SinglePortfolioPage({ params, searchParams }: PortfolioPageProps) {
@@ -70,9 +79,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     .from("portfolios").select("*").eq("id", id).eq("user_id", user.id).single();
   if (portfolioError || !portfolio) notFound();
 
-  const { data: holdings, error: holdingsError } = await supabase
+  const { data: holdings } = await supabase
     .from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true });
-  if (holdingsError) throw new Error(holdingsError.message);
 
   const valuation = await getPortfolioValuation({
     holdings: (holdings ?? []).map((h) => ({
@@ -97,6 +105,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     .eq("portfolio_id", portfolio.id).eq("is_active", true).is("ended_at", null)
     .order("assigned_at", { ascending: false }).limit(1).maybeSingle();
 
+  const { data: allPortfolios } = await supabase
+    .from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true);
+
   let latestAvailableVersionNumber: number | null = null;
   if (activeAssignment?.strategy_id) {
     const { data: latestVersion } = await supabase
@@ -108,70 +119,154 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   const currentVersionNumber = activeAssignment?.strategy_versions?.version_number ?? null;
   const shouldShowUpgradeButton = currentVersionNumber !== null && latestAvailableVersionNumber !== null && latestAvailableVersionNumber > currentVersionNumber;
-  const totalShares = holdings?.reduce((sum, h) => sum + Number(h.shares ?? 0), 0) ?? 0;
-  const style = accountTypeStyle(portfolio.account_type);
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
 
   const statCards = [
-    { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)), isMoney: true },
     { label: "Holdings Value", value: formatMoney(valuation.holdings_value), isMoney: true },
+    { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)), isMoney: true },
     { label: "Total Value", value: formatMoney(valuation.total_portfolio_value), isMoney: true, highlight: true },
     { label: "Positions", value: String(holdings?.length ?? 0), isMoney: false },
   ];
 
   return (
-    <main className="min-h-screen bg-[#040d1a] text-white" style={{ fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-        .card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); }
-        .card-inner { border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
-        .cta-btn { background: linear-gradient(135deg,#2563eb,#4f46e5); box-shadow: 0 4px 16px rgba(37,99,235,0.3); transition: all 0.2s ease; }
-        .cta-btn:hover { box-shadow: 0 6px 24px rgba(37,99,235,0.45); transform: translateY(-1px); }
-        .dash-glow { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56,139,253,0.1) 0%, transparent 60%); }
-        details summary::-webkit-details-marker { display: none; }
-      `}</style>
+    <main style={{
+      minHeight: "100vh",
+      background: "var(--bg-base)",
+      color: "var(--text-primary)",
+      fontFamily: "var(--font-body)",
+    }}>
+      {/* Ambient glow */}
+      <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
 
-      <div className="dash-glow pointer-events-none fixed inset-0 z-0" />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", minHeight: "100vh" }}>
+        <div className="hidden lg:flex">
+          <Sidebar
+            userEmail={user.email}
+            totalValue={valuation.total_portfolio_value}
+            portfolios={(allPortfolios ?? []).map((p) => ({
+              id: p.id,
+              name: p.name,
+              cash_balance: Number(p.cash_balance ?? 0),
+              account_type: p.account_type,
+            }))}
+            activePortfolioId={portfolio.id}
+          />
+        </div>
 
-      <div className="relative z-10 flex min-h-screen">
-        <Sidebar userEmail={user?.email} />
-
-        <div className="flex-1 overflow-x-hidden">
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <MobileNav />
 
-          <div className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
-
-            {/* Header + stat cards with privacy toggle — client component */}
-            <PortfolioHeader
-              portfolioId={portfolio.id}
-              portfolioName={portfolio.name}
-              portfolioDescription={portfolio.description}
-              accountTypeLabel={formatAccountType(portfolio.account_type)}
-              benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
-              status={portfolio.status}
-              createdAt={new Date(portfolio.created_at).toLocaleDateString()}
-              styleDot={style.dot}
-              styleBadge={style.badge}
-              statCards={statCards}
-            />
-
-            {/* Earnings alert */}
-            <EarningsAlertBanner tickers={tickers} />
-
-            {/* Tabs */}
-            <div className="mb-6">
-              <PortfolioTabs activeTab={activeTab} portfolioId={portfolio.id} />
+          {/* Portfolio topbar */}
+          <div style={{
+            padding: "12px 24px",
+            borderBottom: "1px solid var(--border-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--bg-base)",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            backdropFilter: "blur(12px)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{
+                width: "8px", height: "8px", borderRadius: "50%",
+                background: accountDotColor(portfolio.account_type),
+                boxShadow: `0 0 6px ${accountDotColor(portfolio.account_type)}`,
+              }} />
+              <h1 style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                letterSpacing: "-0.2px",
+              }}>
+                {portfolio.name}
+              </h1>
+              <span className={accountPillStyle(portfolio.account_type)}>
+                {formatAccountType(portfolio.account_type)}
+              </span>
+              <span style={{
+                fontSize: "10px",
+                color: "var(--text-tertiary)",
+                background: "var(--card-bg)",
+                border: "1px solid var(--card-border)",
+                padding: "2px 8px",
+                borderRadius: "var(--radius-full)",
+              }}>
+                {portfolio.benchmark_symbol || "SPY"}
+              </span>
             </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <EditPortfolioForm
+                portfolio={{
+                  id: portfolio.id,
+                  name: portfolio.name,
+                  description: portfolio.description,
+                  benchmark_symbol: portfolio.benchmark_symbol,
+                  status: portfolio.status,
+                }}
+              />
+              <PortfolioHeader
+                portfolioId={portfolio.id}
+                portfolioName={portfolio.name}
+                portfolioDescription={portfolio.description}
+                accountTypeLabel={formatAccountType(portfolio.account_type)}
+                benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
+                status={portfolio.status}
+                createdAt={new Date(portfolio.created_at).toLocaleDateString()}
+                styleDot={accountDotColor(portfolio.account_type)}
+                styleBadge={accountPillStyle(portfolio.account_type)}
+                statCards={statCards}
+              />
+            </div>
+          </div>
+
+          {/* Chart hero — full width */}
+          <div style={{ padding: "0 24px", paddingTop: "16px" }}>
+            <PortfolioChartSection
+              portfolioId={portfolio.id}
+              benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
+              cashBalance={Number(portfolio.cash_balance ?? 0)}
+            />
+          </div>
+
+          {/* Earnings alerts */}
+          {tickers.length > 0 && (
+            <div style={{ padding: "0 24px" }}>
+              <EarningsAlertBanner tickers={tickers} />
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div style={{
+            borderBottom: "1px solid var(--border-subtle)",
+            padding: "0 24px",
+            display: "flex",
+            gap: "0",
+          }}>
+            <PortfolioTabs activeTab={activeTab} portfolioId={portfolio.id} />
+          </div>
+
+          {/* Tab content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
 
             {/* ── OVERVIEW TAB ── */}
             {activeTab === "overview" && (
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_360px]">
-                <div className="space-y-5">
-                  <div className="card rounded-2xl p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0, 1.5fr) 340px" }}>
+
+                {/* Left */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+                  {/* Holdings */}
+                  <div className="bt-card">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                       <div>
-                        <h2 className="text-base font-semibold text-white">Holdings</h2>
-                        <p className="mt-0.5 text-sm text-slate-500">Current positions with live market valuation.</p>
+                        <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Holdings</h2>
+                        <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                          Current positions with live market valuation
+                        </p>
                       </div>
                       <AddHoldingForm portfolioId={portfolio.id} />
                     </div>
@@ -183,66 +278,123 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       }))}
                     />
                   </div>
-                  <PortfolioChartSection portfolioId={portfolio.id} benchmarkSymbol={portfolio.benchmark_symbol || "SPY"} cashBalance={Number(portfolio.cash_balance ?? 0)} />
-                  <PortfolioPerformanceSection portfolioId={portfolio.id} cashBalance={Number(portfolio.cash_balance ?? 0)} />
+
+                  <PortfolioPerformanceSection
+                    portfolioId={portfolio.id}
+                    cashBalance={Number(portfolio.cash_balance ?? 0)}
+                  />
                 </div>
 
-                <div className="space-y-5">
+                {/* Right */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
                   {/* Strategy */}
-                  <div className="card rounded-2xl p-5">
-                    <h2 className="text-base font-semibold text-white">Assigned Strategy</h2>
-                    <p className="mt-0.5 text-sm text-slate-500">This portfolio's investing framework.</p>
-                    <div className="mt-4">
-                      <AssignStrategyForm portfolioId={portfolio.id} strategies={(strategies ?? []).map((s) => ({ id: s.id, name: s.name }))} />
-                    </div>
+                  <div className="bt-card">
+                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>
+                      Assigned Strategy
+                    </h2>
+                    <AssignStrategyForm
+                      portfolioId={portfolio.id}
+                      strategies={(strategies ?? []).map((s) => ({ id: s.id, name: s.name }))}
+                    />
                     {activeAssignment?.strategies ? (
-                      <div className="card-inner mt-4 rounded-xl p-4">
-                        <div className="flex items-start justify-between gap-3">
+                      <div style={{
+                        marginTop: "12px",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                        padding: "12px 14px",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
                           <div>
-                            <h3 className="text-sm font-semibold text-white">{activeAssignment.strategies.name}</h3>
-                            <p className="mt-0.5 text-xs text-slate-400">{activeAssignment.strategies.style || "Custom Strategy"}</p>
+                            <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>
+                              {activeAssignment.strategies.name}
+                            </p>
+                            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                              {activeAssignment.strategies.style || "Custom"}
+                            </p>
                           </div>
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-slate-300">
+                          <span style={{
+                            fontSize: "10px",
+                            background: "var(--card-bg)",
+                            border: "1px solid var(--card-border)",
+                            color: "var(--text-secondary)",
+                            padding: "2px 8px",
+                            borderRadius: "var(--radius-full)",
+                          }}>
                             {formatRiskLevel(activeAssignment.strategies.risk_level)}
                           </span>
                         </div>
                         {activeAssignment.strategies.description && (
-                          <p className="mt-2 text-xs leading-5 text-slate-400">{activeAssignment.strategies.description}</p>
+                          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "8px", lineHeight: 1.6 }}>
+                            {activeAssignment.strategies.description}
+                          </p>
                         )}
-                        <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs text-slate-500">
-                          <span>Version: v{activeAssignment.strategy_versions?.version_number ?? "—"}</span>
-                          <span>Latest: v{latestAvailableVersionNumber ?? "—"}</span>
-                          <span>Max Pos: {activeAssignment.strategy_versions?.max_position_pct ?? "—"}%</span>
-                          <span>Turnover: {activeAssignment.strategy_versions?.turnover_preference ?? "—"}</span>
-                          <span className="col-span-2">Holding: {activeAssignment.strategy_versions?.holding_period_bias ?? "—"}</span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginTop: "10px" }}>
+                          {[
+                            ["Version", `v${activeAssignment.strategy_versions?.version_number ?? "—"}`],
+                            ["Max Pos", `${activeAssignment.strategy_versions?.max_position_pct ?? "—"}%`],
+                            ["Turnover", activeAssignment.strategy_versions?.turnover_preference ?? "—"],
+                            ["Holding", activeAssignment.strategy_versions?.holding_period_bias ?? "—"],
+                          ].map(([label, value]) => (
+                            <div key={label} style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>
+                              <span style={{ color: "var(--text-muted)" }}>{label}: </span>
+                              <span>{value}</span>
+                            </div>
+                          ))}
                         </div>
                         {shouldShowUpgradeButton && currentVersionNumber !== null && latestAvailableVersionNumber !== null && (
-                          <div className="mt-3">
-                            <UpgradeStrategyVersionButton portfolioId={portfolio.id} currentVersionNumber={currentVersionNumber} latestVersionNumber={latestAvailableVersionNumber} />
+                          <div style={{ marginTop: "10px" }}>
+                            <UpgradeStrategyVersionButton
+                              portfolioId={portfolio.id}
+                              currentVersionNumber={currentVersionNumber}
+                              latestVersionNumber={latestAvailableVersionNumber}
+                            />
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="card-inner mt-4 rounded-xl p-4"><p className="text-sm text-slate-500">No strategy assigned yet.</p></div>
+                      <p style={{ fontSize: "12px", color: "var(--text-tertiary)", marginTop: "10px" }}>
+                        No strategy assigned yet.
+                      </p>
                     )}
                   </div>
 
                   {/* Cash Activity */}
-                  <div className="card rounded-2xl p-5">
-                    <h2 className="text-base font-semibold text-white">Cash Activity</h2>
-                    <p className="mt-0.5 text-sm text-slate-500">Deposits, withdrawals, dividends, and fees.</p>
-                    <div className="mt-4">
-                      <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
-                    </div>
+                  <div className="bt-card">
+                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>
+                      Cash Activity
+                    </h2>
+                    <AddCashActivityForm
+                      portfolioId={portfolio.id}
+                      currentCashBalance={Number(portfolio.cash_balance ?? 0)}
+                    />
                     {cashLedger && cashLedger.length > 0 && (
-                      <div className="mt-4 space-y-2">
+                      <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
                         {cashLedger.map((entry) => (
-                          <div key={entry.id} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
+                          <div key={entry.id} style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "8px 10px",
+                            background: "var(--bg-elevated)",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: "var(--radius-md)",
+                          }}>
                             <div>
-                              <p className="text-sm font-medium capitalize text-white">{entry.reason.replaceAll("_", " ")}</p>
-                              <p className="text-xs text-slate-600">{new Date(entry.effective_at).toLocaleString()}</p>
+                              <p style={{ fontSize: "12px", color: "var(--text-primary)", textTransform: "capitalize" }}>
+                                {entry.reason.replaceAll("_", " ")}
+                              </p>
+                              <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>
+                                {new Date(entry.effective_at).toLocaleString()}
+                              </p>
                             </div>
-                            <p className={`text-sm font-semibold ${entry.direction === "IN" ? "text-emerald-400" : "text-red-400"}`}>
+                            <p style={{
+                              fontSize: "12px",
+                              fontFamily: "var(--font-mono)",
+                              fontWeight: 500,
+                              color: entry.direction === "IN" ? "var(--green)" : "var(--red)",
+                            }}>
                               {entry.direction === "IN" ? "+" : "-"}{formatMoney(Number(entry.amount))}
                             </p>
                           </div>
@@ -251,21 +403,31 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                     )}
                   </div>
 
-                  {/* Portfolio Info */}
-                  <div className="card rounded-2xl p-5">
-                    <h2 className="text-base font-semibold text-white">Portfolio Info</h2>
-                    <div className="mt-4 space-y-2">
+                  {/* Portfolio info */}
+                  <div className="bt-card">
+                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>
+                      Portfolio Info
+                    </h2>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       {[
-                        { label: "Status", value: portfolio.status },
-                        { label: "Active", value: portfolio.is_active ? "Yes" : "No" },
-                        { label: "Currency", value: portfolio.base_currency },
-                        { label: "Benchmark", value: portfolio.benchmark_symbol || "SPY" },
-                        { label: "Total Shares", value: totalShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }) },
-                        { label: "Created", value: new Date(portfolio.created_at).toLocaleDateString() },
-                      ].map((item) => (
-                        <div key={item.label} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
-                          <p className="text-xs uppercase tracking-widest text-slate-500">{item.label}</p>
-                          <p className="text-sm font-medium capitalize text-white">{item.value}</p>
+                        ["Status", portfolio.status],
+                        ["Currency", portfolio.base_currency],
+                        ["Benchmark", portfolio.benchmark_symbol || "SPY"],
+                        ["Created", new Date(portfolio.created_at).toLocaleDateString()],
+                      ].map(([label, value]) => (
+                        <div key={label} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 10px",
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "var(--radius-md)",
+                        }}>
+                          <span className="label">{label}</span>
+                          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textTransform: "capitalize" }}>
+                            {value}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -276,18 +438,37 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* ── AI ANALYSIS TAB ── */}
             {activeTab === "ai" && (
-              <div className="space-y-5">
-                <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-transparent p-6">
-                  <h2 className="text-xl font-semibold text-white">AI Portfolio Analysis</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Grok searches the web and X for current prices, news, and sentiment on each holding — then gives buy/hold/trim/sell recommendations grounded in live data.
-                  </p>
-                  {activeAssignment?.strategies && (
-                    <p className="mt-2 text-xs text-blue-400">
-                      Strategy: <span className="font-medium">{activeAssignment.strategies.name}</span>
-                      {" · "}{formatRiskLevel(activeAssignment.strategies.risk_level)}
-                    </p>
-                  )}
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{
+                  background: "rgba(37,99,235,0.06)",
+                  border: "1px solid rgba(37,99,235,0.12)",
+                  borderRadius: "var(--radius-lg)",
+                  padding: "20px 24px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", justifyContent: "space-between" }}>
+                    <div>
+                      <h2 style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: "18px",
+                        fontWeight: 600,
+                        color: "var(--text-primary)",
+                        letterSpacing: "-0.2px",
+                        marginBottom: "6px",
+                      }}>
+                        AI Portfolio Analysis
+                      </h2>
+                      <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                        Grok searches live prices, recent news, and X sentiment for each holding before recommending.
+                        Gemini Flash cross-checks with a portfolio health score.
+                      </p>
+                      {activeAssignment?.strategies && (
+                        <p style={{ fontSize: "11px", color: "var(--brand-blue)", marginTop: "6px" }}>
+                          Strategy: <strong>{activeAssignment.strategies.name}</strong>
+                          {" · "}{formatRiskLevel(activeAssignment.strategies.risk_level)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <AIRecommendationsSection portfolioId={portfolio.id} />
               </div>
@@ -295,11 +476,13 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* ── TRANSACTIONS TAB ── */}
             {activeTab === "transactions" && (
-              <div className="space-y-5">
-                <div className="card rounded-2xl p-5">
-                  <h2 className="text-base font-semibold text-white">Transaction Ledger</h2>
-                  <p className="mt-0.5 text-sm text-slate-400">
-                    All trades and cash events. Executing an AI recommendation auto-creates a draft transaction here for you to review and confirm.
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="bt-card">
+                  <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "4px" }}>
+                    Transaction Ledger
+                  </h2>
+                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>
+                    All trades and cash events. Executing an AI recommendation auto-creates a draft transaction here.
                   </p>
                 </div>
                 <TransactionHistorySection portfolioId={portfolio.id} />
@@ -308,54 +491,67 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* ── NOTES TAB ── */}
             {activeTab === "notes" && (
-              <div className="grid gap-5 xl:grid-cols-2">
-                <div className="card rounded-2xl p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-base font-semibold text-white">Portfolio Notes</h2>
-                      <p className="mt-0.5 text-sm text-slate-500">Thesis, context, and account-level notes.</p>
-                    </div>
+              <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
+                <div className="bt-card">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Portfolio Notes</h2>
                     <AddNoteForm portfolioId={portfolio.id} />
                   </div>
                   {notes && notes.length > 0 ? (
-                    <div className="mt-4 space-y-3">
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       {notes.map((note) => (
-                        <div key={note.id} className="card-inner rounded-xl px-4 py-4">
-                          <h3 className="text-sm font-semibold text-white">{note.title}</h3>
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{note.content || "—"}</p>
-                          <p className="mt-3 text-xs text-slate-600">{new Date(note.created_at).toLocaleDateString()}</p>
+                        <div key={note.id} style={{
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border-subtle)",
+                          borderRadius: "var(--radius-md)",
+                          padding: "12px 14px",
+                        }}>
+                          <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{note.title}</p>
+                          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.6 }}>
+                            {note.content || "—"}
+                          </p>
+                          <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "8px" }}>
+                            {new Date(note.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="card-inner mt-4 rounded-xl p-5">
-                      <p className="text-sm text-slate-500">No notes yet.</p>
-                    </div>
+                    <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>No notes yet.</p>
                   )}
                 </div>
 
-                <div className="card rounded-2xl p-5">
-                  <h2 className="text-base font-semibold text-white">Portfolio Info</h2>
-                  <div className="mt-4 space-y-2">
+                <div className="bt-card">
+                  <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>
+                    Portfolio Info
+                  </h2>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     {[
-                      { label: "Status", value: portfolio.status },
-                      { label: "Active", value: portfolio.is_active ? "Yes" : "No" },
-                      { label: "Currency", value: portfolio.base_currency },
-                      { label: "Benchmark", value: portfolio.benchmark_symbol || "SPY" },
-                      { label: "Account Type", value: formatAccountType(portfolio.account_type) },
-                      { label: "Total Shares", value: totalShares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }) },
-                      { label: "Created", value: new Date(portfolio.created_at).toLocaleDateString() },
-                    ].map((item) => (
-                      <div key={item.label} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
-                        <p className="text-xs uppercase tracking-widest text-slate-500">{item.label}</p>
-                        <p className="text-sm font-medium capitalize text-white">{item.value}</p>
+                      ["Status", portfolio.status],
+                      ["Account Type", formatAccountType(portfolio.account_type)],
+                      ["Currency", portfolio.base_currency],
+                      ["Benchmark", portfolio.benchmark_symbol || "SPY"],
+                      ["Created", new Date(portfolio.created_at).toLocaleDateString()],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "8px 10px",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "var(--radius-md)",
+                      }}>
+                        <span className="label">{label}</span>
+                        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textTransform: "capitalize" }}>
+                          {value}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
