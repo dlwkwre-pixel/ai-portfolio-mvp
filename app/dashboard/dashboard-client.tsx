@@ -2,425 +2,196 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { savePortfolioOrder } from "@/app/dashboard/portfolio-order-actions";
-
-type Stat = {
-  label: string;
-  value: string | null;
-  sub: string;
-  isMoney: boolean;
-  isDate?: boolean;
-};
-
-type AiSummaryItem = {
-  id: string;
-  action_type: string | null;
-  ticker: string | null;
-  thesis: string | null;
-  conviction: string | null;
-  badgeStyle: string;
-};
+import { savePortfolioOrder } from "./portfolio-order-actions";
 
 type PortfolioRow = {
   id: string;
   name: string;
   account_type: string | null;
-  cash_balance: number;
-  benchmark_symbol: string | null;
-  created_at: string;
-  status: string | null;
-  style: { dot: string; badge: string };
   accountTypeLabel: string;
+  dotColor: string;
+  totalValue: number;
+  totalValueLabel: string;
   cashLabel: string;
-  dateLabel: string;
-  aiSummary: AiSummaryItem[];
+  benchmarkSymbol: string;
+  status: string | null;
+  createdAt: string;
+  aiRecs: { id: string; action_type: string | null; ticker: string | null; thesis: string | null; badgeClass: string; }[];
 };
 
 type FeedItem = {
-  id: string;
-  kind: "transaction" | "cash" | "ai";
-  portfolioId: string;
-  portfolioName: string;
-  title: string;
-  occurredAt: string; // raw ISO string
-  amount: number | null;
-  amountTone: "positive" | "negative" | "neutral";
-  href: string;
-  aiStatus?: string | null;
-  statusBadgeClass: string | null;
+  id: string; kind: "transaction" | "ai";
+  portfolioName: string; portfolioId: string;
+  title: string; occurredAt: string;
+  amount: number | null; href: string; status: string | null;
 };
 
-type WorkspaceSnapshot = {
-  account: string;
-  activePortfolios: number;
-  archivedPortfolios: number;
-  totalCash: string;
-  lastAiRunIso: string | null;
-};
-
-// Format ISO string in user's local timezone
 function formatLocalDateTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
-    month: "numeric", day: "numeric", year: "2-digit",
-    hour: "numeric", minute: "2-digit",
-  });
+  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
-
-function formatLocalDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString();
-}
-
-const kindIcon = {
-  transaction: (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path fillRule="evenodd" d="M9.99 2a8 8 0 100 16 8 8 0 000-16zm.25 3.25a.75.75 0 00-1.5 0v.54a3.64 3.64 0 00-1.651.734C6.499 6.916 6 7.67 6 8.5c0 .83.499 1.584 1.089 2.005a4.28 4.28 0 001.661.755v2.516a1.867 1.867 0 01-.73-.28c-.287-.187-.52-.47-.52-.746a.75.75 0 00-1.5 0c0 .786.496 1.483 1.089 1.904a3.64 3.64 0 001.661.718v.578a.75.75 0 001.5 0v-.575a3.89 3.89 0 001.652-.756C12.499 14.584 13 13.83 13 13c0-.83-.499-1.584-1.098-2.005a4.44 4.44 0 00-1.652-.737V7.742c.26.066.503.181.73.28.287.187.52.47.52.728a.75.75 0 001.5 0c0-.786-.496-1.482-1.089-1.904A3.64 3.64 0 0010.24 6.29V5.25z" clipRule="evenodd" />
-    </svg>
-  ),
-  cash: (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path d="M1 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-1 1H2a1 1 0 01-1-1V4zM1 10a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1zM1 14a1 1 0 011-1h6a1 1 0 110 2H2a1 1 0 01-1-1z" />
-    </svg>
-  ),
-  ai: (
-    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-      <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" />
-    </svg>
-  ),
-};
 
 function formatMoney(value: number) {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function DashboardClient({
-  stats,
-  portfolioRows: initialPortfolioRows,
-  archivedRows,
-  unifiedFeed,
-  workspaceSnapshot,
-}: {
-  stats: Stat[];
-  portfolioRows: PortfolioRow[];
-  archivedRows: { id: string; name: string }[];
-  unifiedFeed: FeedItem[];
-  workspaceSnapshot: WorkspaceSnapshot;
+export default function DashboardClient({ portfolioRows: initialRows, archivedRows, feedItems, totalValue, totalValueLabel, strategiesCount, lastRunAt }: {
+  portfolioRows: PortfolioRow[]; archivedRows: { id: string; name: string }[];
+  feedItems: FeedItem[]; totalValue: number; totalValueLabel: string;
+  strategiesCount: number; lastRunAt: string | null;
 }) {
   const [isPrivate, setIsPrivate] = useState(false);
-  const [portfolioRows, setPortfolioRows] = useState(initialPortfolioRows);
+  const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
-  const [isSaving, startSaveTransition] = useTransition();
+  const [isSaving, startSave] = useTransition();
 
-  const hide = (value: string, isMoney = false) => {
-    if (!isPrivate) return value;
-    return isMoney ? "$••••••" : "••••••";
-  };
+  const hide = (v: string, m = false) => isPrivate ? (m ? "$••••••" : "••••••") : v;
 
-  function movePortfolio(id: string, direction: "up" | "down") {
-    setPortfolioRows((prev) => {
-      const idx = prev.findIndex((p) => p.id === id);
-      if (idx < 0) return prev;
-      if (direction === "up" && idx === 0) return prev;
-      if (direction === "down" && idx === prev.length - 1) return prev;
+  function move(id: string, dir: "up" | "down") {
+    setPortfolioRows(prev => {
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx < 0 || (dir === "up" && idx === 0) || (dir === "down" && idx === prev.length - 1)) return prev;
       const next = [...prev];
-      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      const swap = dir === "up" ? idx - 1 : idx + 1;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
       return next;
     });
   }
 
   return (
-    <div>
-      {/* Privacy toggle + stat cards */}
-      <div className="mb-6">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-xs text-slate-600">Overview</p>
-          <button
-            type="button"
-            onClick={() => setIsPrivate((p) => !p)}
-            className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
-              isPrivate ? "border-purple-500/30 bg-purple-500/15 text-purple-300" : "border-white/10 bg-white/4 text-slate-400 hover:bg-white/8 hover:text-white"
-            }`}
-          >
-            {isPrivate ? (
-              <>
-                <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                  <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.185A10.004 10.004 0 009.999 3a9.956 9.956 0 00-4.744 1.194L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.091 1.092a4 4 0 00-5.557-5.557z" clipRule="evenodd" />
-                  <path d="M10.748 13.93l2.523 2.523a9.987 9.987 0 01-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 010-1.186A10.007 10.007 0 012.839 6.02L6.07 9.252a4 4 0 004.678 4.678z" />
-                </svg>
-                Privacy On
-              </>
-            ) : (
-              <>
-                <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                  <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-                  <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41z" clipRule="evenodd" />
-                </svg>
-                Privacy
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
-              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">{stat.label}</p>
-              <p className="mt-3 text-2xl font-semibold text-white">
-                {stat.isDate
-                  ? (isPrivate ? "••••••" : formatLocalDateTime(stat.value))
-                  : hide(stat.value ?? "—", stat.isMoney)
-                }
-              </p>
-              <p className="mt-0.5 text-xs text-slate-600">{stat.sub}</p>
-            </div>
-          ))}
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px" }}>
+        {[
+          { label: "Total Value", value: hide(totalValueLabel, true), sub: `${portfolioRows.length} portfolios` },
+          { label: "Strategies", value: String(strategiesCount), sub: "active" },
+          { label: "AI Pending", value: String(portfolioRows.reduce((s,p) => s + p.aiRecs.length, 0)), sub: "recommendations" },
+          { label: "Last AI Run", value: formatLocalDateTime(lastRunAt), sub: "most recent", small: true },
+        ].map(stat => (
+          <div key={stat.label} className="bt-card" style={{ padding: "14px 16px" }}>
+            <div className="label" style={{ marginBottom: "6px" }}>{stat.label}</div>
+            <div style={{ fontFamily: stat.small ? "var(--font-body)" : "var(--font-mono)", fontSize: stat.small ? "12px" : "18px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: stat.small ? 0 : "-0.3px" }}>{stat.value}</div>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{stat.sub}</div>
+          </div>
+        ))}
       </div>
 
       {/* Main grid */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(300px,0.9fr)]">
-        <div className="space-y-5">
-
-          {/* Active Portfolios */}
-          <div className="card rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-white">Active Portfolios</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Accounts you are actively managing.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (reordering) {
-                      // Save order when clicking Done
-                      startSaveTransition(async () => {
-                        await savePortfolioOrder(portfolioRows.map((p) => p.id));
-                        setReordering(false);
-                      });
-                    } else {
-                      setReordering(true);
-                    }
-                  }}
-                  disabled={isSaving}
-                  className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
-                    reordering ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/10 bg-white/4 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {isSaving ? "Saving..." : reordering ? "Done" : "Reorder"}
-                </button>
-                <Link href="/portfolios" className="text-xs text-blue-400 transition hover:text-blue-300">View all →</Link>
-              </div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(280px,0.8fr)", gap: "16px" }}>
+        {/* Portfolios */}
+        <div className="bt-card">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div>
+              <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Your Portfolios</h2>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Click to open · Reorder with arrows</p>
             </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button type="button" onClick={() => setIsPrivate(p => !p)} className="bt-btn bt-btn-ghost bt-btn-sm">
+                {isPrivate ? "Show" : "Privacy"}
+              </button>
+              <button type="button" onClick={() => reordering ? startSave(async () => { await savePortfolioOrder(portfolioRows.map(p => p.id)); setReordering(false); }) : setReordering(true)} disabled={isSaving} className="bt-btn bt-btn-ghost bt-btn-sm">
+                {isSaving ? "Saving..." : reordering ? "Done" : "Reorder"}
+              </button>
+              <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">View all</Link>
+            </div>
+          </div>
 
-            <div className="space-y-2.5">
-              {portfolioRows.length > 0 ? (
-                portfolioRows.map((portfolio, idx) => (
-                  <div key={portfolio.id} className="card-inner rounded-xl overflow-hidden">
-                    <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-3">
-                        {/* Reorder buttons */}
-                        {reordering && (
-                          <div className="flex shrink-0 flex-col gap-0.5 mt-0.5">
-                            <button type="button" onClick={() => movePortfolio(portfolio.id, "up")} disabled={idx === 0}
-                              className="rounded p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20">
-                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
-                                <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                            <button type="button" onClick={() => movePortfolio(portfolio.id, "down")} disabled={idx === portfolioRows.length - 1}
-                              className="rounded p-0.5 text-slate-600 hover:text-slate-300 disabled:opacity-20">
-                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
-                                <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </div>
-                        )}
-                        <div className={`h-2 w-2 shrink-0 rounded-full mt-1.5 ${portfolio.style.dot}`} />
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-sm font-semibold text-white">{portfolio.name}</h3>
-                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${portfolio.style.badge}`}>
-                              {portfolio.accountTypeLabel}
-                            </span>
-                            <span className="rounded-full border border-white/8 bg-white/4 px-2 py-0.5 text-[10px] text-slate-400">
-                              {portfolio.benchmark_symbol || "SPY"}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
-                            <span>Cash: {hide(portfolio.cashLabel, true)}</span>
-                            <span>·</span>
-                            <span>{formatLocalDate(portfolio.created_at)}</span>
-                            <span>·</span>
-                            <span className="capitalize">{portfolio.status}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Link href={`/portfolios/${portfolio.id}`} className="cta-btn shrink-0 rounded-xl px-4 py-2 text-xs font-semibold text-white">
-                        Open →
-                      </Link>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {portfolioRows.map((p, idx) => (
+              <div key={p.id} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px" }}>
+                  {reordering && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <button type="button" onClick={() => move(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px", opacity: idx === 0 ? 0.2 : 1 }}>
+                        <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd"/></svg>
+                      </button>
+                      <button type="button" onClick={() => move(p.id, "down")} disabled={idx === portfolioRows.length - 1} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px", opacity: idx === portfolioRows.length - 1 ? 0.2 : 1 }}>
+                        <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd"/></svg>
+                      </button>
                     </div>
-
-                    {/* AI Summary card */}
-                    {portfolio.aiSummary.length > 0 && (
-                      <div className="border-t border-white/5 px-4 py-3 bg-blue-500/3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-blue-400">
-                          Latest AI Recommendations
-                        </p>
-                        <div className="space-y-1.5">
-                          {portfolio.aiSummary.map((rec) => (
-                            <Link
-                              key={rec.id}
-                              href={`/portfolios/${portfolio.id}?tab=ai`}
-                              className="flex items-start gap-2 rounded-lg p-1.5 transition hover:bg-white/5"
-                            >
-                              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${rec.badgeStyle}`}>
-                                {(rec.action_type || "—").replace("_", " ")}
-                              </span>
-                              <span className="text-xs font-semibold text-white">{rec.ticker}</span>
-                              {rec.thesis && (
-                                <span className="hidden truncate text-xs text-slate-500 sm:inline">— {rec.thesis}</span>
-                              )}
-                            </Link>
-                          ))}
-                        </div>
-                        <Link href={`/portfolios/${portfolio.id}?tab=ai`} className="mt-2 inline-block text-[10px] text-blue-400/60 hover:text-blue-400 transition">
-                          View all recommendations →
-                        </Link>
-                      </div>
-                    )}
+                  )}
+                  <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: p.dotColor, flexShrink: 0, boxShadow: `0 0 5px ${p.dotColor}` }}/>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{p.name}</span>
+                      <span style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>{p.accountTypeLabel}</span>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>{p.benchmarkSymbol}</span>
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>Cash: {hide(p.cashLabel, true)} · {new Date(p.createdAt).toLocaleDateString()}</div>
                   </div>
-                ))
-              ) : (
-                <div className="card-inner rounded-xl p-5">
-                  <p className="text-sm text-slate-500">No active portfolios yet. Create one to start tracking.</p>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 500, color: "var(--text-primary)", flexShrink: 0 }}>{hide(p.totalValueLabel, true)}</div>
+                  <Link href={`/portfolios/${p.id}`} className="bt-btn bt-btn-primary bt-btn-sm">Open →</Link>
                 </div>
-              )}
-            </div>
-
-            {archivedRows.length > 0 && (
-              <details className="mt-3 group">
-                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-2 py-2 text-xs text-slate-500 transition hover:text-slate-300">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 transition group-open:rotate-90">
-                    <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                  </svg>
-                  {archivedRows.length} archived portfolio{archivedRows.length !== 1 ? "s" : ""}
-                </summary>
-                <div className="mt-2 space-y-2">
-                  {archivedRows.map((p) => (
-                    <div key={p.id} className="card-inner flex items-center justify-between rounded-xl px-4 py-3 opacity-60">
-                      <div className="flex items-center gap-3">
-                        <div className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                        <p className="text-sm text-slate-400">{p.name}</p>
-                      </div>
-                      <Link href={`/portfolios/${p.id}`} className="text-xs text-slate-500 transition hover:text-slate-300">View →</Link>
+                {p.aiRecs.length > 0 && (
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "10px 14px", background: "var(--violet-bg)" }}>
+                    <div className="label" style={{ color: "var(--violet)", marginBottom: "6px" }}>✦ AI Recommendations</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      {p.aiRecs.map(rec => (
+                        <Link key={rec.id} href={`/portfolios/${p.id}?tab=ai`} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", padding: "3px 4px", borderRadius: "5px" }}>
+                          <span className={rec.badgeClass}>{(rec.action_type || "—").replace("_", " ")}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--text-primary)", flexShrink: 0 }}>{rec.ticker}</span>
+                          {rec.thesis && <span style={{ fontSize: "10px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>— {rec.thesis}</span>}
+                        </Link>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </details>
+                  </div>
+                )}
+              </div>
+            ))}
+            {portfolioRows.length === 0 && (
+              <div style={{ padding: "20px", textAlign: "center" }}>
+                <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>No active portfolios yet.</p>
+                <Link href="/portfolios" className="bt-btn bt-btn-primary" style={{ display: "inline-flex", marginTop: "10px" }}>Create Portfolio</Link>
+              </div>
             )}
           </div>
 
-          {/* Activity feed */}
-          <div className="card rounded-2xl p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-white">Activity Feed</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Trades, cash movements, and AI runs.</p>
+          {archivedRows.length > 0 && (
+            <details style={{ marginTop: "10px" }}>
+              <summary style={{ fontSize: "11px", color: "var(--text-tertiary)", cursor: "pointer", padding: "4px 2px", listStyle: "none" }}>
+                {archivedRows.length} archived
+              </summary>
+              <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                {archivedRows.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", opacity: 0.5, background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{p.name}</span>
+                    <Link href={`/portfolios/${p.id}`} style={{ fontSize: "11px", color: "var(--brand-blue)", textDecoration: "none" }}>View →</Link>
+                  </div>
+                ))}
               </div>
-              <span className="text-xs text-slate-600">{unifiedFeed.length} items</span>
-            </div>
-
-            <div className="mt-3 flex gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-slate-400" />Trade</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Cash</span>
-              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" />AI Run</span>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {unifiedFeed.length > 0 ? (
-                unifiedFeed.map((item) => (
-                  <Link key={item.id} href={item.href}
-                    className="card-inner card-hover flex items-start justify-between gap-3 rounded-xl px-4 py-3.5 transition">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
-                        item.kind === "ai" ? "bg-blue-500/15 text-blue-400"
-                        : item.kind === "cash" ? "bg-emerald-500/15 text-emerald-400"
-                        : "bg-slate-500/15 text-slate-400"
-                      }`}>
-                        {kindIcon[item.kind]}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-medium text-white">{item.title}</p>
-                          {item.kind === "ai" && item.aiStatus && item.statusBadgeClass && (
-                            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${item.statusBadgeClass}`}>
-                              {item.aiStatus}
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {item.portfolioName} · {formatLocalDateTime(item.occurredAt)}
-                        </p>
-                      </div>
-                    </div>
-                    {item.amount !== null && (
-                      <span className={`shrink-0 text-sm font-semibold ${
-                        item.amountTone === "positive" ? "text-emerald-400"
-                        : item.amountTone === "negative" ? "text-red-400"
-                        : "text-slate-400"
-                      }`}>
-                        {isPrivate ? "$••••" : (item.amount > 0 ? "+" : "") + formatMoney(item.amount)}
-                      </span>
-                    )}
-                  </Link>
-                ))
-              ) : (
-                <div className="card-inner rounded-xl p-5">
-                  <p className="text-sm text-slate-500">No recent activity yet.</p>
-                </div>
-              )}
-            </div>
-          </div>
+            </details>
+          )}
         </div>
 
-        {/* Right column */}
-        <div className="space-y-5">
-          <div className="card rounded-2xl p-5">
-            <h2 className="text-base font-semibold text-white">Workspace Snapshot</h2>
-            <div className="mt-4 space-y-2">
-              {[
-                { label: "Account", value: workspaceSnapshot.account, isMoney: false, isDate: false },
-                { label: "Active Portfolios", value: String(workspaceSnapshot.activePortfolios), isMoney: false, isDate: false },
-                { label: "Archived Portfolios", value: String(workspaceSnapshot.archivedPortfolios), isMoney: false, isDate: false },
-                { label: "Total Cash", value: workspaceSnapshot.totalCash, isMoney: true, isDate: false },
-                { label: "Last AI Run", value: workspaceSnapshot.lastAiRunIso, isMoney: false, isDate: true },
-              ].map((item) => (
-                <div key={item.label} className="card-inner flex items-center justify-between rounded-xl px-4 py-3">
-                  <p className="text-xs uppercase tracking-widest text-slate-500">{item.label}</p>
-                  <p className="max-w-[55%] truncate text-right text-sm font-medium text-white">
-                    {item.isDate
-                      ? (isPrivate ? "••••••" : formatLocalDateTime(item.value))
-                      : hide(item.value ?? "—", item.isMoney)
-                    }
-                  </p>
-                </div>
-              ))}
-            </div>
+        {/* Activity feed */}
+        <div className="bt-card" style={{ height: "fit-content" }}>
+          <div style={{ marginBottom: "12px" }}>
+            <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Activity</h2>
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Trades and AI runs</p>
           </div>
-
-          <div className="card rounded-2xl p-5">
-            <h2 className="text-base font-semibold text-white">Quick Actions</h2>
-            <div className="mt-4 grid gap-2">
-              <Link href="/portfolios" className="cta-btn rounded-xl px-4 py-3 text-center text-sm font-semibold text-white">
-                Open Portfolio Manager
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            {feedItems.length > 0 ? feedItems.map(item => (
+              <Link key={item.id} href={item.href} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "9px 10px", borderRadius: "var(--radius-md)", textDecoration: "none", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", transition: "var(--transition-fast)" }}>
+                <div style={{ width: "24px", height: "24px", borderRadius: "6px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: item.kind === "ai" ? "var(--violet-bg)" : "var(--card-bg)", color: item.kind === "ai" ? "var(--violet)" : "var(--text-tertiary)", marginTop: "1px" }}>
+                  {item.kind === "ai" ? (
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/></svg>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.798 7.45c.512-.67 1.135-.95 1.702-.95s1.19.28 1.702.95a.75.75 0 001.192-.91C12.637 5.55 11.596 5 10.5 5s-2.137.55-2.894 1.54A5.205 5.205 0 006.83 8H5.75a.75.75 0 000 1.5h.77a6.333 6.333 0 000 1h-.77a.75.75 0 000 1.5h1.08c.183.528.442 1.023.776 1.46.757.99 1.798 1.54 2.894 1.54s2.137-.55 2.894-1.54a.75.75 0 00-1.192-.91c-.512.67-1.135.95-1.702.95s-1.19-.28-1.702-.95a3.505 3.505 0 01-.343-.55h1.795a.75.75 0 000-1.5H8.026a4.835 4.835 0 010-1h2.224a.75.75 0 000-1.5H8.455c.098-.195.212-.38.343-.55z" clipRule="evenodd"/></svg>
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{item.portfolioName} · {formatLocalDateTime(item.occurredAt)}</p>
+                </div>
+                {item.amount !== null && (
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, flexShrink: 0, color: item.amount >= 0 ? "var(--green)" : "var(--red)" }}>
+                    {isPrivate ? "$••••" : (item.amount > 0 ? "+" : "") + formatMoney(item.amount)}
+                  </span>
+                )}
               </Link>
-              <Link href="/strategies" className="card-inner card-hover rounded-xl px-4 py-3 text-center text-sm font-medium text-slate-300 transition">
-                Strategy Library →
-              </Link>
-            </div>
+            )) : (
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", padding: "8px 0" }}>No recent activity.</p>
+            )}
           </div>
         </div>
       </div>

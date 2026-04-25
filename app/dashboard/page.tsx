@@ -1,62 +1,45 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
 
-// All date formatting happens server-side using toISOString
-// and is passed as raw strings to the client which formats in local timezone
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
   return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatAccountType(value: string | null) {
-  if (!value) return "—";
   const map: Record<string, string> = {
     taxable: "Brokerage", brokerage: "Brokerage", retirement: "Retirement",
     speculative: "Margin", margin: "Margin", paper_trade: "Paper Trade",
     roth_ira: "Roth IRA", traditional_ira: "Traditional IRA",
   };
-  return map[value] ?? value.replaceAll("_", " ");
+  return map[value ?? ""] ?? (value?.replaceAll("_", " ") ?? "—");
 }
 
-function accountTypeStyle(value: string | null) {
-  const type = (value || "").toLowerCase();
-  if (["taxable", "brokerage"].includes(type)) return { dot: "bg-blue-400", badge: "border-blue-500/20 bg-blue-500/10 text-blue-300" };
-  if (["retirement", "roth_ira", "traditional_ira"].includes(type)) return { dot: "bg-emerald-400", badge: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" };
-  if (["speculative", "margin"].includes(type)) return { dot: "bg-amber-400", badge: "border-amber-500/20 bg-amber-500/10 text-amber-300" };
-  if (["paper_trade"].includes(type)) return { dot: "bg-purple-400", badge: "border-purple-500/20 bg-purple-500/10 text-purple-300" };
-  return { dot: "bg-slate-400", badge: "border-white/10 bg-white/5 text-slate-400" };
+function accountDotColor(value: string | null) {
+  const t = (value || "").toLowerCase();
+  if (["brokerage", "taxable"].includes(t)) return "#3b82f6";
+  if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#00d395";
+  if (["margin", "speculative"].includes(t)) return "#f59e0b";
+  if (["paper_trade", "paper trade"].includes(t)) return "#a78bfa";
+  return "#64748b";
 }
 
-function formatTitleCase(value: string | null | undefined) {
-  if (!value) return "—";
-  return value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+function truncateText(value: string | null | undefined, max = 120) {
+  if (!value) return "";
+  return value.length <= max ? value : value.slice(0, max - 3) + "...";
 }
 
-function truncateText(value: string | null | undefined, maxLength = 180) {
-  if (!value) return "Recommendation Review";
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 3)}...`;
-}
-
-function statusBadgeClass(status: string | null | undefined) {
-  const normalized = (status || "").toLowerCase();
-  if (["completed", "executed"].includes(normalized)) return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20";
-  if (["failed", "rejected"].includes(normalized)) return "bg-red-500/15 text-red-300 border border-red-500/20";
-  if (["running", "pending", "queued"].includes(normalized)) return "bg-amber-500/15 text-amber-300 border border-amber-500/20";
-  return "bg-white/5 text-slate-300 border border-white/10";
-}
-
-function actionBadgeStyle(action: string | null) {
+function actionBadgeClass(action: string | null) {
   const a = (action || "").toLowerCase();
-  if (a === "buy" || a === "add") return "border-emerald-500/25 bg-emerald-500/15 text-emerald-300";
-  if (a === "sell") return "border-red-500/25 bg-red-500/15 text-red-300";
-  if (a === "trim") return "border-amber-500/25 bg-amber-500/15 text-amber-300";
-  if (a === "hold") return "border-slate-500/25 bg-slate-500/15 text-slate-300";
-  return "border-white/10 bg-white/5 text-slate-400";
+  if (a === "buy" || a === "add") return "bt-badge bt-badge-buy";
+  if (a === "sell") return "bt-badge bt-badge-sell";
+  if (a === "trim") return "bt-badge bt-badge-trim";
+  return "bt-badge bt-badge-hold";
 }
 
 export default async function DashboardPage() {
@@ -64,111 +47,62 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { data: portfolios, error: portfoliosError } = await supabase
+  const { data: portfolios } = await supabase
     .from("portfolios")
     .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, display_order")
     .eq("user_id", user.id)
     .order("display_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
-  if (portfoliosError) throw new Error(portfoliosError.message);
 
-  const { count: activeStrategiesCount } = await supabase
+  const { count: strategiesCount } = await supabase
     .from("strategies").select("*", { count: "exact", head: true })
     .eq("user_id", user.id).eq("is_active", true);
 
   const activePortfolios = (portfolios ?? []).filter((p) => p.is_active);
   const archivedPortfolios = (portfolios ?? []).filter((p) => !p.is_active);
-  const portfolioIds = (portfolios ?? []).map((p) => p.id);
+  const portfolioIds = activePortfolios.map((p) => p.id);
 
-  let runs: any[] = [];
+  let totalValue = 0;
+  const portfolioValues: Record<string, number> = {};
+
+  for (const p of activePortfolios) {
+    const { data: holdings } = await supabase
+      .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis")
+      .eq("portfolio_id", p.id);
+
+    const val = await getPortfolioValuation({
+      holdings: (holdings ?? []).map((h) => ({
+        id: h.id, ticker: h.ticker, company_name: h.company_name,
+        asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+      })),
+      cashBalance: Number(p.cash_balance ?? 0),
+    });
+
+    portfolioValues[p.id] = val.total_portfolio_value;
+    totalValue += val.total_portfolio_value;
+  }
+
+  let recentRuns: any[] = [];
   let recentTransactions: any[] = [];
-  let recentCashActivity: any[] = [];
   let latestRecommendations: any[] = [];
 
   if (portfolioIds.length > 0) {
-    const [
-      { data: recommendationRuns },
-      { data: transactions },
-      { data: cashEntries },
-    ] = await Promise.all([
-      supabase.from("recommendation_runs").select("id, portfolio_id, status, summary, model_name, created_at").in("portfolio_id", portfolioIds).order("created_at", { ascending: false }).limit(6),
-      supabase.from("portfolio_transactions").select("id, portfolio_id, transaction_type, ticker, net_cash_impact, traded_at").in("portfolio_id", portfolioIds).order("traded_at", { ascending: false }).limit(8),
-      supabase.from("cash_ledger").select("id, portfolio_id, direction, reason, amount, effective_at").in("portfolio_id", portfolioIds).order("effective_at", { ascending: false }).limit(8),
+    const [{ data: runs }, { data: transactions }, { data: recs }] = await Promise.all([
+      supabase.from("recommendation_runs").select("id, portfolio_id, status, summary, created_at")
+        .in("portfolio_id", portfolioIds).order("created_at", { ascending: false }).limit(5),
+      supabase.from("portfolio_transactions").select("id, portfolio_id, transaction_type, ticker, net_cash_impact, traded_at")
+        .in("portfolio_id", portfolioIds).order("traded_at", { ascending: false }).limit(8),
+      supabase.from("recommendation_items").select("id, portfolio_id, action_type, ticker, thesis, recommendation_status")
+        .in("portfolio_id", portfolioIds).eq("recommendation_status", "proposed")
+        .order("created_at", { ascending: false }).limit(15),
     ]);
-    runs = recommendationRuns ?? [];
+    recentRuns = runs ?? [];
     recentTransactions = transactions ?? [];
-    recentCashActivity = cashEntries ?? [];
-
-    // Get latest proposed recommendations per portfolio for summary cards
-    const { data: recItems } = await supabase
-      .from("recommendation_items")
-      .select("id, portfolio_id, action_type, ticker, thesis, conviction, recommendation_status, created_at")
-      .in("portfolio_id", portfolioIds)
-      .eq("recommendation_status", "proposed")
-      .order("created_at", { ascending: false })
-      .limit(20);
-    latestRecommendations = recItems ?? [];
+    latestRecommendations = recs ?? [];
   }
 
-  const portfolioNameById = new Map((portfolios ?? []).map((p) => [p.id, p.name]));
-  const totalCashTracked = activePortfolios.reduce((sum, p) => sum + Number(p.cash_balance ?? 0), 0);
+  const portfolioNameById = new Map(activePortfolios.map((p) => [p.id, p.name]));
 
-  // Build unified activity feed — pass raw ISO strings, client formats to local timezone
-  const transactionActivity = recentTransactions.map((t) => {
-    const amount = Number(t.net_cash_impact ?? 0);
-    return {
-      id: `tx-${t.id}`, kind: "transaction" as const,
-      portfolioId: t.portfolio_id, portfolioName: portfolioNameById.get(t.portfolio_id) || "Unknown",
-      title: `${formatTitleCase(t.transaction_type)}${t.ticker ? ` · ${t.ticker}` : ""}`,
-      occurredAt: t.traded_at, // raw ISO string for client to format
-      amount,
-      amountTone: (amount > 0 ? "positive" : amount < 0 ? "negative" : "neutral") as "positive" | "negative" | "neutral",
-      href: `/portfolios/${t.portfolio_id}`,
-      aiStatus: null,
-      statusBadgeClass: null,
-    };
-  });
-
-  const cashActivity = recentCashActivity.map((entry) => {
-    const baseAmount = Number(entry.amount ?? 0);
-    const signedAmount = (entry.direction || "").toUpperCase() === "OUT" ? -baseAmount : baseAmount;
-    return {
-      id: `cash-${entry.id}`, kind: "cash" as const,
-      portfolioId: entry.portfolio_id, portfolioName: portfolioNameById.get(entry.portfolio_id) || "Unknown",
-      title: `${formatTitleCase(entry.reason)} Cash`,
-      occurredAt: entry.effective_at,
-      amount: signedAmount,
-      amountTone: (signedAmount > 0 ? "positive" : signedAmount < 0 ? "negative" : "neutral") as "positive" | "negative" | "neutral",
-      href: `/portfolios/${entry.portfolio_id}`,
-      aiStatus: null,
-      statusBadgeClass: null,
-    };
-  });
-
-  const aiActivity = runs.map((run) => ({
-    id: `run-${run.id}`, kind: "ai" as const,
-    portfolioId: run.portfolio_id, portfolioName: portfolioNameById.get(run.portfolio_id) || "Unknown",
-    title: truncateText(run.summary, 140),
-    occurredAt: run.created_at,
-    amount: null,
-    amountTone: "neutral" as const,
-    href: `/portfolios/${run.portfolio_id}?tab=ai`,
-    aiStatus: run.status,
-    statusBadgeClass: statusBadgeClass(run.status),
-  }));
-
-  const unifiedFeed = [...transactionActivity, ...cashActivity, ...aiActivity]
-    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
-    .slice(0, 15);
-
-  const stats = [
-    { label: "Active Portfolios", value: String(activePortfolios.length), sub: `${archivedPortfolios.length} archived`, isMoney: false },
-    { label: "Total Cash Tracked", value: formatMoney(totalCashTracked), sub: "across active portfolios", isMoney: true },
-    { label: "Active Strategies", value: String(activeStrategiesCount ?? 0), sub: "in strategy library", isMoney: false },
-    { label: "Last AI Run", value: runs[0]?.created_at ?? null, sub: "most recent analysis", isMoney: false, isDate: true },
-  ];
-
-  // Build per-portfolio AI summary cards
   const recsByPortfolio = new Map<string, any[]>();
   for (const rec of latestRecommendations) {
     const existing = recsByPortfolio.get(rec.portfolio_id) ?? [];
@@ -176,78 +110,121 @@ export default async function DashboardPage() {
     recsByPortfolio.set(rec.portfolio_id, existing);
   }
 
-  const portfolioRows = activePortfolios.slice(0, 6).map((p) => ({
+  const portfolioRows = activePortfolios.map((p) => ({
     id: p.id,
     name: p.name,
     account_type: p.account_type,
-    cash_balance: Number(p.cash_balance ?? 0),
-    benchmark_symbol: p.benchmark_symbol,
-    created_at: p.created_at,
-    status: p.status,
-    style: accountTypeStyle(p.account_type),
     accountTypeLabel: formatAccountType(p.account_type),
+    dotColor: accountDotColor(p.account_type),
+    totalValue: portfolioValues[p.id] ?? 0,
+    totalValueLabel: formatMoney(portfolioValues[p.id] ?? 0),
     cashLabel: formatMoney(Number(p.cash_balance ?? 0)),
-    dateLabel: new Date(p.created_at).toLocaleDateString(),
-    aiSummary: (recsByPortfolio.get(p.id) ?? []).map((r) => ({
+    benchmarkSymbol: p.benchmark_symbol || "SPY",
+    status: p.status,
+    createdAt: p.created_at,
+    aiRecs: (recsByPortfolio.get(p.id) ?? []).map((r) => ({
       id: r.id,
       action_type: r.action_type,
       ticker: r.ticker,
-      thesis: r.thesis ? truncateText(r.thesis, 80) : null,
-      conviction: r.conviction,
-      badgeStyle: actionBadgeStyle(r.action_type),
+      thesis: truncateText(r.thesis, 70),
+      badgeClass: actionBadgeClass(r.action_type),
     })),
   }));
 
-  const archivedRows = archivedPortfolios.map((p) => ({ id: p.id, name: p.name }));
+  const feedItems = [
+    ...recentTransactions.map((t) => ({
+      id: `tx-${t.id}`,
+      kind: "transaction" as const,
+      portfolioName: portfolioNameById.get(t.portfolio_id) ?? "Unknown",
+      portfolioId: t.portfolio_id,
+      title: `${(t.transaction_type || "").replace("_", " ")} · ${t.ticker || ""}`.trim(),
+      occurredAt: t.traded_at,
+      amount: Number(t.net_cash_impact ?? 0),
+      href: `/portfolios/${t.portfolio_id}?tab=transactions`,
+      status: null,
+    })),
+    ...recentRuns.map((r) => ({
+      id: `run-${r.id}`,
+      kind: "ai" as const,
+      portfolioName: portfolioNameById.get(r.portfolio_id) ?? "Unknown",
+      portfolioId: r.portfolio_id,
+      title: truncateText(r.summary, 80) || "AI Analysis",
+      occurredAt: r.created_at,
+      amount: null,
+      href: `/portfolios/${r.portfolio_id}?tab=ai`,
+      status: r.status,
+    })),
+  ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()).slice(0, 10);
 
   return (
-    <main className="min-h-screen bg-[#040d1a] text-white" style={{ fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-        .card { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03); }
-        .card-inner { border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
-        .card-hover { transition: all 0.15s ease; }
-        .card-hover:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
-        .cta-btn { background: linear-gradient(135deg,#2563eb,#4f46e5); box-shadow: 0 4px 16px rgba(37,99,235,0.3); transition: all 0.2s ease; }
-        .cta-btn:hover { box-shadow: 0 6px 24px rgba(37,99,235,0.45); transform: translateY(-1px); }
-        .dash-glow { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(56,139,253,0.1) 0%, transparent 60%); }
-        details summary::-webkit-details-marker { display: none; }
-      `}</style>
+    <main style={{
+      minHeight: "100vh",
+      background: "var(--bg-base)",
+      color: "var(--text-primary)",
+      fontFamily: "var(--font-body)",
+    }}>
+      <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
 
-      <div className="dash-glow pointer-events-none fixed inset-0 z-0" />
+      <div style={{ position: "relative", zIndex: 1, display: "flex", minHeight: "100vh" }}>
+        <div className="hidden lg:flex">
+          <Sidebar
+            userEmail={user.email}
+            totalValue={totalValue}
+            portfolios={activePortfolios.map((p) => ({
+              id: p.id, name: p.name,
+              cash_balance: Number(p.cash_balance ?? 0),
+              account_type: p.account_type,
+            }))}
+          />
+        </div>
 
-      <div className="relative z-10 flex min-h-screen">
-        <Sidebar userEmail={user.email} />
-
-        <div className="flex-1 overflow-x-hidden">
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <MobileNav />
 
-          <div className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8 lg:py-8">
-
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-widest text-blue-400">Dashboard</p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight">Portfolio Workspace</h1>
-                <p className="mt-0.5 text-sm text-slate-500">Welcome back, {user.email?.split("@")[0]}</p>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/portfolios" className="cta-btn rounded-xl px-4 py-2.5 text-sm font-semibold text-white">View Portfolios</Link>
-                <Link href="/strategies" className="rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/8">Strategies</Link>
-              </div>
+          <div style={{
+            padding: "12px 24px",
+            borderBottom: "1px solid var(--border-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--bg-base)",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+          }}>
+            <div>
+              <h1 style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                letterSpacing: "-0.2px",
+              }}>
+                Dashboard
+              </h1>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>
+                Welcome back, {user.email?.split("@")[0]}
+              </p>
             </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
+                Manage Portfolios
+              </Link>
+              <Link href="/strategies" className="bt-btn bt-btn-ghost bt-btn-sm">
+                Strategies
+              </Link>
+            </div>
+          </div>
 
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
             <DashboardClient
-              stats={stats}
               portfolioRows={portfolioRows}
-              archivedRows={archivedRows}
-              unifiedFeed={unifiedFeed}
-              workspaceSnapshot={{
-                account: user.email?.split("@")[0] ?? user.email ?? "—",
-                activePortfolios: activePortfolios.length,
-                archivedPortfolios: archivedPortfolios.length,
-                totalCash: formatMoney(totalCashTracked),
-                lastAiRunIso: runs[0]?.created_at ?? null,
-              }}
+              archivedRows={archivedPortfolios.map((p) => ({ id: p.id, name: p.name }))}
+              feedItems={feedItems}
+              totalValue={totalValue}
+              totalValueLabel={formatMoney(totalValue)}
+              strategiesCount={strategiesCount ?? 0}
+              lastRunAt={recentRuns[0]?.created_at ?? null}
             />
           </div>
         </div>
