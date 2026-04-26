@@ -193,7 +193,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               </div>
             </div>
 
-            {/* Stat cards — rendered below topbar */}
+            {/* Stat cards — rendered below topbar, animated */}
 
             {/* Chart hero */}
             <div style={{ padding: "16px 24px 0" }}>
@@ -206,7 +206,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* Earnings alerts */}
             {tickers.length > 0 && (
-              <div style={{ padding: "0 24px" }}>
+              <div className="bt-banner-enter" style={{ padding: "0 24px" }}>
                 <EarningsAlertBanner tickers={tickers} />
               </div>
             )}
@@ -221,7 +221,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* OVERVIEW */}
               {activeTab === "overview" && (
-                <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0,1.5fr) 340px" }}>
+                <div className="bt-tab-enter" style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0,1.5fr) 340px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div className="bt-card">
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
@@ -328,7 +328,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* AI ANALYSIS */}
               {activeTab === "ai" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "20px 24px" }}>
                     <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px", marginBottom: "6px" }}>
                       AI Portfolio Analysis
@@ -348,7 +348,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* TRANSACTIONS */}
               {activeTab === "transactions" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <div className="bt-card">
                     <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "4px" }}>Transaction Ledger</h2>
                     <p style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>All trades and cash events. Executing an AI recommendation auto-creates a draft transaction here.</p>
@@ -359,7 +359,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* NOTES */}
               {activeTab === "notes" && (
-                <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
+                <div className="bt-tab-enter" style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
                   <div className="bt-card">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Portfolio Notes</h2>

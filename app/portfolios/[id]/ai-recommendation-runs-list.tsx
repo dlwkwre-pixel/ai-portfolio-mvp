@@ -156,13 +156,13 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
 
       {/* Recommendations */}
       {filteredAndSorted.length > 0 ? (
-        <div className="space-y-2">
+        <div className="bt-list-animate space-y-2">
           {filteredAndSorted.map((item) => {
             const style = actionStyle(item.action_type);
             const isExpanded = expandedId === item.id;
 
             return (
-              <div key={item.id} className="rounded-2xl border border-white/6 bg-white/2 overflow-hidden transition hover:bg-white/3">
+              <div key={item.id} className="bt-rec-card bt-lift rounded-2xl border border-white/6 bg-white/2 overflow-hidden transition hover:bg-white/3">
                 {/* Row header — always visible, clickable to expand */}
                 <button
                   type="button"

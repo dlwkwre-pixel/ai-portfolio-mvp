@@ -117,9 +117,9 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {portfolioRows.map((p, idx) => (
-              <div key={p.id} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+              <div key={p.id} className="bt-lift" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px" }}>
                   {reordering && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -190,7 +190,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
             <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Activity</h2>
             <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Trades and AI runs</p>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {feedItems.length > 0 ? feedItems.map(item => (
               <Link key={item.id} href={item.href} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "9px 10px", borderRadius: "var(--radius-md)", textDecoration: "none", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", transition: "var(--transition-fast)" }}>
                 <div style={{ width: "24px", height: "24px", borderRadius: "6px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: item.kind === "ai" ? "var(--violet-bg)" : "var(--card-bg)", color: item.kind === "ai" ? "var(--violet)" : "var(--text-tertiary)", marginTop: "1px" }}>

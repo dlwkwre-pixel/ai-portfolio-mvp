@@ -281,7 +281,7 @@ export default function PortfolioChartClient({
                 labelFormatter={(label) => compactDate(label)}
                 contentStyle={tooltipStyle}
               />
-              <Area type="monotone" dataKey="total_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} />
+              <Area type="monotone" dataKey="total_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -309,8 +309,8 @@ export default function PortfolioChartClient({
                   labelFormatter={(label) => compactDate(label)}
                   contentStyle={tooltipStyle}
                 />
-                <Area type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnGradient)" dot={false} activeDot={{ r: 4 }} connectNulls />
-                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+                <Area type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -339,8 +339,8 @@ export default function PortfolioChartClient({
                   labelFormatter={(label) => compactDate(label)}
                   contentStyle={tooltipStyle}
                 />
-                <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls />
-                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+                <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
               </AreaChart>
             </ResponsiveContainer>
           )}

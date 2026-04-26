@@ -401,3 +401,100 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* ============================================================
+   BuyTune App Animations — add to bottom of app/globals.css
+   ============================================================ */
+
+@keyframes bt-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bt-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bt-slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bt-blur-in {
+  from { opacity: 0; filter: blur(4px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+/* Staggered fade up — apply to containers */
+.bt-animate-page > * {
+  animation: bt-fade-up 0.45s ease both;
+}
+.bt-animate-page > *:nth-child(1) { animation-delay: 0ms; }
+.bt-animate-page > *:nth-child(2) { animation-delay: 60ms; }
+.bt-animate-page > *:nth-child(3) { animation-delay: 120ms; }
+.bt-animate-page > *:nth-child(4) { animation-delay: 180ms; }
+.bt-animate-page > *:nth-child(5) { animation-delay: 240ms; }
+.bt-animate-page > *:nth-child(6) { animation-delay: 300ms; }
+
+/* Individual helpers */
+.bt-fu   { animation: bt-fade-up   0.45s ease both; }
+.bt-fu-1 { animation: bt-fade-up   0.45s 0.06s ease both; }
+.bt-fu-2 { animation: bt-fade-up   0.45s 0.12s ease both; }
+.bt-fu-3 { animation: bt-fade-up   0.45s 0.18s ease both; }
+.bt-fu-4 { animation: bt-fade-up   0.45s 0.24s ease both; }
+.bt-fu-5 { animation: bt-fade-up   0.45s 0.30s ease both; }
+.bt-fi   { animation: bt-fade-in   0.35s ease both; }
+.bt-si   { animation: bt-scale-in  0.35s ease both; }
+.bt-sd   { animation: bt-slide-down 0.3s ease both; }
+
+/* Tab content transition */
+.bt-tab-enter {
+  animation: bt-fade-up 0.3s ease both;
+}
+
+/* Card hover lift */
+.bt-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.bt-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Privacy blur transition */
+.bt-private-val {
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+.bt-private-val.hidden {
+  filter: blur(6px);
+  opacity: 0.4;
+  user-select: none;
+}
+
+/* Recommendation card entrance */
+.bt-rec-card {
+  animation: bt-scale-in 0.3s ease both;
+}
+
+/* Earnings banner slide down */
+.bt-banner-enter {
+  animation: bt-slide-down 0.4s ease both;
+}
+
+/* Staggered list items */
+.bt-list-animate > * {
+  animation: bt-fade-up 0.35s ease both;
+}
+.bt-list-animate > *:nth-child(1) { animation-delay: 0ms; }
+.bt-list-animate > *:nth-child(2) { animation-delay: 50ms; }
+.bt-list-animate > *:nth-child(3) { animation-delay: 100ms; }
+.bt-list-animate > *:nth-child(4) { animation-delay: 150ms; }
+.bt-list-animate > *:nth-child(5) { animation-delay: 200ms; }
+.bt-list-animate > *:nth-child(6) { animation-delay: 250ms; }
+.bt-list-animate > *:nth-child(7) { animation-delay: 300ms; }
+.bt-list-animate > *:nth-child(8) { animation-delay: 350ms; }
