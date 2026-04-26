@@ -49,9 +49,9 @@ const TIMEFRAMES = [
 ];
 
 const CHART_MODES = [
-  { label: "Value ($)", value: "value" },
-  { label: "Total Return (%)", value: "return" },
   { label: "Investment Return (%)", value: "twr" },
+  { label: "Total Return (%)", value: "return" },
+  { label: "Value ($)", value: "value" },
 ];
 
 function filterByTimeframe<T extends { date: string }>(data: T[], days: number): T[] {
@@ -104,7 +104,7 @@ export default function PortfolioChartClient({
   hasEnoughSnapshots,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
+  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("twr");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
@@ -154,17 +154,41 @@ export default function PortfolioChartClient({
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
-          {currentValue !== null && (
-            <p className="mt-1 text-3xl font-semibold tracking-tight text-white">
-              {isPrivate ? "$••••••" : `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            </p>
-          )}
-          {valueChange !== null && (
-            <p className={`mt-0.5 text-sm font-medium ${valueChange.isPositive ? "text-emerald-400" : "text-red-400"}`}>
-              {isPrivate ? "$••••••" : `${valueChange.isPositive ? "+" : ""}$${Math.abs(valueChange.change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${valueChange.isPositive ? "+" : ""}${valueChange.pct.toFixed(2)}%)`}
-              <span className="ml-2 text-xs text-slate-500">{activeTimeframe}</span>
-            </p>
+          {chartMode === "twr" ? (
+            <>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Investment Return</p>
+              <p className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: (portfolioTwrPct ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}>
+                {isPrivate ? "••••••" : formatPercent(portfolioTwrPct)}
+              </p>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                Deposits excluded · {activeTimeframe}
+              </p>
+            </>
+          ) : chartMode === "return" ? (
+            <>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Total Return</p>
+              <p className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: (portfolioReturnPct ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}>
+                {isPrivate ? "••••••" : formatPercent(portfolioReturnPct)}
+              </p>
+              <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                Includes deposits · {activeTimeframe}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
+              {currentValue !== null && (
+                <p className="mt-1 text-3xl font-semibold tracking-tight text-white">
+                  {isPrivate ? "$••••••" : `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </p>
+              )}
+              {valueChange !== null && (
+                <p className={`mt-0.5 text-sm font-medium ${valueChange.isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                  {isPrivate ? "$••••••" : `${valueChange.isPositive ? "+" : ""}$${Math.abs(valueChange.change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${valueChange.isPositive ? "+" : ""}${valueChange.pct.toFixed(2)}%)`}
+                  <span className="ml-2 text-xs text-slate-500">{activeTimeframe}</span>
+                </p>
+              )}
+            </>
           )}
         </div>
 
