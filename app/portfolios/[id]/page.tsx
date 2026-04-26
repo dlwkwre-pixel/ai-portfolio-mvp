@@ -170,8 +170,13 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 <span style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 8px", borderRadius: "var(--radius-full)" }}>
                   {portfolio.benchmark_symbol || "SPY"}
                 </span>
+                {portfolio.description && (
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "none" }} className="lg:inline">
+                    — {portfolio.description.length > 60 ? portfolio.description.slice(0, 60) + "..." : portfolio.description}
+                  </span>
+                )}
               </div>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                 <EditPortfolioForm portfolio={{ id: portfolio.id, name: portfolio.name, description: portfolio.description, benchmark_symbol: portfolio.benchmark_symbol, status: portfolio.status }} />
                 <PortfolioHeader
                   portfolioId={portfolio.id}
@@ -188,7 +193,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               </div>
             </div>
 
-            {/* Stat cards + privacy toggle (rendered by PortfolioHeader above via context) */}
+            {/* Stat cards — rendered below topbar */}
 
             {/* Chart hero */}
             <div style={{ padding: "16px 24px 0" }}>
