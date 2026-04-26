@@ -8,181 +8,124 @@ import { createClient } from "@/lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
 
-  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
+  async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!email || !password) {
-      setErrorMessage("Please enter both email and password.");
-      return;
-    }
-
     setLoading(true);
-
+    setError("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setLoading(false);
-      return;
-    }
-
-    setSuccessMessage("Signed in successfully.");
-    setLoading(false);
+    if (error) { setError(error.message); setLoading(false); return; }
     router.push("/dashboard");
     router.refresh();
   }
 
   return (
-    <main
-      className="min-h-screen bg-[#040d1a] text-white flex flex-col items-center justify-center px-6"
-      style={{ fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}
-    >
+    <main style={{ minHeight: "100vh", background: "#07090f", display: "flex", fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display:ital@0;1&display=swap');
-
-        .login-glow {
-          background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(56,139,253,0.18) 0%, transparent 70%);
-        }
-        .input-field {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          transition: all 0.2s ease;
-        }
-        .input-field:focus {
-          outline: none;
-          border-color: rgba(56,139,253,0.6);
-          background: rgba(56,139,253,0.07);
-          box-shadow: 0 0 0 3px rgba(56,139,253,0.12);
-        }
-        .cta-btn {
-          background: linear-gradient(135deg, #2563eb, #4f46e5);
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 24px rgba(37,99,235,0.35);
-        }
-        .cta-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 32px rgba(37,99,235,0.5);
-        }
-        .cta-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-up { animation: fadeUp 0.6s ease forwards; }
-        .fade-up-1 { animation-delay: 0.05s; opacity: 0; }
-        .fade-up-2 { animation-delay: 0.15s; opacity: 0; }
-        .fade-up-3 { animation-delay: 0.25s; opacity: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        input:-webkit-autofill{-webkit-box-shadow:0 0 0 30px #0d1120 inset!important;-webkit-text-fill-color:#e2e8f0!important}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        .fu0{animation:fadeUp 0.5s ease both}
+        .fu1{animation:fadeUp 0.5s 0.08s ease both}
+        .fu2{animation:fadeUp 0.5s 0.16s ease both}
+        .fu3{animation:fadeUp 0.5s 0.24s ease both}
+        .ifield{width:100%;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#e2e8f0;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.15s}
+        .ifield:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
+        .ifield::placeholder{color:#334155}
+        .sbtn{width:100%;padding:13px;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,0.35);transition:all 0.2s}
+        .sbtn:hover:not(:disabled){box-shadow:0 6px 28px rgba(37,99,235,0.5);transform:translateY(-1px)}
+        .sbtn:disabled{opacity:0.6;cursor:not-allowed}
+        .lg-panel{display:none}
+        @media(min-width:1024px){.lg-panel{display:flex!important}.mob-logo{display:none!important}}
       `}</style>
 
-      {/* Background glow */}
-      <div className="login-glow pointer-events-none fixed inset-0" />
+      {/* Left — branding */}
+      <div className="lg-panel" style={{ flex:1, flexDirection:"column", justifyContent:"space-between", padding:"48px", background:"linear-gradient(135deg,#0a0d15,#0d1420)", borderRight:"1px solid rgba(255,255,255,0.06)", position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 30% 40%,rgba(37,99,235,0.12),transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(124,58,237,0.08),transparent 50%)", pointerEvents:"none" }} />
 
-      {/* Nav */}
-      <div className="fixed top-0 left-0 right-0 z-40 border-b border-white/5 bg-[#040d1a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
-              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-blue-400" stroke="currentColor" strokeWidth="2">
-                <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-                <circle cx="5" cy="16" r="1.2" fill="currentColor" stroke="none" />
-                <circle cx="11" cy="12" r="1.2" fill="currentColor" stroke="none" />
-                <circle cx="16" cy="15" r="1.2" fill="currentColor" stroke="none" />
-                <circle cx="20" cy="7" r="1.2" fill="currentColor" stroke="none" />
-              </svg>
-            </div>
-            <span className="text-lg font-semibold tracking-tight">BuyTune.io</span>
-          </Link>
-          <Link href="/signup" className="text-sm text-slate-400 transition hover:text-white">
-            Don't have an account? <span className="text-blue-400 font-medium">Sign up</span>
-          </Link>
+        <Link href="/" style={{ display:"flex", alignItems:"center", gap:"10px", textDecoration:"none", position:"relative", zIndex:1 }}>
+          <div style={{ width:"36px", height:"36px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+              <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/>
+              <circle cx="5" cy="16" r="1.2" fill="white" stroke="none"/>
+              <circle cx="11" cy="12" r="1.2" fill="white" stroke="none"/>
+              <circle cx="16" cy="15" r="1.2" fill="white" stroke="none"/>
+              <circle cx="20" cy="7" r="1.2" fill="white" stroke="none"/>
+            </svg>
+          </div>
+          <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"17px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+        </Link>
+
+        <div style={{ position:"relative", zIndex:1 }}>
+          <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", padding:"5px 12px", borderRadius:"99px", background:"rgba(124,58,237,0.1)", border:"1px solid rgba(167,139,250,0.2)", marginBottom:"20px" }}>
+            <div style={{ width:"5px", height:"5px", borderRadius:"50%", background:"#a78bfa" }} />
+            <span style={{ fontSize:"11px", color:"#a78bfa", fontWeight:500 }}>AI-powered investing</span>
+          </div>
+          <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"36px", fontWeight:800, color:"#fff", letterSpacing:"-1px", lineHeight:1.1, marginBottom:"14px" }}>
+            Your portfolio.<br/>
+            <span style={{ background:"linear-gradient(135deg,#93c5fd,#a78bfa)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Advisor-level intelligence.</span>
+          </h2>
+          <p style={{ fontSize:"15px", color:"#64748b", lineHeight:1.7 }}>
+            Institutional-grade AI analysis for self-directed investors. No fees, no minimums.
+          </p>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginTop:"28px" }}>
+            {[["Powered by","Grok + Gemini"],["Live data","via Finnhub"],["Returns","Modified Dietz"],["Your brokerage","Stays yours"]].map(([l,v]) => (
+              <div key={l} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"10px", padding:"12px 14px" }}>
+                <div style={{ fontSize:"9px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", color:"#334155", marginBottom:"4px" }}>{l}</div>
+                <div style={{ fontSize:"13px", fontWeight:500, color:"#94a3b8" }}>{v}</div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        <div style={{ position:"relative", zIndex:1, fontSize:"12px", color:"#334155" }}>© 2026 BuyTune. All rights reserved.</div>
       </div>
 
-      {/* Login card */}
-      <div className="relative z-10 w-full max-w-md pt-24">
-        <div className="fade-up fade-up-1 mb-8 text-center">
-          <h1 className="text-4xl font-light tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
-            Welcome back
-          </h1>
-          <p className="mt-2 text-slate-400">Sign in to your BuyTune account</p>
-        </div>
-
-        <div className="fade-up fade-up-2 rounded-2xl border border-white/8 bg-white/3 p-8 backdrop-blur-sm">
-          <form className="space-y-5" onSubmit={handleSignIn}>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">Email</label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field w-full rounded-xl px-4 py-3 text-white placeholder-slate-500"
-              />
+      {/* Right — form */}
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"48px 24px" }}>
+        <div style={{ width:"100%", maxWidth:"400px" }}>
+          <Link href="/" className="mob-logo" style={{ display:"flex", alignItems:"center", gap:"8px", textDecoration:"none", marginBottom:"40px", justifyContent:"center" }}>
+            <div style={{ width:"28px", height:"28px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"7px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
             </div>
+            <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"15px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+          </Link>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">Password</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field w-full rounded-xl px-4 py-3 text-white placeholder-slate-500"
-              />
+          <div className="fu0" style={{ marginBottom:"32px" }}>
+            <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"26px", fontWeight:700, color:"#fff", letterSpacing:"-0.5px", marginBottom:"6px" }}>Welcome back</h1>
+            <p style={{ fontSize:"14px", color:"#64748b" }}>Sign in to your portfolio workspace</p>
+          </div>
+
+          <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+            <div className="fu1">
+              <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:"#64748b", marginBottom:"6px" }}>Email address</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" />
             </div>
-
-            {errorMessage && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                {errorMessage}
+            <div className="fu2">
+              <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:"#64748b", marginBottom:"6px" }}>Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className="ifield" />
+            </div>
+            {error && (
+              <div style={{ background:"rgba(255,92,92,0.08)", border:"1px solid rgba(255,92,92,0.2)", borderRadius:"8px", padding:"10px 14px", fontSize:"13px", color:"#ff5c5c" }}>
+                {error}
               </div>
             )}
-
-            {successMessage && (
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
-                {successMessage}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="cta-btn w-full rounded-xl py-3.5 text-base font-semibold text-white"
-            >
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-
-            <div className="text-center">
-              <button type="button" className="text-sm text-slate-500 transition hover:text-slate-300">
-                Forgot password?
+            <div className="fu3">
+              <button type="submit" disabled={loading} className="sbtn">
+                {loading ? "Signing in..." : "Sign in"}
               </button>
             </div>
           </form>
-        </div>
 
-        <div className="fade-up fade-up-3 mt-6 text-center text-sm text-slate-500">
-          Don't have an account?{" "}
-          <Link href="/signup" className="font-medium text-blue-400 transition hover:text-blue-300">
-            Create one for free
-          </Link>
-        </div>
-
-        <div className="mt-8 text-center">
-          <Link href="/" className="text-xs text-slate-600 transition hover:text-slate-400">
-            ← Back to homepage
-          </Link>
+          <p style={{ textAlign:"center", fontSize:"13px", color:"#475569", marginTop:"24px" }}>
+            Don't have an account?{" "}
+            <Link href="/signup" style={{ color:"#93c5fd", textDecoration:"none", fontWeight:500 }}>Create one free</Link>
+          </p>
         </div>
       </div>
     </main>

@@ -293,7 +293,13 @@ export default function PortfolioChartClient({
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="returnGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
                 <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
                 <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
@@ -303,9 +309,9 @@ export default function PortfolioChartClient({
                   labelFormatter={(label) => compactDate(label)}
                   contentStyle={tooltipStyle}
                 />
-                <Line type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
+                <Area type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnGradient)" dot={false} activeDot={{ r: 4 }} connectNulls />
                 <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
@@ -317,7 +323,13 @@ export default function PortfolioChartClient({
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="twrGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
                 <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
                 <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
@@ -327,9 +339,9 @@ export default function PortfolioChartClient({
                   labelFormatter={(label) => compactDate(label)}
                   contentStyle={tooltipStyle}
                 />
-                <Line type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
+                <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls />
                 <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
