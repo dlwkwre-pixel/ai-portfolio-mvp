@@ -74,7 +74,7 @@ export default function LoginPage() {
             Institutional-grade AI analysis for self-directed investors. No fees, no minimums.
           </p>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginTop:"28px" }}>
-            {[["Powered by","Grok + Gemini"],["Live data","via Finnhub"],["Returns","Modified Dietz"],["Your brokerage","Stays yours"]].map(([l,v]) => (
+            {[["Powered by","Grok + Gemini"],["Benchmark vs","SPY, QQQ + more"],["AI Insights","Buy · Hold · Sell"],["Your brokerage","Stays yours"]].map(([l,v]) => (
               <div key={l} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"10px", padding:"12px 14px" }}>
                 <div style={{ fontSize:"9px", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", color:"#334155", marginBottom:"4px" }}>{l}</div>
                 <div style={{ fontSize:"13px", fontWeight:500, color:"#94a3b8" }}>{v}</div>
