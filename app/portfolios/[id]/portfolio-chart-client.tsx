@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { usePortfolioPrivacy } from "./portfolio-privacy-context";
 import {
   CartesianGrid, Line, LineChart, ReferenceLine,
   ResponsiveContainer, Tooltip, XAxis, YAxis, Area, AreaChart,
@@ -104,6 +105,7 @@ export default function PortfolioChartClient({
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
   const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
+  const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
 
@@ -155,13 +157,12 @@ export default function PortfolioChartClient({
           <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
           {currentValue !== null && (
             <p className="mt-1 text-3xl font-semibold tracking-tight text-white">
-              ${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {isPrivate ? "$••••••" : `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </p>
           )}
           {valueChange !== null && (
             <p className={`mt-0.5 text-sm font-medium ${valueChange.isPositive ? "text-emerald-400" : "text-red-400"}`}>
-              {valueChange.isPositive ? "+" : ""}${Math.abs(valueChange.change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              {" "}({valueChange.isPositive ? "+" : ""}{valueChange.pct.toFixed(2)}%)
+              {isPrivate ? "$••••••" : `${valueChange.isPositive ? "+" : ""}$${Math.abs(valueChange.change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${valueChange.isPositive ? "+" : ""}${valueChange.pct.toFixed(2)}%)`}
               <span className="ml-2 text-xs text-slate-500">{activeTimeframe}</span>
             </p>
           )}
