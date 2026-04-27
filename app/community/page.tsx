@@ -21,7 +21,7 @@ export default async function CommunityPage({
     .select(`
       id, name, description, style, risk_level, is_public,
       likes_count, copies_count, created_at, user_id,
-      user_profiles!inner(username, display_name, avatar_color)
+      user_profiles(username, display_name, avatar_color)
     `)
     .eq("is_public", true)
     .eq("is_active", true);
@@ -65,7 +65,7 @@ export default async function CommunityPage({
     is_saved: savedIds.has(s.id),
     author: {
       user_id: s.user_id,
-      username: (s.user_profiles as any)?.username ?? "unknown",
+      username: (s.user_profiles as any)?.username ?? s.user_id.slice(0, 8),
       display_name: (s.user_profiles as any)?.display_name ?? null,
       avatar_color: (s.user_profiles as any)?.avatar_color ?? "#2563eb",
       is_following: followingIds.has(s.user_id),

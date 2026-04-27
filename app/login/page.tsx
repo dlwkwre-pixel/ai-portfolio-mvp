@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
             Your portfolio.<br />
-            <span style={{ background: "linear-gradient(135deg, #93c5fd, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Advisor-level intelligence.</span>
+            <span style={{ display: "inline-block", paddingBottom: "6px", marginBottom: "-6px", background: "linear-gradient(135deg, #93c5fd, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Advisor-level intelligence.</span>
           </h2>
           <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.7, marginBottom: "28px" }}>
             Institutional-grade AI analysis for self-directed investors. No fees, no minimums.
