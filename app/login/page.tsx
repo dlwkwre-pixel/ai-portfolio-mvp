@@ -45,7 +45,7 @@ export default function LoginPage() {
       `}</style>
 
       {/* Left panel */}
-      <div className="left-panel" style={{ flex: 1, flexDirection: "column", justifyContent: "space-between", padding: "48px", background: "linear-gradient(160deg, #0a0d15 0%, #0d1420 100%)", borderRight: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
+      <div className="left-panel" style={{ flex: 1, flexDirection: "column", justifyContent: "space-between", padding: "48px", background: "linear-gradient(160deg, #0a0d15 0%, #0d1420 100%)", borderRight: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 50% at 30% 40%, rgba(37,99,235,0.12), transparent 60%), radial-gradient(ellipse 40% 40% at 80% 80%, rgba(124,58,237,0.08), transparent 50%)" }} />
 
         {/* Logo — fixed overflow with explicit overflow:visible */}
@@ -69,7 +69,7 @@ export default function LoginPage() {
             <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#a78bfa" }} />
             <span style={{ fontSize: "11px", color: "#a78bfa", fontWeight: 500 }}>AI-powered investing</span>
           </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.15, marginBottom: "14px" }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
             Your portfolio.<br />
             <span style={{ background: "linear-gradient(135deg, #93c5fd, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Advisor-level intelligence.</span>
           </h2>

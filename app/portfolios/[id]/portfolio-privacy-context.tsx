@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+
+const PRIVACY_KEY = "bt-privacy-mode";
 
 type PortfolioPrivacyContextType = {
   isPrivate: boolean;
@@ -19,7 +21,20 @@ export function usePortfolioPrivacy() {
 }
 
 export function PortfolioPrivacyProvider({ children }: { children: ReactNode }) {
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivateState] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PRIVACY_KEY);
+      if (stored === "true") setIsPrivateState(true);
+    } catch {}
+  }, []);
+
+  function setIsPrivate(v: boolean) {
+    setIsPrivateState(v);
+    try { localStorage.setItem(PRIVACY_KEY, String(v)); } catch {}
+  }
 
   function hide(value: string, isMoney = false): string {
     if (!isPrivate) return value;

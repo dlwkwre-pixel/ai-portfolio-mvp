@@ -40,7 +40,18 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   feedItems: FeedItem[]; totalValue: number; totalValueLabel: string;
   strategiesCount: number; lastRunAt: string | null;
 }) {
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivateState] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem("bt-privacy-mode") === "true"; } catch { return false; }
+  });
+
+  function setIsPrivate(v: boolean | ((prev: boolean) => boolean)) {
+    setIsPrivateState(prev => {
+      const next = typeof v === "function" ? v(prev) : v;
+      try { localStorage.setItem("bt-privacy-mode", String(next)); } catch {}
+      return next;
+    });
+  }
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
   const [isSaving, startSave] = useTransition();
