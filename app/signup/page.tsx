@@ -25,7 +25,7 @@ export default function SignupPage() {
       options: { data: { full_name: fullName } },
     });
     if (error) { setError(error.message); setLoading(false); return; }
-    if (data.session) { router.push("/dashboard"); router.refresh(); return; }
+    if (data.session) { router.push("/setup-username"); router.refresh(); return; }
     setSuccess("Account created! Check your email to confirm, then sign in.");
     setLoading(false);
   }
