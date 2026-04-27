@@ -21,7 +21,7 @@ export default async function CommunityPage({
     .select(`
       id, name, description, style, risk_level, is_public,
       likes_count, copies_count, created_at, user_id,
-      user_profiles(username, display_name, avatar_color)
+      user_profiles!left(username, display_name, avatar_color)
     `)
     .eq("is_public", true)
     .eq("is_active", true);
