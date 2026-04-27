@@ -15,14 +15,10 @@ export default async function CommunityPage({
 
   const { style, risk, sort = "popular", q } = await searchParams;
 
-  // Fetch public strategies with author profiles
+  // Fetch public strategies
   let query = supabase
     .from("strategies")
-    .select(`
-      id, name, description, style, risk_level, is_public,
-      likes_count, copies_count, created_at, user_id,
-      user_profiles!left(username, display_name, avatar_color)
-    `)
+    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id")
     .eq("is_public", true)
     .eq("is_active", true);
 
@@ -34,6 +30,13 @@ export default async function CommunityPage({
   else if (sort === "copied") query = query.order("copies_count", { ascending: false });
 
   const { data: strategies } = await query.limit(50);
+
+  // Fetch profiles separately for the strategy authors
+  const authorIds = [...new Set((strategies ?? []).map(s => s.user_id))];
+  const { data: profiles } = authorIds.length > 0
+    ? await supabase.from("user_profiles").select("id, username, display_name, avatar_color").in("id", authorIds)
+    : { data: [] };
+  const profileMap = new Map((profiles ?? []).map(p => [p.id, p]));
 
   // Get current user's likes and saves
   const [{ data: myLikes }, { data: mySaves }, { data: myFollows }] = await Promise.all([
@@ -65,9 +68,9 @@ export default async function CommunityPage({
     is_saved: savedIds.has(s.id),
     author: {
       user_id: s.user_id,
-      username: (s.user_profiles as any)?.username ?? s.user_id.slice(0, 8),
-      display_name: (s.user_profiles as any)?.display_name ?? null,
-      avatar_color: (s.user_profiles as any)?.avatar_color ?? "#2563eb",
+      username: profileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
+      display_name: profileMap.get(s.user_id)?.display_name ?? null,
+      avatar_color: profileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
       is_following: followingIds.has(s.user_id),
     },
   }));
