@@ -69,11 +69,11 @@ export default function LoginPage() {
             <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#a78bfa" }} />
             <span style={{ fontSize: "11px", color: "#a78bfa", fontWeight: 500 }}>AI-powered investing</span>
           </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.4, marginBottom: "24px", paddingBottom: "8px" }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.3, marginBottom: "32px" }}>
             Your portfolio.<br />
             <span style={{ color: "#93c5fd" }}>Advisor-level intelligence.</span>
           </h2>
-          <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.7, marginBottom: "28px" }}>
+          <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.3, marginBottom: "32px"}}>
             Institutional-grade AI analysis for self-directed investors. No fees, no minimums.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>

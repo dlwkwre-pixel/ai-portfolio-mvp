@@ -43,8 +43,8 @@ export default function LandingPage() {
         .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:99px;border:1px solid rgba(37,99,235,0.3);background:rgba(37,99,235,0.08);font-size:12px;color:#93c5fd;font-weight:500;margin-bottom:24px}
         .badge-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:pulse 2s ease infinite}
 
-        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(36px,5vw,58px);font-weight:800;letter-spacing:-2.5px;line-height:1.02;color:#fff;margin:0 0 20px;max-width:860px}
-        .hero-h .accent{background:linear-gradient(135deg,#93c5fd 0%,#a78bfa 60%,#7c3aed 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(44px,7vw,84px);font-weight:800;letter-spacing:-2.5px;line-height:1.02;color:#fff;margin:0 0 20px;max-width:860px}
+        .hero-h .accent{color:#93c5fd}
         .hero-sub{font-size:clamp(15px,2vw,18px);color:#64748b;line-height:1.7;max-width:520px;margin:0 auto 36px}
 
         .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
