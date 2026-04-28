@@ -7,13 +7,13 @@ import CommunityClient from "./community-client";
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string; feed?: string }>;
+  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string; feed?: string; section?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { style, risk, sort = "popular", q, feed = "all" } = await searchParams;
+  const { style, risk, sort = "popular", q, feed = "all", section = "strategies" } = await searchParams;
 
   // Fetch public strategies
   let query = supabase
@@ -60,6 +60,38 @@ export default async function CommunityPage({
   const filteredStrategies = feed === "following"
     ? (strategies ?? []).filter(s => followingIds.has(s.user_id) || s.user_id === user.id)
     : (strategies ?? []);
+
+  // People search
+  let peopleRows: any[] = [];
+  if (section === "people") {
+    const peopleQuery = q
+      ? supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").eq("is_public", true).or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(30)
+      : supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").eq("is_public", true).limit(30);
+    const { data: people } = await peopleQuery;
+
+    // Get follower counts for each person
+    const peopleIds = (people ?? []).map(p => p.id);
+    const { data: followerCounts } = peopleIds.length > 0
+      ? await supabase.from("user_follows").select("following_id").in("following_id", peopleIds)
+      : { data: [] };
+
+    const followerCountMap = new Map<string, number>();
+    for (const f of (followerCounts ?? [])) {
+      followerCountMap.set(f.following_id, (followerCountMap.get(f.following_id) ?? 0) + 1);
+    }
+
+    peopleRows = (people ?? []).map(p => ({
+      id: p.id,
+      username: p.username,
+      display_name: p.display_name,
+      bio: p.bio,
+      avatar_color: p.avatar_color ?? "#2563eb",
+      followers_count: followerCountMap.get(p.id) ?? 0,
+      is_following: followingIds.has(p.id),
+      is_friend: followingIds.has(p.id) && theyFollowMeIds.has(p.id),
+      is_self: p.id === user.id,
+    }));
+  }
 
   const strategyRows = filteredStrategies.map(s => ({
     id: s.id,
@@ -119,6 +151,8 @@ export default async function CommunityPage({
               initialQuery={q ?? ""}
               initialFeed={feed}
               followingCount={followingIds.size}
+              initialSection={section}
+              peopleRows={peopleRows}
             />
           </div>
         </div>

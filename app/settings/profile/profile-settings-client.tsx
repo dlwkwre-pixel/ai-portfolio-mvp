@@ -37,6 +37,7 @@ export default function ProfileSettingsClient({
   const [displayName, setDisplayName] = useState(existingProfile?.display_name ?? "");
   const [bio, setBio] = useState(existingProfile?.bio ?? "");
   const [avatarColor, setAvatarColor] = useState(existingProfile?.avatar_color ?? "#2563eb");
+  const [isPublic, setIsPublic] = useState((existingProfile as any)?.is_public ?? true);
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(existingProfile ? true : null);
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,7 @@ export default function ProfileSettingsClient({
       display_name: displayName || username,
       bio: bio || null,
       avatar_color: avatarColor,
+      is_public: isPublic,
       updated_at: new Date().toISOString(),
     };
 
@@ -207,6 +209,44 @@ export default function ProfileSettingsClient({
             <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", textAlign: "right" }}>
               {bio.length}/160
             </p>
+          </div>
+
+          {/* Profile visibility */}
+          <div>
+            <div className="label" style={{ marginBottom: "8px" }}>Profile Visibility</div>
+            <div
+              onClick={() => setIsPublic(!isPublic)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "12px 14px", borderRadius: "var(--radius-md)", cursor: "pointer",
+                background: isPublic ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)",
+                border: `1px solid ${isPublic ? "rgba(0,211,149,0.2)" : "var(--border)"}`,
+                transition: "var(--transition-base)",
+              }}
+            >
+              <div>
+                <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>
+                  {isPublic ? "Public profile" : "Private profile"}
+                </p>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                  {isPublic ? "Anyone can find you and see your public strategies" : "Only you can see your profile — you won't appear in People search"}
+                </p>
+              </div>
+              {/* Toggle switch */}
+              <div style={{
+                width: "40px", height: "22px", borderRadius: "11px", flexShrink: 0,
+                background: isPublic ? "var(--green)" : "var(--card-border)",
+                position: "relative", transition: "background 0.2s",
+              }}>
+                <div style={{
+                  position: "absolute", top: "3px",
+                  left: isPublic ? "21px" : "3px",
+                  width: "16px", height: "16px", borderRadius: "50%",
+                  background: "#fff", transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }} />
+              </div>
+            </div>
           </div>
 
           {/* Email (read only) */}

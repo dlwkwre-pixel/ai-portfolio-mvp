@@ -29,6 +29,18 @@ type StrategyRow = {
   author: Author;
 };
 
+type PersonRow = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  avatar_color: string;
+  followers_count: number;
+  is_following: boolean;
+  is_friend: boolean;
+  is_self: boolean;
+};
+
 function riskColor(r: string | null) {
   if (!r) return { bg: "var(--card-bg)", border: "var(--card-border)", color: "var(--text-tertiary)" };
   const l = r.toLowerCase();
@@ -205,6 +217,8 @@ export default function CommunityClient({
   initialQuery,
   initialFeed,
   followingCount,
+  initialSection,
+  peopleRows,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
@@ -214,10 +228,14 @@ export default function CommunityClient({
   initialQuery: string;
   initialFeed: string;
   followingCount: number;
+  initialSection: string;
+  peopleRows: PersonRow[];
 }) {
   const router = useRouter();
   const [strategies, setStrategies] = useState(initialStrategies);
   const [feed, setFeed] = useState(initialFeed);
+  const [section, setSection] = useState(initialSection);
+  const [people, setPeople] = useState<PersonRow[]>(peopleRows);
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -268,8 +286,32 @@ export default function CommunityClient({
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Filters */}
       <div className="bt-card" style={{ padding: "14px 16px" }}>
-        {/* Feed tabs */}
-        <div style={{ display: "flex", gap: "4px", marginBottom: "12px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
+        {/* Section tabs — Strategies vs People */}
+        <div style={{ display: "flex", gap: "4px", marginBottom: "16px" }}>
+          {[
+            { val: "strategies", label: "Strategies", icon: "📈" },
+            { val: "people", label: "People", icon: "👥" },
+          ].map(tab => (
+            <button
+              key={tab.val}
+              type="button"
+              onClick={() => { setSection(tab.val); updateUrl({ section: tab.val }); }}
+              style={{
+                padding: "8px 18px", borderRadius: "var(--radius-md)", fontSize: "13px", fontWeight: 500,
+                background: section === tab.val ? "var(--brand-gradient)" : "var(--card-bg)",
+                border: `1px solid ${section === tab.val ? "transparent" : "var(--card-border)"}`,
+                color: section === tab.val ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer", fontFamily: "var(--font-body)", transition: "var(--transition-base)",
+                boxShadow: section === tab.val ? "var(--shadow-brand)" : "none",
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Feed tabs — only for strategies */}
+        {section === "strategies" && <div style={{ display: "flex", gap: "4px", marginBottom: "12px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
           {[
             { val: "all", label: "All Strategies" },
             { val: "following", label: `Following${followingCount > 0 ? ` (${followingCount})` : ""}` },
@@ -289,7 +331,7 @@ export default function CommunityClient({
               {tab.label}
             </button>
           ))}
-        </div>
+        </div>}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
           {/* Search */}
@@ -343,6 +385,62 @@ export default function CommunityClient({
         </div>
       </div>
 
+      {section === "people" ? (
+        /* ── PEOPLE SECTION ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>{people.length} {people.length === 1 ? "person" : "people"}</p>
+          {people.length > 0 ? (
+            <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {people.map(person => (
+                <div key={person.id} className="bt-card bt-lift" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                  <Link href={`/${person.username}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
+                    <div style={{ width: "44px", height: "44px", minWidth: "44px", borderRadius: "50%", background: person.avatar_color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 700, color: "#fff", boxShadow: `0 0 12px ${person.avatar_color}40` }}>
+                      {(person.display_name || person.username)[0]?.toUpperCase()}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {person.display_name || person.username}
+                        </span>
+                        <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>@{person.username}</span>
+                        {person.is_friend && (
+                          <span style={{ fontSize: "9px", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.2)", color: "var(--green)", padding: "1px 6px", borderRadius: "var(--radius-full)", fontWeight: 600 }}>Friends</span>
+                        )}
+                      </div>
+                      {person.bio && <p style={{ fontSize: "12px", color: "var(--text-tertiary)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{person.bio}</p>}
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{person.followers_count} {person.followers_count === 1 ? "follower" : "followers"}</p>
+                    </div>
+                  </Link>
+                  {!person.is_self && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPeople(prev => prev.map(p => p.id === person.id ? { ...p, is_following: !p.is_following, followers_count: p.is_following ? p.followers_count - 1 : p.followers_count + 1 } : p));
+                        startTransition(() => followUser(person.id));
+                      }}
+                      style={{
+                        padding: "6px 14px", borderRadius: "var(--radius-full)", fontSize: "12px", fontWeight: 500,
+                        background: person.is_following ? "var(--card-bg)" : "rgba(37,99,235,0.1)",
+                        border: `1px solid ${person.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
+                        color: person.is_following ? "var(--text-tertiary)" : "#93c5fd",
+                        cursor: "pointer", transition: "var(--transition-base)", fontFamily: "var(--font-body)", flexShrink: 0,
+                      }}
+                    >
+                      {person.is_following ? "Following" : "Follow"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bt-card" style={{ padding: "40px", textAlign: "center" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>No users found{search ? ` for "${search}"` : ""}.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── STRATEGIES SECTION ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Strategy count */}
       <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
         {strategies.length} public {strategies.length === 1 ? "strategy" : "strategies"}
@@ -393,6 +491,8 @@ export default function CommunityClient({
           <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
             Be the first to share — go to Strategies and toggle one public.
           </p>
+        </div>
+      )}
         </div>
       )}
     </div>
