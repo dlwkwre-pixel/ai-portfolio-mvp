@@ -233,7 +233,7 @@ export default function ProfileSettingsClient({
         {success && (
           <div style={{ background: "var(--green-bg)", border: "1px solid var(--green-border)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: "13px", color: "var(--green)" }}>
             Profile saved! Your public page is at{" "}
-            <Link href={`/@${username}`} style={{ color: "var(--green)", textDecoration: "underline" }}>
+            <Link href={`/${username}`} style={{ color: "var(--green)", textDecoration: "underline" }}>
               /@{username}
             </Link>
           </div>
@@ -249,7 +249,7 @@ export default function ProfileSettingsClient({
             {saving ? "Saving..." : isNew ? "Create Profile" : "Save Changes"}
           </button>
           {!isNew && (
-            <Link href={`/@${existingProfile.username}`} className="bt-btn bt-btn-ghost">
+            <Link href={`/${existingProfile.username}`} className="bt-btn bt-btn-ghost">
               View Profile →
             </Link>
           )}

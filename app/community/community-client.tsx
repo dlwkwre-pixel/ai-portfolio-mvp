@@ -106,7 +106,7 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment }: {
 
       {/* Author row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Link href={`/@${s.author.username}`} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
+        <Link href={`/${s.author.username}`} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <Avatar username={s.author.username} color={s.author.avatar_color} size={26} />
           <div>
             <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)" }}>
