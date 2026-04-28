@@ -11,6 +11,7 @@ type Author = {
   display_name: string | null;
   avatar_color: string;
   is_following: boolean;
+  is_friend: boolean;
 };
 
 type StrategyRow = {
@@ -202,6 +203,8 @@ export default function CommunityClient({
   initialStyle,
   initialRisk,
   initialQuery,
+  initialFeed,
+  followingCount,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
@@ -209,9 +212,12 @@ export default function CommunityClient({
   initialStyle: string;
   initialRisk: string;
   initialQuery: string;
+  initialFeed: string;
+  followingCount: number;
 }) {
   const router = useRouter();
   const [strategies, setStrategies] = useState(initialStrategies);
+  const [feed, setFeed] = useState(initialFeed);
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -262,6 +268,29 @@ export default function CommunityClient({
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Filters */}
       <div className="bt-card" style={{ padding: "14px 16px" }}>
+        {/* Feed tabs */}
+        <div style={{ display: "flex", gap: "4px", marginBottom: "12px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
+          {[
+            { val: "all", label: "All Strategies" },
+            { val: "following", label: `Following${followingCount > 0 ? ` (${followingCount})` : ""}` },
+          ].map(tab => (
+            <button
+              key={tab.val}
+              type="button"
+              onClick={() => { setFeed(tab.val); updateUrl({ feed: tab.val }); }}
+              style={{
+                padding: "7px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 500,
+                background: feed === tab.val ? "rgba(37,99,235,0.1)" : "none",
+                border: `1px solid ${feed === tab.val ? "rgba(37,99,235,0.25)" : "transparent"}`,
+                color: feed === tab.val ? "#93c5fd" : "var(--text-tertiary)",
+                cursor: "pointer", fontFamily: "var(--font-body)", transition: "var(--transition-base)",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
           {/* Search */}
           <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>

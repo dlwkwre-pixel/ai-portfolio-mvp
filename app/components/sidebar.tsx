@@ -322,13 +322,15 @@ export default function Sidebar({
         flexDirection: "column",
         gap: "4px",
       }}>
-        {/* User row */}
-        <div style={{
+        {/* User row — links to profile settings */}
+        <Link href="/settings/profile" style={{
           display: "flex",
           alignItems: "center",
           gap: "8px",
           padding: "7px 10px",
           borderRadius: "8px",
+          textDecoration: "none",
+          transition: "var(--transition-fast)",
         }}>
           {/* Avatar */}
           <div style={{
@@ -350,10 +352,10 @@ export default function Sidebar({
             <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {username}
             </div>
-            <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Free plan</div>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Edit profile</div>
           </div>
           <ThemeToggle />
-        </div>
+        </Link>
 
         {/* Sign out */}
         <button

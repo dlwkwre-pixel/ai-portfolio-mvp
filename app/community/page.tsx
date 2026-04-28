@@ -7,13 +7,13 @@ import CommunityClient from "./community-client";
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string }>;
+  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string; feed?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { style, risk, sort = "popular", q } = await searchParams;
+  const { style, risk, sort = "popular", q, feed = "all" } = await searchParams;
 
   // Fetch public strategies
   let query = supabase
@@ -39,13 +39,15 @@ export default async function CommunityPage({
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p]));
 
   // Get current user's likes and saves
-  const [{ data: myLikes }, { data: mySaves }, { data: myFollows }] = await Promise.all([
+  const [{ data: myLikes }, { data: mySaves }, { data: myFollows }, { data: theyFollowMe }] = await Promise.all([
     supabase.from("strategy_likes").select("strategy_id").eq("user_id", user.id),
     supabase.from("strategy_saves").select("strategy_id").eq("user_id", user.id),
     supabase.from("user_follows").select("following_id").eq("follower_id", user.id),
+    supabase.from("user_follows").select("follower_id").eq("following_id", user.id),
   ]);
 
   const likedIds = new Set((myLikes ?? []).map(l => l.strategy_id));
+  const theyFollowMeIds = new Set((theyFollowMe ?? []).map(f => f.follower_id));
   const savedIds = new Set((mySaves ?? []).map(s => s.strategy_id));
   const followingIds = new Set((myFollows ?? []).map(f => f.following_id));
 
@@ -54,7 +56,12 @@ export default async function CommunityPage({
     .from("portfolios").select("id, name, cash_balance, account_type")
     .eq("user_id", user.id).eq("is_active", true);
 
-  const strategyRows = (strategies ?? []).map(s => ({
+  // Filter by following feed
+  const filteredStrategies = feed === "following"
+    ? (strategies ?? []).filter(s => followingIds.has(s.user_id) || s.user_id === user.id)
+    : (strategies ?? []);
+
+  const strategyRows = filteredStrategies.map(s => ({
     id: s.id,
     name: s.name,
     description: s.description,
@@ -72,6 +79,7 @@ export default async function CommunityPage({
       display_name: profileMap.get(s.user_id)?.display_name ?? null,
       avatar_color: profileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
       is_following: followingIds.has(s.user_id),
+      is_friend: followingIds.has(s.user_id) && theyFollowMeIds.has(s.user_id),
     },
   }));
 
@@ -109,6 +117,8 @@ export default async function CommunityPage({
               initialStyle={style ?? ""}
               initialRisk={risk ?? ""}
               initialQuery={q ?? ""}
+              initialFeed={feed}
+              followingCount={followingIds.size}
             />
           </div>
         </div>
