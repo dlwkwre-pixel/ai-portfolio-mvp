@@ -25,7 +25,7 @@ export type FinnhubNewsItem = {
   summary: string;
   source: string;
   url: string;
-  datetime: number; // unix timestamp
+  datetime: number;
   image: string;
 };
 
@@ -35,15 +35,15 @@ export type FinnhubRecommendation = {
   sell: number;
   strongBuy: number;
   strongSell: number;
-  period: string; // YYYY-MM-DD
+  period: string;
   symbol: string;
 };
 
 export type FinnhubEarnings = {
-  date: string; // YYYY-MM-DD
+  date: string;
   epsActual: number | null;
   epsEstimate: number | null;
-  hour: string; // "bmo" before market open, "amc" after market close, "dmh" during market hours
+  hour: string;
   quarter: number;
   revenueActual: number | null;
   revenueEstimate: number | null;
@@ -66,6 +66,39 @@ function getApiKey(): string {
   return apiKey;
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Fetch with retry on 429 — exponential backoff
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      await sleep(1000 * Math.pow(2, attempt - 1));
+    }
+
+    try {
+      const response = await fetch(url, options);
+
+      if (response.status === 429) {
+        await sleep(2000 * attempt + 1000);
+        lastError = new Error(`Rate limited (429)`);
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError ?? new Error(`Failed after ${maxRetries} retries`);
+}
+
 export async function getFinnhubQuote(symbol: string): Promise<FinnhubQuote | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
@@ -75,29 +108,36 @@ export async function getFinnhubQuote(symbol: string): Promise<FinnhubQuote | nu
   url.searchParams.set("symbol", normalizedSymbol);
   url.searchParams.set("token", apiKey);
 
-  const response = await fetch(url.toString(), { method: "GET", cache: "no-store" });
-  if (!response.ok) throw new Error(`Finnhub quote request failed for ${normalizedSymbol} with status ${response.status}.`);
+  try {
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
 
-  const data = (await response.json()) as Partial<FinnhubQuote>;
-  if (!data) return null;
+    const data = (await response.json()) as Partial<FinnhubQuote>;
+    if (!data) return null;
 
-  const currentPrice =
-    typeof data.c === "number" && data.c > 0 ? Number(data.c)
-    : typeof data.pc === "number" && data.pc > 0 ? Number(data.pc)
-    : null;
+    const currentPrice =
+      typeof data.c === "number" && data.c > 0 ? Number(data.c)
+      : typeof data.pc === "number" && data.pc > 0 ? Number(data.pc)
+      : null;
 
-  if (currentPrice === null) return null;
+    if (currentPrice === null) return null;
 
-  return {
-    c: currentPrice,
-    d: typeof data.d === "number" ? Number(data.d) : 0,
-    dp: typeof data.dp === "number" ? Number(data.dp) : 0,
-    h: typeof data.h === "number" ? Number(data.h) : 0,
-    l: typeof data.l === "number" ? Number(data.l) : 0,
-    o: typeof data.o === "number" ? Number(data.o) : 0,
-    pc: typeof data.pc === "number" ? Number(data.pc) : currentPrice,
-    t: typeof data.t === "number" ? Number(data.t) : 0,
-  };
+    return {
+      c: currentPrice,
+      d: typeof data.d === "number" ? Number(data.d) : 0,
+      dp: typeof data.dp === "number" ? Number(data.dp) : 0,
+      h: typeof data.h === "number" ? Number(data.h) : 0,
+      l: typeof data.l === "number" ? Number(data.l) : 0,
+      o: typeof data.o === "number" ? Number(data.o) : 0,
+      pc: typeof data.pc === "number" ? Number(data.pc) : currentPrice,
+      t: typeof data.t === "number" ? Number(data.t) : 0,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function getFinnhubDailyCandles(args: {
@@ -116,28 +156,31 @@ export async function getFinnhubDailyCandles(args: {
   url.searchParams.set("to", String(args.toUnix));
   url.searchParams.set("token", apiKey);
 
-  const response = await fetch(url.toString(), { method: "GET", next: { revalidate: 3600 } });
-  if (!response.ok) throw new Error(`Finnhub candle request failed for ${symbol} with status ${response.status}.`);
+  try {
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      next: { revalidate: 3600 },
+    });
+    if (!response.ok) return null;
 
-  const data = (await response.json()) as Partial<FinnhubCandlesResponse>;
-  if (!data || data.s !== "ok" || !Array.isArray(data.c) || !Array.isArray(data.t)) return null;
+    const data = (await response.json()) as Partial<FinnhubCandlesResponse>;
+    if (!data || data.s !== "ok" || !Array.isArray(data.c) || !Array.isArray(data.t)) return null;
 
-  return {
-    c: data.c.map(Number),
-    h: Array.isArray(data.h) ? data.h.map(Number) : [],
-    l: Array.isArray(data.l) ? data.l.map(Number) : [],
-    o: Array.isArray(data.o) ? data.o.map(Number) : [],
-    s: data.s,
-    t: data.t.map(Number),
-    v: Array.isArray(data.v) ? data.v.map(Number) : [],
-  };
+    return {
+      c: data.c.map(Number),
+      h: Array.isArray(data.h) ? data.h.map(Number) : [],
+      l: Array.isArray(data.l) ? data.l.map(Number) : [],
+      o: Array.isArray(data.o) ? data.o.map(Number) : [],
+      s: data.s,
+      t: data.t.map(Number),
+      v: Array.isArray(data.v) ? data.v.map(Number) : [],
+    };
+  } catch {
+    return null;
+  }
 }
 
-// Company news for a ticker — last N days
-export async function getFinnhubNews(
-  symbol: string,
-  days = 7
-): Promise<FinnhubNewsItem[]> {
+export async function getFinnhubNews(symbol: string, days = 7): Promise<FinnhubNewsItem[]> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return [];
@@ -145,7 +188,6 @@ export async function getFinnhubNews(
   const to = new Date();
   const from = new Date();
   from.setDate(from.getDate() - days);
-
   const formatDate = (d: Date) => d.toISOString().split("T")[0];
 
   const url = new URL("https://finnhub.io/api/v1/company-news");
@@ -155,9 +197,9 @@ export async function getFinnhubNews(
   url.searchParams.set("token", apiKey);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 1800 }, // cache 30 min
+      next: { revalidate: 1800 },
     });
     if (!response.ok) return [];
 
@@ -178,10 +220,7 @@ export async function getFinnhubNews(
   }
 }
 
-// Analyst buy/hold/sell recommendations
-export async function getFinnhubRecommendations(
-  symbol: string
-): Promise<FinnhubRecommendation | null> {
+export async function getFinnhubRecommendations(symbol: string): Promise<FinnhubRecommendation | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return null;
@@ -191,16 +230,15 @@ export async function getFinnhubRecommendations(
   url.searchParams.set("token", apiKey);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 86400 }, // cache 24 hours — analyst ratings don't change often
+      next: { revalidate: 86400 },
     });
     if (!response.ok) return null;
 
     const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) return null;
 
-    // First item is most recent
     const latest = data[0];
     return {
       buy: latest.buy ?? 0,
@@ -216,10 +254,7 @@ export async function getFinnhubRecommendations(
   }
 }
 
-// Analyst price target
-export async function getFinnhubPriceTarget(
-  symbol: string
-): Promise<FinnhubPriceTarget | null> {
+export async function getFinnhubPriceTarget(symbol: string): Promise<FinnhubPriceTarget | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return null;
@@ -229,9 +264,9 @@ export async function getFinnhubPriceTarget(
   url.searchParams.set("token", apiKey);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 86400 }, // cache 24 hours
+      next: { revalidate: 86400 },
     });
     if (!response.ok) return null;
 
@@ -251,18 +286,13 @@ export async function getFinnhubPriceTarget(
   }
 }
 
-// Upcoming earnings for a list of tickers
-export async function getFinnhubEarningsCalendar(
-  tickers: string[],
-  daysAhead = 30
-): Promise<FinnhubEarnings[]> {
+export async function getFinnhubEarningsCalendar(tickers: string[], daysAhead = 30): Promise<FinnhubEarnings[]> {
   const apiKey = getApiKey();
   if (!tickers.length) return [];
 
   const from = new Date();
   const to = new Date();
   to.setDate(to.getDate() + daysAhead);
-
   const formatDate = (d: Date) => d.toISOString().split("T")[0];
 
   const url = new URL("https://finnhub.io/api/v1/calendar/earnings");
@@ -271,9 +301,9 @@ export async function getFinnhubEarningsCalendar(
   url.searchParams.set("token", apiKey);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 3600 }, // cache 1 hour
+      next: { revalidate: 3600 },
     });
     if (!response.ok) return [];
 
@@ -282,7 +312,6 @@ export async function getFinnhubEarningsCalendar(
     if (!Array.isArray(earningsData)) return [];
 
     const normalizedTickers = new Set(tickers.map((t) => t.trim().toUpperCase()));
-
     return earningsData
       .filter((item: any) => normalizedTickers.has(item.symbol?.toUpperCase()))
       .map((item: any) => ({
@@ -301,8 +330,10 @@ export async function getFinnhubEarningsCalendar(
   }
 }
 
-// Convenience: get all market data for a list of tickers at once
-// Used to feed into AI context without making too many sequential calls
+// Batched market context with proper rate limiting
+// Free tier: 60 calls/min
+// Strategy: batches of 3 tickers (9 calls), 2s between batches, max 10 tickers
+// This keeps us well under the limit and prevents timeouts
 export async function getTickerMarketContext(tickers: string[]): Promise<
   Record<string, {
     news: FinnhubNewsItem[];
@@ -316,24 +347,37 @@ export async function getTickerMarketContext(tickers: string[]): Promise<
     priceTarget: FinnhubPriceTarget | null;
   }> = {};
 
-  // Batch with small delays to respect rate limits (60 calls/min free tier)
-  // Each ticker needs 3 calls: news + recommendation + price target
-  for (const ticker of tickers) {
-    const [news, recommendation, priceTarget] = await Promise.all([
-      getFinnhubNews(ticker, 7),
-      getFinnhubRecommendations(ticker),
-      getFinnhubPriceTarget(ticker),
-    ]);
-    results[ticker] = { news, recommendation, priceTarget };
+  // Cap at 10 tickers — Grok does live search anyway so this is just context
+  const limitedTickers = tickers.slice(0, 10);
+  const BATCH_SIZE = 3;
+  const BATCH_DELAY_MS = 2000;
 
-    // Small delay between tickers to avoid hitting rate limits
-    if (tickers.indexOf(ticker) < tickers.length - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+  for (let i = 0; i < limitedTickers.length; i += BATCH_SIZE) {
+    const batch = limitedTickers.slice(i, i + BATCH_SIZE);
+
+    await Promise.all(
+      batch.map(async (ticker) => {
+        try {
+          const [news, recommendation, priceTarget] = await Promise.all([
+            getFinnhubNews(ticker, 7),
+            getFinnhubRecommendations(ticker),
+            getFinnhubPriceTarget(ticker),
+          ]);
+          results[ticker] = { news, recommendation, priceTarget };
+        } catch {
+          results[ticker] = { news: [], recommendation: null, priceTarget: null };
+        }
+      })
+    );
+
+    if (i + BATCH_SIZE < limitedTickers.length) {
+      await sleep(BATCH_DELAY_MS);
     }
   }
 
   return results;
 }
+
 export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string } | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
@@ -344,13 +388,15 @@ export async function getFinnhubProfile(symbol: string): Promise<{ name: string;
   url.searchParams.set("token", apiKey);
 
   try {
-    const response = await fetch(url.toString(), {
+    const response = await fetchWithRetry(url.toString(), {
       method: "GET",
       next: { revalidate: 86400 },
     });
     if (!response.ok) return null;
+
     const data = await response.json();
     if (!data || !data.name) return null;
+
     return { name: data.name, logo: data.logo ?? "", weburl: data.weburl ?? "" };
   } catch {
     return null;
