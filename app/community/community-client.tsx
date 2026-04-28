@@ -325,7 +325,8 @@ export default function CommunityClient({
   }
 
   async function handleCopy(id: string) {
-    await copyStrategyAsTemplate(id);
+    const result = await copyStrategyAsTemplate(id);
+    router.push("/strategies");
   }
 
   async function submitComment(strategyId: string) {
