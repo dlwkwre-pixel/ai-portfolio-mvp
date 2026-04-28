@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { likeStrategy, saveStrategy, followUser, postComment } from "./social-actions";
+import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate } from "./social-actions";
 
 type Author = {
   user_id: string;
@@ -57,14 +57,17 @@ function Avatar({ username, color, size = 28 }: { username: string; color: strin
   );
 }
 
-function StrategyCard({ s, onLike, onSave, onFollow, onComment }: {
+function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
   s: StrategyRow;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
   onFollow: (userId: string) => void;
   onComment: (id: string) => void;
+  onCopy: (id: string) => void;
 }) {
   const rs = riskColor(s.risk_level);
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   return (
     <div className="bt-card bt-lift" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -91,28 +94,75 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment }: {
           )}
         </div>
 
-        {/* Save button */}
+        {/* Save + Copy buttons */}
         {!s.is_own && (
-          <button
-            type="button"
-            onClick={() => onSave(s.id)}
-            title={s.is_saved ? "Remove from saved" : "Save to my strategies"}
-            style={{
-              display: "flex", alignItems: "center", gap: "5px",
-              padding: "6px 11px", borderRadius: "var(--radius-md)",
-              fontSize: "12px", fontWeight: 500,
-              background: s.is_saved ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
-              border: `1px solid ${s.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
-              color: s.is_saved ? "#93c5fd" : "var(--text-secondary)",
-              cursor: "pointer", transition: "var(--transition-base)", flexShrink: 0,
-              fontFamily: "var(--font-body)",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 20 20" fill={s.is_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
-              <path d="M5 3a2 2 0 00-2 2v12l7-3 7 3V5a2 2 0 00-2-2H5z"/>
-            </svg>
-            {s.is_saved ? "Saved" : "Save"}
-          </button>
+          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => onSave(s.id)}
+              title={s.is_saved ? "Remove from saved" : "Save to my strategies"}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px",
+                padding: "6px 11px", borderRadius: "var(--radius-md)",
+                fontSize: "12px", fontWeight: 500,
+                background: s.is_saved ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+                border: `1px solid ${s.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
+                color: s.is_saved ? "#93c5fd" : "var(--text-secondary)",
+                cursor: "pointer", transition: "var(--transition-base)",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 20 20" fill={s.is_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
+                <path d="M5 3a2 2 0 00-2 2v12l7-3 7 3V5a2 2 0 00-2-2H5z"/>
+              </svg>
+              {s.is_saved ? "Saved" : "Save"}
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (copying || copied) return;
+                setCopying(true);
+                try {
+                  await onCopy(s.id);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 3000);
+                } finally {
+                  setCopying(false);
+                }
+              }}
+              title="Copy to my strategies as a template"
+              style={{
+                display: "flex", alignItems: "center", gap: "5px",
+                padding: "6px 11px", borderRadius: "var(--radius-md)",
+                fontSize: "12px", fontWeight: 500,
+                background: copied ? "rgba(0,211,149,0.1)" : "var(--card-bg)",
+                border: `1px solid ${copied ? "rgba(0,211,149,0.25)" : "var(--card-border)"}`,
+                color: copied ? "var(--green)" : "var(--text-secondary)",
+                cursor: copying ? "not-allowed" : "pointer",
+                opacity: copying ? 0.6 : 1,
+                transition: "var(--transition-base)",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              {copied ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/>
+                  </svg>
+                  Copied!
+                </>
+              ) : copying ? "Copying..." : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"/>
+                    <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z"/>
+                  </svg>
+                  Use as template
+                </>
+              )}
+            </button>
+          </div>
         )}
       </div>
 
@@ -272,6 +322,10 @@ export default function CommunityClient({
   function handleComment(id: string) {
     setCommentingId(commentingId === id ? null : id);
     setCommentText("");
+  }
+
+  async function handleCopy(id: string) {
+    await copyStrategyAsTemplate(id);
   }
 
   async function submitComment(strategyId: string) {
@@ -453,6 +507,7 @@ export default function CommunityClient({
                 onSave={handleSave}
                 onFollow={handleFollow}
                 onComment={handleComment}
+                onCopy={handleCopy}
               />
 
               {/* Comment box */}

@@ -114,3 +114,71 @@ export async function followUser(targetUserId: string) {
 
   revalidatePath("/community");
 }
+
+export async function copyStrategyAsTemplate(strategyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Get the source strategy and its latest version
+  const { data: source } = await supabase
+    .from("strategies")
+    .select("*")
+    .eq("id", strategyId)
+    .eq("is_public", true)
+    .single();
+
+  if (!source) throw new Error("Strategy not found or not public");
+  if (source.user_id === user.id) throw new Error("Cannot copy your own strategy");
+
+  const { data: latestVersion } = await supabase
+    .from("strategy_versions")
+    .select("*")
+    .eq("strategy_id", strategyId)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Create new strategy
+  const { data: newStrategy, error: stratError } = await supabase
+    .from("strategies")
+    .insert({
+      user_id: user.id,
+      name: `${source.name} (copy)`,
+      description: source.description,
+      style: source.style,
+      risk_level: source.risk_level,
+      is_active: true,
+      is_public: false,
+    })
+    .select()
+    .single();
+
+  if (stratError || !newStrategy) throw new Error(stratError?.message ?? "Failed to create strategy");
+
+  // Copy latest version if it exists
+  if (latestVersion) {
+    await supabase.from("strategy_versions").insert({
+      strategy_id: newStrategy.id,
+      version_number: 1,
+      prompt_text: latestVersion.prompt_text,
+      max_position_pct: latestVersion.max_position_pct,
+      min_position_pct: latestVersion.min_position_pct,
+      turnover_preference: latestVersion.turnover_preference,
+      holding_period_bias: latestVersion.holding_period_bias,
+      cash_min_pct: latestVersion.cash_min_pct,
+      cash_max_pct: latestVersion.cash_max_pct,
+    });
+  }
+
+  // Increment copies count on source
+  await supabase
+    .from("strategies")
+    .update({ copies_count: (source.copies_count ?? 0) + 1 })
+    .eq("id", strategyId);
+
+  revalidatePath("/strategies");
+  revalidatePath("/community");
+
+  return { id: newStrategy.id, name: newStrategy.name };
+}
