@@ -344,17 +344,13 @@ export default function CommunityClient({
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === "Enter" && updateUrl({ q: search })}
-              placeholder="Search strategies..."
+              placeholder={section === "people" ? "Search people by name or username..." : "Search strategies..."}
               style={{ width: "100%", padding: "8px 12px 8px 30px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", fontSize: "13px", fontFamily: "var(--font-body)", outline: "none" }}
             />
           </div>
 
-          {/* Sort */}
-          {[
-            { val: "popular", label: "Most liked" },
-            { val: "newest", label: "Newest" },
-            { val: "copied", label: "Most saved" },
-          ].map(opt => (
+          {/* Sort — strategies only */}
+          {section === "strategies" && [{val:"popular",label:"Most liked"},{val:"newest",label:"Newest"},{val:"copied",label:"Most saved"}].map(opt => (
             <button
               key={opt.val}
               type="button"
@@ -371,8 +367,8 @@ export default function CommunityClient({
             </button>
           ))}
 
-          {/* Risk filter */}
-          <select
+          {/* Risk filter — strategies only */}
+          {section === "strategies" && <select
             value={initialRisk}
             onChange={e => updateUrl({ risk: e.target.value })}
             style={{ padding: "7px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", outline: "none", cursor: "pointer" }}
@@ -381,7 +377,7 @@ export default function CommunityClient({
             <option value="low">Conservative</option>
             <option value="moderate">Moderate</option>
             <option value="high">Aggressive</option>
-          </select>
+          </select>}
         </div>
       </div>
 

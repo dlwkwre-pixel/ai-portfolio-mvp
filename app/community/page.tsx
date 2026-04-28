@@ -58,15 +58,15 @@ export default async function CommunityPage({
 
   // Filter by following feed
   const filteredStrategies = feed === "following"
-    ? (strategies ?? []).filter(s => followingIds.has(s.user_id) || s.user_id === user.id)
+    ? (strategies ?? []).filter(s => followingIds.has(s.user_id))
     : (strategies ?? []);
 
   // People search
   let peopleRows: any[] = [];
   if (section === "people") {
     const peopleQuery = q
-      ? supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").eq("is_public", true).or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).limit(30)
-      : supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").eq("is_public", true).limit(30);
+      ? supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").or(`username.ilike.%${q}%,display_name.ilike.%${q}%`).or("is_public.is.null,is_public.eq.true").limit(30)
+      : supabase.from("user_profiles").select("id, username, display_name, bio, avatar_color").or("is_public.is.null,is_public.eq.true").limit(30);
     const { data: people } = await peopleQuery;
 
     // Get follower counts for each person
