@@ -69,7 +69,7 @@ export default function LoginPage() {
             <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#a78bfa" }} />
             <span style={{ fontSize: "11px", color: "#a78bfa", fontWeight: 500 }}>AI-powered investing</span>
           </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.4, marginBottom: "24px", paddingBottom: "8px" }}>
             Your portfolio.<br />
             <span style={{ color: "#93c5fd" }}>Advisor-level intelligence.</span>
           </h2>
