@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MarketRibbon from "@/app/components/market-ribbon";
 
 export default function LandingPage() {
   return (
@@ -258,17 +259,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Ticker */}
-      <div className="ticker">
-        <div className="ticker-inner">
-          {[["NVDA","+2.4",true],["AAPL","-0.8",false],["MSFT","+1.2",true],["TSLA","+5.1",true],["SPY","+0.4",true],["AMZN","-1.3",false],["GOOGL","+0.9",true],["META","+3.2",true],["NFLX","-0.5",false],["AMD","+4.1",true],["QQQ","+0.7",true],["AVGO","+1.8",true],["NVDA","+2.4",true],["AAPL","-0.8",false],["MSFT","+1.2",true],["TSLA","+5.1",true],["SPY","+0.4",true],["AMZN","-1.3",false],["GOOGL","+0.9",true],["META","+3.2",true]].map(([t,v,up],i) => (
-            <div key={i} className="t-item">
-              <span>{t}</span>
-              <span className={up ? "t-up" : "t-dn"}>{up?"+":""}{v}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <MarketRibbon />
 
       {/* How it works */}
       <div id="how-it-works">

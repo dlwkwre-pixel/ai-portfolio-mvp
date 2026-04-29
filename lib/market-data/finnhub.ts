@@ -111,7 +111,7 @@ export async function getFinnhubQuote(symbol: string): Promise<FinnhubQuote | nu
   try {
     const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 300 },
+      next: { revalidate: 60 },
     });
     if (!response.ok) return null;
 
