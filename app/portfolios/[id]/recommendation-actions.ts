@@ -1,7 +1,7 @@
 "use server";
 
 import OpenAI from "openai";
-import { getTickerMarketContext } from "@/lib/market-data/finnhub";
+import { getTickerMarketContext, getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
@@ -245,6 +245,7 @@ async function callGrokForRecommendations(context: unknown): Promise<AiRunRespon
     "CASH IS A HARD CONSTRAINT — never recommend buying more than the available cash balance allows.",
     "You may recommend: buy, add, trim, sell, hold, rebalance, or raise_cash.",
     "For new buy candidates, search for current opportunities that fit the strategy style and risk level.",
+    "For trim/sell recommendations, always specify exact share_quantity to sell — never exceed shares currently owned.",
     "Prefer high-quality, finance-first reasoning grounded in current data.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
@@ -262,7 +263,14 @@ CRITICAL CONSTRAINTS — YOU MUST FOLLOW THESE EXACTLY:
    - Never set a target price below current price for a buy recommendation
    - If you are unsure of the current price, search for it before responding
 
-3. SIZING CONSISTENCY: share_quantity × price_per_share should equal sizing_dollars. All three must be consistent with each other and with available cash.
+3. TRIM/SELL SHARE QUANTITY: For any trim or sell recommendation, you MUST provide share_quantity.
+   - share_quantity MUST be less than or equal to the shares currently owned (found in holdings data)
+   - For a trim: recommend the specific number of shares to sell (e.g. if holding 10 shares and recommending trimming to 5%, sell X shares)
+   - For a full sell: share_quantity = total shares owned
+   - sizing_dollars = share_quantity × current_price
+   - Never recommend selling more shares than the investor owns
+
+4. SIZING CONSISTENCY: share_quantity × price_per_share should equal sizing_dollars. All three must be consistent with each other and with available cash/owned shares.
 
 Return this exact JSON shape:
 
@@ -441,12 +449,38 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       callGeminiForHealthReport(context),
     ]);
 
+    // Build a map of owned shares for trim/sell validation
+    const { data: currentHoldings } = await supabase
+      .from("holdings")
+      .select("ticker, shares")
+      .eq("portfolio_id", portfolioId);
+    const ownedSharesMap = new Map(
+      (currentHoldings ?? []).map((h) => [h.ticker.toUpperCase(), Number(h.shares ?? 0)])
+    );
+
+    // Validate and cap trim/sell quantities against owned shares
+    const validatedRecs = grokResult.recommendations.map((item) => {
+      const action = (item.action_type ?? "").toLowerCase();
+      const isTrimOrSell = action === "trim" || action === "sell";
+      if (isTrimOrSell && item.ticker) {
+        const owned = ownedSharesMap.get(item.ticker.toUpperCase()) ?? 0;
+        if (owned > 0) {
+          // Cap share_quantity to owned shares
+          const cappedQty = item.share_quantity !== null
+            ? Math.min(item.share_quantity, owned)
+            : action === "sell" ? owned : Math.ceil(owned * 0.25); // default trim = 25% if not specified
+          return { ...item, share_quantity: cappedQty };
+        }
+      }
+      return item;
+    });
+
     let insertedItemIds: string[] = [];
-    if (grokResult.recommendations.length > 0) {
+    if (validatedRecs.length > 0) {
       const { data: insertedItems, error: insertItemsError } = await supabase
         .from("recommendation_items")
         .insert(
-          grokResult.recommendations.map((item) => ({
+          validatedRecs.map((item) => ({
             recommendation_run_id: run.id,
             portfolio_id: portfolioId,
             action_type: item.action_type,
@@ -502,7 +536,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
     return {
       runId: run.id,
-      recommendationCount: grokResult.recommendations.length,
+      recommendationCount: validatedRecs.length,
       summary: completionSummary,
       healthReport: geminiResult,
     };
@@ -680,7 +714,16 @@ export async function updateRecommendationStatus(formData: FormData) {
     if (isBuy || isSell) {
       const transactionType = isBuy ? "buy" : "sell";
       const quantity = item.share_quantity ? Number(item.share_quantity) : null;
-      const pricePerShare = item.target_price_1 ? Number(item.target_price_1) : null;
+
+      // Use target_price_1 first, fall back to live Finnhub price
+      let pricePerShare = item.target_price_1 ? Number(item.target_price_1) : null;
+      if (!pricePerShare && item.ticker) {
+        try {
+          const liveQuote = await getFinnhubQuote(item.ticker);
+          if (liveQuote && liveQuote.c > 0) pricePerShare = liveQuote.c;
+        } catch { /* soft fail */ }
+      }
+
       const grossAmount = quantity && pricePerShare
         ? quantity * pricePerShare
         : item.sizing_dollars ? Number(item.sizing_dollars) : null;
@@ -748,8 +791,8 @@ export async function updateRecommendationStatus(formData: FormData) {
     }
   }
 
-  revalidatePath(`/portfolios/${portfolioId}`);
-  revalidatePath("/dashboard");
+  revalidatePath(`/portfolios/${portfolioId}`, "layout");
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function deleteRecommendationItem(formData: FormData) {

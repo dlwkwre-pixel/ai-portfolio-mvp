@@ -69,17 +69,7 @@ export default function MarketRibbon() {
       background: "rgba(255,255,255,0.01)",
       position: "relative",
     }}>
-      {/* Updated at indicator */}
-      {updatedAt && (
-        <div style={{
-          position: "absolute", right: "16px", top: "50%",
-          transform: "translateY(-50%)", zIndex: 2,
-          fontSize: "9px", color: "#1e293b",
-          background: "#07090f", paddingLeft: "8px",
-        }}>
-          {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </div>
-      )}
+
 
       <style>{`
         @keyframes ticker-scroll {
@@ -116,6 +106,17 @@ export default function MarketRibbon() {
           </div>
         ))}
       </div>
+      {updatedAt && (
+        <div style={{
+          textAlign: "center",
+          fontSize: "9px",
+          color: "#1e293b",
+          marginTop: "5px",
+          letterSpacing: "0.05em",
+        }}>
+          Live · updated {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      )}
     </div>
   );
 }
