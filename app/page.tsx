@@ -133,6 +133,41 @@ export default function LandingPage() {
 
         footer{padding:24px 48px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#334155}
         footer a{color:#334155;text-decoration:none}
+        /* ── Mobile ── */
+        @media (max-width: 768px) {
+          nav{padding:12px 16px}
+          .nav-links{display:none}
+          .nav-btns .btn-ghost{display:none}
+          .btn-primary{padding:7px 14px;font-size:12px}
+
+          .hero{padding:80px 20px 40px;min-height:auto}
+          h1.hero-h{font-size:clamp(32px,9vw,52px);letter-spacing:-1.5px;margin-bottom:16px}
+          .hero-sub{font-size:15px;margin-bottom:28px}
+          .hero-btns{flex-direction:column;align-items:center;gap:10px;margin-bottom:36px}
+          .btn-hero{width:100%;max-width:280px;justify-content:center;padding:13px 24px}
+          .btn-hero-ghost{width:100%;max-width:280px;text-align:center;padding:13px 24px}
+
+          .mockup-wrap{display:none}
+
+          .section{padding:48px 20px}
+          .s-title{font-size:clamp(22px,6vw,32px)}
+          .s-sub{font-size:14px;margin-bottom:32px}
+
+          .steps{grid-template-columns:1fr}
+          .features{grid-template-columns:1fr 1fr}
+          .vs{grid-template-columns:1fr;max-width:100%}
+
+          .cta-wrap{padding:48px 20px}
+          .cta-box{padding:32px 24px}
+          .cta-title{font-size:clamp(22px,6vw,32px)}
+
+          footer{padding:20px 16px;flex-direction:column;gap:12px;text-align:center}
+          .hero-grid{display:none}
+        }
+
+        @media (max-width: 480px) {
+          .features{grid-template-columns:1fr}
+        }
       `}</style>
 
       {/* Nav */}
