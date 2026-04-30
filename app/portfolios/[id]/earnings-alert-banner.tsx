@@ -2,7 +2,6 @@ import { getFinnhubEarningsCalendar, getFinnhubNews } from "@/lib/market-data/fi
 
 type Props = {
   tickers: string[];
-  portfolioId: string;
 };
 
 function daysUntil(dateStr: string): number {
