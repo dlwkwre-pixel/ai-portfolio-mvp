@@ -6,6 +6,11 @@ self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
+// Allow the app to trigger an update
+self.addEventListener("message", (event) => {
+  if (event.data === "skipWaiting") self.skipWaiting();
+});
+
 self.addEventListener("activate", (event) => {
   // Clear ALL old caches on activate
   event.waitUntil(
