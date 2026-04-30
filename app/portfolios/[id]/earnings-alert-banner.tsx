@@ -106,25 +106,26 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
         const isHigh = alert.urgency === "high";
         const isMedium = alert.urgency === "medium";
 
+        // Earnings = violet, News = teal
         const bg = isEarnings
           ? isHigh
-            ? "rgba(245,158,11,0.08)"
+            ? "rgba(124,58,237,0.12)"
             : isMedium
-            ? "rgba(245,158,11,0.05)"
-            : "rgba(245,158,11,0.04)"
-          : "rgba(255,255,255,0.02)";
+            ? "rgba(124,58,237,0.08)"
+            : "rgba(124,58,237,0.06)"
+          : "rgba(0,211,149,0.05)";
 
         const border = isEarnings
           ? isHigh
-            ? "rgba(245,158,11,0.3)"
+            ? "rgba(124,58,237,0.35)"
             : isMedium
-            ? "rgba(245,158,11,0.18)"
-            : "rgba(245,158,11,0.1)"
-          : "rgba(255,255,255,0.06)";
+            ? "rgba(124,58,237,0.22)"
+            : "rgba(124,58,237,0.15)"
+          : "rgba(0,211,149,0.18)";
 
         const iconColor = isEarnings
-          ? isHigh ? "#f59e0b" : "#d97706"
-          : "#64748b";
+          ? isHigh ? "#a78bfa" : "#8b5cf6"
+          : "#00d395";
 
         const content = (
           <div
@@ -162,9 +163,9 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
               fontFamily: "var(--font-mono)",
               fontSize: "10px",
               fontWeight: 600,
-              color: isEarnings ? "#f59e0b" : "var(--text-tertiary)",
-              background: isEarnings ? "rgba(245,158,11,0.1)" : "var(--card-bg)",
-              border: `1px solid ${isEarnings ? "rgba(245,158,11,0.2)" : "var(--card-border)"}`,
+              color: isEarnings ? "#a78bfa" : "#00d395",
+              background: isEarnings ? "rgba(124,58,237,0.15)" : "rgba(0,211,149,0.08)",
+              border: `1px solid ${isEarnings ? "rgba(124,58,237,0.3)" : "rgba(0,211,149,0.2)"}`,
               padding: "1px 6px",
               borderRadius: "var(--radius-sm)",
               flexShrink: 0,
@@ -175,7 +176,7 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
             {/* Detail */}
             <span style={{
               fontSize: "12px",
-              color: isEarnings ? "var(--text-secondary)" : "var(--text-tertiary)",
+              color: isEarnings ? "#c4b5fd" : "var(--text-secondary)",
               lineHeight: 1.4,
               flex: 1,
               minWidth: 0,
@@ -190,8 +191,8 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
             {isEarnings && isHigh && (
               <div style={{
                 width: "6px", height: "6px", borderRadius: "50%",
-                background: "#f59e0b", flexShrink: 0,
-                boxShadow: "0 0 6px rgba(245,158,11,0.6)",
+                background: "#a78bfa", flexShrink: 0,
+                boxShadow: "0 0 8px rgba(167,139,250,0.7)",
                 animation: "pulse-glow 2s infinite",
               }} />
             )}
