@@ -863,3 +863,138 @@ html {
 .animate-fade-up  { animation: fadeUp 0.4s ease forwards; }
 .animate-fade-in  { animation: fadeIn 0.3s ease forwards; }
 .animate-pulse-glow { animation: pulse-glow 2s infinite; }
+
+/* ============================================================
+   BuyTune Mobile Styles
+   Add to the BOTTOM of app/globals.css
+   ============================================================ */
+
+/* ── Mobile base ── */
+@media (max-width: 768px) {
+
+  /* Sidebar hidden on mobile — use mobile nav instead */
+  .hidden.lg\\:flex { display: none !important; }
+
+  /* Full width content on mobile */
+  main > div > div:last-child {
+    width: 100% !important;
+  }
+
+  /* Dashboard grid — single column on mobile */
+  .bt-card + .bt-card,
+  [style*="grid-template-columns: minmax(0, 1.4fr)"],
+  [style*="grid-template-columns: minmax(0, 1.5fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stat cards — 2 per row on mobile instead of 4 */
+  [style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  [style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Topbar padding */
+  [style*="padding: \"12px 24px\""] {
+    padding: 10px 16px !important;
+  }
+
+  /* Tab content padding */
+  [style*="padding: \"20px 24px\""] {
+    padding: 14px 16px !important;
+  }
+
+  /* Chart section padding */
+  [style*="padding: \"16px 24px 0\""] {
+    padding: 12px 16px 0 !important;
+  }
+
+  /* Tabs — scrollable on mobile */
+  [style*="borderBottom: \"1px solid var(--border-subtle)\""]:has(button) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  /* Portfolio header topbar — wrap on mobile */
+  [style*="display: \"flex\""]:has(h1) {
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  /* Strategy cards parameters grid */
+  [style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* VS cards in community */
+  [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Buttons — full width on mobile forms */
+  .bt-btn-primary[style*="flex: 1"] {
+    width: 100%;
+  }
+
+  /* Reduce font sizes slightly */
+  .num-xl { font-size: 2rem !important; }
+  .num-lg { font-size: 1.75rem !important; }
+
+  /* Mobile nav visible */
+  .lg\\:hidden { display: flex !important; }
+}
+
+/* ── Mobile nav bottom bar ── */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--sidebar-bg);
+    border-top: 1px solid var(--border-subtle);
+    padding: 8px 0 env(safe-area-inset-bottom);
+    z-index: 50;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  /* Add padding to main content so bottom nav doesn't overlap */
+  main {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ── Safe area insets for notched phones ── */
+@supports (padding: max(0px)) {
+  nav, .mobile-bottom-nav {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* ── Touch targets — minimum 44px ── */
+@media (max-width: 768px) {
+  .bt-btn, button, a {
+    min-height: 36px;
+  }
+
+  .bt-btn-sm {
+    min-height: 32px;
+    padding: 6px 12px !important;
+  }
+
+  /* Larger tap targets for nav items */
+  .m-ni, [style*="padding: \"8px 10px\""] {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* ── Landscape phone ── */
+@media (max-width: 768px) and (orientation: landscape) {
+  .hero { min-height: auto !important; padding-top: 80px !important; }
+}
