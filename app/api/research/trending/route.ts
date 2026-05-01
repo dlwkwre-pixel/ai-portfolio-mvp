@@ -1,67 +1,57 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const MIN_EVENTS_THRESHOLD = 100;
+const MIN_HOLDERS = 2;
 
-const SIGNAL_LABELS: Record<string, string> = {
-  ticker_search: "Most searched",
-  stock_card_click: "Most viewed",
-  stock_detail_view: "High interest",
-  ai_analysis_requested: "AI analysis spike",
-  watchlist_add: "Added to watchlists",
-  buy_button_click: "Trending buy interest",
-};
-
-function windowToMs(w: string): number {
-  return { "1h": 3_600_000, "24h": 86_400_000, "7d": 604_800_000, "30d": 2_592_000_000 }[w] ?? 86_400_000;
-}
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const window = searchParams.get("window") ?? "24h";
-
+export async function GET() {
   try {
     const supabase = await createClient();
-    const since = new Date(Date.now() - windowToMs(window)).toISOString();
 
-    const { data, error } = await supabase
-      .from("research_events")
-      .select("ticker, event_type")
-      .gte("created_at", since);
+    const { data: portfolios, error: pErr } = await supabase
+      .from("portfolios")
+      .select("id, user_id")
+      .eq("is_active", true);
 
-    if (error || !data || data.length < MIN_EVENTS_THRESHOLD) {
+    if (pErr || !portfolios || portfolios.length === 0) {
       return NextResponse.json(
         { trending: [], has_data: false },
-        { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
+        { headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" } }
       );
     }
 
-    // Aggregate by ticker
-    const tickerMap = new Map<string, Map<string, number>>();
-    for (const row of data) {
-      if (!tickerMap.has(row.ticker)) tickerMap.set(row.ticker, new Map());
-      const em = tickerMap.get(row.ticker)!;
-      em.set(row.event_type, (em.get(row.event_type) ?? 0) + 1);
+    const portfolioIds = portfolios.map((p) => p.id);
+    const userByPortfolio = new Map(portfolios.map((p) => [p.id, p.user_id]));
+
+    const { data: holdings, error: hErr } = await supabase
+      .from("holdings")
+      .select("portfolio_id, ticker")
+      .in("portfolio_id", portfolioIds);
+
+    if (hErr || !holdings || holdings.length === 0) {
+      return NextResponse.json(
+        { trending: [], has_data: false },
+        { headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" } }
+      );
     }
 
-    const trending = Array.from(tickerMap.entries())
-      .map(([ticker, eventMap]) => {
-        const event_count = Array.from(eventMap.values()).reduce((a, b) => a + b, 0);
-        const [topEvent] = Array.from(eventMap.entries()).sort((a, b) => b[1] - a[1]);
-        return {
-          ticker,
-          company_name: null,
-          event_count,
-          top_signal: SIGNAL_LABELS[topEvent[0]] ?? "Gaining attention",
-          time_window: window,
-        };
-      })
-      .sort((a, b) => b.event_count - a.event_count)
+    // Count distinct users per ticker
+    const tickerUsers = new Map<string, Set<string>>();
+    for (const h of holdings) {
+      const userId = userByPortfolio.get(h.portfolio_id);
+      if (!userId) continue;
+      if (!tickerUsers.has(h.ticker)) tickerUsers.set(h.ticker, new Set());
+      tickerUsers.get(h.ticker)!.add(userId);
+    }
+
+    const trending = Array.from(tickerUsers.entries())
+      .filter(([, users]) => users.size >= MIN_HOLDERS)
+      .map(([ticker, users]) => ({ ticker, company_name: null, holder_count: users.size }))
+      .sort((a, b) => b.holder_count - a.holder_count)
       .slice(0, 8);
 
     return NextResponse.json(
-      { trending, has_data: true },
-      { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" } }
+      { trending, has_data: trending.length > 0 },
+      { headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" } }
     );
   } catch {
     return NextResponse.json(

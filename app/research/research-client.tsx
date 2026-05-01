@@ -33,7 +33,7 @@ type ScreenerSection = {
 
 type TrendingTicker = {
   ticker: string; company_name: string | null;
-  event_count: number; top_signal: string; time_window: string;
+  holder_count: number;
 };
 
 type AIAnalysis = {
@@ -226,10 +226,9 @@ function TrendingCard({ t, onClick }: { t: TrendingTicker; onClick: (ticker: str
     >
       <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", display: "inline-block" }}>{t.ticker}</span>
       {t.company_name && <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.3, height: "27px", overflow: "hidden" }}>{t.company_name}</div>}
-      <span style={{ display: "inline-block", fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px", background: "var(--violet-bg)", color: "var(--violet)", marginTop: "2px" }}>
-        {t.top_signal}
-      </span>
-      <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{t.time_window}</div>
+      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+        Held by <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{t.holder_count}</span> {t.holder_count === 1 ? "user" : "users"}
+      </div>
     </button>
   );
 }
