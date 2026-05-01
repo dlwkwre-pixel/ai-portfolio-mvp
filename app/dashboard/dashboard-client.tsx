@@ -39,11 +39,11 @@ function formatMoney(value: number) {
 type OnboardingPortfolio = { id: string; name: string; account_type: string | null };
 type OnboardingStrategy = { id: string; name: string; description: string | null; risk_level: string | null };
 
-export default function DashboardClient({ portfolioRows: initialRows, archivedRows, feedItems, totalValue, totalValueLabel, strategiesCount, lastRunAt, showOnboarding, initialOnboardingStep, existingPortfolios, existingStrategies }: {
+export default function DashboardClient({ portfolioRows: initialRows, archivedRows, feedItems, totalValue, totalValueLabel, strategiesCount, lastRunAt, showOnboarding, forceOnboarding, initialOnboardingStep, existingPortfolios, existingStrategies }: {
   portfolioRows: PortfolioRow[]; archivedRows: { id: string; name: string }[];
   feedItems: FeedItem[]; totalValue: number; totalValueLabel: string;
   strategiesCount: number; lastRunAt: string | null;
-  showOnboarding?: boolean; initialOnboardingStep?: number;
+  showOnboarding?: boolean; forceOnboarding?: boolean; initialOnboardingStep?: number;
   existingPortfolios?: OnboardingPortfolio[]; existingStrategies?: OnboardingStrategy[];
 }) {
   const [isPrivate, setIsPrivateState] = useState(() => {
@@ -66,6 +66,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   const [isSaving, startSave] = useTransition();
   const [onboardingOpen, setOnboardingOpen] = useState(() => {
     if (!(showOnboarding ?? false)) return false;
+    if (forceOnboarding) { try { localStorage.removeItem("bt-onboarding-done"); } catch {} return true; }
     try { return localStorage.getItem("bt-onboarding-done") !== "true"; } catch { return true; }
   });
 

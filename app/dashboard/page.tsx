@@ -42,7 +42,13 @@ function actionBadgeClass(action: string | null) {
   return "bt-badge bt-badge-hold";
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ onboarding?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const forceOnboarding = params?.onboarding === "1";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -239,7 +245,8 @@ export default async function DashboardPage() {
               totalValueLabel={formatMoney(totalValue)}
               strategiesCount={strategiesCount ?? 0}
               lastRunAt={recentRuns[0]?.created_at ?? null}
-              showOnboarding={onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
+              showOnboarding={forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
+              forceOnboarding={forceOnboarding}
               initialOnboardingStep={onboardingStep}
               existingPortfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name, account_type: p.account_type }))}
               existingStrategies={(userStrategies ?? []).map((s) => ({ id: s.id, name: s.name, description: s.description ?? null, risk_level: s.risk_level ?? null }))}

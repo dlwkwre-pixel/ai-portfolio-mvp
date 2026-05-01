@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import ComingSoon from "@/app/components/coming-soon";
+import LaunchSetupButton from "./launch-setup-button";
 
 export default async function LearnPage() {
   const supabase = await createClient();
@@ -58,7 +59,39 @@ export default async function LearnPage() {
             </p>
           </div>
 
-          <div style={{ flex: 1, display: "flex", overflowY: "auto" }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+            {/* Setup Guide — always available */}
+            <div style={{
+              marginBottom: "24px",
+              padding: "18px 20px",
+              background: "var(--card-bg)",
+              border: "1px solid var(--card-border)",
+              borderRadius: "var(--radius-lg)",
+              display: "flex", alignItems: "flex-start", gap: "14px",
+            }}>
+              <div style={{
+                flexShrink: 0, width: "40px", height: "40px",
+                background: "linear-gradient(135deg, rgba(37,99,235,0.15), rgba(124,58,237,0.1))",
+                border: "1px solid rgba(37,99,235,0.2)",
+                borderRadius: "10px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "18px",
+              }}>
+                🚀
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>
+                  BuyTune Setup Guide
+                </div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "0" }}>
+                  New to BuyTune? The setup guide walks you through creating your portfolio, adding holdings, choosing a strategy, and running your first AI scan.
+                </p>
+                <LaunchSetupButton />
+              </div>
+            </div>
+
+            {/* Coming soon content */}
+            <div style={{ display: "flex" }}>
             <ComingSoon
               icon="📚"
               title="Learn is on the way"
@@ -73,6 +106,7 @@ export default async function LearnPage() {
               ]}
               eta="Coming in a future update"
             />
+            </div>
           </div>
         </div>
       </div>
