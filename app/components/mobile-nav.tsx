@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/portfolios", label: "Portfolios" },
   { href: "/strategies", label: "Strategies" },
+  { href: "/research", label: "Research" },
 ];
 
 export default function MobileNav() {
