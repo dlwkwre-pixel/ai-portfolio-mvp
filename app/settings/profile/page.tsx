@@ -37,7 +37,7 @@ export default async function ProfileSettingsPage() {
               Profile Settings
             </h1>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
             <ProfileSettingsClient
               userId={user.id}
               email={user.email ?? ""}

@@ -66,7 +66,7 @@ export default function PortfolioTabs({
   }
 
   return (
-    <div style={{ display: "flex", gap: "0" }}>
+    <div className="bt-tabs-scroll" style={{ display: "flex", gap: "0", overflowX: "auto", scrollbarWidth: "none" }}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (

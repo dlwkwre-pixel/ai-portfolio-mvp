@@ -65,7 +65,7 @@ export default async function ResearchPage() {
 
           {/* Two-column body: main content scrolls left, news sidebar fills full height right */}
           <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px" }}>
+            <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px" }}>
               <ResearchClient
                 portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
               />

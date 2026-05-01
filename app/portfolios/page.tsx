@@ -103,7 +103,7 @@ export default async function PortfoliosPage() {
             <NewPortfolioForm />
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
 
             {/* Summary stats */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px", marginBottom: "20px" }}>

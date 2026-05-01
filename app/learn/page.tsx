@@ -59,7 +59,7 @@ export default async function LearnPage() {
             </p>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
             {/* Setup Guide — always available */}
             <div style={{
               marginBottom: "24px",

@@ -160,23 +160,18 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             <MobileNav />
 
             {/* Topbar */}
-            <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(12px)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
                 <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: dot, boxShadow: `0 0 6px ${dot}`, flexShrink: 0 }} />
-                <h1 style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>
+                <h1 style={{ fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {portfolio.name}
                 </h1>
-                <span className={accountPillStyle(portfolio.account_type)}>{formatAccountType(portfolio.account_type)}</span>
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 8px", borderRadius: "var(--radius-full)" }}>
+                <span className={`${accountPillStyle(portfolio.account_type)} hidden sm:inline`}>{formatAccountType(portfolio.account_type)}</span>
+                <span className="hidden sm:inline" style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 8px", borderRadius: "var(--radius-full)" }}>
                   {portfolio.benchmark_symbol || "SPY"}
                 </span>
-                {portfolio.description && (
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "none" }} className="lg:inline">
-                    — {portfolio.description.length > 60 ? portfolio.description.slice(0, 60) + "..." : portfolio.description}
-                  </span>
-                )}
               </div>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
                 <EditPortfolioForm portfolio={{ id: portfolio.id, name: portfolio.name, description: portfolio.description, benchmark_symbol: portfolio.benchmark_symbol, status: portfolio.status }} />
                 <PortfolioHeader
                   portfolioId={portfolio.id}
@@ -196,7 +191,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             {/* Stat cards — rendered below topbar, animated */}
 
             {/* Chart hero */}
-            <div style={{ padding: "16px 24px 0" }}>
+            <div className="bt-page-header" style={{ padding: "16px 24px 0" }}>
               <PortfolioChartSection
                 portfolioId={portfolio.id}
                 benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
@@ -206,18 +201,18 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* Earnings alerts */}
             {tickers.length > 0 && (
-              <div className="bt-banner-enter" style={{ padding: "0 24px" }}>
+              <div className="bt-banner-enter bt-page-header" style={{ padding: "0 24px" }}>
                 <EarningsAlertBanner tickers={tickers} />
               </div>
             )}
 
             {/* Tabs nav */}
-            <div style={{ borderBottom: "1px solid var(--border-subtle)", padding: "0 24px" }}>
+            <div className="bt-page-header" style={{ borderBottom: "1px solid var(--border-subtle)", padding: "0 24px" }}>
               <PortfolioTabs activeTab={activeTab} portfolioId={portfolio.id} />
             </div>
 
             {/* Tab content */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
 
               {/* OVERVIEW */}
               {activeTab === "overview" && (

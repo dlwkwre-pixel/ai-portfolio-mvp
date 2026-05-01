@@ -104,7 +104,7 @@ export default async function StrategiesPage() {
             <StrategiesHeader />
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
 
             {/* Stats row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px", marginBottom: "20px" }}>

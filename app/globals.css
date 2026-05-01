@@ -356,14 +356,23 @@ body {
   .num-xl { font-size: 2rem !important; }
   .num-lg { font-size: 1.75rem !important; }
 
-  /* Grids */
+  /* Grids — match both space and no-space variants (React omits spaces after commas) */
+  [style*="grid-template-columns: repeat(4,1fr)"],
   [style*="grid-template-columns: repeat(4, 1fr)"] {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  [style*="grid-template-columns: repeat(3,1fr)"],
   [style*="grid-template-columns: repeat(3, 1fr)"] {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  /* Two-column halves → single column */
+  [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Dashboard main grid and portfolio overview → single column */
+  [style*="grid-template-columns: minmax(0,1.4fr)"],
   [style*="grid-template-columns: minmax(0, 1.4fr)"],
+  [style*="grid-template-columns: minmax(0,1.5fr)"],
   [style*="grid-template-columns: minmax(0, 1.5fr)"] {
     grid-template-columns: 1fr !important;
   }
@@ -371,10 +380,14 @@ body {
   /* Hide top tab nav on mobile — bottom nav handles navigation */
   .hidden-mobile { display: none !important; }
 
-  /* Page padding adjustments */
+  /* Reduce horizontal padding on mobile for main content areas */
+  .bt-page-content { padding: 16px !important; }
 
+  /* Research page: preserve bottom padding for bottom nav */
+  .bt-page-content[style*="80px"] { padding: 16px 16px 80px 16px !important; }
 
-
+  /* Sticky page topbar — tighter on mobile */
+  .bt-page-header { padding-left: 16px !important; padding-right: 16px !important; }
 
 
   /* Portfolio header — stack buttons below title */
@@ -401,7 +414,12 @@ body {
     flex-wrap: nowrap !important;
   }
   .mobile-tabs-scroll::-webkit-scrollbar { display: none; }
+
 }
+
+/* Portfolio tabs / any horizontal scroll container — hide scrollbar */
+.bt-tabs-scroll { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bt-tabs-scroll::-webkit-scrollbar { display: none; }
 
 /* ── Mobile bottom nav ── */
 @media (max-width: 768px) {

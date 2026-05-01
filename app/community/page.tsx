@@ -141,7 +141,7 @@ export default async function CommunityPage({
               </p>
             </div>
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
             <CommunityClient
               strategies={strategyRows}
               currentUserId={user.id}
