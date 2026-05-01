@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/app/components/theme-provider";
@@ -111,6 +111,20 @@ export default function Sidebar({
   const supabase = createClient();
   const [signingOut, setSigningOut] = useTransition();
   const [portfoliosOpen, setPortfoliosOpen] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
+
+  useEffect(() => {
+    const read = () => {
+      try { setIsPrivate(localStorage.getItem("bt-privacy-mode") === "true"); } catch {}
+    };
+    read();
+    window.addEventListener("storage", read);
+    window.addEventListener("bt-privacy-change", read);
+    return () => {
+      window.removeEventListener("storage", read);
+      window.removeEventListener("bt-privacy-change", read);
+    };
+  }, []);
 
   async function handleSignOut() {
     setSigningOut(async () => {
@@ -183,7 +197,7 @@ export default function Sidebar({
         }}>
           <div className="label" style={{ marginBottom: "4px" }}>Total Portfolio</div>
           <div className="num" style={{ fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-            {formatMoney(totalValue)}
+            {isPrivate ? "$••••••" : formatMoney(totalValue)}
           </div>
           {totalChangePct !== null && totalChangePct !== undefined && (
             <div style={{
@@ -192,7 +206,7 @@ export default function Sidebar({
               marginTop: "2px",
               fontFamily: "var(--font-mono)",
             }}>
-              {totalChangePct >= 0 ? "▲" : "▼"} {Math.abs(totalChangePct).toFixed(2)}% all time
+              {isPrivate ? "••••" : `${totalChangePct >= 0 ? "▲" : "▼"} ${Math.abs(totalChangePct).toFixed(2)}% all time`}
             </div>
           )}
         </div>

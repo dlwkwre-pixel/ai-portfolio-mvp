@@ -48,7 +48,10 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   function setIsPrivate(v: boolean | ((prev: boolean) => boolean)) {
     setIsPrivateState(prev => {
       const next = typeof v === "function" ? v(prev) : v;
-      try { localStorage.setItem("bt-privacy-mode", String(next)); } catch {}
+      try {
+        localStorage.setItem("bt-privacy-mode", String(next));
+        window.dispatchEvent(new CustomEvent("bt-privacy-change"));
+      } catch {}
       return next;
     });
   }

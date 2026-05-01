@@ -822,7 +822,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       </form>
 
       {/* Filter chips */}
-      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "16px" }}>
+      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "22px" }}>
         {FILTER_CHIPS.map((chip) => (
           <FilterChip key={chip.id} label={chip.label} active={activeFilter === chip.id} onClick={() => setActiveFilter(chip.id)} />
         ))}
