@@ -728,8 +728,6 @@ export default function ResearchClient() {
   const visibleSections =
     activeFilter === "all" || activeFilter === "popular"
       ? screener
-      : activeFilter === "popular"
-      ? []
       : screener.filter((s) => s.id === activeFilter);
 
   const screenerSections = activeFilter === "popular" ? [] : visibleSections;
