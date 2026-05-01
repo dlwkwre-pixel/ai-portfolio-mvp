@@ -132,9 +132,10 @@ function FilterChip({
         fontSize: "12px",
         fontWeight: active ? 600 : 400,
         fontFamily: "var(--font-body)",
-        border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
-        background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+        border: `1px solid ${active ? "rgba(37,99,235,0.5)" : "var(--card-border)"}`,
+        background: active ? "rgba(37,99,235,0.12)" : "var(--card-bg)",
         color: active ? "var(--nav-active-text)" : "var(--text-tertiary)",
+        boxShadow: active ? "0 0 12px rgba(37,99,235,0.18)" : "none",
         cursor: "pointer",
         transition: "all 0.15s",
         whiteSpace: "nowrap",
@@ -313,15 +314,31 @@ function NewsCard({ item }: { item: NewsItem }) {
   );
 }
 
-function SectionHeader({ emoji, label }: { emoji?: string; label: string }) {
+const SECTION_COLORS: Record<string, string> = {
+  trending:  "var(--red)",
+  momentum:  "var(--brand-blue)",
+  dividend:  "var(--amber)",
+  defensive: "var(--green)",
+  growth:    "var(--violet)",
+  popular:   "var(--violet)",
+};
+
+function SectionHeader({ emoji, label, sectionId }: { emoji?: string; label: string; sectionId?: string }) {
+  const accent = sectionId ? (SECTION_COLORS[sectionId] ?? "var(--brand-blue)") : "var(--brand-blue)";
   return (
     <div style={{
-      fontSize: "13px", fontWeight: 600, color: "var(--text-primary)",
-      fontFamily: "var(--font-display)", letterSpacing: "-0.1px",
+      display: "flex", alignItems: "center", gap: "8px",
+      paddingLeft: "10px",
+      borderLeft: `2px solid ${accent}`,
       marginBottom: "12px",
     }}>
-      {emoji && <span style={{ marginRight: "5px" }}>{emoji}</span>}
-      {label}
+      <div style={{
+        fontSize: "13px", fontWeight: 600, color: "var(--text-primary)",
+        fontFamily: "var(--font-display)", letterSpacing: "-0.1px",
+      }}>
+        {emoji && <span style={{ marginRight: "5px" }}>{emoji}</span>}
+        {label}
+      </div>
     </div>
   );
 }
@@ -828,7 +845,7 @@ export default function ResearchClient() {
           {/* Popular on BuyTune */}
           {showPopular && (
             <div style={{ marginBottom: "26px" }}>
-              <SectionHeader emoji="⭐" label="Popular on BuyTune" />
+              <SectionHeader emoji="⭐" label="Popular on BuyTune" sectionId="popular" />
               {trendingLoading ? (
                 <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
               ) : !trendingHasData || trending.length === 0 ? (
@@ -861,7 +878,7 @@ export default function ResearchClient() {
           ) : (
             screenerSections.map((section) => (
               <div key={section.id} style={{ marginBottom: "26px" }}>
-                <SectionHeader emoji={section.emoji} label={section.label} />
+                <SectionHeader emoji={section.emoji} label={section.label} sectionId={section.id} />
                 <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
                   {section.tickers.map((t) => (
                     <StockCard
@@ -884,17 +901,19 @@ export default function ResearchClient() {
         <div style={{
           background: "var(--card-bg)",
           border: "1px solid var(--card-border)",
+          borderTop: "2px solid var(--brand-blue)",
           borderRadius: "13px",
           overflow: "hidden",
           position: "sticky",
           top: "20px",
-          maxHeight: "calc(100vh - 120px)",
+          maxHeight: "calc(100vh - 80px)",
           display: "flex",
           flexDirection: "column",
         }}>
           <div style={{
             padding: "11px 15px",
             borderBottom: "1px solid var(--border-subtle)",
+            background: "linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.03))",
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexShrink: 0,
           }}>
