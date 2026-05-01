@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import ResearchClient from "./research-client";
+import NewsSidebar from "./news-sidebar";
 
 export default async function ResearchPage() {
   const supabase = await createClient();
@@ -62,10 +63,26 @@ export default async function ResearchPage() {
             </p>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px" }}>
-            <ResearchClient
-              portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
-            />
+          {/* Two-column body: main content scrolls left, news sidebar fills full height right */}
+          <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px" }}>
+              <ResearchClient
+                portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
+              />
+            </div>
+
+            <div
+              className="hidden lg:flex"
+              style={{
+                width: "280px",
+                flexShrink: 0,
+                borderLeft: "2px solid var(--brand-blue)",
+                overflow: "hidden",
+                background: "var(--card-bg)",
+              }}
+            >
+              <NewsSidebar />
+            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
 
-const SCREENER_SECTIONS = [
+const CURATED_SECTIONS = [
   {
     id: "trending",
     label: "Trending",
@@ -12,6 +12,18 @@ const SCREENER_SECTIONS = [
       { ticker: "AAPL", name: "Apple" },
       { ticker: "META", name: "Meta" },
       { ticker: "AMZN", name: "Amazon" },
+    ],
+  },
+  {
+    id: "growth",
+    label: "High Growth",
+    emoji: "🚀",
+    tickers: [
+      { ticker: "NFLX", name: "Netflix" },
+      { ticker: "CRWD", name: "CrowdStrike" },
+      { ticker: "SNOW", name: "Snowflake" },
+      { ticker: "SHOP", name: "Shopify" },
+      { ticker: "MSTR", name: "MicroStrategy" },
     ],
   },
   {
@@ -50,24 +62,12 @@ const SCREENER_SECTIONS = [
       { ticker: "GLD", name: "SPDR Gold ETF" },
     ],
   },
-  {
-    id: "growth",
-    label: "High Growth",
-    emoji: "🚀",
-    tickers: [
-      { ticker: "NFLX", name: "Netflix" },
-      { ticker: "CRWD", name: "CrowdStrike" },
-      { ticker: "SNOW", name: "Snowflake" },
-      { ticker: "SHOP", name: "Shopify" },
-      { ticker: "MSTR", name: "MicroStrategy" },
-    ],
-  },
 ];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET() {
-  const allTickers = SCREENER_SECTIONS.flatMap((s) => s.tickers);
+  const allTickers = CURATED_SECTIONS.flatMap((s) => s.tickers);
   const quotes: Record<string, { price: number; change: number; changePct: number } | null> = {};
   const analystRecs: Record<string, { buy: number; hold: number; sell: number } | null> = {};
 
@@ -93,15 +93,38 @@ export async function GET() {
     if (i + BATCH_SIZE < allTickers.length) await sleep(1000);
   }
 
-  const sections = SCREENER_SECTIONS.map((section) => ({
-    ...section,
-    tickers: section.tickers.map(({ ticker, name }) => ({
-      ticker,
-      name,
-      ...(quotes[ticker] ?? {}),
-      analystRec: analystRecs[ticker] ?? null,
-    })),
+  // Build enriched ticker data for all curated tickers
+  const enriched = allTickers.map(({ ticker, name }) => ({
+    ticker,
+    name,
+    ...(quotes[ticker] ?? {}),
+    analystRec: analystRecs[ticker] ?? null,
   }));
+
+  // Daily Top Movers: top 5 by absolute % change across all curated tickers
+  const withQuote = enriched.filter((t) => t.price !== undefined && (t as { changePct?: number }).changePct !== undefined);
+  const dailyMovers = [...withQuote]
+    .sort((a, b) => Math.abs((b as { changePct?: number }).changePct ?? 0) - Math.abs((a as { changePct?: number }).changePct ?? 0))
+    .slice(0, 5);
+
+  // Build curated sections sorted by changePct desc within each
+  const curatedSections = CURATED_SECTIONS.map((section) => ({
+    ...section,
+    tickers: section.tickers
+      .map(({ ticker, name }) => ({
+        ticker,
+        name,
+        ...(quotes[ticker] ?? {}),
+        analystRec: analystRecs[ticker] ?? null,
+      }))
+      .sort((a, b) => ((b as { changePct?: number }).changePct ?? 0) - ((a as { changePct?: number }).changePct ?? 0)),
+  }));
+
+  const sections = [
+    curatedSections.find((s) => s.id === "trending")!,
+    { id: "daily_movers", label: "Daily Top Movers", emoji: "📊", tickers: dailyMovers },
+    ...curatedSections.filter((s) => s.id !== "trending"),
+  ].filter(Boolean);
 
   return NextResponse.json(
     { sections },
