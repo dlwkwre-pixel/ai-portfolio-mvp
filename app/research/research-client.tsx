@@ -24,7 +24,7 @@ type SearchResult = {
 type ScreenerTicker = {
   ticker: string; name: string;
   price?: number; change?: number; changePct?: number;
-  analystLabel?: "Buy" | "Hold" | "Sell" | null;
+  analystRec?: { buy: number; hold: number; sell: number } | null;
 };
 
 type ScreenerSection = {
@@ -151,21 +151,37 @@ function SectionHeader({ emoji, label, sectionId }: { emoji?: string; label: str
   );
 }
 
-const ANALYST_STYLES: Record<string, { color: string; bg: string; border: string }> = {
-  Buy:  { color: "var(--green)",  bg: "var(--green-bg)",  border: "rgba(34,197,94,0.25)" },
-  Hold: { color: "var(--amber)",  bg: "var(--amber-bg)",  border: "rgba(234,179,8,0.25)" },
-  Sell: { color: "var(--red)",    bg: "var(--red-bg)",    border: "rgba(239,68,68,0.25)" },
-};
+function AnalystBar({ rec }: { rec: ScreenerTicker["analystRec"] }) {
+  if (!rec) return <div style={{ height: "34px" }} />;
+  const total = rec.buy + rec.hold + rec.sell;
+  if (total === 0) return <div style={{ height: "34px" }} />;
+  const buyPct = (rec.buy / total) * 100;
+  const holdPct = (rec.hold / total) * 100;
+  const sellPct = (rec.sell / total) * 100;
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "2px", height: "5px", borderRadius: "3px", overflow: "hidden", marginBottom: "5px" }}>
+        <div style={{ width: `${buyPct}%`, background: "var(--green)", flexShrink: 0 }} />
+        <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+        <div style={{ width: `${sellPct}%`, background: "var(--red)", flexShrink: 0 }} />
+      </div>
+      <div style={{ display: "flex", gap: "7px", fontSize: "9px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: "var(--green)" }}>B {rec.buy}</span>
+        <span style={{ color: "var(--amber)" }}>H {rec.hold}</span>
+        <span style={{ color: "var(--red)" }}>S {rec.sell}</span>
+      </div>
+    </div>
+  );
+}
 
 function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string) => void }) {
   const isUp = (t.changePct ?? 0) >= 0;
   const hasQuote = t.price != null && t.price !== 0;
-  const rating = t.analystLabel ? ANALYST_STYLES[t.analystLabel] : null;
   return (
     <button
       onClick={() => onClick(t.ticker)}
       style={{
-        flexShrink: 0, width: "156px", minHeight: "158px", padding: "12px 13px 13px",
+        flexShrink: 0, width: "156px", minHeight: "162px", padding: "12px 13px 12px",
         background: "var(--card-bg)", border: "1px solid var(--card-border)",
         borderRadius: "13px", textAlign: "left", cursor: "pointer",
         transition: "border-color 0.15s, background 0.15s",
@@ -175,9 +191,9 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--card-border)"; e.currentTarget.style.background = "var(--card-bg)"; }}
     >
       <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", marginBottom: "8px", display: "inline-block", alignSelf: "flex-start" }}>{t.ticker}</span>
-      <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.35, marginBottom: "auto", paddingBottom: "10px" }}>{t.name}</div>
+      <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.35, flex: 1, marginBottom: "8px" }}>{t.name}</div>
       {hasQuote ? (
-        <div style={{ marginBottom: "10px" }}>
+        <div style={{ marginBottom: "9px" }}>
           <div className="num" style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{formatPrice(t.price)}</div>
           <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
             <span style={{ display: "inline-block", width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", ...(isUp ? { borderBottom: "5px solid var(--green)" } : { borderTop: "5px solid var(--red)" }) }} />
@@ -187,22 +203,11 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
           </div>
         </div>
       ) : (
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px" }}>—</div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "9px" }}>—</div>
       )}
-      {rating ? (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "5px 8px", borderRadius: "7px",
-          background: rating.bg, border: `1px solid ${rating.border}`,
-        }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: rating.color, letterSpacing: "0.02em" }}>
-            {t.analystLabel}
-          </span>
-          <span style={{ fontSize: "9px", color: rating.color, opacity: 0.7, fontWeight: 500 }}>Analyst</span>
-        </div>
-      ) : (
-        <div style={{ height: "24px" }} />
-      )}
+      <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "8px" }}>
+        <AnalystBar rec={t.analystRec} />
+      </div>
     </button>
   );
 }
@@ -250,6 +255,32 @@ function NewsHCard({ item }: { item: NewsItem }) {
         {item.headline}
       </div>
       <div style={{ display: "flex", gap: "5px", fontSize: "10px", color: "var(--text-muted)", alignItems: "center", marginTop: "auto" }}>
+        <span style={{ padding: "1px 5px", borderRadius: "3px", background: "var(--bg-surface)", color: "var(--text-tertiary)", fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          {item.source}
+        </span>
+        <span>·</span>
+        <span>{timeAgo(item.datetime)}</span>
+      </div>
+    </a>
+  );
+}
+
+function NewsCard({ item }: { item: NewsItem }) {
+  return (
+    <a
+      href={item.url} target="_blank" rel="noopener noreferrer"
+      style={{
+        display: "block", padding: "11px 14px",
+        borderBottom: "1px solid var(--border-subtle)",
+        textDecoration: "none", transition: "background 0.12s",
+      }}
+      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--card-hover)")}
+      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+    >
+      <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "5px" }}>
+        {item.headline}
+      </div>
+      <div style={{ display: "flex", gap: "5px", alignItems: "center", fontSize: "10px", color: "var(--text-muted)" }}>
         <span style={{ padding: "1px 5px", borderRadius: "3px", background: "var(--bg-surface)", color: "var(--text-tertiary)", fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
           {item.source}
         </span>
@@ -872,57 +903,84 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
         <DetailView result={searchResult} portfolios={portfolios} onClose={clearSearch} />
       )}
 
-      {/* Market News — horizontal strip */}
-      <div style={{ marginBottom: "28px" }}>
-        <SectionHeader emoji="📰" label="Market News" sectionId="momentum" />
-        {newsLoading ? (
-          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
-        ) : news.length === 0 ? (
-          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>No news available.</div>
-        ) : (
-          <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
-            {news.map((item) => <NewsHCard key={item.id} item={item} />)}
-          </div>
-        )}
-      </div>
+      {/* Main grid: screener left, news sidebar right */}
+      <div className="research-grid" style={{ display: "grid", gridTemplateColumns: "1fr 270px", gap: "20px", alignItems: "start" }}>
 
-      {/* Popular on BuyTune */}
-      {showPopular && (
-        <div style={{ marginBottom: "26px" }}>
-          <SectionHeader emoji="⭐" label="Popular on BuyTune" sectionId="popular" />
-          {trendingLoading ? (
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
-          ) : !trendingHasData || trending.length === 0 ? (
-            <div style={{ padding: "13px 15px", background: "var(--card-bg)", border: "1px dashed var(--card-border)", borderRadius: "11px", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-              Popularity signals will appear as BuyTune activity grows.
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
-              {trending.map((t) => (
-                <TrendingCard key={t.ticker} t={{ ...t, company_name: t.company_name ?? nameMap.get(t.ticker) ?? null }}
-                  onClick={(ticker) => { setQuery(ticker); doSearch(ticker); }} />
-              ))}
+        {/* Left column */}
+        <div>
+          {/* Popular on BuyTune */}
+          {showPopular && (
+            <div style={{ marginBottom: "26px" }}>
+              <SectionHeader emoji="⭐" label="Popular on BuyTune" sectionId="popular" />
+              {trendingLoading ? (
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
+              ) : !trendingHasData || trending.length === 0 ? (
+                <div style={{ padding: "13px 15px", background: "var(--card-bg)", border: "1px dashed var(--card-border)", borderRadius: "11px", fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  Popularity signals will appear as BuyTune activity grows.
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
+                  {trending.map((t) => (
+                    <TrendingCard key={t.ticker} t={{ ...t, company_name: t.company_name ?? nameMap.get(t.ticker) ?? null }}
+                      onClick={(ticker) => { setQuery(ticker); doSearch(ticker); }} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Screener sections */}
-      {screenerLoading ? (
-        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading market data...</div>
-      ) : (
-        screenerSections.map((section) => (
-          <div key={section.id} style={{ marginBottom: "26px" }}>
-            <SectionHeader emoji={section.emoji} label={section.label} sectionId={section.id} />
-            <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
-              {section.tickers.map((t) => (
-                <StockCard key={t.ticker} t={t}
-                  onClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "stock_card_click"); doSearch(ticker); }} />
-              ))}
+          {/* Screener sections */}
+          {screenerLoading ? (
+            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading market data...</div>
+          ) : (
+            screenerSections.map((section) => (
+              <div key={section.id} style={{ marginBottom: "26px" }}>
+                <SectionHeader emoji={section.emoji} label={section.label} sectionId={section.id} />
+                <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
+                  {section.tickers.map((t) => (
+                    <StockCard key={t.ticker} t={t}
+                      onClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "stock_card_click"); doSearch(ticker); }} />
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* News sidebar */}
+        <div style={{
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
+          borderTop: "2px solid var(--brand-blue)", borderRadius: "13px",
+          overflow: "hidden", position: "sticky", top: "20px",
+          maxHeight: "calc(100vh - 80px)", display: "flex", flexDirection: "column",
+        }}>
+          <div style={{
+            padding: "11px 14px", borderBottom: "1px solid var(--border-subtle)",
+            background: "linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.03))",
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0,
+          }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
+              Market News
             </div>
+            {!newsLoading && news.length > 0 && (
+              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{news.length} stories</span>
+            )}
           </div>
-        ))
-      )}
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {newsLoading ? (
+              <div style={{ padding: "16px", fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
+            ) : news.length === 0 ? (
+              <div style={{ padding: "16px", fontSize: "12px", color: "var(--text-muted)" }}>No news available.</div>
+            ) : (
+              news.map((item) => <NewsCard key={item.id} item={item} />)
+            )}
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 768px) { .research-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
     </div>
   );
 }
