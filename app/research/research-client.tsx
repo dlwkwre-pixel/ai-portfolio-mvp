@@ -2,9 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Quote = { c: number; d: number; dp: number };
+
 type SearchResult = {
   ticker: string;
-  quote: { c: number; d: number; dp: number };
+  quote: Quote;
   profile: { name: string; logo: string; weburl: string } | null;
   recommendation: {
     buy: number; hold: number; sell: number;
@@ -37,6 +41,29 @@ type NewsItem = {
   datetime: number;
 };
 
+type TrendingTicker = {
+  ticker: string;
+  company_name: string | null;
+  event_count: number;
+  top_signal: string;
+  time_window: string;
+};
+
+type AIAnalysis = {
+  bull_case: string;
+  bear_case: string;
+  key_catalysts: string;
+  key_risks: string;
+  takeaway: string;
+  confidence: string;
+  cached_at?: string;
+};
+
+type FilterId = "all" | "trending" | "momentum" | "dividend" | "defensive" | "growth" | "popular";
+type DetailTab = "overview" | "news" | "ai";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function analystLabel(rec: SearchResult["recommendation"]) {
   if (!rec) return null;
   const bullish = (rec.strongBuy ?? 0) + (rec.buy ?? 0);
@@ -44,76 +71,207 @@ function analystLabel(rec: SearchResult["recommendation"]) {
   const neutral = rec.hold ?? 0;
   const total = bullish + bearish + neutral;
   if (total === 0) return null;
-  if (bullish / total >= 0.5) return { label: "Buy", color: "var(--green)" };
-  if (bearish / total >= 0.4) return { label: "Sell", color: "var(--red)" };
-  return { label: "Hold", color: "var(--amber)" };
+  if (bullish / total >= 0.5) return { label: "Buy", color: "var(--green)", bg: "var(--green-bg)" };
+  if (bearish / total >= 0.4) return { label: "Sell", color: "var(--red)", bg: "var(--red-bg)" };
+  return { label: "Hold", color: "var(--amber)", bg: "var(--amber-bg)" };
 }
 
-function formatPrice(p: number) {
+function formatPrice(p: number | undefined) {
+  if (p == null || isNaN(p) || p === 0) return "—";
   return p >= 1000
     ? `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : `$${p.toFixed(2)}`;
 }
 
 function timeAgo(unix: number) {
+  if (!unix) return "";
   const diff = Date.now() / 1000 - unix;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string) => void }) {
+type TrackEventType =
+  | "ticker_search"
+  | "stock_card_click"
+  | "stock_detail_view"
+  | "ai_analysis_requested";
+
+function trackEvent(ticker: string, eventType: TrackEventType) {
+  fetch("/api/research/track", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker, event_type: eventType }),
+  }).catch(() => {});
+}
+
+const FILTER_CHIPS: { id: FilterId; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "trending", label: "🔥 Trending" },
+  { id: "momentum", label: "📈 Momentum" },
+  { id: "dividend", label: "💰 Dividend" },
+  { id: "defensive", label: "🛡️ Defensive" },
+  { id: "growth", label: "🚀 Growth" },
+  { id: "popular", label: "⭐ Popular" },
+];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function FilterChip({
+  active, label, onClick,
+}: {
+  active: boolean; label: string; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flexShrink: 0,
+        padding: "5px 13px",
+        borderRadius: "20px",
+        fontSize: "12px",
+        fontWeight: active ? 600 : 400,
+        fontFamily: "var(--font-body)",
+        border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
+        background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+        color: active ? "var(--nav-active-text)" : "var(--text-tertiary)",
+        cursor: "pointer",
+        transition: "all 0.15s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function AnalystBadge({ rec }: { rec: SearchResult["recommendation"] }) {
+  const r = analystLabel(rec);
+  if (!r) return null;
+  return (
+    <span style={{
+      fontSize: "10px", fontWeight: 700,
+      padding: "2px 6px", borderRadius: "4px",
+      background: r.bg, color: r.color,
+    }}>
+      {r.label}
+    </span>
+  );
+}
+
+function StockCard({
+  t, onClick,
+}: {
+  t: ScreenerTicker; onClick: (ticker: string) => void;
+}) {
   const isUp = (t.changePct ?? 0) >= 0;
-  const hasQuote = t.price != null;
+  const hasQuote = t.price != null && t.price !== 0;
   return (
     <button
       onClick={() => onClick(t.ticker)}
       style={{
         flexShrink: 0,
-        width: "140px",
-        padding: "12px",
+        width: "148px",
+        padding: "11px 12px 12px",
         background: "var(--card-bg)",
         border: "1px solid var(--card-border)",
         borderRadius: "12px",
         textAlign: "left",
         cursor: "pointer",
-        transition: "border-color 0.15s",
+        transition: "border-color 0.15s, background 0.15s",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(37,99,235,0.4)")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--card-border)")}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "rgba(37,99,235,0.4)";
+        e.currentTarget.style.background = "var(--card-hover)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--card-border)";
+        e.currentTarget.style.background = "var(--card-bg)";
+      }}
     >
-      <div
-        className="ticker"
-        style={{ marginBottom: "8px", display: "inline-block" }}
-      >
+      <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", marginBottom: "7px", display: "inline-block" }}>
         {t.ticker}
-      </div>
+      </span>
       <div style={{
-        fontSize: "11px",
-        color: "var(--text-tertiary)",
-        marginBottom: "8px",
-        lineHeight: 1.3,
-        height: "28px",
-        overflow: "hidden",
+        fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.3,
+        marginBottom: "8px", height: "27px", overflow: "hidden",
       }}>
         {t.name}
       </div>
       {hasQuote ? (
-        <>
-          <div className="num" style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-            {formatPrice(t.price!)}
+        <div>
+          <div className="num" style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1 }}>
+            {formatPrice(t.price)}
           </div>
-          <div className="num" style={{
-            fontSize: "11px",
-            color: isUp ? "var(--green)" : "var(--red)",
-            marginTop: "2px",
-          }}>
-            {isUp ? "+" : ""}{t.changePct?.toFixed(2)}%
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+            <span style={{
+              display: "inline-block", width: 0, height: 0,
+              borderLeft: "4px solid transparent", borderRight: "4px solid transparent",
+              ...(isUp ? { borderBottom: "5px solid var(--green)" } : { borderTop: "5px solid var(--red)" }),
+            }} />
+            <span className="num" style={{ fontSize: "11px", fontWeight: 500, color: isUp ? "var(--green)" : "var(--red)" }}>
+              {isUp ? "+" : ""}{t.changePct?.toFixed(2)}%
+            </span>
           </div>
-        </>
+        </div>
       ) : (
-        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>—</div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "auto" }}>—</div>
       )}
+    </button>
+  );
+}
+
+function TrendingCard({
+  t, onClick,
+}: {
+  t: TrendingTicker; onClick: (ticker: string) => void;
+}) {
+  return (
+    <button
+      onClick={() => onClick(t.ticker)}
+      style={{
+        flexShrink: 0,
+        width: "152px",
+        padding: "11px 12px",
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-border)",
+        borderRadius: "12px",
+        textAlign: "left",
+        cursor: "pointer",
+        transition: "border-color 0.15s, background 0.15s",
+        display: "flex",
+        flexDirection: "column",
+        gap: "5px",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "rgba(167,139,250,0.4)";
+        e.currentTarget.style.background = "var(--card-hover)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--card-border)";
+        e.currentTarget.style.background = "var(--card-bg)";
+      }}
+    >
+      <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", display: "inline-block" }}>
+        {t.ticker}
+      </span>
+      {t.company_name && (
+        <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.3, height: "27px", overflow: "hidden" }}>
+          {t.company_name}
+        </div>
+      )}
+      <span style={{
+        display: "inline-block", fontSize: "10px", fontWeight: 600,
+        padding: "2px 7px", borderRadius: "4px",
+        background: "var(--violet-bg)", color: "var(--violet)",
+        marginTop: "2px",
+      }}>
+        {t.top_signal}
+      </span>
+      <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{t.time_window}</div>
     </button>
   );
 }
@@ -125,32 +283,359 @@ function NewsCard({ item }: { item: NewsItem }) {
       target="_blank"
       rel="noopener noreferrer"
       style={{
-        display: "block",
-        padding: "12px 16px",
+        display: "block", padding: "11px 16px",
         borderBottom: "1px solid var(--border-subtle)",
-        textDecoration: "none",
-        transition: "background 0.15s",
+        textDecoration: "none", transition: "background 0.15s",
       }}
       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--card-hover)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       <div style={{
-        fontSize: "12px",
-        fontWeight: 500,
-        color: "var(--text-primary)",
-        lineHeight: 1.4,
-        marginBottom: "4px",
+        fontSize: "12px", fontWeight: 500, color: "var(--text-primary)",
+        lineHeight: 1.4, marginBottom: "5px",
+        overflow: "hidden", maxHeight: "2.8em",
       }}>
         {item.headline}
       </div>
-      <div style={{ display: "flex", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
-        <span>{item.source}</span>
+      <div style={{ display: "flex", gap: "6px", fontSize: "10px", color: "var(--text-muted)", alignItems: "center" }}>
+        <span style={{
+          padding: "1px 5px", borderRadius: "3px",
+          background: "var(--bg-surface)", color: "var(--text-tertiary)",
+          fontSize: "9px", fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.04em",
+        }}>
+          {item.source}
+        </span>
         <span>·</span>
         <span>{timeAgo(item.datetime)}</span>
       </div>
     </a>
   );
 }
+
+function SectionHeader({ emoji, label }: { emoji?: string; label: string }) {
+  return (
+    <div style={{
+      fontSize: "13px", fontWeight: 600, color: "var(--text-primary)",
+      fontFamily: "var(--font-display)", letterSpacing: "-0.1px",
+      marginBottom: "12px",
+    }}>
+      {emoji && <span style={{ marginRight: "5px" }}>{emoji}</span>}
+      {label}
+    </div>
+  );
+}
+
+// ─── Detail View ──────────────────────────────────────────────────────────────
+
+function DetailView({
+  result, onClose,
+}: {
+  result: SearchResult; onClose: () => void;
+}) {
+  const [tab, setTab] = useState<DetailTab>("overview");
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCooldown, setAiCooldown] = useState(false);
+
+  const rating = analystLabel(result.recommendation);
+  const upside =
+    result.priceTarget?.targetMean && result.quote.c > 0
+      ? ((result.priceTarget.targetMean - result.quote.c) / result.quote.c) * 100
+      : null;
+
+  function requestAI() {
+    if (aiLoading || aiCooldown) return;
+    setAiLoading(true);
+    setAiError(null);
+    trackEvent(result.ticker, "ai_analysis_requested");
+    fetch("/api/research/ai-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticker: result.ticker,
+        company_name: result.profile?.name ?? result.ticker,
+        price: result.quote.c,
+        change_pct: result.quote.dp,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setAiAnalysis(d);
+        setAiCooldown(true);
+        setTimeout(() => setAiCooldown(false), 60_000);
+      })
+      .catch((err) => setAiError(err.message ?? "Analysis failed. Try again later."))
+      .finally(() => setAiLoading(false));
+  }
+
+  const TABS: { id: DetailTab; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "news", label: result.news.length > 0 ? `News (${result.news.length})` : "News" },
+    { id: "ai", label: "AI Analysis" },
+  ];
+
+  const isUp = result.quote.dp >= 0;
+
+  return (
+    <div style={{
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-border)",
+      borderRadius: "14px",
+      marginBottom: "24px",
+      overflow: "hidden",
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: "14px 18px",
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "12px",
+        flexWrap: "wrap",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+          <button
+            onClick={onClose}
+            title="Close"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: "26px", height: "26px", flexShrink: 0,
+              background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+              borderRadius: "7px", cursor: "pointer", color: "var(--text-tertiary)",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-tertiary)")}
+          >
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "3px" }}>
+              <span className="ticker" style={{ fontSize: "11px", padding: "2px 8px" }}>{result.ticker}</span>
+              <AnalystBadge rec={result.recommendation} />
+            </div>
+            <div style={{
+              fontSize: "16px", fontWeight: 700, color: "var(--text-primary)",
+              fontFamily: "var(--font-display)", letterSpacing: "-0.2px",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {result.profile?.name || result.ticker}
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div className="num" style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
+            {formatPrice(result.quote.c)}
+          </div>
+          <div className="num" style={{ fontSize: "12px", color: isUp ? "var(--green)" : "var(--red)", marginTop: "3px" }}>
+            {isUp ? "+" : ""}{result.quote.d.toFixed(2)} ({isUp ? "+" : ""}{result.quote.dp.toFixed(2)}%)
+          </div>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div style={{
+        display: "flex", overflowX: "auto",
+        borderBottom: "1px solid var(--border-subtle)",
+        padding: "0 18px",
+      }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "9px 12px",
+              fontSize: "12px",
+              fontWeight: tab === t.id ? 600 : 400,
+              fontFamily: "var(--font-body)",
+              background: "none", border: "none",
+              borderBottom: `2px solid ${tab === t.id ? "var(--brand-blue)" : "transparent"}`,
+              color: tab === t.id ? "var(--text-primary)" : "var(--text-tertiary)",
+              cursor: "pointer", whiteSpace: "nowrap",
+              transition: "color 0.15s",
+              marginBottom: "-1px",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview tab */}
+      {tab === "overview" && (
+        <div style={{ padding: "16px 18px" }}>
+          {(result.recommendation || result.priceTarget) ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              {result.recommendation && (() => {
+                const rec = result.recommendation!;
+                const total = rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell;
+                const bullPct = total > 0 ? ((rec.strongBuy + rec.buy) / total) * 100 : 0;
+                const holdPct = total > 0 ? (rec.hold / total) * 100 : 0;
+                const bearPct = total > 0 ? ((rec.strongSell + rec.sell) / total) * 100 : 0;
+                return (
+                  <div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                      Analyst Ratings
+                    </div>
+                    <div style={{ display: "flex", gap: "3px", height: "5px", borderRadius: "3px", overflow: "hidden", marginBottom: "8px" }}>
+                      <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
+                      <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+                      <div style={{ width: `${bearPct}%`, background: "var(--red)", flexShrink: 0 }} />
+                    </div>
+                    <div style={{ display: "flex", gap: "12px", fontSize: "11px" }}>
+                      <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
+                      <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
+                      <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+              {result.priceTarget && (
+                <div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                    Price Target
+                  </div>
+                  <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {formatPrice(result.priceTarget.targetMean)}
+                  </div>
+                  {upside !== null && (
+                    <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+                      {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
+                    </div>
+                  )}
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>
+                    {formatPrice(result.priceTarget.targetLow)} – {formatPrice(result.priceTarget.targetHigh)}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>No analyst data available for this ticker.</div>
+          )}
+        </div>
+      )}
+
+      {/* News tab */}
+      {tab === "news" && (
+        <div>
+          {result.news.length === 0 ? (
+            <div style={{ padding: "18px 20px", fontSize: "13px", color: "var(--text-muted)" }}>No recent news found.</div>
+          ) : (
+            result.news.slice(0, 6).map((item, i) => (
+              <a
+                key={i}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block", padding: "12px 18px",
+                  borderBottom: i < Math.min(result.news.length, 6) - 1 ? "1px solid var(--border-subtle)" : "none",
+                  textDecoration: "none", transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--card-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px" }}>
+                  {item.headline}
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  {item.source} · {timeAgo(item.datetime)}
+                </div>
+              </a>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* AI Analysis tab */}
+      {tab === "ai" && (
+        <div style={{ padding: "16px 18px" }}>
+          {!aiAnalysis && !aiLoading && (
+            <div>
+              <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "14px" }}>
+                Get a concise AI-powered breakdown of {result.ticker} — bull case, bear case, key catalysts, and investor takeaway.
+              </div>
+              <button
+                onClick={requestAI}
+                disabled={aiCooldown}
+                style={{
+                  padding: "8px 18px",
+                  background: "var(--brand-gradient)",
+                  border: "none", borderRadius: "9px",
+                  color: "#fff", fontSize: "13px", fontWeight: 600,
+                  fontFamily: "var(--font-body)",
+                  cursor: aiCooldown ? "not-allowed" : "pointer",
+                  opacity: aiCooldown ? 0.5 : 1,
+                  transition: "opacity 0.15s",
+                }}
+              >
+                Generate AI Analysis
+              </button>
+              {aiError && (
+                <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--red)" }}>{aiError}</div>
+              )}
+            </div>
+          )}
+
+          {aiLoading && (
+            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Analyzing {result.ticker}...</div>
+          )}
+
+          {aiAnalysis && !aiLoading && (
+            <div>
+              {aiAnalysis.cached_at && (
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "14px" }}>
+                  Generated {new Date(aiAnalysis.cached_at).toLocaleDateString()} · Confidence: <strong>{aiAnalysis.confidence}</strong>
+                </div>
+              )}
+              {(
+                [
+                  { key: "bull_case", label: "Bull Case", color: "var(--green)" },
+                  { key: "bear_case", label: "Bear Case", color: "var(--red)" },
+                  { key: "key_catalysts", label: "Key Catalysts", color: "var(--brand-blue)" },
+                  { key: "key_risks", label: "Key Risks", color: "var(--amber)" },
+                  { key: "takeaway", label: "Investor Takeaway", color: "var(--violet)" },
+                ] as const
+              ).map(({ key, label, color }) => (
+                <div key={key} style={{ marginBottom: "12px" }}>
+                  <div style={{
+                    fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
+                    letterSpacing: "0.06em", color, marginBottom: "4px",
+                  }}>
+                    {label}
+                  </div>
+                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    {aiAnalysis[key]}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => { setAiAnalysis(null); setAiError(null); }}
+                style={{
+                  marginTop: "4px", padding: "5px 12px",
+                  background: "none", border: "1px solid var(--card-border)",
+                  borderRadius: "7px", color: "var(--text-muted)",
+                  fontSize: "11px", cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                Regenerate
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ResearchClient() {
   const [query, setQuery] = useState("");
@@ -164,7 +649,14 @@ export default function ResearchClient() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
 
+  const [trending, setTrending] = useState<TrendingTicker[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
+  const [trendingHasData, setTrendingHasData] = useState(false);
+
+  const [activeFilter, setActiveFilter] = useState<FilterId>("all");
+
   const topRef = useRef<HTMLDivElement>(null);
+  const inflightRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetch("/api/research/screener")
@@ -178,23 +670,41 @@ export default function ResearchClient() {
       .then((d) => setNews(d.news ?? []))
       .catch(() => {})
       .finally(() => setNewsLoading(false));
+
+    fetch("/api/research/trending")
+      .then((r) => r.json())
+      .then((d) => {
+        setTrending(d.trending ?? []);
+        setTrendingHasData(d.has_data ?? false);
+      })
+      .catch(() => {})
+      .finally(() => setTrendingLoading(false));
   }, []);
 
   function doSearch(ticker: string) {
     const t = ticker.trim().toUpperCase();
     if (!t) return;
+    if (inflightRef.current === t) return;
+    inflightRef.current = t;
     setSearching(true);
     setSearchError(null);
     setSearchResult(null);
     topRef.current?.scrollIntoView({ behavior: "smooth" });
-    fetch(`/api/research/search?ticker=${t}`)
+    trackEvent(t, "ticker_search");
+    fetch(`/api/research/search?ticker=${encodeURIComponent(t)}`)
       .then((r) => {
         if (!r.ok) throw new Error("not found");
         return r.json();
       })
-      .then((d) => setSearchResult(d))
+      .then((d) => {
+        setSearchResult(d);
+        trackEvent(t, "stock_detail_view");
+      })
       .catch(() => setSearchError(`No data found for "${t}"`))
-      .finally(() => setSearching(false));
+      .finally(() => {
+        setSearching(false);
+        inflightRef.current = null;
+      });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -208,20 +718,31 @@ export default function ResearchClient() {
     setSearchError(null);
   }
 
-  const rating = searchResult ? analystLabel(searchResult.recommendation) : null;
-  const upside =
-    searchResult?.priceTarget?.targetMean && searchResult.quote.c > 0
-      ? ((searchResult.priceTarget.targetMean - searchResult.quote.c) / searchResult.quote.c) * 100
-      : null;
+  // Build name lookup from screener cache for trending cards
+  const nameMap = new Map<string, string>();
+  for (const section of screener) {
+    for (const t of section.tickers) nameMap.set(t.ticker, t.name);
+  }
+
+  const showPopular = activeFilter === "all" || activeFilter === "popular";
+  const visibleSections =
+    activeFilter === "all" || activeFilter === "popular"
+      ? screener
+      : activeFilter === "popular"
+      ? []
+      : screener.filter((s) => s.id === activeFilter);
+
+  const screenerSections = activeFilter === "popular" ? [] : visibleSections;
 
   return (
     <div ref={topRef} style={{ maxWidth: "960px" }}>
+
       {/* Search bar */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: "24px" }}>
+      <form onSubmit={handleSubmit} style={{ marginBottom: "10px" }}>
         <div style={{ position: "relative" }}>
           <svg
             style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-tertiary)", pointerEvents: "none" }}
-            width="16" height="16" viewBox="0 0 20 20" fill="currentColor"
+            width="15" height="15" viewBox="0 0 20 20" fill="currentColor"
           >
             <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
           </svg>
@@ -229,10 +750,10 @@ export default function ResearchClient() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value.toUpperCase())}
-            placeholder="Search a ticker — AAPL, TSLA, NVDA..."
+            placeholder="Search ticker — AAPL, TSLA, NVDA..."
             style={{
               width: "100%",
-              padding: "13px 48px 13px 42px",
+              padding: "12px 44px 12px 40px",
               background: "var(--card-bg)",
               border: "1px solid var(--card-border)",
               borderRadius: "12px",
@@ -251,12 +772,13 @@ export default function ResearchClient() {
               type="button"
               onClick={clearSearch}
               style={{
-                position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)",
-                background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)",
-                padding: "4px", display: "flex", alignItems: "center",
+                position: "absolute", right: "13px", top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", padding: "4px",
+                display: "flex", alignItems: "center",
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
@@ -264,251 +786,92 @@ export default function ResearchClient() {
         </div>
       </form>
 
-      {/* Search state feedback */}
+      {/* Filter chips */}
+      <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "16px" }}>
+        {FILTER_CHIPS.map((chip) => (
+          <FilterChip
+            key={chip.id}
+            label={chip.label}
+            active={activeFilter === chip.id}
+            onClick={() => setActiveFilter(chip.id)}
+          />
+        ))}
+      </div>
+
+      {/* Search feedback */}
       {searching && (
-        <div style={{ padding: "20px 0 8px", color: "var(--text-muted)", fontSize: "13px" }}>
+        <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px" }}>
           Loading {query}...
         </div>
       )}
 
       {searchError && (
         <div style={{
-          padding: "14px 16px",
-          background: "var(--red-bg)",
-          border: "1px solid var(--red-border)",
-          borderRadius: "12px",
-          color: "var(--red)",
-          fontSize: "13px",
-          marginBottom: "24px",
+          padding: "11px 14px",
+          background: "var(--red-bg)", border: "1px solid var(--red-border)",
+          borderRadius: "10px", color: "var(--red)", fontSize: "13px",
+          marginBottom: "18px",
         }}>
           {searchError}
         </div>
       )}
 
-      {/* Search result card */}
+      {/* Detail view */}
       {searchResult && !searching && (
-        <div style={{
-          background: "var(--card-bg)",
-          border: "1px solid var(--card-border)",
-          borderRadius: "16px",
-          marginBottom: "32px",
-          overflow: "hidden",
-        }}>
-          {/* Header row */}
-          <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border-subtle)" }}>
-            <div style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-            }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                  <span className="ticker" style={{ fontSize: "13px", padding: "3px 10px" }}>
-                    {searchResult.ticker}
-                  </span>
-                  {rating && (
-                    <span style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      padding: "3px 8px",
-                      borderRadius: "6px",
-                      background: `color-mix(in srgb, ${rating.color} 15%, transparent)`,
-                      color: rating.color,
-                    }}>
-                      {rating.label}
-                    </span>
-                  )}
-                </div>
-                <div style={{
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  fontFamily: "var(--font-display)",
-                  color: "var(--text-primary)",
-                }}>
-                  {searchResult.profile?.name || searchResult.ticker}
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {formatPrice(searchResult.quote.c)}
-                </div>
-                <div className="num" style={{
-                  fontSize: "13px",
-                  color: searchResult.quote.dp >= 0 ? "var(--green)" : "var(--red)",
-                  marginTop: "2px",
-                }}>
-                  {searchResult.quote.dp >= 0 ? "+" : ""}{searchResult.quote.d.toFixed(2)}
-                  {" "}({searchResult.quote.dp >= 0 ? "+" : ""}{searchResult.quote.dp.toFixed(2)}%)
-                </div>
-              </div>
-            </div>
-          </div>
+        <DetailView result={searchResult} onClose={clearSearch} />
+      )}
 
-          {/* Analyst ratings + price target */}
-          {(searchResult.recommendation || searchResult.priceTarget) && (
-            <div style={{
-              padding: "16px 24px",
-              borderBottom: "1px solid var(--border-subtle)",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "20px",
-            }}>
-              {searchResult.recommendation && (() => {
-                const rec = searchResult.recommendation!;
-                const total = rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell;
-                const bullPct = total > 0 ? ((rec.strongBuy + rec.buy) / total) * 100 : 0;
-                const holdPct = total > 0 ? (rec.hold / total) * 100 : 0;
-                const bearPct = total > 0 ? ((rec.strongSell + rec.sell) / total) * 100 : 0;
-                return (
-                  <div>
-                    <div style={{
-                      fontSize: "10px",
-                      color: "var(--text-muted)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: "8px",
-                    }}>
-                      Analyst Ratings
-                    </div>
-                    <div style={{
-                      display: "flex",
-                      gap: "3px",
-                      height: "5px",
-                      borderRadius: "3px",
-                      overflow: "hidden",
-                      marginBottom: "8px",
-                    }}>
-                      <div style={{ width: `${bullPct}%`, background: "var(--green)", borderRadius: "3px 0 0 3px" }} />
-                      <div style={{ width: `${holdPct}%`, background: "var(--amber)" }} />
-                      <div style={{ width: `${bearPct}%`, background: "var(--red)", borderRadius: "0 3px 3px 0" }} />
-                    </div>
-                    <div style={{ display: "flex", gap: "14px", fontSize: "11px" }}>
-                      <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
-                      <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
-                      <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              {searchResult.priceTarget && (
-                <div>
-                  <div style={{
-                    fontSize: "10px",
-                    color: "var(--text-muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    marginBottom: "8px",
-                  }}>
-                    Price Target
-                  </div>
-                  <div className="num" style={{ fontSize: "20px", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {formatPrice(searchResult.priceTarget.targetMean)}
-                  </div>
-                  {upside !== null && (
-                    <div className="num" style={{
-                      fontSize: "12px",
-                      color: upside >= 0 ? "var(--green)" : "var(--red)",
-                      marginTop: "2px",
-                    }}>
-                      {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
-                    </div>
-                  )}
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
-                    {formatPrice(searchResult.priceTarget.targetLow)} – {formatPrice(searchResult.priceTarget.targetHigh)}
-                  </div>
+      {/* Main grid */}
+      <div
+        className="research-grid"
+        style={{ display: "grid", gridTemplateColumns: "1fr 290px", gap: "20px", alignItems: "start" }}
+      >
+        <div>
+          {/* Popular on BuyTune */}
+          {showPopular && (
+            <div style={{ marginBottom: "26px" }}>
+              <SectionHeader emoji="⭐" label="Popular on BuyTune" />
+              {trendingLoading ? (
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
+              ) : !trendingHasData || trending.length === 0 ? (
+                <div style={{
+                  padding: "13px 15px",
+                  background: "var(--card-bg)",
+                  border: "1px dashed var(--card-border)",
+                  borderRadius: "11px",
+                  fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5,
+                }}>
+                  Popularity signals will appear as BuyTune activity grows.
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
+                  {trending.map((t) => (
+                    <TrendingCard
+                      key={t.ticker}
+                      t={{ ...t, company_name: t.company_name ?? nameMap.get(t.ticker) ?? null }}
+                      onClick={(ticker) => { setQuery(ticker); doSearch(ticker); }}
+                    />
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          {/* Recent news */}
-          {searchResult.news.length > 0 && (
-            <div>
-              <div style={{
-                padding: "12px 24px 0",
-                fontSize: "10px",
-                color: "var(--text-muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}>
-                Recent News
-              </div>
-              {searchResult.news.slice(0, 4).map((item, i) => (
-                <a
-                  key={i}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "block",
-                    padding: "12px 24px",
-                    borderTop: "1px solid var(--border-subtle)",
-                    textDecoration: "none",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--card-hover)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <div style={{
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    color: "var(--text-primary)",
-                    lineHeight: 1.4,
-                    marginBottom: "3px",
-                  }}>
-                    {item.headline}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    {item.source} · {timeAgo(item.datetime)}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Main two-column layout */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 300px",
-        gap: "24px",
-        alignItems: "start",
-      }}
-        className="research-grid"
-      >
-        {/* Screener sections */}
-        <div>
+          {/* Screener sections */}
           {screenerLoading ? (
-            <div style={{ color: "var(--text-muted)", fontSize: "13px", paddingTop: "8px" }}>
-              Loading market data...
-            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Loading market data...</div>
           ) : (
-            screener.map((section) => (
-              <div key={section.id} style={{ marginBottom: "28px" }}>
-                <div style={{
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                  fontFamily: "var(--font-display)",
-                  marginBottom: "12px",
-                }}>
-                  {section.emoji} {section.label}
-                </div>
-                <div style={{
-                  display: "flex",
-                  gap: "10px",
-                  overflowX: "auto",
-                  paddingBottom: "6px",
-                }}>
+            screenerSections.map((section) => (
+              <div key={section.id} style={{ marginBottom: "26px" }}>
+                <SectionHeader emoji={section.emoji} label={section.label} />
+                <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px" }}>
                   {section.tickers.map((t) => (
                     <StockCard
                       key={t.ticker}
                       t={t}
                       onClick={(ticker) => {
                         setQuery(ticker);
+                        trackEvent(ticker, "stock_card_click");
                         doSearch(ticker);
                       }}
                     />
@@ -519,47 +882,46 @@ export default function ResearchClient() {
           )}
         </div>
 
-        {/* News sidebar */}
+        {/* Market News sidebar */}
         <div style={{
           background: "var(--card-bg)",
           border: "1px solid var(--card-border)",
-          borderRadius: "16px",
+          borderRadius: "13px",
           overflow: "hidden",
           position: "sticky",
           top: "20px",
+          maxHeight: "calc(100vh - 120px)",
+          display: "flex",
+          flexDirection: "column",
         }}>
           <div style={{
-            padding: "14px 16px",
+            padding: "11px 15px",
             borderBottom: "1px solid var(--border-subtle)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexShrink: 0,
           }}>
-            <div style={{
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              fontFamily: "var(--font-display)",
-            }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
               Market News
             </div>
+            {!newsLoading && news.length > 0 && (
+              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{news.length} stories</span>
+            )}
           </div>
-          {newsLoading ? (
-            <div style={{ padding: "20px 16px", color: "var(--text-muted)", fontSize: "13px" }}>
-              Loading...
-            </div>
-          ) : news.length === 0 ? (
-            <div style={{ padding: "20px 16px", color: "var(--text-muted)", fontSize: "13px" }}>
-              No news available.
-            </div>
-          ) : (
-            news.map((item) => <NewsCard key={item.id} item={item} />)
-          )}
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {newsLoading ? (
+              <div style={{ padding: "16px", fontSize: "12px", color: "var(--text-muted)" }}>Loading...</div>
+            ) : news.length === 0 ? (
+              <div style={{ padding: "16px", fontSize: "12px", color: "var(--text-muted)" }}>No news available.</div>
+            ) : (
+              news.map((item) => <NewsCard key={item.id} item={item} />)
+            )}
+          </div>
         </div>
       </div>
 
       <style>{`
         @media (max-width: 768px) {
-          .research-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .research-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
