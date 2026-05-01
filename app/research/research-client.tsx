@@ -952,7 +952,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
           background: "var(--card-bg)", border: "1px solid var(--card-border)",
           borderTop: "2px solid var(--brand-blue)", borderRadius: "13px",
           overflow: "hidden", position: "sticky", top: "20px",
-          maxHeight: "calc(100vh - 80px)", display: "flex", flexDirection: "column",
+          height: "calc(100vh - 110px)", display: "flex", flexDirection: "column",
         }}>
           <div style={{
             padding: "11px 14px", borderBottom: "1px solid var(--border-subtle)",

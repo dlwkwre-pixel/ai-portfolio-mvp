@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const MIN_EVENTS_THRESHOLD = 10;
+const MIN_EVENTS_THRESHOLD = 100;
 
 const SIGNAL_LABELS: Record<string, string> = {
   ticker_search: "Most searched",
