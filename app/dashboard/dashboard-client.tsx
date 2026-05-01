@@ -64,7 +64,10 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
   const [isSaving, startSave] = useTransition();
-  const [onboardingOpen, setOnboardingOpen] = useState(showOnboarding ?? false);
+  const [onboardingOpen, setOnboardingOpen] = useState(() => {
+    if (!(showOnboarding ?? false)) return false;
+    try { return localStorage.getItem("bt-onboarding-done") !== "true"; } catch { return true; }
+  });
 
   const hide = (v: string, m = false) => isPrivate ? (m ? "$••••••" : "••••••") : v;
 
@@ -86,7 +89,10 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
           initialStep={initialOnboardingStep ?? 1}
           existingPortfolios={existingPortfolios ?? []}
           existingStrategies={existingStrategies ?? []}
-          onClose={() => setOnboardingOpen(false)}
+          onClose={() => {
+            try { localStorage.setItem("bt-onboarding-done", "true"); } catch {}
+            setOnboardingOpen(false);
+          }}
         />
       )}
       {/* Stats */}
