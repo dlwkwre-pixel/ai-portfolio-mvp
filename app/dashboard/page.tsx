@@ -47,6 +47,15 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
+  // Fetch onboarding status
+  const { data: profileData } = await supabase
+    .from("user_profiles")
+    .select("onboarding_status, onboarding_step")
+    .eq("id", user.id)
+    .maybeSingle();
+  const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
+  const onboardingStep = Number(profileData?.onboarding_step ?? 1);
+
   const { data: portfolios } = await supabase
     .from("portfolios")
     .select("id, name, is_active, cash_balance, benchmark_symbol, created_at, status, account_type, display_order")
@@ -54,9 +63,14 @@ export default async function DashboardPage() {
     .order("display_order", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
-  const { count: strategiesCount } = await supabase
-    .from("strategies").select("*", { count: "exact", head: true })
-    .eq("user_id", user.id).eq("is_active", true);
+  const [{ count: strategiesCount }, { data: userStrategies }] = await Promise.all([
+    supabase.from("strategies").select("*", { count: "exact", head: true })
+      .eq("user_id", user.id).eq("is_active", true),
+    supabase.from("strategies")
+      .select("id, name, description, style, risk_level")
+      .eq("user_id", user.id).eq("is_active", true)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const activePortfolios = (portfolios ?? []).filter((p) => p.is_active);
   const archivedPortfolios = (portfolios ?? []).filter((p) => !p.is_active);
@@ -225,6 +239,10 @@ export default async function DashboardPage() {
               totalValueLabel={formatMoney(totalValue)}
               strategiesCount={strategiesCount ?? 0}
               lastRunAt={recentRuns[0]?.created_at ?? null}
+              showOnboarding={onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
+              initialOnboardingStep={onboardingStep}
+              existingPortfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name, account_type: p.account_type }))}
+              existingStrategies={(userStrategies ?? []).map((s) => ({ id: s.id, name: s.name, description: s.description ?? null, risk_level: s.risk_level ?? null }))}
             />
           </div>
         </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { savePortfolioOrder } from "./portfolio-order-actions";
+import OnboardingModal from "@/app/onboarding/onboarding-modal";
 
 type PortfolioRow = {
   id: string;
@@ -35,10 +36,15 @@ function formatMoney(value: number) {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function DashboardClient({ portfolioRows: initialRows, archivedRows, feedItems, totalValue, totalValueLabel, strategiesCount, lastRunAt }: {
+type OnboardingPortfolio = { id: string; name: string; account_type: string | null };
+type OnboardingStrategy = { id: string; name: string; description: string | null; risk_level: string | null };
+
+export default function DashboardClient({ portfolioRows: initialRows, archivedRows, feedItems, totalValue, totalValueLabel, strategiesCount, lastRunAt, showOnboarding, initialOnboardingStep, existingPortfolios, existingStrategies }: {
   portfolioRows: PortfolioRow[]; archivedRows: { id: string; name: string }[];
   feedItems: FeedItem[]; totalValue: number; totalValueLabel: string;
   strategiesCount: number; lastRunAt: string | null;
+  showOnboarding?: boolean; initialOnboardingStep?: number;
+  existingPortfolios?: OnboardingPortfolio[]; existingStrategies?: OnboardingStrategy[];
 }) {
   const [isPrivate, setIsPrivateState] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -58,6 +64,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
   const [isSaving, startSave] = useTransition();
+  const [onboardingOpen, setOnboardingOpen] = useState(showOnboarding ?? false);
 
   const hide = (v: string, m = false) => isPrivate ? (m ? "$••••••" : "••••••") : v;
 
@@ -74,6 +81,13 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {onboardingOpen && (
+        <OnboardingModal
+          initialStep={initialOnboardingStep ?? 1}
+          existingPortfolios={existingPortfolios ?? []}
+          existingStrategies={existingStrategies ?? []}
+        />
+      )}
       {/* Stats */}
       {/* Stats row with privacy toggle */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
