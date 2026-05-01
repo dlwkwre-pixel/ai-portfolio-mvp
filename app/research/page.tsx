@@ -63,7 +63,9 @@ export default async function ResearchPage() {
           </div>
 
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px" }}>
-            <ResearchClient />
+            <ResearchClient
+              portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
+            />
           </div>
         </div>
       </div>
