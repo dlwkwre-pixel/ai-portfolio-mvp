@@ -86,6 +86,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
           initialStep={initialOnboardingStep ?? 1}
           existingPortfolios={existingPortfolios ?? []}
           existingStrategies={existingStrategies ?? []}
+          onClose={() => setOnboardingOpen(false)}
         />
       )}
       {/* Stats */}

@@ -46,10 +46,12 @@ export default function OnboardingModal({
   initialStep,
   existingPortfolios,
   existingStrategies,
+  onClose,
 }: {
   initialStep: number;
   existingPortfolios: Portfolio[];
   existingStrategies: Strategy[];
+  onClose: () => void;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(Math.max(1, initialStep));
@@ -92,6 +94,7 @@ export default function OnboardingModal({
   // ── Helpers
 
   function dismiss() {
+    onClose();
     router.refresh();
   }
 
