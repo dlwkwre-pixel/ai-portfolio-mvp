@@ -352,9 +352,11 @@ body {
 
 /* ── Mobile styles ── */
 @media (max-width: 768px) {
+  /* Font scaling */
   .num-xl { font-size: 2rem !important; }
   .num-lg { font-size: 1.75rem !important; }
 
+  /* Grids */
   [style*="grid-template-columns: repeat(4, 1fr)"] {
     grid-template-columns: repeat(2, 1fr) !important;
   }
@@ -365,8 +367,43 @@ body {
   [style*="grid-template-columns: minmax(0, 1.5fr)"] {
     grid-template-columns: 1fr !important;
   }
+
+  /* Hide top tab nav on mobile — bottom nav handles navigation */
+  .hidden-mobile { display: none !important; }
+
+  /* Page padding adjustments */
+
+
+
+
+
+  /* Portfolio header — stack buttons below title */
+  .portfolio-header-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* Cards padding reduction on mobile */
+  .bt-card { padding: 12px !important; }
+
+  /* Buttons */
+  .bt-btn-sm {
+    min-height: 32px;
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* Tabs — horizontal scroll */
+  .mobile-tabs-scroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+  }
+  .mobile-tabs-scroll::-webkit-scrollbar { display: none; }
 }
 
+/* ── Mobile bottom nav ── */
 @media (max-width: 768px) {
   .mobile-bottom-nav {
     display: flex !important;
@@ -381,10 +418,6 @@ body {
   }
   main {
     padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
-  }
-  .bt-btn-sm {
-    min-height: 32px;
-    padding: 6px 12px !important;
   }
 }
 

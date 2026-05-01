@@ -54,6 +54,10 @@ const navItems = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
 
+  // Hide on public pages
+  const publicPages = ["/", "/login", "/signup", "/setup-username"];
+  if (publicPages.includes(pathname)) return null;
+
   return (
     <nav className="mobile-bottom-nav" style={{ display: "none" }}>
       {navItems.map((item) => {

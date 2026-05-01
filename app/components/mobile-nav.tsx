@@ -13,7 +13,7 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <div style={{
+    <div className="hidden-mobile" style={{
       display: "flex",
       gap: "6px",
       overflowX: "auto",
@@ -21,9 +21,7 @@ export default function MobileNav() {
       background: "var(--sidebar-bg)",
       padding: "10px 16px",
       fontFamily: "var(--font-body)",
-    }}
-      className="lg:hidden"
-    >
+    }}>
       {navItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         return (
