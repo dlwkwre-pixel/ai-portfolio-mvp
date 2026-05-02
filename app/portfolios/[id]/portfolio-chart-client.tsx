@@ -49,9 +49,9 @@ const TIMEFRAMES = [
 ];
 
 const CHART_MODES = [
-  { label: "Investment Return (%)", value: "twr" },
-  { label: "Total Return (%)", value: "return" },
-  { label: "Value ($)", value: "value" },
+  { label: "Inv. Return", value: "twr" },
+  { label: "Total Ret.", value: "return" },
+  { label: "Value $", value: "value" },
 ];
 
 function filterByTimeframe<T extends { date: string }>(data: T[], days: number): T[] {
@@ -192,14 +192,14 @@ export default function PortfolioChartClient({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <div className="flex rounded-xl border border-white/8 bg-white/3 p-0.5">
+        <div className="flex flex-wrap gap-2 min-w-0">
+          <div className="bt-tabs-scroll flex rounded-xl border border-white/8 bg-white/3 p-0.5" style={{ overflowX: "auto" }}>
             {CHART_MODES.map((mode) => (
               <button
                 key={mode.value}
                 type="button"
                 onClick={() => setChartMode(mode.value as "value" | "return" | "twr")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
                   chartMode === mode.value ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
               >
@@ -208,13 +208,13 @@ export default function PortfolioChartClient({
             ))}
           </div>
 
-          <div className="flex rounded-xl border border-white/8 bg-white/3 p-0.5">
+          <div className="bt-tabs-scroll flex rounded-xl border border-white/8 bg-white/3 p-0.5" style={{ overflowX: "auto" }}>
             {TIMEFRAMES.map((tf) => (
               <button
                 key={tf.label}
                 type="button"
                 onClick={() => setActiveTimeframe(tf.label)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
                   activeTimeframe === tf.label ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
               >

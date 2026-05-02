@@ -88,7 +88,7 @@ export default async function StrategiesPage() {
         <div className="hidden lg:flex">
           <Sidebar userEmail={user.email} />
         </div>
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <MobileNav />
 
           {/* Topbar */}

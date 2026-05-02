@@ -156,7 +156,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
         {/* Main content wrapped in privacy provider */}
         <PortfolioPrivacyProvider>
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <MobileNav />
 
             {/* Topbar */}

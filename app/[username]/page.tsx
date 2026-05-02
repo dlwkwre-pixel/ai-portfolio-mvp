@@ -78,9 +78,9 @@ export default async function UserProfilePage({
             />
           </div>
         )}
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {currentUser && <MobileNav />}
-          <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
+          <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
             <ProfileClient
               profile={{
                 id: profile.id,

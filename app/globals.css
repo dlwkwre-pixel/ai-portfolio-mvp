@@ -131,12 +131,21 @@ html {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; /* prevent any element from forcing page-wide horizontal scroll */
 }
 
 body {
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* ── Main app column fix ── */
+/* flex:1 columns default to min-width:auto, which lets content force them wider than the viewport */
+.bt-main-col {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ── Typography ── */
@@ -380,14 +389,17 @@ body {
   /* Hide top tab nav on mobile — bottom nav handles navigation */
   .hidden-mobile { display: none !important; }
 
-  /* Reduce horizontal padding on mobile for main content areas */
-  .bt-page-content { padding: 16px !important; }
+  /* Reduce horizontal padding on mobile — only override left/right to preserve top/bottom */
+  .bt-page-content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
 
-  /* Research page: preserve bottom padding for bottom nav */
-  .bt-page-content[style*="80px"] { padding: 16px 16px 80px 16px !important; }
-
-  /* Sticky page topbar — tighter on mobile */
-  .bt-page-header { padding-left: 16px !important; padding-right: 16px !important; }
+  /* Sticky page topbar and chart wrapper — tighter horizontal padding on mobile */
+  .bt-page-header {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
 
 
   /* Portfolio header — stack buttons below title */
@@ -445,3 +457,13 @@ body {
     padding-right: max(0px, env(safe-area-inset-right));
   }
 }
+
+/* ── More bottom sheet animation ── */
+@keyframes bt-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.bt-more-sheet {
+  animation: bt-sheet-up 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+

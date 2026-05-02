@@ -198,7 +198,7 @@ export default async function DashboardPage({
           />
         </div>
 
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <MobileNav />
 
           <div style={{
