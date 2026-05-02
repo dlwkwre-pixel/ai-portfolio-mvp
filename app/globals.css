@@ -359,6 +359,18 @@ body {
 .bt-list-animate > *:nth-child(7) { animation-delay: 300ms; }
 .bt-list-animate > *:nth-child(8) { animation-delay: 350ms; }
 
+/* ── Dashboard grid layouts ── */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  gap: 16px;
+}
+
 /* ── Mobile styles ── */
 @media (max-width: 768px) {
   /* Font scaling */
@@ -410,6 +422,10 @@ body {
 
   /* Cards padding reduction on mobile */
   .bt-card { padding: 12px !important; }
+
+  /* Dashboard grids — class-based collapse (more reliable than attribute selectors) */
+  .dashboard-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-main-grid  { grid-template-columns: 1fr; }
 
   /* Dashboard stat values — prevent large mono text overflow in 2-col grid */
   .dashboard-stat-value { font-size: 14px !important; }

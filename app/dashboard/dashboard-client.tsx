@@ -120,7 +120,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
           {isPrivate ? "Show values" : "Privacy mode"}
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "10px" }}>
+      <div className="dashboard-stats-grid">
         {[
           { label: "Total Value", value: hide(totalValueLabel, true), sub: `${portfolioRows.length} portfolios` },
           { label: "Strategies", value: String(strategiesCount), sub: "active" },
@@ -136,7 +136,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
       </div>
 
       {/* Main grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.4fr) minmax(280px,0.8fr)", gap: "16px" }}>
+      <div className="dashboard-main-grid">
         {/* Portfolios */}
         <div className="bt-card">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
