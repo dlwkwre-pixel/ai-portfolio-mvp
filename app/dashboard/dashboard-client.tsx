@@ -142,10 +142,9 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
             <div>
               <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Your Portfolios</h2>
-              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Click to open · Reorder with arrows</p>
+              <p className="hidden sm:block" style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Click to open · Reorder with arrows</p>
             </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-
+            <div className="hidden sm:flex" style={{ gap: "6px" }}>
               <button type="button" onClick={() => reordering ? startSave(async () => { await savePortfolioOrder(portfolioRows.map(p => p.id)); setReordering(false); }) : setReordering(true)} disabled={isSaving} className="bt-btn bt-btn-ghost bt-btn-sm">
                 {isSaving ? "Saving..." : reordering ? "Done" : "Reorder"}
               </button>

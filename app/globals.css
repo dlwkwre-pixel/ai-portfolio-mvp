@@ -374,7 +374,7 @@ body {
 /* ── Portfolio page grid layouts ── */
 .portfolio-overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) 340px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 340px);
 }
 .portfolio-notes-grid {
   display: grid;
@@ -455,15 +455,15 @@ body {
     gap: 6px !important;
   }
 
-  /* Cards padding reduction on mobile */
-  .bt-card { padding: 12px !important; }
+  /* Cards padding reduction + overflow clip on mobile */
+  .bt-card { padding: 12px !important; overflow: hidden !important; }
 
   /* All grid layouts — class-based collapse */
-  .dashboard-stats-grid   { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-main-grid    { grid-template-columns: 1fr; }
-  .portfolio-overview-grid { grid-template-columns: 1fr; }
-  .portfolio-notes-grid   { grid-template-columns: 1fr; }
-  .portfolio-stat-grid    { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-stats-grid    { grid-template-columns: repeat(2, 1fr) !important; }
+  .dashboard-main-grid     { grid-template-columns: 1fr !important; }
+  .portfolio-overview-grid { grid-template-columns: 1fr !important; }
+  .portfolio-notes-grid    { grid-template-columns: 1fr !important; }
+  .portfolio-stat-grid     { grid-template-columns: repeat(2, 1fr) !important; }
 
   /* Dashboard portfolio row: stack name on top, value+button below on mobile */
   .portfolio-row-wrap { flex-direction: column; align-items: stretch; gap: 0; }
