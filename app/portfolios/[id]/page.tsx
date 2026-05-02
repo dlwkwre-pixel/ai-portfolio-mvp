@@ -216,7 +216,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* OVERVIEW */}
               {activeTab === "overview" && (
-                <div className="bt-tab-enter" style={{ display: "grid", gap: "16px", gridTemplateColumns: "minmax(0,1.5fr) 340px" }}>
+                <div className="bt-tab-enter portfolio-overview-grid" style={{ gap: "16px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div className="bt-card">
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
@@ -354,7 +354,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* NOTES */}
               {activeTab === "notes" && (
-                <div className="bt-tab-enter" style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
+                <div className="bt-tab-enter portfolio-notes-grid" style={{ gap: "16px" }}>
                   <div className="bt-card">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Portfolio Notes</h2>

@@ -57,11 +57,9 @@ export default function PortfolioHeader({ statCards }: PortfolioHeaderProps) {
       {/* Stat cards — rendered as a separate section below topbar */}
       <div
         data-stat-cards
-        className="bt-animate-page bt-page-header"
+        className="bt-animate-page bt-page-header portfolio-stat-grid"
         style={{
-          display: "grid",
           gap: "8px",
-          gridTemplateColumns: "repeat(4, 1fr)",
           padding: "12px 24px",
           borderBottom: "1px solid var(--border-subtle)",
           background: "var(--bg-base)",

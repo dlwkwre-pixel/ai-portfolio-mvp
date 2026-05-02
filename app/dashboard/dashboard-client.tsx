@@ -156,7 +156,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
           <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {portfolioRows.map((p, idx) => (
               <div key={p.id} className="bt-lift" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px" }}>
+                <div className="portfolio-row-flex" style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 14px" }}>
                   {reordering && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                       <button type="button" onClick={() => move(p.id, "up")} disabled={idx === 0} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px", opacity: idx === 0 ? 0.2 : 1 }}>
@@ -176,8 +176,10 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>Cash: {hide(p.cashLabel, true)} · {new Date(p.createdAt).toLocaleDateString()}</div>
                   </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 500, color: "var(--text-primary)", flexShrink: 0 }}>{hide(p.totalValueLabel, true)}</div>
-                  <Link href={`/portfolios/${p.id}`} className="bt-btn bt-btn-primary bt-btn-sm">Open →</Link>
+                  <div className="portfolio-row-actions">
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 500, color: "var(--text-primary)" }}>{hide(p.totalValueLabel, true)}</div>
+                    <Link href={`/portfolios/${p.id}`} className="bt-btn bt-btn-primary bt-btn-sm">Open →</Link>
+                  </div>
                 </div>
                 {p.aiRecs.length > 0 && (
                   <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "10px 14px", background: "var(--violet-bg)" }}>
