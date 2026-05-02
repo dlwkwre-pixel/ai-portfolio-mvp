@@ -411,6 +411,9 @@ body {
   /* Cards padding reduction on mobile */
   .bt-card { padding: 12px !important; }
 
+  /* Dashboard stat values — prevent large mono text overflow in 2-col grid */
+  .dashboard-stat-value { font-size: 14px !important; }
+
   /* Buttons */
   .bt-btn-sm {
     min-height: 32px;

@@ -226,7 +226,7 @@ export default async function DashboardPage({
                 Welcome back, {user.email?.split("@")[0]}
               </p>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div className="hidden sm:flex" style={{ gap: "8px" }}>
               <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
                 Manage Portfolios
               </Link>

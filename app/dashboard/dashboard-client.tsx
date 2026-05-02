@@ -129,7 +129,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
         ].map(stat => (
           <div key={stat.label} className="bt-card" style={{ padding: "14px 16px" }}>
             <div className="label" style={{ marginBottom: "6px" }}>{stat.label}</div>
-            <div style={{ fontFamily: stat.small ? "var(--font-body)" : "var(--font-mono)", fontSize: stat.small ? "12px" : "18px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: stat.small ? 0 : "-0.3px" }}>{stat.value}</div>
+            <div className="dashboard-stat-value" style={{ fontFamily: stat.small ? "var(--font-body)" : "var(--font-mono)", fontSize: stat.small ? "12px" : "18px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: stat.small ? 0 : "-0.3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{stat.value}</div>
             <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{stat.sub}</div>
           </div>
         ))}
@@ -169,10 +169,10 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
                   )}
                   <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: p.dotColor, flexShrink: 0, boxShadow: `0 0 5px ${p.dotColor}` }}/>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{p.name}</span>
-                      <span style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>{p.accountTypeLabel}</span>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>{p.benchmarkSymbol}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                      <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                      <span className="hidden sm:inline-flex" style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.accountTypeLabel}</span>
+                      <span className="hidden sm:inline-flex" style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.benchmarkSymbol}</span>
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>Cash: {hide(p.cashLabel, true)} · {new Date(p.createdAt).toLocaleDateString()}</div>
                   </div>
