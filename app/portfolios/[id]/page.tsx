@@ -16,7 +16,7 @@ import PortfolioTabs from "./portfolio-tabs";
 import EarningsAlertBanner from "./earnings-alert-banner";
 import PortfolioChartSection from "./portfolio-chart-section";
 import EditPortfolioForm from "./edit-portfolio-form";
-import PortfolioHeader from "./portfolio-header";
+import PortfolioHeader, { PortfolioStatCards } from "./portfolio-header";
 import { PortfolioPrivacyProvider } from "./portfolio-privacy-context";
 
 type PortfolioPageProps = {
@@ -189,6 +189,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             </div>
 
             {/* Stat cards — rendered below topbar, animated */}
+
+            {/* Stat cards — full-width section below topbar, never inside the topbar flex row */}
+            <PortfolioStatCards statCards={statCards} />
 
             {/* Chart hero */}
             <div className="bt-page-header" style={{ padding: "16px 24px 0" }}>

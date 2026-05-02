@@ -453,6 +453,7 @@ body {
   .portfolio-stat-grid    { grid-template-columns: repeat(2, 1fr); }
 
   /* Dashboard portfolio row: actions wrap below name so Open button stays reachable */
+  .portfolio-row-flex { flex-wrap: wrap; }
   .portfolio-row-actions {
     flex-basis: 100%;
     justify-content: space-between;
