@@ -452,13 +452,8 @@ body {
   .portfolio-notes-grid   { grid-template-columns: 1fr; }
   .portfolio-stat-grid    { grid-template-columns: repeat(2, 1fr); }
 
-  /* Dashboard portfolio row: actions wrap below name so Open button stays reachable */
-  .portfolio-row-flex { flex-wrap: wrap; }
-  .portfolio-row-actions {
-    flex-basis: 100%;
-    justify-content: space-between;
-    padding-left: 17px;
-  }
+  /* Dashboard portfolio row: icon-only Open button on mobile fits in single row */
+  .portfolio-open-btn { padding: 5px 8px !important; min-width: 0 !important; }
 
   /* Prevent horizontal scroll within page content */
   .bt-page-content { overflow-x: hidden; }

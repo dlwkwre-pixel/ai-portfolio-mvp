@@ -178,7 +178,7 @@ export default function DashboardClient({ portfolioRows: initialRows, archivedRo
                   </div>
                   <div className="portfolio-row-actions">
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 500, color: "var(--text-primary)" }}>{hide(p.totalValueLabel, true)}</div>
-                    <Link href={`/portfolios/${p.id}`} className="bt-btn bt-btn-primary bt-btn-sm">Open →</Link>
+                    <Link href={`/portfolios/${p.id}`} className="bt-btn bt-btn-primary bt-btn-sm portfolio-open-btn"><span className="hidden sm:inline">Open </span>→</Link>
                   </div>
                 </div>
                 {p.aiRecs.length > 0 && (
