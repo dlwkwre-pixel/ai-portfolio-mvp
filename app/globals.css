@@ -467,7 +467,7 @@ body {
 
   /* Dashboard portfolio row: stack name on top, value+button below on mobile */
   .portfolio-row-wrap { flex-direction: column; align-items: stretch; gap: 0; }
-  .portfolio-row-actions { flex-shrink: 1; justify-content: space-between; margin-top: 6px; padding-left: 17px; }
+  .portfolio-row-actions { flex-shrink: 1; justify-content: flex-start; gap: 12px; margin-top: 6px; padding-left: 17px; }
 
   /* Prevent horizontal scroll within page content */
   .bt-page-content { overflow-x: hidden; }
