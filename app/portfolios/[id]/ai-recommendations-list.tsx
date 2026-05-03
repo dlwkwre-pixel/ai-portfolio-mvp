@@ -4,15 +4,22 @@ import { useMemo, useState } from "react";
 import RecommendationStatusButtons from "./recommendation-status-buttons";
 
 type RedditPulse = {
-  ticker: string; post_count: number; bullish_pct: number; bearish_pct: number;
+  source?: "reddit" | "apewisdom";
+  ticker: string; fetched_at: string; stale?: boolean;
+  // Reddit-only fields
+  post_count: number; bullish_pct: number; bearish_pct: number;
   neutral_pct: number; sentiment_score: number; hype_score: number;
   conviction_score: number; reddit_pulse_score: number; sentiment_label: string;
   top_bullish_themes: string[]; top_bearish_themes: string[];
   top_risks: string[]; top_catalysts: string[];
   subreddit_breakdown: { subreddit: string; post_count: number; sentiment: string; sentiment_label: string }[];
   source_post_links: { subreddit: string; title: string; score: number; comment_count: number; created_utc: number; permalink: string }[];
-  summary: string; ai_powered: boolean; stale?: boolean;
-  fetched_at: string; status?: string; message?: string;
+  summary: string; ai_powered: boolean;
+  // ApeWisdom-only fields
+  mentions?: number; mentions_24h_ago?: number; mention_change_pct?: number;
+  upvotes?: number; rank?: number; rank_24h_ago?: number; rank_change?: number;
+  reddit_trend_score?: number;
+  status?: string; message?: string;
 };
 
 type RecommendationItem = {
@@ -345,6 +352,53 @@ export default function AIRecommendationsList({
                     )}
                     {pulseMap[item.ticker] && !pulseLoading.has(item.ticker) && (() => {
                       const sp = pulseMap[item.ticker!]!;
+
+                      // ── ApeWisdom compact view ──────────────────────────────
+                      if (sp.source === "apewisdom") {
+                        const trendScore = sp.reddit_trend_score ?? 0;
+                        const trendColor = trendScore >= 70 ? "text-emerald-400" : trendScore >= 45 ? "text-amber-400" : "text-slate-300";
+                        const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
+                        return (
+                          <div>
+                            <p className="mb-3 text-xs text-amber-400">Reddit Trend Data via ApeWisdom — full sentiment requires Reddit API approval</p>
+                            <div className="mb-3 flex items-center gap-4">
+                              <div>
+                                <span className={`text-2xl font-bold tabular-nums ${trendColor}`}>{trendScore}</span>
+                                <span className="ml-0.5 text-xs text-slate-500">/100</span>
+                                <p className="text-xs text-slate-500">Trend Score</p>
+                              </div>
+                              <div className="flex-1">
+                                {sp.rank != null && (
+                                  <p className="text-sm font-semibold text-slate-200">
+                                    Rank #{sp.rank}
+                                    {sp.rank_change != null && sp.rank_change !== 0 && (
+                                      <span className={`ml-2 text-xs ${sp.rank_change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                        {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`}
+                                      </span>
+                                    )}
+                                  </p>
+                                )}
+                                <p className="text-xs text-slate-500">{sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="rounded-xl border border-slate-700 p-2">
+                                <p className="text-xs text-slate-500">Mentions (7d)</p>
+                                <p className="text-base font-semibold tabular-nums text-slate-200">{sp.mentions ?? 0}</p>
+                              </div>
+                              <div className="rounded-xl border border-slate-700 p-2">
+                                <p className="text-xs text-slate-500">24h Change</p>
+                                <p className={`text-base font-semibold tabular-nums ${changeColor}`}>
+                                  {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
+                                </p>
+                              </div>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-600">Data from ApeWisdom · Cached 30 min</p>
+                          </div>
+                        );
+                      }
+
+                      // ── Full Reddit Pulse view ──────────────────────────────
                       const scoreColor = sp.sentiment_score >= 15 ? "text-emerald-400" : sp.sentiment_score <= -15 ? "text-red-400" : "text-slate-200";
                       return (
                         <div>

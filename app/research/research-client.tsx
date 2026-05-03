@@ -46,8 +46,10 @@ type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "d
 type DetailTab = "overview" | "news" | "ai" | "social";
 
 type RedditPulse = {
+  source?: "reddit" | "apewisdom";
   ticker: string; company_name: string; time_window: string;
   fetched_at: string; expires_at: string;
+  // Reddit-only fields
   post_count: number; mention_count: number;
   bullish_pct: number; bearish_pct: number; neutral_pct: number;
   sentiment_score: number; hype_score: number; conviction_score: number;
@@ -57,6 +59,10 @@ type RedditPulse = {
   subreddit_breakdown: { subreddit: string; post_count: number; sentiment: string; sentiment_label: string }[];
   source_post_links: { subreddit: string; title: string; score: number; comment_count: number; created_utc: number; permalink: string }[];
   summary: string; ai_powered: boolean; stale?: boolean;
+  // ApeWisdom-only fields
+  mentions?: number; mentions_24h_ago?: number; mention_change_pct?: number;
+  upvotes?: number; rank?: number; rank_24h_ago?: number; rank_change?: number;
+  reddit_trend_score?: number;
   status?: string; message?: string;
 };
 
@@ -824,6 +830,66 @@ function DetailView({
             )}
             {socialPulse && !socialLoading && (() => {
               const sp = socialPulse;
+
+              // ── ApeWisdom compact view ─────────────────────────────────────
+              if (sp.source === "apewisdom") {
+                const trendScore = sp.reddit_trend_score ?? 0;
+                const trendColor = trendScore >= 70 ? "var(--green)" : trendScore >= 45 ? "var(--amber)" : "var(--text-secondary)";
+                const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "var(--green)" : "var(--red)";
+                return (
+                  <div>
+                    {/* ApeWisdom label */}
+                    <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.08)", border: "1px solid var(--amber-border)", borderRadius: "6px", fontSize: "11px", color: "var(--amber)", marginBottom: "14px" }}>
+                      Reddit Trend Data via ApeWisdom — full sentiment analysis available once Reddit API is approved
+                    </div>
+
+                    {/* Trend score + rank */}
+                    <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
+                      <div style={{ textAlign: "center", flexShrink: 0 }}>
+                        <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: trendColor, lineHeight: 1 }}>
+                          {trendScore}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
+                        </div>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Trend Score</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {sp.rank != null && (
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>
+                            Rank #{sp.rank}
+                            {sp.rank_change != null && sp.rank_change !== 0 && (
+                              <span style={{ fontSize: "11px", color: sp.rank_change > 0 ? "var(--green)" : "var(--red)", marginLeft: "6px" }}>
+                                {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                          {sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mention trend */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "8px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions (7d)</div>
+                        <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{sp.mentions ?? 0}</div>
+                      </div>
+                      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "8px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
+                        <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: changeColor }}>
+                          {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
+                      Data from ApeWisdom · Cached 30 min
+                    </div>
+                  </div>
+                );
+              }
+
+              // ── Full Reddit Pulse view ─────────────────────────────────────
               const scoreColor = sp.sentiment_score >= 15 ? "var(--green)" : sp.sentiment_score <= -15 ? "var(--red)" : "var(--text-secondary)";
               const subColor = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--amber)" : "var(--text-muted)";
               return (
