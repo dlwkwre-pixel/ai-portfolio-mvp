@@ -249,7 +249,6 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
         display: "flex",
         flexDirection: "column",
         minHeight: "156px",
-        width: "100%",
         transition: "border-color 150ms ease, background 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1)",
       }}
       onMouseEnter={(e) => {
@@ -307,7 +306,6 @@ function TrendingCard({ t, onClick }: { t: TrendingTicker; onClick: (ticker: str
         display: "flex",
         flexDirection: "column",
         gap: "5px",
-        width: "100%",
         minHeight: "88px",
         transition: "border-color 150ms ease, background 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1)",
       }}
