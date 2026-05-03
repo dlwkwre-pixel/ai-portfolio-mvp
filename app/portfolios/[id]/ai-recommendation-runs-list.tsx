@@ -448,7 +448,7 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
             return (
               <div
                 key={item.id}
-                className="rounded-2xl border border-white/6 bg-white/2 overflow-hidden transition-colors hover:bg-white/3 cursor-pointer"
+                className={`relative rounded-2xl border border-white/6 bg-white/2 transition-colors hover:bg-white/3 cursor-pointer ${openMoreId === item.id ? "z-10" : ""}`}
                 onClick={() => {
                   setExpandedId(isExpanded ? null : item.id);
                   setOpenMoreId(null);
@@ -498,18 +498,24 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
                             {item.thesis}
                           </span>
                         )}
-                        <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs tabular-nums text-slate-500">
+                        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                           {item.share_quantity != null && (
-                            <span>{fmtN(item.share_quantity, 0)} sh</span>
+                            <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
+                              {fmtN(item.share_quantity, 0)} sh
+                            </span>
                           )}
                           {item.sizing_dollars != null && (
-                            <span>{fmt$(item.sizing_dollars)}</span>
+                            <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
+                              {fmt$(item.sizing_dollars)}
+                            </span>
                           )}
                           {item.target_price_1 != null && (
-                            <span className="text-slate-600">T {fmt$(item.target_price_1)}</span>
+                            <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
+                              T {fmt$(item.target_price_1)}
+                            </span>
                           )}
                           {pulse?.rank != null && (
-                            <span className="hidden sm:inline text-slate-600">
+                            <span className="hidden sm:inline rounded-md border border-white/8 bg-white/3 px-1.5 py-0.5 text-xs tabular-nums text-slate-500">
                               Reddit #{pulse.rank}
                               {pulse.rank_change != null && pulse.rank_change !== 0 && (
                                 <span className={pulse.rank_change > 0 ? " text-emerald-500" : " text-red-500"}>
@@ -554,10 +560,10 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
                                   setOpenMoreId(openMoreId === item.id ? null : item.id);
                                   setDeleteConfirmId(null);
                                 }}
-                                className="rounded-lg border border-white/8 bg-white/3 px-2 py-1 text-xs text-slate-500 transition hover:bg-white/6 hover:text-slate-300"
+                                className="rounded-lg border border-white/8 bg-white/3 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-white/6 hover:text-slate-300"
                                 title="More options"
                               >
-                                ···
+                                More
                               </button>
                               {openMoreId === item.id && (
                                 <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-xl">
