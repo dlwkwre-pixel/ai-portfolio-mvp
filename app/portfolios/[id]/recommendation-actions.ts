@@ -830,3 +830,57 @@ export async function deleteRecommendationItem(formData: FormData) {
   revalidatePath(`/portfolios/${portfolioId}`);
   revalidatePath("/dashboard");
 }
+
+// Bulk status update — does NOT create transactions.
+// Use for Acknowledge/Watch/Reject/Archive on multiple items at once.
+export async function bulkUpdateRecommendationStatus(
+  portfolioId: string,
+  itemIds: string[],
+  newStatus: string
+): Promise<{ updated: number }> {
+  if (!itemIds.length) return { updated: 0 };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const userDecisionMap: Record<string, string | null> = {
+    proposed: null, rejected: "rejected", watchlist: "watchlist",
+    executed: "executed", acknowledged: "acknowledged", archived: "archived",
+  };
+
+  // Snapshot current statuses for history
+  const { data: currentItems } = await supabase
+    .from("recommendation_items")
+    .select("id, recommendation_status")
+    .eq("portfolio_id", portfolioId)
+    .in("id", itemIds);
+
+  const statusMap = new Map((currentItems ?? []).map(r => [r.id, r.recommendation_status]));
+
+  const { error: updateError } = await supabase
+    .from("recommendation_items")
+    .update({ recommendation_status: newStatus, user_decision: userDecisionMap[newStatus] ?? null })
+    .eq("portfolio_id", portfolioId)
+    .in("id", itemIds);
+
+  if (updateError) throw new Error(updateError.message);
+
+  const historyRows = itemIds.map(id => ({
+    recommendation_item_id: id,
+    portfolio_id: portfolioId,
+    old_status: statusMap.get(id) ?? null,
+    new_status: newStatus,
+    changed_by: "user",
+    notes: "Bulk action",
+  }));
+
+  await supabase.from("recommendation_item_status_history").insert(historyRows);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { updated: itemIds.length };
+}

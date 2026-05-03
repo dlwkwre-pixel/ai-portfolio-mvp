@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { updateRecommendationStatus, deleteRecommendationItem } from "./recommendation-actions";
+import { useState, useEffect, useCallback } from "react";
+import {
+  updateRecommendationStatus,
+  deleteRecommendationItem,
+  bulkUpdateRecommendationStatus,
+} from "./recommendation-actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +54,7 @@ const PAGE_SIZE = 25;
 const HOLD_LIKE = new Set(["hold", "rebalance", "raise_cash"]);
 const STATUS_TABS = ["open", "all", "proposed", "watchlist", "executed", "rejected", "archived"] as const;
 
+// Keep in sync with the API route's TAB_STATUSES
 function matchesTab(tab: string, status: string | null): boolean {
   const s = (status ?? "proposed").toLowerCase();
   switch (tab) {
@@ -59,8 +64,32 @@ function matchesTab(tab: string, status: string | null): boolean {
     case "executed":  return s === "executed" || s === "acknowledged";
     case "rejected":  return s === "rejected";
     case "archived":  return s === "archived";
-    default:          return true; // "all"
+    default:          return true;
   }
+}
+
+// Adjust tab counts after a single status change
+function adjustCounts(
+  prev: Record<string, number>,
+  oldStatus: string | null,
+  newStatus: string
+): Record<string, number> {
+  const next = { ...prev };
+  const tabs = STATUS_TABS as readonly string[];
+  const old = oldStatus ?? "proposed";
+  tabs.forEach(tab => {
+    if (matchesTab(tab, old))      next[tab] = Math.max(0, (next[tab] ?? 0) - 1);
+    if (matchesTab(tab, newStatus)) next[tab] = (next[tab] ?? 0) + 1;
+  });
+  return next;
+}
+
+function decreaseCounts(prev: Record<string, number>, status: string | null): Record<string, number> {
+  const next = { ...prev };
+  STATUS_TABS.forEach(tab => {
+    if (matchesTab(tab, status ?? "proposed")) next[tab] = Math.max(0, (next[tab] ?? 0) - 1);
+  });
+  return next;
 }
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -112,12 +141,11 @@ function statusBadgeStyle(s: string | null) {
 }
 
 function statusLabel(s: string | null) {
-  const v = (s ?? "proposed").toLowerCase();
   const labels: Record<string, string> = {
     proposed: "Proposed", watchlist: "Watchlist", executed: "Executed",
     rejected: "Rejected", archived: "Archived", acknowledged: "Acknowledged",
   };
-  return labels[v] ?? (s ?? "Proposed");
+  return labels[(s ?? "proposed").toLowerCase()] ?? (s ?? "Proposed");
 }
 
 // ── Quick action config ───────────────────────────────────────────────────────
@@ -158,7 +186,7 @@ function getQuickActions(actionType: string | null): QuickAction[] {
   ];
 }
 
-// ── Reddit Pulse panels ───────────────────────────────────────────────────────
+// ── Reddit Pulse sub-components ───────────────────────────────────────────────
 
 function ApeWisdomPanel({ sp }: { sp: RedditPulse }) {
   const ts = sp.reddit_trend_score ?? 0;
@@ -222,8 +250,8 @@ function RedditPulsePanel({ sp }: { sp: RedditPulse }) {
       </div>
       <div className="mb-2 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
         <div className="bg-emerald-500" style={{ width: `${sp.bullish_pct}%` }} />
-        <div className="bg-slate-700" style={{ width: `${sp.neutral_pct}%` }} />
-        <div className="bg-red-500" style={{ width: `${sp.bearish_pct}%` }} />
+        <div className="bg-slate-700"   style={{ width: `${sp.neutral_pct}%` }} />
+        <div className="bg-red-500"     style={{ width: `${sp.bearish_pct}%` }} />
       </div>
       <div className="mb-2 flex gap-3 text-xs">
         <span className="text-emerald-400">Bull {sp.bullish_pct}%</span>
@@ -252,31 +280,99 @@ function RedditPulsePanel({ sp }: { sp: RedditPulse }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type Props = {
-  portfolioId: string;
-  recommendations: RecommendationItem[];
-};
+type Props = { portfolioId: string };
 
-export default function AIRecommendationRunsList({ portfolioId, recommendations }: Props) {
-  const [localRecs, setLocalRecs]           = useState<LocalRec[]>(recommendations);
-  const [statusFilter, setStatusFilter]     = useState("open");
-  const [sortBy, setSortBy]                 = useState("priority");
-  const [expandedId, setExpandedId]         = useState<string | null>(null);
-  const [visibleCount, setVisibleCount]     = useState(PAGE_SIZE);
-  const [openMoreId, setOpenMoreId]         = useState<string | null>(null);
+export default function AIRecommendationRunsList({ portfolioId }: Props) {
+  // Data state
+  const [localRecs, setLocalRecs]       = useState<LocalRec[]>([]);
+  const [tabCounts, setTabCounts]       = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading]       = useState(true);
+  const [loadingMore, setLoadingMore]   = useState(false);
+  const [currentPage, setCurrentPage]   = useState(1);
+  const [hasMore, setHasMore]           = useState(false);
+  const [fetchError, setFetchError]     = useState<string | null>(null);
+
+  // UI state
+  const [statusFilter, setStatusFilter] = useState("open");
+  const [sortBy, setSortBy]             = useState("priority");
+  const [expandedId, setExpandedId]     = useState<string | null>(null);
+  const [openMoreId, setOpenMoreId]     = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [pulseMap, setPulseMap]             = useState<Record<string, RedditPulse>>({});
-  const [pulseLoading, setPulseLoading]     = useState<Set<string>>(new Set());
-  const [pulseError, setPulseError]         = useState<Record<string, string>>({});
-  const [pendingIds, setPendingIds]         = useState<Set<string>>(new Set());
-  const [actionErrors, setActionErrors]     = useState<Record<string, string>>({});
 
-  // Sync with server re-renders (e.g. after a new AI run)
-  useEffect(() => { setLocalRecs(recommendations); }, [recommendations]);
-  // Reset pagination when filter changes
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [statusFilter]);
+  // Optimistic action state
+  const [pendingIds, setPendingIds]     = useState<Set<string>>(new Set());
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
 
-  // ── Optimistic status update ─────────────────────────────────────────────
+  // Reddit Pulse state
+  const [pulseMap, setPulseMap]         = useState<Record<string, RedditPulse>>({});
+  const [pulseLoading, setPulseLoading] = useState<Set<string>>(new Set());
+  const [pulseError, setPulseError]     = useState<Record<string, string>>({});
+
+  // Bulk select state
+  const [isBulkMode, setIsBulkMode]     = useState(false);
+  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending]   = useState(false);
+  const [bulkError, setBulkError]       = useState<string | null>(null);
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
+
+  const fetchPage = useCallback(async (
+    tab: string, sort: string, page: number, append: boolean
+  ) => {
+    const params = new URLSearchParams({
+      portfolioId, tab, sort, page: String(page), limit: String(PAGE_SIZE),
+    });
+    const res = await fetch(`/api/recommendations?${params}`);
+    if (!res.ok) throw new Error(`Failed to load recommendations (${res.status})`);
+    return res.json() as Promise<{
+      items: RecommendationItem[];
+      total: number;
+      page: number;
+      limit: number;
+      tabCounts: Record<string, number>;
+    }>;
+  }, [portfolioId]);
+
+  // Refetch when filter or sort changes
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setFetchError(null);
+    setCurrentPage(1);
+    setExpandedId(null);
+    setIsBulkMode(false);
+    setSelectedIds(new Set());
+
+    fetchPage(statusFilter, sortBy, 1, false)
+      .then(data => {
+        if (cancelled) return;
+        setLocalRecs(data.items);
+        setTabCounts(data.tabCounts);
+        setHasMore(data.items.length >= PAGE_SIZE && data.total > PAGE_SIZE);
+      })
+      .catch(err => { if (!cancelled) setFetchError(err.message); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [statusFilter, sortBy, fetchPage]);
+
+  async function loadMore() {
+    const nextPage = currentPage + 1;
+    setLoadingMore(true);
+    try {
+      const data = await fetchPage(statusFilter, sortBy, nextPage, true);
+      setLocalRecs(prev => [...prev, ...data.items]);
+      setTabCounts(data.tabCounts);
+      setCurrentPage(nextPage);
+      setHasMore(data.items.length >= PAGE_SIZE && data.total > nextPage * PAGE_SIZE);
+    } catch {
+      // silently fail load-more
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // ── Optimistic single-item action ──────────────────────────────────────────
 
   async function handleAction(itemId: string, newStatus: string) {
     if (pendingIds.has(itemId)) return;
@@ -285,7 +381,9 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
     const oldStatus = item.recommendation_status;
 
     setPendingIds(prev => new Set(prev).add(itemId));
-    setLocalRecs(prev => prev.map(r => r.id === itemId ? { ...r, recommendation_status: newStatus, _syncing: true } : r));
+    setLocalRecs(prev => prev.map(r => r.id === itemId
+      ? { ...r, recommendation_status: newStatus, _syncing: true } : r));
+    setTabCounts(prev => adjustCounts(prev, oldStatus, newStatus));
     setActionErrors(prev => { const n = { ...prev }; delete n[itemId]; return n; });
     setOpenMoreId(null);
 
@@ -297,20 +395,24 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
       await updateRecommendationStatus(fd);
       setLocalRecs(prev => prev.map(r => r.id === itemId ? { ...r, _syncing: false } : r));
     } catch (err) {
-      setLocalRecs(prev => prev.map(r => r.id === itemId ? { ...r, recommendation_status: oldStatus, _syncing: false } : r));
+      setLocalRecs(prev => prev.map(r => r.id === itemId
+        ? { ...r, recommendation_status: oldStatus, _syncing: false } : r));
+      setTabCounts(prev => adjustCounts(prev, newStatus, oldStatus ?? "proposed"));
       setActionErrors(prev => ({ ...prev, [itemId]: err instanceof Error ? err.message : "Action failed." }));
     } finally {
       setPendingIds(prev => { const n = new Set(prev); n.delete(itemId); return n; });
     }
   }
 
-  // ── Optimistic delete ────────────────────────────────────────────────────
+  // ── Optimistic delete ──────────────────────────────────────────────────────
 
   async function handleDelete(itemId: string) {
     if (pendingIds.has(itemId)) return;
     const snapshot = [...localRecs];
+    const item = localRecs.find(r => r.id === itemId);
     setPendingIds(prev => new Set(prev).add(itemId));
     setLocalRecs(prev => prev.filter(r => r.id !== itemId));
+    setTabCounts(prev => decreaseCounts(prev, item?.recommendation_status ?? null));
     setDeleteConfirmId(null);
     setOpenMoreId(null);
     if (expandedId === itemId) setExpandedId(null);
@@ -322,13 +424,70 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
       await deleteRecommendationItem(fd);
     } catch (err) {
       setLocalRecs(snapshot);
+      setTabCounts(prev => adjustCounts(prev, "archived", item?.recommendation_status ?? "proposed"));
       setActionErrors(prev => ({ ...prev, [itemId]: err instanceof Error ? err.message : "Delete failed." }));
     } finally {
       setPendingIds(prev => { const n = new Set(prev); n.delete(itemId); return n; });
     }
   }
 
-  // ── Reddit Pulse loader ──────────────────────────────────────────────────
+  // ── Bulk actions ───────────────────────────────────────────────────────────
+
+  async function handleBulkAction(newStatus: string) {
+    if (!selectedIds.size || bulkPending) return;
+    const ids = Array.from(selectedIds);
+    const affected = localRecs.filter(r => ids.includes(r.id));
+
+    setBulkPending(true);
+    setBulkError(null);
+
+    // Optimistic
+    setLocalRecs(prev => prev.map(r =>
+      ids.includes(r.id) ? { ...r, recommendation_status: newStatus, _syncing: true } : r
+    ));
+    let counts = tabCounts;
+    affected.forEach(r => { counts = adjustCounts(counts, r.recommendation_status, newStatus); });
+    setTabCounts(counts);
+    setSelectedIds(new Set());
+    setIsBulkMode(false);
+
+    try {
+      await bulkUpdateRecommendationStatus(portfolioId, ids, newStatus);
+      setLocalRecs(prev => prev.map(r => ids.includes(r.id) ? { ...r, _syncing: false } : r));
+    } catch (err) {
+      // Revert
+      setLocalRecs(prev => prev.map(r => {
+        const original = affected.find(a => a.id === r.id);
+        return original ? { ...original, _syncing: false } : r;
+      }));
+      let reverted = tabCounts;
+      affected.forEach(r => { reverted = adjustCounts(reverted, newStatus, r.recommendation_status ?? "proposed"); });
+      setTabCounts(reverted);
+      setBulkError(err instanceof Error ? err.message : "Bulk action failed.");
+    } finally {
+      setBulkPending(false);
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(localRecs.map(r => r.id)));
+  }
+
+  function exitBulkMode() {
+    setIsBulkMode(false);
+    setSelectedIds(new Set());
+    setBulkError(null);
+  }
+
+  // ── Reddit Pulse ───────────────────────────────────────────────────────────
 
   function loadPulse(ticker: string, companyName: string | null) {
     if (!ticker || pulseMap[ticker] || pulseLoading.has(ticker)) return;
@@ -347,45 +506,19 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
       .finally(() => setPulseLoading(prev => { const n = new Set(prev); n.delete(ticker); return n; }));
   }
 
-  // ── Derived lists ────────────────────────────────────────────────────────
+  // ── Action counts from current page ───────────────────────────────────────
+  const actionCounts: Record<string, number> = {};
+  localRecs.forEach(item => {
+    const a = (item.action_type ?? "other").toLowerCase();
+    actionCounts[a] = (actionCounts[a] ?? 0) + 1;
+  });
 
-  const filteredAndSorted = useMemo(() => {
-    const result = localRecs.filter(r => matchesTab(statusFilter, r.recommendation_status));
-    result.sort((a, b) => {
-      if (sortBy === "oldest")     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      if (sortBy === "priority")   return (a.priority_rank ?? 9999) - (b.priority_rank ?? 9999);
-      if (sortBy === "confidence") return (b.confidence_score ?? -1) - (a.confidence_score ?? -1);
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-    return result;
-  }, [localRecs, statusFilter, sortBy]);
-
-  const visibleItems = filteredAndSorted.slice(0, visibleCount);
-  const hasMore = filteredAndSorted.length > visibleCount;
-
-  const actionCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredAndSorted.forEach(item => {
-      const a = (item.action_type ?? "other").toLowerCase();
-      counts[a] = (counts[a] ?? 0) + 1;
-    });
-    return counts;
-  }, [filteredAndSorted]);
-
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    STATUS_TABS.forEach(tab => {
-      counts[tab] = localRecs.filter(r => matchesTab(tab, r.recommendation_status)).length;
-    });
-    return counts;
-  }, [localRecs]);
-
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="mt-4 space-y-4">
 
-      {/* Filter + sort bar */}
+      {/* Filter + sort + bulk toggle bar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-wrap gap-1 rounded-xl border border-white/8 bg-white/3 p-1">
           {STATUS_TABS.map(tab => (
@@ -398,7 +531,7 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
               }`}
             >
               {tab}
-              {tabCounts[tab] > 0 && (
+              {(tabCounts[tab] ?? 0) > 0 && (
                 <span className={`ml-1 text-[10px] ${statusFilter === tab ? "text-slate-400" : "text-slate-600"}`}>
                   {tabCounts[tab]}
                 </span>
@@ -418,11 +551,25 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
           <option value="oldest">Sort: Oldest</option>
         </select>
 
-        <span className="ml-auto text-xs text-slate-600">{filteredAndSorted.length} total</span>
+        <button
+          type="button"
+          onClick={() => isBulkMode ? exitBulkMode() : setIsBulkMode(true)}
+          className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${
+            isBulkMode
+              ? "border-blue-500/30 bg-blue-500/10 text-blue-300"
+              : "border-white/8 bg-white/3 text-slate-400 hover:text-white"
+          }`}
+        >
+          {isBulkMode ? "Cancel select" : "Select"}
+        </button>
+
+        <span className="ml-auto text-xs text-slate-600">
+          {isLoading ? "Loading…" : `${tabCounts[statusFilter] ?? 0} total`}
+        </span>
       </div>
 
-      {/* Action type summary pills */}
-      {filteredAndSorted.length > 0 && (
+      {/* Action type pills */}
+      {!isLoading && localRecs.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {Object.entries(actionCounts).map(([action, count]) => (
             <span key={action} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${actionStyle(action)}`}>
@@ -432,366 +579,441 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
         </div>
       )}
 
-      {/* Recommendation cards */}
-      {visibleItems.length > 0 ? (
+      {/* Loading skeleton */}
+      {isLoading && (
         <div className="space-y-2">
-          {visibleItems.map(item => {
-            const isExpanded    = expandedId === item.id;
-            const isSyncing     = item._syncing ?? false;
-            const isPending     = pendingIds.has(item.id);
-            const actionError   = actionErrors[item.id];
-            const pulse         = item.ticker ? pulseMap[item.ticker] : null;
-            const quickActions  = getQuickActions(item.action_type);
-            const currentStatus = item.recommendation_status ?? "proposed";
-            const isActive      = currentStatus === "proposed" || currentStatus === "watchlist";
-
-            return (
-              <div
-                key={item.id}
-                className={`relative rounded-2xl border border-white/6 bg-white/2 transition-colors hover:bg-white/3 cursor-pointer ${openMoreId === item.id ? "z-10" : ""}`}
-                onClick={() => {
-                  setExpandedId(isExpanded ? null : item.id);
-                  setOpenMoreId(null);
-                  if (!isExpanded && item.ticker) loadPulse(item.ticker, item.company_name);
-                }}
-              >
-                {/* ── Card header (always visible) ───────────────────────── */}
-                <div className="px-4 py-3">
-
-                  {/* Row 1: badge · ticker · company → conviction · confidence · syncing · chevron */}
-                  <div className="flex items-center gap-2">
-                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${actionStyle(item.action_type)}`}>
-                      {(item.action_type ?? "—").replace(/_/g, " ")}
-                    </span>
-                    <span className="text-base font-bold text-white">{item.ticker ?? "—"}</span>
-                    {item.company_name && (
-                      <span className="hidden min-w-0 flex-1 truncate text-sm text-slate-500 sm:block">
-                        {item.company_name}
-                      </span>
-                    )}
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
-                      {item.conviction && (
-                        <span className={`hidden text-xs font-semibold sm:inline ${convictionColor(item.conviction)}`}>
-                          {item.conviction}
-                        </span>
-                      )}
-                      {item.confidence_score != null && (
-                        <span className="hidden text-xs text-slate-600 sm:inline">{item.confidence_score}%</span>
-                      )}
-                      {isSyncing && (
-                        <span className="animate-pulse text-[10px] text-slate-500">syncing…</span>
-                      )}
-                      <svg viewBox="0 0 20 20" fill="currentColor"
-                        className={`h-4 w-4 shrink-0 text-slate-600 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
-                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Rows 2+3: only when collapsed */}
-                  {!isExpanded && (
-                    <>
-                      {/* Row 2: thesis preview + sizing + social signal */}
-                      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                        {item.thesis && (
-                          <span className="min-w-0 flex-1 truncate text-xs text-slate-400" style={{ maxWidth: "45ch" }}>
-                            {item.thesis}
-                          </span>
-                        )}
-                        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                          {item.share_quantity != null && (
-                            <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
-                              {fmtN(item.share_quantity, 4)} shares
-                            </span>
-                          )}
-                          {item.sizing_dollars != null && (
-                            <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
-                              {fmt$(item.sizing_dollars)}
-                            </span>
-                          )}
-                          {item.target_price_1 != null && (
-                            <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
-                              Target {fmt$(item.target_price_1)}
-                            </span>
-                          )}
-                          {pulse?.rank != null && (
-                            <span className="hidden sm:inline rounded-md border border-white/8 bg-white/3 px-1.5 py-0.5 text-xs tabular-nums text-slate-500">
-                              Reddit #{pulse.rank}
-                              {pulse.rank_change != null && pulse.rank_change !== 0 && (
-                                <span className={pulse.rank_change > 0 ? " text-emerald-500" : " text-red-500"}>
-                                  {" "}{pulse.rank_change > 0 ? `▲${pulse.rank_change}` : `▼${Math.abs(pulse.rank_change)}`}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Row 3: quick actions OR done status badge (stop propagation so clicks don't toggle expand) */}
-                      <div
-                        className="mt-2 flex flex-wrap items-center gap-1.5"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {isActive ? (
-                          <>
-                            {quickActions.map(qa => {
-                              const isCurrentStatus = currentStatus === qa.value;
-                              return (
-                                <button
-                                  key={qa.value}
-                                  type="button"
-                                  disabled={isPending}
-                                  onClick={() => handleAction(item.id, qa.value)}
-                                  className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
-                                    isCurrentStatus ? `cursor-default ${qa.activeStyle}` : qa.hoverStyle
-                                  }`}
-                                >
-                                  {isCurrentStatus ? qa.activeLabel : qa.inactiveLabel}
-                                </button>
-                              );
-                            })}
-
-                            {/* More menu */}
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setOpenMoreId(openMoreId === item.id ? null : item.id);
-                                  setDeleteConfirmId(null);
-                                }}
-                                className="rounded-lg border border-white/8 bg-white/3 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-white/6 hover:text-slate-300"
-                                title="More options"
-                              >
-                                More
-                              </button>
-                              {openMoreId === item.id && (
-                                <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-xl">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAction(item.id, "archived")}
-                                    className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-400 transition hover:bg-white/5 hover:text-white"
-                                  >
-                                    Archive
-                                  </button>
-                                  {deleteConfirmId === item.id ? (
-                                    <div className="px-3 py-2">
-                                      <p className="mb-1.5 text-[10px] text-slate-500">Delete permanently?</p>
-                                      <div className="flex gap-1.5">
-                                        <button type="button" onClick={() => handleDelete(item.id)}
-                                          className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/25">
-                                          Delete
-                                        </button>
-                                        <button type="button" onClick={() => setDeleteConfirmId(null)}
-                                          className="rounded-lg bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:bg-white/10">
-                                          Cancel
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteConfirmId(item.id)}
-                                      className="w-full rounded-lg px-3 py-2 text-left text-xs text-red-400 transition hover:bg-red-500/8"
-                                    >
-                                      Delete
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </>
-                        ) : (
-                          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${statusBadgeStyle(currentStatus)}`}>
-                            {currentStatus === "executed" || currentStatus === "acknowledged" ? "✓ " : ""}
-                            {statusLabel(currentStatus)}
-                          </span>
-                        )}
-
-                        {actionError && (
-                          <span className="text-xs text-red-400">{actionError}</span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* ── Expanded detail ─────────────────────────────────────── */}
-                {isExpanded && (
-                  <div className="border-t border-white/5 px-4 pb-4 pt-3" onClick={e => e.stopPropagation()}>
-
-                    {/* Thesis + Rationale */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {item.thesis && (
-                        <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
-                          <p className="text-sm leading-6 text-slate-200">{item.thesis}</p>
-                        </div>
-                      )}
-                      {item.rationale && (
-                        <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
-                          <p className="text-sm leading-6 text-slate-300">{item.rationale}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {item.risks && (
-                      <div className="mt-3 rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
-                        <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
-                      </div>
-                    )}
-
-                    {/* Metrics grid */}
-                    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                      {[
-                        { label: "Confidence", value: item.confidence_score != null ? `${item.confidence_score}%` : null },
-                        { label: "Priority",   value: item.priority_rank != null ? `#${item.priority_rank}` : null },
-                        { label: "Horizon",    value: fmtHorizon(item.time_horizon) },
-                        { label: "Size %",     value: item.sizing_pct != null ? `${fmtN(item.sizing_pct)}%` : null },
-                        { label: "Size $",     value: fmt$(item.sizing_dollars) },
-                        { label: "Shares",     value: item.share_quantity != null ? fmtN(item.share_quantity, 4) : null },
-                      ].map(m => m.value ? (
-                        <div key={m.label} className="rounded-xl border border-white/5 bg-white/2 px-2 py-2 text-center">
-                          <p className="text-[9px] uppercase tracking-widest text-slate-600">{m.label}</p>
-                          <p className="mt-0.5 text-sm font-semibold text-white">{m.value}</p>
-                        </div>
-                      ) : null)}
-                    </div>
-
-                    {/* Price targets */}
-                    {(item.target_price_1 ?? item.target_price_2 ?? item.stop_price) != null && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {item.target_price_1 && (
-                          <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
-                            <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 1</p>
-                            <p className="text-sm font-semibold text-white">{fmt$(item.target_price_1)}</p>
-                          </div>
-                        )}
-                        {item.target_price_2 && (
-                          <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
-                            <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 2</p>
-                            <p className="text-sm font-semibold text-white">{fmt$(item.target_price_2)}</p>
-                          </div>
-                        )}
-                        {item.stop_price && (
-                          <div className="rounded-xl border border-red-500/10 bg-red-500/5 px-3 py-2">
-                            <p className="text-[9px] uppercase tracking-widest text-red-400">Stop</p>
-                            <p className="text-sm font-semibold text-white">{fmt$(item.stop_price)}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Reddit Pulse */}
-                    {item.ticker && (
-                      <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Reddit Pulse</p>
-                        {pulseLoading.has(item.ticker) && (
-                          <p className="text-xs text-slate-500">Fetching…</p>
-                        )}
-                        {pulseError[item.ticker] && !pulseLoading.has(item.ticker) && (
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs text-slate-500">{pulseError[item.ticker]}</p>
-                            <button type="button"
-                              onClick={() => { setPulseError(p => { const n = { ...p }; delete n[item.ticker!]; return n; }); loadPulse(item.ticker!, item.company_name); }}
-                              className="text-xs text-slate-400 transition hover:text-white">Retry</button>
-                          </div>
-                        )}
-                        {pulse && !pulseLoading.has(item.ticker) && (
-                          pulse.source === "apewisdom"
-                            ? <ApeWisdomPanel sp={pulse} />
-                            : <RedditPulsePanel sp={pulse} />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Expanded action buttons */}
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      {quickActions.map(qa => {
-                        const isCurrentStatus = currentStatus === qa.value;
-                        return (
-                          <button
-                            key={qa.value}
-                            type="button"
-                            disabled={isPending || isCurrentStatus}
-                            onClick={() => handleAction(item.id, qa.value)}
-                            className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
-                              isCurrentStatus ? `cursor-default ${qa.activeStyle}` : qa.hoverStyle
-                            }`}
-                          >
-                            {isCurrentStatus ? qa.activeLabel : qa.inactiveLabel}
-                          </button>
-                        );
-                      })}
-
-                      {currentStatus !== "archived" && (
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => handleAction(item.id, "archived")}
-                          className="rounded-xl border border-white/8 bg-white/3 px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-white/6 hover:text-slate-300 disabled:opacity-50"
-                        >
-                          Archive
-                        </button>
-                      )}
-
-                      {/* Delete */}
-                      <div className="ml-auto">
-                        {deleteConfirmId === item.id ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Delete permanently?</span>
-                            <button type="button" onClick={() => handleDelete(item.id)} disabled={isPending}
-                              className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 disabled:opacity-60">
-                              Confirm
-                            </button>
-                            <button type="button" onClick={() => setDeleteConfirmId(null)}
-                              className="rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-slate-400 hover:text-white">
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => setDeleteConfirmId(item.id)} disabled={isPending}
-                            className="rounded-xl border border-white/8 bg-white/3 p-2 text-slate-600 transition hover:border-red-500/30 hover:text-red-400 disabled:opacity-60"
-                            title="Delete recommendation">
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                              <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {actionError && (
-                      <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-                        {actionError}
-                      </div>
-                    )}
-
-                    <p className="mt-2 text-xs text-slate-700">{new Date(item.created_at).toLocaleString()}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-white/5 bg-white/2 p-5">
-          <p className="text-sm text-slate-500">No recommendations match the current filter.</p>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-20 animate-pulse rounded-2xl border border-white/5 bg-white/2" />
+          ))}
         </div>
       )}
 
+      {/* Fetch error */}
+      {fetchError && !isLoading && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+          {fetchError}
+        </div>
+      )}
+
+      {/* Bulk select banner */}
+      {isBulkMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/8 px-3 py-2">
+          <span className="text-xs text-blue-300 font-medium">
+            {selectedIds.size} selected
+          </span>
+          <button type="button" onClick={selectAll}
+            className="text-xs text-slate-400 hover:text-white transition">
+            Select all ({localRecs.length} on page)
+          </button>
+          {selectedIds.size > 0 && (
+            <span className="text-slate-600">·</span>
+          )}
+          {selectedIds.size > 0 && (
+            <span className="text-xs text-slate-500">
+              Bulk: Acknowledge for HOLDs, Watch/Reject/Archive for any
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Recommendation cards */}
+      {!isLoading && !fetchError && (
+        localRecs.length > 0 ? (
+          <div className="space-y-2">
+            {localRecs.map(item => {
+              const isExpanded    = expandedId === item.id;
+              const isSyncing     = item._syncing ?? false;
+              const isPending     = pendingIds.has(item.id);
+              const actionError   = actionErrors[item.id];
+              const pulse         = item.ticker ? pulseMap[item.ticker] : null;
+              const quickActions  = getQuickActions(item.action_type);
+              const currentStatus = item.recommendation_status ?? "proposed";
+              const isActive      = currentStatus === "proposed" || currentStatus === "watchlist";
+              const isSelected    = selectedIds.has(item.id);
+
+              return (
+                <div
+                  key={item.id}
+                  className={`relative rounded-2xl border transition-colors cursor-pointer ${
+                    isSelected
+                      ? "border-blue-500/30 bg-blue-500/8"
+                      : openMoreId === item.id
+                        ? "z-10 border-white/6 bg-white/2 hover:bg-white/3"
+                        : "border-white/6 bg-white/2 hover:bg-white/3"
+                  }`}
+                  onClick={() => {
+                    if (isBulkMode) { toggleSelect(item.id); return; }
+                    setExpandedId(isExpanded ? null : item.id);
+                    setOpenMoreId(null);
+                    if (!isExpanded && item.ticker) loadPulse(item.ticker, item.company_name);
+                  }}
+                >
+                  {/* ── Card header ──────────────────────────────────────── */}
+                  <div className="px-4 py-3">
+
+                    {/* Row 1: checkbox (bulk) · badge · ticker · company → conviction · confidence · syncing · chevron */}
+                    <div className="flex items-center gap-2">
+                      {isBulkMode && (
+                        <div
+                          className={`h-4 w-4 shrink-0 rounded border transition ${
+                            isSelected
+                              ? "border-blue-400 bg-blue-500"
+                              : "border-white/20 bg-white/5"
+                          }`}
+                          onClick={e => { e.stopPropagation(); toggleSelect(item.id); }}
+                        >
+                          {isSelected && (
+                            <svg viewBox="0 0 12 12" fill="none" className="h-full w-full p-0.5">
+                              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                      )}
+
+                      <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${actionStyle(item.action_type)}`}>
+                        {(item.action_type ?? "—").replace(/_/g, " ")}
+                      </span>
+                      <span className="text-base font-bold text-white">{item.ticker ?? "—"}</span>
+                      {item.company_name && (
+                        <span className="hidden min-w-0 flex-1 truncate text-sm text-slate-500 sm:block">
+                          {item.company_name}
+                        </span>
+                      )}
+                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                        {item.conviction && !isBulkMode && (
+                          <span className={`hidden text-xs font-semibold sm:inline ${convictionColor(item.conviction)}`}>
+                            {item.conviction}
+                          </span>
+                        )}
+                        {item.confidence_score != null && !isBulkMode && (
+                          <span className="hidden text-xs text-slate-600 sm:inline">{item.confidence_score}%</span>
+                        )}
+                        {isSyncing && (
+                          <span className="animate-pulse text-[10px] text-slate-500">syncing…</span>
+                        )}
+                        {!isBulkMode && (
+                          <svg viewBox="0 0 20 20" fill="currentColor"
+                            className={`h-4 w-4 shrink-0 text-slate-600 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Rows 2+3: only when collapsed and not in bulk mode */}
+                    {!isExpanded && !isBulkMode && (
+                      <>
+                        {/* Row 2: thesis preview + sizing chips */}
+                        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                          {item.thesis && (
+                            <span className="min-w-0 flex-1 truncate text-xs text-slate-400" style={{ maxWidth: "45ch" }}>
+                              {item.thesis}
+                            </span>
+                          )}
+                          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                            {item.share_quantity != null && (
+                              <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
+                                {fmtN(item.share_quantity, 4)} shares
+                              </span>
+                            )}
+                            {item.sizing_dollars != null && (
+                              <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
+                                {fmt$(item.sizing_dollars)}
+                              </span>
+                            )}
+                            {item.target_price_1 != null && (
+                              <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
+                                Target {fmt$(item.target_price_1)}
+                              </span>
+                            )}
+                            {pulse?.rank != null && (
+                              <span className="hidden sm:inline rounded-md border border-white/8 bg-white/3 px-1.5 py-0.5 text-xs tabular-nums text-slate-500">
+                                Reddit #{pulse.rank}
+                                {pulse.rank_change != null && pulse.rank_change !== 0 && (
+                                  <span className={pulse.rank_change > 0 ? " text-emerald-500" : " text-red-500"}>
+                                    {" "}{pulse.rank_change > 0 ? `▲${pulse.rank_change}` : `▼${Math.abs(pulse.rank_change)}`}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Row 3: quick actions OR done-status badge */}
+                        <div
+                          className="mt-2 flex flex-wrap items-center gap-1.5"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {isActive ? (
+                            <>
+                              {quickActions.map(qa => {
+                                const isCurrentStatus = currentStatus === qa.value;
+                                return (
+                                  <button
+                                    key={qa.value}
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={() => handleAction(item.id, qa.value)}
+                                    className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
+                                      isCurrentStatus ? `cursor-default ${qa.activeStyle}` : qa.hoverStyle
+                                    }`}
+                                  >
+                                    {isCurrentStatus ? qa.activeLabel : qa.inactiveLabel}
+                                  </button>
+                                );
+                              })}
+
+                              {/* More dropdown */}
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setOpenMoreId(openMoreId === item.id ? null : item.id);
+                                    setDeleteConfirmId(null);
+                                  }}
+                                  className="rounded-lg border border-white/8 bg-white/3 px-2.5 py-1 text-xs text-slate-500 transition hover:bg-white/6 hover:text-slate-300"
+                                >
+                                  More
+                                </button>
+                                {openMoreId === item.id && (
+                                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-xl">
+                                    <button type="button"
+                                      onClick={() => handleAction(item.id, "archived")}
+                                      className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-400 transition hover:bg-white/5 hover:text-white">
+                                      Archive
+                                    </button>
+                                    {deleteConfirmId === item.id ? (
+                                      <div className="px-3 py-2">
+                                        <p className="mb-1.5 text-[10px] text-slate-500">Delete permanently?</p>
+                                        <div className="flex gap-1.5">
+                                          <button type="button" onClick={() => handleDelete(item.id)}
+                                            className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/25">Delete</button>
+                                          <button type="button" onClick={() => setDeleteConfirmId(null)}
+                                            className="rounded-lg bg-white/5 px-2.5 py-1 text-xs text-slate-400 hover:bg-white/10">Cancel</button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button type="button" onClick={() => setDeleteConfirmId(item.id)}
+                                        className="w-full rounded-lg px-3 py-2 text-left text-xs text-red-400 transition hover:bg-red-500/8">
+                                        Delete
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${statusBadgeStyle(currentStatus)}`}>
+                              {(currentStatus === "executed" || currentStatus === "acknowledged") ? "✓ " : ""}
+                              {statusLabel(currentStatus)}
+                            </span>
+                          )}
+                          {actionError && <span className="text-xs text-red-400">{actionError}</span>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── Expanded detail ─────────────────────────────────── */}
+                  {isExpanded && !isBulkMode && (
+                    <div className="border-t border-white/5 px-4 pb-4 pt-3" onClick={e => e.stopPropagation()}>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {item.thesis && (
+                          <div className="rounded-xl border border-white/5 bg-white/2 p-3">
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
+                            <p className="text-sm leading-6 text-slate-200">{item.thesis}</p>
+                          </div>
+                        )}
+                        {item.rationale && (
+                          <div className="rounded-xl border border-white/5 bg-white/2 p-3">
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
+                            <p className="text-sm leading-6 text-slate-300">{item.rationale}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {item.risks && (
+                        <div className="mt-3 rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
+                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
+                          <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
+                        </div>
+                      )}
+
+                      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {[
+                          { label: "Confidence", value: item.confidence_score != null ? `${item.confidence_score}%` : null },
+                          { label: "Priority",   value: item.priority_rank != null ? `#${item.priority_rank}` : null },
+                          { label: "Horizon",    value: fmtHorizon(item.time_horizon) },
+                          { label: "Size %",     value: item.sizing_pct != null ? `${fmtN(item.sizing_pct)}%` : null },
+                          { label: "Size $",     value: fmt$(item.sizing_dollars) },
+                          { label: "Shares",     value: item.share_quantity != null ? fmtN(item.share_quantity, 4) : null },
+                        ].map(m => m.value ? (
+                          <div key={m.label} className="rounded-xl border border-white/5 bg-white/2 px-2 py-2 text-center">
+                            <p className="text-[9px] uppercase tracking-widest text-slate-600">{m.label}</p>
+                            <p className="mt-0.5 text-sm font-semibold text-white">{m.value}</p>
+                          </div>
+                        ) : null)}
+                      </div>
+
+                      {(item.target_price_1 ?? item.target_price_2 ?? item.stop_price) != null && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.target_price_1 && (
+                            <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
+                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 1</p>
+                              <p className="text-sm font-semibold text-white">{fmt$(item.target_price_1)}</p>
+                            </div>
+                          )}
+                          {item.target_price_2 && (
+                            <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
+                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 2</p>
+                              <p className="text-sm font-semibold text-white">{fmt$(item.target_price_2)}</p>
+                            </div>
+                          )}
+                          {item.stop_price && (
+                            <div className="rounded-xl border border-red-500/10 bg-red-500/5 px-3 py-2">
+                              <p className="text-[9px] uppercase tracking-widest text-red-400">Stop</p>
+                              <p className="text-sm font-semibold text-white">{fmt$(item.stop_price)}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Reddit Pulse */}
+                      {item.ticker && (
+                        <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Reddit Pulse</p>
+                          {pulseLoading.has(item.ticker) && <p className="text-xs text-slate-500">Fetching…</p>}
+                          {pulseError[item.ticker] && !pulseLoading.has(item.ticker) && (
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-xs text-slate-500">{pulseError[item.ticker]}</p>
+                              <button type="button"
+                                onClick={() => { setPulseError(p => { const n = {...p}; delete n[item.ticker!]; return n; }); loadPulse(item.ticker!, item.company_name); }}
+                                className="text-xs text-slate-400 transition hover:text-white">Retry</button>
+                            </div>
+                          )}
+                          {pulse && !pulseLoading.has(item.ticker) && (
+                            pulse.source === "apewisdom"
+                              ? <ApeWisdomPanel sp={pulse} />
+                              : <RedditPulsePanel sp={pulse} />
+                          )}
+                        </div>
+                      )}
+
+                      {/* Expanded action buttons */}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {quickActions.map(qa => {
+                          const isCurrentStatus = currentStatus === qa.value;
+                          return (
+                            <button key={qa.value} type="button"
+                              disabled={isPending || isCurrentStatus}
+                              onClick={() => handleAction(item.id, qa.value)}
+                              className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                                isCurrentStatus ? `cursor-default ${qa.activeStyle}` : qa.hoverStyle
+                              }`}>
+                              {isCurrentStatus ? qa.activeLabel : qa.inactiveLabel}
+                            </button>
+                          );
+                        })}
+                        {currentStatus !== "archived" && (
+                          <button type="button" disabled={isPending}
+                            onClick={() => handleAction(item.id, "archived")}
+                            className="rounded-xl border border-white/8 bg-white/3 px-4 py-2 text-sm font-medium text-slate-500 transition hover:bg-white/6 hover:text-slate-300 disabled:opacity-50">
+                            Archive
+                          </button>
+                        )}
+                        <div className="ml-auto">
+                          {deleteConfirmId === item.id ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-slate-500">Delete permanently?</span>
+                              <button type="button" onClick={() => handleDelete(item.id)} disabled={isPending}
+                                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 disabled:opacity-60">Confirm</button>
+                              <button type="button" onClick={() => setDeleteConfirmId(null)}
+                                className="rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs text-slate-400 hover:text-white">Cancel</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => setDeleteConfirmId(item.id)} disabled={isPending}
+                              className="rounded-xl border border-white/8 bg-white/3 p-2 text-slate-600 transition hover:border-red-500/30 hover:text-red-400 disabled:opacity-60"
+                              title="Delete recommendation">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {actionError && (
+                        <div className="mt-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                          {actionError}
+                        </div>
+                      )}
+
+                      <p className="mt-2 text-xs text-slate-700">{new Date(item.created_at).toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          !isLoading && (
+            <div className="rounded-xl border border-white/5 bg-white/2 p-5">
+              <p className="text-sm text-slate-500">No recommendations match the current filter.</p>
+            </div>
+          )
+        )
+      )}
+
       {/* Load more */}
-      {hasMore && (
+      {hasMore && !isLoading && (
         <div className="flex justify-center pt-1">
           <button
             type="button"
-            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-            className="rounded-xl border border-white/10 bg-white/3 px-6 py-2.5 text-sm text-slate-400 transition hover:bg-white/6 hover:text-white"
+            disabled={loadingMore}
+            onClick={loadMore}
+            className="rounded-xl border border-white/10 bg-white/3 px-6 py-2.5 text-sm text-slate-400 transition hover:bg-white/6 hover:text-white disabled:opacity-50"
           >
-            Load {Math.min(PAGE_SIZE, filteredAndSorted.length - visibleCount)} more
+            {loadingMore ? "Loading…" : "Load more"}
           </button>
+        </div>
+      )}
+
+      {/* Bulk action bar — sticky at bottom */}
+      {isBulkMode && selectedIds.size > 0 && (
+        <div className="sticky bottom-4 z-30 mx-auto max-w-2xl">
+          <div className="rounded-2xl border border-white/15 bg-[#0a1628]/95 px-4 py-3 shadow-2xl backdrop-blur-md">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-white">{selectedIds.size} selected</span>
+              <div className="mx-2 h-4 w-px bg-white/10" />
+              <button type="button" disabled={bulkPending}
+                onClick={() => handleBulkAction("acknowledged")}
+                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50">
+                ✓ Acknowledge
+              </button>
+              <button type="button" disabled={bulkPending}
+                onClick={() => handleBulkAction("watchlist")}
+                className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50">
+                Watch
+              </button>
+              <button type="button" disabled={bulkPending}
+                onClick={() => handleBulkAction("rejected")}
+                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-50">
+                Reject
+              </button>
+              <button type="button" disabled={bulkPending}
+                onClick={() => handleBulkAction("archived")}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-50">
+                Archive
+              </button>
+              <button type="button" onClick={exitBulkMode}
+                className="ml-auto text-xs text-slate-500 transition hover:text-white">
+                Cancel
+              </button>
+            </div>
+            {bulkError && <p className="mt-2 text-xs text-red-400">{bulkError}</p>}
+          </div>
         </div>
       )}
     </div>

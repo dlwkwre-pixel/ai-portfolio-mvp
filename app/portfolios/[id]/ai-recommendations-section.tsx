@@ -12,6 +12,19 @@ export default async function AIRecommendationsSection({
 }: AIRecommendationsSectionProps) {
   const supabase = await createClient();
 
+  // Auto-archive proposals older than 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  await supabase
+    .from("recommendation_items")
+    .update({
+      recommendation_status: "archived",
+      user_decision: "archived",
+      decision_notes: "Auto-archived: proposed > 30 days",
+    })
+    .eq("portfolio_id", portfolioId)
+    .eq("recommendation_status", "proposed")
+    .lt("created_at", thirtyDaysAgo);
+
   const { data: runs, error: runsError } = await supabase
     .from("recommendation_runs")
     .select("*")
@@ -21,25 +34,6 @@ export default async function AIRecommendationsSection({
 
   if (runsError) {
     throw new Error(runsError.message);
-  }
-
-  const runIds = (runs ?? []).map((run) => run.id);
-
-  let recommendations: any[] = [];
-
-  if (runIds.length > 0) {
-    const { data: items, error: itemsError } = await supabase
-      .from("recommendation_items")
-      .select("*")
-      .eq("portfolio_id", portfolioId)
-      .in("recommendation_run_id", runIds)
-      .order("created_at", { ascending: false });
-
-    if (itemsError) {
-      throw new Error(itemsError.message);
-    }
-
-    recommendations = items ?? [];
   }
 
   const latestRun = runs?.[0] ?? null;
@@ -103,10 +97,7 @@ export default async function AIRecommendationsSection({
 
       {runs && runs.length > 0 ? (
         <div className="mt-4">
-          <AIRecommendationRunsList
-            portfolioId={portfolioId}
-            recommendations={recommendations}
-          />
+          <AIRecommendationRunsList portfolioId={portfolioId} />
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
