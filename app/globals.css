@@ -615,3 +615,24 @@ body {
   }
 }
 
+/* Community page layout */
+.community-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .community-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.community-filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
