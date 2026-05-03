@@ -43,7 +43,22 @@ type AIAnalysis = {
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
-type DetailTab = "overview" | "news" | "ai";
+type DetailTab = "overview" | "news" | "ai" | "social";
+
+type RedditPulse = {
+  ticker: string; company_name: string; time_window: string;
+  fetched_at: string; expires_at: string;
+  post_count: number; mention_count: number;
+  bullish_pct: number; bearish_pct: number; neutral_pct: number;
+  sentiment_score: number; hype_score: number; conviction_score: number;
+  reddit_pulse_score: number; sentiment_label: string;
+  top_themes: string[]; top_bullish_themes: string[]; top_bearish_themes: string[];
+  top_risks: string[]; top_catalysts: string[];
+  subreddit_breakdown: { subreddit: string; post_count: number; sentiment: string; sentiment_label: string }[];
+  source_post_links: { subreddit: string; title: string; score: number; comment_count: number; created_utc: number; permalink: string }[];
+  summary: string; ai_powered: boolean; stale?: boolean;
+  status?: string; message?: string;
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -512,6 +527,11 @@ function DetailView({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiCooldown, setAiCooldown] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [socialPulse, setSocialPulse] = useState<RedditPulse | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [socialError, setSocialError] = useState<string | null>(null);
+  const [socialTicker, setSocialTicker] = useState<string | null>(null);
+  const [socialShowSources, setSocialShowSources] = useState(false);
 
   const rating = analystLabel(result.recommendation);
   const upside =
@@ -541,10 +561,54 @@ function DetailView({
       .finally(() => setAiLoading(false));
   }
 
+  // Auto-fetch Reddit Pulse when the social tab is first opened for this ticker
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tab !== "social" || socialTicker === result.ticker || socialLoading) return;
+    const company = encodeURIComponent(result.profile?.name ?? result.ticker);
+    setSocialLoading(true);
+    setSocialError(null);
+    setSocialPulse(null);
+    fetch(`/api/social-pulse/${result.ticker}?company=${company}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.status === "unavailable" || d.status === "no_credentials" || d.status === "disabled" || d.error) {
+          setSocialError(d.message ?? d.error ?? "Reddit Pulse unavailable for this ticker.");
+        } else {
+          setSocialPulse(d);
+          setSocialTicker(result.ticker);
+        }
+      })
+      .catch(() => setSocialError("Failed to load Reddit Pulse. Try again later."))
+      .finally(() => setSocialLoading(false));
+  }, [tab, result.ticker]);
+
+  function refreshSocialPulse() {
+    if (socialLoading) return;
+    const company = encodeURIComponent(result.profile?.name ?? result.ticker);
+    setSocialLoading(true);
+    setSocialError(null);
+    setSocialPulse(null);
+    setSocialTicker(null);
+    fetch(`/api/social-pulse/${result.ticker}?company=${company}&force=1`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.status === "unavailable" || d.status === "no_credentials" || d.status === "disabled" || d.error) {
+          setSocialError(d.message ?? d.error ?? "Reddit Pulse unavailable.");
+        } else {
+          setSocialPulse(d);
+          setSocialTicker(result.ticker);
+        }
+      })
+      .catch(() => setSocialError("Failed to refresh Reddit Pulse."))
+      .finally(() => setSocialLoading(false));
+  }
+
   const TABS: { id: DetailTab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "news", label: result.news.length > 0 ? `News (${result.news.length})` : "News" },
     { id: "ai", label: "AI Analysis" },
+    { id: "social", label: "Reddit Pulse" },
   ];
 
   return (
@@ -737,6 +801,180 @@ function DetailView({
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Reddit Pulse */}
+        {tab === "social" && (
+          <div style={{ padding: "16px 18px" }}>
+            {socialLoading && (
+              <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                Fetching Reddit discussion for {result.ticker}...
+              </div>
+            )}
+            {socialError && !socialLoading && (
+              <div>
+                <div style={{ padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "8px", fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>
+                  {socialError}
+                </div>
+                <button onClick={refreshSocialPulse} style={{ padding: "6px 14px", background: "none", border: "1px solid var(--card-border)", borderRadius: "7px", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {socialPulse && !socialLoading && (() => {
+              const sp = socialPulse;
+              const scoreColor = sp.sentiment_score >= 15 ? "var(--green)" : sp.sentiment_score <= -15 ? "var(--red)" : "var(--text-secondary)";
+              const subColor = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--amber)" : "var(--text-muted)";
+              return (
+                <div>
+                  {sp.stale && (
+                    <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.1)", border: "1px solid var(--amber-border)", borderRadius: "6px", fontSize: "11px", color: "var(--amber)", marginBottom: "12px" }}>
+                      Showing cached data — Reddit unavailable
+                    </div>
+                  )}
+
+                  {/* Score + summary */}
+                  <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
+                    <div style={{ textAlign: "center", flexShrink: 0 }}>
+                      <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: scoreColor, lineHeight: 1 }}>
+                        {sp.reddit_pulse_score}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
+                      </div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Reddit Pulse</div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: scoreColor, marginBottom: "3px" }}>{sp.sentiment_label}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                        {sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword analysis"}
+                      </div>
+                      {sp.summary && (
+                        <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.5 }}>{sp.summary}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sentiment bar */}
+                  <div style={{ marginBottom: "14px" }}>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Sentiment</div>
+                    <div style={{ display: "flex", gap: "2px", height: "5px", borderRadius: "3px", overflow: "hidden", marginBottom: "5px" }}>
+                      <div style={{ width: `${sp.bullish_pct}%`, background: "var(--green)", flexShrink: 0 }} />
+                      <div style={{ width: `${sp.neutral_pct}%`, background: "var(--border-subtle)", flexShrink: 0 }} />
+                      <div style={{ width: `${sp.bearish_pct}%`, background: "var(--red)", flexShrink: 0 }} />
+                    </div>
+                    <div style={{ display: "flex", gap: "12px", fontSize: "11px" }}>
+                      <span style={{ color: "var(--green)" }}>Bull {sp.bullish_pct}%</span>
+                      <span style={{ color: "var(--text-muted)" }}>Neutral {sp.neutral_pct}%</span>
+                      <span style={{ color: "var(--red)" }}>Bear {sp.bearish_pct}%</span>
+                    </div>
+                  </div>
+
+                  {/* Conviction + Hype */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                    {[
+                      { label: "Conviction", value: sp.conviction_score, color: sp.conviction_score >= 60 ? "var(--green)" : sp.conviction_score >= 35 ? "var(--amber)" : "var(--text-secondary)" },
+                      { label: "Hype Risk", value: sp.hype_score, color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--amber)" : "var(--text-secondary)" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "8px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
+                        <div className="num" style={{ fontSize: "16px", fontWeight: 600, color }}>{value}<span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/100</span></div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Themes grid */}
+                  {(sp.top_bullish_themes.length > 0 || sp.top_bearish_themes.length > 0) && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                      {sp.top_bullish_themes.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish Themes</div>
+                          {sp.top_bullish_themes.slice(0, 3).map((t, i) => (
+                            <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
+                          ))}
+                        </div>
+                      )}
+                      {sp.top_bearish_themes.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish Themes</div>
+                          {sp.top_bearish_themes.slice(0, 3).map((t, i) => (
+                            <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Risks + Catalysts */}
+                  {(sp.top_risks.length > 0 || sp.top_catalysts.length > 0) && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                      {sp.top_risks.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Key Risks</div>
+                          {sp.top_risks.slice(0, 3).map((t, i) => (
+                            <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
+                          ))}
+                        </div>
+                      )}
+                      {sp.top_catalysts.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
+                          {sp.top_catalysts.slice(0, 3).map((t, i) => (
+                            <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Subreddit breakdown */}
+                  {sp.subreddit_breakdown.length > 0 && (
+                    <div style={{ marginBottom: "14px" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
+                      {sp.subreddit_breakdown.map((sub) => (
+                        <div key={sub.subreddit} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>r/{sub.subreddit}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub.post_count}p</span>
+                            <span style={{ fontSize: "11px", color: subColor(sub.sentiment), fontWeight: 500 }}>{sub.sentiment_label}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Source post links */}
+                  {sp.source_post_links.length > 0 && (
+                    <div style={{ marginBottom: "12px" }}>
+                      <button
+                        onClick={() => setSocialShowSources((v) => !v)}
+                        style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0, marginBottom: "6px" }}
+                      >
+                        {socialShowSources ? "▲ Hide sources" : `▼ Show top ${sp.source_post_links.length} source posts`}
+                      </button>
+                      {socialShowSources && sp.source_post_links.map((link, i) => (
+                        <a key={i} href={link.permalink} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "block", padding: "7px 0", borderBottom: i < sp.source_post_links.length - 1 ? "1px solid var(--border-subtle)" : "none", textDecoration: "none" }}>
+                          <div style={{ fontSize: "12px", color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "2px" }}>{link.title}</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                            r/{link.subreddit} · ↑{link.score} · {link.comment_count} comments
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                      {sp.ai_powered ? "AI-analyzed" : "Keyword analysis"} · Updated {new Date(sp.fetched_at).toLocaleDateString()}
+                    </div>
+                    <button onClick={refreshSocialPulse}
+                      style={{ padding: "4px 10px", background: "none", border: "1px solid var(--card-border)", borderRadius: "6px", color: "var(--text-muted)", fontSize: "11px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
