@@ -539,9 +539,9 @@ export default function CommunityClient({
           onClick={() => { setSection("strategies"); updateUrl({ section: "strategies" }); }}
         />
         <SectionTab
-          active={section === "people"}
-          label="People"
-          onClick={() => { setSection("people"); updateUrl({ section: "people" }); }}
+          active={section === "following"}
+          label="Following"
+          onClick={() => { setSection("following"); updateUrl({ section: "following" }); }}
         />
       </div>
 
@@ -560,7 +560,7 @@ export default function CommunityClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && updateUrl({ q: search })}
-            placeholder={section === "people" ? "Search people..." : "Search strategies..."}
+            placeholder={section === "following" ? "Search following..." : "Search strategies..."}
             style={{
               width: "100%", padding: "7px 12px 7px 30px",
               background: "var(--card-bg)", border: "1px solid var(--card-border)",
@@ -610,13 +610,13 @@ export default function CommunityClient({
 
       {/* Count */}
       <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>
-        {section === "people"
-          ? `${people.length} ${people.length === 1 ? "person" : "people"}`
+        {section === "following"
+          ? `${people.length} ${people.length === 1 ? "person" : "people"} following`
           : `${strategies.length} public ${strategies.length === 1 ? "strategy" : "strategies"}`}
       </p>
 
-      {section === "people" ? (
-        /* ── People ── */
+      {section === "following" ? (
+        /* ── Following ── */
         people.length > 0 ? (
           <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {people.map((person) => (
@@ -716,7 +716,7 @@ export default function CommunityClient({
             borderRadius: "var(--radius-lg)",
           }}>
             <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
-              No users found{search ? ` for "${search}"` : ""}.
+              {search ? `No matches for "${search}" in your following.` : "You're not following anyone yet. Follow investors from their profiles or from strategy cards."}
             </p>
           </div>
         )
