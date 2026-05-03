@@ -203,7 +203,10 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
                 {/* Row header — always visible, clickable to expand */}
                 <button
                   type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                  onClick={() => {
+                    setExpandedId(isExpanded ? null : item.id);
+                    if (!isExpanded && item.ticker) loadPulse(item.ticker, item.company_name);
+                  }}
                   className="w-full px-4 py-3.5 text-left"
                 >
                   <div className="flex flex-wrap items-center gap-2.5">
@@ -328,14 +331,8 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
                     {/* Reddit Pulse */}
                     {item.ticker && (
                       <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
-                        <div className="mb-2 flex items-center justify-between">
+                        <div className="mb-2">
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Reddit Pulse</p>
-                          {!pulseMap[item.ticker] && !pulseLoading.has(item.ticker) && !pulseError[item.ticker] && (
-                            <button type="button" onClick={() => loadPulse(item.ticker!, item.company_name)}
-                              className="rounded-lg border border-white/8 px-2.5 py-1 text-xs text-slate-400 hover:bg-white/5 hover:text-white transition">
-                              Load
-                            </button>
-                          )}
                         </div>
                         {pulseLoading.has(item.ticker) && (
                           <p className="text-xs text-slate-500">Fetching Reddit data for {item.ticker}…</p>
@@ -366,10 +363,10 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
                                   <div className="flex-1">
                                     {sp.rank != null && (
                                       <p className="text-sm font-semibold text-slate-200">
-                                        Rank #{sp.rank}
+                                        #{sp.rank} most mentioned on Reddit this week
                                         {sp.rank_change != null && sp.rank_change !== 0 && (
                                           <span className={`ml-1.5 text-xs ${sp.rank_change > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                            {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`}
+                                            {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`} since yesterday
                                           </span>
                                         )}
                                       </p>
