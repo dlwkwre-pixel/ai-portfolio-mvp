@@ -3,6 +3,21 @@
 import { useState, useMemo } from "react";
 import RecommendationStatusButtons from "./recommendation-status-buttons";
 
+type RedditPulse = {
+  source?: "reddit" | "apewisdom";
+  ticker: string; fetched_at: string; stale?: boolean;
+  post_count: number; bullish_pct: number; bearish_pct: number;
+  neutral_pct: number; sentiment_score: number; hype_score: number;
+  conviction_score: number; reddit_pulse_score: number; sentiment_label: string;
+  top_bullish_themes: string[]; top_bearish_themes: string[];
+  subreddit_breakdown: { subreddit: string; post_count: number; sentiment: string; sentiment_label: string }[];
+  source_post_links: { subreddit: string; title: string; score: number; comment_count: number; created_utc: number; permalink: string }[];
+  summary: string; ai_powered: boolean;
+  mentions?: number; mention_change_pct?: number; upvotes?: number;
+  rank?: number; rank_change?: number; reddit_trend_score?: number;
+  status?: string; message?: string;
+};
+
 type RecommendationItem = {
   id: string;
   ticker: string | null;
@@ -77,6 +92,28 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
   const [statusFilter, setStatusFilter] = useState("open");
   const [sortBy, setSortBy] = useState("priority");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [pulseMap, setPulseMap] = useState<Record<string, RedditPulse>>({});
+  const [pulseLoading, setPulseLoading] = useState<Set<string>>(new Set());
+  const [pulseError, setPulseError] = useState<Record<string, string>>({});
+
+  function loadPulse(ticker: string, companyName: string | null) {
+    if (!ticker || pulseMap[ticker] || pulseLoading.has(ticker)) return;
+    setPulseLoading((prev) => new Set(prev).add(ticker));
+    setPulseError((prev) => { const n = { ...prev }; delete n[ticker]; return n; });
+    const company = encodeURIComponent(companyName ?? ticker);
+    fetch(`/api/social-pulse/${ticker}?company=${company}`)
+      .then((r) => r.json())
+      .then((d: RedditPulse) => {
+        if (d.status === "unavailable" || d.status === "no_credentials" || d.status === "disabled" || (d as { error?: string }).error) {
+          setPulseError((prev) => ({ ...prev, [ticker]: d.message ?? (d as { error?: string }).error ?? "Reddit Pulse unavailable." }));
+        } else {
+          setPulseMap((prev) => ({ ...prev, [ticker]: d }));
+        }
+      })
+      .catch(() => setPulseError((prev) => ({ ...prev, [ticker]: "Failed to load Reddit Pulse." })))
+      .finally(() => setPulseLoading((prev) => { const n = new Set(prev); n.delete(ticker); return n; }));
+  }
 
   const filteredAndSorted = useMemo(() => {
     let result = [...recommendations];
@@ -285,6 +322,122 @@ export default function AIRecommendationsList({ portfolioId, recommendations }: 
                             <p className="text-sm font-semibold text-white">{formatMoney(item.stop_price)}</p>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Reddit Pulse */}
+                    {item.ticker && (
+                      <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Reddit Pulse</p>
+                          {!pulseMap[item.ticker] && !pulseLoading.has(item.ticker) && !pulseError[item.ticker] && (
+                            <button type="button" onClick={() => loadPulse(item.ticker!, item.company_name)}
+                              className="rounded-lg border border-white/8 px-2.5 py-1 text-xs text-slate-400 hover:bg-white/5 hover:text-white transition">
+                              Load
+                            </button>
+                          )}
+                        </div>
+                        {pulseLoading.has(item.ticker) && (
+                          <p className="text-xs text-slate-500">Fetching Reddit data for {item.ticker}…</p>
+                        )}
+                        {pulseError[item.ticker] && !pulseLoading.has(item.ticker) && (
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs text-slate-500">{pulseError[item.ticker]}</p>
+                            <button type="button" onClick={() => { setPulseError(p => { const n={...p}; delete n[item.ticker!]; return n; }); loadPulse(item.ticker!, item.company_name); }}
+                              className="text-xs text-slate-400 hover:text-white transition">Retry</button>
+                          </div>
+                        )}
+                        {pulseMap[item.ticker] && !pulseLoading.has(item.ticker) && (() => {
+                          const sp = pulseMap[item.ticker!]!;
+
+                          if (sp.source === "apewisdom") {
+                            const trendScore = sp.reddit_trend_score ?? 0;
+                            const trendColor = trendScore >= 70 ? "text-emerald-400" : trendScore >= 45 ? "text-amber-400" : "text-slate-300";
+                            const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
+                            return (
+                              <div>
+                                <p className="mb-2 text-xs text-amber-400">Reddit Trend Data via ApeWisdom — full sentiment requires Reddit API approval</p>
+                                <div className="mb-2 flex items-center gap-4">
+                                  <div>
+                                    <span className={`text-xl font-bold tabular-nums ${trendColor}`}>{trendScore}</span>
+                                    <span className="text-xs text-slate-500">/100</span>
+                                    <p className="text-[10px] text-slate-500">Trend Score</p>
+                                  </div>
+                                  <div className="flex-1">
+                                    {sp.rank != null && (
+                                      <p className="text-sm font-semibold text-slate-200">
+                                        Rank #{sp.rank}
+                                        {sp.rank_change != null && sp.rank_change !== 0 && (
+                                          <span className={`ml-1.5 text-xs ${sp.rank_change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                            {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`}
+                                          </span>
+                                        )}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-slate-500">{sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes</p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest">Mentions (7d)</p>
+                                    <p className="text-sm font-semibold text-slate-200 tabular-nums">{sp.mentions ?? 0}</p>
+                                  </div>
+                                  <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+                                    <p className="text-[9px] text-slate-500 uppercase tracking-widest">24h Change</p>
+                                    <p className={`text-sm font-semibold tabular-nums ${changeColor}`}>
+                                      {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="mt-2 text-[10px] text-slate-600">Data from ApeWisdom · Cached 30 min</p>
+                              </div>
+                            );
+                          }
+
+                          const scoreColor = sp.sentiment_score >= 15 ? "text-emerald-400" : sp.sentiment_score <= -15 ? "text-red-400" : "text-slate-200";
+                          return (
+                            <div>
+                              {sp.stale && <p className="mb-2 text-xs text-amber-400">Using cached data — Reddit currently unavailable</p>}
+                              <div className="mb-2 flex items-center gap-4">
+                                <div>
+                                  <span className={`text-xl font-bold tabular-nums ${scoreColor}`}>{sp.reddit_pulse_score}</span>
+                                  <span className="text-xs text-slate-500">/100</span>
+                                  <p className="text-[10px] text-slate-500">Reddit Pulse</p>
+                                </div>
+                                <div className="flex-1">
+                                  <p className={`text-sm font-semibold ${scoreColor}`}>{sp.sentiment_label}</p>
+                                  <p className="text-xs text-slate-500">{sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword analysis"}</p>
+                                </div>
+                              </div>
+                              <div className="mb-2 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
+                                <div className="bg-emerald-500" style={{ width: `${sp.bullish_pct}%` }} />
+                                <div className="bg-slate-700" style={{ width: `${sp.neutral_pct}%` }} />
+                                <div className="bg-red-500" style={{ width: `${sp.bearish_pct}%` }} />
+                              </div>
+                              <div className="flex gap-3 text-xs mb-2">
+                                <span className="text-emerald-400">Bull {sp.bullish_pct}%</span>
+                                <span className="text-slate-500">Neutral {sp.neutral_pct}%</span>
+                                <span className="text-red-400">Bear {sp.bearish_pct}%</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+                                  <p className="text-[9px] text-slate-500 uppercase tracking-widest">Conviction</p>
+                                  <p className={`text-sm font-semibold tabular-nums ${sp.conviction_score >= 60 ? "text-emerald-400" : sp.conviction_score >= 35 ? "text-amber-400" : "text-slate-300"}`}>
+                                    {sp.conviction_score}<span className="text-xs text-slate-500">/100</span>
+                                  </p>
+                                </div>
+                                <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+                                  <p className="text-[9px] text-slate-500 uppercase tracking-widest">Hype Risk</p>
+                                  <p className={`text-sm font-semibold tabular-nums ${sp.hype_score >= 65 ? "text-red-400" : sp.hype_score >= 40 ? "text-amber-400" : "text-slate-300"}`}>
+                                    {sp.hype_score}<span className="text-xs text-slate-500">/100</span>
+                                  </p>
+                                </div>
+                              </div>
+                              {sp.summary && <p className="mb-2 text-xs text-slate-400">{sp.summary}</p>}
+                              <p className="text-[10px] text-slate-600">Updated {new Date(sp.fetched_at).toLocaleDateString()}</p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
 
