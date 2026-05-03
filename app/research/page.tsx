@@ -76,7 +76,7 @@ export default async function ResearchPage() {
               style={{
                 width: "280px",
                 flexShrink: 0,
-                borderLeft: "2px solid var(--brand-blue)",
+                borderLeft: "1px solid var(--card-border)",
                 overflow: "hidden",
                 background: "var(--card-bg)",
               }}
