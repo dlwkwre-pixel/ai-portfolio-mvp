@@ -501,7 +501,7 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
                         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                           {item.share_quantity != null && (
                             <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
-                              {fmtN(item.share_quantity, 0)} sh
+                              {fmtN(item.share_quantity, 4)} shares
                             </span>
                           )}
                           {item.sizing_dollars != null && (
@@ -511,7 +511,7 @@ export default function AIRecommendationRunsList({ portfolioId, recommendations 
                           )}
                           {item.target_price_1 != null && (
                             <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
-                              T {fmt$(item.target_price_1)}
+                              Target {fmt$(item.target_price_1)}
                             </span>
                           )}
                           {pulse?.rank != null && (
