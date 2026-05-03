@@ -681,6 +681,7 @@ export async function updateRecommendationStatus(formData: FormData) {
   const userDecisionMap: Record<string, string | null> = {
     proposed: null, rejected: "rejected",
     watchlist: "watchlist", executed: "executed",
+    acknowledged: "acknowledged", archived: "archived",
   };
 
   const { error: updateError } = await supabase
