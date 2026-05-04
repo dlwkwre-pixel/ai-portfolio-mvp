@@ -83,23 +83,34 @@ export default async function DashboardPage({
   const portfolioIds = activePortfolios.map((p) => p.id);
 
   let totalValue = 0;
+  let totalDayChange = 0;
+  let totalCash = 0;
   const portfolioValues: Record<string, number> = {};
+  const portfolioCash: Record<string, number> = {};
 
   for (const p of activePortfolios) {
     const { data: holdings } = await supabase
       .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis")
       .eq("portfolio_id", p.id);
 
+    const pCash = Number(p.cash_balance ?? 0);
     const val = await getPortfolioValuation({
       holdings: (holdings ?? []).map((h) => ({
         id: h.id, ticker: h.ticker, company_name: h.company_name,
         asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
       })),
-      cashBalance: Number(p.cash_balance ?? 0),
+      cashBalance: pCash,
     });
 
     portfolioValues[p.id] = val.total_portfolio_value;
+    portfolioCash[p.id] = pCash;
     totalValue += val.total_portfolio_value;
+    totalCash += pCash;
+    for (const h of val.valued_holdings) {
+      if (h.day_change !== null) {
+        totalDayChange += h.day_change * h.shares_number;
+      }
+    }
   }
 
   let recentRuns: any[] = [];
@@ -138,7 +149,8 @@ export default async function DashboardPage({
     dotColor: accountDotColor(p.account_type),
     totalValue: portfolioValues[p.id] ?? 0,
     totalValueLabel: formatMoney(portfolioValues[p.id] ?? 0),
-    cashLabel: formatMoney(Number(p.cash_balance ?? 0)),
+    cashBalance: portfolioCash[p.id] ?? 0,
+    cashLabel: formatMoney(portfolioCash[p.id] ?? 0),
     benchmarkSymbol: p.benchmark_symbol || "SPY",
     status: p.status,
     createdAt: p.created_at,
@@ -245,6 +257,8 @@ export default async function DashboardPage({
               totalValueLabel={formatMoney(totalValue)}
               strategiesCount={strategiesCount ?? 0}
               lastRunAt={recentRuns[0]?.created_at ?? null}
+              totalDayChange={totalDayChange}
+              totalCash={totalCash}
               showOnboarding={forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
               forceOnboarding={forceOnboarding}
               initialOnboardingStep={onboardingStep}
