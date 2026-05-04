@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { EditHoldingForm, DeleteHoldingButton } from "./add-holding-form";
+import StockChart from "@/app/components/stock-chart";
 
 type ValuedHolding = {
   id: string;
@@ -270,6 +271,20 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                     ) : (
                       <div className="px-4 py-3 text-xs text-slate-600 bg-white/2">
                         Could not load market data for {holding.ticker}.
+                      </div>
+                    )}
+                    {/* Chart — mounts only when expanded, lazy-loads its own data */}
+                    {holding.asset_type !== "cash" && (
+                      <div className="border-t border-white/5 bg-white/1 px-4 py-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                          Price Chart
+                        </p>
+                        <StockChart
+                          key={holding.ticker}
+                          ticker={holding.ticker}
+                          height={140}
+                          showRangeControls
+                        />
                       </div>
                     )}
                   </td>

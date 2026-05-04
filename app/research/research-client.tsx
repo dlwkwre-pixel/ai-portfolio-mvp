@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Sparkline from "@/app/components/sparkline";
+import StockChart from "@/app/components/stock-chart";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -235,8 +237,42 @@ function AnalystBar({ rec }: { rec: ScreenerTicker["analystRec"] }) {
 function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string) => void }) {
   const isUp = (t.changePct ?? 0) >= 0;
   const hasQuote = t.price != null && t.price !== 0;
+
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const [sparkPoints, setSparkPoints] = useState<number[] | null>(null);
+  const [sparkLoading, setSparkLoading] = useState(true);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) { setSparkLoading(false); return; }
+    let cancelled = false;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        obs.disconnect();
+        fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            if (cancelled) return;
+            const pts = ((d?.candles ?? []) as { close: number }[])
+              .map((c) => Number(c.close))
+              .filter((v) => Number.isFinite(v) && v > 0);
+            setSparkPoints(pts.length >= 2 ? pts : null);
+            setSparkLoading(false);
+          })
+          .catch(() => { if (!cancelled) setSparkLoading(false); });
+      },
+      { rootMargin: "100px" }
+    );
+
+    obs.observe(el);
+    return () => { cancelled = true; obs.disconnect(); };
+  }, [t.ticker]);
+
   return (
     <button
+      ref={cardRef}
       className="research-card-item"
       onClick={() => onClick(t.ticker)}
       style={{
@@ -271,7 +307,7 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
         {t.name}
       </div>
       {hasQuote ? (
-        <div style={{ marginBottom: "9px" }}>
+        <div style={{ marginBottom: "7px" }}>
           <div className="num" style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
             {formatPrice(t.price)}
           </div>
@@ -282,8 +318,18 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
           </div>
         </div>
       ) : (
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "9px" }}>—</div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "7px" }}>—</div>
       )}
+
+      {/* 1D sparkline — lazy-loaded via IntersectionObserver */}
+      <div style={{ height: "32px", marginBottom: "8px" }}>
+        {sparkLoading ? (
+          <div className="bt-skeleton" style={{ height: "100%", borderRadius: "3px" }} />
+        ) : sparkPoints ? (
+          <Sparkline points={sparkPoints} positive={isUp} height={32} />
+        ) : null}
+      </div>
+
       <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "8px" }}>
         <AnalystBar rec={t.analystRec} />
       </div>
@@ -803,6 +849,11 @@ function DetailView({
       {/* Overview */}
       {tab === "overview" && (
         <div className="bt-tab-enter" style={{ padding: "16px 18px" }}>
+          {/* Chart */}
+          <div style={{ marginBottom: "18px" }}>
+            <StockChart key={result.ticker} ticker={result.ticker} height={180} defaultRange="1D" showRangeControls />
+          </div>
+
           {(result.recommendation || result.priceTarget) ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               {result.recommendation && (() => {
