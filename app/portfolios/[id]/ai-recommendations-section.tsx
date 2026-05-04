@@ -91,6 +91,64 @@ export default async function AIRecommendationsSection({
         </div>
       </div>
 
+      {latestRun?.summary && (
+        <div className="mt-4 rounded-xl border p-5" style={{ background: "rgba(124,58,237,0.03)", borderColor: "rgba(124,58,237,0.15)" }}>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="#a78bfa">
+                <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/>
+                <path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/>
+              </svg>
+              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#a78bfa" }}>
+                Latest Analysis
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-500">
+              {new Date(latestRun.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              {" · "}
+              {new Date(latestRun.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-300 overflow-y-auto" style={{ maxHeight: "260px", whiteSpace: "pre-wrap" }}>
+            {latestRun.summary}
+          </p>
+        </div>
+      )}
+
+      {runs && runs.length > 1 && (
+        <details className="mt-3 group">
+          <summary className="cursor-pointer list-none text-[11px] text-slate-500 hover:text-slate-400 transition-colors py-1 px-2 select-none">
+            Analysis history ({runs.length - 1} older run{runs.length - 1 !== 1 ? "s" : ""})
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            {runs.slice(1).map((run) => (
+              <div key={run.id} className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-500">
+                    {new Date(run.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    {" · "}
+                    {new Date(run.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{
+                    background: run.status === "completed" ? "rgba(0,211,149,0.08)" : "rgba(100,116,139,0.1)",
+                    color: run.status === "completed" ? "#00d395" : "#64748b",
+                  }}>
+                    {run.status ?? "unknown"}
+                  </span>
+                </div>
+                {run.summary ? (
+                  <p className="text-[12px] leading-relaxed text-slate-400 overflow-y-auto" style={{ maxHeight: "140px", whiteSpace: "pre-wrap" }}>
+                    {run.summary}
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-slate-600 italic">No summary saved for this run.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
       <div className="mt-4">
         <AddRecommendationForm portfolioId={portfolioId} />
       </div>

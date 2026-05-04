@@ -259,6 +259,8 @@ export default async function DashboardPage({
               lastRunAt={recentRuns[0]?.created_at ?? null}
               totalDayChange={totalDayChange}
               totalCash={totalCash}
+              latestAiSummary={recentRuns[0]?.summary ?? null}
+              latestAiRunPortfolioId={recentRuns[0]?.portfolio_id ?? null}
               showOnboarding={forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
               forceOnboarding={forceOnboarding}
               initialOnboardingStep={onboardingStep}

@@ -66,6 +66,8 @@ export default function DashboardClient({
   lastRunAt,
   totalDayChange,
   totalCash,
+  latestAiSummary,
+  latestAiRunPortfolioId,
   showOnboarding,
   forceOnboarding,
   initialOnboardingStep,
@@ -81,6 +83,8 @@ export default function DashboardClient({
   lastRunAt: string | null;
   totalDayChange: number;
   totalCash: number;
+  latestAiSummary: string | null;
+  latestAiRunPortfolioId: string | null;
   showOnboarding?: boolean;
   forceOnboarding?: boolean;
   initialOnboardingStep?: number;
@@ -340,6 +344,33 @@ export default function DashboardClient({
 
         {/* Right: Activity + quick links */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", height: "fit-content" }}>
+
+          {/* Latest AI Analysis */}
+          {latestAiSummary && latestAiRunPortfolioId && (
+            <div style={{ background: "rgba(124,58,237,0.03)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--violet)">
+                    <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/>
+                    <path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/>
+                  </svg>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--violet)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Latest AI Analysis</span>
+                </div>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>{timeAgo(lastRunAt)}</span>
+              </div>
+              <p style={{ fontSize: "12px", lineHeight: 1.65, color: "var(--text-secondary)", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {latestAiSummary}
+              </p>
+              <Link
+                href={`/portfolios/${latestAiRunPortfolioId}?tab=ai`}
+                style={{ display: "inline-flex", alignItems: "center", gap: "4px", marginTop: "10px", fontSize: "11px", color: "var(--violet)", textDecoration: "none", fontWeight: 500 }}
+              >
+                Read full analysis
+                <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd"/></svg>
+              </Link>
+            </div>
+          )}
+
           <div className="bt-card">
             <div style={{ marginBottom: "12px" }}>
               <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Recent Activity</h2>
