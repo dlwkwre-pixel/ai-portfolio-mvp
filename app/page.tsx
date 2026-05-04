@@ -72,11 +72,11 @@ export default function LandingPage() {
         .m-ni.on{background:rgba(37,99,235,0.1);color:#93c5fd}
         .m-ni:not(.on){color:#2d3748}
         .m-main{flex:1;padding:14px 16px;overflow:hidden;display:flex;flex-direction:column;gap:9px}
-        .m-chart{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;height:124px;flex-shrink:0}
-        .m-chart-l{font-size:8px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#334155;margin-bottom:3px}
-        .m-chart-v{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:#f0f4ff}
-        .m-chart-c{font-family:'DM Mono',monospace;font-size:10px;color:#00d395;margin-top:2px}
-        .m-chart-sub{font-size:8px;color:#2d3748;margin-top:1px}
+        .m-chart{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;height:148px;flex-shrink:0}
+        .m-chart-l{font-size:8px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#334155;margin-bottom:4px;position:relative;z-index:1}
+        .m-chart-v{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:#f0f4ff;position:relative;z-index:1}
+        .m-chart-c{font-family:'DM Mono',monospace;font-size:10px;color:#00d395;margin-top:3px;position:relative;z-index:1}
+        .m-chart-sub{font-size:8px;color:#2d3748;margin-top:3px;position:relative;z-index:1}
 
         /* AI rec cards */
         .m-recs{display:flex;flex-direction:column;gap:7px;flex:1}
