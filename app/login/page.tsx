@@ -45,7 +45,7 @@ export default function LoginPage() {
         @media (min-width: 1024px) { .left-panel { display: flex !important; } .mobile-logo { display: none !important; } }
 
         .lp-preview { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; margin-top: 28px; }
-        .lp-ret { padding: 14px 16px 0; position: relative; height: 110px; overflow: hidden; }
+        .lp-ret { padding: 14px 16px 0; position: relative; height: 136px; overflow: hidden; }
         .lp-ret-label { font-size: 8px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #334155; margin-bottom: 4px; position: relative; z-index: 1; }
         .lp-ret-val { font-family: 'DM Mono', monospace; font-size: 30px; font-weight: 500; color: #00d395; letter-spacing: -0.5px; position: relative; z-index: 1; line-height: 1; }
         .lp-ret-spy { font-family: 'DM Mono', monospace; font-size: 11px; color: #00d395; margin-top: 4px; position: relative; z-index: 1; }
