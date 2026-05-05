@@ -104,11 +104,16 @@ function trackEvent(ticker: string, eventType: TrackEventType) {
   }).catch(() => {});
 }
 
-// ─── Sparkline concurrency limiter ───────────────────────────────────────────
-// Twelve Data free tier: 8 req/min. Gate all sparkline fetches so at most
-// MAX_CONCURRENT are in-flight simultaneously.
+// ─── Sparkline fetch helpers ──────────────────────────────────────────────────
+// Card sparklines use /api/sparkline/[ticker] (Finnhub daily, 60 req/min).
+// Twelve Data is reserved for the full interactive chart in the detail view.
 
-const MAX_CONCURRENT = 3;
+// Client-side cache — survives navigation within the same session
+const _sparkCache = new Map<string, { pts: number[] | null; ts: number }>();
+const SPARK_CLIENT_TTL = 10 * 60 * 1000; // 10 min
+
+// Concurrency limiter — Finnhub free tier is 60/min, but still avoid pile-ups
+const MAX_CONCURRENT = 6;
 let _sparkActive = 0;
 const _sparkQueue: (() => void)[] = [];
 
@@ -273,28 +278,31 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
     const el = cardRef.current;
     if (!el) { setSparkLoading(false); return; }
     let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function doFetch(isRetry: boolean) {
+    // Check client-side cache first — avoids re-fetching on navigation
+    const cacheKey = t.ticker;
+    const clientHit = _sparkCache.get(cacheKey);
+    if (clientHit && Date.now() - clientHit.ts < SPARK_CLIENT_TTL) {
+      setSparkPoints(clientHit.pts);
+      setSparkLoading(false);
+      return;
+    }
+
+    function doFetch() {
       sparkAcquire().then(() => {
         if (cancelled) { sparkRelease(); return; }
-        fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
+        // Uses Finnhub daily (60 req/min) — not Twelve Data
+        fetch(`/api/sparkline/${encodeURIComponent(t.ticker)}`)
           .then((r) => r.ok ? r.json() : null)
           .then((d) => {
             sparkRelease();
             if (cancelled) return;
-            const pts = ((d?.candles ?? []) as { close: number }[])
-              .map((c) => Number(c.close))
+            const pts = ((d?.points ?? []) as number[])
               .filter((v) => Number.isFinite(v) && v > 0);
-            if (pts.length >= 2) {
-              setSparkPoints(pts);
-              setSparkLoading(false);
-            } else if (!isRetry) {
-              // One retry after 8s — gives rate-limit window time to reset
-              retryTimer = setTimeout(() => doFetch(true), 8000);
-            } else {
-              setSparkLoading(false);
-            }
+            const result = pts.length >= 2 ? pts : null;
+            _sparkCache.set(cacheKey, { pts: result, ts: Date.now() });
+            setSparkPoints(result);
+            setSparkLoading(false);
           })
           .catch(() => { sparkRelease(); if (!cancelled) setSparkLoading(false); });
       });
@@ -304,7 +312,7 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
       (entries) => {
         if (!entries[0].isIntersecting) return;
         obs.disconnect();
-        doFetch(false);
+        doFetch();
       },
       { rootMargin: "100px" }
     );
@@ -313,7 +321,6 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
     return () => {
       cancelled = true;
       obs.disconnect();
-      if (retryTimer) clearTimeout(retryTimer);
     };
   }, [t.ticker]);
 
