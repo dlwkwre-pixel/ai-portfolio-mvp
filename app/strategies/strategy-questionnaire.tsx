@@ -62,8 +62,10 @@ function renderMessageContent(content: string) {
 
 export default function StrategyQuestionnaire({
   onClose,
+  variant = "modal",
 }: {
   onClose: () => void;
+  variant?: "modal" | "inline";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -191,9 +193,11 @@ export default function StrategyQuestionnaire({
     });
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-[#040d1a] shadow-2xl">
+  const inner = (
+    <div className={variant === "inline"
+      ? "w-full max-h-[560px] flex flex-col rounded-2xl border border-white/10 bg-[#07090f]"
+      : "w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-[#040d1a] shadow-2xl"
+    }>
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/8 px-6 py-4">
@@ -514,7 +518,14 @@ export default function StrategyQuestionnaire({
             </p>
           </div>
         )}
-      </div>
+    </div>
+  );
+
+  if (variant === "inline") return inner;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      {inner}
     </div>
   );
 }

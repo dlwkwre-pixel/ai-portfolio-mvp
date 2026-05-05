@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { StrategyRow, StrategyVersion } from "./types";
 
 export async function createStrategy(formData: FormData) {
   const supabase = await createClient();
@@ -191,4 +192,43 @@ export async function updateStrategy(formData: FormData) {
 
   revalidatePath("/strategies");
   revalidatePath("/portfolios");
+}
+
+export async function duplicateStrategy(strategyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: sourceData, error: sourceErr } = await supabase
+    .from("strategies").select("*").eq("id", strategyId).eq("user_id", user.id).single();
+  if (sourceErr || !sourceData) throw new Error("Strategy not found.");
+  const source = sourceData as StrategyRow;
+
+  const { data: versionData } = await supabase
+    .from("strategy_versions").select("*")
+    .eq("strategy_id", strategyId).order("version_number", { ascending: false }).limit(1).single();
+  const version = versionData as StrategyVersion | null;
+
+  const { data: newStrategyData, error: newErr } = await supabase
+    .from("strategies")
+    .insert({ user_id: user.id, name: `${source.name} (copy)`, description: source.description, style: source.style, risk_level: source.risk_level, is_active: true })
+    .select().single();
+  if (newErr || !newStrategyData) throw new Error("Failed to duplicate strategy.");
+  const newStrategy = newStrategyData as { id: string };
+
+  await supabase.from("strategy_versions").insert({
+    strategy_id: newStrategy.id,
+    version_number: 1,
+    prompt_text: version?.prompt_text ?? null,
+    max_position_pct: version?.max_position_pct ?? null,
+    min_position_pct: version?.min_position_pct ?? null,
+    turnover_preference: version?.turnover_preference ?? null,
+    holding_period_bias: version?.holding_period_bias ?? null,
+    cash_min_pct: version?.cash_min_pct ?? null,
+    cash_max_pct: version?.cash_max_pct ?? null,
+    sector_constraints: null, diversification_rules: null, allow_fractional_shares: false,
+    buy_rules_json: null, sell_rules_json: null, risk_rules_json: null, exit_rules_json: null,
+  });
+
+  revalidatePath("/strategies");
 }
