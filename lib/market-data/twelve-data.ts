@@ -38,6 +38,7 @@ export async function getTwelveDataCandles(ticker: string, range: string): Promi
   url.searchParams.set("apikey",     apiKey);
   url.searchParams.set("format",     "JSON");
   url.searchParams.set("country",    "United States");
+  url.searchParams.set("timezone",   "UTC");
 
   try {
     const res = await fetch(url.toString(), {
@@ -54,10 +55,10 @@ export async function getTwelveDataCandles(ticker: string, range: string): Promi
       .slice()
       .reverse()
       .map((v): CandlePoint => {
-        // "2024-05-03 16:00:00" → ISO, or "2024-05-03" → UTC date
+        // timezone=UTC requested, so all datetimes are UTC — append Z
         const iso = v.datetime.length === 10
           ? v.datetime + "T00:00:00Z"
-          : v.datetime.replace(" ", "T");
+          : v.datetime.replace(" ", "T") + "Z";
         return {
           timestamp: new Date(iso).getTime(),
           open:   Number(v.open),

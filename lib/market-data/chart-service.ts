@@ -87,6 +87,22 @@ function clog(msg: string) {
   if (DEV) console.log(`[chart-service] ${msg}`);
 }
 
+// ── 1D session filter ─────────────────────────────────────────────────────────
+
+/**
+ * Strip candles from previous trading sessions.
+ * Finds the last gap >= 4 hours (overnight break) and returns only bars after it.
+ * Works regardless of timezone — gap-based, not date-based.
+ */
+function _filterToLastSession(candles: CandlePoint[]): CandlePoint[] {
+  for (let i = candles.length - 1; i > 0; i--) {
+    if (candles[i].timestamp - candles[i - 1].timestamp >= 4 * 60 * 60 * 1000) {
+      return candles.slice(i);
+    }
+  }
+  return candles;
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function getStockCandles(ticker: string, range: ChartRange): Promise<ChartResult> {
@@ -108,10 +124,14 @@ export async function getStockCandles(ticker: string, range: ChartRange): Promis
 
   const promise = _fetchFromProviders(sym, range)
     .then((result) => {
-      const ttl = result.candles.length >= 2 ? RANGE_TTL_MS[range] : EMPTY_TTL_MS;
-      _cache.set(key, { result, expiresAt: Date.now() + ttl });
-      clog(`cached     ${key} — ${result.candles.length} bars from ${result.provider ?? "none"} (ttl ${ttl / 1000}s)`);
-      return result;
+      const candles = range === "1D" && result.candles.length >= 2
+        ? _filterToLastSession(result.candles)
+        : result.candles;
+      const filtered = candles === result.candles ? result : { ...result, candles };
+      const ttl = filtered.candles.length >= 2 ? RANGE_TTL_MS[range] : EMPTY_TTL_MS;
+      _cache.set(key, { result: filtered, expiresAt: Date.now() + ttl });
+      clog(`cached     ${key} — ${filtered.candles.length} bars from ${filtered.provider ?? "none"} (ttl ${ttl / 1000}s)`);
+      return filtered;
     })
     .finally(() => _inflight.delete(key));
 
