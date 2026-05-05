@@ -149,29 +149,14 @@ const TEMPLATES: Template[] = [
 // ── FAQ ───────────────────────────────────────────────────────────────────────
 
 const FAQ = [
-  {
-    q: "What is a strategy in BuyTune?",
-    a: "A strategy is a set of rules that guides how the AI analyzes and manages your portfolio. It defines your risk tolerance, trading frequency, holding periods, and investing philosophy.",
-  },
-  {
-    q: "How does the AI use my strategy?",
-    a: "When you run AI analysis on a portfolio, the AI reads your strategy's instructions and parameters to tailor its recommendations. A conservative strategy produces very different advice than an aggressive one.",
-  },
-  {
-    q: "Can I have multiple strategies?",
-    a: "Yes. Create different strategies for different goals: one for a growth-focused brokerage account, another for a conservative retirement account. Each portfolio can reference a different strategy.",
-  },
-  {
-    q: "What's the difference between templates and the AI builder?",
-    a: "Templates are pre-built starting points you can customize immediately. The AI builder interviews you about your personal goals and constructs a strategy from scratch based on your answers.",
-  },
-  {
-    q: "What do the parameters mean?",
-    a: "Max single holding caps how much of your portfolio can be in one position. Trading frequency controls how often the AI suggests rebalancing. Time horizon reflects how long you plan to hold positions before reviewing.",
-  },
+  { q: "What is a strategy in BuyTune?", a: "A strategy is a set of rules that guides how the AI analyzes and manages your portfolio. It defines your risk tolerance, trading frequency, holding periods, and investing philosophy." },
+  { q: "How does the AI use my strategy?", a: "When you run AI analysis on a portfolio, the AI reads your strategy's instructions and parameters to tailor its recommendations. A conservative strategy produces very different advice than an aggressive one." },
+  { q: "Can I have multiple strategies?", a: "Yes. Create different strategies for different goals: one for a growth-focused brokerage account, another for a conservative retirement account. Each portfolio can reference a different strategy." },
+  { q: "What's the difference between templates and the AI builder?", a: "Templates are pre-built starting points you can customize immediately. The AI builder interviews you about your personal goals and constructs a strategy from scratch based on your answers." },
+  { q: "What do the parameters mean?", a: "Max single holding caps how much of your portfolio can be in one position. Trading frequency controls how often the AI suggests rebalancing. Time horizon reflects how long you plan to hold positions before reviewing." },
 ];
 
-// ── Manual form fields ────────────────────────────────────────────────────────
+// ── Manual form ───────────────────────────────────────────────────────────────
 
 const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Custom"];
 const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
@@ -182,8 +167,6 @@ const inp = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 tex
 const sel = "w-full rounded-xl border border-white/10 bg-[#07090f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const lbl = "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500";
 
-// ── Badge color ───────────────────────────────────────────────────────────────
-
 function badgeStyle(badge: string | null) {
   if (!badge) return null;
   if (badge === "Higher risk") return { color: "var(--red)", bg: "var(--red-bg)", border: "var(--red-border)" };
@@ -191,9 +174,28 @@ function badgeStyle(badge: string | null) {
   return { color: "var(--text-muted)", bg: "var(--card-bg)", border: "var(--card-border)" };
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Animation keyframes ───────────────────────────────────────────────────────
 
+const KEYFRAMES = `
+@keyframes flyCardIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.8) translateY(-20px); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1)   translateY(0); }
+}
+@keyframes flyCardDown {
+  0%   { opacity: 1; transform: translateX(-50%) scale(1)    translateY(0); }
+  20%  { opacity: 1; transform: translateX(-50%) scale(0.97) translateY(12px); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.78) translateY(62vh); }
+}
+@keyframes nudgeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+`;
+
+type FlyPhase = "entering" | "flying";
 type Section = "ai-builder" | "templates" | "manual" | null;
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function StrategiesHub() {
   const router = useRouter();
@@ -203,9 +205,23 @@ export default function StrategiesHub() {
   const [templateError, setTemplateError] = useState("");
   const [manualError, setManualError] = useState("");
   const [isManualPending, startManual] = useTransition();
+  const [flyCard, setFlyCard] = useState<{ name: string; phase: FlyPhase } | null>(null);
+  const [showNudge, setShowNudge] = useState(false);
 
   function toggleSection(s: Section) {
     setActiveSection(prev => prev === s ? null : s);
+  }
+
+  function triggerFlyAnimation(name: string) {
+    setFlyCard({ name, phase: "entering" });
+    setShowNudge(true);
+    setTimeout(() => setFlyCard(c => c ? { ...c, phase: "flying" } : null), 260);
+    setTimeout(() => {
+      router.refresh();
+      setFlyCard(null);
+      setActiveSection(null);
+    }, 1060);
+    setTimeout(() => setShowNudge(false), 5000);
   }
 
   async function handleUseTemplate(t: Template) {
@@ -225,17 +241,86 @@ export default function StrategiesHub() {
       fd.set("cash_max_pct", t.cash_max_pct?.toString() ?? "");
       fd.set("prompt_text", t.prompt_text);
       await createStrategy(fd);
-      router.refresh();
-      setActiveSection(null);
+      setCreatingTemplate(null);
+      triggerFlyAnimation(t.name);
     } catch (err) {
       setTemplateError(err instanceof Error ? err.message : "Failed to create strategy.");
-    } finally {
       setCreatingTemplate(null);
     }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <style>{KEYFRAMES}</style>
+
+      {/* ── Flying card overlay ──────────────────────────────────────── */}
+      {flyCard && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            top: "28%",
+            zIndex: 200,
+            pointerEvents: "none",
+            animation: flyCard.phase === "flying"
+              ? "flyCardDown 0.8s cubic-bezier(0.4,0,0.8,1) forwards"
+              : "flyCardIn 0.26s cubic-bezier(0.16,1,0.3,1) forwards",
+          }}
+        >
+          <div style={{ background: "var(--bg-elevated)", border: "1px solid rgba(37,99,235,0.45)", borderRadius: "12px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(37,99,235,0.1)", minWidth: "230px" }}>
+            <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(37,99,235,0.18)", border: "1px solid rgba(37,99,235,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(96,165,250,0.9)" }}>
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{flyCard.name}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>Added to your strategies</div>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--brand-blue)", marginLeft: "8px", flexShrink: 0 }}>
+              <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+      )}
+
+      {/* ── Portfolio nudge banner ───────────────────────────────────── */}
+      {showNudge && (
+        <div
+          style={{
+            background: "rgba(37,99,235,0.07)",
+            border: "1px solid rgba(37,99,235,0.2)",
+            borderRadius: "var(--radius-xl)",
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            animation: "nudgeIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(96,165,250,0.8)", flexShrink: 0 }}>
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+          </svg>
+          <p style={{ fontSize: "13px", color: "var(--text-secondary)", flex: 1 }}>
+            Strategy created. To use it, assign it to a portfolio.
+          </p>
+          <a
+            href="/portfolios"
+            style={{ fontSize: "12px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: "var(--radius-xl)", padding: "5px 12px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            Go to Portfolios
+          </a>
+          <button
+            type="button"
+            onClick={() => setShowNudge(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", flexShrink: 0 }}
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* ── Creation zone ─────────────────────────────────────────────── */}
       <section>
@@ -243,37 +328,18 @@ export default function StrategiesHub() {
           Create a strategy
         </p>
 
-        {/* 3-path grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1.2fr 0.8fr",
-            gap: "10px",
-          }}
-          className="strategies-hub-grid"
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 0.8fr", gap: "10px" }} className="strategies-hub-grid">
           {/* AI Builder */}
-          <button
-            type="button"
-            onClick={() => toggleSection("ai-builder")}
-            className="bt-card"
-            style={{
-              padding: "18px 20px",
-              textAlign: "left",
-              cursor: "pointer",
-              border: activeSection === "ai-builder" ? "1px solid rgba(37,99,235,0.4)" : undefined,
-              background: activeSection === "ai-builder" ? "rgba(37,99,235,0.06)" : undefined,
-              transition: "border-color 0.2s, background 0.2s",
-            }}
-          >
+          <button type="button" onClick={() => toggleSection("ai-builder")} className="bt-card"
+            style={{ padding: "16px 18px", textAlign: "left", cursor: "pointer", border: activeSection === "ai-builder" ? "1px solid rgba(37,99,235,0.4)" : undefined, background: activeSection === "ai-builder" ? "rgba(37,99,235,0.06)" : undefined, transition: "border-color 0.2s, background 0.2s" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-              <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(96,165,250,0.9)" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(96,165,250,0.9)" }}>
                   <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" />
                 </svg>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>AI Builder</span>
                   <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.25)", color: "rgba(96,165,250,0.9)", fontWeight: 600 }}>Recommended</span>
                 </div>
@@ -285,137 +351,84 @@ export default function StrategiesHub() {
           </button>
 
           {/* Templates */}
-          <button
-            type="button"
-            onClick={() => toggleSection("templates")}
-            className="bt-card"
-            style={{
-              padding: "18px 20px",
-              textAlign: "left",
-              cursor: "pointer",
-              border: activeSection === "templates" ? "1px solid rgba(124,58,237,0.4)" : undefined,
-              background: activeSection === "templates" ? "rgba(124,58,237,0.05)" : undefined,
-              transition: "border-color 0.2s, background 0.2s",
-            }}
-          >
-            <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px" }}>
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(167,139,250,0.9)" }}>
+          <button type="button" onClick={() => toggleSection("templates")} className="bt-card"
+            style={{ padding: "16px 18px", textAlign: "left", cursor: "pointer", border: activeSection === "templates" ? "1px solid rgba(124,58,237,0.4)" : undefined, background: activeSection === "templates" ? "rgba(124,58,237,0.05)" : undefined, transition: "border-color 0.2s, background 0.2s" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "9px" }}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: "rgba(167,139,250,0.9)" }}>
                 <path d="M3.505 2.365A41.369 41.369 0 019 2c1.863 0 3.697.124 5.495.365 1.247.167 2.18 1.108 2.435 2.268a4.45 4.45 0 00-.577-.069 43.141 43.141 0 00-4.706 0C9.229 4.696 7.5 6.727 7.5 8.998v2.24c0 1.413.67 2.735 1.76 3.562l-2.98 2.98A.75.75 0 015 17.25v-3.443c-.501-.048-1-.106-1.495-.172C2.033 13.438 1 12.162 1 10.72V5.28c0-1.441 1.033-2.717 2.505-2.914z" />
                 <path d="M14 6c-.762 0-1.52.02-2.271.062C10.157 6.148 9 7.472 9 8.998v2.24c0 1.519 1.147 2.839 2.71 2.935.214.013.428.024.642.034.2.009.385.09.518.224l2.35 2.35a.75.75 0 001.28-.531v-2.07c.091-.012.182-.024.273-.037C18.567 13.977 20 12.447 20 10.556V8.997c0-1.519-1.157-2.843-2.71-2.936A42.053 42.053 0 0014 6z" />
               </svg>
             </div>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Templates</div>
-            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              8 ready-to-use starting points.
-            </p>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "3px" }}>Templates</div>
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>8 ready-to-use starting points.</p>
           </button>
 
           {/* Manual */}
-          <button
-            type="button"
-            onClick={() => toggleSection("manual")}
-            className="bt-card"
-            style={{
-              padding: "18px 20px",
-              textAlign: "left",
-              cursor: "pointer",
-              border: activeSection === "manual" ? "1px solid rgba(255,255,255,0.15)" : undefined,
-              transition: "border-color 0.2s",
-            }}
-          >
-            <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "10px" }}>
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-tertiary)" }}>
+          <button type="button" onClick={() => toggleSection("manual")} className="bt-card"
+            style={{ padding: "16px 18px", textAlign: "left", cursor: "pointer", border: activeSection === "manual" ? "1px solid rgba(255,255,255,0.15)" : undefined, transition: "border-color 0.2s" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "9px" }}>
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-tertiary)" }}>
                 <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
               </svg>
             </div>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Manual</div>
-            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-              Set every parameter yourself.
-            </p>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "3px" }}>Manual</div>
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>Set every parameter yourself.</p>
           </button>
         </div>
 
-        {/* Expandable sections */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateRows: activeSection === "ai-builder" ? "1fr" : "0fr",
-            transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)",
-            marginTop: activeSection === "ai-builder" ? "10px" : "0",
-          }}
-        >
+        {/* AI Builder expand */}
+        <div style={{ display: "grid", gridTemplateRows: activeSection === "ai-builder" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "ai-builder" ? "10px" : "0" }}>
           <div style={{ overflow: "hidden" }}>
             {activeSection === "ai-builder" && (
               <StrategyQuestionnaire
                 variant="inline"
                 onClose={() => setActiveSection(null)}
+                onSaved={(name) => {
+                  setActiveSection(null);
+                  triggerFlyAnimation(name);
+                }}
               />
             )}
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateRows: activeSection === "templates" ? "1fr" : "0fr",
-            transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)",
-            marginTop: activeSection === "templates" ? "10px" : "0",
-          }}
-        >
+        {/* Templates expand */}
+        <div style={{ display: "grid", gridTemplateRows: activeSection === "templates" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "templates" ? "10px" : "0" }}>
           <div style={{ overflow: "hidden" }}>
-            <div className="bt-card" style={{ padding: "20px" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "14px" }}>
-                Choose a template
-              </p>
+            <div className="bt-card" style={{ padding: "18px" }}>
+              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "12px" }}>Choose a template</p>
               {templateError && (
-                <div style={{ marginBottom: "12px", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>
+                <div style={{ marginBottom: "10px", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>
                   {templateError}
                 </div>
               )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "8px" }} className="templates-grid">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "7px" }} className="templates-grid">
                 {TEMPLATES.map((t) => {
                   const bs = badgeStyle(t.badge);
                   const isCreating = creatingTemplate === t.id;
                   return (
-                    <div
-                      key={t.id}
-                      className="bt-card"
-                      style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "8px" }}
-                    >
+                    <div key={t.id} className="bt-card" style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: "8px" }}>
                       <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{t.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{t.name}</span>
                           {t.badge && bs && (
-                            <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600 }}>
-                              {t.badge}
-                            </span>
+                            <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0 }}>{t.badge}</span>
                           )}
                         </div>
-                        <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>{t.description}</p>
+                        <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.4 }}>{t.description}</p>
                       </div>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.style}</span>
-                        <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.risk_level}</span>
-                        <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.holding_period_bias}</span>
+                        <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.style}</span>
+                        <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.risk_level}</span>
+                        <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>{t.holding_period_bias}</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleUseTemplate(t)}
                         disabled={!!creatingTemplate}
-                        style={{
-                          marginTop: "auto",
-                          padding: "6px 12px",
-                          borderRadius: "var(--radius-xl)",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          color: "#fff",
-                          background: isCreating ? "rgba(37,99,235,0.5)" : "linear-gradient(135deg,#2563eb,#4f46e5)",
-                          border: "none",
-                          cursor: creatingTemplate ? "default" : "pointer",
-                          opacity: creatingTemplate && !isCreating ? 0.5 : 1,
-                        }}
+                        style={{ padding: "6px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: isCreating ? "rgba(37,99,235,0.5)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: creatingTemplate ? "default" : "pointer", opacity: creatingTemplate && !isCreating ? 0.5 : 1 }}
                       >
-                        {isCreating ? "Creating..." : "Use this template"}
+                        {isCreating ? "Creating..." : "Use template"}
                       </button>
                     </div>
                   );
@@ -425,29 +438,21 @@ export default function StrategiesHub() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateRows: activeSection === "manual" ? "1fr" : "0fr",
-            transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)",
-            marginTop: activeSection === "manual" ? "10px" : "0",
-          }}
-        >
+        {/* Manual expand */}
+        <div style={{ display: "grid", gridTemplateRows: activeSection === "manual" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "manual" ? "10px" : "0" }}>
           <div style={{ overflow: "hidden" }}>
-            <div className="bt-card" style={{ padding: "20px" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "16px" }}>
-                Create manually
-              </p>
+            <div className="bt-card" style={{ padding: "18px" }}>
+              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "14px" }}>Create manually</p>
               <form
-                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "12px" }}
+                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "11px" }}
                 className="manual-form-grid"
                 action={(fd) => {
                   setManualError("");
                   startManual(async () => {
                     try {
+                      const name = fd.get("name") as string;
                       await createStrategy(fd);
-                      router.refresh();
-                      setActiveSection(null);
+                      triggerFlyAnimation(name || "New Strategy");
                     } catch (err) {
                       setManualError(err instanceof Error ? err.message : "Something went wrong.");
                     }
@@ -496,35 +501,25 @@ export default function StrategiesHub() {
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className={lbl}>Description</label>
-                  <textarea name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[60px]`} />
+                  <textarea name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[56px]`} />
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className={lbl}>AI instructions</label>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", lineHeight: 1.5 }}>
-                    Sent to the AI when analyzing portfolios using this strategy. Be specific about priorities, sectors to avoid, or risk rules.
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "5px" }}>
+                    Sent to the AI when analyzing portfolios using this strategy.
                   </p>
-                  <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats and strong free cash flow..." className={`${inp} min-h-[80px]`} />
+                  <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats..." className={`${inp} min-h-[72px]`} />
                 </div>
-
                 {manualError && (
-                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>
-                    {manualError}
-                  </div>
+                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{manualError}</div>
                 )}
-
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: "8px" }}>
-                  <button
-                    type="submit"
-                    disabled={isManualPending}
-                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}
-                  >
+                  <button type="submit" disabled={isManualPending}
+                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}>
                     {isManualPending ? "Creating..." : "Create strategy"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveSection(null)}
-                    style={{ padding: "8px 14px", borderRadius: "var(--radius-xl)", fontSize: "13px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}
-                  >
+                  <button type="button" onClick={() => setActiveSection(null)}
+                    style={{ padding: "8px 14px", borderRadius: "var(--radius-xl)", fontSize: "13px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
                     Cancel
                   </button>
                 </div>
@@ -536,7 +531,7 @@ export default function StrategiesHub() {
 
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
       <section>
-        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>
+        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>
           How strategies work
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -545,45 +540,17 @@ export default function StrategiesHub() {
               <button
                 type="button"
                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  gap: "12px",
-                }}
+                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", gap: "12px" }}
               >
-                <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", textAlign: "left" }}>{item.q}</span>
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  style={{
-                    color: "var(--text-muted)",
-                    flexShrink: 0,
-                    transform: openFaq === i ? "rotate(180deg)" : "rotate(0)",
-                    transition: "transform 0.24s cubic-bezier(0.16,1,0.3,1)",
-                  }}
-                >
+                <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textAlign: "left" }}>{item.q}</span>
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"
+                  style={{ color: "var(--text-muted)", flexShrink: 0, transform: openFaq === i ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.24s cubic-bezier(0.16,1,0.3,1)" }}>
                   <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
                 </svg>
               </button>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateRows: openFaq === i ? "1fr" : "0fr",
-                  transition: "grid-template-rows 0.28s cubic-bezier(0.16,1,0.3,1)",
-                }}
-              >
+              <div style={{ display: "grid", gridTemplateRows: openFaq === i ? "1fr" : "0fr", transition: "grid-template-rows 0.26s cubic-bezier(0.16,1,0.3,1)" }}>
                 <div style={{ overflow: "hidden" }}>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, padding: "0 16px 14px" }}>
-                    {item.a}
-                  </p>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, padding: "0 14px 11px" }}>{item.a}</p>
                 </div>
               </div>
             </div>

@@ -42,6 +42,9 @@ export default async function StrategiesPage() {
     version_history: versionsByStrategyId.get(s.id) ?? [],
   }));
 
+  const newestIsNew = strategyCards.length > 0
+    && (Date.now() - new Date(strategyCards[0].created_at).getTime()) < 30_000;
+
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
       <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
@@ -81,8 +84,8 @@ export default async function StrategiesPage() {
                   My strategies
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {strategyCards.map((card) => (
-                    <StrategyCardItem key={card.id} card={card} />
+                  {strategyCards.map((card, i) => (
+                    <StrategyCardItem key={card.id} card={card} isNew={i === 0 && newestIsNew} />
                   ))}
                 </div>
               </section>

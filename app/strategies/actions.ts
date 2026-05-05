@@ -232,3 +232,16 @@ export async function duplicateStrategy(strategyId: string) {
 
   revalidatePath("/strategies");
 }
+
+export async function deleteStrategy(strategyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  await supabase.from("strategies")
+    .update({ is_active: false })
+    .eq("id", strategyId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/strategies");
+}

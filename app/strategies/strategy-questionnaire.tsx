@@ -62,9 +62,11 @@ function renderMessageContent(content: string) {
 
 export default function StrategyQuestionnaire({
   onClose,
+  onSaved,
   variant = "modal",
 }: {
   onClose: () => void;
+  onSaved?: (strategyName: string) => void;
   variant?: "modal" | "inline";
 }) {
   const router = useRouter();
@@ -183,8 +185,12 @@ export default function StrategyQuestionnaire({
         formData.set("description", editedStrategy.description);
         formData.set("prompt_text", editedStrategy.prompt_text);
         await createStrategy(formData);
-        router.refresh();
-        onClose();
+        if (onSaved && editedStrategy) {
+          onSaved(editedStrategy.name);
+        } else {
+          router.refresh();
+          onClose();
+        }
       } catch (error) {
         setSaveError(
           error instanceof Error ? error.message : "Failed to save strategy."
