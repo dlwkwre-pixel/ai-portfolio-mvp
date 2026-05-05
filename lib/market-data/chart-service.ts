@@ -1,6 +1,7 @@
 import type { FinnhubCandlesResponse } from "./finnhub";
 import { getTwelveDataCandles } from "./twelve-data";
 import { getAlphaVantageCandles } from "./alpha-vantage";
+import { getChartCacheDb, setChartCacheDb } from "./chart-cache-db";
 
 export type ChartRange = "1D" | "1W" | "1M" | "3M" | "1Y";
 
@@ -110,30 +111,47 @@ export async function getStockCandles(ticker: string, range: ChartRange): Promis
   if (!sym) return { candles: [], provider: null };
   const key = `${sym}:${range}`;
 
+  // 1. In-memory cache (fastest — same Vercel instance)
   const cached = _cache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
-    clog(`cache hit  ${key} (${cached.result.candles.length} bars, provider=${cached.result.provider})`);
+    clog(`mem-cache  ${key} (${cached.result.candles.length} bars)`);
     return cached.result;
   }
 
+  // 2. Dedup in-flight requests
   const existing = _inflight.get(key);
   if (existing) {
     clog(`dedup hit  ${key}`);
     return existing;
   }
 
-  const promise = _fetchFromProviders(sym, range)
-    .then((result) => {
-      const candles = range === "1D" && result.candles.length >= 2
-        ? _filterToLastSession(result.candles)
-        : result.candles;
-      const filtered = candles === result.candles ? result : { ...result, candles };
-      const ttl = filtered.candles.length >= 2 ? RANGE_TTL_MS[range] : EMPTY_TTL_MS;
-      _cache.set(key, { result: filtered, expiresAt: Date.now() + ttl });
-      clog(`cached     ${key} — ${filtered.candles.length} bars from ${filtered.provider ?? "none"} (ttl ${ttl / 1000}s)`);
-      return filtered;
-    })
-    .finally(() => _inflight.delete(key));
+  const promise = (async () => {
+    // 3. Supabase persistent cache (shared across all Vercel instances + users)
+    const dbHit = await getChartCacheDb(key);
+    if (dbHit && dbHit.candles.length >= 2) {
+      clog(`db-cache   ${key} (${dbHit.candles.length} bars from ${dbHit.provider})`);
+      _cache.set(key, { result: dbHit, expiresAt: Date.now() + RANGE_TTL_MS[range] });
+      return dbHit;
+    }
+
+    // 4. Fetch from providers
+    const result = await _fetchFromProviders(sym, range);
+    const candles = range === "1D" && result.candles.length >= 2
+      ? _filterToLastSession(result.candles)
+      : result.candles;
+    const filtered = candles === result.candles ? result : { ...result, candles };
+    const ttl = filtered.candles.length >= 2 ? RANGE_TTL_MS[range] : EMPTY_TTL_MS;
+
+    _cache.set(key, { result: filtered, expiresAt: Date.now() + ttl });
+    clog(`fetched    ${key} — ${filtered.candles.length} bars from ${filtered.provider ?? "none"} (ttl ${ttl / 1000}s)`);
+
+    // Store in Supabase — fire-and-forget, non-fatal
+    if (filtered.candles.length >= 2) {
+      setChartCacheDb(key, filtered, ttl).catch(() => {});
+    }
+
+    return filtered;
+  })().finally(() => _inflight.delete(key));
 
   _inflight.set(key, promise);
   return promise;

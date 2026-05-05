@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
+import { getStockCandles } from "@/lib/market-data/chart-service";
 
-// Lightweight sparkline endpoint — uses Finnhub daily candles (60 req/min free tier).
-// Reserved Twelve Data for the full interactive chart; this keeps card-level sparklines
-// completely off the Twelve Data quota.
-
-const _cache = new Map<string, { points: number[]; expiresAt: number }>();
-const TTL_MS = 10 * 60 * 1000; // 10 min
+// Sparkline endpoint — uses 1W (5 daily bars) for reliable cross-provider data.
+// Full provider chain: Twelve Data → Alpha Vantage → Finnhub.
+// Supabase persistent cache means popular tickers hit the provider at most once per TTL
+// across ALL users and Vercel instances, keeping Twelve Data well within free tier limits.
 
 export async function GET(
   _req: Request,
@@ -17,48 +16,16 @@ export async function GET(
     return NextResponse.json({ points: [] }, { status: 400 });
   }
 
-  const cached = _cache.get(sym);
-  if (cached && cached.expiresAt > Date.now()) {
-    return NextResponse.json(
-      { points: cached.points },
-      { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=1200" } }
-    );
-  }
+  const result = await getStockCandles(sym, "1W").catch(() => ({ candles: [], provider: null }));
+  const points = result.candles
+    .map((c) => c.close)
+    .filter((v) => Number.isFinite(v) && v > 0);
 
-  const fhKey = process.env.FINNHUB_API_KEY;
-  if (!fhKey) return NextResponse.json({ points: [] });
-
-  const now  = Math.floor(Date.now() / 1000);
-  const from = now - 8 * 86400; // 8-day window to ensure we get ~5 trading days
-
-  const url = new URL("https://finnhub.io/api/v1/stock/candle");
-  url.searchParams.set("symbol",     sym);
-  url.searchParams.set("resolution", "D");
-  url.searchParams.set("from",       String(from));
-  url.searchParams.set("to",         String(now));
-  url.searchParams.set("token",      fhKey);
-
-  try {
-    const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(6000),
-      cache: "no-store",
-    });
-
-    if (!res.ok) return NextResponse.json({ points: [] });
-
-    const data = await res.json() as { s?: string; c?: number[] };
-    if (data?.s !== "ok" || !Array.isArray(data.c) || data.c.length < 2) {
-      return NextResponse.json({ points: [] });
+  return NextResponse.json(
+    { points },
+    {
+      // CDN edge cache: serves same ticker from edge for 10 min
+      headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=1200" },
     }
-
-    const points = data.c.filter((v) => Number.isFinite(v) && v > 0);
-    _cache.set(sym, { points, expiresAt: Date.now() + TTL_MS });
-
-    return NextResponse.json(
-      { points },
-      { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=1200" } }
-    );
-  } catch {
-    return NextResponse.json({ points: [] });
-  }
+  );
 }
