@@ -273,32 +273,48 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
     const el = cardRef.current;
     if (!el) { setSparkLoading(false); return; }
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function doFetch(isRetry: boolean) {
+      sparkAcquire().then(() => {
+        if (cancelled) { sparkRelease(); return; }
+        fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            sparkRelease();
+            if (cancelled) return;
+            const pts = ((d?.candles ?? []) as { close: number }[])
+              .map((c) => Number(c.close))
+              .filter((v) => Number.isFinite(v) && v > 0);
+            if (pts.length >= 2) {
+              setSparkPoints(pts);
+              setSparkLoading(false);
+            } else if (!isRetry) {
+              // One retry after 8s — gives rate-limit window time to reset
+              retryTimer = setTimeout(() => doFetch(true), 8000);
+            } else {
+              setSparkLoading(false);
+            }
+          })
+          .catch(() => { sparkRelease(); if (!cancelled) setSparkLoading(false); });
+      });
+    }
 
     const obs = new IntersectionObserver(
       (entries) => {
         if (!entries[0].isIntersecting) return;
         obs.disconnect();
-        sparkAcquire().then(() => {
-          if (cancelled) { sparkRelease(); return; }
-          fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
-            .then((r) => r.ok ? r.json() : null)
-            .then((d) => {
-              sparkRelease();
-              if (cancelled) return;
-              const pts = ((d?.candles ?? []) as { close: number }[])
-                .map((c) => Number(c.close))
-                .filter((v) => Number.isFinite(v) && v > 0);
-              setSparkPoints(pts.length >= 2 ? pts : null);
-              setSparkLoading(false);
-            })
-            .catch(() => { sparkRelease(); if (!cancelled) setSparkLoading(false); });
-        });
+        doFetch(false);
       },
       { rootMargin: "100px" }
     );
 
     obs.observe(el);
-    return () => { cancelled = true; obs.disconnect(); };
+    return () => {
+      cancelled = true;
+      obs.disconnect();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [t.ticker]);
 
   return (
@@ -358,7 +374,11 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
           <div className="bt-skeleton" style={{ height: "100%", borderRadius: "3px" }} />
         ) : sparkPoints ? (
           <Sparkline points={sparkPoints} positive={isUp} height={32} />
-        ) : null}
+        ) : (
+          <svg width="100%" height="32" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="0" y1="16" x2="100" y2="16" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+          </svg>
+        )}
       </div>
 
       <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "8px" }}>
