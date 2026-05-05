@@ -7,6 +7,7 @@ export type StrategyRow = {
   risk_level: string | null;
   is_public?: boolean;
   is_active: boolean;
+  is_archived?: boolean;
   created_at: string;
   updated_at: string;
 };

@@ -245,3 +245,29 @@ export async function deleteStrategy(strategyId: string) {
 
   revalidatePath("/strategies");
 }
+
+export async function archiveStrategy(strategyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  await supabase.from("strategies")
+    .update({ is_archived: true })
+    .eq("id", strategyId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/strategies");
+}
+
+export async function unarchiveStrategy(strategyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  await supabase.from("strategies")
+    .update({ is_archived: false })
+    .eq("id", strategyId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/strategies");
+}

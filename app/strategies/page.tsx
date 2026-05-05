@@ -4,6 +4,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import StrategiesHub from "./strategies-hub";
 import StrategyCardItem from "./strategy-card";
+import ArchivedSection from "./archived-section";
 import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
 
 export default async function StrategiesPage() {
@@ -16,14 +17,19 @@ export default async function StrategiesPage() {
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
 
-  const strategies: StrategyRow[] = (strategiesData ?? []) as StrategyRow[];
-  const strategyIds = strategies.map((s) => s.id);
+  const allStrategies: StrategyRow[] = (strategiesData ?? []) as StrategyRow[];
+
+  // Split active vs archived client-side (avoids complex Supabase null/false OR query)
+  const activeStrategies = allStrategies.filter(s => !s.is_archived);
+  const archivedStrategies = allStrategies.filter(s => s.is_archived === true);
+
+  const allIds = allStrategies.map((s) => s.id);
   const versionsByStrategyId = new Map<string, StrategyVersion[]>();
   const latestVersionsByStrategyId = new Map<string, StrategyVersion>();
 
-  if (strategyIds.length > 0) {
+  if (allIds.length > 0) {
     const { data: versionsData, error: versionsError } = await supabase
-      .from("strategy_versions").select("*").in("strategy_id", strategyIds)
+      .from("strategy_versions").select("*").in("strategy_id", allIds)
       .order("version_number", { ascending: false });
     if (versionsError) throw new Error(versionsError.message);
     for (const version of (versionsData ?? []) as StrategyVersion[]) {
@@ -36,14 +42,19 @@ export default async function StrategiesPage() {
     }
   }
 
-  const strategyCards: StrategyCard[] = strategies.map((s) => ({
-    ...s,
-    latest_version: latestVersionsByStrategyId.get(s.id) ?? null,
-    version_history: versionsByStrategyId.get(s.id) ?? [],
-  }));
+  function toCard(s: StrategyRow): StrategyCard {
+    return {
+      ...s,
+      latest_version: latestVersionsByStrategyId.get(s.id) ?? null,
+      version_history: versionsByStrategyId.get(s.id) ?? [],
+    };
+  }
 
-  const newestIsNew = strategyCards.length > 0
-    && (Date.now() - new Date(strategyCards[0].created_at).getTime()) < 30_000;
+  const activeCards = activeStrategies.map(toCard);
+  const archivedCards = archivedStrategies.map(toCard);
+
+  const newestIsNew = activeCards.length > 0
+    && (Date.now() - new Date(activeCards[0].created_at).getTime()) < 30_000;
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
@@ -65,31 +76,33 @@ export default async function StrategiesPage() {
                 Reusable investing frameworks that guide AI analysis
               </p>
             </div>
-            {strategyCards.length > 0 && (
+            {activeCards.length > 0 && (
               <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "3px 10px", borderRadius: "var(--radius-full)" }}>
-                {strategyCards.length} active
+                {activeCards.length} active
               </span>
             )}
           </div>
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
-            {/* Hub — creation zone + FAQ */}
             <StrategiesHub />
 
-            {/* Existing strategy cards */}
-            {strategyCards.length > 0 && (
+            {/* Active strategy cards */}
+            {activeCards.length > 0 && (
               <section>
-                <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "10px" }}>
+                <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>
                   My strategies
                 </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {strategyCards.map((card, i) => (
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  {activeCards.map((card, i) => (
                     <StrategyCardItem key={card.id} card={card} isNew={i === 0 && newestIsNew} />
                   ))}
                 </div>
               </section>
             )}
+
+            {/* Archived strategies — collapsed toggle */}
+            <ArchivedSection cards={archivedCards} />
 
           </div>
         </div>

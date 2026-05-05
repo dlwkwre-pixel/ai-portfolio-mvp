@@ -534,23 +534,24 @@ export default function StrategiesHub() {
         <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>
           How strategies work
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+        {/* Single container — items separated by thin dividers, not individual cards */}
+        <div className="bt-card" style={{ overflow: "hidden", padding: "0" }}>
           {FAQ.map((item, i) => (
-            <div key={i} className="bt-card" style={{ overflow: "hidden" }}>
+            <div key={i} style={{ borderBottom: i < FAQ.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
               <button
                 type="button"
                 onClick={() => setOpenFaq(openFaq === i ? null : i)}
                 style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", gap: "12px" }}
               >
                 <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textAlign: "left" }}>{item.q}</span>
-                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"
-                  style={{ color: "var(--text-muted)", flexShrink: 0, transform: openFaq === i ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.24s cubic-bezier(0.16,1,0.3,1)" }}>
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"
+                  style={{ color: "var(--text-muted)", flexShrink: 0, transform: openFaq === i ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.22s cubic-bezier(0.16,1,0.3,1)" }}>
                   <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
                 </svg>
               </button>
-              <div style={{ display: "grid", gridTemplateRows: openFaq === i ? "1fr" : "0fr", transition: "grid-template-rows 0.26s cubic-bezier(0.16,1,0.3,1)" }}>
+              <div style={{ display: "grid", gridTemplateRows: openFaq === i ? "1fr" : "0fr", transition: "grid-template-rows 0.24s cubic-bezier(0.16,1,0.3,1)" }}>
                 <div style={{ overflow: "hidden" }}>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, padding: "0 14px 11px" }}>{item.a}</p>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, padding: "0 14px 10px" }}>{item.a}</p>
                 </div>
               </div>
             </div>
