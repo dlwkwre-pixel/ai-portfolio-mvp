@@ -104,6 +104,33 @@ function trackEvent(ticker: string, eventType: TrackEventType) {
   }).catch(() => {});
 }
 
+// ─── Sparkline concurrency limiter ───────────────────────────────────────────
+// Twelve Data free tier: 8 req/min. Gate all sparkline fetches so at most
+// MAX_CONCURRENT are in-flight simultaneously.
+
+const MAX_CONCURRENT = 3;
+let _sparkActive = 0;
+const _sparkQueue: (() => void)[] = [];
+
+function sparkAcquire(): Promise<void> {
+  return new Promise((resolve) => {
+    if (_sparkActive < MAX_CONCURRENT) {
+      _sparkActive++;
+      resolve();
+    } else {
+      _sparkQueue.push(() => { _sparkActive++; resolve(); });
+    }
+  });
+}
+
+function sparkRelease() {
+  _sparkActive--;
+  const next = _sparkQueue.shift();
+  if (next) next();
+}
+
+// ─── Filter / section config ──────────────────────────────────────────────────
+
 const FILTER_CHIPS: { id: FilterId; label: string }[] = [
   { id: "all",          label: "All" },
   { id: "trending",     label: "Trending" },
@@ -251,17 +278,21 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
       (entries) => {
         if (!entries[0].isIntersecting) return;
         obs.disconnect();
-        fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
-          .then((r) => r.ok ? r.json() : null)
-          .then((d) => {
-            if (cancelled) return;
-            const pts = ((d?.candles ?? []) as { close: number }[])
-              .map((c) => Number(c.close))
-              .filter((v) => Number.isFinite(v) && v > 0);
-            setSparkPoints(pts.length >= 2 ? pts : null);
-            setSparkLoading(false);
-          })
-          .catch(() => { if (!cancelled) setSparkLoading(false); });
+        sparkAcquire().then(() => {
+          if (cancelled) { sparkRelease(); return; }
+          fetch(`/api/stock-chart/${encodeURIComponent(t.ticker)}?range=1D`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((d) => {
+              sparkRelease();
+              if (cancelled) return;
+              const pts = ((d?.candles ?? []) as { close: number }[])
+                .map((c) => Number(c.close))
+                .filter((v) => Number.isFinite(v) && v > 0);
+              setSparkPoints(pts.length >= 2 ? pts : null);
+              setSparkLoading(false);
+            })
+            .catch(() => { sparkRelease(); if (!cancelled) setSparkLoading(false); });
+        });
       },
       { rootMargin: "100px" }
     );

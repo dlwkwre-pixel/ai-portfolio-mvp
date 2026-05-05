@@ -14,6 +14,19 @@ export type CandlePoint = {
   provider: string;
 };
 
+export type ChartResult = {
+  candles: CandlePoint[];
+  provider: string | null;
+  /** Only populated in development */
+  _debug?: {
+    providers_tried: string[];
+    failure_reasons: Record<string, string>;
+    symbol_normalized: string;
+  };
+};
+
+// ── TTLs ──────────────────────────────────────────────────────────────────────
+
 const RANGE_TTL_MS: Record<ChartRange, number> = {
   "1D":  3  * 60 * 1000,
   "1W":  20 * 60 * 1000,
@@ -22,15 +35,19 @@ const RANGE_TTL_MS: Record<ChartRange, number> = {
   "1Y":  12 * 60 * 60 * 1000,
 };
 
+// Short TTL when all providers returned empty — avoids caching rate-limit misses
+const EMPTY_TTL_MS = 30 * 1000;
+
+// ── Finnhub config ────────────────────────────────────────────────────────────
+
 const FINNHUB_RESOLUTION: Record<ChartRange, string> = {
-  "1D": "5",
+  "1D": "5",   // 5-min intraday (free tier: may return no_data)
   "1W": "60",
   "1M": "D",
   "3M": "D",
   "1Y": "W",
 };
 
-// Extra days buffer to handle weekends / market closures
 const RANGE_LOOKBACK_DAYS: Record<ChartRange, number> = {
   "1D":  2,
   "1W":  8,
@@ -39,25 +56,62 @@ const RANGE_LOOKBACK_DAYS: Record<ChartRange, number> = {
   "1Y":  368,
 };
 
-// Module-level caches — survive warm container reuse
-const _cache    = new Map<string, { data: CandlePoint[]; expiresAt: number }>();
-const _inflight = new Map<string, Promise<CandlePoint[]>>();
+// ── Caches ────────────────────────────────────────────────────────────────────
 
-export async function getStockCandles(ticker: string, range: ChartRange): Promise<CandlePoint[]> {
+const _cache    = new Map<string, { result: ChartResult; expiresAt: number }>();
+const _inflight = new Map<string, Promise<ChartResult>>();
+
+// ── Symbol normalization ──────────────────────────────────────────────────────
+
+/**
+ * Normalize a BuyTune canonical ticker for each provider's symbol convention.
+ *   BRK.B → BRK/B  (Twelve Data uses slash for NYSE composite class shares)
+ *   BRK.B → BRK.B  (Finnhub and Alpha Vantage accept dot notation)
+ */
+export function normalizeForProvider(
+  ticker: string,
+  provider: "twelve_data" | "alpha_vantage" | "finnhub"
+): string {
+  if (provider === "twelve_data") {
+    // NYSE class-share tickers use "/" in Twelve Data (BRK/B, BRK/A)
+    return ticker.replace(/\./g, "/");
+  }
+  // Alpha Vantage and Finnhub: keep as-is
+  return ticker;
+}
+
+// ── Dev logging ───────────────────────────────────────────────────────────────
+
+const DEV = process.env.NODE_ENV === "development";
+function clog(msg: string) {
+  if (DEV) console.log(`[chart-service] ${msg}`);
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export async function getStockCandles(ticker: string, range: ChartRange): Promise<ChartResult> {
   const sym = ticker.toUpperCase().trim();
-  if (!sym) return [];
+  if (!sym) return { candles: [], provider: null };
   const key = `${sym}:${range}`;
 
   const cached = _cache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  if (cached && cached.expiresAt > Date.now()) {
+    clog(`cache hit  ${key} (${cached.result.candles.length} bars, provider=${cached.result.provider})`);
+    return cached.result;
+  }
 
   const existing = _inflight.get(key);
-  if (existing) return existing;
+  if (existing) {
+    clog(`dedup hit  ${key}`);
+    return existing;
+  }
 
   const promise = _fetchFromProviders(sym, range)
-    .then((data) => {
-      _cache.set(key, { data, expiresAt: Date.now() + RANGE_TTL_MS[range] });
-      return data;
+    .then((result) => {
+      const ttl = result.candles.length >= 2 ? RANGE_TTL_MS[range] : EMPTY_TTL_MS;
+      _cache.set(key, { result, expiresAt: Date.now() + ttl });
+      clog(`cached     ${key} — ${result.candles.length} bars from ${result.provider ?? "none"} (ttl ${ttl / 1000}s)`);
+      return result;
     })
     .finally(() => _inflight.delete(key));
 
@@ -65,60 +119,149 @@ export async function getStockCandles(ticker: string, range: ChartRange): Promis
   return promise;
 }
 
-async function _fetchFromProviders(ticker: string, range: ChartRange): Promise<CandlePoint[]> {
-  // 1. Twelve Data
+// ── Provider chain ────────────────────────────────────────────────────────────
+
+async function _fetchFromProviders(ticker: string, range: ChartRange): Promise<ChartResult> {
+  const tried: string[]               = [];
+  const reasons: Record<string, string> = {};
+
+  // ── 1. Twelve Data ──────────────────────────────────────────────────────────
   if (process.env.ENABLE_TWELVE_DATA_CHARTS === "true" && process.env.TWELVE_DATA_API_KEY) {
+    tried.push("twelve_data");
     try {
-      const data = await getTwelveDataCandles(ticker, range);
-      if (data && data.length >= 2) return data;
-    } catch { /* fall through */ }
-  }
-
-  // 2. Alpha Vantage
-  if (process.env.ENABLE_ALPHA_VANTAGE_CHARTS === "true" && process.env.ALPHA_VANTAGE_API_KEY) {
-    try {
-      const data = await getAlphaVantageCandles(ticker, range);
-      if (data && data.length >= 2) return data;
-    } catch { /* fall through */ }
-  }
-
-  // 3. Finnhub candles fallback
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (apiKey) {
-    try {
-      const now  = Math.floor(Date.now() / 1000);
-      const from = now - RANGE_LOOKBACK_DAYS[range] * 86400;
-
-      const url = new URL("https://finnhub.io/api/v1/stock/candle");
-      url.searchParams.set("symbol",     ticker);
-      url.searchParams.set("resolution", FINNHUB_RESOLUTION[range]);
-      url.searchParams.set("from",       String(from));
-      url.searchParams.set("to",         String(now));
-      url.searchParams.set("token",      apiKey);
-
-      const res = await fetch(url.toString(), {
-        signal: AbortSignal.timeout(8000),
-        // bypass Next.js fetch cache — handled above
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const raw = await res.json() as Partial<FinnhubCandlesResponse>;
-      if (raw?.s === "ok" && Array.isArray(raw.c) && Array.isArray(raw.t) && raw.c.length >= 2) {
-        const cs = raw.c as number[];
-        const ts = raw.t as number[];
-        return ts.map((timestamp, i): CandlePoint => ({
-          timestamp: timestamp * 1000,
-          open:   (raw.o ?? cs)[i],
-          high:   (raw.h ?? cs)[i],
-          low:    (raw.l ?? cs)[i],
-          close:  cs[i],
-          volume: (raw.v ?? [])[i] ?? 0,
-          provider: "finnhub",
-        }));
+      const sym  = normalizeForProvider(ticker, "twelve_data");
+      clog(`trying twelve_data for ${sym} (${range})`);
+      const data = await getTwelveDataCandles(sym, range);
+      if (data && data.length >= 2) {
+        clog(`twelve_data OK — ${data.length} bars`);
+        return _ok(data, "twelve_data", tried, reasons, ticker);
       }
-    } catch { /* fall through */ }
+      const why = data === null ? "null response" : `only ${data?.length ?? 0} bars`;
+      reasons["twelve_data"] = why;
+      clog(`twelve_data failed: ${why}`);
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err);
+      reasons["twelve_data"] = why;
+      clog(`twelve_data threw: ${why}`);
+    }
   }
 
-  return [];
+  // ── 2. Alpha Vantage ────────────────────────────────────────────────────────
+  if (process.env.ENABLE_ALPHA_VANTAGE_CHARTS === "true" && process.env.ALPHA_VANTAGE_API_KEY) {
+    tried.push("alpha_vantage");
+    try {
+      const sym  = normalizeForProvider(ticker, "alpha_vantage");
+      clog(`trying alpha_vantage for ${sym} (${range})`);
+      const data = await getAlphaVantageCandles(sym, range);
+      if (data && data.length >= 2) {
+        clog(`alpha_vantage OK — ${data.length} bars`);
+        return _ok(data, "alpha_vantage", tried, reasons, ticker);
+      }
+      const why = data === null ? "null response" : `only ${data?.length ?? 0} bars`;
+      reasons["alpha_vantage"] = why;
+      clog(`alpha_vantage failed: ${why}`);
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err);
+      reasons["alpha_vantage"] = why;
+      clog(`alpha_vantage threw: ${why}`);
+    }
+  }
+
+  // ── 3. Finnhub candles fallback ─────────────────────────────────────────────
+  const fhKey = process.env.FINNHUB_API_KEY;
+  if (fhKey) {
+    tried.push("finnhub");
+    const sym = normalizeForProvider(ticker, "finnhub");
+    clog(`trying finnhub for ${sym} (${range})`);
+
+    // For 1D: try intraday first, then fall back to daily candles if free tier
+    // returns no_data (intraday is restricted on free plan for some accounts)
+    const data = await _finnhubCandles(sym, range, fhKey)
+      ?? (range === "1D" ? await _finnhubCandles(sym, "1D_daily_fallback" as ChartRange, fhKey) : null);
+
+    if (data && data.length >= 2) {
+      clog(`finnhub OK — ${data.length} bars`);
+      return _ok(data, "finnhub", tried, reasons, ticker);
+    }
+    const why = data === null ? "no_data / HTTP error" : `only ${data?.length ?? 0} bars`;
+    reasons["finnhub"] = why;
+    clog(`finnhub failed: ${why}`);
+  }
+
+  clog(`all providers failed for ${ticker} (${range}) — tried: ${tried.join(", ")}`);
+  return { candles: [], provider: null, ...(DEV ? { _debug: { providers_tried: tried, failure_reasons: reasons, symbol_normalized: ticker } } : {}) };
+}
+
+function _ok(
+  candles: CandlePoint[],
+  provider: string,
+  tried: string[],
+  reasons: Record<string, string>,
+  sym: string,
+): ChartResult {
+  return {
+    candles,
+    provider,
+    ...(DEV ? { _debug: { providers_tried: tried, failure_reasons: reasons, symbol_normalized: sym } } : {}),
+  };
+}
+
+// ── Finnhub fetch helper ──────────────────────────────────────────────────────
+
+async function _finnhubCandles(
+  ticker: string,
+  range: ChartRange | "1D_daily_fallback",
+  apiKey: string,
+): Promise<CandlePoint[] | null> {
+  const is1DFallback = range === "1D_daily_fallback";
+  const effectiveRange: ChartRange = is1DFallback ? "1D" : range;
+
+  const resolution = is1DFallback ? "D" : FINNHUB_RESOLUTION[effectiveRange];
+  const lookbackDays = is1DFallback ? 7 : RANGE_LOOKBACK_DAYS[effectiveRange];
+
+  const now  = Math.floor(Date.now() / 1000);
+  const from = now - lookbackDays * 86400;
+
+  const url = new URL("https://finnhub.io/api/v1/stock/candle");
+  url.searchParams.set("symbol",     ticker);
+  url.searchParams.set("resolution", resolution);
+  url.searchParams.set("from",       String(from));
+  url.searchParams.set("to",         String(now));
+  url.searchParams.set("token",      apiKey);
+
+  try {
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(8000),
+      cache: "no-store",
+    });
+
+    if (res.status === 429) { clog("finnhub rate-limited (429)"); return null; }
+    if (!res.ok) { clog(`finnhub HTTP ${res.status}`); return null; }
+
+    const raw = await res.json() as Partial<FinnhubCandlesResponse>;
+
+    if (raw?.s !== "ok") {
+      clog(`finnhub s=${raw?.s ?? "missing"} for ${ticker} res=${resolution}`);
+      return null;
+    }
+
+    if (!Array.isArray(raw.c) || !Array.isArray(raw.t) || raw.c.length < 2) return null;
+
+    const cs = raw.c as number[];
+    const ts = raw.t as number[];
+    const providerLabel = is1DFallback ? "finnhub_daily" : "finnhub";
+
+    return ts.map((timestamp, i): CandlePoint => ({
+      timestamp: timestamp * 1000,
+      open:   (raw.o ?? cs)[i],
+      high:   (raw.h ?? cs)[i],
+      low:    (raw.l ?? cs)[i],
+      close:  cs[i],
+      volume: (raw.v ?? [])[i] ?? 0,
+      provider: providerLabel,
+    }));
+  } catch (err) {
+    clog(`finnhub fetch threw: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
 }

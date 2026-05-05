@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStockCandles, type ChartRange } from "@/lib/market-data/chart-service";
 
-const DEV = process.env.NODE_ENV === "development";
-
 const VALID_RANGES = new Set<ChartRange>(["1D", "1W", "1M", "3M", "1Y"]);
-
-// s-maxage values in seconds per range
-const RANGE_TTL: Record<ChartRange, number> = {
-  "1D":  180,
-  "1W":  1200,
-  "1M":  2700,
-  "3M":  10800,
-  "1Y":  43200,
-};
 
 export async function GET(
   req: Request,
@@ -32,20 +21,21 @@ export async function GET(
   }
 
   const result = await getStockCandles(sym, range).catch(() => ({ candles: [], provider: null, _debug: undefined }));
-  const ttl = RANGE_TTL[range];
 
   return NextResponse.json(
     {
       ticker: sym,
       range,
-      candles: result.candles,
+      candle_count: result.candles.length,
       provider: result.provider,
-      ...(DEV ? { _debug: result._debug } : {}),
+      first_candle: result.candles[0] ?? null,
+      last_candle: result.candles[result.candles.length - 1] ?? null,
+      _debug: result._debug ?? {
+        note: "Set NODE_ENV=development to see full debug output",
+      },
     },
     {
-      headers: {
-        "Cache-Control": `s-maxage=${ttl}, stale-while-revalidate=${ttl * 2}`,
-      },
+      headers: { "Cache-Control": "no-store" },
     }
   );
 }

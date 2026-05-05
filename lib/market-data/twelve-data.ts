@@ -37,6 +37,7 @@ export async function getTwelveDataCandles(ticker: string, range: string): Promi
   url.searchParams.set("outputsize", String(cfg.outputsize));
   url.searchParams.set("apikey",     apiKey);
   url.searchParams.set("format",     "JSON");
+  url.searchParams.set("country",    "United States");
 
   try {
     const res = await fetch(url.toString(), {
