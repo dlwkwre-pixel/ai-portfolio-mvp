@@ -145,7 +145,7 @@ export default function StrategyQuestionnaire({
         ...prev,
         {
           role: "assistant",
-          content: `Sorry, the AI request failed: ${msg}. If this persists, check that GEMINI_API_KEY is set in Vercel environment variables.`,
+          content: `Sorry, something went wrong: ${msg}. Please try again in a moment.`,
         },
       ]);
     } finally {
@@ -519,7 +519,7 @@ export default function StrategyQuestionnaire({
               </button>
             </div>
             <p className="mt-2 text-[10px] text-slate-600">
-              Press Enter to send · Powered by Gemini
+              Press Enter to send · Powered by AI
             </p>
           </div>
         )}
