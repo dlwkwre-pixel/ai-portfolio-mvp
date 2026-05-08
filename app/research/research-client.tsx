@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
@@ -1278,6 +1279,14 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
 
   const topRef     = useRef<HTMLDivElement>(null);
   const inflightRef = useRef<string | null>(null);
+  const searchParams = useSearchParams();
+
+  // Auto-search when navigated here with ?ticker=AAPL (e.g. from community portfolio pages)
+  useEffect(() => {
+    const ticker = searchParams.get("ticker");
+    if (ticker) doSearch(ticker);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetch("/api/research/screener")

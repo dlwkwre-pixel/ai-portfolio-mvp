@@ -294,23 +294,19 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                         borderRadius: "3px",
                         background: ALLOC_COLORS[i % ALLOC_COLORS.length],
                       }} />
-                      <span style={{
-                        fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600,
-                        color: "var(--text-secondary)", minWidth: "46px", flexShrink: 0,
-                      }}>
+                      <Link
+                        href={`/research?ticker=${encodeURIComponent(h.ticker)}`}
+                        style={{
+                          fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600,
+                          color: "var(--text-secondary)", minWidth: "46px", flexShrink: 0,
+                          textDecoration: "none",
+                        }}
+                        title={`Research ${h.ticker}`}
+                      >
                         {h.ticker}
-                      </span>
-                      {h.company_name && (
-                        <span style={{
-                          fontSize: "12px", color: "var(--text-muted)",
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          flex: "1 1 0",
-                        }}>
-                          {h.company_name}
-                        </span>
-                      )}
+                      </Link>
                       <div style={{
-                        flex: "2 1 60px", height: "4px", borderRadius: "2px",
+                        flex: "1 1 60px", height: "4px", borderRadius: "2px",
                         background: "rgba(255,255,255,0.05)", overflow: "hidden",
                       }}>
                         <div style={{
@@ -347,9 +343,8 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                         }}>
                           Cash
                         </span>
-                        <span style={{ flex: "1 1 0", fontSize: "12px", color: "var(--text-muted)" }} />
                         <div style={{
-                          flex: "2 1 60px", height: "4px", borderRadius: "2px",
+                          flex: "1 1 60px", height: "4px", borderRadius: "2px",
                           background: "rgba(255,255,255,0.05)", overflow: "hidden",
                         }}>
                           <div style={{
