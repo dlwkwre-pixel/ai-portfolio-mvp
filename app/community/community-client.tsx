@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate } from "./social-actions";
+import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -446,6 +447,355 @@ function CommentBox({ onSubmit, onCancel }: { onSubmit: (text: string) => Promis
   );
 }
 
+// ─── Portfolio types ──────────────────────────────────────────────────────────
+
+type PortfolioHolding = {
+  ticker: string;
+  company_name: string | null;
+  allocation_pct: number;
+  is_cash: boolean;
+};
+
+type PortfolioRow = {
+  id: string;
+  public_name: string;
+  public_description: string | null;
+  risk_level: string | null;
+  style: string | null;
+  follower_count: number;
+  copy_count: number;
+  last_synced_at: string | null;
+  is_own: boolean;
+  is_following: boolean;
+  holdings: PortfolioHolding[];
+  author: {
+    user_id: string;
+    username: string;
+    display_name: string | null;
+    avatar_color: string;
+  };
+};
+
+// ─── Allocation bar ───────────────────────────────────────────────────────────
+
+const ALLOC_COLORS = ["#3b82f6", "#7c3aed", "#0891b2", "#065f46", "#92400e", "#4338ca"];
+const ALLOC_CASH_COLOR = "rgba(255,255,255,0.12)";
+const ALLOC_REST_COLOR = "rgba(255,255,255,0.06)";
+
+function AllocationBar({ holdings }: { holdings: PortfolioHolding[] }) {
+  const nonCash = holdings.filter((h) => !h.is_cash).slice(0, 5);
+  const cash = holdings.find((h) => h.is_cash);
+  const shown = [...nonCash, ...(cash ? [cash] : [])];
+  const shownSum = shown.reduce((s, h) => s + h.allocation_pct, 0);
+  const rest = Math.max(0, 100 - shownSum);
+
+  return (
+    <div style={{
+      display: "flex", height: "5px", borderRadius: "3px",
+      overflow: "hidden", gap: "1px", width: "100%",
+    }}>
+      {nonCash.map((h, i) => (
+        <div
+          key={h.ticker}
+          title={`${h.ticker} ${h.allocation_pct.toFixed(1)}%`}
+          style={{
+            height: "100%",
+            width: `${h.allocation_pct}%`,
+            background: ALLOC_COLORS[i % ALLOC_COLORS.length],
+            borderRadius: i === 0 ? "3px 0 0 3px" : "0",
+            flexShrink: 0,
+          }}
+        />
+      ))}
+      {cash && (
+        <div
+          key="cash"
+          title={`Cash ${cash.allocation_pct.toFixed(1)}%`}
+          style={{
+            height: "100%",
+            width: `${cash.allocation_pct}%`,
+            background: ALLOC_CASH_COLOR,
+            flexShrink: 0,
+          }}
+        />
+      )}
+      {rest > 0.5 && (
+        <div style={{
+          height: "100%",
+          flex: 1,
+          background: ALLOC_REST_COLOR,
+          borderRadius: "0 3px 3px 0",
+          minWidth: "2px",
+        }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Portfolio card ───────────────────────────────────────────────────────────
+
+function PortfolioCard({
+  p,
+  onFollow,
+  onCopy,
+}: {
+  p: PortfolioRow;
+  onFollow: (id: string) => void;
+  onCopy: (id: string) => void;
+}) {
+  const [copying, setCopying] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const rs = riskColor(p.risk_level);
+
+  const nonCashHoldings = p.holdings.filter((h) => !h.is_cash);
+  const cashHolding = p.holdings.find((h) => h.is_cash);
+  const topHoldings = nonCashHoldings.slice(0, 3);
+  const moreCount = nonCashHoldings.length - topHoldings.length;
+
+  const relativeTime = (() => {
+    if (!p.last_synced_at) return null;
+    const diff = Date.now() - new Date(p.last_synced_at).getTime();
+    const h = Math.floor(diff / 3600000);
+    const d = Math.floor(diff / 86400000);
+    if (h < 1) return "just now";
+    if (h < 24) return `${h}h ago`;
+    if (d < 30) return `${d}d ago`;
+    return new Date(p.last_synced_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  })();
+
+  return (
+    <div
+      style={{
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-border)",
+        borderRadius: "var(--radius-lg)",
+        padding: "16px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        transition: "border-color 150ms ease, background 150ms ease",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.1)";
+        (e.currentTarget as HTMLElement).style.background = "var(--card-hover)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)";
+        (e.currentTarget as HTMLElement).style.background = "var(--card-bg)";
+      }}
+    >
+      {/* Allocation bar */}
+      <AllocationBar holdings={p.holdings} />
+
+      {/* Name + badges + privacy chip */}
+      <div>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "7px" }}>
+          <h3 style={{
+            fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
+            color: "var(--text-primary)", lineHeight: 1.25, flex: 1,
+          }}>
+            {p.public_name}
+          </h3>
+          <span style={{
+            fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em",
+            textTransform: "uppercase", padding: "2px 6px",
+            borderRadius: "var(--radius-full)", flexShrink: 0,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "var(--text-muted)",
+          }}>
+            % only
+          </span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+          {p.risk_level && (
+            <span style={{
+              fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+              textTransform: "uppercase", padding: "2px 7px",
+              borderRadius: "var(--radius-full)",
+              background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
+            }}>
+              {p.risk_level}
+            </span>
+          )}
+          {p.style && (
+            <span style={{
+              fontSize: "9px", color: "var(--text-tertiary)",
+              background: "transparent", border: "1px solid var(--card-border)",
+              padding: "2px 7px", borderRadius: "var(--radius-full)",
+            }}>
+              {p.style}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Description */}
+      {p.public_description && (
+        <p style={{
+          fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55,
+          overflow: "hidden", display: "-webkit-box",
+          WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        }}>
+          {p.public_description}
+        </p>
+      )}
+
+      {/* Top holdings */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+        {topHoldings.map((h, i) => (
+          <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: ALLOC_COLORS[i % ALLOC_COLORS.length], flexShrink: 0 }} />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
+              color: "var(--text-secondary)", letterSpacing: "-0.2px", flexShrink: 0, width: "38px",
+            }}>
+              {h.ticker}
+            </span>
+            <div style={{
+              flex: 1, height: "3px", borderRadius: "2px",
+              background: "rgba(255,255,255,0.06)",
+              overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.min(h.allocation_pct, 100)}%`,
+                background: ALLOC_COLORS[i % ALLOC_COLORS.length],
+                borderRadius: "2px",
+              }} />
+            </div>
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
+              color: "var(--text-primary)", letterSpacing: "-0.2px", flexShrink: 0,
+              minWidth: "38px", textAlign: "right",
+            }}>
+              {h.allocation_pct.toFixed(1)}%
+            </span>
+          </div>
+        ))}
+        {(moreCount > 0 || cashHolding) && (
+          <div style={{ display: "flex", gap: "10px", marginTop: "1px" }}>
+            {moreCount > 0 && (
+              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                +{moreCount} more
+              </span>
+            )}
+            {cashHolding && (
+              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                Cash <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{cashHolding.allocation_pct.toFixed(1)}%</span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Author row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <Link href={`/${p.author.username}`} style={{ display: "flex", alignItems: "center", gap: "7px", textDecoration: "none", minWidth: 0 }}>
+          <Avatar username={p.author.username} color={p.author.avatar_color} size={22} />
+          <span style={{
+            fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {p.author.display_name || p.author.username}
+          </span>
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          {relativeTime && (
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{relativeTime}</span>
+          )}
+          <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{p.follower_count}</span>
+            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)" }}>
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer actions */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: "6px",
+        paddingTop: "10px", borderTop: "1px solid var(--border-subtle)",
+      }}>
+        <Link
+          href={`/community/portfolios/${p.id}`}
+          style={{
+            display: "flex", alignItems: "center", gap: "4px",
+            padding: "5px 10px", borderRadius: "var(--radius-md)",
+            fontSize: "11px", fontWeight: 500, textDecoration: "none",
+            background: "none", border: "1px solid var(--card-border)",
+            color: "var(--text-secondary)",
+            transition: "color 150ms ease, border-color 150ms ease",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+        >
+          Preview
+        </Link>
+
+        <div style={{ flex: 1 }} />
+
+        {!p.is_own && (
+          <button
+            type="button"
+            onClick={() => onFollow(p.id)}
+            style={{
+              padding: "5px 11px", borderRadius: "var(--radius-full)",
+              fontSize: "11px", fontWeight: 500,
+              background: p.is_following ? "transparent" : "rgba(37,99,235,0.1)",
+              border: `1px solid ${p.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
+              color: p.is_following ? "var(--text-tertiary)" : "#93c5fd",
+              cursor: "pointer", fontFamily: "var(--font-body)",
+              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+            }}
+            onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.95)"; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+            onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+          >
+            {p.is_following ? "Following" : "Follow"}
+          </button>
+        )}
+
+        {!p.is_own && (
+          <button
+            type="button"
+            onClick={async () => {
+              if (copying || copied) return;
+              setCopying(true);
+              try {
+                const result = await onCopy(p.id);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 3000);
+              } finally {
+                setCopying(false);
+              }
+            }}
+            style={{
+              display: "flex", alignItems: "center", gap: "4px",
+              padding: "5px 11px", borderRadius: "var(--radius-md)",
+              fontSize: "11px", fontWeight: 500,
+              background: copied ? "rgba(0,211,149,0.1)" : "rgba(37,99,235,0.08)",
+              border: `1px solid ${copied ? "rgba(0,211,149,0.25)" : "rgba(37,99,235,0.2)"}`,
+              color: copied ? "var(--green)" : "#93c5fd",
+              cursor: copying ? "not-allowed" : "pointer",
+              opacity: copying ? 0.6 : 1,
+              fontFamily: "var(--font-body)",
+              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease, opacity 150ms ease",
+            }}
+            onPointerDown={(e) => { if (!copying) e.currentTarget.style.transform = "scale(0.95)"; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+            onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+          >
+            {copied ? "Copied" : copying ? "..." : "Copy Allocation"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CommunityClient({
@@ -459,6 +809,10 @@ export default function CommunityClient({
   followingCount,
   initialSection,
   peopleRows,
+  portfolios: initialPortfolios,
+  initialPSort,
+  initialPRisk,
+  initialPQuery,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
@@ -470,15 +824,21 @@ export default function CommunityClient({
   followingCount: number;
   initialSection: string;
   peopleRows: PersonRow[];
+  portfolios: PortfolioRow[];
+  initialPSort: string;
+  initialPRisk: string;
+  initialPQuery: string;
 }) {
   const router = useRouter();
   const [strategies, setStrategies] = useState(initialStrategies);
+  const [portfolios, setPortfolios] = useState(initialPortfolios);
   const [feed, setFeed]             = useState(initialFeed);
   const [section, setSection]       = useState(initialSection);
   const [people, setPeople]         = useState<PersonRow[]>(peopleRows);
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [isPending, startTransition]    = useTransition();
   const [search, setSearch]             = useState(initialQuery);
+  const [pSearch, setPSearch]           = useState(initialPQuery);
 
   function updateUrl(params: Record<string, string>) {
     const sp = new URLSearchParams(window.location.search);
@@ -528,15 +888,42 @@ export default function CommunityClient({
     router.refresh();
   }
 
+  function handleFollowPortfolio(portfolioId: string) {
+    setPortfolios((prev) =>
+      prev.map((p) =>
+        p.id === portfolioId
+          ? { ...p, is_following: !p.is_following, follower_count: p.is_following ? p.follower_count - 1 : p.follower_count + 1 }
+          : p
+      )
+    );
+    startTransition(() => followPublicPortfolio(portfolioId));
+  }
+
+  async function handleCopyPortfolio(portfolioId: string) {
+    const result = await copyPublicAllocation(portfolioId);
+    router.push(`/portfolios/${result.id}`);
+    return result;
+  }
+
+  const searchPlaceholder =
+    section === "following" ? "Search following..." :
+    section === "portfolios" ? "Search portfolios..." :
+    "Search strategies...";
+
   return (
     <div style={{ maxWidth: "900px", display: "flex", flexDirection: "column" }}>
 
-      {/* Section nav — underline tabs */}
+      {/* ── Section nav ─────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "18px" }}>
         <SectionTab
           active={section === "strategies"}
           label="Strategies"
           onClick={() => { setSection("strategies"); updateUrl({ section: "strategies" }); }}
+        />
+        <SectionTab
+          active={section === "portfolios"}
+          label="Portfolios"
+          onClick={() => { setSection("portfolios"); updateUrl({ section: "portfolios" }); }}
         />
         <SectionTab
           active={section === "following"}
@@ -545,9 +932,8 @@ export default function CommunityClient({
         />
       </div>
 
-      {/* Filter row */}
+      {/* ── Filter row ──────────────────────────────────────────────────────── */}
       <div className="community-filter-row" style={{ marginBottom: "18px" }}>
-        {/* Search */}
         <div style={{ position: "relative", flex: "1 1 180px", minWidth: "150px" }}>
           <svg
             width="13" height="13" viewBox="0 0 20 20" fill="currentColor"
@@ -557,10 +943,14 @@ export default function CommunityClient({
           </svg>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && updateUrl({ q: search })}
-            placeholder={section === "following" ? "Search following..." : "Search strategies..."}
+            value={section === "portfolios" ? pSearch : search}
+            onChange={(e) => section === "portfolios" ? setPSearch(e.target.value) : setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (section === "portfolios") updateUrl({ pq: pSearch });
+              else updateUrl({ q: search });
+            }}
+            placeholder={searchPlaceholder}
             style={{
               width: "100%", padding: "7px 12px 7px 30px",
               background: "var(--card-bg)", border: "1px solid var(--card-border)",
@@ -569,35 +959,28 @@ export default function CommunityClient({
               transition: "border-color 150ms ease, box-shadow 150ms ease",
             }}
             onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
-            onBlur={(e)  => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
+            onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
           />
         </div>
 
         {section === "strategies" && (
           <>
-            {/* Feed */}
-            <FilterChip active={feed === "all"}       label="All"       onClick={() => { setFeed("all");       updateUrl({ feed: "all" }); }} />
-            <FilterChip active={feed === "following"}  label={`Following${followingCount > 0 ? ` (${followingCount})` : ""}`} onClick={() => { setFeed("following"); updateUrl({ feed: "following" }); }} />
-
-            {/* Sort */}
+            <FilterChip active={feed === "all"} label="All" onClick={() => { setFeed("all"); updateUrl({ feed: "all" }); }} />
+            <FilterChip active={feed === "following"} label={`Following${followingCount > 0 ? ` (${followingCount})` : ""}`} onClick={() => { setFeed("following"); updateUrl({ feed: "following" }); }} />
             <FilterChip active={initialSort === "popular"} label="Popular" onClick={() => updateUrl({ sort: "popular" })} />
-            <FilterChip active={initialSort === "newest"}  label="Newest"  onClick={() => updateUrl({ sort: "newest" })} />
-            <FilterChip active={initialSort === "copied"}  label="Copied"  onClick={() => updateUrl({ sort: "copied" })} />
-
-            {/* Risk */}
+            <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
+            <FilterChip active={initialSort === "copied"} label="Copied" onClick={() => updateUrl({ sort: "copied" })} />
             <select
               value={initialRisk}
               onChange={(e) => updateUrl({ risk: e.target.value })}
               style={{
-                padding: "5px 10px",
-                background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                padding: "5px 10px", background: "var(--card-bg)", border: "1px solid var(--card-border)",
                 borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
                 fontSize: "11px", fontFamily: "var(--font-body)", outline: "none",
-                cursor: "pointer", flexShrink: 0,
-                transition: "border-color 150ms ease",
+                cursor: "pointer", flexShrink: 0, transition: "border-color 150ms ease",
               }}
               onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
-              onBlur={(e)  => { e.target.style.borderColor = "var(--card-border)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
             >
               <option value="">All risk levels</option>
               <option value="low">Conservative</option>
@@ -606,17 +989,44 @@ export default function CommunityClient({
             </select>
           </>
         )}
+
+        {section === "portfolios" && (
+          <>
+            <FilterChip active={initialPSort === "popular"} label="Popular" onClick={() => updateUrl({ psort: "popular" })} />
+            <FilterChip active={initialPSort === "newest"} label="Newest" onClick={() => updateUrl({ psort: "newest" })} />
+            <FilterChip active={initialPSort === "copied"} label="Most Copied" onClick={() => updateUrl({ psort: "copied" })} />
+            <select
+              value={initialPRisk}
+              onChange={(e) => updateUrl({ prisk: e.target.value })}
+              style={{
+                padding: "5px 10px", background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
+                fontSize: "11px", fontFamily: "var(--font-body)", outline: "none",
+                cursor: "pointer", flexShrink: 0, transition: "border-color 150ms ease",
+              }}
+              onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
+            >
+              <option value="">All risk levels</option>
+              <option value="Conservative">Conservative</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Aggressive">Aggressive</option>
+            </select>
+          </>
+        )}
       </div>
 
-      {/* Count */}
+      {/* ── Count label ─────────────────────────────────────────────────────── */}
       <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>
         {section === "following"
           ? `${people.length} ${people.length === 1 ? "person" : "people"} following`
+          : section === "portfolios"
+          ? `${portfolios.length} public ${portfolios.length === 1 ? "portfolio" : "portfolios"}`
           : `${strategies.length} public ${strategies.length === 1 ? "strategy" : "strategies"}`}
       </p>
 
+      {/* ── Section content ──────────────────────────────────────────────────── */}
       {section === "following" ? (
-        /* ── Following ── */
         people.length > 0 ? (
           <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {people.map((person) => (
@@ -630,11 +1040,11 @@ export default function CommunityClient({
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.1)";
-                  (e.currentTarget as HTMLElement).style.background   = "var(--card-hover)";
+                  (e.currentTarget as HTMLElement).style.background = "var(--card-hover)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)";
-                  (e.currentTarget as HTMLElement).style.background   = "var(--card-bg)";
+                  (e.currentTarget as HTMLElement).style.background = "var(--card-bg)";
                 }}
               >
                 <Link href={`/${person.username}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
@@ -700,7 +1110,7 @@ export default function CommunityClient({
                       transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
                     }}
                     onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
-                    onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+                    onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
                     onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
                   >
                     {person.is_following ? "Following" : "Follow"}
@@ -720,8 +1130,48 @@ export default function CommunityClient({
             </p>
           </div>
         )
+
+      ) : section === "portfolios" ? (
+        portfolios.length > 0 ? (
+          <div className="community-grid bt-list-animate">
+            {portfolios.map((p) => (
+              <PortfolioCard
+                key={p.id}
+                p={p}
+                onFollow={handleFollowPortfolio}
+                onCopy={handleCopyPortfolio}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            padding: "56px 24px", textAlign: "center",
+            background: "var(--card-bg)", border: "1px solid var(--card-border)",
+            borderRadius: "var(--radius-lg)",
+          }}>
+            <div style={{
+              width: "40px", height: "40px", borderRadius: "10px",
+              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 14px",
+            }}>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
+                <path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" />
+              </svg>
+            </div>
+            <h3 style={{
+              fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600,
+              color: "var(--text-primary)", marginBottom: "6px",
+            }}>
+              No public portfolios yet
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "320px", margin: "0 auto" }}>
+              Community portfolios are public allocation ideas. Share yours from your Portfolio page.
+            </p>
+          </div>
+        )
+
       ) : (
-        /* ── Strategies ── */
         strategies.length > 0 ? (
           <div className="community-grid bt-list-animate">
             {strategies.map((s) => (

@@ -7,13 +7,13 @@ import CommunityClient from "./community-client";
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string; feed?: string; section?: string }>;
+  searchParams: Promise<{ style?: string; risk?: string; sort?: string; q?: string; feed?: string; section?: string; psort?: string; prisk?: string; pq?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { style, risk, sort = "popular", q, feed = "all", section = "strategies" } = await searchParams;
+  const { style, risk, sort = "popular", q, feed = "all", section = "strategies", psort = "popular", prisk = "", pq = "" } = await searchParams;
 
   // Fetch public strategies
   let query = supabase
@@ -55,6 +55,80 @@ export default async function CommunityPage({
   const { data: allPortfolios } = await supabase
     .from("portfolios").select("id, name, cash_balance, account_type")
     .eq("user_id", user.id).eq("is_active", true);
+
+  // ── Public portfolios ──────────────────────────────────────────────────────
+  let pubPortfolioQuery = supabase
+    .from("public_portfolios")
+    .select("id, public_name, public_description, risk_level, style, follower_count, copy_count, last_synced_at, owner_user_id, linked_strategy_id")
+    .eq("is_public", true);
+
+  if (prisk) pubPortfolioQuery = pubPortfolioQuery.eq("risk_level", prisk);
+  if (pq) pubPortfolioQuery = pubPortfolioQuery.ilike("public_name", `%${pq}%`);
+  if (psort === "popular") pubPortfolioQuery = pubPortfolioQuery.order("follower_count", { ascending: false });
+  else if (psort === "newest") pubPortfolioQuery = pubPortfolioQuery.order("last_synced_at", { ascending: false });
+  else if (psort === "copied") pubPortfolioQuery = pubPortfolioQuery.order("copy_count", { ascending: false });
+
+  const { data: pubPortfolios } = await pubPortfolioQuery.limit(50);
+
+  // Fetch holdings for each public portfolio
+  const pubPortfolioIds = (pubPortfolios ?? []).map((p) => p.id);
+  const { data: pubHoldings } = pubPortfolioIds.length > 0
+    ? await supabase
+        .from("public_portfolio_holdings")
+        .select("public_portfolio_id, ticker, company_name, allocation_pct, is_cash, display_order")
+        .in("public_portfolio_id", pubPortfolioIds)
+        .order("display_order", { ascending: true })
+    : { data: [] };
+
+  const holdingsMap = new Map<string, typeof pubHoldings>();
+  for (const h of (pubHoldings ?? [])) {
+    const arr = holdingsMap.get(h.public_portfolio_id) ?? [];
+    arr.push(h);
+    holdingsMap.set(h.public_portfolio_id, arr);
+  }
+
+  // Fetch profiles for public portfolio owners
+  const pubOwnerIds = [...new Set((pubPortfolios ?? []).map((p) => p.owner_user_id))];
+  const { data: pubOwnerProfiles } = pubOwnerIds.length > 0
+    ? await supabase.from("user_profiles").select("id, username, display_name, avatar_color").in("id", pubOwnerIds)
+    : { data: [] };
+  const pubOwnerMap = new Map((pubOwnerProfiles ?? []).map((p) => [p.id, p]));
+
+  // Current user's follows for public portfolios
+  const { data: myPortfolioFollows } = await supabase
+    .from("portfolio_followers")
+    .select("public_portfolio_id")
+    .eq("follower_user_id", user.id);
+  const followedPortfolioIds = new Set((myPortfolioFollows ?? []).map((f) => f.public_portfolio_id));
+
+  const portfolioRows = (pubPortfolios ?? []).map((p) => {
+    const holdings = (holdingsMap.get(p.id) ?? []).map((h) => ({
+      ticker: h.ticker,
+      company_name: h.company_name,
+      allocation_pct: Number(h.allocation_pct),
+      is_cash: h.is_cash,
+    }));
+    const owner = pubOwnerMap.get(p.owner_user_id);
+    return {
+      id: p.id,
+      public_name: p.public_name,
+      public_description: p.public_description,
+      risk_level: p.risk_level,
+      style: p.style,
+      follower_count: p.follower_count ?? 0,
+      copy_count: p.copy_count ?? 0,
+      last_synced_at: p.last_synced_at,
+      is_own: p.owner_user_id === user.id,
+      is_following: followedPortfolioIds.has(p.id),
+      holdings,
+      author: {
+        user_id: p.owner_user_id,
+        username: owner?.username ?? p.owner_user_id.slice(0, 8),
+        display_name: owner?.display_name ?? null,
+        avatar_color: owner?.avatar_color ?? "#2563eb",
+      },
+    };
+  });
 
   // Filter by following feed
   const filteredStrategies = feed === "following"
@@ -160,6 +234,10 @@ export default async function CommunityPage({
               followingCount={followingIds.size}
               initialSection={section}
               peopleRows={peopleRows}
+              portfolios={portfolioRows}
+              initialPSort={psort}
+              initialPRisk={prisk}
+              initialPQuery={pq}
             />
           </div>
         </div>

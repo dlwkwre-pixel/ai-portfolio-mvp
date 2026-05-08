@@ -18,6 +18,7 @@ import PortfolioChartSection from "./portfolio-chart-section";
 import EditPortfolioForm from "./edit-portfolio-form";
 import PortfolioHeader, { PortfolioStatCards } from "./portfolio-header";
 import { PortfolioPrivacyProvider } from "./portfolio-privacy-context";
+import PortfolioShareSection from "./portfolio-share-section";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -108,6 +109,14 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   const { data: allPortfolios } = await supabase
     .from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true);
+
+  const { data: publicPortfolioData } = await supabase
+    .from("public_portfolios")
+    .select("id, public_name, public_description, follower_count, copy_count, last_synced_at")
+    .eq("source_portfolio_id", portfolio.id)
+    .eq("owner_user_id", user.id)
+    .eq("is_public", true)
+    .maybeSingle();
 
   let latestAvailableVersionNumber: number | null = null;
   if (activeAssignment?.strategy_id) {
@@ -326,6 +335,19 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         ))}
                       </div>
                     </div>
+
+                    {/* Community sharing */}
+                    <PortfolioShareSection
+                      portfolioId={portfolio.id}
+                      publicPortfolio={publicPortfolioData ? {
+                        id: publicPortfolioData.id,
+                        public_name: publicPortfolioData.public_name,
+                        public_description: publicPortfolioData.public_description ?? null,
+                        follower_count: publicPortfolioData.follower_count ?? 0,
+                        copy_count: publicPortfolioData.copy_count ?? 0,
+                        last_synced_at: publicPortfolioData.last_synced_at ?? null,
+                      } : null}
+                    />
                   </div>
                 </div>
               )}

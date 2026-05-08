@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 
 // This route is called daily by Vercel Cron
@@ -13,6 +14,14 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
+
+  // Admin client bypasses RLS — needed for writing public portfolio performance
+  let adminSupabase: ReturnType<typeof createAdminClient> | null = null;
+  try {
+    adminSupabase = createAdminClient();
+  } catch {
+    console.warn("SUPABASE_SERVICE_ROLE_KEY not set — public portfolio performance updates will be skipped.");
+  }
 
   // Get all active portfolios across all users
   const { data: portfolios, error: portfoliosError } = await supabase
@@ -86,6 +95,31 @@ export async function GET(request: Request) {
         errorCount++;
       } else {
         successCount++;
+
+        // Update public portfolio performance if this portfolio is shared
+        if (adminSupabase) {
+          try {
+            const { data: pubPortfolio } = await adminSupabase
+              .from("public_portfolios")
+              .select("id, baseline_total_value")
+              .eq("source_portfolio_id", portfolio.id)
+              .eq("is_public", true)
+              .maybeSingle();
+
+            if (pubPortfolio) {
+              const baseline = Number(pubPortfolio.baseline_total_value ?? 0);
+              const returnPct = baseline > 0 ? ((totalValue - baseline) / baseline) * 100 : 0;
+              await adminSupabase
+                .from("public_portfolio_performance")
+                .upsert(
+                  { public_portfolio_id: pubPortfolio.id, snapshot_date: today, return_pct: returnPct },
+                  { onConflict: "public_portfolio_id,snapshot_date" }
+                );
+            }
+          } catch (perfErr) {
+            console.error(`Public perf update failed for portfolio ${portfolio.id}:`, perfErr);
+          }
+        }
       }
     } catch (err) {
       console.error(`Error processing portfolio ${portfolio.id}:`, err);
