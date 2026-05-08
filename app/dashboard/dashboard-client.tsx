@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { savePortfolioOrder } from "./portfolio-order-actions";
+import { useState } from "react";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
 
 type PortfolioRow = {
@@ -108,10 +106,9 @@ export default function DashboardClient({
     });
   }
 
-  const router = useRouter();
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
-  const [isSaving, startSave] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [onboardingOpen, setOnboardingOpen] = useState(() => {
     if (!(showOnboarding ?? false)) return false;
@@ -268,19 +265,22 @@ export default function DashboardClient({
             <div className="hidden sm:flex" style={{ gap: "6px" }}>
               <button
                 type="button"
-                onClick={() => reordering
-                  ? startSave(async () => {
-                      try {
-                        setSaveError("");
-                        await savePortfolioOrder(portfolioRows.map(p => p.id));
-                      } catch (e) {
-                        setSaveError(e instanceof Error ? e.message : "Failed to save order.");
-                      } finally {
-                        setReordering(false);
-                      }
+                onClick={() => {
+                  if (reordering) {
+                    setIsSaving(true);
+                    setSaveError("");
+                    fetch("/api/portfolio-order", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ portfolioIds: portfolioRows.map(p => p.id) }),
                     })
-                  : setReordering(true)
-                }
+                      .then(res => res.ok ? null : res.json().then(d => { throw new Error(d?.error || "Failed to save order."); }))
+                      .catch(e => setSaveError(e instanceof Error ? e.message : "Failed to save order."))
+                      .finally(() => { setIsSaving(false); setReordering(false); });
+                  } else {
+                    setReordering(true);
+                  }
+                }}
                 disabled={isSaving}
                 className="bt-btn bt-btn-ghost bt-btn-sm"
               >

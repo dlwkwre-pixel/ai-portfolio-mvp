@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 
 const SYSTEM_PROMPT = `You are a friendly financial advisor helping an investor build a personalized investing strategy.
 
@@ -38,57 +39,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
+      return NextResponse.json({ error: "AI API key not configured" }, { status: 500 });
     }
 
-    // Gemini requires contents[0].role === "user". The client includes the
-    // initial assistant greeting in the messages array, so we slice from the
-    // first user message to avoid a 400 error.
-    const allContents = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    }));
-    const firstUserIdx = allContents.findIndex((c) => c.role === "user");
-    const contents = firstUserIdx >= 0 ? allContents.slice(firstUserIdx) : allContents;
+    const client = new OpenAI({ apiKey, baseURL: "https://api.x.ai/v1", timeout: 60000 });
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }],
-          },
-          contents,
-          generationConfig: {
-            maxOutputTokens: 1000,
-            temperature: 0.7,
-          },
-        }),
-      }
-    );
+    const completion = await client.chat.completions.create({
+      model: "grok-4-fast",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages.map((m: { role: string; content: string }) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("Gemini API error:", response.status, err);
-      // Forward the status so the client can show a meaningful message
-      let detail = `Gemini ${response.status}`;
-      try {
-        const parsed = JSON.parse(err);
-        detail = parsed?.error?.message ?? detail;
-      } catch { /* raw text */ }
-      return NextResponse.json({ error: detail }, { status: 502 });
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
+    const text = completion.choices[0]?.message?.content ?? "";
     return NextResponse.json({ text });
   } catch (error) {
     console.error("Strategy chat error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
