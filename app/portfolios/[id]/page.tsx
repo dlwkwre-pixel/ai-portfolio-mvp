@@ -110,13 +110,14 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   const { data: allPortfolios } = await supabase
     .from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true);
 
-  const { data: publicPortfolioData } = await supabase
+  const { data: publicPortfolioData, error: pubPortfolioErr } = await supabase
     .from("public_portfolios")
     .select("id, public_name, public_description, follower_count, copy_count, last_synced_at")
     .eq("source_portfolio_id", portfolio.id)
     .eq("owner_user_id", user.id)
     .eq("is_public", true)
     .maybeSingle();
+  if (pubPortfolioErr) console.error("[portfolio page] public_portfolios query error:", pubPortfolioErr.message);
 
   let latestAvailableVersionNumber: number | null = null;
   if (activeAssignment?.strategy_id) {

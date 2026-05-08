@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,25 +21,30 @@ type PublicPortfolioState = {
 
 export default function PortfolioShareSection({
   portfolioId,
-  publicPortfolio: initialPublicPortfolio,
+  publicPortfolio: serverPublicPortfolio,
 }: {
   portfolioId: string;
   publicPortfolio: PublicPortfolioState;
 }) {
   const router = useRouter();
-  const [publicPortfolio, setPublicPortfolio] = useState(initialPublicPortfolio);
+  const [publicPortfolio, setPublicPortfolio] = useState(serverPublicPortfolio);
   const [expanded, setExpanded] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Sync state when server re-renders with updated data (e.g. after publish)
+  useEffect(() => {
+    setPublicPortfolio(serverPublicPortfolio);
+  }, [serverPublicPortfolio?.id, serverPublicPortfolio?.last_synced_at]);
 
   // Publish form state
   const [pubName, setPubName] = useState("");
   const [pubDesc, setPubDesc] = useState("");
 
   // Edit form state
-  const [editName, setEditName] = useState(initialPublicPortfolio?.public_name ?? "");
-  const [editDesc, setEditDesc] = useState(initialPublicPortfolio?.public_description ?? "");
+  const [editName, setEditName] = useState(serverPublicPortfolio?.public_name ?? "");
+  const [editDesc, setEditDesc] = useState(serverPublicPortfolio?.public_description ?? "");
 
   function handlePublish() {
     if (!pubName.trim()) { setError("Name is required."); return; }
