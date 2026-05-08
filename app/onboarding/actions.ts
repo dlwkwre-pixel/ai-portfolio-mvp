@@ -118,7 +118,9 @@ export async function saveOnboardingProgress(
   if (status === "skipped") updates.onboarding_skipped_at = new Date().toISOString();
 
   await supabase.from("user_profiles").update(updates).eq("id", user.id);
-  revalidatePath("/dashboard");
+  // No revalidatePath here — the modal's dismiss() calls router.refresh() when
+  // the user finishes. Revalidating /dashboard from a server action while the
+  // user is on that page triggers a server component re-render that can crash.
 }
 
 // ─── Portfolio ─────────────────────────────────────────────────────────────────
@@ -162,7 +164,6 @@ export async function createOnboardingPortfolio(data: {
 
   if (error || !portfolio) throw new Error(error?.message || "Failed to create portfolio");
 
-  revalidatePath("/dashboard");
   revalidatePath("/portfolios");
 
   return { id: portfolio.id };
