@@ -273,11 +273,11 @@ export default function DashboardClient({
                       try {
                         setSaveError("");
                         await savePortfolioOrder(portfolioRows.map(p => p.id));
-                        router.refresh();
-                      } catch {
-                        setSaveError("Failed to save order.");
+                      } catch (e) {
+                        setSaveError(e instanceof Error ? e.message : "Failed to save order.");
                       } finally {
                         setReordering(false);
+                        try { router.refresh(); } catch { /* non-fatal */ }
                       }
                     })
                   : setReordering(true)

@@ -112,9 +112,8 @@ export default function StrategyQuestionnaire({
         }),
       });
 
-      if (!response.ok) throw new Error("Request failed");
-
       const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Request failed");
       const text = data.text ?? "";
 
       if (text.includes("READY_TO_GENERATE")) {
@@ -140,13 +139,13 @@ export default function StrategyQuestionnaire({
           { role: "assistant", content: text },
         ]);
       }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Sorry, I hit a snag connecting to the AI. Check your internet and try again.",
+          content: `Sorry, the AI request failed: ${msg}. If this persists, check that GEMINI_API_KEY is set in Vercel environment variables.`,
         },
       ]);
     } finally {
