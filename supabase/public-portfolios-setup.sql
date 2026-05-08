@@ -120,32 +120,32 @@ ALTER TABLE notifications               ENABLE ROW LEVEL SECURITY;
 -- RLS Policies: public_portfolios
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Any authenticated user can read public portfolios
-CREATE POLICY IF NOT EXISTS "public_portfolios_select_public"
+DROP POLICY IF EXISTS "public_portfolios_select_public" ON public_portfolios;
+CREATE POLICY "public_portfolios_select_public"
   ON public_portfolios FOR SELECT
   TO authenticated
   USING (is_public = true);
 
--- Owner can always read their own (including unpublished)
-CREATE POLICY IF NOT EXISTS "public_portfolios_select_own"
+DROP POLICY IF EXISTS "public_portfolios_select_own" ON public_portfolios;
+CREATE POLICY "public_portfolios_select_own"
   ON public_portfolios FOR SELECT
   TO authenticated
   USING (owner_user_id = auth.uid());
 
--- Owner can insert
-CREATE POLICY IF NOT EXISTS "public_portfolios_insert_own"
+DROP POLICY IF EXISTS "public_portfolios_insert_own" ON public_portfolios;
+CREATE POLICY "public_portfolios_insert_own"
   ON public_portfolios FOR INSERT
   TO authenticated
   WITH CHECK (owner_user_id = auth.uid());
 
--- Owner can update
-CREATE POLICY IF NOT EXISTS "public_portfolios_update_own"
+DROP POLICY IF EXISTS "public_portfolios_update_own" ON public_portfolios;
+CREATE POLICY "public_portfolios_update_own"
   ON public_portfolios FOR UPDATE
   TO authenticated
   USING (owner_user_id = auth.uid());
 
--- Owner can delete
-CREATE POLICY IF NOT EXISTS "public_portfolios_delete_own"
+DROP POLICY IF EXISTS "public_portfolios_delete_own" ON public_portfolios;
+CREATE POLICY "public_portfolios_delete_own"
   ON public_portfolios FOR DELETE
   TO authenticated
   USING (owner_user_id = auth.uid());
@@ -154,8 +154,8 @@ CREATE POLICY IF NOT EXISTS "public_portfolios_delete_own"
 -- RLS Policies: public_portfolio_holdings
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Anyone can read holdings of public portfolios (percentages only — no private data)
-CREATE POLICY IF NOT EXISTS "pub_holdings_select_public"
+DROP POLICY IF EXISTS "pub_holdings_select_public" ON public_portfolio_holdings;
+CREATE POLICY "pub_holdings_select_public"
   ON public_portfolio_holdings FOR SELECT
   TO authenticated
   USING (
@@ -165,8 +165,8 @@ CREATE POLICY IF NOT EXISTS "pub_holdings_select_public"
     )
   );
 
--- Owner can read their own (even unpublished)
-CREATE POLICY IF NOT EXISTS "pub_holdings_select_own"
+DROP POLICY IF EXISTS "pub_holdings_select_own" ON public_portfolio_holdings;
+CREATE POLICY "pub_holdings_select_own"
   ON public_portfolio_holdings FOR SELECT
   TO authenticated
   USING (
@@ -176,8 +176,8 @@ CREATE POLICY IF NOT EXISTS "pub_holdings_select_own"
     )
   );
 
--- Owner can insert/update/delete
-CREATE POLICY IF NOT EXISTS "pub_holdings_insert_own"
+DROP POLICY IF EXISTS "pub_holdings_insert_own" ON public_portfolio_holdings;
+CREATE POLICY "pub_holdings_insert_own"
   ON public_portfolio_holdings FOR INSERT
   TO authenticated
   WITH CHECK (
@@ -187,7 +187,8 @@ CREATE POLICY IF NOT EXISTS "pub_holdings_insert_own"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "pub_holdings_update_own"
+DROP POLICY IF EXISTS "pub_holdings_update_own" ON public_portfolio_holdings;
+CREATE POLICY "pub_holdings_update_own"
   ON public_portfolio_holdings FOR UPDATE
   TO authenticated
   USING (
@@ -197,7 +198,8 @@ CREATE POLICY IF NOT EXISTS "pub_holdings_update_own"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "pub_holdings_delete_own"
+DROP POLICY IF EXISTS "pub_holdings_delete_own" ON public_portfolio_holdings;
+CREATE POLICY "pub_holdings_delete_own"
   ON public_portfolio_holdings FOR DELETE
   TO authenticated
   USING (
@@ -211,8 +213,8 @@ CREATE POLICY IF NOT EXISTS "pub_holdings_delete_own"
 -- RLS Policies: portfolio_followers
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Portfolio owner can see who follows them; followers can see their own rows
-CREATE POLICY IF NOT EXISTS "portfolio_followers_select"
+DROP POLICY IF EXISTS "portfolio_followers_select" ON portfolio_followers;
+CREATE POLICY "portfolio_followers_select"
   ON portfolio_followers FOR SELECT
   TO authenticated
   USING (
@@ -223,8 +225,8 @@ CREATE POLICY IF NOT EXISTS "portfolio_followers_select"
     )
   );
 
--- Any authenticated user can follow a public portfolio
-CREATE POLICY IF NOT EXISTS "portfolio_followers_insert"
+DROP POLICY IF EXISTS "portfolio_followers_insert" ON portfolio_followers;
+CREATE POLICY "portfolio_followers_insert"
   ON portfolio_followers FOR INSERT
   TO authenticated
   WITH CHECK (
@@ -235,8 +237,8 @@ CREATE POLICY IF NOT EXISTS "portfolio_followers_insert"
     )
   );
 
--- Followers can unfollow (delete their own row)
-CREATE POLICY IF NOT EXISTS "portfolio_followers_delete"
+DROP POLICY IF EXISTS "portfolio_followers_delete" ON portfolio_followers;
+CREATE POLICY "portfolio_followers_delete"
   ON portfolio_followers FOR DELETE
   TO authenticated
   USING (follower_user_id = auth.uid());
@@ -245,7 +247,8 @@ CREATE POLICY IF NOT EXISTS "portfolio_followers_delete"
 -- RLS Policies: portfolio_copies
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE POLICY IF NOT EXISTS "portfolio_copies_select"
+DROP POLICY IF EXISTS "portfolio_copies_select" ON portfolio_copies;
+CREATE POLICY "portfolio_copies_select"
   ON portfolio_copies FOR SELECT
   TO authenticated
   USING (
@@ -256,7 +259,8 @@ CREATE POLICY IF NOT EXISTS "portfolio_copies_select"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "portfolio_copies_insert"
+DROP POLICY IF EXISTS "portfolio_copies_insert" ON portfolio_copies;
+CREATE POLICY "portfolio_copies_insert"
   ON portfolio_copies FOR INSERT
   TO authenticated
   WITH CHECK (copied_by_user_id = auth.uid());
@@ -265,8 +269,8 @@ CREATE POLICY IF NOT EXISTS "portfolio_copies_insert"
 -- RLS Policies: public_portfolio_performance
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Anyone can read performance of public portfolios (% returns only, no dollar values)
-CREATE POLICY IF NOT EXISTS "pub_perf_select_public"
+DROP POLICY IF EXISTS "pub_perf_select_public" ON public_portfolio_performance;
+CREATE POLICY "pub_perf_select_public"
   ON public_portfolio_performance FOR SELECT
   TO authenticated
   USING (
@@ -276,8 +280,8 @@ CREATE POLICY IF NOT EXISTS "pub_perf_select_public"
     )
   );
 
--- Owner can read their own
-CREATE POLICY IF NOT EXISTS "pub_perf_select_own"
+DROP POLICY IF EXISTS "pub_perf_select_own" ON public_portfolio_performance;
+CREATE POLICY "pub_perf_select_own"
   ON public_portfolio_performance FOR SELECT
   TO authenticated
   USING (
@@ -287,8 +291,8 @@ CREATE POLICY IF NOT EXISTS "pub_perf_select_own"
     )
   );
 
--- Owner can insert/upsert performance entries
-CREATE POLICY IF NOT EXISTS "pub_perf_insert_own"
+DROP POLICY IF EXISTS "pub_perf_insert_own" ON public_portfolio_performance;
+CREATE POLICY "pub_perf_insert_own"
   ON public_portfolio_performance FOR INSERT
   TO authenticated
   WITH CHECK (
@@ -298,7 +302,8 @@ CREATE POLICY IF NOT EXISTS "pub_perf_insert_own"
     )
   );
 
-CREATE POLICY IF NOT EXISTS "pub_perf_update_own"
+DROP POLICY IF EXISTS "pub_perf_update_own" ON public_portfolio_performance;
+CREATE POLICY "pub_perf_update_own"
   ON public_portfolio_performance FOR UPDATE
   TO authenticated
   USING (
@@ -312,26 +317,26 @@ CREATE POLICY IF NOT EXISTS "pub_perf_update_own"
 -- RLS Policies: notifications
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Users can only read their own notifications
-CREATE POLICY IF NOT EXISTS "notifications_select_own"
+DROP POLICY IF EXISTS "notifications_select_own" ON notifications;
+CREATE POLICY "notifications_select_own"
   ON notifications FOR SELECT
   TO authenticated
   USING (user_id = auth.uid());
 
--- System inserts notifications (server actions insert for any user)
-CREATE POLICY IF NOT EXISTS "notifications_insert"
+DROP POLICY IF EXISTS "notifications_insert" ON notifications;
+CREATE POLICY "notifications_insert"
   ON notifications FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
--- Users can update (mark read) their own notifications
-CREATE POLICY IF NOT EXISTS "notifications_update_own"
+DROP POLICY IF EXISTS "notifications_update_own" ON notifications;
+CREATE POLICY "notifications_update_own"
   ON notifications FOR UPDATE
   TO authenticated
   USING (user_id = auth.uid());
 
--- Users can delete their own notifications
-CREATE POLICY IF NOT EXISTS "notifications_delete_own"
+DROP POLICY IF EXISTS "notifications_delete_own" ON notifications;
+CREATE POLICY "notifications_delete_own"
   ON notifications FOR DELETE
   TO authenticated
   USING (user_id = auth.uid());
