@@ -136,7 +136,7 @@ export async function publishPortfolio(formData: FormData) {
   // Verify ownership
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios")
-    .select("id, name, cash_balance, risk_level, status")
+    .select("id, name, cash_balance, status")
     .eq("id", portfolioId)
     .eq("user_id", user.id)
     .single();
@@ -180,7 +180,6 @@ export async function publishPortfolio(formData: FormData) {
       owner_user_id: user.id,
       public_name: publicName,
       public_description: publicDescription || null,
-      risk_level: portfolio.risk_level ?? null,
       linked_strategy_id: linkedStrategyId,
       is_public: true,
       follower_count: 0,
