@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 
 export async function savePortfolioOrder(portfolioIds: string[]) {
   const supabase = await createClient();
@@ -18,6 +17,6 @@ export async function savePortfolioOrder(portfolioIds: string[]) {
         .eq("user_id", user.id)
     )
   );
-
-  revalidatePath("/dashboard");
+  // No revalidatePath — the client already shows the correct order via optimistic
+  // state. The saved display_order will be applied on the next full page load.
 }

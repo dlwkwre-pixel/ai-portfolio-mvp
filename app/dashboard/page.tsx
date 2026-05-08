@@ -94,22 +94,28 @@ export default async function DashboardPage({
       .eq("portfolio_id", p.id);
 
     const pCash = Number(p.cash_balance ?? 0);
-    const val = await getPortfolioValuation({
-      holdings: (holdings ?? []).map((h) => ({
-        id: h.id, ticker: h.ticker, company_name: h.company_name,
-        asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
-      })),
-      cashBalance: pCash,
-    });
-
-    portfolioValues[p.id] = val.total_portfolio_value;
     portfolioCash[p.id] = pCash;
-    totalValue += val.total_portfolio_value;
     totalCash += pCash;
-    for (const h of val.valued_holdings) {
-      if (h.day_change !== null) {
-        totalDayChange += h.day_change * h.shares_number;
+
+    try {
+      const val = await getPortfolioValuation({
+        holdings: (holdings ?? []).map((h) => ({
+          id: h.id, ticker: h.ticker, company_name: h.company_name,
+          asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+        })),
+        cashBalance: pCash,
+      });
+      portfolioValues[p.id] = val.total_portfolio_value;
+      totalValue += val.total_portfolio_value;
+      for (const h of val.valued_holdings) {
+        if (h.day_change !== null) {
+          totalDayChange += h.day_change * h.shares_number;
+        }
       }
+    } catch {
+      // Finnhub unavailable — show cash-only value rather than crashing
+      portfolioValues[p.id] = pCash;
+      totalValue += pCash;
     }
   }
 
