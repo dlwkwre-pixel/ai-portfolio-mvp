@@ -152,7 +152,7 @@ const FAQ = [
   { q: "What is a strategy in BuyTune?", a: "A strategy is a set of rules that guides how the AI analyzes and manages your portfolio. It defines your risk tolerance, trading frequency, holding periods, and investing philosophy." },
   { q: "How does the AI use my strategy?", a: "When you run AI analysis on a portfolio, the AI reads your strategy's instructions and parameters to tailor its recommendations. A conservative strategy produces very different advice than an aggressive one." },
   { q: "Can I have multiple strategies?", a: "Yes. Create different strategies for different goals: one for a growth-focused brokerage account, another for a conservative retirement account. Each portfolio can reference a different strategy." },
-  { q: "What's the difference between templates and the AI builder?", a: "Templates are pre-built starting points you can customize immediately. The AI builder interviews you about your personal goals and constructs a strategy from scratch based on your answers." },
+  { q: "What's the difference between templates and Finn?", a: "Templates are pre-built starting points you can customize immediately. Finn interviews you about your personal goals and constructs a strategy from scratch based on your answers." },
   { q: "What do the parameters mean?", a: "Max single holding caps how much of your portfolio can be in one position. Trading frequency controls how often the AI suggests rebalancing. Time horizon reflects how long you plan to hold positions before reviewing." },
 ];
 
@@ -340,11 +340,11 @@ export default function StrategiesHub() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>AI Builder</span>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Finn</span>
                   <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.25)", color: "rgba(96,165,250,0.9)", fontWeight: 600 }}>Recommended</span>
                 </div>
                 <p style={{ fontSize: "12px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-                  Answer a few questions and I&apos;ll build a personalized strategy for you.
+                  Your AI strategy advisor. Answer a few questions and Finn builds a strategy tailored to your goals.
                 </p>
               </div>
             </div>

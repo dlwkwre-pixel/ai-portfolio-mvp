@@ -75,7 +75,7 @@ export default function StrategyQuestionnaire({
     {
       role: "assistant",
       content:
-        "Hi! I'm going to help you build a personalized investing strategy. I'll ask you a few questions and then generate a complete strategy tailored to your answers.\n\nLet's start: **What's your main investing goal?** Are you focused on growing your wealth aggressively, building steady income, protecting capital, or something in between?",
+        "Hi, I'm **Finn** — your AI strategy advisor. I'll ask you a few questions about your goals, then build a complete investing strategy tailored to your answers.\n\nLet's start: **What's your main investing goal?** Are you focused on growing your wealth aggressively, building steady income, protecting capital, or something in between?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -218,11 +218,11 @@ export default function StrategyQuestionnaire({
                 </svg>
               </div>
               <h2 className="text-base font-semibold text-white">
-                AI Strategy Builder
+                Finn
               </h2>
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              Answer a few questions and I'll build your strategy
+              Financial Intelligence, No Nonsense
             </p>
           </div>
           <button
