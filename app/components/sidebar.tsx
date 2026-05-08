@@ -346,40 +346,44 @@ export default function Sidebar({
         flexDirection: "column",
         gap: "4px",
       }}>
-        {/* User row — links to profile settings */}
-        <Link href="/settings/profile" style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "7px 10px",
-          borderRadius: "8px",
-          textDecoration: "none",
-          transition: "var(--transition-fast)",
-        }}>
-          {/* Avatar */}
-          <div style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "50%",
-            background: "var(--brand-gradient)",
+        {/* User row */}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <Link href="/settings/profile" style={{
+            flex: 1,
+            minWidth: 0,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            fontSize: "10px",
-            fontWeight: 600,
-            color: "#fff",
-            flexShrink: 0,
+            gap: "8px",
+            padding: "7px 10px",
+            borderRadius: "8px",
+            textDecoration: "none",
+            transition: "var(--transition-fast)",
           }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {username}
+            {/* Avatar */}
+            <div style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: "var(--brand-gradient)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+              fontWeight: 600,
+              color: "#fff",
+              flexShrink: 0,
+            }}>
+              {initials}
             </div>
-            <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Edit profile</div>
-          </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {username}
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Edit profile</div>
+            </div>
+          </Link>
           <ThemeToggle />
-        </Link>
+        </div>
 
         {/* Sign out */}
         <button
