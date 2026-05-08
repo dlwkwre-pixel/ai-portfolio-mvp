@@ -277,7 +277,6 @@ export default function DashboardClient({
                         setSaveError(e instanceof Error ? e.message : "Failed to save order.");
                       } finally {
                         setReordering(false);
-                        try { router.refresh(); } catch { /* non-fatal */ }
                       }
                     })
                   : setReordering(true)
