@@ -43,6 +43,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
     }
 
+    // Gemini requires contents[0].role === "user". The client includes the
+    // initial assistant greeting in the messages array, so we slice from the
+    // first user message to avoid a 400 error.
+    const allContents = messages.map((m: { role: string; content: string }) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const firstUserIdx = allContents.findIndex((c) => c.role === "user");
+    const contents = firstUserIdx >= 0 ? allContents.slice(firstUserIdx) : allContents;
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
@@ -52,10 +62,7 @@ export async function POST(req: NextRequest) {
           systemInstruction: {
             parts: [{ text: SYSTEM_PROMPT }],
           },
-          contents: messages.map((m: { role: string; content: string }) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
-          })),
+          contents,
           generationConfig: {
             maxOutputTokens: 1000,
             temperature: 0.7,

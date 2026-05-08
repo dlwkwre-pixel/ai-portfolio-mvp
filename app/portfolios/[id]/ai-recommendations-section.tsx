@@ -44,6 +44,13 @@ export default async function AIRecommendationsSection({
       )
     ).length ?? 0;
 
+  // Pre-calculate cooldown window for the UI
+  const COOLDOWN_MS = 4 * 60 * 60 * 1000;
+  const lastCompleted = runs?.find((r) => r.status === "completed") ?? null;
+  const cooldownEndsAt = lastCompleted
+    ? new Date(new Date(lastCompleted.created_at).getTime() + COOLDOWN_MS).toISOString()
+    : null;
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <div>
@@ -69,11 +76,21 @@ export default async function AIRecommendationsSection({
         </div>
       </div>
 
+      <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2">
+        <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" className="shrink-0 text-slate-600">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+        </svg>
+        <span className="text-[11px] text-slate-500">
+          Market data reflects the last trading session. Prices may be stale outside US trading hours (Mon–Fri, 9:30am–4pm ET). Grok searches for live data before analyzing.
+        </span>
+      </div>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <RunAiControls
           portfolioId={portfolioId}
           pendingRunCount={pendingRunCount}
           latestRunCreatedAt={latestRun?.created_at ?? null}
+          cooldownEndsAt={cooldownEndsAt}
         />
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">

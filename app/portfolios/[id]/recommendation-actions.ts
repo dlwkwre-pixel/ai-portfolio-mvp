@@ -414,6 +414,8 @@ async function insertRecommendationStatusHistory(args: {
   if (error) throw new Error(error.message);
 }
 
+const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
+
 export async function runPortfolioAiRecommendation(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -424,6 +426,49 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
   const context = await buildPortfolioAiContext(portfolioId, user.id);
   const activeAssignment = (context as any).strategy?.assignment ?? null;
+
+  // Rate limit: 4 hours per portfolio, with bypass for meaningful changes
+  const { data: lastCompletedRun } = await supabase
+    .from("recommendation_runs")
+    .select("id, created_at, strategy_id, strategy_version_id")
+    .eq("portfolio_id", portfolioId)
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastCompletedRun) {
+    const elapsed = Date.now() - new Date(lastCompletedRun.created_at).getTime();
+    if (elapsed < COOLDOWN_MS) {
+      const currentStrategyId = activeAssignment?.strategy_id ?? null;
+      const currentVersionId = activeAssignment?.strategy_version_id ?? null;
+      const strategyChanged =
+        lastCompletedRun.strategy_id !== currentStrategyId ||
+        lastCompletedRun.strategy_version_id !== currentVersionId;
+
+      const [{ count: newTx }, { count: newCash }] = await Promise.all([
+        supabase.from("portfolio_transactions")
+          .select("*", { count: "exact", head: true })
+          .eq("portfolio_id", portfolioId)
+          .gt("traded_at", lastCompletedRun.created_at),
+        supabase.from("cash_ledger")
+          .select("*", { count: "exact", head: true })
+          .eq("portfolio_id", portfolioId)
+          .gt("effective_at", lastCompletedRun.created_at),
+      ]);
+
+      const hasBypass = strategyChanged || (newTx ?? 0) > 0 || (newCash ?? 0) > 0;
+
+      if (!hasBypass) {
+        const nextRunAt = new Date(new Date(lastCompletedRun.created_at).getTime() + COOLDOWN_MS);
+        const mins = Math.ceil((nextRunAt.getTime() - Date.now()) / 60000);
+        const wait = mins >= 60 ? `${Math.ceil(mins / 60)}h` : `${mins}m`;
+        throw new Error(
+          `Rate limited — next full scan available in ${wait}. You can run again immediately if you change your strategy, make a trade, or add cash.`
+        );
+      }
+    }
+  }
 
   const { data: run, error: runError } = await supabase
     .from("recommendation_runs")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { runPortfolioAiRecommendation } from "./recommendation-actions";
 
@@ -8,6 +8,7 @@ type RunAiControlsProps = {
   portfolioId: string;
   pendingRunCount: number;
   latestRunCreatedAt: string | null;
+  cooldownEndsAt: string | null;
 };
 
 type HealthReport = {
@@ -24,16 +25,48 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
+function useCooldownTimer(cooldownEndsAt: string | null) {
+  const [remaining, setRemaining] = useState<number>(() => {
+    if (!cooldownEndsAt) return 0;
+    return Math.max(0, new Date(cooldownEndsAt).getTime() - Date.now());
+  });
+
+  useEffect(() => {
+    if (!cooldownEndsAt) return;
+    const tick = () => setRemaining(Math.max(0, new Date(cooldownEndsAt).getTime() - Date.now()));
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [cooldownEndsAt]);
+
+  return remaining;
+}
+
+function formatCountdown(ms: number) {
+  if (ms <= 0) return null;
+  const totalMins = Math.ceil(ms / 60000);
+  if (totalMins >= 60) {
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+  return `${totalMins}m`;
+}
+
 export default function RunAiControls({
   portfolioId,
   pendingRunCount,
   latestRunCreatedAt,
+  cooldownEndsAt,
 }: RunAiControlsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
+  const cooldownRemaining = useCooldownTimer(cooldownEndsAt);
+  const isInCooldown = cooldownRemaining > 0;
+  const countdown = formatCountdown(cooldownRemaining);
 
   const hasPendingRun = pendingRunCount > 0;
   const isDisabled = isPending || hasPendingRun;
@@ -118,6 +151,14 @@ export default function RunAiControls({
           {hasPendingRun && !isPending && (
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-300">
               A run is already in progress. Wait for it to finish before starting another.
+            </div>
+          )}
+
+          {isInCooldown && !hasPendingRun && !isPending && !errorMessage && !successMessage && (
+            <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 px-3 py-2.5">
+              <p className="text-xs text-slate-400">
+                Next full scan in <span className="font-semibold text-slate-300">{countdown}</span>. You can still run if you change your strategy, make a trade, or add cash.
+              </p>
             </div>
           )}
 

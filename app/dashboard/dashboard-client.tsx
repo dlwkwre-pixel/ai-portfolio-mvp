@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { savePortfolioOrder } from "./portfolio-order-actions";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
 
@@ -107,9 +108,11 @@ export default function DashboardClient({
     });
   }
 
+  const router = useRouter();
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
   const [isSaving, startSave] = useTransition();
+  const [saveError, setSaveError] = useState("");
   const [onboardingOpen, setOnboardingOpen] = useState(() => {
     if (!(showOnboarding ?? false)) return false;
     if (forceOnboarding) { try { localStorage.removeItem("bt-onboarding-done"); } catch {} return true; }
@@ -266,7 +269,17 @@ export default function DashboardClient({
               <button
                 type="button"
                 onClick={() => reordering
-                  ? startSave(async () => { await savePortfolioOrder(portfolioRows.map(p => p.id)); setReordering(false); })
+                  ? startSave(async () => {
+                      try {
+                        setSaveError("");
+                        await savePortfolioOrder(portfolioRows.map(p => p.id));
+                        router.refresh();
+                      } catch {
+                        setSaveError("Failed to save order.");
+                      } finally {
+                        setReordering(false);
+                      }
+                    })
                   : setReordering(true)
                 }
                 disabled={isSaving}
@@ -277,6 +290,9 @@ export default function DashboardClient({
               <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">Manage</Link>
             </div>
           </div>
+          {saveError && (
+            <p style={{ fontSize: "11px", color: "var(--red)", marginBottom: "8px" }}>{saveError}</p>
+          )}
 
           <div className="bt-list-animate" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {portfolioRows.map((p, idx) => (

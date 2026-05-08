@@ -1338,6 +1338,16 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
   return (
     <div ref={topRef} style={{ maxWidth: "900px" }}>
 
+      {/* Market hours notice */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", padding: "7px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+        </svg>
+        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+          Market data updates during US trading hours (Mon–Fri, 9:30am–4pm ET). Prices and analyst data may be delayed outside these hours.
+        </span>
+      </div>
+
       {/* Search bar */}
       <form onSubmit={handleSubmit} style={{ marginBottom: "12px" }}>
         <div style={{ position: "relative" }}>
