@@ -8,6 +8,9 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(portfolioIds)) {
       return NextResponse.json({ error: "Invalid portfolioIds" }, { status: 400 });
     }
+    if (portfolioIds.length > 50) {
+      return NextResponse.json({ error: "Too many portfolios" }, { status: 400 });
+    }
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();

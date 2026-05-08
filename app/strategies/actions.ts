@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateLength } from "@/lib/validation";
 import type { StrategyRow, StrategyVersion } from "./types";
 
 export async function createStrategy(formData: FormData) {
@@ -31,9 +32,10 @@ export async function createStrategy(formData: FormData) {
   const cashMinPctRaw = String(formData.get("cash_min_pct") || "").trim();
   const cashMaxPctRaw = String(formData.get("cash_max_pct") || "").trim();
 
-  if (!name) {
-    throw new Error("Strategy name is required.");
-  }
+  if (!name) throw new Error("Strategy name is required.");
+  validateLength(name, 100, "Strategy name");
+  validateLength(description, 2000, "Description");
+  validateLength(promptText, 5000, "AI prompt");
 
   const maxPositionPct = maxPositionPctRaw ? Number(maxPositionPctRaw) : null;
   const minPositionPct = minPositionPctRaw ? Number(minPositionPctRaw) : null;
@@ -112,13 +114,11 @@ export async function updateStrategy(formData: FormData) {
   const cashMinPctRaw = String(formData.get("cash_min_pct") || "").trim();
   const cashMaxPctRaw = String(formData.get("cash_max_pct") || "").trim();
 
-  if (!strategyId) {
-    throw new Error("Strategy ID is required.");
-  }
-
-  if (!name) {
-    throw new Error("Strategy name is required.");
-  }
+  if (!strategyId) throw new Error("Strategy ID is required.");
+  if (!name) throw new Error("Strategy name is required.");
+  validateLength(name, 100, "Strategy name");
+  validateLength(description, 2000, "Description");
+  validateLength(promptText, 5000, "AI prompt");
 
   const { data: strategy, error: strategyError } = await supabase
     .from("strategies")

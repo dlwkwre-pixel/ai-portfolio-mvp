@@ -34,7 +34,7 @@ export async function GET(
     );
   }
 
-  const companyName = req.nextUrl.searchParams.get("company") ?? t;
+  const companyName = (req.nextUrl.searchParams.get("company") ?? t).slice(0, 120);
   const timeWindow = (req.nextUrl.searchParams.get("window") ?? "week") as "week" | "month";
   const force = req.nextUrl.searchParams.get("force") === "1";
 

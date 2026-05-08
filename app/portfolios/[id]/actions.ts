@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateTicker, validateLength, validateEnum, validateDate } from "@/lib/validation";
+
+const ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "other"] as const;
+const CASH_REASONS = ["deposit", "withdrawal", "dividend", "adjustment_in", "adjustment_out", "fee"] as const;
+const PORTFOLIO_STATUSES = ["active", "archived"] as const;
 
 export async function createHolding(formData: FormData) {
   const supabase = await createClient();
@@ -18,7 +23,11 @@ export async function createHolding(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim();
 
   if (!portfolioId) throw new Error("Portfolio ID is required.");
-  if (!ticker) throw new Error("Ticker is required.");
+  validateTicker(ticker);
+  validateEnum(assetType, ASSET_TYPES, "asset type");
+  validateLength(companyName, 200, "Company name");
+  validateLength(notes, 2000, "Notes");
+  validateDate(openedAtRaw, "Opened at");
 
   const shares = Number(sharesRaw);
   const averageCostBasis = Number(averageCostBasisRaw);
@@ -66,6 +75,9 @@ export async function updateHolding(formData: FormData) {
 
   if (!holdingId) throw new Error("Holding ID is required.");
   if (!portfolioId) throw new Error("Portfolio ID is required.");
+  validateEnum(assetType, ASSET_TYPES, "asset type");
+  validateLength(companyName, 200, "Company name");
+  validateLength(notes, 2000, "Notes");
 
   const shares = Number(sharesRaw);
   const averageCostBasis = Number(averageCostBasisRaw);
@@ -131,6 +143,8 @@ export async function createPortfolioNote(formData: FormData) {
 
   if (!portfolioId) throw new Error("Portfolio ID is required.");
   if (!title) throw new Error("Note title is required.");
+  validateLength(title, 200, "Title");
+  validateLength(content, 5000, "Content");
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
@@ -158,9 +172,12 @@ export async function createCashActivity(formData: FormData) {
 
   if (!portfolioId) throw new Error("Portfolio ID is required.");
   if (!reason) throw new Error("Activity type is required.");
+  validateEnum(reason, CASH_REASONS, "activity type");
+  validateDate(effectiveAtRaw, "Effective date");
 
   const amount = Number(amountRaw);
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("Amount must be greater than 0.");
+  if (amount > 1_000_000_000) throw new Error("Amount exceeds maximum allowed value.");
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
@@ -205,6 +222,8 @@ export async function createPortfolioSnapshot(formData: FormData) {
   const notes = String(formData.get("notes") || "").trim();
 
   if (!portfolioId) throw new Error("Portfolio ID is required.");
+  validateDate(snapshotDateRaw, "Snapshot date");
+  validateLength(notes, 2000, "Notes");
 
   const totalValue = Number(totalValueRaw);
   if (!Number.isFinite(totalValue) || totalValue < 0) throw new Error("Total value must be 0 or greater.");
@@ -239,6 +258,10 @@ export async function updatePortfolio(formData: FormData) {
 
   if (!portfolioId) throw new Error("Portfolio ID is required.");
   if (!name) throw new Error("Portfolio name is required.");
+  validateLength(name, 100, "Portfolio name");
+  validateLength(description, 2000, "Description");
+  validateEnum(status, PORTFOLIO_STATUSES, "status");
+  validateTicker(benchmarkSymbol, "Benchmark symbol");
 
   const { error } = await supabase
     .from("portfolios")

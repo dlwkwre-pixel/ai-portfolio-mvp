@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateTicker, validateLength } from "@/lib/validation";
+
+const ALLOWED_ACCOUNT_TYPES = ["brokerage", "taxable", "roth_ira", "traditional_ira", "retirement", "margin", "speculative", "paper_trade"] as const;
 
 type InitialHolding = {
   ticker: string;
@@ -28,13 +31,11 @@ export async function createPortfolio(formData: FormData) {
   const cashBalanceRaw = String(formData.get("cash_balance") || "0").trim();
   const initialHoldingsRaw = String(formData.get("initial_holdings") || "[]").trim();
 
-  if (!name) {
-    throw new Error("Portfolio name is required.");
-  }
-
-  if (!accountType) {
-    throw new Error("Account type is required.");
-  }
+  if (!name) throw new Error("Portfolio name is required.");
+  if (!accountType) throw new Error("Account type is required.");
+  validateLength(name, 100, "Portfolio name");
+  validateLength(description, 2000, "Description");
+  if (benchmarkSymbol) validateTicker(benchmarkSymbol, "Benchmark symbol");
 
   const cashBalance = Number(cashBalanceRaw || 0);
 
@@ -70,18 +71,21 @@ export async function createPortfolio(formData: FormData) {
     throw new Error(portfolioError?.message || "Failed to create portfolio.");
   }
 
-  // Insert initial holdings if any were provided
+  // Insert initial holdings if any were provided (cap at 200 to prevent abuse)
   if (initialHoldings.length > 0) {
+    const TICKER_RE = /^[A-Z0-9.^-]{1,12}$/;
     const holdingsToInsert = initialHoldings
+      .slice(0, 200)
       .filter((h) => h.ticker && h.shares)
       .map((h) => ({
         portfolio_id: portfolio.id,
         ticker: h.ticker.toUpperCase().trim(),
-        company_name: h.company_name?.trim() || null,
+        company_name: (h.company_name?.trim() || null)?.slice(0, 200) ?? null,
         shares: Number(h.shares),
         average_cost_basis: h.average_cost_basis ? Number(h.average_cost_basis) : null,
         asset_type: "stock",
-      }));
+      }))
+      .filter((h) => TICKER_RE.test(h.ticker) && Number.isFinite(h.shares) && h.shares > 0);
 
     if (holdingsToInsert.length > 0) {
       const { error: holdingsError } = await supabase

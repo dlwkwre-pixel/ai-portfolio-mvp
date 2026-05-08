@@ -5,16 +5,18 @@ import {
   getFinnhubPriceTarget,
   getFinnhubProfile,
 } from "@/lib/market-data/finnhub";
+import { validateTicker } from "@/lib/validation";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
   const { ticker } = await params;
-  const normalizedTicker = ticker.trim().toUpperCase();
-
-  if (!normalizedTicker) {
-    return NextResponse.json({ error: "Ticker required" }, { status: 400 });
+  let normalizedTicker: string;
+  try {
+    normalizedTicker = validateTicker(ticker);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
 
   try {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { validateTicker, validateLength, validateDate } from "@/lib/validation";
 
 function calculateNetCashImpact(args: {
   transactionType: string;
@@ -95,12 +96,17 @@ export async function createPortfolioTransaction(formData: FormData) {
 
   let grossAmount = grossAmountRaw ? Number(grossAmountRaw) : 0;
 
+  validateLength(companyName, 200, "Company name");
+  validateLength(notes, 2000, "Notes");
+  validateDate(tradedAt, "Trade date");
+
   const isTrade = transactionType === "buy" || transactionType === "sell";
 
   if (isTrade) {
     if (!ticker) {
       throw new Error("Ticker is required for buy and sell transactions.");
     }
+    validateTicker(ticker);
 
     if (quantity === null || quantity <= 0) {
       throw new Error("Quantity must be greater than 0 for buy and sell transactions.");
@@ -312,6 +318,8 @@ export async function updateTransaction(formData: FormData) {
 
   if (!transactionId) throw new Error("Transaction ID is required.");
   if (!portfolioId) throw new Error("Portfolio ID is required.");
+  validateLength(notes, 2000, "Notes");
+  validateDate(tradedAt, "Trade date");
 
   // Verify portfolio belongs to user
   const { data: portfolio, error: portfolioError } = await supabase
