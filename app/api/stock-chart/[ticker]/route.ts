@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStockCandles, type ChartRange } from "@/lib/market-data/chart-service";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const DEV = process.env.NODE_ENV === "development";
 
@@ -18,6 +19,11 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const { limited, retryAfter } = checkRateLimit(`stock-chart:${getIp(req)}`, 20, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const { ticker } = await params;
   const { searchParams } = new URL(req.url);
   const range = (searchParams.get("range") ?? "1D") as ChartRange;

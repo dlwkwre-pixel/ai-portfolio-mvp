@@ -6,11 +6,17 @@ import {
   getFinnhubProfile,
 } from "@/lib/market-data/finnhub";
 import { validateTicker } from "@/lib/validation";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const { limited, retryAfter } = checkRateLimit(`market-data:${getIp(request)}`, 20, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const { ticker } = await params;
   let normalizedTicker: string;
   try {

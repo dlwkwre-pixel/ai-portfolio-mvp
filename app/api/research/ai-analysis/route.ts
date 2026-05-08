@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -19,6 +20,11 @@ Respond ONLY with a valid JSON object — no markdown, no extra text:
 }
 
 export async function POST(req: NextRequest) {
+  const { limited, retryAfter } = checkRateLimit(`ai-analysis:${getIp(req)}`, 5, 5 * 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   try {
     const { ticker, company_name, price, change_pct } = await req.json();
 

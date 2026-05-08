@@ -7,8 +7,14 @@ import {
   getFinnhubProfile,
 } from "@/lib/market-data/finnhub";
 import { validateTicker } from "@/lib/validation";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
+  const { limited, retryAfter } = checkRateLimit(`research-search:${getIp(request)}`, 20, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const { searchParams } = new URL(request.url);
   const rawTicker = searchParams.get("ticker") ?? "";
   let ticker: string;

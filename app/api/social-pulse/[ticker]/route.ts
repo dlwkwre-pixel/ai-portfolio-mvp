@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
 import { buildRedditPulse, type RedditPulseData } from "@/lib/market-data/reddit-pulse";
 import { fetchApeWisdomData, type ApeWisdomTicker } from "@/lib/market-data/apewisdom";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CACHE_TTL_MINUTES = 120;
 
@@ -16,6 +17,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ ticker: string }> }
 ) {
+  const { limited, retryAfter } = checkRateLimit(`social-pulse:${getIp(req)}`, 10, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const { ticker } = await params;
   const t = ticker.trim().toUpperCase();
 

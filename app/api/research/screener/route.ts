@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CURATED_SECTIONS = [
   {
@@ -66,7 +67,12 @@ const CURATED_SECTIONS = [
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { limited, retryAfter } = checkRateLimit(`research-screener:${getIp(req)}`, 5, 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
   const allTickers = CURATED_SECTIONS.flatMap((s) => s.tickers);
   const quotes: Record<string, { price: number; change: number; changePct: number } | null> = {};
   const analystRecs: Record<string, { buy: number; hold: number; sell: number } | null> = {};
