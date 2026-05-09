@@ -97,7 +97,7 @@ const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_WINDOW = 25;
 const MIN_INTERVAL_MS = 1500;
 
-function checkRateLimit(userId: string): string | null {
+function checkRateLimit(userId: string, skipIntervalCheck = false): string | null {
   const now = Date.now();
   const entry = rateMap.get(userId);
 
@@ -112,7 +112,7 @@ function checkRateLimit(userId: string): string | null {
     return null;
   }
 
-  if (now - entry.lastAt < MIN_INTERVAL_MS) {
+  if (!skipIntervalCheck && now - entry.lastAt < MIN_INTERVAL_MS) {
     return "Please wait a moment before sending another message.";
   }
 
@@ -183,17 +183,21 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const rateLimitMsg = checkRateLimit(user.id);
-    if (rateLimitMsg) {
-      return NextResponse.json({ error: rateLimitMsg }, { status: 429 });
-    }
-
-    const { messages, phase = "chat" } = await req.json();
+    // Parse body before rate limiting so we can apply phase-aware rules
+    const body = await req.json();
+    const { messages, phase = "chat" } = body;
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
     }
 
     const isGeneration = phase === "generate";
+
+    // Generation is a programmatic follow-up call — skip the per-message interval
+    // check so it isn't blocked by the preceding chat message's lastAt timestamp.
+    const rateLimitMsg = checkRateLimit(user.id, isGeneration);
+    if (rateLimitMsg) {
+      return NextResponse.json({ error: rateLimitMsg }, { status: 429 });
+    }
 
     // Cap history to prevent token abuse (generation phase needs full context)
     const MAX_HISTORY = isGeneration ? 40 : 30;
