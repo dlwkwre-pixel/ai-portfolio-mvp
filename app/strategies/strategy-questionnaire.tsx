@@ -266,8 +266,8 @@ export default function StrategyQuestionnaire({
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+      {/* Messages — shrinks to a recap strip once strategy is generated */}
+      <div className={generatedStrategy ? "overflow-y-auto px-6 py-3 space-y-3 border-b border-white/8" : "flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0"} style={generatedStrategy ? { maxHeight: "120px" } : undefined}>
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             <div
@@ -328,9 +328,9 @@ export default function StrategyQuestionnaire({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Generated strategy review */}
+      {/* Generated strategy review — takes all remaining modal height */}
       {generatedStrategy && editedStrategy && (
-        <div className="border-t border-white/8 px-6 py-4 space-y-3 max-h-64 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-400">
             Generated Strategy — Review & Edit
           </p>
