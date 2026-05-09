@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate } from "./social-actions";
@@ -32,6 +32,57 @@ type StrategyRow = {
   author: Author;
 };
 
+// Shared preview type used for StrategyPreviewModal
+type StrategyPreview = {
+  id: string;
+  name: string;
+  description: string | null;
+  style: string | null;
+  risk_level: string | null;
+  likes_count: number;
+  copies_count: number;
+  is_liked: boolean;
+  is_saved: boolean;
+  is_own: boolean;
+  author: {
+    user_id: string;
+    username: string;
+    display_name: string | null;
+    avatar_color: string;
+    is_following: boolean;
+  };
+};
+
+type TrendingStrategyItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  style: string | null;
+  risk_level: string | null;
+  copies_count: number;
+  likes_count: number;
+  is_liked: boolean;
+  is_saved: boolean;
+  is_own: boolean;
+  author: {
+    user_id: string;
+    username: string;
+    display_name: string | null;
+    avatar_color: string;
+    is_following: boolean;
+  };
+};
+
+type TrendingPortfolioItem = {
+  id: string;
+  public_name: string;
+  risk_level: string | null;
+  style: string | null;
+  copy_count: number;
+  follower_count: number;
+  author: { user_id: string; username: string; avatar_color: string };
+};
+
 type PortfolioHolding = {
   ticker: string;
   company_name: string | null;
@@ -60,28 +111,13 @@ type PortfolioRow = {
   };
 };
 
-type TrendingStrategyItem = {
-  id: string;
-  name: string;
-  style: string | null;
-  risk_level: string | null;
-  copies_count: number;
-  likes_count: number;
-  is_liked: boolean;
-  author: { user_id: string; username: string; avatar_color: string };
-};
-
-type TrendingPortfolioItem = {
-  id: string;
-  public_name: string;
-  risk_level: string | null;
-  style: string | null;
-  copy_count: number;
-  follower_count: number;
-  author: { user_id: string; username: string; avatar_color: string };
-};
-
 type CopyToast = { message: string; portfolioId?: string } | null;
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ALLOC_COLORS = ["#3b82f6", "#7c3aed", "#0891b2", "#065f46", "#92400e", "#4338ca"];
+const ALLOC_CASH_COLOR = "rgba(255,255,255,0.12)";
+const ALLOC_REST_COLOR = "rgba(255,255,255,0.06)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,70 +129,7 @@ function riskColor(r: string | null) {
   return { bg: "var(--amber-bg)", border: "var(--amber-border)", color: "var(--amber)" };
 }
 
-// ─── Primitive components ─────────────────────────────────────────────────────
-
-function SectionTab({ active, label, count, onClick }: { active: boolean; label: string; count?: number; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "10px 16px",
-        fontSize: "13px",
-        fontWeight: active ? 600 : 400,
-        fontFamily: "var(--font-body)",
-        background: "none",
-        border: "none",
-        borderBottom: `2px solid ${active ? "var(--brand-blue)" : "transparent"}`,
-        color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        transition: "color 150ms ease",
-        marginBottom: "-1px",
-        display: "flex",
-        alignItems: "center",
-        gap: "5px",
-      }}
-    >
-      {label}
-      {count !== undefined && count > 0 && (
-        <span style={{
-          fontSize: "9px", fontWeight: 600,
-          background: active ? "rgba(37,99,235,0.15)" : "var(--card-bg)",
-          border: `1px solid ${active ? "rgba(37,99,235,0.3)" : "var(--card-border)"}`,
-          color: active ? "#93c5fd" : "var(--text-muted)",
-          padding: "1px 5px", borderRadius: "var(--radius-full)",
-          fontFamily: "var(--font-mono)",
-        }}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function FilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink: 0,
-        padding: "5px 11px",
-        borderRadius: "var(--radius-full)",
-        fontSize: "11px",
-        fontWeight: active ? 600 : 400,
-        fontFamily: "var(--font-body)",
-        border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
-        background: active ? "rgba(37,99,235,0.12)" : "transparent",
-        color: active ? "#93c5fd" : "var(--text-tertiary)",
-        cursor: "pointer",
-        transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+// ─── Primitives ───────────────────────────────────────────────────────────────
 
 function Avatar({ username, color, size = 28 }: { username: string; color: string; size?: number }) {
   return (
@@ -172,170 +145,371 @@ function Avatar({ username, color, size = 28 }: { username: string; color: strin
   );
 }
 
-// ─── Trending strip ───────────────────────────────────────────────────────────
-
-function TrendingStrategyStrip({ items }: { items: TrendingStrategyItem[] }) {
-  if (items.length === 0) return null;
+function FilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <div style={{ marginBottom: "22px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "11px" }}>
-        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--amber)" }}>
-          <path d="M12 2C12 2 11.9 6.1 9.5 8.5C7.1 10.9 3 11 3 11C3 11 4.5 14 7 15.5C9.5 17 12 17 12 17C12 17 14.5 17 17 15.5C19.5 14 21 11 21 11C21 11 16.9 10.9 14.5 8.5C12.1 6.1 12 2 12 2Z" />
-        </svg>
-        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-          Trending strategies
-        </span>
-      </div>
-      <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px", scrollbarWidth: "none" }}>
-        {items.map((s, i) => {
-          const rs = riskColor(s.risk_level);
-          return (
-            <div
-              key={s.id}
-              style={{
-                flexShrink: 0, width: "200px",
-                background: "var(--card-bg)",
-                border: "1px solid var(--card-border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "12px 14px",
-                display: "flex", flexDirection: "column", gap: "8px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
-                  color: i === 0 ? "var(--amber)" : "var(--text-muted)",
-                  background: i === 0 ? "rgba(251,191,36,0.08)" : "transparent",
-                  border: i === 0 ? "1px solid rgba(251,191,36,0.15)" : "none",
-                  padding: i === 0 ? "1px 5px" : "0",
-                  borderRadius: "var(--radius-full)",
-                  flexShrink: 0,
-                }}>
-                  #{i + 1}
-                </span>
-                {s.risk_level && (
-                  <span style={{
-                    fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
-                    padding: "1px 5px", borderRadius: "var(--radius-full)",
-                    background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
-                    flexShrink: 0,
-                  }}>
-                    {s.risk_level}
-                  </span>
-                )}
-              </div>
-              <p style={{
-                fontSize: "12px", fontWeight: 600, color: "var(--text-primary)",
-                overflow: "hidden", display: "-webkit-box",
-                WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                lineHeight: 1.35, margin: 0,
-              }}>
-                {s.name}
-              </p>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <Avatar username={s.author.username} color={s.author.avatar_color} size={16} />
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {s.author.username}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "3px", color: "var(--text-muted)" }}>
-                  <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
-                    <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
-                  </svg>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}>{s.copies_count}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <button onClick={onClick} style={{
+      flexShrink: 0, padding: "5px 11px", borderRadius: "var(--radius-full)",
+      fontSize: "11px", fontWeight: active ? 600 : 400, fontFamily: "var(--font-body)",
+      border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
+      background: active ? "rgba(37,99,235,0.12)" : "transparent",
+      color: active ? "#93c5fd" : "var(--text-tertiary)",
+      cursor: "pointer", whiteSpace: "nowrap",
+      transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+    }}>
+      {label}
+    </button>
   );
 }
 
-function TrendingPortfolioStrip({ items }: { items: TrendingPortfolioItem[] }) {
+function RiskBadge({ risk }: { risk: string | null }) {
+  if (!risk) return null;
+  const rs = riskColor(risk);
+  return (
+    <span style={{
+      fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+      textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)",
+      background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color, flexShrink: 0,
+    }}>
+      {risk}
+    </span>
+  );
+}
+
+function StyleBadge({ style }: { style: string | null }) {
+  if (!style) return null;
+  return (
+    <span style={{
+      fontSize: "9px", color: "var(--text-tertiary)", background: "transparent",
+      border: "1px solid var(--card-border)", padding: "2px 7px",
+      borderRadius: "var(--radius-full)", flexShrink: 0,
+    }}>
+      {style}
+    </span>
+  );
+}
+
+function OwnBadge() {
+  return (
+    <span style={{
+      fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em",
+      padding: "2px 7px", borderRadius: "var(--radius-full)",
+      background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)",
+      color: "#93c5fd", flexShrink: 0,
+    }}>
+      Yours
+    </span>
+  );
+}
+
+// ─── Strategy preview modal ───────────────────────────────────────────────────
+
+function StrategyPreviewModal({
+  strategy, onClose, onLike, onSave, onFollow, onCopy,
+}: {
+  strategy: StrategyPreview;
+  onClose: () => void;
+  onLike: (id: string) => void;
+  onSave: (id: string) => void;
+  onFollow: (userId: string) => void;
+  onCopy: (id: string) => Promise<void>;
+}) {
+  const [copying, setCopying] = useState(false);
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }}
+      />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)", zIndex: 201,
+        width: "min(520px, calc(100vw - 32px))",
+        background: "var(--bg-elevated)", border: "1px solid var(--card-border)",
+        borderRadius: "18px", boxShadow: "0 8px 40px rgba(0,0,0,0.7)", overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "7px" }}>
+              <RiskBadge risk={strategy.risk_level} />
+              <StyleBadge style={strategy.style} />
+              {strategy.is_own && <OwnBadge />}
+            </div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px", lineHeight: 1.2 }}>
+              {strategy.name}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose}
+            style={{ width: "28px", height: "28px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", borderRadius: "var(--radius-md)", color: "var(--text-muted)", cursor: "pointer" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "16px 20px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {strategy.description && (
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
+              {strategy.description}
+            </p>
+          )}
+
+          {/* Author + follow */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+            <Link href={`/${strategy.author.username}`} onClick={onClose} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", minWidth: 0 }}>
+              <Avatar username={strategy.author.username} color={strategy.author.avatar_color} size={28} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {strategy.author.display_name || strategy.author.username}
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>@{strategy.author.username}</div>
+              </div>
+            </Link>
+            {!strategy.is_own && (
+              <button type="button" onClick={() => onFollow(strategy.author.user_id)}
+                style={{
+                  padding: "5px 14px", borderRadius: "var(--radius-full)",
+                  fontSize: "12px", fontWeight: 500, flexShrink: 0,
+                  background: strategy.author.is_following ? "transparent" : "rgba(37,99,235,0.1)",
+                  border: `1px solid ${strategy.author.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
+                  color: strategy.author.is_following ? "var(--text-tertiary)" : "#93c5fd",
+                  cursor: "pointer", fontFamily: "var(--font-body)",
+                  transition: "color 150ms ease, background 150ms ease",
+                }}
+                onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
+                onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+                onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+              >
+                {strategy.author.is_following ? "Following" : "Follow"}
+              </button>
+            )}
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display: "flex", gap: "16px", padding: "10px 0", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill={strategy.is_liked ? "#ff5c5c" : "none"} stroke={strategy.is_liked ? "#ff5c5c" : "var(--text-muted)"} strokeWidth="1.5">
+                <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+              </svg>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)" }}>{strategy.likes_count}</span>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>likes</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)" }}>
+                <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
+                <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
+              </svg>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)" }}>{strategy.copies_count}</span>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>copies</span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          {!strategy.is_own && (
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button type="button" onClick={() => onLike(strategy.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "7px 14px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500,
+                  background: strategy.is_liked ? "rgba(255,92,92,0.1)" : "var(--card-bg)",
+                  border: `1px solid ${strategy.is_liked ? "rgba(255,92,92,0.25)" : "var(--card-border)"}`,
+                  color: strategy.is_liked ? "#ff5c5c" : "var(--text-secondary)",
+                  cursor: "pointer", fontFamily: "var(--font-body)",
+                  transition: "color 150ms ease, background 150ms ease",
+                }}
+                onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
+                onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+                onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+              >
+                <svg width="12" height="12" viewBox="0 0 20 20" fill={strategy.is_liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                </svg>
+                {strategy.is_liked ? "Liked" : "Like"}
+              </button>
+
+              <button type="button" onClick={() => onSave(strategy.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "7px 14px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500,
+                  background: strategy.is_saved ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+                  border: `1px solid ${strategy.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
+                  color: strategy.is_saved ? "#93c5fd" : "var(--text-secondary)",
+                  cursor: "pointer", fontFamily: "var(--font-body)",
+                  transition: "color 150ms ease, background 150ms ease",
+                }}
+                onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
+                onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+                onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+              >
+                <svg width="11" height="11" viewBox="0 0 20 20" fill={strategy.is_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
+                  <path d="M5 3a2 2 0 00-2 2v12l7-3 7 3V5a2 2 0 00-2-2H5z" />
+                </svg>
+                {strategy.is_saved ? "Saved" : "Save"}
+              </button>
+
+              <button type="button"
+                onClick={async () => {
+                  if (copying) return;
+                  setCopying(true);
+                  try { await onCopy(strategy.id); } finally { setCopying(false); }
+                  onClose();
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "7px 14px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 600,
+                  background: "var(--brand-gradient)", border: "none",
+                  color: "#fff", cursor: copying ? "not-allowed" : "pointer",
+                  opacity: copying ? 0.6 : 1, fontFamily: "var(--font-body)",
+                  transition: "opacity 150ms ease",
+                }}
+                onPointerDown={(e) => { if (!copying) e.currentTarget.style.transform = "scale(0.97)"; }}
+                onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+                onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+              >
+                {copying ? "Copying..." : "Use as Template"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Trending spotlight strip ─────────────────────────────────────────────────
+
+type SpotlightItem = {
+  id: string;
+  name: string;
+  risk_level: string | null;
+  style: string | null;
+  statValue: number;
+  statLabel: string;
+  author: { username: string; avatar_color: string };
+  href?: string;
+  onClick?: () => void;
+  ariaLabel: string;
+};
+
+function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
+  const rs = riskColor(item.risk_level);
+  const isFirst = rank === 0;
+
+  const cardStyle: React.CSSProperties = {
+    flexShrink: 0, width: "190px",
+    background: isFirst ? "rgba(37,99,235,0.06)" : "var(--card-bg)",
+    border: `1px solid ${isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"}`,
+    borderRadius: "var(--radius-lg)",
+    padding: "12px 14px",
+    display: "flex", flexDirection: "column", gap: "8px",
+    cursor: "pointer", textAlign: "left",
+    textDecoration: "none", color: "inherit",
+    fontFamily: "var(--font-body)",
+    transition: "border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease",
+  };
+
+  const inner = (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+        <span style={{
+          fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
+          color: isFirst ? "#fbbf24" : "var(--text-muted)",
+          background: isFirst ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.04)",
+          border: isFirst ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(255,255,255,0.06)",
+          padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0,
+        }}>
+          #{rank + 1}
+        </span>
+        {item.risk_level && (
+          <span style={{
+            fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
+            padding: "1px 5px", borderRadius: "var(--radius-full)",
+            background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color, flexShrink: 0,
+          }}>
+            {item.risk_level}
+          </span>
+        )}
+      </div>
+      <p style={{
+        fontSize: "12px", fontWeight: 600, color: "var(--text-primary)",
+        overflow: "hidden", display: "-webkit-box",
+        WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+        lineHeight: 1.35, margin: 0,
+      }}>
+        {item.name}
+      </p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <Avatar username={item.author.username} color={item.author.avatar_color} size={15} />
+          <span style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {item.author.username}
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+          <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
+            <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
+            <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
+          </svg>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>{item.statValue}</span>
+        </div>
+      </div>
+    </>
+  );
+
+  if (item.href) {
+    return (
+      <Link
+        href={item.href}
+        aria-label={item.ariaLabel}
+        style={cardStyle}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(37,99,235,0.35)" : "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"; (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={item.ariaLabel}
+      onClick={item.onClick}
+      style={cardStyle}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(37,99,235,0.35)" : "rgba(255,255,255,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+      onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
+      onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+      onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+    >
+      {inner}
+    </button>
+  );
+}
+
+function TrendingStrip({ label, items }: { label: string; items: SpotlightItem[] }) {
   if (items.length === 0) return null;
   return (
     <div style={{ marginBottom: "22px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "11px" }}>
-        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--amber)" }}>
-          <path d="M12 2C12 2 11.9 6.1 9.5 8.5C7.1 10.9 3 11 3 11C3 11 4.5 14 7 15.5C9.5 17 12 17 12 17C12 17 14.5 17 17 15.5C19.5 14 21 11 21 11C21 11 16.9 10.9 14.5 8.5C12.1 6.1 12 2 12 2Z" />
-        </svg>
-        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-          Trending portfolios
-        </span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "11px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#fbbf24" }}>
+            <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+          </svg>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            {label}
+          </span>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "4px", scrollbarWidth: "none" }}>
-        {items.map((p, i) => {
-          const rs = riskColor(p.risk_level);
-          return (
-            <Link
-              key={p.id}
-              href={`/community/portfolios/${p.id}`}
-              style={{
-                flexShrink: 0, width: "200px",
-                background: "var(--card-bg)",
-                border: "1px solid var(--card-border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "12px 14px",
-                display: "flex", flexDirection: "column", gap: "8px",
-                textDecoration: "none",
-                transition: "border-color 120ms ease, background 120ms ease",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.background = "var(--card-hover)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLElement).style.background = "var(--card-bg)"; }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
-                  color: i === 0 ? "var(--amber)" : "var(--text-muted)",
-                  background: i === 0 ? "rgba(251,191,36,0.08)" : "transparent",
-                  border: i === 0 ? "1px solid rgba(251,191,36,0.15)" : "none",
-                  padding: i === 0 ? "1px 5px" : "0",
-                  borderRadius: "var(--radius-full)",
-                  flexShrink: 0,
-                }}>
-                  #{i + 1}
-                </span>
-                {p.risk_level && (
-                  <span style={{
-                    fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
-                    padding: "1px 5px", borderRadius: "var(--radius-full)",
-                    background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
-                    flexShrink: 0,
-                  }}>
-                    {p.risk_level}
-                  </span>
-                )}
-              </div>
-              <p style={{
-                fontSize: "12px", fontWeight: 600, color: "var(--text-primary)",
-                overflow: "hidden", display: "-webkit-box",
-                WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                lineHeight: 1.35, margin: 0,
-              }}>
-                {p.public_name}
-              </p>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <Avatar username={p.author.username} color={p.author.avatar_color} size={16} />
-                  <span style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {p.author.username}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "3px", color: "var(--text-muted)" }}>
-                  <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
-                    <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
-                  </svg>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}>{p.copy_count}</span>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
+      <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px", scrollbarWidth: "none" }}>
+        {items.map((item, i) => (
+          <SpotlightCard key={item.id} item={item} rank={i} />
+        ))}
       </div>
     </div>
   );
@@ -343,88 +517,77 @@ function TrendingPortfolioStrip({ items }: { items: TrendingPortfolioItem[] }) {
 
 // ─── Strategy card ────────────────────────────────────────────────────────────
 
-function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
+function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPreview }: {
   s: StrategyRow;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
   onFollow: (userId: string) => void;
   onComment: (id: string) => void;
   onCopy: (id: string) => Promise<void>;
+  onPreview: (s: StrategyRow) => void;
 }) {
   const [copying, setCopying] = useState(false);
   const [copied, setCopied] = useState(false);
-  const rs = riskColor(s.risk_level);
 
   return (
     <div
       style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--card-border)",
-        borderRadius: "var(--radius-lg)",
-        padding: "14px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "11px",
-        transition: "border-color 150ms ease, background 150ms ease",
+        background: "var(--card-bg)", border: "1px solid var(--card-border)",
+        borderRadius: "var(--radius-lg)", padding: "14px 16px",
+        display: "flex", flexDirection: "column", gap: "10px",
+        transition: "border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease",
+        cursor: "default",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.1)";
-        (e.currentTarget as HTMLElement).style.background   = "var(--card-hover)";
+        (e.currentTarget as HTMLElement).style.background = "var(--card-hover)";
+        (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)";
-        (e.currentTarget as HTMLElement).style.background   = "var(--card-bg)";
+        (e.currentTarget as HTMLElement).style.background = "var(--card-bg)";
+        (e.currentTarget as HTMLElement).style.transform = "";
+        (e.currentTarget as HTMLElement).style.boxShadow = "";
       }}
     >
       {/* Name + badges */}
       <div>
-        <h3 style={{
-          fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
-          color: "var(--text-primary)", marginBottom: "6px", lineHeight: 1.25,
-        }}>
-          {s.name}
-        </h3>
+        <button
+          type="button"
+          onClick={() => onPreview(s)}
+          aria-label={`Open strategy: ${s.name}`}
+          style={{
+            background: "none", border: "none", padding: 0, cursor: "pointer",
+            textAlign: "left", fontFamily: "inherit", width: "100%",
+            marginBottom: "6px",
+          }}
+        >
+          <h3 style={{
+            fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
+            color: "var(--text-primary)", lineHeight: 1.25,
+            transition: "color 120ms ease",
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#93c5fd"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+          >
+            {s.name}
+          </h3>
+        </button>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-          {s.risk_level && (
-            <span style={{
-              fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
-              textTransform: "uppercase", padding: "2px 7px",
-              borderRadius: "var(--radius-full)",
-              background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
-            }}>
-              {s.risk_level}
-            </span>
-          )}
-          {s.style && (
-            <span style={{
-              fontSize: "9px", color: "var(--text-tertiary)",
-              background: "transparent", border: "1px solid var(--card-border)",
-              padding: "2px 7px", borderRadius: "var(--radius-full)",
-            }}>
-              {s.style}
-            </span>
-          )}
-          {s.is_own && (
-            <span style={{
-              fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em",
-              padding: "2px 7px", borderRadius: "var(--radius-full)",
-              background: "rgba(37,99,235,0.1)",
-              border: "1px solid rgba(37,99,235,0.2)",
-              color: "#93c5fd",
-            }}>
-              Yours
-            </span>
-          )}
+          <RiskBadge risk={s.risk_level} />
+          <StyleBadge style={s.style} />
+          {s.is_own && <OwnBadge />}
         </div>
       </div>
 
-      {/* Description */}
+      {/* Description (1 line) */}
       {s.description && (
         <p style={{
-          fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55,
+          fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5,
           overflow: "hidden", display: "-webkit-box",
-          WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
-          flex: 1,
+          WebkitLineClamp: 1, WebkitBoxOrient: "vertical",
+          margin: 0,
         }}>
           {s.description}
         </p>
@@ -433,29 +596,23 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
       {/* Author row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
         <Link href={`/${s.author.username}`} style={{ display: "flex", alignItems: "center", gap: "7px", textDecoration: "none", minWidth: 0 }}>
-          <Avatar username={s.author.username} color={s.author.avatar_color} size={24} />
-          <span style={{
-            fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
+          <Avatar username={s.author.username} color={s.author.avatar_color} size={22} />
+          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {s.author.display_name || s.author.username}
           </span>
         </Link>
         {!s.is_own && (
-          <button
-            type="button"
-            onClick={() => onFollow(s.author.user_id)}
+          <button type="button" onClick={(e) => { e.stopPropagation(); onFollow(s.author.user_id); }}
             style={{
-              padding: "3px 9px", borderRadius: "var(--radius-full)",
-              fontSize: "11px", fontWeight: 500, flexShrink: 0,
+              padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 500, flexShrink: 0,
               background: s.author.is_following ? "transparent" : "rgba(37,99,235,0.1)",
               border: `1px solid ${s.author.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
               color: s.author.is_following ? "var(--text-tertiary)" : "#93c5fd",
               cursor: "pointer", fontFamily: "var(--font-body)",
-              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+              transition: "color 150ms ease, background 150ms ease",
             }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
-            onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
             onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
           >
             {s.author.is_following ? "Following" : "Follow"}
@@ -464,26 +621,18 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
       </div>
 
       {/* Footer */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: "4px",
-        paddingTop: "10px", borderTop: "1px solid var(--border-subtle)",
-      }}>
-        {/* Like */}
-        <button
-          type="button"
-          onClick={() => onLike(s.id)}
+      <div style={{ display: "flex", alignItems: "center", gap: "4px", paddingTop: "9px", borderTop: "1px solid var(--border-subtle)" }}>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onLike(s.id); }}
           style={{
-            display: "flex", alignItems: "center", gap: "4px",
-            padding: "4px 7px", borderRadius: "var(--radius-md)",
+            display: "flex", alignItems: "center", gap: "4px", padding: "4px 7px", borderRadius: "var(--radius-md)",
             fontSize: "11px", fontWeight: 500,
             background: s.is_liked ? "rgba(255,92,92,0.08)" : "none",
             border: `1px solid ${s.is_liked ? "rgba(255,92,92,0.2)" : "transparent"}`,
             color: s.is_liked ? "#ff5c5c" : "var(--text-tertiary)",
-            cursor: "pointer", fontFamily: "var(--font-body)",
-            transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+            cursor: "pointer", fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease",
           }}
           onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.94)"; }}
-          onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+          onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
           onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
         >
           <svg width="12" height="12" viewBox="0 0 20 20" fill={s.is_liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
@@ -492,7 +641,6 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
           <span className="num" style={{ fontSize: "11px" }}>{s.likes_count}</span>
         </button>
 
-        {/* Copies count */}
         <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 6px", fontSize: "11px", color: "var(--text-muted)" }}>
           <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
             <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
@@ -503,22 +651,17 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
 
         <div style={{ flex: 1 }} />
 
-        {/* Comment */}
-        <button
-          type="button"
-          onClick={() => onComment(s.id)}
+        <button type="button" onClick={(e) => { e.stopPropagation(); onComment(s.id); }}
           title="Comment"
           style={{
-            display: "flex", alignItems: "center",
-            padding: "4px 6px", borderRadius: "var(--radius-md)",
+            display: "flex", alignItems: "center", padding: "4px 6px", borderRadius: "var(--radius-md)",
             background: "none", border: "1px solid transparent",
-            color: "var(--text-muted)", cursor: "pointer",
-            transition: "color 150ms ease, border-color 150ms ease",
+            color: "var(--text-muted)", cursor: "pointer", transition: "color 150ms ease, border-color 150ms ease",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; e.currentTarget.style.borderColor = "var(--card-border)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)";      e.currentTarget.style.borderColor = "transparent"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "transparent"; }}
           onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.94)"; }}
-          onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+          onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
           onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
         >
           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -526,24 +669,19 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
           </svg>
         </button>
 
-        {/* Save */}
         {!s.is_own && (
-          <button
-            type="button"
-            onClick={() => onSave(s.id)}
+          <button type="button" onClick={(e) => { e.stopPropagation(); onSave(s.id); }}
             title={s.is_saved ? "Remove from saved" : "Save"}
             style={{
-              display: "flex", alignItems: "center", gap: "4px",
-              padding: "4px 8px", borderRadius: "var(--radius-md)",
+              display: "flex", alignItems: "center", gap: "4px", padding: "4px 8px", borderRadius: "var(--radius-md)",
               fontSize: "11px", fontWeight: 500,
               background: s.is_saved ? "rgba(37,99,235,0.1)" : "none",
               border: `1px solid ${s.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
               color: s.is_saved ? "#93c5fd" : "var(--text-tertiary)",
-              cursor: "pointer", fontFamily: "var(--font-body)",
-              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+              cursor: "pointer", fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease",
             }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.94)"; }}
-            onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
             onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
           >
             <svg width="11" height="11" viewBox="0 0 20 20" fill={s.is_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
@@ -553,47 +691,28 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy }: {
           </button>
         )}
 
-        {/* Use as template */}
         {!s.is_own && (
-          <button
-            type="button"
-            onClick={async () => {
+          <button type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
               if (copying || copied) return;
               setCopying(true);
-              try {
-                await onCopy(s.id);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 3000);
-              } finally {
-                setCopying(false);
-              }
+              try { await onCopy(s.id); setCopied(true); setTimeout(() => setCopied(false), 3000); }
+              finally { setCopying(false); }
             }}
             style={{
-              display: "flex", alignItems: "center", gap: "4px",
-              padding: "4px 8px", borderRadius: "var(--radius-md)",
+              display: "flex", alignItems: "center", gap: "4px", padding: "4px 8px", borderRadius: "var(--radius-md)",
               fontSize: "11px", fontWeight: 500,
               background: copied ? "rgba(0,211,149,0.1)" : "none",
               border: `1px solid ${copied ? "rgba(0,211,149,0.25)" : "var(--card-border)"}`,
               color: copied ? "var(--green)" : "var(--text-tertiary)",
-              cursor: copying ? "not-allowed" : "pointer",
-              opacity: copying ? 0.6 : 1,
-              fontFamily: "var(--font-body)",
-              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease, opacity 150ms ease",
+              cursor: copying ? "not-allowed" : "pointer", opacity: copying ? 0.6 : 1,
+              fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease, opacity 150ms ease",
             }}
             onPointerDown={(e) => { if (!copying) e.currentTarget.style.transform = "scale(0.94)"; }}
-            onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
             onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
           >
-            {copied ? (
-              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" />
-                <path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" />
-              </svg>
-            )}
             {copied ? "Copied" : copying ? "..." : "Template"}
           </button>
         )}
@@ -608,67 +727,21 @@ function CommentBox({ onSubmit, onCancel }: { onSubmit: (text: string) => Promis
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit() {
-    if (!text.trim() || submitting) return;
-    setSubmitting(true);
-    await onSubmit(text);
-    setSubmitting(false);
-  }
-
   return (
-    <div className="bt-sd" style={{
-      marginTop: "6px",
-      background: "var(--bg-elevated)",
-      border: "1px solid var(--border)",
-      borderRadius: "var(--radius-md)",
-      padding: "12px 14px",
-    }}>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Share your thoughts on this strategy..."
-        rows={3}
-        maxLength={1000}
-        autoFocus
-        style={{
-          width: "100%", background: "transparent", border: "none", outline: "none",
-          color: "var(--text-primary)", fontSize: "13px", fontFamily: "var(--font-body)",
-          resize: "none", lineHeight: 1.6,
-        }}
+    <div style={{ marginTop: "6px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Share your thoughts..." rows={3} maxLength={1000} autoFocus
+        style={{ width: "100%", background: "transparent", border: "none", outline: "none", color: "var(--text-primary)", fontSize: "13px", fontFamily: "var(--font-body)", resize: "none", lineHeight: 1.6 }}
       />
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--border-subtle)",
-      }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--border-subtle)" }}>
         <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{text.length}/1000</span>
         <div style={{ display: "flex", gap: "6px" }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              padding: "5px 12px", background: "none",
-              border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)",
-              color: "var(--text-muted)", fontSize: "12px", cursor: "pointer",
-              fontFamily: "var(--font-body)",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
+          <button type="button" onClick={onCancel}
+            style={{ padding: "5px 12px", background: "none", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", color: "var(--text-muted)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
+          >Cancel</button>
+          <button type="button" onClick={async () => { if (!text.trim() || submitting) return; setSubmitting(true); await onSubmit(text); setSubmitting(false); }}
             disabled={!text.trim() || submitting}
-            style={{
-              padding: "5px 14px", background: "var(--brand-gradient)",
-              border: "none", borderRadius: "var(--radius-md)",
-              color: "#fff", fontSize: "12px", fontWeight: 600,
-              cursor: !text.trim() || submitting ? "not-allowed" : "pointer",
-              opacity: !text.trim() || submitting ? 0.5 : 1,
-              fontFamily: "var(--font-body)",
-            }}
-          >
-            {submitting ? "Posting..." : "Post"}
-          </button>
+            style={{ padding: "5px 14px", background: "var(--brand-gradient)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: !text.trim() || submitting ? "not-allowed" : "pointer", opacity: !text.trim() || submitting ? 0.5 : 1, fontFamily: "var(--font-body)" }}
+          >{submitting ? "Posting..." : "Post"}</button>
         </div>
       </div>
     </div>
@@ -677,76 +750,34 @@ function CommentBox({ onSubmit, onCancel }: { onSubmit: (text: string) => Promis
 
 // ─── Allocation bar ───────────────────────────────────────────────────────────
 
-const ALLOC_COLORS = ["#3b82f6", "#7c3aed", "#0891b2", "#065f46", "#92400e", "#4338ca"];
-const ALLOC_CASH_COLOR = "rgba(255,255,255,0.12)";
-const ALLOC_REST_COLOR = "rgba(255,255,255,0.06)";
-
 function AllocationBar({ holdings }: { holdings: PortfolioHolding[] }) {
   const nonCash = holdings.filter((h) => !h.is_cash).slice(0, 5);
   const cash = holdings.find((h) => h.is_cash);
   const shown = [...nonCash, ...(cash ? [cash] : [])];
   const shownSum = shown.reduce((s, h) => s + h.allocation_pct, 0);
   const rest = Math.max(0, 100 - shownSum);
-
   return (
-    <div style={{
-      display: "flex", height: "5px", borderRadius: "3px",
-      overflow: "hidden", gap: "1px", width: "100%",
-    }}>
+    <div style={{ display: "flex", height: "4px", borderRadius: "3px", overflow: "hidden", gap: "1px", width: "100%" }}>
       {nonCash.map((h, i) => (
-        <div
-          key={h.ticker}
-          title={`${h.ticker} ${h.allocation_pct.toFixed(1)}%`}
-          style={{
-            height: "100%",
-            width: `${h.allocation_pct}%`,
-            background: ALLOC_COLORS[i % ALLOC_COLORS.length],
-            borderRadius: i === 0 ? "3px 0 0 3px" : "0",
-            flexShrink: 0,
-          }}
+        <div key={h.ticker} title={`${h.ticker} ${h.allocation_pct.toFixed(1)}%`}
+          style={{ height: "100%", width: `${h.allocation_pct}%`, background: ALLOC_COLORS[i % ALLOC_COLORS.length], borderRadius: i === 0 ? "3px 0 0 3px" : "0", flexShrink: 0 }}
         />
       ))}
-      {cash && (
-        <div
-          key="cash"
-          title={`Cash ${cash.allocation_pct.toFixed(1)}%`}
-          style={{
-            height: "100%",
-            width: `${cash.allocation_pct}%`,
-            background: ALLOC_CASH_COLOR,
-            flexShrink: 0,
-          }}
-        />
-      )}
-      {rest > 0.5 && (
-        <div style={{
-          height: "100%",
-          flex: 1,
-          background: ALLOC_REST_COLOR,
-          borderRadius: "0 3px 3px 0",
-          minWidth: "2px",
-        }} />
-      )}
+      {cash && <div title={`Cash ${cash.allocation_pct.toFixed(1)}%`} style={{ height: "100%", width: `${cash.allocation_pct}%`, background: ALLOC_CASH_COLOR, flexShrink: 0 }} />}
+      {rest > 0.5 && <div style={{ height: "100%", flex: 1, background: ALLOC_REST_COLOR, borderRadius: "0 3px 3px 0", minWidth: "2px" }} />}
     </div>
   );
 }
 
 // ─── Portfolio card ───────────────────────────────────────────────────────────
 
-function PortfolioCard({
-  p, onFollow, onCopy,
-}: {
-  p: PortfolioRow;
-  onFollow: (id: string) => void;
-  onCopy: (id: string) => Promise<void>;
-}) {
+function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id: string) => void; onCopy: (id: string) => Promise<void> }) {
   const [copying, setCopying] = useState(false);
   const rs = riskColor(p.risk_level);
-
-  const nonCashHoldings = p.holdings.filter((h) => !h.is_cash);
-  const cashHolding = p.holdings.find((h) => h.is_cash);
-  const topHoldings = nonCashHoldings.slice(0, 3);
-  const moreCount = nonCashHoldings.length - topHoldings.length;
+  const nonCash = p.holdings.filter((h) => !h.is_cash);
+  const cash = p.holdings.find((h) => h.is_cash);
+  const topHoldings = nonCash.slice(0, 3);
+  const moreCount = nonCash.length - topHoldings.length;
 
   const relativeTime = (() => {
     if (!p.last_synced_at) return null;
@@ -762,206 +793,103 @@ function PortfolioCard({
   return (
     <div
       style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--card-border)",
-        borderRadius: "var(--radius-lg)",
-        padding: "16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-        transition: "border-color 150ms ease, background 150ms ease",
+        background: "var(--card-bg)", border: "1px solid var(--card-border)",
+        borderRadius: "var(--radius-lg)", padding: "15px 16px",
+        display: "flex", flexDirection: "column", gap: "11px",
+        transition: "border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.1)";
         (e.currentTarget as HTMLElement).style.background = "var(--card-hover)";
+        (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)";
         (e.currentTarget as HTMLElement).style.background = "var(--card-bg)";
+        (e.currentTarget as HTMLElement).style.transform = "";
+        (e.currentTarget as HTMLElement).style.boxShadow = "";
       }}
     >
-      {/* Allocation bar */}
       <AllocationBar holdings={p.holdings} />
 
-      {/* Name + badges + privacy chip */}
       <div>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "7px" }}>
-          <h3 style={{
-            fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
-            color: "var(--text-primary)", lineHeight: 1.25, flex: 1,
-          }}>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.25, flex: 1 }}>
             {p.public_name}
           </h3>
           <div style={{ display: "flex", gap: "5px", alignItems: "center", flexShrink: 0 }}>
-            {p.is_own && (
-              <span style={{
-                fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em",
-                padding: "2px 6px", borderRadius: "var(--radius-full)",
-                background: "rgba(37,99,235,0.1)",
-                border: "1px solid rgba(37,99,235,0.2)",
-                color: "#93c5fd",
-              }}>
-                Yours
-              </span>
-            )}
+            {p.is_own && <OwnBadge />}
             <span
-              title="Only allocation percentages are shared. Dollar amounts, cost basis, and account balances are never visible."
-              style={{
-                fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em",
-                textTransform: "uppercase", padding: "2px 6px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "var(--text-muted)",
-                cursor: "help",
-              }}
+              title="Only allocation percentages are shared. Dollar amounts, cost basis, and account balance are never visible."
+              style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)", cursor: "help" }}
             >
               % only
             </span>
           </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-          {p.risk_level && (
-            <span style={{
-              fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
-              textTransform: "uppercase", padding: "2px 7px",
-              borderRadius: "var(--radius-full)",
-              background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
-            }}>
-              {p.risk_level}
-            </span>
-          )}
-          {p.style && (
-            <span style={{
-              fontSize: "9px", color: "var(--text-tertiary)",
-              background: "transparent", border: "1px solid var(--card-border)",
-              padding: "2px 7px", borderRadius: "var(--radius-full)",
-            }}>
-              {p.style}
-            </span>
-          )}
+          <RiskBadge risk={p.risk_level} />
+          <StyleBadge style={p.style} />
         </div>
       </div>
 
-      {/* Description */}
       {p.public_description && (
-        <p style={{
-          fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55,
-          overflow: "hidden", display: "-webkit-box",
-          WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-        }}>
+        <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", margin: 0 }}>
           {p.public_description}
         </p>
       )}
 
-      {/* Top holdings */}
       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
         {topHoldings.map((h, i) => (
           <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: ALLOC_COLORS[i % ALLOC_COLORS.length], flexShrink: 0 }} />
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
-              color: "var(--text-secondary)", letterSpacing: "-0.2px", flexShrink: 0, width: "38px",
-            }}>
-              {h.ticker}
-            </span>
-            <div style={{
-              flex: 1, height: "3px", borderRadius: "2px",
-              background: "rgba(255,255,255,0.06)",
-              overflow: "hidden",
-            }}>
-              <div style={{
-                height: "100%",
-                width: `${Math.min(h.allocation_pct, 100)}%`,
-                background: ALLOC_COLORS[i % ALLOC_COLORS.length],
-                borderRadius: "2px",
-              }} />
+            <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: ALLOC_COLORS[i % ALLOC_COLORS.length], flexShrink: 0 }} />
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.2px", flexShrink: 0, width: "38px" }}>{h.ticker}</span>
+            <div style={{ flex: 1, height: "3px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${Math.min(h.allocation_pct, 100)}%`, background: ALLOC_COLORS[i % ALLOC_COLORS.length], borderRadius: "2px" }} />
             </div>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500,
-              color: "var(--text-primary)", letterSpacing: "-0.2px", flexShrink: 0,
-              minWidth: "38px", textAlign: "right",
-            }}>
-              {h.allocation_pct.toFixed(1)}%
-            </span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.2px", flexShrink: 0, minWidth: "38px", textAlign: "right" }}>{h.allocation_pct.toFixed(1)}%</span>
           </div>
         ))}
-        {(moreCount > 0 || cashHolding) && (
+        {(moreCount > 0 || cash) && (
           <div style={{ display: "flex", gap: "10px", marginTop: "1px" }}>
-            {moreCount > 0 && (
-              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                +{moreCount} more
-              </span>
-            )}
-            {cashHolding && (
-              <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                Cash <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{cashHolding.allocation_pct.toFixed(1)}%</span>
-              </span>
-            )}
+            {moreCount > 0 && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>+{moreCount} more</span>}
+            {cash && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Cash <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{cash.allocation_pct.toFixed(1)}%</span></span>}
           </div>
         )}
       </div>
 
-      {/* Author row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
         <Link href={`/${p.author.username}`} style={{ display: "flex", alignItems: "center", gap: "7px", textDecoration: "none", minWidth: 0 }}>
-          <Avatar username={p.author.username} color={p.author.avatar_color} size={22} />
-          <span style={{
-            fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>
+          <Avatar username={p.author.username} color={p.author.avatar_color} size={20} />
+          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {p.author.display_name || p.author.username}
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-          {relativeTime && (
-            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{relativeTime}</span>
-          )}
-          <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{p.follower_count}</span>
-            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)" }}>
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-            </svg>
-          </div>
+          {relativeTime && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{relativeTime}</span>}
+          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{p.follower_count} following</span>
         </div>
       </div>
 
-      {/* Footer actions */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: "6px",
-        paddingTop: "10px", borderTop: "1px solid var(--border-subtle)",
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingTop: "9px", borderTop: "1px solid var(--border-subtle)" }}>
         <Link
           href={`/community/portfolios/${p.id}`}
-          style={{
-            display: "flex", alignItems: "center", gap: "4px",
-            padding: "5px 10px", borderRadius: "var(--radius-md)",
-            fontSize: "11px", fontWeight: 500, textDecoration: "none",
-            background: "none", border: "1px solid var(--card-border)",
-            color: "var(--text-secondary)",
-            transition: "color 150ms ease, border-color 150ms ease",
-          }}
+          style={{ display: "flex", alignItems: "center", gap: "4px", padding: "5px 10px", borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 500, textDecoration: "none", background: "none", border: "1px solid var(--card-border)", color: "var(--text-secondary)", transition: "color 150ms ease, border-color 150ms ease" }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
         >
           Preview
         </Link>
-
         <div style={{ flex: 1 }} />
-
         {!p.is_own && (
-          <button
-            type="button"
-            onClick={() => onFollow(p.id)}
+          <button type="button" onClick={(e) => { e.stopPropagation(); onFollow(p.id); }}
             style={{
-              padding: "5px 11px", borderRadius: "var(--radius-full)",
-              fontSize: "11px", fontWeight: 500,
+              padding: "5px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 500,
               background: p.is_following ? "transparent" : "rgba(37,99,235,0.1)",
               border: `1px solid ${p.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
               color: p.is_following ? "var(--text-tertiary)" : "#93c5fd",
-              cursor: "pointer", fontFamily: "var(--font-body)",
-              transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
+              cursor: "pointer", fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease",
             }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.95)"; }}
             onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
@@ -970,36 +898,21 @@ function PortfolioCard({
             {p.is_following ? "Following" : "Follow"}
           </button>
         )}
-
         {!p.is_own && (
-          <button
-            type="button"
-            onClick={async () => {
-              if (copying) return;
-              setCopying(true);
-              try {
-                await onCopy(p.id);
-              } finally {
-                setCopying(false);
-              }
-            }}
+          <button type="button"
+            onClick={async (e) => { e.stopPropagation(); if (copying) return; setCopying(true); try { await onCopy(p.id); } finally { setCopying(false); } }}
             style={{
-              display: "flex", alignItems: "center", gap: "4px",
-              padding: "5px 11px", borderRadius: "var(--radius-md)",
+              display: "flex", alignItems: "center", gap: "4px", padding: "5px 11px", borderRadius: "var(--radius-md)",
               fontSize: "11px", fontWeight: 500,
-              background: "rgba(37,99,235,0.08)",
-              border: "1px solid rgba(37,99,235,0.2)",
-              color: "#93c5fd",
-              cursor: copying ? "not-allowed" : "pointer",
-              opacity: copying ? 0.6 : 1,
-              fontFamily: "var(--font-body)",
-              transition: "opacity 150ms ease",
+              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", color: "#93c5fd",
+              cursor: copying ? "not-allowed" : "pointer", opacity: copying ? 0.6 : 1,
+              fontFamily: "var(--font-body)", transition: "opacity 150ms ease",
             }}
             onPointerDown={(e) => { if (!copying) e.currentTarget.style.transform = "scale(0.95)"; }}
             onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
             onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
           >
-            {copying ? "..." : "Copy Allocation"}
+            {copying ? "..." : "Copy"}
           </button>
         )}
       </div>
@@ -1012,46 +925,46 @@ function PortfolioCard({
 export default function CommunityClient({
   strategies: initialStrategies,
   currentUserId,
-  initialSort,
-  initialStyle,
-  initialRisk,
-  initialQuery,
+  initialSort, initialStyle, initialRisk, initialQuery,
   initialSection,
   portfolios: initialPortfolios,
-  initialPSort,
-  initialPRisk,
-  initialPQuery,
+  initialPSort, initialPRisk, initialPQuery,
   initialMine,
   followingIds: followingIdsArray,
-  trendingStrategies,
+  trendingStrategies: initialTrendingStrategies,
   trendingPortfolios,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
-  initialSort: string;
-  initialStyle: string;
-  initialRisk: string;
-  initialQuery: string;
+  initialSort: string; initialStyle: string; initialRisk: string; initialQuery: string;
   initialSection: string;
   portfolios: PortfolioRow[];
-  initialPSort: string;
-  initialPRisk: string;
-  initialPQuery: string;
+  initialPSort: string; initialPRisk: string; initialPQuery: string;
   initialMine: boolean;
   followingIds: string[];
   trendingStrategies: TrendingStrategyItem[];
   trendingPortfolios: TrendingPortfolioItem[];
 }) {
   const router = useRouter();
-  const [strategies, setStrategies] = useState(initialStrategies);
-  const [portfolios, setPortfolios] = useState(initialPortfolios);
-  const [section, setSection]       = useState(initialSection);
-  const [mine, setMine]             = useState(initialMine);
-  const [commentingId, setCommentingId] = useState<string | null>(null);
-  const [isPending, startTransition]    = useTransition();
-  const [search, setSearch]             = useState(initialQuery);
-  const [pSearch, setPSearch]           = useState(initialPQuery);
-  const [copyToast, setCopyToast]       = useState<CopyToast>(null);
+  const [strategies, setStrategies]       = useState(initialStrategies);
+  const [portfolios, setPortfolios]       = useState(initialPortfolios);
+  const [trendingStrats, setTrendingStrats] = useState(initialTrendingStrategies);
+  const [section, setSection]             = useState(initialSection);
+  const [mine, setMine]                   = useState(initialMine);
+  const [commentingId, setCommentingId]   = useState<string | null>(null);
+  const [isPending, startTransition]      = useTransition();
+  const [search, setSearch]               = useState(initialQuery);
+  const [pSearch, setPSearch]             = useState(initialPQuery);
+  const [copyToast, setCopyToast]         = useState<CopyToast>(null);
+  const [previewStrategy, setPreviewStrategy] = useState<StrategyPreview | null>(null);
+
+  // Animated tab indicator
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+  useLayoutEffect(() => {
+    const btn = tabRefs.current[section];
+    if (btn) setIndicator({ left: btn.offsetLeft, width: btn.offsetWidth });
+  }, [section]);
 
   const followingSet = new Set(followingIdsArray);
 
@@ -1062,34 +975,28 @@ export default function CommunityClient({
   }
 
   function handleLike(id: string) {
-    setStrategies((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, is_liked: !s.is_liked, likes_count: s.is_liked ? s.likes_count - 1 : s.likes_count + 1 }
-          : s
-      )
-    );
+    const update = <T extends { id: string; is_liked: boolean; likes_count: number }>(prev: T[]): T[] =>
+      prev.map(s => s.id === id ? { ...s, is_liked: !s.is_liked, likes_count: s.is_liked ? s.likes_count - 1 : s.likes_count + 1 } : s);
+    setStrategies(update);
+    setTrendingStrats(update);
+    setPreviewStrategy(prev => prev?.id === id ? { ...prev, is_liked: !prev.is_liked, likes_count: prev.is_liked ? prev.likes_count - 1 : prev.likes_count + 1 } : prev);
     startTransition(() => likeStrategy(id));
   }
 
   function handleSave(id: string) {
-    setStrategies((prev) => prev.map((s) => (s.id === id ? { ...s, is_saved: !s.is_saved } : s)));
+    setStrategies(prev => prev.map(s => s.id === id ? { ...s, is_saved: !s.is_saved } : s));
+    setTrendingStrats(prev => prev.map(s => s.id === id ? { ...s, is_saved: !s.is_saved } : s));
+    setPreviewStrategy(prev => prev?.id === id ? { ...prev, is_saved: !prev.is_saved } : prev);
     startTransition(() => saveStrategy(id));
   }
 
   function handleFollow(userId: string) {
-    setStrategies((prev) =>
-      prev.map((s) =>
-        s.author.user_id === userId
-          ? { ...s, author: { ...s.author, is_following: !s.author.is_following } }
-          : s
-      )
-    );
+    const updateFollowing = <T extends { author: { user_id: string; is_following: boolean } }>(prev: T[]): T[] =>
+      prev.map(s => s.author.user_id === userId ? { ...s, author: { ...s.author, is_following: !s.author.is_following } } : s);
+    setStrategies(updateFollowing);
+    setTrendingStrats(updateFollowing);
+    setPreviewStrategy(prev => prev?.author.user_id === userId ? { ...prev, author: { ...prev.author, is_following: !prev.author.is_following } } : prev);
     startTransition(() => followUser(userId));
-  }
-
-  function handleComment(id: string) {
-    setCommentingId((prev) => (prev === id ? null : id));
   }
 
   async function handleCopy(id: string) {
@@ -1098,6 +1005,7 @@ export default function CommunityClient({
     setTimeout(() => setCopyToast(null), 4500);
   }
 
+  function handleComment(id: string) { setCommentingId(prev => prev === id ? null : id); }
   async function submitComment(strategyId: string, text: string) {
     await postComment(strategyId, text);
     setCommentingId(null);
@@ -1105,13 +1013,7 @@ export default function CommunityClient({
   }
 
   function handleFollowPortfolio(portfolioId: string) {
-    setPortfolios((prev) =>
-      prev.map((p) =>
-        p.id === portfolioId
-          ? { ...p, is_following: !p.is_following, follower_count: p.is_following ? p.follower_count - 1 : p.follower_count + 1 }
-          : p
-      )
-    );
+    setPortfolios(prev => prev.map(p => p.id === portfolioId ? { ...p, is_following: !p.is_following, follower_count: p.is_following ? p.follower_count - 1 : p.follower_count + 1 } : p));
     startTransition(() => followPublicPortfolio(portfolioId));
   }
 
@@ -1121,91 +1023,144 @@ export default function CommunityClient({
     setTimeout(() => setCopyToast(null), 4500);
   }
 
-  function toggleMine() {
-    const next = !mine;
-    setMine(next);
-    updateUrl({ mine: next ? "true" : "" });
+  function handlePreviewStrategy(s: StrategyRow) {
+    setPreviewStrategy({
+      id: s.id, name: s.name, description: s.description,
+      style: s.style, risk_level: s.risk_level,
+      likes_count: s.likes_count, copies_count: s.copies_count,
+      is_liked: s.is_liked, is_saved: s.is_saved, is_own: s.is_own,
+      author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: s.author.is_following },
+    });
   }
 
-  const searchPlaceholder =
-    section === "following" ? "Search strategies & portfolios from people you follow..." :
-    section === "portfolios" ? "Search portfolios..." :
-    "Search strategies...";
+  function handlePreviewTrendingStrategy(item: TrendingStrategyItem) {
+    // Prefer the full StrategyRow if it's in the current page
+    const full = strategies.find(s => s.id === item.id);
+    if (full) { handlePreviewStrategy(full); return; }
+    setPreviewStrategy({
+      id: item.id, name: item.name, description: item.description,
+      style: item.style, risk_level: item.risk_level,
+      likes_count: item.likes_count, copies_count: item.copies_count,
+      is_liked: item.is_liked, is_saved: item.is_saved, is_own: item.is_own,
+      author: { user_id: item.author.user_id, username: item.author.username, display_name: item.author.display_name, avatar_color: item.author.avatar_color, is_following: item.author.is_following },
+    });
+  }
 
-  // Following feed: filter from loaded data by is_following on author
+  function toggleMine() { const next = !mine; setMine(next); updateUrl({ mine: next ? "true" : "" }); }
+
+  // Build spotlight items for trending strips
+  const stratSpotlight: SpotlightItem[] = trendingStrats.map(s => ({
+    id: s.id, name: s.name, risk_level: s.risk_level, style: s.style,
+    statValue: s.copies_count, statLabel: "copies",
+    author: s.author,
+    ariaLabel: `Open strategy: ${s.name}`,
+    onClick: () => handlePreviewTrendingStrategy(s),
+  }));
+
+  const portSpotlight: SpotlightItem[] = trendingPortfolios.map(p => ({
+    id: p.id, name: p.public_name, risk_level: p.risk_level, style: p.style,
+    statValue: p.copy_count, statLabel: "copies",
+    author: p.author,
+    href: `/community/portfolios/${p.id}`,
+    ariaLabel: `View portfolio: ${p.public_name}`,
+  }));
+
   const followingStrategies = strategies.filter(s => !s.is_own && s.author.is_following);
   const followingPortfolios = portfolios.filter(p => !p.is_own && p.author.is_following);
+
+  const TABS = ["strategies", "portfolios", "following"] as const;
+  const TAB_LABELS: Record<string, string> = {
+    strategies: "Strategies",
+    portfolios: "Portfolios",
+    following: "Following",
+  };
+
+  const dropdownStyle: React.CSSProperties = {
+    padding: "5px 10px", background: "var(--card-bg)", border: "1px solid var(--card-border)",
+    borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
+    fontSize: "11px", fontFamily: "var(--font-body)", outline: "none",
+    cursor: "pointer", flexShrink: 0, transition: "border-color 150ms ease",
+  };
 
   return (
     <div style={{ maxWidth: "900px", display: "flex", flexDirection: "column" }}>
 
-      {/* ── Section nav ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "18px" }}>
-        <SectionTab
-          active={section === "strategies"}
-          label="Strategies"
-          onClick={() => { setSection("strategies"); updateUrl({ section: "strategies" }); }}
-        />
-        <SectionTab
-          active={section === "portfolios"}
-          label="Portfolios"
-          onClick={() => { setSection("portfolios"); updateUrl({ section: "portfolios" }); }}
-        />
-        <SectionTab
-          active={section === "following"}
-          label="Following"
-          count={followingStrategies.length + followingPortfolios.length}
-          onClick={() => { setSection("following"); updateUrl({ section: "following" }); }}
-        />
+      {/* ── Animated tab bar ────────────────────────────────────────────────── */}
+      <div style={{ position: "relative", display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "0" }}>
+        {/* Sliding indicator */}
+        <div style={{
+          position: "absolute", bottom: -1, height: "2px", borderRadius: "2px",
+          background: "var(--brand-blue)",
+          left: indicator.left, width: indicator.width,
+          transition: "left 220ms cubic-bezier(0.23,1,0.32,1), width 220ms cubic-bezier(0.23,1,0.32,1)",
+          pointerEvents: "none",
+        }} />
+        {TABS.map(tab => {
+          const isActive = section === tab;
+          const badge = tab === "following" ? followingStrategies.length + followingPortfolios.length : 0;
+          return (
+            <button
+              key={tab}
+              ref={el => { tabRefs.current[tab] = el; }}
+              onClick={() => { setSection(tab); updateUrl({ section: tab }); }}
+              style={{
+                padding: "11px 16px", fontSize: "13px",
+                fontWeight: isActive ? 600 : 400, fontFamily: "var(--font-body)",
+                background: "none", border: "none",
+                color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
+                cursor: "pointer", whiteSpace: "nowrap",
+                transition: "color 150ms ease",
+                display: "flex", alignItems: "center", gap: "5px",
+              }}
+            >
+              {TAB_LABELS[tab]}
+              {badge > 0 && (
+                <span style={{
+                  fontSize: "9px", fontWeight: 600,
+                  background: isActive ? "rgba(37,99,235,0.15)" : "var(--card-bg)",
+                  border: `1px solid ${isActive ? "rgba(37,99,235,0.3)" : "var(--card-border)"}`,
+                  color: isActive ? "#93c5fd" : "var(--text-muted)",
+                  padding: "1px 5px", borderRadius: "var(--radius-full)",
+                  fontFamily: "var(--font-mono)",
+                }}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Filter row ──────────────────────────────────────────────────────── */}
       {section !== "following" && (
-        <div className="community-filter-row" style={{ marginBottom: "18px" }}>
-          <div style={{ position: "relative", flex: "1 1 180px", minWidth: "150px" }}>
-            <svg
-              width="13" height="13" viewBox="0 0 20 20" fill="currentColor"
-              style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}
-            >
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-            <input
-              type="text"
-              value={section === "portfolios" ? pSearch : search}
-              onChange={(e) => section === "portfolios" ? setPSearch(e.target.value) : setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                if (section === "portfolios") updateUrl({ pq: pSearch });
-                else updateUrl({ q: search });
-              }}
-              placeholder={searchPlaceholder}
-              style={{
-                width: "100%", padding: "7px 12px 7px 30px",
-                background: "var(--card-bg)", border: "1px solid var(--card-border)",
-                borderRadius: "var(--radius-full)", color: "var(--text-primary)",
-                fontSize: "12px", fontFamily: "var(--font-body)", outline: "none",
-                transition: "border-color 150ms ease, box-shadow 150ms ease",
-              }}
-              onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
-              onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
-            />
-          </div>
-
-          {section === "strategies" && (
-            <>
-              <FilterChip active={initialSort === "popular"} label="Popular" onClick={() => updateUrl({ sort: "popular" })} />
-              <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
-              <FilterChip active={initialSort === "copied"} label="Most Copied" onClick={() => updateUrl({ sort: "copied" })} />
-              <FilterChip active={mine} label="Mine" onClick={toggleMine} />
-              <select
-                value={initialRisk}
-                onChange={(e) => updateUrl({ risk: e.target.value })}
+        <div style={{ padding: "14px 0", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "4px" }}>
+          {/* Row 1: search + sort + risk */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: "1 1 200px", minWidth: "150px" }}>
+              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"
+                style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }}
+              >
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+              </svg>
+              <input
+                type="text"
+                value={section === "portfolios" ? pSearch : search}
+                onChange={(e) => section === "portfolios" ? setPSearch(e.target.value) : setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key !== "Enter") return; section === "portfolios" ? updateUrl({ pq: pSearch }) : updateUrl({ q: search }); }}
+                placeholder={section === "portfolios" ? "Search portfolios..." : "Search strategies..."}
                 style={{
-                  padding: "5px 10px", background: "var(--card-bg)", border: "1px solid var(--card-border)",
-                  borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
-                  fontSize: "11px", fontFamily: "var(--font-body)", outline: "none",
-                  cursor: "pointer", flexShrink: 0, transition: "border-color 150ms ease",
+                  width: "100%", padding: "7px 12px 7px 30px",
+                  background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                  borderRadius: "var(--radius-full)", color: "var(--text-primary)",
+                  fontSize: "12px", fontFamily: "var(--font-body)", outline: "none",
+                  transition: "border-color 150ms ease, box-shadow 150ms ease",
                 }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
+            {section === "strategies" && (
+              <select value={initialRisk} onChange={(e) => updateUrl({ risk: e.target.value })} style={dropdownStyle}
                 onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
               >
@@ -1214,24 +1169,9 @@ export default function CommunityClient({
                 <option value="moderate">Moderate</option>
                 <option value="high">Aggressive</option>
               </select>
-            </>
-          )}
-
-          {section === "portfolios" && (
-            <>
-              <FilterChip active={initialPSort === "popular"} label="Popular" onClick={() => updateUrl({ psort: "popular" })} />
-              <FilterChip active={initialPSort === "newest"} label="Newest" onClick={() => updateUrl({ psort: "newest" })} />
-              <FilterChip active={initialPSort === "copied"} label="Most Copied" onClick={() => updateUrl({ psort: "copied" })} />
-              <FilterChip active={mine} label="Mine" onClick={toggleMine} />
-              <select
-                value={initialPRisk}
-                onChange={(e) => updateUrl({ prisk: e.target.value })}
-                style={{
-                  padding: "5px 10px", background: "var(--card-bg)", border: "1px solid var(--card-border)",
-                  borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
-                  fontSize: "11px", fontFamily: "var(--font-body)", outline: "none",
-                  cursor: "pointer", flexShrink: 0, transition: "border-color 150ms ease",
-                }}
+            )}
+            {section === "portfolios" && (
+              <select value={initialPRisk} onChange={(e) => updateUrl({ prisk: e.target.value })} style={dropdownStyle}
                 onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
               >
@@ -1240,119 +1180,120 @@ export default function CommunityClient({
                 <option value="Moderate">Moderate</option>
                 <option value="Aggressive">Aggressive</option>
               </select>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </div>
 
-      {/* ── Count label ─────────────────────────────────────────────────────── */}
-      {section !== "following" && (
-        <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>
-          {section === "portfolios"
-            ? `${portfolios.length} public ${portfolios.length === 1 ? "portfolio" : "portfolios"}${mine ? " (yours)" : ""}`
-            : `${strategies.length} public ${strategies.length === 1 ? "strategy" : "strategies"}${mine ? " (yours)" : ""}`}
-        </p>
+          {/* Row 2: sort chips + mine */}
+          <div style={{ display: "flex", gap: "7px", flexWrap: "wrap", alignItems: "center" }}>
+            {section === "strategies" && (
+              <>
+                <FilterChip active={initialSort === "popular"} label="Popular" onClick={() => updateUrl({ sort: "popular" })} />
+                <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
+                <FilterChip active={initialSort === "copied"} label="Most copied" onClick={() => updateUrl({ sort: "copied" })} />
+              </>
+            )}
+            {section === "portfolios" && (
+              <>
+                <FilterChip active={initialPSort === "popular"} label="Popular" onClick={() => updateUrl({ psort: "popular" })} />
+                <FilterChip active={initialPSort === "newest"} label="Newest" onClick={() => updateUrl({ psort: "newest" })} />
+                <FilterChip active={initialPSort === "copied"} label="Most copied" onClick={() => updateUrl({ psort: "copied" })} />
+              </>
+            )}
+            <div style={{ flex: 1 }} />
+            {mine ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Showing your posts</span>
+                <button onClick={toggleMine} style={{
+                  padding: "3px 8px", borderRadius: "var(--radius-full)", fontSize: "10px", fontWeight: 600,
+                  background: "none", border: "1px solid var(--card-border)",
+                  color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-body)",
+                }}>Clear</button>
+              </div>
+            ) : (
+              <FilterChip active={false} label="Mine" onClick={toggleMine} />
+            )}
+            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
+              {section === "portfolios" ? `${portfolios.length} shown` : `${strategies.length} shown`}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* ── Section content ──────────────────────────────────────────────────── */}
 
       {section === "following" ? (
-        // ── Following / updates feed ─────────────────────────────────────────
         followingSet.size === 0 ? (
-          <div style={{
-            padding: "56px 24px", textAlign: "center",
-            background: "var(--card-bg)", border: "1px solid var(--card-border)",
-            borderRadius: "var(--radius-lg)",
-          }}>
-            <div style={{
-              width: "40px", height: "40px", borderRadius: "10px",
-              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 14px",
-            }}>
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
-                <path d="M17 20h-2v-2a3 3 0 00-5.356-1.857M7 20H5v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+          /* Empty: no one followed — show suggestions from trending */
+          <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div style={{ padding: "28px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
+                  <path d="M17 20h-2v-2a3 3 0 00-5.356-1.857M7 20H5v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
+                Follow investors to see updates here
+              </h3>
+              <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "300px", margin: "0 auto 18px", lineHeight: 1.55 }}>
+                When you follow someone, their new strategies and portfolio updates appear in this feed.
+              </p>
+              <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button type="button" onClick={() => { setSection("strategies"); updateUrl({ section: "strategies" }); }}
+                  style={{ padding: "7px 16px", background: "var(--brand-gradient)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                  Browse strategies
+                </button>
+                <button type="button" onClick={() => { setSection("portfolios"); updateUrl({ section: "portfolios" }); }}
+                  style={{ padding: "7px 16px", background: "none", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                  Browse portfolios
+                </button>
+              </div>
             </div>
-            <h3 style={{
-              fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600,
-              color: "var(--text-primary)", marginBottom: "6px",
-            }}>
-              No one followed yet
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "320px", margin: "0 auto 18px" }}>
-              Follow investors to see their latest strategies and portfolios here.
-            </p>
-            <button
-              type="button"
-              onClick={() => { setSection("strategies"); updateUrl({ section: "strategies" }); }}
-              style={{
-                padding: "8px 18px",
-                background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)",
-                borderRadius: "var(--radius-md)", color: "#93c5fd",
-                fontSize: "12px", fontWeight: 600, cursor: "pointer",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              Browse strategies to find investors
-            </button>
-          </div>
-        ) : followingStrategies.length === 0 && followingPortfolios.length === 0 ? (
-          <div style={{
-            padding: "56px 24px", textAlign: "center",
-            background: "var(--card-bg)", border: "1px solid var(--card-border)",
-            borderRadius: "var(--radius-lg)",
-          }}>
-            <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
-              People you follow haven&apos;t shared anything publicly yet.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            {/* Following: strategies */}
-            {followingStrategies.length > 0 && (
+
+            {/* Suggestions: trending strategies */}
+            {trendingStrats.length > 0 && (
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
-                  Strategies from people you follow
+                  Popular right now
                 </p>
                 <div className="community-grid bt-list-animate">
-                  {followingStrategies.map((s) => (
+                  {trendingStrats.slice(0, 4).map(item => {
+                    const asFull = strategies.find(s => s.id === item.id);
+                    if (!asFull) return null;
+                    return (
+                      <div key={asFull.id}>
+                        <StrategyCard s={asFull} onLike={handleLike} onSave={handleSave} onFollow={handleFollow} onComment={handleComment} onCopy={handleCopy} onPreview={handlePreviewStrategy} />
+                        {commentingId === asFull.id && <CommentBox onSubmit={(text) => submitComment(asFull.id, text)} onCancel={() => setCommentingId(null)} />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : followingStrategies.length === 0 && followingPortfolios.length === 0 ? (
+          <div style={{ marginTop: "20px", padding: "48px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>People you follow haven&apos;t shared anything publicly yet.</p>
+          </div>
+        ) : (
+          <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
+            {followingStrategies.length > 0 && (
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>Strategies from people you follow</p>
+                <div className="community-grid bt-list-animate">
+                  {followingStrategies.map(s => (
                     <div key={s.id}>
-                      <StrategyCard
-                        s={s}
-                        onLike={handleLike}
-                        onSave={handleSave}
-                        onFollow={handleFollow}
-                        onComment={handleComment}
-                        onCopy={handleCopy}
-                      />
-                      {commentingId === s.id && (
-                        <CommentBox
-                          onSubmit={(text) => submitComment(s.id, text)}
-                          onCancel={() => setCommentingId(null)}
-                        />
-                      )}
+                      <StrategyCard s={s} onLike={handleLike} onSave={handleSave} onFollow={handleFollow} onComment={handleComment} onCopy={handleCopy} onPreview={handlePreviewStrategy} />
+                      {commentingId === s.id && <CommentBox onSubmit={(text) => submitComment(s.id, text)} onCancel={() => setCommentingId(null)} />}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Following: portfolios */}
             {followingPortfolios.length > 0 && (
               <div>
-                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>
-                  Portfolios from people you follow
-                </p>
+                <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px" }}>Portfolios from people you follow</p>
                 <div className="community-grid bt-list-animate">
-                  {followingPortfolios.map((p) => (
-                    <PortfolioCard
-                      key={p.id}
-                      p={p}
-                      onFollow={handleFollowPortfolio}
-                      onCopy={handleCopyPortfolio}
-                    />
-                  ))}
+                  {followingPortfolios.map(p => <PortfolioCard key={p.id} p={p} onFollow={handleFollowPortfolio} onCopy={handleCopyPortfolio} />)}
                 </div>
               </div>
             )}
@@ -1360,137 +1301,85 @@ export default function CommunityClient({
         )
 
       ) : section === "portfolios" ? (
-        // ── Portfolios ────────────────────────────────────────────────────────
         <>
-          <TrendingPortfolioStrip items={trendingPortfolios} />
+          <div style={{ paddingTop: "6px" }}>
+            <TrendingStrip label="Trending portfolios" items={portSpotlight} />
+          </div>
           {portfolios.length > 0 ? (
             <div className="community-grid bt-list-animate">
-              {portfolios.map((p) => (
-                <PortfolioCard
-                  key={p.id}
-                  p={p}
-                  onFollow={handleFollowPortfolio}
-                  onCopy={handleCopyPortfolio}
-                />
-              ))}
+              {portfolios.map(p => <PortfolioCard key={p.id} p={p} onFollow={handleFollowPortfolio} onCopy={handleCopyPortfolio} />)}
             </div>
           ) : (
-            <div style={{
-              padding: "56px 24px", textAlign: "center",
-              background: "var(--card-bg)", border: "1px solid var(--card-border)",
-              borderRadius: "var(--radius-lg)",
-            }}>
-              <div style={{
-                width: "40px", height: "40px", borderRadius: "10px",
-                background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 14px",
-              }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
-                  <path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" />
-                </svg>
-              </div>
-              <h3 style={{
-                fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600,
-                color: "var(--text-primary)", marginBottom: "6px",
-              }}>
+            <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
                 {mine ? "You haven't shared any portfolios yet" : "No public portfolios yet"}
               </h3>
-              <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "320px", margin: "0 auto" }}>
-                {mine
-                  ? "Go to your portfolio page and publish one to share allocation percentages with the community."
-                  : "Community portfolios are public allocation ideas. Share yours using the Share button above."}
+              <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "300px", margin: "0 auto" }}>
+                {mine ? "Publish a portfolio from your Portfolio page." : "Share yours using the Share button at the top."}
               </p>
             </div>
           )}
         </>
 
       ) : (
-        // ── Strategies ────────────────────────────────────────────────────────
         <>
-          <TrendingStrategyStrip items={trendingStrategies} />
+          <div style={{ paddingTop: "6px" }}>
+            <TrendingStrip label="Trending strategies" items={stratSpotlight} />
+          </div>
           {strategies.length > 0 ? (
             <div className="community-grid bt-list-animate">
-              {strategies.map((s) => (
+              {strategies.map(s => (
                 <div key={s.id}>
-                  <StrategyCard
-                    s={s}
-                    onLike={handleLike}
-                    onSave={handleSave}
-                    onFollow={handleFollow}
-                    onComment={handleComment}
-                    onCopy={handleCopy}
-                  />
-                  {commentingId === s.id && (
-                    <CommentBox
-                      onSubmit={(text) => submitComment(s.id, text)}
-                      onCancel={() => setCommentingId(null)}
-                    />
-                  )}
+                  <StrategyCard s={s} onLike={handleLike} onSave={handleSave} onFollow={handleFollow} onComment={handleComment} onCopy={handleCopy} onPreview={handlePreviewStrategy} />
+                  {commentingId === s.id && <CommentBox onSubmit={(text) => submitComment(s.id, text)} onCancel={() => setCommentingId(null)} />}
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{
-              padding: "48px 24px", textAlign: "center",
-              background: "var(--card-bg)", border: "1px solid var(--card-border)",
-              borderRadius: "var(--radius-lg)",
-            }}>
-              <h3 style={{
-                fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600,
-                color: "var(--text-primary)", marginBottom: "6px",
-              }}>
+            <div style={{ padding: "48px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "6px" }}>
                 {mine ? "You haven't shared any strategies yet" : "No public strategies yet"}
               </h3>
               <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>
-                {mine
-                  ? "Go to your Strategies page and toggle one public."
-                  : "Be the first to share — go to Strategies and toggle one public."}
+                {mine ? "Go to your Strategies page and toggle one public." : "Be the first — go to Strategies and toggle one public."}
               </p>
             </div>
           )}
         </>
       )}
 
+      {/* ── Strategy preview modal ──────────────────────────────────────────── */}
+      {previewStrategy && (
+        <StrategyPreviewModal
+          strategy={previewStrategy}
+          onClose={() => setPreviewStrategy(null)}
+          onLike={handleLike}
+          onSave={handleSave}
+          onFollow={handleFollow}
+          onCopy={handleCopy}
+        />
+      )}
+
       {/* ── Copy toast ──────────────────────────────────────────────────────── */}
       {copyToast && (
         <div style={{
           position: "fixed", bottom: "24px", right: "24px", zIndex: 300,
-          background: "var(--bg-elevated)",
-          border: "1px solid rgba(0,211,149,0.2)",
-          borderRadius: "var(--radius-md)",
-          padding: "11px 16px",
+          background: "var(--bg-elevated)", border: "1px solid rgba(0,211,149,0.2)",
+          borderRadius: "var(--radius-md)", padding: "11px 16px",
           display: "flex", alignItems: "center", gap: "10px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.55)",
-          maxWidth: "300px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.55)", maxWidth: "300px",
         }}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--green)", flexShrink: 0 }}>
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <span style={{ fontSize: "12px", color: "var(--text-secondary)", flex: 1 }}>{copyToast.message}</span>
           {copyToast.portfolioId && (
-            <Link
-              href={`/portfolios/${copyToast.portfolioId}`}
-              style={{
-                fontSize: "11px", fontWeight: 600, color: "#93c5fd",
-                textDecoration: "none", flexShrink: 0,
-                padding: "3px 8px",
-                background: "rgba(37,99,235,0.12)",
-                border: "1px solid rgba(37,99,235,0.2)",
-                borderRadius: "var(--radius-md)",
-              }}
-            >
-              Open
-            </Link>
+            <Link href={`/portfolios/${copyToast.portfolioId}`}
+              style={{ fontSize: "11px", fontWeight: 600, color: "#93c5fd", textDecoration: "none", flexShrink: 0, padding: "3px 8px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: "var(--radius-md)" }}
+            >Open</Link>
           )}
-          <button
-            type="button"
-            onClick={() => setCopyToast(null)}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--text-muted)", padding: "2px", flexShrink: 0,
-              display: "flex", alignItems: "center",
-            }}
+          <button type="button" onClick={() => setCopyToast(null)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", flexShrink: 0, display: "flex", alignItems: "center" }}
           >
             <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />

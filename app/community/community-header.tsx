@@ -58,7 +58,6 @@ function ShareModal({
   const selectedPort  = ownPortfolios.find((p) => p.id === selectedPortId);
   const portAlreadyPublished = publishedPortfolioIds.has(selectedPortId);
 
-  // Sync public name when portfolio selection changes
   useEffect(() => {
     if (selectedPort) setPublicName(selectedPort.name);
   }, [selectedPortId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,15 +111,10 @@ function ShareModal({
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: "fixed", inset: 0, zIndex: 200,
-          background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)",
-        }}
+        style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)" }}
       />
-      {/* Panel */}
       <div style={{
         position: "fixed", top: "50%", left: "50%",
         transform: "translate(-50%, -50%)", zIndex: 201,
@@ -166,7 +160,6 @@ function ShareModal({
               width: "26px", height: "26px", display: "flex", alignItems: "center", justifyContent: "center",
               background: "none", border: "none", borderRadius: "var(--radius-md)",
               color: "var(--text-muted)", cursor: "pointer",
-              transition: "color 120ms ease, background 120ms ease",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
@@ -179,163 +172,95 @@ function ShareModal({
 
         {/* Body */}
         <div style={{ padding: "16px 20px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-
-          {/* ── Step 0: Picker ── */}
           {step === "picker" && (
             <>
-              {/* Strategy option */}
               <PickerCard
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#93c5fd" }}>
-                    <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" />
-                  </svg>
-                }
-                iconBg="rgba(37,99,235,0.12)"
-                iconBorder="rgba(37,99,235,0.2)"
+                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#93c5fd" }}><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" /></svg>}
+                iconBg="rgba(37,99,235,0.12)" iconBorder="rgba(37,99,235,0.2)"
                 title="Share a Strategy"
-                description={
-                  ownStrategies.length === 0
-                    ? "No strategies yet. Create one on the Strategies page."
-                    : "Let others see your investing thesis and approach."
-                }
+                description={ownStrategies.length === 0 ? "No strategies yet. Create one on the Strategies page." : "Let others see your investing thesis and approach."}
                 disabled={ownStrategies.length === 0}
                 onClick={() => setStep("strategy")}
               />
-              {/* Portfolio option */}
               <PickerCard
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" strokeWidth="1.5">
-                    <path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" />
-                  </svg>
-                }
-                iconBg="rgba(124,58,237,0.12)"
-                iconBorder="rgba(124,58,237,0.2)"
+                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" strokeWidth="1.5"><path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" /></svg>}
+                iconBg="rgba(124,58,237,0.12)" iconBorder="rgba(124,58,237,0.2)"
                 title="Share a Portfolio"
-                description={
-                  ownPortfolios.length === 0
-                    ? "No portfolios yet. Add one to share it."
-                    : "Allocation percentages only. Dollar amounts stay private."
-                }
+                description={ownPortfolios.length === 0 ? "No portfolios yet. Add one to share it." : "Allocation percentages only. Dollar amounts stay private."}
                 disabled={ownPortfolios.length === 0}
                 onClick={() => setStep("portfolio")}
               />
             </>
           )}
 
-          {/* ── Step 1a: Strategy ── */}
           {step === "strategy" && (
             <>
               <div>
                 <label style={labelStyle}>Select a strategy</label>
-                <select
-                  value={selectedStratId}
-                  onChange={(e) => setSelectedStratId(e.target.value)}
-                  style={inputStyle}
+                <select value={selectedStratId} onChange={(e) => setSelectedStratId(e.target.value)} style={inputStyle}
                   onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
                 >
                   {ownStrategies.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}{s.is_public ? " (already shared)" : ""}
-                    </option>
+                    <option key={s.id} value={s.id}>{s.name}{s.is_public ? " (already shared)" : ""}</option>
                   ))}
                 </select>
               </div>
-
               {selectedStrat?.is_public ? (
                 <AlreadySharedNotice text="This strategy is already public. To unpublish it, use the toggle on your Strategies page." />
               ) : (
                 <>
                   {error && <p style={{ fontSize: "12px", color: "var(--red)" }}>{error}</p>}
-                  <SubmitButton
-                    onClick={handleShareStrategy}
-                    loading={status === "loading"}
-                    disabled={!selectedStratId}
-                    label="Share Strategy"
-                  />
+                  <SubmitButton onClick={handleShareStrategy} loading={status === "loading"} disabled={!selectedStratId} label="Share Strategy" />
                 </>
               )}
             </>
           )}
 
-          {/* ── Step 1b: Portfolio ── */}
           {step === "portfolio" && (
             <>
               <div>
                 <label style={labelStyle}>Select a portfolio</label>
-                <select
-                  value={selectedPortId}
-                  onChange={(e) => setSelectedPortId(e.target.value)}
-                  style={inputStyle}
+                <select value={selectedPortId} onChange={(e) => setSelectedPortId(e.target.value)} style={inputStyle}
                   onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; }}
                 >
                   {ownPortfolios.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}{publishedPortfolioIds.has(p.id) ? " (already shared)" : ""}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.name}{publishedPortfolioIds.has(p.id) ? " (already shared)" : ""}</option>
                   ))}
                 </select>
               </div>
-
               {portAlreadyPublished ? (
                 <AlreadySharedNotice text="This portfolio is already live. To update or unpublish, manage it from your Portfolio page." />
               ) : (
                 <>
                   <div>
                     <label style={labelStyle}>Public title</label>
-                    <input
-                      type="text"
-                      value={publicName}
-                      onChange={(e) => setPublicName(e.target.value)}
-                      maxLength={100}
-                      placeholder="Give your portfolio a public name..."
-                      style={inputStyle}
+                    <input type="text" value={publicName} onChange={(e) => setPublicName(e.target.value)} maxLength={100}
+                      placeholder="Give your portfolio a public name..." style={inputStyle}
                       onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
-
                   <div>
-                    <label style={labelStyle}>
-                      Description{" "}
-                      <span style={{ textTransform: "none", fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span>
-                    </label>
-                    <textarea
-                      value={publicDesc}
-                      onChange={(e) => setPublicDesc(e.target.value)}
-                      maxLength={500} rows={3}
-                      placeholder="Describe your allocation approach..."
-                      style={{ ...inputStyle, resize: "none", lineHeight: 1.55 }}
+                    <label style={labelStyle}>Description <span style={{ textTransform: "none", fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
+                    <textarea value={publicDesc} onChange={(e) => setPublicDesc(e.target.value)} maxLength={500} rows={3}
+                      placeholder="Describe your allocation approach..." style={{ ...inputStyle, resize: "none", lineHeight: 1.55 }}
                       onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
-
-                  {/* Privacy notice */}
-                  <div style={{
-                    padding: "10px 13px",
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: "var(--radius-md)",
-                    display: "flex", gap: "9px", alignItems: "flex-start",
-                  }}>
+                  <div style={{ padding: "10px 13px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--radius-md)", display: "flex", gap: "9px", alignItems: "flex-start" }}>
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: "1px" }}>
                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                     </svg>
                     <p style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.55, margin: 0 }}>
                       <strong style={{ color: "var(--text-tertiary)", fontWeight: 600 }}>% only.</strong>{" "}
-                      Only percentage weights are shared. Share counts, cost basis, dollar values, and account balance are never visible.
+                      Only percentage weights are shared. Counts, cost basis, dollar values, and account balance are never visible.
                     </p>
                   </div>
-
                   {error && <p style={{ fontSize: "12px", color: "var(--red)", margin: 0 }}>{error}</p>}
-                  <SubmitButton
-                    onClick={handleSharePortfolio}
-                    loading={status === "loading"}
-                    disabled={!publicName.trim()}
-                    label="Share Portfolio"
-                  />
+                  <SubmitButton onClick={handleSharePortfolio} loading={status === "loading"} disabled={!publicName.trim()} label="Share Portfolio" />
                 </>
               )}
             </>
@@ -346,39 +271,23 @@ function ShareModal({
   );
 }
 
-// ─── Picker card ──────────────────────────────────────────────────────────────
-
-function PickerCard({
-  icon, iconBg, iconBorder, title, description, disabled, onClick,
-}: {
-  icon: React.ReactNode;
-  iconBg: string; iconBorder: string;
-  title: string; description: string;
-  disabled: boolean; onClick: () => void;
+function PickerCard({ icon, iconBg, iconBorder, title, description, disabled, onClick }: {
+  icon: React.ReactNode; iconBg: string; iconBorder: string;
+  title: string; description: string; disabled: boolean; onClick: () => void;
 }) {
   return (
-    <button
-      type="button" onClick={onClick} disabled={disabled}
+    <button type="button" onClick={onClick} disabled={disabled}
       style={{
-        display: "flex", alignItems: "flex-start", gap: "14px",
-        padding: "14px 16px",
-        background: "var(--card-bg)", border: "1px solid var(--card-border)",
-        borderRadius: "var(--radius-lg)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.45 : 1,
-        textAlign: "left", fontFamily: "var(--font-body)",
+        display: "flex", alignItems: "flex-start", gap: "14px", padding: "14px 16px",
+        background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)",
+        cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1,
+        textAlign: "left", fontFamily: "var(--font-body)", width: "100%",
         transition: "border-color 150ms ease, background 150ms ease",
-        width: "100%",
       }}
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = "rgba(37,99,235,0.3)"; e.currentTarget.style.background = "var(--card-hover)"; } }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--card-border)"; e.currentTarget.style.background = "var(--card-bg)"; }}
     >
-      <div style={{
-        width: "36px", height: "36px", minWidth: "36px",
-        borderRadius: "var(--radius-md)",
-        background: iconBg, border: `1px solid ${iconBorder}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
+      <div style={{ width: "36px", height: "36px", minWidth: "36px", borderRadius: "var(--radius-md)", background: iconBg, border: `1px solid ${iconBorder}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -394,36 +303,23 @@ function PickerCard({
 
 function AlreadySharedNotice({ text }: { text: string }) {
   return (
-    <div style={{
-      padding: "11px 14px",
-      background: "rgba(0,211,149,0.05)",
-      border: "1px solid rgba(0,211,149,0.15)",
-      borderRadius: "var(--radius-md)",
-    }}>
-      <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--green)", marginBottom: "3px" }}>
-        Already live in Community
-      </p>
+    <div style={{ padding: "11px 14px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
+      <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--green)", marginBottom: "3px" }}>Already live in Community</p>
       <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>{text}</p>
     </div>
   );
 }
 
-function SubmitButton({ onClick, loading, disabled, label }: {
-  onClick: () => void; loading: boolean; disabled: boolean; label: string;
-}) {
+function SubmitButton({ onClick, loading, disabled, label }: { onClick: () => void; loading: boolean; disabled: boolean; label: string }) {
   return (
-    <button
-      type="button" onClick={onClick}
-      disabled={loading || disabled}
+    <button type="button" onClick={onClick} disabled={loading || disabled}
       style={{
         width: "100%", padding: "10px 16px",
         background: loading || disabled ? "rgba(37,99,235,0.25)" : "var(--brand-gradient)",
         border: "none", borderRadius: "var(--radius-md)",
         color: loading || disabled ? "rgba(255,255,255,0.5)" : "#fff",
-        fontSize: "13px", fontWeight: 600,
-        cursor: loading || disabled ? "not-allowed" : "pointer",
-        fontFamily: "var(--font-body)",
-        transition: "opacity 150ms ease",
+        fontSize: "13px", fontWeight: 600, cursor: loading || disabled ? "not-allowed" : "pointer",
+        fontFamily: "var(--font-body)", transition: "opacity 150ms ease",
       }}
       onPointerDown={(e) => { if (!loading && !disabled) e.currentTarget.style.opacity = "0.85"; }}
       onPointerUp={(e) => { e.currentTarget.style.opacity = "1"; }}
@@ -434,13 +330,30 @@ function SubmitButton({ onClick, loading, disabled, label }: {
   );
 }
 
+// ─── Stat chip ────────────────────────────────────────────────────────────────
+
+function StatChip({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "6px",
+      padding: "4px 11px",
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.07)",
+      borderRadius: "var(--radius-full)",
+    }}>
+      <span style={{ color: "var(--text-tertiary)", display: "flex", alignItems: "center" }}>{icon}</span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.03em" }}>
+        {value.toLocaleString()}
+      </span>
+      <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{label}</span>
+    </div>
+  );
+}
+
 // ─── CommunityHeader ──────────────────────────────────────────────────────────
 
 export default function CommunityHeader({
-  stats,
-  ownStrategies,
-  ownPortfolios,
-  publishedPortfolioIds,
+  stats, ownStrategies, ownPortfolios, publishedPortfolioIds,
 }: {
   stats: CommunityStats;
   ownStrategies: OwnStrategy[];
@@ -457,95 +370,90 @@ export default function CommunityHeader({
     setTimeout(() => setToast(null), 4500);
   }
 
-  const dot = (
-    <span style={{ fontSize: "11px", color: "var(--text-muted)", opacity: 0.35, userSelect: "none" }}>·</span>
-  );
-
   return (
     <>
+      {/* Hero header */}
       <div style={{
-        padding: "14px 24px 12px",
+        position: "relative", overflow: "hidden",
+        padding: "16px 24px 14px",
         borderBottom: "1px solid var(--border-subtle)",
         background: "var(--bg-base)",
-        display: "flex", alignItems: "flex-start",
-        justifyContent: "space-between", gap: "16px", flexWrap: "wrap",
       }}>
-        <div>
-          <h1 style={{
-            fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 600,
-            color: "var(--text-primary)", letterSpacing: "-0.2px", marginBottom: "3px",
-          }}>
-            Community
-          </h1>
-          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "9px" }}>
-            Discover and save strategies and portfolios from BuyTune investors.
-          </p>
-          {/* Stats row */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)" }}>
-                {stats.strategies_count}
-              </span>
-              {" "}strategies
-            </span>
-            {dot}
-            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)" }}>
-                {stats.portfolios_count}
-              </span>
-              {" "}portfolios
-            </span>
-            {stats.total_copies > 0 && (
-              <>
-                {dot}
-                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)" }}>
-                    {stats.total_copies}
-                  </span>
-                  {" "}copies made
-                </span>
-              </>
-            )}
-          </div>
-        </div>
+        {/* Subtle glow */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          background: "radial-gradient(ellipse at 20% -30%, rgba(37,99,235,0.09) 0%, transparent 60%)",
+          pointerEvents: "none",
+        }} />
 
-        <button
-          type="button"
-          onClick={() => setShareOpen(true)}
-          style={{
-            display: "flex", alignItems: "center", gap: "6px",
-            padding: "7px 16px",
-            background: "var(--brand-gradient)",
-            border: "none", borderRadius: "var(--radius-md)",
-            color: "#fff", fontSize: "12px", fontWeight: 600,
-            fontFamily: "var(--font-body)", cursor: "pointer", flexShrink: 0,
-            boxShadow: "0 2px 10px rgba(37,99,235,0.3)",
-            transition: "box-shadow 150ms ease, transform 150ms ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(37,99,235,0.3)"; e.currentTarget.style.transform = ""; }}
-          onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
-          onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
-          onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
-        >
-          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M10 3v14M3 10l7-7 7 7" />
-          </svg>
-          Share
-        </button>
+        <div style={{ position: "relative", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{
+              fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 600,
+              color: "var(--text-primary)", letterSpacing: "-0.3px", marginBottom: "2px",
+            }}>
+              Community
+            </h1>
+            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", marginBottom: "12px", lineHeight: 1.4 }}>
+              Copy strategies and follow portfolios from BuyTune investors.
+            </p>
+            {/* Stat chips */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
+              <StatChip
+                icon={<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" /></svg>}
+                value={stats.strategies_count}
+                label="strategies"
+              />
+              <StatChip
+                icon={<svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" /></svg>}
+                value={stats.portfolios_count}
+                label="portfolios"
+              />
+              {stats.total_copies > 0 && (
+                <StatChip
+                  icon={<svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z" /><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h8a2 2 0 00-2-2H5z" /></svg>}
+                  value={stats.total_copies}
+                  label="copies made"
+                />
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: "6px",
+              padding: "7px 16px",
+              background: "var(--brand-gradient)",
+              border: "none", borderRadius: "var(--radius-md)",
+              color: "#fff", fontSize: "12px", fontWeight: 600,
+              fontFamily: "var(--font-body)", cursor: "pointer", flexShrink: 0,
+              boxShadow: "0 2px 10px rgba(37,99,235,0.28)",
+              transition: "box-shadow 150ms ease, transform 150ms ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 18px rgba(37,99,235,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(37,99,235,0.28)"; e.currentTarget.style.transform = ""; }}
+            onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
+            onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
+            onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
+          >
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M10 3v14M3 10l7-7 7 7" />
+            </svg>
+            Share
+          </button>
+        </div>
       </div>
 
       {/* Success toast */}
       {toast && (
         <div style={{
           position: "fixed", bottom: "24px", right: "24px", zIndex: 300,
-          background: "var(--bg-elevated)",
-          border: "1px solid rgba(0,211,149,0.2)",
-          borderRadius: "var(--radius-md)",
-          padding: "11px 16px",
+          background: "var(--bg-elevated)", border: "1px solid rgba(0,211,149,0.2)",
+          borderRadius: "var(--radius-md)", padding: "11px 16px",
           display: "flex", alignItems: "center", gap: "10px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.55)",
-          maxWidth: "280px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.55)", maxWidth: "280px",
         }}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--green)", flexShrink: 0 }}>
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />

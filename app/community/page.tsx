@@ -173,7 +173,7 @@ export default async function CommunityPage({
   const [{ data: trendingStratsRaw }, { data: trendingPortsRaw }] = await Promise.all([
     supabase
       .from("strategies")
-      .select("id, name, style, risk_level, copies_count, likes_count, user_id")
+      .select("id, name, description, style, risk_level, copies_count, likes_count, user_id")
       .eq("is_public", true).eq("is_active", true)
       .order("copies_count", { ascending: false })
       .limit(6),
@@ -203,15 +203,20 @@ export default async function CommunityPage({
   const trendingStrategies = (trendingStratsRaw ?? []).map(s => ({
     id: s.id,
     name: s.name,
+    description: s.description ?? null,
     style: s.style,
     risk_level: s.risk_level,
     copies_count: s.copies_count ?? 0,
     likes_count: s.likes_count ?? 0,
     is_liked: likedIds.has(s.id),
+    is_saved: savedIds.has(s.id),
+    is_own: s.user_id === user.id,
     author: {
       user_id: s.user_id,
       username: allProfileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
+      display_name: allProfileMap.get(s.user_id)?.display_name ?? null,
       avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
+      is_following: followingIds.has(s.user_id),
     },
   }));
 
