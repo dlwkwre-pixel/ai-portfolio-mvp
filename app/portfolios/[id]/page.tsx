@@ -19,11 +19,25 @@ import EditPortfolioForm from "./edit-portfolio-form";
 import PortfolioHeader, { PortfolioStatCards } from "./portfolio-header";
 import { PortfolioPrivacyProvider } from "./portfolio-privacy-context";
 import PortfolioShareSection from "./portfolio-share-section";
+import AuditPortfolioModal from "./audit-portfolio-modal";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tab?: string }>;
 };
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
 
 function formatMoney(v: number | null | undefined) {
   if (v == null) return "—";
@@ -182,6 +196,14 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </span>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
+                <AuditPortfolioModal
+                  portfolioId={portfolio.id}
+                  currentHoldings={(holdings ?? []).map((h) => ({
+                    ticker: h.ticker,
+                    shares: Number(h.shares),
+                    company_name: h.company_name ?? null,
+                  }))}
+                />
                 <EditPortfolioForm portfolio={{ id: portfolio.id, name: portfolio.name, description: portfolio.description, benchmark_symbol: portfolio.benchmark_symbol, status: portfolio.status }} />
                 <PortfolioHeader
                   portfolioId={portfolio.id}
@@ -202,6 +224,16 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
             {/* Stat cards — full-width section below topbar, never inside the topbar flex row */}
             <PortfolioStatCards statCards={statCards} />
+
+            {/* Reconciliation metadata — shown only after first audit */}
+            {portfolio.last_reconciled_at && (
+              <div style={{ padding: "6px 24px 0" }}>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                  Portfolio synced {relativeTime(portfolio.last_reconciled_at)}
+                  {portfolio.last_audit_source ? ` · ${portfolio.last_audit_source}` : ""}
+                </p>
+              </div>
+            )}
 
             {/* Chart hero */}
             <div className="bt-page-header" style={{ padding: "16px 24px 0" }}>
