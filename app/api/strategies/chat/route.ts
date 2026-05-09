@@ -2,48 +2,105 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 
-const SYSTEM_PROMPT = `You are a friendly financial advisor helping an investor build a personalized investing strategy.
+// ── Phase 1: Conversation ─────────────────────────────────────────────────────
+// Warm, focused interview. Ends with READY_TO_GENERATE signal (no JSON).
+// Temperature 0.7 — natural and conversational.
 
-Your job is to ask 5-7 conversational questions to understand their investing style, then generate a complete strategy.
+const CHAT_SYSTEM_PROMPT = `You are Finn, BuyTune's AI strategy advisor. You help investors define a personalized investing strategy through a short, focused conversation.
 
-Questions to cover (ask naturally, one at a time):
-1. Main investing goal (growth, income, capital preservation, speculation)
-2. Risk tolerance (how would they react to a 20% portfolio drop)
-3. Trading frequency preference (buy and hold vs active trading)
-4. Sector preferences or exclusions
-5. Position concentration comfort (all-in on few stocks vs diversified)
-6. Time horizon (when do they need this money)
-7. Any specific investing philosophy they follow (value, momentum, quality, etc.)
+## Your Goal
+Conduct a 5–7 exchange interview to understand the investor's situation. Be warm, sharp, and financially literate — like a trusted advisor, not a chatbot. When you have enough information, signal that you are ready to generate their strategy.
 
-After you have enough information (usually 5-7 exchanges), say exactly "READY_TO_GENERATE" on its own line, followed by a JSON object like this:
+## Topics to Cover (all required, one question at a time)
+
+Ask these naturally in any order that flows from the conversation:
+
+1. **Primary goal** — What is this money actually for? (retirement, financial independence, income, passive wealth, specific purchase?) And roughly when do they need it?
+2. **Risk tolerance** — Ask concretely: their portfolio drops 30% in three months. Do they buy more, hold, or sell to stop the bleeding? Have they invested through a crash before?
+3. **Time horizon** — When is the earliest they would need to withdraw a significant amount?
+4. **Account type** — Is this money in a taxable brokerage, Roth IRA, 401k, or something else? This shapes the tax strategy.
+5. **Trading activity** — Do they want to set it and forget for years, or are they comfortable reviewing and rebalancing every quarter?
+6. **Concentration** — Comfortable with 8–12 high-conviction holdings, or prefer spreading across 25+ positions?
+7. **Preferences and constraints** — Any sectors they love or want to avoid? ESG requirements? Stocks they already own and plan to keep?
+
+## Conversation Rules
+
+- ONE question per message — never stack two questions
+- Keep each response to 2–4 sentences during the interview
+- If an answer is vague ("moderate risk", "long-term"), ask one specific follow-up before moving on. Example: "When you say moderate — what would a genuinely bad year look like to you? Down 15%? Down 30%?"
+- Do NOT number your questions or announce what topic you are on
+- Do NOT rush — 3 exchanges is never enough to build a real strategy
+
+## When Ready to Generate
+
+After 5–7 substantive exchanges where you have clear answers to all seven topics:
+
+1. Write 1–2 sentences summarizing what kind of strategy you are about to build, in plain language the investor will recognize themselves in
+2. On a new line, write exactly: READY_TO_GENERATE
+
+Do NOT output any JSON. Do NOT output the strategy. Only the summary sentence(s) and the READY_TO_GENERATE signal.`;
+
+// ── Phase 2: Generation ───────────────────────────────────────────────────────
+// Pure structured output. Only receives conversation as context.
+// Temperature 0.1 — precise and consistent.
+
+const GENERATION_SYSTEM_PROMPT = `You are a financial strategy architect. You have been given a conversation between an investor and Finn, an AI strategy advisor. Your job: synthesize everything the investor said into a precise, actionable investing strategy.
+
+Output ONLY a single valid JSON object. No markdown fences, no explanation, no preamble — raw JSON only.
+
+## Schema
+
 {
-  "name": "strategy name",
-  "style": "one of: Growth/Value/Blend/Dividend / Income/Quality/Index / Passive/Sector / Thematic/Momentum/Swing/Defensive/Balanced/Speculative/Custom",
-  "risk_level": "one of: Conservative/Moderate/Aggressive",
-  "turnover_preference": "one of: Low/Moderate/High",
-  "holding_period_bias": "one of: Short-term/Swing/Medium-term/Long-term/Very Long-term/Flexible",
-  "max_position_pct": number or null,
-  "min_position_pct": number or null,
-  "cash_min_pct": number or null,
-  "cash_max_pct": number or null,
-  "description": "2-3 sentence description of the strategy",
-  "prompt_text": "detailed AI prompt for analyzing portfolios using this strategy (3-5 sentences covering what to prioritize, what to avoid, sizing rules, and decision criteria)"
+  "name": "3–5 word strategy name that captures its personality. Examples: 'Patient Quality Compounder', 'Roth IRA Growth Engine', 'Conservative Income Shield', 'High-Conviction Value Hunter', 'Balanced Dividend Builder'",
+  "style": "Exactly one of: Growth | Value | Blend | Dividend / Income | Quality | Index / Passive | Sector / Thematic | Momentum | Swing | Defensive | Balanced | Speculative | Custom",
+  "risk_level": "Exactly one of: Conservative | Moderate | Aggressive",
+  "turnover_preference": "Exactly one of: Low | Moderate | High",
+  "holding_period_bias": "Exactly one of: Short-term | Swing | Medium-term | Long-term | Very Long-term | Flexible",
+  "max_position_pct": integer 5–40 (maximum % of portfolio in one holding),
+  "min_position_pct": integer 1–10 (minimum % — positions smaller than this are noise),
+  "cash_min_pct": integer 0–25 (minimum cash reserve to keep at all times),
+  "cash_max_pct": integer 5–40 (maximum cash before it is dragging on returns),
+  "description": "2–3 sentences written for the investor to read. Should capture their personality, goals, and approach in plain language — they should recognize themselves in it immediately.",
+  "prompt_text": "SEE DETAILED INSTRUCTIONS BELOW — THIS IS THE MOST IMPORTANT FIELD"
 }
 
-Keep responses conversational and concise (2-4 sentences). Don't ask multiple questions at once. Be encouraging and professional.`;
+## prompt_text — Critical Field Instructions
 
-// --- Per-user rate limiting (best-effort, per serverless instance) ---
+This text is passed word-for-word to an AI that analyzes the investor's stock portfolio and generates buy/hold/sell recommendations. A generic prompt_text produces generic, useless recommendations. A specific one produces genuinely differentiated, high-quality analysis.
+
+Requirements:
+- 180–320 words
+- Every criterion must be concrete and measurable — no vague adjectives
+- Must cover all five elements below
+- Must reflect specific details from the conversation (account type, sectors mentioned, risk answers, time horizon, concentration preference)
+
+Five required elements:
+1. **What to prioritize**: specific financial metrics (ROIC, FCF yield, revenue growth rate, gross margin trends, net debt / EBITDA, insider ownership)
+2. **Sector tilts**: which industries to overweight or avoid, based on what the investor actually said
+3. **Position sizing rules**: initial entry %, when and how to add, maximum % per holding, minimum %
+4. **Sell and trim discipline**: specific numerical triggers for reducing or exiting a position — not "sell if thesis breaks" but "sell if revenue growth falls below X% for Y consecutive quarters"
+5. **Account-specific considerations**: if Roth IRA → minimize turnover, favor long-duration compounders, the tax-free structure rewards patience; if taxable → avoid unnecessary short-term gains, consider tax-loss harvesting windows; if 401k → contribution-based strategy, focus on index-like core
+
+## Quality Contrast
+
+WEAK (never produce this):
+"Focus on quality growth companies with strong fundamentals. Diversify across sectors. Avoid high-risk speculative positions. Look for companies with good management and competitive advantages. Think long-term and stay disciplined."
+
+STRONG (produce this quality):
+"Prioritize businesses with durable competitive moats: target companies with FCF yield above 4%, ROIC above 15% sustained over three or more years, and net debt below 2x EBITDA. Favor category leaders in secular growth markets — cloud infrastructure, healthcare technology, consumer staples with pricing power — where demand is structurally driven rather than cyclical. Avoid capital-intensive industrials, highly leveraged balance sheets (debt/equity above 1.5x), and companies with sustained insider selling over 12+ months. Position sizing: initiate at 4–6% with moderate conviction; add to 8–12% only after two or more quarters of confirmed thesis strength; never exceed 15% in a single name. Trim automatically if a position grows beyond 18% through appreciation. Sell triggers: revenue growth falls below 8% for two consecutive quarters without a clear recovery catalyst; management credibility is damaged by a guidance miss of more than 20%; a direct competitor achieves a durable cost or technology advantage. Since this is a Roth IRA, prioritize high-growth compounders that generate large unrealized gains — the tax-free structure rewards patience over years, not quarters. Maintain 5–12% cash at all times to act on meaningful price dislocations."`;
+
+// ── Per-user rate limiting ────────────────────────────────────────────────────
+
 type RateEntry = { count: number; windowStart: number; lastAt: number };
 const rateMap = new Map<string, RateEntry>();
-const WINDOW_MS = 10 * 60 * 1000; // 10-minute window
-const MAX_PER_WINDOW = 20;
-const MIN_INTERVAL_MS = 2000; // 2 s between requests
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_PER_WINDOW = 25;
+const MIN_INTERVAL_MS = 1500;
 
 function checkRateLimit(userId: string): string | null {
   const now = Date.now();
   const entry = rateMap.get(userId);
 
-  // Periodic cleanup: drop entries older than 2 windows
   if (rateMap.size > 500) {
     for (const [k, v] of rateMap) {
       if (now - v.windowStart > WINDOW_MS * 2) rateMap.delete(k);
@@ -69,24 +126,27 @@ function checkRateLimit(userId: string): string | null {
   return null;
 }
 
-// --- Provider resolution ---
+// ── Provider resolution ───────────────────────────────────────────────────────
+
 type ProviderConfig = { provider: string; client: OpenAI; model: string };
 
 function getEnabledProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
 
+  // Groq — primary free provider
   if (process.env.ENABLE_GROQ_STRATEGY_BUILDER === "true" && process.env.GROQ_API_KEY) {
     providers.push({
       provider: "groq",
       client: new OpenAI({
         apiKey: process.env.GROQ_API_KEY,
         baseURL: "https://api.groq.com/openai/v1",
-        timeout: 30000,
+        timeout: 45000,
       }),
-      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || "llama-3.1-8b-instant",
+      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || "llama-3.3-70b-versatile",
     });
   }
 
+  // Gemini — optional fallback (disabled by default to preserve quota)
   if (process.env.ENABLE_GEMINI_STRATEGY_BUILDER === "true" && process.env.GEMINI_API_KEY) {
     providers.push({
       provider: "gemini",
@@ -95,11 +155,11 @@ function getEnabledProviders(): ProviderConfig[] {
         baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
         timeout: 30000,
       }),
-      model: process.env.GEMINI_STRATEGY_BUILDER_MODEL || "gemini-1.5-flash",
+      model: process.env.GEMINI_STRATEGY_BUILDER_MODEL || "gemini-2.0-flash",
     });
   }
 
-  // xAI/Grok is opt-in only — never used unless ENABLE_XAI_STRATEGY_BUILDER=true
+  // xAI — opt-in only
   if (process.env.ENABLE_XAI_STRATEGY_BUILDER === "true" && process.env.XAI_API_KEY) {
     providers.push({
       provider: "xai",
@@ -115,60 +175,67 @@ function getEnabledProviders(): ProviderConfig[] {
   return providers;
 }
 
+// ── Route handler ─────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   try {
-    // Auth — required for rate limiting and security
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    // Rate limit
     const rateLimitMsg = checkRateLimit(user.id);
     if (rateLimitMsg) {
       return NextResponse.json({ error: rateLimitMsg }, { status: 429 });
     }
 
-    const { messages } = await req.json();
+    const { messages, phase = "chat" } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
     }
 
-    // Cap history to prevent token abuse
-    const MAX_HISTORY = 30;
+    const isGeneration = phase === "generate";
+
+    // Cap history to prevent token abuse (generation phase needs full context)
+    const MAX_HISTORY = isGeneration ? 40 : 30;
     const history = (messages as { role: string; content: string }[])
       .slice(-MAX_HISTORY)
-      .map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content).slice(0, 2000) }));
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: String(m.content).slice(0, isGeneration ? 3000 : 2000),
+      }));
 
     const providers = getEnabledProviders();
     if (providers.length === 0) {
       return NextResponse.json({
-        error: "No AI provider is configured for the strategy builder. Set ENABLE_GROQ_STRATEGY_BUILDER=true and GROQ_API_KEY in your environment variables.",
+        error: "No AI provider configured. Set ENABLE_GROQ_STRATEGY_BUILDER=true and GROQ_API_KEY.",
       }, { status: 503 });
     }
 
-    // Try each provider in order, falling back on error
     for (const config of providers) {
       try {
         const completion = await config.client.chat.completions.create({
           model: config.model,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: isGeneration ? GENERATION_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT },
             ...history,
+            // For generation phase: explicit final instruction to output only JSON
+            ...(isGeneration ? [{
+              role: "user" as const,
+              content: "Generate the strategy JSON now based on our conversation. Output only the JSON object, nothing else.",
+            }] : []),
           ],
-          max_tokens: 1000,
-          temperature: 0.7,
+          max_tokens: isGeneration ? 1800 : 450,
+          temperature: isGeneration ? 0.1 : 0.72,
         });
 
         const text = completion.choices[0]?.message?.content ?? "";
-        console.log(`[strategy-builder] provider=${config.provider} model=${config.model} user=${user.id.slice(0, 8)}`);
+        console.log(`[strategy-builder] phase=${phase} provider=${config.provider} model=${config.model} user=${user.id.slice(0, 8)} tokens=${text.length}`);
         return NextResponse.json({ text });
       } catch (err) {
-        console.error(`[strategy-builder] provider=${config.provider} failed:`, err instanceof Error ? err.message : err);
-        // Continue to next provider
+        console.error(`[strategy-builder] phase=${phase} provider=${config.provider} failed:`, err instanceof Error ? err.message : err);
       }
     }
 
-    // All providers failed
     return NextResponse.json({
       error: "The AI strategy builder is temporarily unavailable. Please try again in a few minutes.",
     }, { status: 503 });
