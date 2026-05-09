@@ -18,17 +18,17 @@ export default async function PortfolioChartSection({
 }: PortfolioChartSectionProps) {
   const supabase = await createClient();
 
-  // Auto-snapshot: if no snapshot exists for today, create one silently
-  const today = new Date().toISOString().split("T")[0];
-  const { data: todaySnapshot } = await supabase
+  // Auto-snapshot: at most once every 4 hours per portfolio (free — valuation is already fetched for the page)
+  const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+  const { data: recentSnapshot } = await supabase
     .from("portfolio_snapshots")
     .select("id")
     .eq("portfolio_id", portfolioId)
-    .gte("snapshot_date", `${today}T00:00:00`)
-    .lte("snapshot_date", `${today}T23:59:59`)
+    .gte("snapshot_date", fourHoursAgo)
+    .limit(1)
     .maybeSingle();
 
-  if (!todaySnapshot) {
+  if (!recentSnapshot) {
     const { data: holdings } = await supabase
       .from("holdings")
       .select("id, ticker, company_name, asset_type, shares, average_cost_basis")

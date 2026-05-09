@@ -578,6 +578,15 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
     if (updateRunError) throw new Error(updateRunError.message);
 
+    // Free snapshot — valuation was already computed in buildPortfolioAiContext above
+    await supabase.from("portfolio_snapshots").insert({
+      portfolio_id: portfolioId,
+      total_value: (context as any).current_valuation.total_portfolio_value,
+      cash_balance: (context as any).portfolio.cash_balance,
+      snapshot_date: new Date().toISOString(),
+      notes: "Auto snapshot — AI analysis",
+    });
+
     revalidatePath(`/portfolios/${portfolioId}`);
     revalidatePath("/dashboard");
 
