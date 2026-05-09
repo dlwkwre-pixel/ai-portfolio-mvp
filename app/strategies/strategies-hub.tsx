@@ -229,6 +229,7 @@ export default function StrategiesHub() {
   const [flyCard, setFlyCard] = useState<{ name: string; phase: FlyPhase } | null>(null);
   const [showNudge, setShowNudge] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<Section>(null);
+  const [showFinn, setShowFinn] = useState(false);
 
   const featuredTemplates = TEMPLATES.filter(t => FEATURED_TEMPLATE_IDS.includes(t.id));
 
@@ -338,7 +339,7 @@ export default function StrategiesHub() {
           {/* ── Finn card — div wrapper allows nesting the CTA button ── */}
           <div
             className="bt-card"
-            onClick={() => toggleSection("ai-builder")}
+            onClick={() => setShowFinn(true)}
             onMouseEnter={() => setHoveredCard("ai-builder")}
             onMouseLeave={() => setHoveredCard(null)}
             style={{
@@ -347,10 +348,7 @@ export default function StrategiesHub() {
               display: "flex",
               flexDirection: "column",
               transition: "transform 150ms cubic-bezier(0.23,1,0.32,1), box-shadow 150ms cubic-bezier(0.23,1,0.32,1), border-color 0.18s, background 0.18s",
-              ...(activeSection === "ai-builder" ? {
-                border: "1px solid rgba(37,99,235,0.45)",
-                background: "rgba(37,99,235,0.07)",
-              } : hoveredCard === "ai-builder" ? {
+              ...(hoveredCard === "ai-builder" ? {
                 transform: "translateY(-2px)",
                 boxShadow: "0 8px 28px rgba(37,99,235,0.2)",
                 border: "1px solid rgba(37,99,235,0.32)",
@@ -396,7 +394,7 @@ export default function StrategiesHub() {
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingLeft: "46px" }}>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); toggleSection("ai-builder"); }}
+                onClick={(e) => { e.stopPropagation(); setShowFinn(true); }}
                 style={{
                   padding: "7px 15px",
                   borderRadius: "var(--radius-xl)",
@@ -599,21 +597,17 @@ export default function StrategiesHub() {
           </div>
         </div>
 
-        {/* ── Finn questionnaire expand ─────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateRows: activeSection === "ai-builder" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "ai-builder" ? "10px" : "0" }}>
-          <div style={{ overflow: "hidden" }}>
-            {activeSection === "ai-builder" && (
-              <StrategyQuestionnaire
-                variant="inline"
-                onClose={() => setActiveSection(null)}
-                onSaved={(name) => {
-                  setActiveSection(null);
-                  triggerFlyAnimation(name);
-                }}
-              />
-            )}
-          </div>
-        </div>
+        {/* ── Finn modal ───────────────────────────────────────────────── */}
+        {showFinn && (
+          <StrategyQuestionnaire
+            variant="modal"
+            onClose={() => setShowFinn(false)}
+            onSaved={(name) => {
+              setShowFinn(false);
+              triggerFlyAnimation(name);
+            }}
+          />
+        )}
 
         {/* ── Templates expand (all 8) ──────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateRows: activeSection === "templates" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "templates" ? "10px" : "0" }}>
