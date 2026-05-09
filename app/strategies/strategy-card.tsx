@@ -15,6 +15,8 @@ const inp = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-
 const sel = "w-full rounded-xl border border-white/10 bg-[#07090f] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const lbl = "mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function riskStyle(value: string | null) {
   const map: Record<string, string> = { low: "Conservative", moderate: "Moderate", high: "Aggressive", conservative: "Conservative", aggressive: "Aggressive" };
   const level = map[value?.toLowerCase() ?? ""] ?? value ?? "Moderate";
@@ -36,7 +38,37 @@ function deriveChips(v: StrategyCard["latest_version"]): string[] {
   return chips;
 }
 
+// Derives a single prominent health label for the strategy's posture
+function deriveHealthLabel(v: StrategyCard["latest_version"], risk: string | null): { label: string; color: string; bg: string; border: string } | null {
+  if (!v) return null;
+  if (v.max_position_pct !== null && v.max_position_pct >= 25)
+    return { label: "Concentrated", color: "var(--amber)", bg: "var(--amber-bg)", border: "var(--amber-border)" };
+  if (v.cash_min_pct !== null && v.cash_min_pct >= 15)
+    return { label: "Cash heavy", color: "var(--amber)", bg: "var(--amber-bg)", border: "var(--amber-border)" };
+  const r = risk?.toLowerCase();
+  if (r === "aggressive")
+    return { label: "Aggressive", color: "var(--red)", bg: "var(--red-bg)", border: "var(--red-border)" };
+  if (v.turnover_preference === "Low" && (v.holding_period_bias === "Long-term" || v.holding_period_bias === "Very Long-term"))
+    return { label: "Low turnover", color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
+  if (v.holding_period_bias === "Very Long-term" || v.holding_period_bias === "Long-term")
+    return { label: "Long-term", color: "rgba(96,165,250,0.85)", bg: "rgba(37,99,235,0.08)", border: "rgba(37,99,235,0.2)" };
+  return null;
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
 type CardMode = "collapsed" | "expanded" | "editing";
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function StrategyCardItem({
   card,
@@ -50,6 +82,7 @@ export default function StrategyCardItem({
   const router = useRouter();
   const rs = riskStyle(card.risk_level);
   const chips = deriveChips(card.latest_version);
+  const health = deriveHealthLabel(card.latest_version, card.risk_level);
   const [mode, setMode] = useState<CardMode>("collapsed");
   const [isEditPending, startEdit] = useTransition();
   const [isDupPending, startDup] = useTransition();
@@ -57,6 +90,7 @@ export default function StrategyCardItem({
   const [isArchivePending, startArchive] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editError, setEditError] = useState("");
+  const [showParams, setShowParams] = useState(false);
 
   const v = card.latest_version;
   const [editForm, setEditForm] = useState({
@@ -89,7 +123,12 @@ export default function StrategyCardItem({
     });
   }
 
-  const isExpanded = mode !== "collapsed";
+  function handleHeaderToggle() {
+    if (mode === "editing") return;
+    setMode(mode === "collapsed" ? "expanded" : "collapsed");
+  }
+
+  const isDetailOpen = mode !== "collapsed";
 
   return (
     <>
@@ -108,35 +147,59 @@ export default function StrategyCardItem({
           animation: isNew ? "newCardGlow 1.4s cubic-bezier(0.16,1,0.3,1) forwards" : undefined,
         }}
       >
-        {/* Header — always visible */}
+        {/* ── Header row — click to expand/collapse ── */}
         <button
           type="button"
-          onClick={() => setMode(mode === "collapsed" ? "expanded" : "collapsed")}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+          onClick={handleHeaderToggle}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "11px 16px 9px", background: "transparent", border: "none", cursor: mode === "editing" ? "default" : "pointer", textAlign: "left" }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginBottom: chips.length ? "5px" : "0" }}>
-              <span style={{ fontSize: "14px", fontWeight: 600, color: isArchived ? "var(--text-secondary)" : "var(--text-primary)", fontFamily: "var(--font-display)", whiteSpace: "nowrap" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "5px" }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: isArchived ? "var(--text-secondary)" : "var(--text-primary)", fontFamily: "var(--font-display)", whiteSpace: "nowrap", letterSpacing: "-0.01em" }}>
                 {card.name}
               </span>
-              {isArchived && (
-                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)", flexShrink: 0 }}>
+              {isArchived ? (
+                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
                   Archived
                 </span>
-              )}
-              {!isArchived && (
-                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color, flexShrink: 0 }}>
-                  {rs.label}
-                </span>
-              )}
-              {card.style && (
-                <span style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>
-                  {card.style}
-                </span>
+              ) : (
+                <>
+                  <span style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
+                    {rs.label}
+                  </span>
+                  {card.style && (
+                    <span style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                      {card.style}
+                    </span>
+                  )}
+                  {health && (
+                    <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: health.bg, border: `1px solid ${health.border}`, color: health.color }}>
+                      {health.label}
+                    </span>
+                  )}
+                </>
               )}
             </div>
-            {!isArchived && chips.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"
+            style={{ color: "var(--text-muted)", flexShrink: 0, transform: isDetailOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.28s cubic-bezier(0.16,1,0.3,1)" }}>
+            <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+          </svg>
+        </button>
+
+        {/* ── Always-visible info row (description + chips + actions) ── */}
+        {!isArchived && (
+          <div style={{ padding: "0 16px 12px", borderBottom: isDetailOpen ? "1px solid var(--border-subtle)" : "none" }}>
+            {/* Description — 1 line */}
+            {card.description && (
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 7px", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" as const }}>
+                {card.description}
+              </p>
+            )}
+
+            {/* Chips */}
+            {chips.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
                 {chips.map((chip) => (
                   <span key={chip} style={{ fontSize: "9px", color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                     {chip}
@@ -144,232 +207,278 @@ export default function StrategyCardItem({
                 ))}
               </div>
             )}
+
+            {/* Actions row */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => { setMode("editing"); }}
+                style={{ padding: "5px 11px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", transition: "border-color 0.15s, color 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.14)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
+              >
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+                </svg>
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => startDup(async () => { await duplicateStrategy(card.id); router.refresh(); })}
+                disabled={isDupPending}
+                style={{ padding: "5px 11px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 500, color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", opacity: isDupPending ? 0.5 : 1, transition: "border-color 0.15s, color 0.15s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--card-border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-tertiary)"; }}
+              >
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z" />
+                  <path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z" />
+                </svg>
+                {isDupPending ? "Copying..." : "Duplicate"}
+              </button>
+
+              {/* Right side: last updated + public toggle */}
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                  {formatRelativeDate(card.updated_at)}
+                </span>
+                <StrategyPublicToggle strategyId={card.id} isPublic={card.is_public ?? false} />
+              </div>
+            </div>
           </div>
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"
-            style={{ color: "var(--text-muted)", flexShrink: 0, transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.28s cubic-bezier(0.16,1,0.3,1)" }}>
-            <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
-          </svg>
-        </button>
+        )}
 
-        {/* Expandable body */}
-        <div style={{ display: "grid", gridTemplateRows: isExpanded ? "1fr" : "0fr", transition: "grid-template-rows 0.32s cubic-bezier(0.16,1,0.3,1)" }}>
+        {/* ── Expandable detail area ── */}
+        <div style={{ display: "grid", gridTemplateRows: isDetailOpen ? "1fr" : "0fr", transition: "grid-template-rows 0.32s cubic-bezier(0.16,1,0.3,1)" }}>
           <div style={{ overflow: "hidden" }}>
-            <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "14px 16px" }}>
 
-              {/* ── ARCHIVED state ── */}
-              {isArchived ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {card.description && (
-                    <p style={{ fontSize: "13px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>{card.description}</p>
-                  )}
-                  {v && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
-                      {[
-                        ["Max holding", v.max_position_pct !== null ? `${v.max_position_pct}%` : "—"],
-                        ["Trading freq", v.turnover_preference ?? "—"],
-                        ["Time horizon", v.holding_period_bias ?? "—"],
-                      ].map(([label, value]) => (
-                        <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px" }}>{label}</div>
-                          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{value}</div>
-                        </div>
-                      ))}
+            {/* ── ARCHIVED state ── */}
+            {isArchived ? (
+              <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {card.description && (
+                  <p style={{ fontSize: "13px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>{card.description}</p>
+                )}
+                {v && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
+                    {[
+                      ["Max holding", v.max_position_pct !== null ? `${v.max_position_pct}%` : "—"],
+                      ["Trading freq", v.turnover_preference ?? "—"],
+                      ["Time horizon", v.holding_period_bias ?? "—"],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px" }}>{label}</div>
+                        <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button
+                    type="button"
+                    disabled={isArchivePending}
+                    onClick={() => startArchive(async () => { await unarchiveStrategy(card.id); router.refresh(); })}
+                    style={{ padding: "6px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isArchivePending ? 0.6 : 1, display: "flex", alignItems: "center", gap: "5px" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+                    </svg>
+                    {isArchivePending ? "Restoring..." : "Restore"}
+                  </button>
+                  {confirmDelete ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", marginLeft: "auto" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Delete permanently?</span>
+                      <button type="button" onClick={() => startDelete(async () => { await deleteStrategy(card.id); router.refresh(); })} disabled={isDeletePending}
+                        style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 600, color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", cursor: "pointer" }}>
+                        {isDeletePending ? "Deleting..." : "Delete"}
+                      </button>
+                      <button type="button" onClick={() => setConfirmDelete(false)}
+                        style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
+                        Cancel
+                      </button>
                     </div>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmDelete(true)}
+                      style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-muted)", background: "transparent", border: "1px solid transparent", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px" }}
+                      className="hover:border-red-500/20 hover:text-red-400 transition-colors"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" /></svg>
+                      Delete permanently
+                    </button>
                   )}
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                </div>
+              </div>
+
+            ) : mode === "editing" ? (
+              /* ── Edit form ── */
+              <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--brand-blue)" }}>Edit Strategy</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "10px" }}>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className={lbl}>Name</label>
+                    <input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Style</label>
+                    <select value={editForm.style} onChange={e => setEditForm(p => ({ ...p, style: e.target.value }))} className={sel}>
+                      {STRATEGY_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>Risk level</label>
+                    <select value={editForm.risk_level} onChange={e => setEditForm(p => ({ ...p, risk_level: e.target.value }))} className={sel}>
+                      {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>Trading frequency</label>
+                    <select value={editForm.turnover_preference} onChange={e => setEditForm(p => ({ ...p, turnover_preference: e.target.value }))} className={sel}>
+                      {TURNOVER_PREFERENCES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>Time horizon</label>
+                    <select value={editForm.holding_period_bias} onChange={e => setEditForm(p => ({ ...p, holding_period_bias: e.target.value }))} className={sel}>
+                      {HOLDING_PERIOD_BIASES.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={lbl}>Max single holding %</label>
+                    <input type="number" value={editForm.max_position_pct} onChange={e => setEditForm(p => ({ ...p, max_position_pct: e.target.value }))} className={inp} placeholder="15" />
+                  </div>
+                  <div>
+                    <label className={lbl}>Min single holding %</label>
+                    <input type="number" value={editForm.min_position_pct} onChange={e => setEditForm(p => ({ ...p, min_position_pct: e.target.value }))} className={inp} placeholder="2" />
+                  </div>
+                  <div>
+                    <label className={lbl}>Keep in cash (min) %</label>
+                    <input type="number" value={editForm.cash_min_pct} onChange={e => setEditForm(p => ({ ...p, cash_min_pct: e.target.value }))} className={inp} placeholder="5" />
+                  </div>
+                  <div>
+                    <label className={lbl}>Keep in cash (max) %</label>
+                    <input type="number" value={editForm.cash_max_pct} onChange={e => setEditForm(p => ({ ...p, cash_max_pct: e.target.value }))} className={inp} placeholder="20" />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className={lbl}>Description</label>
+                    <textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className={`${inp} min-h-[60px]`} />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label className={lbl}>AI instructions</label>
+                    <textarea value={editForm.prompt_text} onChange={e => setEditForm(p => ({ ...p, prompt_text: e.target.value }))} className={`${inp} min-h-[80px]`} />
+                  </div>
+                </div>
+                {editError && (
+                  <div style={{ fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{editError}</div>
+                )}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" onClick={handleEditSubmit} disabled={isEditPending}
+                    style={{ padding: "7px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", opacity: isEditPending ? 0.6 : 1, border: "none", cursor: "pointer" }}>
+                    {isEditPending ? "Saving..." : "Save changes"}
+                  </button>
+                  <button type="button" onClick={() => setMode("expanded")}
+                    style={{ padding: "7px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+            ) : (
+              /* ── Expanded detail view ── */
+              <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+
+                {/* Full description (if not shown in collapsed, or overflow) */}
+                {card.description && (
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{card.description}</p>
+                )}
+
+                {/* Parameters — collapsible "View details" */}
+                {v && (
+                  <div>
                     <button
                       type="button"
-                      disabled={isArchivePending}
-                      onClick={() => startArchive(async () => { await unarchiveStrategy(card.id); router.refresh(); })}
-                      style={{ padding: "6px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isArchivePending ? 0.6 : 1, display: "flex", alignItems: "center", gap: "5px" }}
+                      onClick={() => setShowParams(p => !p)}
+                      style={{ display: "flex", alignItems: "center", gap: "5px", padding: "0", background: "none", border: "none", cursor: "pointer", marginBottom: showParams ? "8px" : "0" }}
                     >
-                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: showParams ? "var(--brand-blue)" : "var(--text-muted)" }}>
+                        {showParams ? "Hide parameters" : "View parameters"}
+                      </span>
+                      <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"
+                        style={{ color: showParams ? "var(--brand-blue)" : "var(--text-muted)", transform: showParams ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s cubic-bezier(0.16,1,0.3,1)" }}>
+                        <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
                       </svg>
-                      {isArchivePending ? "Restoring..." : "Restore"}
                     </button>
-                    {confirmDelete ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px", marginLeft: "auto" }}>
-                        <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Delete permanently?</span>
-                        <button type="button" onClick={() => startDelete(async () => { await deleteStrategy(card.id); router.refresh(); })} disabled={isDeletePending}
-                          style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 600, color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", cursor: "pointer" }}>
-                          {isDeletePending ? "Deleting..." : "Delete"}
-                        </button>
-                        <button type="button" onClick={() => setConfirmDelete(false)}
-                          style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
-                          Cancel
-                        </button>
+                    <div style={{ display: "grid", gridTemplateRows: showParams ? "1fr" : "0fr", transition: "grid-template-rows 0.24s cubic-bezier(0.16,1,0.3,1)" }}>
+                      <div style={{ overflow: "hidden" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
+                          {[
+                            ["Max single holding", v.max_position_pct !== null ? `${v.max_position_pct}%` : "—"],
+                            ["Min single holding", v.min_position_pct !== null ? `${v.min_position_pct}%` : "—"],
+                            ["Cash range", v.cash_min_pct !== null && v.cash_max_pct !== null ? `${v.cash_min_pct}–${v.cash_max_pct}%` : "—"],
+                            ["Trading frequency", v.turnover_preference ?? "—"],
+                            ["Time horizon", v.holding_period_bias ?? "—"],
+                            ["Version", `v${v.version_number}`],
+                          ].map(([label, value]) => (
+                            <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
+                              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "3px" }}>{label}</div>
+                              <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ) : (
-                      <button type="button" onClick={() => setConfirmDelete(true)}
-                        style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-muted)", background: "transparent", border: "1px solid transparent", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px" }}
-                        className="hover:border-red-500/20 hover:text-red-400 transition-colors"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" /></svg>
-                        Delete permanently
+                    </div>
+                  </div>
+                )}
+
+                {/* AI instructions */}
+                {v?.prompt_text && (
+                  <div style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
+                    <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{v.prompt_text}</p>
+                  </div>
+                )}
+
+                {/* Destructive / archive actions */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingTop: "2px", borderTop: "1px solid var(--border-subtle)" }}>
+                  <button
+                    type="button"
+                    onClick={() => startArchive(async () => { await archiveStrategy(card.id); router.refresh(); })}
+                    disabled={isArchivePending}
+                    style={{ padding: "5px 11px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-tertiary)", background: "transparent", border: "1px solid transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", opacity: isArchivePending ? 0.5 : 1, transition: "border-color 0.15s, color 0.15s" }}
+                    className="hover:border-white/10 hover:text-slate-300 transition-colors"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M2 3a1 1 0 00-1 1v1a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1H2z" />
+                      <path fillRule="evenodd" d="M2 7.5h16l-.811 7.71a2 2 0 01-1.99 1.79H4.802a2 2 0 01-1.99-1.79L2 7.5zm5.22 1.72a.75.75 0 011.06 0L10 10.94l1.72-1.72a.75.75 0 111.06 1.06L11.06 12l1.72 1.72a.75.75 0 11-1.06 1.06L10 13.06l-1.72 1.72a.75.75 0 01-1.06-1.06L8.94 12l-1.72-1.72a.75.75 0 010-1.06z" clipRule="evenodd" />
+                    </svg>
+                    {isArchivePending ? "Archiving..." : "Archive"}
+                  </button>
+
+                  {confirmDelete ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", marginLeft: "auto" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Delete?</span>
+                      <button type="button" onClick={() => startDelete(async () => { await deleteStrategy(card.id); router.refresh(); })} disabled={isDeletePending}
+                        style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 600, color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", cursor: "pointer" }}>
+                        {isDeletePending ? "Deleting..." : "Yes, delete"}
                       </button>
-                    )}
-                  </div>
-                </div>
-
-              ) : mode === "editing" ? (
-                /* ── Edit form ── */
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--brand-blue)" }}>Edit Strategy</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "10px" }}>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label className={lbl}>Name</label>
-                      <input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className={inp} />
+                      <button type="button" onClick={() => setConfirmDelete(false)}
+                        style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
+                        Cancel
+                      </button>
                     </div>
-                    <div>
-                      <label className={lbl}>Style</label>
-                      <select value={editForm.style} onChange={e => setEditForm(p => ({ ...p, style: e.target.value }))} className={sel}>
-                        {STRATEGY_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Risk level</label>
-                      <select value={editForm.risk_level} onChange={e => setEditForm(p => ({ ...p, risk_level: e.target.value }))} className={sel}>
-                        {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Trading frequency</label>
-                      <select value={editForm.turnover_preference} onChange={e => setEditForm(p => ({ ...p, turnover_preference: e.target.value }))} className={sel}>
-                        {TURNOVER_PREFERENCES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Time horizon</label>
-                      <select value={editForm.holding_period_bias} onChange={e => setEditForm(p => ({ ...p, holding_period_bias: e.target.value }))} className={sel}>
-                        {HOLDING_PERIOD_BIASES.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={lbl}>Max single holding %</label>
-                      <input type="number" value={editForm.max_position_pct} onChange={e => setEditForm(p => ({ ...p, max_position_pct: e.target.value }))} className={inp} placeholder="15" />
-                    </div>
-                    <div>
-                      <label className={lbl}>Min single holding %</label>
-                      <input type="number" value={editForm.min_position_pct} onChange={e => setEditForm(p => ({ ...p, min_position_pct: e.target.value }))} className={inp} placeholder="2" />
-                    </div>
-                    <div>
-                      <label className={lbl}>Keep in cash (min) %</label>
-                      <input type="number" value={editForm.cash_min_pct} onChange={e => setEditForm(p => ({ ...p, cash_min_pct: e.target.value }))} className={inp} placeholder="5" />
-                    </div>
-                    <div>
-                      <label className={lbl}>Keep in cash (max) %</label>
-                      <input type="number" value={editForm.cash_max_pct} onChange={e => setEditForm(p => ({ ...p, cash_max_pct: e.target.value }))} className={inp} placeholder="20" />
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label className={lbl}>Description</label>
-                      <textarea value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className={`${inp} min-h-[60px]`} />
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <label className={lbl}>AI instructions</label>
-                      <textarea value={editForm.prompt_text} onChange={e => setEditForm(p => ({ ...p, prompt_text: e.target.value }))} className={`${inp} min-h-[80px]`} />
-                    </div>
-                  </div>
-                  {editError && (
-                    <div style={{ fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{editError}</div>
-                  )}
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button type="button" onClick={handleEditSubmit} disabled={isEditPending}
-                      style={{ padding: "7px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", opacity: isEditPending ? 0.6 : 1, border: "none", cursor: "pointer" }}>
-                      {isEditPending ? "Saving..." : "Save changes"}
-                    </button>
-                    <button type="button" onClick={() => setMode("expanded")}
-                      style={{ padding: "7px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-
-              ) : (
-                /* ── Expanded view ── */
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {card.description && (
-                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65 }}>{card.description}</p>
-                  )}
-                  {v && (
-                    <div>
-                      <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "7px" }}>Parameters</p>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px" }}>
-                        {[
-                          ["Max single holding", v.max_position_pct !== null ? `${v.max_position_pct}%` : "—"],
-                          ["Min single holding", v.min_position_pct !== null ? `${v.min_position_pct}%` : "—"],
-                          ["Cash range", v.cash_min_pct !== null && v.cash_max_pct !== null ? `${v.cash_min_pct}–${v.cash_max_pct}%` : "—"],
-                          ["Trading frequency", v.turnover_preference ?? "—"],
-                          ["Time horizon", v.holding_period_bias ?? "—"],
-                          ["Version", `v${v.version_number}`],
-                        ].map(([label, value]) => (
-                          <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "3px" }}>{label}</div>
-                            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{value}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {v?.prompt_text && (
-                    <div style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
-                      <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
-                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{v.prompt_text}</p>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => setMode("editing")}
-                      style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}>
-                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" /></svg>
-                      Edit
-                    </button>
-                    <button type="button" onClick={() => startDup(async () => { await duplicateStrategy(card.id); router.refresh(); })} disabled={isDupPending}
-                      style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", opacity: isDupPending ? 0.5 : 1 }}>
-                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z" /><path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z" /></svg>
-                      {isDupPending ? "Duplicating..." : "Duplicate"}
-                    </button>
-
-                    {/* Archive (no confirmation needed — reversible) */}
-                    <button type="button" onClick={() => startArchive(async () => { await archiveStrategy(card.id); router.refresh(); })} disabled={isArchivePending}
-                      style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-tertiary)", background: "transparent", border: "1px solid transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", opacity: isArchivePending ? 0.5 : 1 }}
-                      className="hover:border-white/10 hover:text-slate-300 transition-colors"
+                  ) : (
+                    <button type="button" onClick={() => setConfirmDelete(true)}
+                      style={{ padding: "5px 11px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-muted)", background: "transparent", border: "1px solid transparent", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px" }}
+                      className="hover:border-red-500/20 hover:text-red-400 transition-colors"
                     >
-                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 00-1 1v1a1 1 0 001 1h16a1 1 0 001-1V4a1 1 0 00-1-1H2z" /><path fillRule="evenodd" d="M2 7.5h16l-.811 7.71a2 2 0 01-1.99 1.79H4.802a2 2 0 01-1.99-1.79L2 7.5zm5.22 1.72a.75.75 0 011.06 0L10 10.94l1.72-1.72a.75.75 0 111.06 1.06L11.06 12l1.72 1.72a.75.75 0 11-1.06 1.06L10 13.06l-1.72 1.72a.75.75 0 01-1.06-1.06L8.94 12l-1.72-1.72a.75.75 0 010-1.06z" clipRule="evenodd" /></svg>
-                      {isArchivePending ? "Archiving..." : "Archive"}
+                      <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                      </svg>
+                      Delete
                     </button>
-
-                    {/* Delete with confirmation */}
-                    {confirmDelete ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px", marginLeft: "auto" }}>
-                        <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Delete?</span>
-                        <button type="button" onClick={() => startDelete(async () => { await deleteStrategy(card.id); router.refresh(); })} disabled={isDeletePending}
-                          style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", fontWeight: 600, color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", cursor: "pointer" }}>
-                          {isDeletePending ? "Deleting..." : "Yes, delete"}
-                        </button>
-                        <button type="button" onClick={() => setConfirmDelete(false)}
-                          style={{ padding: "4px 10px", borderRadius: "var(--radius-xl)", fontSize: "11px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setConfirmDelete(true)}
-                        style={{ padding: "5px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", color: "var(--text-muted)", background: "transparent", border: "1px solid transparent", cursor: "pointer", marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px" }}
-                        className="hover:border-red-500/20 hover:text-red-400 transition-colors"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" /></svg>
-                        Delete
-                      </button>
-                    )}
-
-                    <div style={{ ...(confirmDelete ? {} : { order: 10 }) }}>
-                      <StrategyPublicToggle strategyId={card.id} isPublic={card.is_public ?? false} />
-                    </div>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
