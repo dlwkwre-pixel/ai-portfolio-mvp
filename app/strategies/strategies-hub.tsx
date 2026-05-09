@@ -221,7 +221,7 @@ type Section = "ai-builder" | "templates" | "custom" | null;
 export default function StrategiesHub() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<Section>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(0); // first FAQ open by default
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
   const [templateError, setTemplateError] = useState("");
   const [manualError, setManualError] = useState("");
@@ -490,7 +490,17 @@ export default function StrategiesHub() {
           <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
             Popular starting points
           </p>
-          <div className="featured-templates-scroll" style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "3px" }}>
+          <div
+            className="featured-templates-scroll"
+            style={{
+              display: "flex",
+              gap: "8px",
+              overflowX: "auto",
+              scrollSnapType: "x mandatory",
+              paddingBottom: "2px",
+              alignItems: "stretch",
+            }}
+          >
             {featuredTemplates.map((t) => {
               const bs = badgeStyle(t.badge);
               const isCreating = creatingTemplate === t.id;
@@ -499,61 +509,72 @@ export default function StrategiesHub() {
                   key={t.id}
                   style={{
                     flexShrink: 0,
-                    width: "196px",
-                    background: "var(--card-bg)",
+                    width: "200px",
+                    scrollSnapAlign: "start",
+                    background: "var(--bg-elevated)",
                     border: "1px solid var(--card-border)",
                     borderRadius: "var(--radius-md)",
-                    padding: "11px 13px",
+                    padding: "12px 14px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "7px",
+                    justifyContent: "space-between",
+                    gap: "10px",
                   }}
                 >
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "3px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{t.name}</span>
+                  {/* Top: name + badge + description */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "nowrap", overflow: "hidden" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
                       {t.badge && bs && (
-                        <span style={{ fontSize: "8px", padding: "1px 5px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0 }}>
+                        <span style={{ fontSize: "8px", padding: "1px 5px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap" }}>
                           {t.badge}
                         </span>
                       )}
                     </div>
-                    <p style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.4, margin: 0 }}>{t.description}</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.45, margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{t.description}</p>
                   </div>
-                  <div style={{ display: "flex", gap: "3px", flexWrap: "wrap" }}>
-                    <Chip label={t.risk_level} />
-                    <Chip label={t.style} />
-                    <Chip label={t.holding_period_bias} />
+
+                  {/* Bottom: chips + button */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "nowrap", overflow: "hidden" }}>
+                      <Chip label={t.risk_level} />
+                      <Chip label={t.style} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUseTemplate(t)}
+                      disabled={!!creatingTemplate}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--radius-xl)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: isCreating ? "var(--text-muted)" : "rgba(96,165,250,0.9)",
+                        background: isCreating ? "var(--card-bg)" : "rgba(37,99,235,0.1)",
+                        border: `1px solid ${isCreating ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
+                        cursor: creatingTemplate ? "default" : "pointer",
+                        opacity: creatingTemplate && !isCreating ? 0.4 : 1,
+                        transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
+                        width: "100%",
+                        textAlign: "center",
+                      }}
+                      onMouseEnter={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(37,99,235,0.16)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(37,99,235,0.38)"; } }}
+                      onMouseLeave={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(37,99,235,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(37,99,235,0.25)"; } }}
+                    >
+                      {isCreating ? "Creating..." : "Use template"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleUseTemplate(t)}
-                    disabled={!!creatingTemplate}
-                    style={{
-                      padding: "5px 10px",
-                      borderRadius: "var(--radius-full)",
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      color: "#fff",
-                      background: isCreating ? "rgba(37,99,235,0.5)" : "linear-gradient(135deg,#2563eb,#4f46e5)",
-                      border: "none",
-                      cursor: creatingTemplate ? "default" : "pointer",
-                      opacity: creatingTemplate && !isCreating ? 0.45 : 1,
-                      transition: "opacity 0.12s",
-                    }}
-                  >
-                    {isCreating ? "Creating..." : "Use template"}
-                  </button>
                 </div>
               );
             })}
-            {/* View all button */}
+            {/* View all */}
             <button
               type="button"
               onClick={() => toggleSection("templates")}
               style={{
                 flexShrink: 0,
-                width: "72px",
+                scrollSnapAlign: "start",
+                width: "80px",
                 background: "transparent",
                 border: "1px dashed rgba(255,255,255,0.07)",
                 borderRadius: "var(--radius-md)",
