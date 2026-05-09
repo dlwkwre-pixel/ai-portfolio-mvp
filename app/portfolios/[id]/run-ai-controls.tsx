@@ -64,6 +64,7 @@ export default function RunAiControls({
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [healthReport, setHealthReport] = useState<HealthReport | null>(null);
+  const [contextNote, setContextNote] = useState("");
   const cooldownRemaining = useCooldownTimer(cooldownEndsAt);
   const isInCooldown = cooldownRemaining > 0;
   const countdown = formatCountdown(cooldownRemaining);
@@ -81,6 +82,7 @@ export default function RunAiControls({
       try {
         const formData = new FormData();
         formData.set("portfolio_id", portfolioId);
+        formData.set("context_note", contextNote.trim());
 
         const result = await runPortfolioAiRecommendation(formData);
 
@@ -119,6 +121,22 @@ export default function RunAiControls({
             <span className="rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-slate-400">
               Last run: {formatDate(latestRunCreatedAt)}
             </span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">
+              One-time context note <span className="normal-case font-normal text-slate-600">(optional)</span>
+            </label>
+            <textarea
+              value={contextNote}
+              onChange={(e) => setContextNote(e.target.value)}
+              placeholder="e.g. I've been rejecting AMD — focus on other buy candidates. I have $500 cash to deploy."
+              rows={3}
+              maxLength={500}
+              disabled={isDisabled}
+              className="w-full resize-none rounded-xl border border-white/8 bg-white/4 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500/40 focus:outline-none disabled:opacity-50"
+            />
+            <p className="mt-1 text-right text-[11px] text-slate-600">{contextNote.length}/500</p>
           </div>
 
           <button

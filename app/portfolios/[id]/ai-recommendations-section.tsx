@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import AddRecommendationForm from "./add-recommendation-form";
 import AIRecommendationRunsList from "./ai-recommendation-runs-list";
 import RunAiControls from "./run-ai-controls";
 
@@ -165,10 +164,6 @@ export default async function AIRecommendationsSection({
           </div>
         </details>
       )}
-
-      <div className="mt-4">
-        <AddRecommendationForm portfolioId={portfolioId} />
-      </div>
 
       {runs && runs.length > 0 ? (
         <div className="mt-4">

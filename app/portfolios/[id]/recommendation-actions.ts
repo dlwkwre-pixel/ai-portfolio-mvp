@@ -221,7 +221,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
 }
 
 // --- Grok: Buy/Hold/Sell Recommendations with live search ---
-async function callGrokForRecommendations(context: unknown): Promise<AiRunResponse> {
+async function callGrokForRecommendations(context: unknown, contextNote?: string): Promise<AiRunResponse> {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new Error("Missing XAI_API_KEY in environment variables.");
 
@@ -307,7 +307,7 @@ Additional rules:
 - Return JSON only, no markdown fences.
 
 Portfolio context:
-${JSON.stringify(context, null, 2)}`.trim();
+${JSON.stringify(context, null, 2)}${contextNote ? `\n\n## Investor Note (one-time context for this run only)\n${contextNote}` : ""}`.trim();
 
   const response = await client.responses.create({
     model: "grok-4-fast",
@@ -424,6 +424,8 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
   if (!portfolioId) throw new Error("Portfolio ID is required.");
 
+  const contextNote = String(formData.get("context_note") || "").trim().slice(0, 500);
+
   const context = await buildPortfolioAiContext(portfolioId, user.id);
   const activeAssignment = (context as any).strategy?.assignment ?? null;
 
@@ -490,7 +492,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
   try {
     const [grokResult, geminiResult] = await Promise.all([
-      callGrokForRecommendations(context),
+      callGrokForRecommendations(context, contextNote || undefined),
       callGeminiForHealthReport(context),
     ]);
 
