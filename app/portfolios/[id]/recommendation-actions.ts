@@ -275,7 +275,7 @@ CRITICAL CONSTRAINTS — YOU MUST FOLLOW THESE EXACTLY:
 Return this exact JSON shape:
 
 {
-  "summary": "short portfolio-level summary with current market context (2-3 sentences)",
+  "summary": "1 punchy sentence on the portfolio's current state and biggest opportunity or risk. Max 160 characters. No fluff.",
   "recommendations": [
     {
       "action_type": "buy|add|trim|sell|hold|rebalance|raise_cash",

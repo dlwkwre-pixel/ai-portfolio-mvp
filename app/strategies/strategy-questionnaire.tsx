@@ -86,12 +86,48 @@ export default function StrategyQuestionnaire({
   const [editedStrategy, setEditedStrategy] =
     useState<GeneratedStrategy | null>(null);
   const [saveError, setSaveError] = useState("");
+  const [animatingIdx, setAnimatingIdx] = useState<number | null>(null);
+  const [animatedText, setAnimatedText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevMsgCountRef = useRef(1); // skip initial welcome message
+  const animationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages, isGenerating]);
+  }, [messages, isGenerating, animatedText]);
+
+  useEffect(() => {
+    const prev = prevMsgCountRef.current;
+    prevMsgCountRef.current = messages.length;
+
+    if (messages.length <= prev) return;
+
+    const newIdx = messages.length - 1;
+    if (messages[newIdx].role !== "assistant") return;
+
+    const fullText = messages[newIdx].content;
+    const msPerChar = Math.max(8, Math.min(22, 2200 / fullText.length));
+
+    if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
+    setAnimatingIdx(newIdx);
+    setAnimatedText("");
+
+    let charIdx = 0;
+    animationIntervalRef.current = setInterval(() => {
+      charIdx += 1;
+      setAnimatedText(fullText.slice(0, charIdx));
+      if (charIdx >= fullText.length) {
+        clearInterval(animationIntervalRef.current!);
+        animationIntervalRef.current = null;
+        setAnimatingIdx(null);
+      }
+    }, msPerChar);
+
+    return () => {
+      if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
+    };
+  }, [messages]);
 
   async function generateStrategy(conversationMessages: Message[]) {
     setIsGenerating(true);
@@ -286,7 +322,10 @@ export default function StrategyQuestionnaire({
                   : "bg-blue-600/30 text-white border border-blue-500/20"
               }`}
             >
-              {renderMessageContent(msg.content)}
+              {animatingIdx === i
+                ? <p>{animatedText}<span className="inline-block w-0.5 h-3.5 ml-px bg-blue-400 align-middle animate-pulse" /></p>
+                : renderMessageContent(msg.content)
+              }
             </div>
           </div>
         ))}
