@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/app/components/theme-provider";
 import PWARegister from "@/app/components/pwa-register";
 import MobileBottomNav from "@/app/components/mobile-bottom-nav";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -67,6 +68,7 @@ export default function RootLayout({
           {children}
           <MobileBottomNav />
           <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
