@@ -13,7 +13,7 @@ import {
   STARTER_STRATEGIES,
 } from "./actions";
 
-type Portfolio = { id: string; name: string; account_type: string | null };
+type Portfolio = { id: string; name: string; account_type: string | null; cash_balance: number };
 type Strategy = { id: string; name: string; description: string | null; risk_level: string | null };
 type DraftHolding = { ticker: string; shares: string; costBasis: string };
 
@@ -134,6 +134,8 @@ export default function OnboardingModal({
     try {
       if (usingExisting) {
         if (!portfolioId) throw new Error("Select a portfolio to continue.");
+        const selected = existingPortfolios.find((p) => p.id === portfolioId);
+        if (selected) setCash(String(selected.cash_balance ?? 0));
         await go(3);
       } else {
         if (!portfolioName.trim()) throw new Error("Portfolio name is required.");

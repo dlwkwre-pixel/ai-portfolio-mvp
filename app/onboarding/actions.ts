@@ -255,8 +255,6 @@ export async function setOnboardingCash(portfolioId: string, cashAmount: number)
     .update({ cash_balance: amount })
     .eq("id", portfolioId)
     .eq("user_id", user.id);
-
-  revalidatePath(`/portfolios/${portfolioId}`);
 }
 
 // ─── Strategy ──────────────────────────────────────────────────────────────────

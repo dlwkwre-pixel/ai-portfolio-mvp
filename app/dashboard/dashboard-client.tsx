@@ -27,7 +27,7 @@ type FeedItem = {
   amount: number | null; href: string; status: string | null;
 };
 
-type OnboardingPortfolio = { id: string; name: string; account_type: string | null };
+type OnboardingPortfolio = { id: string; name: string; account_type: string | null; cash_balance: number };
 type OnboardingStrategy = { id: string; name: string; description: string | null; risk_level: string | null };
 
 function timeAgo(iso: string | null): string {

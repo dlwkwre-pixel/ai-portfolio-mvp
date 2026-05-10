@@ -270,7 +270,7 @@ export default async function DashboardPage({
               showOnboarding={forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
               forceOnboarding={forceOnboarding}
               initialOnboardingStep={onboardingStep}
-              existingPortfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name, account_type: p.account_type }))}
+              existingPortfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name, account_type: p.account_type, cash_balance: Number(p.cash_balance ?? 0) }))}
               existingStrategies={(userStrategies ?? []).map((s) => ({ id: s.id, name: s.name, description: s.description ?? null, risk_level: s.risk_level ?? null }))}
             />
           </div>
