@@ -424,33 +424,33 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
       {triggerButton}
       {createPortal(
         <>
-      {/* Backdrop */}
+      {/* Full-screen backdrop + flex centering — one element, no transform math */}
       <div
-        onClick={() => { if (!isPending) resetAndClose(); }}
+        onClick={(e) => { if (e.target === e.currentTarget && !isPending) resetAndClose(); }}
         style={{
           position: "fixed",
           inset: 0,
+          zIndex: 200,
           background: "rgba(0,0,0,0.72)",
           backdropFilter: "blur(4px)",
-          zIndex: 200,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "24px",
           animation: "bt-fade-in 0.18s ease both",
         }}
-      />
-
-      {/* Modal card */}
+      >
+      {/* Modal card — centered by parent flexbox */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "min(560px, calc(100vw - 24px))",
+          width: "100%",
+          maxWidth: "560px",
           maxHeight: "calc(100vh - 48px)",
           background: "var(--bg-elevated)",
           border: "1px solid var(--border-strong)",
           borderRadius: "var(--radius-xl)",
           boxShadow: "var(--shadow-lg)",
-          zIndex: 201,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -938,6 +938,7 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
             </ModalFooter>
           </>
         )}
+      </div>
       </div>
 
       <style>{`
