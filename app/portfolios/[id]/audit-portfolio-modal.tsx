@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { DiffItem, DiffResult, ParseResult } from "@/lib/portfolio-audit/parsers/types";
 import { parseRobinhoodCsv } from "@/lib/portfolio-audit/parsers/robinhood";
 import { parsePastedHoldings } from "@/lib/portfolio-audit/parsers/paste";
@@ -231,6 +232,8 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pasteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function resetAndClose() {
     setIsOpen(false);
@@ -373,46 +376,54 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
   const importedCount = parseResult?.holdings.length ?? 0;
   const ignoredCount = diff?.ignored.length ?? 0;
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "5px",
-          padding: "5px 11px",
-          fontSize: "12px",
-          fontFamily: "var(--font-body)",
-          fontWeight: 500,
-          color: "var(--text-secondary)",
-          background: "var(--card-bg)",
-          border: "1px solid var(--card-border)",
-          borderRadius: "var(--radius-md)",
-          cursor: "pointer",
-          transition: "color 0.15s ease, background 0.15s ease, border-color 0.15s ease",
-          whiteSpace: "nowrap",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
-          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-strong)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)";
-          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--card-border)";
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M2 5h12M5 2v3M11 2v3M4 8h2M7 8h2M10 8h2M4 11h2M7 11h2M10 11h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <rect x="1.5" y="4" width="13" height="10.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-        Audit
-      </button>
-    );
-  }
+  const triggerButton = (
+    <button
+      onClick={() => setIsOpen(true)}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "5px 11px",
+        fontSize: "12px",
+        fontFamily: "var(--font-body)",
+        fontWeight: 500,
+        color: "#a78bfa",
+        background: "rgba(124,58,237,0.1)",
+        border: "1px solid rgba(124,58,237,0.22)",
+        borderRadius: "var(--radius-md)",
+        cursor: "pointer",
+        transition: "color 0.15s ease, background 0.15s ease, border-color 0.15s ease",
+        whiteSpace: "nowrap",
+      }}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLButtonElement;
+        el.style.background = "rgba(124,58,237,0.18)";
+        el.style.borderColor = "rgba(124,58,237,0.4)";
+        el.style.color = "#c4b5fd";
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLButtonElement;
+        el.style.background = "rgba(124,58,237,0.1)";
+        el.style.borderColor = "rgba(124,58,237,0.22)";
+        el.style.color = "#a78bfa";
+      }}
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+        <path d="M2 8a6 6 0 0110.5-3.9M14 8a6 6 0 01-10.5 3.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12.5 3.5L13.5 5.5 11.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3.5 12.5L2.5 10.5 4.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Sync Holdings
+    </button>
+  );
+
+  if (!isOpen || !mounted) return triggerButton;
 
   return (
     <>
+      {triggerButton}
+      {createPortal(
+        <>
       {/* Backdrop */}
       <div
         onClick={() => { if (!isPending) resetAndClose(); }}
@@ -932,6 +943,9 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+        </>,
+        document.body
+      )}
     </>
   );
 }
