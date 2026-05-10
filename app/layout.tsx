@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/app/components/theme-provider";
 import PWARegister from "@/app/components/pwa-register";
 import MobileBottomNav from "@/app/components/mobile-bottom-nav";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -65,6 +66,7 @@ export default function RootLayout({
           <PWARegister />
           {children}
           <MobileBottomNav />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
