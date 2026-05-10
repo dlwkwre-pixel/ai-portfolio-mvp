@@ -363,6 +363,44 @@ ${postTexts}
   }
 }
 
+// ─── Compact builder (no Gemini — for injecting into AI analysis context) ──────
+
+export type CompactRedditPulse = {
+  ticker: string;
+  post_count: number;
+  sentiment: string;
+  score: number;
+  bullish_pct: number;
+  bearish_pct: number;
+  hype_score: number;
+  conviction_score: number;
+  catalysts: string[];
+  risks: string[];
+};
+
+export function buildCompactRedditPulse(
+  ticker: string,
+  posts: RedditPost[]
+): CompactRedditPulse {
+  const basic = calcSentiment(posts);
+  const hype = calcHypeScore(posts);
+  const conviction = calcConvictionScore(posts);
+  const catalysts = extractFromPosts(posts, CATALYST_TERMS);
+  const risks = extractFromPosts(posts, RISK_TERMS);
+  return {
+    ticker: ticker.toUpperCase(),
+    post_count: posts.length,
+    sentiment: basic.sentiment_label,
+    score: basic.sentiment_score,
+    bullish_pct: basic.bullish_pct,
+    bearish_pct: basic.bearish_pct,
+    hype_score: hype,
+    conviction_score: conviction,
+    catalysts: catalysts.slice(0, 3),
+    risks: risks.slice(0, 3),
+  };
+}
+
 // ─── Main builder ──────────────────────────────────────────────────────────────
 
 export async function buildRedditPulse(

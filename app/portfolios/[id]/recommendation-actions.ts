@@ -5,6 +5,8 @@ import { getTickerMarketContext, getFinnhubQuote } from "@/lib/market-data/finnh
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { searchRedditPosts } from "@/lib/market-data/reddit";
+import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-data/reddit-pulse";
 
 type AiRecommendation = {
   action_type: string | null;
@@ -87,6 +89,30 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
     stop_price: toNullableNumber(raw.stop_price),
     time_horizon: String(raw.time_horizon ?? "").trim() || null,
   };
+}
+
+async function fetchRedditSentimentForTickers(
+  holdings: { ticker: string; company_name?: string | null }[]
+): Promise<Record<string, CompactRedditPulse>> {
+  const ANALYSIS_SUBREDDITS = ["stocks", "investing", "wallstreetbets"];
+  const result: Record<string, CompactRedditPulse> = {};
+
+  for (const h of holdings) {
+    try {
+      const posts = await searchRedditPosts(h.ticker, h.company_name ?? h.ticker, {
+        timeWindow: "week",
+        subreddits: ANALYSIS_SUBREDDITS,
+        maxPerSubreddit: 5,
+      });
+      if (posts.length > 0) {
+        result[h.ticker.toUpperCase()] = buildCompactRedditPulse(h.ticker, posts);
+      }
+    } catch {
+      // non-fatal per ticker
+    }
+  }
+
+  return result;
 }
 
 async function buildPortfolioAiContext(portfolioId: string, userId: string) {
@@ -183,6 +209,26 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     }
   }
 
+  // Fetch Reddit sentiment per ticker (keyword-based, no Gemini, 8s timeout)
+  let redditSentiment: Record<string, CompactRedditPulse> = {};
+  if (tickers.length > 0) {
+    try {
+      const holdingsForReddit = (holdings ?? []).map((h: any) => ({
+        ticker: h.ticker as string,
+        company_name: h.company_name as string | null,
+      }));
+      const timeout = new Promise<Record<string, CompactRedditPulse>>((resolve) =>
+        setTimeout(() => resolve({}), 8000)
+      );
+      redditSentiment = await Promise.race([
+        fetchRedditSentimentForTickers(holdingsForReddit),
+        timeout,
+      ]);
+    } catch {
+      // Non-fatal — Grok still runs without Reddit sentiment
+    }
+  }
+
   return {
     generated_at: new Date().toISOString(),
     portfolio: {
@@ -217,6 +263,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_recommendation_runs: recentRuns ?? [],
     recent_recommendation_items: recentRecommendationItems,
     market_context: marketContext,
+    reddit_sentiment: redditSentiment,
   };
 }
 
@@ -239,7 +286,7 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "You have access to real-time web search and X (Twitter) search — use them to get current stock prices, recent earnings, analyst sentiment, and market news for each holding and any new buy candidates.",
     "ALWAYS search for the current live price of a stock before setting any price targets or sizing.",
     "Search X for market sentiment and trending discussion on each ticker before making recommendations.",
-    "The portfolio context already includes Finnhub market data (news, analyst ratings, price targets) — use this alongside your live search.",
+    "The portfolio context already includes Finnhub market data (news, analyst ratings, price targets) AND pre-fetched Reddit sentiment per ticker (reddit_sentiment field) — use both alongside your live search. Do NOT separately search Reddit; the data is already provided.",
     "Evaluate the entire portfolio and strategy context before making any recommendation.",
     "Respect current holdings, cash balance, benchmark, account type, strategy rules, concentration, turnover preference, and holding period bias.",
     "CASH IS A HARD CONSTRAINT — never recommend buying more than the available cash balance allows.",
