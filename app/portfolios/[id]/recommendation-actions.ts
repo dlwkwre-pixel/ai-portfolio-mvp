@@ -372,7 +372,7 @@ Return this exact JSON shape:
 Additional rules:
 - Use the current_price already in the holdings context. Only run live search for new buy candidates or if a price appears $0/null.
 - Provide a recommendation for EVERY existing holding — none should be skipped.
-- Suggest 1-3 NEW buy candidates only if cash remains after sizing existing add recommendations, and only if the strategy supports new positions. Name real tickers and search for their current price.
+- Suggest new buy candidates ONLY if: (1) cash remains after sizing all add recommendations to existing holdings, (2) there is a genuinely compelling opportunity that fits the strategy — not just because cash is available. Do not invent buys to fill cash. If no strong new opportunity exists, say so and leave cash as-is. Max 1-3 new candidates, real tickers only, search for their current price.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
 - Keep thesis concise but investment-grade (1-2 sentences), always mentioning current price from context.
 - Return JSON only, no markdown fences.
