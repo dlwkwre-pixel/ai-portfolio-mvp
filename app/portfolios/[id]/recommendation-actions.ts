@@ -198,6 +198,20 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     weight_pct: holding.weight_pct,
   }));
 
+  // Always use the latest strategy version, not the one frozen in the assignment FK
+  let latestStrategyVersion = (activeAssignment as any)?.strategy_versions ?? null;
+  const assignedStrategyId = (activeAssignment as any)?.strategy_id ?? null;
+  if (assignedStrategyId) {
+    const { data: latestVersion } = await supabase
+      .from("strategy_versions")
+      .select("id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct")
+      .eq("strategy_id", assignedStrategyId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestVersion) latestStrategyVersion = latestVersion;
+  }
+
   // Fetch live market context: news, analyst ratings, price targets per ticker
   let marketContext: Record<string, unknown> = {};
   const tickers = (holdings ?? []).map((h: any) => h.ticker).filter(Boolean);
@@ -253,7 +267,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
       ? {
           assignment: activeAssignment,
           strategy: (activeAssignment as any).strategies ?? null,
-          strategy_version: (activeAssignment as any).strategy_versions ?? null,
+          strategy_version: latestStrategyVersion,
         }
       : null,
     notes: notes ?? [],
@@ -280,35 +294,45 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
 
   const ctx = context as any;
   const availableCash = ctx?.portfolio?.cash_balance ?? ctx?.current_valuation?.cash_balance ?? 0;
+  const strategyVersion = ctx?.strategy?.strategy_version ?? null;
+  const maxPositionPct: number | null = strategyVersion?.max_position_pct ?? null;
+  const minPositionPct: number | null = strategyVersion?.min_position_pct ?? null;
 
   const systemPrompt = [
     "You are an institutional-quality portfolio analyst with deep knowledge of equities, ETFs, and portfolio construction.",
-    "You have access to real-time web search and X (Twitter) search — use them to get current stock prices, recent earnings, analyst sentiment, and market news for each holding and any new buy candidates.",
-    "ALWAYS search for the current live price of a stock before setting any price targets or sizing.",
-    "Search X for market sentiment and trending discussion on each ticker before making recommendations.",
-    "The portfolio context already includes Finnhub market data (news, analyst ratings, price targets) AND pre-fetched Reddit sentiment per ticker (reddit_sentiment field) — use both alongside your live search. Do NOT separately search Reddit; the data is already provided.",
-    "Evaluate the entire portfolio and strategy context before making any recommendation.",
-    "Respect current holdings, cash balance, benchmark, account type, strategy rules, concentration, turnover preference, and holding period bias.",
+    "Current stock prices, Finnhub market data (news, analyst ratings, price targets), and Reddit sentiment are ALL pre-loaded in the portfolio context — use them as your primary data source.",
+    "DO NOT use your training-data memory for stock prices — prices change constantly and your knowledge is stale. Use only the current_price from the holdings context or a live search result.",
+    "SEARCH DISCIPLINE — to control costs, only call web_search or x_search when truly necessary: (1) prices of NEW buy candidates not in current holdings, (2) very recent news/catalysts not covered by the Finnhub feed, (3) a price in context that appears clearly wrong (e.g. $0 or null). Do NOT search for prices of existing holdings — they are already in context.",
+    "Use x_search for no more than 2-3 of the most important holdings or new candidates — not every ticker.",
+    "Reddit sentiment is pre-fetched per ticker in the reddit_sentiment field — do NOT search Reddit separately.",
+    "Evaluate the full portfolio and strategy context before making any recommendation.",
+    "Respect strategy rules exactly, especially max_position_pct from the latest strategy version in context.",
     "CASH IS A HARD CONSTRAINT — never recommend buying more than the available cash balance allows.",
     "You may recommend: buy, add, trim, sell, hold, rebalance, or raise_cash.",
-    "For new buy candidates, search for current opportunities that fit the strategy style and risk level.",
-    "For trim/sell recommendations, always specify exact share_quantity to sell — never exceed shares currently owned.",
+    "For trim/sell recommendations, always specify exact share_quantity — never exceed shares currently owned.",
     "Prefer high-quality, finance-first reasoning grounded in current data.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
 
-  const userPrompt = `Search for current market data and sentiment on each holding, then analyze this portfolio and return a strict JSON object.
+  const strategyConstraintsBlock = maxPositionPct != null
+    ? `\nSTRATEGY POSITION LIMITS (from latest strategy version — must be respected):
+- max_position_pct: ${maxPositionPct}% — do NOT recommend trimming or selling a holding solely because it is near this limit; only flag if it is materially above (>5% over the limit, i.e. above ${(maxPositionPct + 5).toFixed(0)}%)
+${minPositionPct != null ? `- min_position_pct: ${minPositionPct}%` : ""}\n`
+    : "";
 
+  const userPrompt = `Analyze this portfolio using the pre-loaded context (current prices, Finnhub data, Reddit sentiment) and return a strict JSON object. Only use live search for new buy candidates, missing prices, or very recent catalysts not in the feed.
+${strategyConstraintsBlock}
 CRITICAL CONSTRAINTS — YOU MUST FOLLOW THESE EXACTLY:
 
 1. CASH HARD LIMIT: Available cash is $${availableCash.toLocaleString()}. The combined sizing_dollars of ALL buy/add recommendations MUST NOT exceed this amount. This is non-negotiable. If you have multiple buy candidates, size them so they all fit within the available cash together. Do not suggest a single buy that exceeds available cash.
 
-2. TARGET PRICE RULES: Always search for the current live price before setting target prices.
+2. TARGET PRICE RULES: Use the current_price from the holdings context as your baseline. Only search live for the price of NEW buy candidates not already in holdings.
+   - If a price in context appears to be $0 or null, search for the real price before continuing.
    - target_price_1 = your 12-month analyst price target (where you expect the stock to trade)
    - For BUY/ADD: target_price_1 MUST be HIGHER than the current price (it's where you think it's going)
    - For SELL/TRIM: target_price_1 MUST be LOWER than the current price
    - Never set a target price below current price for a buy recommendation
-   - If you are unsure of the current price, search for it before responding
+   - Never use your training-data memory for a stock price — always use context price or live search
 
 3. TRIM/SELL SHARE QUANTITY: For any trim or sell recommendation, you MUST provide share_quantity.
    - share_quantity MUST be less than or equal to the shares currently owned (found in holdings data)
@@ -346,11 +370,11 @@ Return this exact JSON shape:
 }
 
 Additional rules:
-- Search for current price, recent news, and X sentiment for EACH holding before recommending.
+- Use the current_price already in the holdings context. Only run live search for new buy candidates or if a price appears $0/null.
 - Provide a recommendation for EVERY existing holding — none should be skipped.
-- Suggest 1-3 NEW buy candidates only if cash remains after sizing existing add recommendations, and only if the strategy supports new positions. Name real tickers and verify their current price.
+- Suggest 1-3 NEW buy candidates only if cash remains after sizing existing add recommendations, and only if the strategy supports new positions. Name real tickers and search for their current price.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
-- Keep thesis concise but investment-grade (1-2 sentences), always mentioning current price context.
+- Keep thesis concise but investment-grade (1-2 sentences), always mentioning current price from context.
 - Return JSON only, no markdown fences.
 
 Portfolio context:
