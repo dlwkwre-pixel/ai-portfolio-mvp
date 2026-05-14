@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition, useRef } from "react";
+import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -158,6 +158,65 @@ function calcRetirementProbability(baselineNW: number, annualExpenses: number): 
   if (ratio >= 0.4) return 38;
   if (ratio >= 0.2) return 20;
   return 8;
+}
+
+function normalRandom(mean: number, stdDev: number): number {
+  const u = Math.max(1e-10, Math.random());
+  const v = Math.random();
+  return mean + stdDev * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+type McPoint = { year: number; label: string; p10: number; p25: number; p50: number; p75: number; p90: number };
+
+function runMonteCarlo(
+  currentNW: number,
+  monthlyIncome: number,
+  monthlyExpenses: number,
+  years: number,
+  returnRate: number,
+  inflationRate: number,
+  salaryGrowthRate: number,
+  futureEvents: FutureEvent[],
+  currentYear: number,
+  retirementYear: number | null,
+  retirementTarget: number | null,
+  runs = 1000,
+): { points: McPoint[]; mcRetirementProbability: number | null } {
+  const allRuns: number[][] = [];
+  for (let i = 0; i < runs; i++) {
+    let nw = currentNW;
+    const yearly: number[] = [nw];
+    for (let y = 1; y <= years; y++) {
+      const r = Math.max(-0.6, normalRandom(returnRate, 0.15));
+      const income = monthlyIncome * 12 * Math.pow(1 + salaryGrowthRate, y);
+      const expenses = monthlyExpenses * 12 * Math.pow(1 + inflationRate, y);
+      const savings = income - expenses;
+      const events = futureEvents
+        .filter((e) => e.event_year === currentYear + y)
+        .reduce((s, e) => s + e.amount_impact, 0);
+      const mr = r / 12;
+      const mc = savings / 12;
+      nw = mr > 0
+        ? nw * Math.pow(1 + mr, 12) + mc * (Math.pow(1 + mr, 12) - 1) / mr
+        : nw + savings;
+      nw = Math.max(0, nw + events);
+      yearly.push(nw);
+    }
+    allRuns.push(yearly);
+  }
+
+  const mcRetirementProbability =
+    retirementYear != null && retirementTarget != null && retirementTarget > 0
+      ? Math.round((allRuns.filter((r) => (r[retirementYear] ?? 0) >= retirementTarget).length / runs) * 100)
+      : null;
+
+  const points: McPoint[] = Array.from({ length: years + 1 }, (_, y) => {
+    const vals = allRuns.map((r) => r[y]).sort((a, b) => a - b);
+    const p = (pct: number) => Math.round(vals[Math.floor((pct / 100) * runs)] ?? 0);
+    return { year: y, label: y === 0 ? "Now" : `+${y}yr`, p10: p(10), p25: p(25), p50: p(50), p75: p(75), p90: p(90) };
+  });
+
+  return { points, mcRetirementProbability };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -439,6 +498,12 @@ export default function PlanningClient({
   const [eventPending, startEventTransition] = useTransition();
   const eventFormRef = useRef<HTMLFormElement>(null);
 
+  // Forecast scenarios
+  const [scenarioRetirementAge, setScenarioRetirementAge] = useState<number | null>(
+    profile?.target_retirement_age ?? null
+  );
+  const [showMonteCarlo, setShowMonteCarlo] = useState(false);
+
   // ── Derived numbers ────────────────────────────────────────────────────────
 
   const assets = balanceItems.filter((i) => !i.is_liability);
@@ -529,8 +594,16 @@ export default function PlanningClient({
 
   // ── Forecast data ──────────────────────────────────────────────────────────
 
-  const forecastYears = Math.min(yearsToRetire ?? 30, 40);
   const currentYear = new Date().getFullYear();
+
+  // Active retirement target — scenario overrides profile
+  const activeRetirementAge = scenarioRetirementAge ?? profile?.target_retirement_age ?? null;
+  const activeYearsToRetire = (activeRetirementAge != null && profile?.current_age != null)
+    ? Math.max(0, activeRetirementAge - profile.current_age)
+    : yearsToRetire;
+
+  const forecastYears = Math.min(activeYearsToRetire ?? 30, 40);
+
   const forecastBands = buildForecastBands(
     netWorth, effectiveIncome, effectiveExpenses,
     forecastYears,
@@ -540,12 +613,14 @@ export default function PlanningClient({
     futureEvents, currentYear,
   );
 
-  const retirementPoint = yearsToRetire != null ? forecastBands[Math.min(yearsToRetire, forecastBands.length - 1)] : forecastBands[forecastBands.length - 1];
+  const retirementPoint = activeYearsToRetire != null
+    ? forecastBands[Math.min(activeYearsToRetire, forecastBands.length - 1)]
+    : forecastBands[forecastBands.length - 1];
   const retirementProb = retirementPoint
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
     : null;
 
-  // Combine historical + forecast for the chart
+  // Combine historical + deterministic forecast for chart
   const historyForChart = netWorthHistory.map((s) => ({
     label: s.snapshot_date,
     historical: s.net_worth,
@@ -564,8 +639,74 @@ export default function PlanningClient({
 
   // Key milestone rows for year-by-year table
   const tableRows = forecastBands.filter((p) =>
-    forecastBands.length <= 12 || p.year % 5 === 0 || p.year === yearsToRetire
+    forecastBands.length <= 12 || p.year % 5 === 0 || p.year === activeYearsToRetire
   );
+
+  // Monte Carlo — only computed when toggle is on
+  const retirementTarget = retirementPoint ? retirementPoint.annualExpenses * 25 : null;
+  const mcResult = useMemo(() => {
+    if (!showMonteCarlo) return null;
+    return runMonteCarlo(
+      netWorth, effectiveIncome, effectiveExpenses,
+      forecastYears,
+      localAssumptions.return_rate / 100,
+      localAssumptions.inflation_rate / 100,
+      localAssumptions.salary_growth_rate / 100,
+      futureEvents, currentYear,
+      activeYearsToRetire,
+      retirementTarget,
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMonteCarlo, netWorth, effectiveIncome, effectiveExpenses, forecastYears,
+      localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.salary_growth_rate,
+      futureEvents, currentYear, activeYearsToRetire, retirementTarget]);
+
+  const mcChartData = useMemo(() => {
+    if (!mcResult) return null;
+    const histPart = netWorthHistory.map((s) => ({
+      label: s.snapshot_date,
+      historical: s.net_worth,
+      p10: null as number | null, p25: null as number | null, p50: null as number | null,
+      p75: null as number | null, p90: null as number | null,
+    }));
+    const mcPart = mcResult.points.map((p) => ({
+      label: p.label,
+      historical: null as number | null,
+      p10: p.p10, p25: p.p25, p50: p.p50, p75: p.p75, p90: p.p90,
+    }));
+    return [...histPart, ...mcPart];
+  }, [mcResult, netWorthHistory]);
+
+  // Sensitivity grid — return rate × retirement age matrix
+  const sensitivityGrid = useMemo(() => {
+    if (!profile?.current_age) return null;
+    const returnRates = [4, 5, 6, 7, 8, 9, 10];
+    const baseRetire = activeRetirementAge ?? (profile.current_age + 30);
+    const retirementAges = [-10, -5, 0, 5, 10]
+      .map((d) => baseRetire + d)
+      .filter((a) => a > profile.current_age! + 1 && a <= 80 && a > profile.current_age!);
+    if (retirementAges.length === 0) return null;
+
+    const cells = retirementAges.map((retAge) => {
+      const years = retAge - profile.current_age!;
+      return returnRates.map((r) => {
+        const bands = buildForecastBands(
+          netWorth, effectiveIncome, effectiveExpenses,
+          years, r / 100,
+          localAssumptions.inflation_rate / 100,
+          localAssumptions.salary_growth_rate / 100,
+          futureEvents, currentYear,
+        );
+        const pt = bands[bands.length - 1];
+        const target = pt ? pt.annualExpenses * 25 : 0;
+        const value = pt?.baseline ?? 0;
+        return { value, target, ratio: target > 0 ? value / target : 0 };
+      });
+    });
+
+    return { returnRates, retirementAges, cells };
+  }, [profile?.current_age, activeRetirementAge, netWorth, effectiveIncome, effectiveExpenses,
+      localAssumptions.inflation_rate, localAssumptions.salary_growth_rate, futureEvents, currentYear]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -915,6 +1056,49 @@ export default function PlanningClient({
       {tab === "forecast" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
+          {/* Scenario + chart mode controls */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
+            {profile?.current_age != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Retire at</span>
+                <input
+                  type="number"
+                  min={profile.current_age + 1}
+                  max={85}
+                  value={scenarioRetirementAge ?? ""}
+                  onChange={(e) => setScenarioRetirementAge(e.target.value ? Number(e.target.value) : null)}
+                  style={{ ...inputStyle, minWidth: "unset", width: "68px", padding: "5px 8px", fontSize: "13px" }}
+                />
+                {scenarioRetirementAge !== (profile?.target_retirement_age ?? null) && (
+                  <button
+                    type="button"
+                    onClick={() => setScenarioRetirementAge(profile?.target_retirement_age ?? null)}
+                    style={{ ...btnSecondaryStyle, fontSize: "11px", padding: "4px 8px" }}
+                  >Reset</button>
+                )}
+              </div>
+            )}
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "3px" }}>
+              {[
+                { id: false, label: "3-Band" },
+                { id: true, label: "Monte Carlo" },
+              ].map(({ id, label }) => (
+                <button
+                  key={String(id)}
+                  type="button"
+                  onClick={() => setShowMonteCarlo(id)}
+                  style={{
+                    padding: "5px 10px", borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer",
+                    fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: showMonteCarlo === id ? 600 : 400,
+                    background: showMonteCarlo === id ? "var(--brand-blue)" : "transparent",
+                    color: showMonteCarlo === id ? "#fff" : "var(--text-secondary)",
+                    transition: "background 0.15s, color 0.15s",
+                  }}
+                >{label}</button>
+              ))}
+            </div>
+          </div>
+
           {/* Assumptions + Retirement Probability row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "start", flexWrap: "wrap" }}>
 
@@ -972,86 +1156,141 @@ export default function PlanningClient({
             </div>
 
             {/* Retirement probability badge */}
-            {retirementProb != null && (
-              <div style={{
-                background: "var(--card-bg)", border: "1px solid var(--card-border)",
-                borderRadius: "var(--radius-lg)", padding: "16px 20px",
-                display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
-                minWidth: "110px",
-              }}>
-                <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>On Track</span>
-                <span style={{
-                  fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px",
-                  color: retirementProb >= 75 ? "var(--green)" : retirementProb >= 50 ? "var(--amber)" : "var(--red)",
-                }}>{retirementProb}%</span>
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center" }}>4% rule</span>
-              </div>
-            )}
+            {(() => {
+              const prob = mcResult?.mcRetirementProbability ?? retirementProb;
+              if (prob == null) return null;
+              return (
+                <div style={{
+                  background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                  borderRadius: "var(--radius-lg)", padding: "16px 20px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
+                  minWidth: "110px",
+                }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>On Track</span>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px",
+                    color: prob >= 75 ? "var(--green)" : prob >= 50 ? "var(--amber)" : "var(--red)",
+                  }}>{prob}%</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center" }}>
+                    {mcResult ? "MC · 1k runs" : "4% rule"}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* 3-band trajectory chart */}
+          {/* Chart */}
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
             <div style={{ ...sectionHeadStyle, marginBottom: "16px" }}>Net Worth Trajectory</div>
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00d395" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="optGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00d395" stopOpacity={0.08} />
-                    <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="pessGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.08} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tickFormatter={(v) => "$" + (v >= 1000000 ? (v / 1000000).toFixed(1) + "M" : v >= 1000 ? (v / 1000).toFixed(0) + "k" : v)} tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} width={55} />
-                <Tooltip
-                  contentStyle={{ background: "var(--bg-overlay)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
-                  labelStyle={{ color: "var(--text-secondary)" }}
-                  formatter={(value, name) => {
-                    const v = typeof value === "number" ? value : 0;
-                    const labels: Record<string, string> = { historical: "Historical", optimistic: "Optimistic", baseline: "Baseline", pessimistic: "Pessimistic" };
-                    return [fmt(v), labels[String(name)] ?? String(name)];
-                  }}
-                />
-                <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} />
-                <Area type="monotone" dataKey="optimistic" stroke="#00d395" strokeWidth={1} strokeDasharray="4 3" fill="url(#optGrad)" dot={false} connectNulls={false} />
-                <Area type="monotone" dataKey="baseline" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
-                <Area type="monotone" dataKey="pessimistic" stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 3" fill="url(#pessGrad)" dot={false} connectNulls={false} />
-                {yearsToRetire != null && (
-                  <ReferenceLine x={`+${yearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
-                )}
-              </AreaChart>
+              {showMonteCarlo && mcChartData ? (
+                <AreaChart data={mcChartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="histGrad2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00d395" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="mcMedGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tickFormatter={(v) => "$" + (v >= 1000000 ? (v / 1000000).toFixed(1) + "M" : v >= 1000 ? (v / 1000).toFixed(0) + "k" : v)} tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} width={55} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--bg-overlay)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+                    labelStyle={{ color: "var(--text-secondary)" }}
+                    formatter={(value, name) => {
+                      const v = typeof value === "number" ? value : 0;
+                      const labels: Record<string, string> = { historical: "Historical", p10: "10th %ile", p25: "25th %ile", p50: "Median", p75: "75th %ile", p90: "90th %ile" };
+                      return [fmt(v), labels[String(name)] ?? String(name)];
+                    }}
+                  />
+                  <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad2)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p90" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.3} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p75" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p50" stroke="#a78bfa" strokeWidth={2} fill="url(#mcMedGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p25" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p10" stroke="#f59e0b" strokeWidth={1} strokeOpacity={0.5} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  {activeYearsToRetire != null && (
+                    <ReferenceLine x={`+${activeYearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
+                  )}
+                </AreaChart>
+              ) : (
+                <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00d395" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="optGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00d395" stopOpacity={0.08} />
+                      <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="pessGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.08} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis tickFormatter={(v) => "$" + (v >= 1000000 ? (v / 1000000).toFixed(1) + "M" : v >= 1000 ? (v / 1000).toFixed(0) + "k" : v)} tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} width={55} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--bg-overlay)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+                    labelStyle={{ color: "var(--text-secondary)" }}
+                    formatter={(value, name) => {
+                      const v = typeof value === "number" ? value : 0;
+                      const labels: Record<string, string> = { historical: "Historical", optimistic: "Optimistic", baseline: "Baseline", pessimistic: "Pessimistic" };
+                      return [fmt(v), labels[String(name)] ?? String(name)];
+                    }}
+                  />
+                  <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="optimistic" stroke="#00d395" strokeWidth={1} strokeDasharray="4 3" fill="url(#optGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="baseline" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="pessimistic" stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 3" fill="url(#pessGrad)" dot={false} connectNulls={false} />
+                  {activeYearsToRetire != null && (
+                    <ReferenceLine x={`+${activeYearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
+                  )}
+                </AreaChart>
+              )}
             </ResponsiveContainer>
             <div style={{ display: "flex", gap: "16px", marginTop: "8px", flexWrap: "wrap" }}>
-              {[
-                { color: "#00d395", label: "Historical", dashed: false },
-                { color: "#00d395", label: "Optimistic", dashed: true },
-                { color: "#a78bfa", label: "Baseline", dashed: true },
-                { color: "#f59e0b", label: "Pessimistic", dashed: true },
-              ].map(({ color, label, dashed }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                  <div style={{ width: "16px", height: "2px", background: dashed ? "transparent" : color, borderTop: dashed ? `2px dashed ${color}` : "none" }} />
-                  {label}
-                </div>
-              ))}
+              {showMonteCarlo ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                    <div style={{ width: "16px", height: "2px", background: "#00d395" }} /> Historical
+                  </div>
+                  {["90th", "75th", "Median", "25th", "10th"].map((l, i) => (
+                    <div key={l} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                      <div style={{ width: "16px", height: "2px", borderTop: `2px dashed ${i === 4 ? "#f59e0b" : "#a78bfa"}`, opacity: i === 2 ? 1 : 0.6 }} /> {l}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                [
+                  { color: "#00d395", label: "Historical", dashed: false },
+                  { color: "#00d395", label: "Optimistic", dashed: true },
+                  { color: "#a78bfa", label: "Baseline", dashed: true },
+                  { color: "#f59e0b", label: "Pessimistic", dashed: true },
+                ].map(({ color, label, dashed }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                    <div style={{ width: "16px", height: "2px", background: dashed ? "transparent" : color, borderTop: dashed ? `2px dashed ${color}` : "none" }} />
+                    {label}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* Summary at retirement */}
           {retirementPoint && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-              <MetricCard label={`Baseline at ${profile?.target_retirement_age ?? "Retirement"}`} value={fmt(retirementPoint.baseline)} color="var(--violet)" />
+              <MetricCard label={`Baseline at ${activeRetirementAge ?? "Retirement"}`} value={fmt(retirementPoint.baseline)} color="var(--violet)" />
               <MetricCard label="Optimistic scenario" value={fmt(retirementPoint.optimistic)} color="var(--green)" />
               <MetricCard label="Pessimistic scenario" value={fmt(retirementPoint.pessimistic)} color="var(--amber)" />
             </div>
@@ -1073,7 +1312,7 @@ export default function PlanningClient({
                 </thead>
                 <tbody>
                   {tableRows.map((p) => {
-                    const isRetirement = p.year === yearsToRetire;
+                    const isRetirement = p.year === activeYearsToRetire;
                     const age = profile?.current_age ? profile.current_age + p.year : null;
                     return (
                       <tr key={p.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: isRetirement ? "rgba(167,139,250,0.06)" : "transparent" }}>
@@ -1094,8 +1333,49 @@ export default function PlanningClient({
             </div>
           )}
 
+          {/* Sensitivity analysis grid */}
+          {sensitivityGrid && (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px", overflowX: "auto" }}>
+              <div style={{ ...sectionHeadStyle, marginBottom: "4px" }}>Sensitivity Analysis</div>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 12px" }}>
+                Projected net worth at each retirement age × return rate. Green = on track for 25× expenses (4% rule).
+              </p>
+              <table style={{ borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "11px", width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: "5px 10px", color: "var(--text-tertiary)", fontWeight: 600, fontSize: "10px", textAlign: "left", borderBottom: "1px solid var(--border-subtle)" }}>Retire at</th>
+                    {sensitivityGrid.returnRates.map((r) => (
+                      <th key={r} style={{ padding: "5px 8px", color: "var(--text-tertiary)", fontWeight: 600, fontSize: "10px", textAlign: "right", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>
+                        {r}%
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sensitivityGrid.retirementAges.map((retAge, ri) => (
+                    <tr key={retAge} style={{ borderBottom: "1px solid var(--border-subtle)", background: retAge === activeRetirementAge ? "rgba(167,139,250,0.05)" : "transparent" }}>
+                      <td style={{ padding: "7px 10px", color: retAge === activeRetirementAge ? "var(--violet)" : "var(--text-secondary)", fontWeight: retAge === activeRetirementAge ? 600 : 400, whiteSpace: "nowrap" }}>
+                        {retAge}{retAge === activeRetirementAge ? " ★" : ""}
+                      </td>
+                      {sensitivityGrid.cells[ri].map((cell, ci) => {
+                        const bg = cell.ratio >= 1 ? "rgba(0,211,149,0.12)" : cell.ratio >= 0.75 ? "rgba(245,158,11,0.10)" : "rgba(239,68,68,0.08)";
+                        const color = cell.ratio >= 1 ? "var(--green)" : cell.ratio >= 0.75 ? "var(--amber)" : "var(--red)";
+                        return (
+                          <td key={ci} style={{ padding: "7px 8px", textAlign: "right", background: bg, color }}>
+                            {cell.value >= 1000000 ? (cell.value / 1000000).toFixed(1) + "M" : cell.value >= 1000 ? (cell.value / 1000).toFixed(0) + "k" : fmt(cell.value)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Optimistic/pessimistic bands are ±3% on the return rate. Income and expenses grow by your assumed rates. For informational purposes only.
+            {showMonteCarlo ? "Monte Carlo uses 1,000 simulations with 15% annual return volatility (σ). " : "Optimistic/pessimistic bands are ±3% on the return rate. "}
+            Income and expenses grow by your assumed rates. For informational purposes only.
           </p>
         </div>
       )}
