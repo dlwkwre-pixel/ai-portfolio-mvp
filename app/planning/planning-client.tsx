@@ -14,8 +14,11 @@ import {
   updateCashFlowItem,
   deleteCashFlowItem,
   saveNetWorthSnapshot,
+  upsertPlanningAssumptions,
+  addFutureEvent,
+  deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -80,22 +83,81 @@ function calcHealthScore(
   };
 }
 
-function buildForecast(
+type ForecastPoint = {
+  year: number;
+  label: string;
+  optimistic: number;
+  baseline: number;
+  pessimistic: number;
+  annualIncome: number;
+  annualExpenses: number;
+  annualSavings: number;
+};
+
+function buildForecastBands(
   currentNetWorth: number,
-  monthlyContribution: number,
+  monthlyIncome: number,
+  monthlyExpenses: number,
   years: number,
-  annualReturnRate = 0.07,
-): { year: number; projected: number; label: string }[] {
-  const r = annualReturnRate / 12;
-  const points: { year: number; projected: number; label: string }[] = [];
+  returnRate: number,
+  inflationRate: number,
+  salaryGrowthRate: number,
+  futureEvents: FutureEvent[],
+  currentYear: number,
+): ForecastPoint[] {
+  const grow = (nw: number, r: number, annualSavings: number): number => {
+    const mr = r / 12;
+    const mc = annualSavings / 12;
+    return mr > 0
+      ? nw * Math.pow(1 + mr, 12) + mc * (Math.pow(1 + mr, 12) - 1) / mr
+      : nw + annualSavings;
+  };
+
+  let nwOpt = currentNetWorth;
+  let nwBase = currentNetWorth;
+  let nwPess = currentNetWorth;
+  const result: ForecastPoint[] = [];
+
   for (let y = 0; y <= years; y++) {
-    const n = y * 12;
-    const fv = r > 0
-      ? currentNetWorth * Math.pow(1 + r, n) + monthlyContribution * (Math.pow(1 + r, n) - 1) / r
-      : currentNetWorth + monthlyContribution * n;
-    points.push({ year: y, projected: Math.round(Math.max(0, fv)), label: `Year ${y}` });
+    const annualIncome = monthlyIncome * 12 * Math.pow(1 + salaryGrowthRate, y);
+    const annualExpenses = monthlyExpenses * 12 * Math.pow(1 + inflationRate, y);
+    const annualSavings = annualIncome - annualExpenses;
+    const yearAbs = currentYear + y;
+    const eventImpact = futureEvents
+      .filter((e) => e.event_year === yearAbs)
+      .reduce((s, e) => s + e.amount_impact, 0);
+
+    if (y > 0) {
+      nwOpt = grow(nwOpt, Math.min(0.20, returnRate + 0.03), annualSavings) + eventImpact;
+      nwBase = grow(nwBase, returnRate, annualSavings) + eventImpact;
+      nwPess = grow(nwPess, Math.max(0, returnRate - 0.03), annualSavings) + eventImpact;
+    }
+
+    result.push({
+      year: y,
+      label: y === 0 ? "Now" : `+${y}yr`,
+      optimistic: Math.round(Math.max(0, nwOpt)),
+      baseline: Math.round(Math.max(0, nwBase)),
+      pessimistic: Math.round(Math.max(0, nwPess)),
+      annualIncome: Math.round(annualIncome),
+      annualExpenses: Math.round(annualExpenses),
+      annualSavings: Math.round(annualSavings),
+    });
   }
-  return points;
+  return result;
+}
+
+function calcRetirementProbability(baselineNW: number, annualExpenses: number): number | null {
+  if (annualExpenses <= 0 || baselineNW <= 0) return null;
+  const ratio = baselineNW / (annualExpenses * 25);
+  if (ratio >= 1.5) return 95;
+  if (ratio >= 1.2) return 88;
+  if (ratio >= 1.0) return 82;
+  if (ratio >= 0.8) return 70;
+  if (ratio >= 0.6) return 55;
+  if (ratio >= 0.4) return 38;
+  if (ratio >= 0.2) return 20;
+  return 8;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -346,12 +408,15 @@ type Props = {
   cashFlowItems: CashFlowItem[];
   netWorthHistory: NetWorthSnapshot[];
   portfolioTotalValue: number;
+  assumptions: PlanningAssumptions | null;
+  futureEvents: FutureEvent[];
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events";
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
+  assumptions, futureEvents,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [profilePending, startProfileTransition] = useTransition();
@@ -359,6 +424,20 @@ export default function PlanningClient({
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const snapshotSaved = useRef(false);
+
+  // Assumptions local state — updates chart in real-time before saving
+  const [localAssumptions, setLocalAssumptions] = useState({
+    return_rate: (assumptions?.return_rate ?? 0.07) * 100,
+    inflation_rate: (assumptions?.inflation_rate ?? 0.03) * 100,
+    salary_growth_rate: (assumptions?.salary_growth_rate ?? 0.02) * 100,
+  });
+  const [editingAssumptions, setEditingAssumptions] = useState(false);
+  const [assumptionsPending, startAssumptionsTransition] = useTransition();
+
+  // Future events
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [eventPending, startEventTransition] = useTransition();
+  const eventFormRef = useRef<HTMLFormElement>(null);
 
   // ── Derived numbers ────────────────────────────────────────────────────────
 
@@ -428,6 +507,11 @@ export default function PlanningClient({
         portfolio_total_value: portfolioTotalValue,
         financial_health_score: healthData.total,
         health_factors: healthData.factors,
+        return_rate_pct: localAssumptions.return_rate,
+        inflation_rate_pct: localAssumptions.inflation_rate,
+        retirement_probability: retirementProb,
+        projected_nw_at_retirement: retirementPoint?.baseline ?? null,
+        future_events_count: futureEvents.length,
       };
       const res = await fetch("/api/planning/finn", {
         method: "POST",
@@ -445,21 +529,43 @@ export default function PlanningClient({
 
   // ── Forecast data ──────────────────────────────────────────────────────────
 
-  const forecastYears = yearsToRetire ?? 30;
-  const forecastData = buildForecast(netWorth, monthlySavings, Math.min(forecastYears, 40));
+  const forecastYears = Math.min(yearsToRetire ?? 30, 40);
+  const currentYear = new Date().getFullYear();
+  const forecastBands = buildForecastBands(
+    netWorth, effectiveIncome, effectiveExpenses,
+    forecastYears,
+    localAssumptions.return_rate / 100,
+    localAssumptions.inflation_rate / 100,
+    localAssumptions.salary_growth_rate / 100,
+    futureEvents, currentYear,
+  );
+
+  const retirementPoint = yearsToRetire != null ? forecastBands[Math.min(yearsToRetire, forecastBands.length - 1)] : forecastBands[forecastBands.length - 1];
+  const retirementProb = retirementPoint
+    ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
+    : null;
 
   // Combine historical + forecast for the chart
   const historyForChart = netWorthHistory.map((s) => ({
     label: s.snapshot_date,
     historical: s.net_worth,
-    projected: null as number | null,
+    optimistic: null as number | null,
+    baseline: null as number | null,
+    pessimistic: null as number | null,
   }));
-  const forecastForChart = forecastData.map((p) => ({
-    label: `+${p.year}yr`,
+  const forecastForChart = forecastBands.map((p) => ({
+    label: p.label,
     historical: null as number | null,
-    projected: p.projected,
+    optimistic: p.optimistic,
+    baseline: p.baseline,
+    pessimistic: p.pessimistic,
   }));
   const chartData = [...historyForChart, ...forecastForChart];
+
+  // Key milestone rows for year-by-year table
+  const tableRows = forecastBands.filter((p) =>
+    forecastBands.length <= 12 || p.year % 5 === 0 || p.year === yearsToRetire
+  );
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -477,7 +583,27 @@ export default function PlanningClient({
     { id: "balance", label: "Balance Sheet" },
     { id: "cashflow", label: "Cash Flow" },
     { id: "forecast", label: "Forecast" },
+    { id: "events", label: "Future Events" },
   ];
+
+  function handleAssumptionsSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startAssumptionsTransition(async () => {
+      await upsertPlanningAssumptions(fd);
+      setEditingAssumptions(false);
+    });
+  }
+
+  function handleAddEvent(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startEventTransition(async () => {
+      await addFutureEvent(fd);
+      eventFormRef.current?.reset();
+      setAddingEvent(false);
+    });
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -604,7 +730,7 @@ export default function PlanningClient({
                   {[
                     { name: "current_age", label: "Current Age", type: "number", default: profile?.current_age ?? "" },
                     { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
-                    { name: "monthly_income", label: "Monthly Income ($)", type: "number", default: profile?.monthly_income ?? "" },
+                    { name: "monthly_income", label: "Monthly Net Income ($)", type: "number", default: profile?.monthly_income ?? "" },
                     { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
                   ].map((f) => (
                     <div key={f.name}>
@@ -743,7 +869,7 @@ export default function PlanningClient({
           {/* Income */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={sectionHeadStyle}>Income</span>
+              <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{fmt(monthlyIncome)} / mo</span>
             </div>
             {cashFlowItems.filter((i) => i.type === "income").map((item) => (
@@ -789,24 +915,83 @@ export default function PlanningClient({
       {tab === "forecast" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-                Deterministic projection assuming 7% annual return and {fmt(monthlySavings > 0 ? monthlySavings : 0)}/mo savings.
-              </p>
+          {/* Assumptions + Retirement Probability row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "start", flexWrap: "wrap" }}>
+
+            {/* Assumptions card */}
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={sectionHeadStyle}>Forecast Assumptions</span>
+                {!editingAssumptions && (
+                  <button type="button" onClick={() => setEditingAssumptions(true)} style={btnSecondaryStyle}>Edit</button>
+                )}
+              </div>
+
+              {editingAssumptions ? (
+                <form onSubmit={handleAssumptionsSave}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
+                    {[
+                      { name: "return_rate", label: "Annual Return (%)", val: localAssumptions.return_rate },
+                      { name: "inflation_rate", label: "Inflation (%)", val: localAssumptions.inflation_rate },
+                      { name: "salary_growth_rate", label: "Income Growth (%)", val: localAssumptions.salary_growth_rate },
+                    ].map((f) => (
+                      <div key={f.name} style={{ flex: "1 1 100px" }}>
+                        <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{f.label}</label>
+                        <input
+                          name={f.name}
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="50"
+                          defaultValue={f.val.toFixed(1)}
+                          onChange={(e) => setLocalAssumptions((prev) => ({ ...prev, [f.name]: Number(e.target.value) }))}
+                          style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button type="submit" disabled={assumptionsPending} style={btnPrimaryStyle}>{assumptionsPending ? "Saving…" : "Save"}</button>
+                    <button type="button" onClick={() => setEditingAssumptions(false)} style={btnSecondaryStyle}>Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                  {[
+                    { label: "Return", value: localAssumptions.return_rate.toFixed(1) + "%" },
+                    { label: "Inflation", value: localAssumptions.inflation_rate.toFixed(1) + "%" },
+                    { label: "Income Growth", value: localAssumptions.salary_growth_rate.toFixed(1) + "%" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {yearsToRetire != null && (
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", padding: "4px 10px", borderRadius: "var(--radius-full)" }}>
-                {yearsToRetire} years to retirement
+
+            {/* Retirement probability badge */}
+            {retirementProb != null && (
+              <div style={{
+                background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                borderRadius: "var(--radius-lg)", padding: "16px 20px",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
+                minWidth: "110px",
+              }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>On Track</span>
+                <span style={{
+                  fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px",
+                  color: retirementProb >= 75 ? "var(--green)" : retirementProb >= 50 ? "var(--amber)" : "var(--red)",
+                }}>{retirementProb}%</span>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center" }}>4% rule</span>
               </div>
             )}
           </div>
 
-          {/* Net worth chart — history + forecast */}
+          {/* 3-band trajectory chart */}
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
-            <div style={{ ...sectionHeadStyle, marginBottom: "16px" }}>
-              Net Worth Trajectory
-            </div>
+            <div style={{ ...sectionHeadStyle, marginBottom: "16px" }}>Net Worth Trajectory</div>
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
                 <defs>
@@ -814,9 +999,17 @@ export default function PlanningClient({
                     <stop offset="5%" stopColor="#00d395" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="optGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00d395" stopOpacity={0.08} />
+                    <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
                     <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="pessGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.08} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -825,48 +1018,157 @@ export default function PlanningClient({
                 <Tooltip
                   contentStyle={{ background: "var(--bg-overlay)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
                   labelStyle={{ color: "var(--text-secondary)" }}
-                  formatter={(value, name) => [fmt(typeof value === "number" ? value : 0), name === "historical" ? "Historical" : "Projected"]}
+                  formatter={(value, name) => {
+                    const v = typeof value === "number" ? value : 0;
+                    const labels: Record<string, string> = { historical: "Historical", optimistic: "Optimistic", baseline: "Baseline", pessimistic: "Pessimistic" };
+                    return [fmt(v), labels[String(name)] ?? String(name)];
+                  }}
                 />
-                <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={1.5} fill="url(#histGrad)" dot={false} connectNulls={false} />
-                <Area type="monotone" dataKey="projected" stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3" fill="url(#projGrad)" dot={false} connectNulls={false} />
+                <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} />
+                <Area type="monotone" dataKey="optimistic" stroke="#00d395" strokeWidth={1} strokeDasharray="4 3" fill="url(#optGrad)" dot={false} connectNulls={false} />
+                <Area type="monotone" dataKey="baseline" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
+                <Area type="monotone" dataKey="pessimistic" stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 3" fill="url(#pessGrad)" dot={false} connectNulls={false} />
                 {yearsToRetire != null && (
                   <ReferenceLine x={`+${yearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
                 )}
               </AreaChart>
             </ResponsiveContainer>
-            <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                <div style={{ width: "16px", height: "2px", background: "#00d395" }} /> Historical
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                <div style={{ width: "16px", height: "2px", background: "#a78bfa", borderTop: "2px dashed #a78bfa" }} /> Projected
-              </div>
+            <div style={{ display: "flex", gap: "16px", marginTop: "8px", flexWrap: "wrap" }}>
+              {[
+                { color: "#00d395", label: "Historical", dashed: false },
+                { color: "#00d395", label: "Optimistic", dashed: true },
+                { color: "#a78bfa", label: "Baseline", dashed: true },
+                { color: "#f59e0b", label: "Pessimistic", dashed: true },
+              ].map(({ color, label, dashed }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                  <div style={{ width: "16px", height: "2px", background: dashed ? "transparent" : color, borderTop: dashed ? `2px dashed ${color}` : "none" }} />
+                  {label}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Target at retirement */}
-          {yearsToRetire != null && forecastData.length > 0 && (
+          {/* Summary at retirement */}
+          {retirementPoint && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-              <MetricCard
-                label={`Net Worth at ${profile?.target_retirement_age ?? "Retirement"}`}
-                value={fmt(forecastData[forecastData.length - 1]?.projected ?? 0)}
-                color="var(--violet)"
-              />
-              <MetricCard
-                label="Assumed Annual Return"
-                value="7.0%"
-                sub="Editable in Phase 2"
-              />
-              <MetricCard
-                label="Monthly Contribution"
-                value={fmt(Math.max(0, monthlySavings))}
-                sub="Based on your cash flow"
-              />
+              <MetricCard label={`Baseline at ${profile?.target_retirement_age ?? "Retirement"}`} value={fmt(retirementPoint.baseline)} color="var(--violet)" />
+              <MetricCard label="Optimistic scenario" value={fmt(retirementPoint.optimistic)} color="var(--green)" />
+              <MetricCard label="Pessimistic scenario" value={fmt(retirementPoint.pessimistic)} color="var(--amber)" />
+            </div>
+          )}
+
+          {/* Year-by-year cash flows table */}
+          {tableRows.length > 1 && (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px", overflowX: "auto" }}>
+              <div style={{ ...sectionHeadStyle, marginBottom: "12px" }}>Year-by-Year Projection</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+                <thead>
+                  <tr>
+                    {["Year", profile?.current_age ? "Age" : null, "Annual Income", "Annual Expenses", "Net Savings", "Net Worth (baseline)"].filter(Boolean).map((h) => (
+                      <th key={h} style={{ textAlign: "right", padding: "6px 10px", color: "var(--text-tertiary)", fontWeight: 600, fontSize: "10px", letterSpacing: "0.06em", textTransform: "uppercase", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.map((p) => {
+                    const isRetirement = p.year === yearsToRetire;
+                    const age = profile?.current_age ? profile.current_age + p.year : null;
+                    return (
+                      <tr key={p.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: isRetirement ? "rgba(167,139,250,0.06)" : "transparent" }}>
+                        <td style={{ padding: "8px 10px", color: "var(--text-secondary)", textAlign: "right" }}>
+                          {p.year === 0 ? "Now" : `+${p.year}yr`}
+                          {isRetirement && <span style={{ marginLeft: "6px", fontSize: "9px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>RETIRE</span>}
+                        </td>
+                        {age !== null && <td style={{ padding: "8px 10px", color: "var(--text-secondary)", textAlign: "right" }}>{age}</td>}
+                        <td style={{ padding: "8px 10px", color: "var(--green)", textAlign: "right" }}>{fmt(p.annualIncome)}</td>
+                        <td style={{ padding: "8px 10px", color: "var(--red)", textAlign: "right" }}>{fmt(p.annualExpenses)}</td>
+                        <td style={{ padding: "8px 10px", color: p.annualSavings >= 0 ? "var(--green)" : "var(--red)", textAlign: "right" }}>{p.annualSavings >= 0 ? "+" : ""}{fmt(p.annualSavings)}</td>
+                        <td style={{ padding: "8px 10px", color: "var(--violet)", fontWeight: 600, textAlign: "right" }}>{fmt(p.baseline)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Projection assumes consistent contributions and 7% annual return. Actual results will vary. For informational purposes only.
+            Optimistic/pessimistic bands are ±3% on the return rate. Income and expenses grow by your assumed rates. For informational purposes only.
+          </p>
+        </div>
+      )}
+
+      {/* ── Tab: Future Events ── */}
+      {tab === "events" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Add one-time financial events that affect your forecast: home purchase, inheritance, major expenses, and more.
+          </p>
+
+          {/* Event list */}
+          {futureEvents.length === 0 && !addingEvent ? (
+            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>No future events added yet. Events appear as spikes or dips in your forecast chart.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {futureEvents.map((ev) => (
+                <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)", flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{ev.label}</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ev.event_year}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 500, color: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)" }}>
+                    {ev.amount_impact >= 0 ? "+" : ""}{fmt(ev.amount_impact)}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={eventPending}
+                    onClick={() => startEventTransition(async () => { await deleteFutureEvent(ev.id); })}
+                    style={{ ...iconBtnStyle, color: "var(--red)" }}
+                    title="Remove"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add event form */}
+          {addingEvent ? (
+            <form ref={eventFormRef} onSubmit={handleAddEvent} style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "flex-end" }}>
+              <input name="label" required placeholder="e.g. Home purchase" autoFocus style={inputStyle} />
+              <input name="event_year" type="number" required min={currentYear} max={currentYear + 80} defaultValue={currentYear + 5} placeholder="Year" style={{ ...inputStyle, minWidth: "unset", width: "90px" }} />
+              <input name="amount_impact" type="number" required placeholder="Amount (+ gain / − expense)" style={{ ...inputStyle, minWidth: "unset", width: "200px" }} />
+              <select name="category" style={selectStyle} defaultValue="other">
+                <option value="home_purchase">Home Purchase</option>
+                <option value="home_sale">Home Sale</option>
+                <option value="education">Education</option>
+                <option value="inheritance">Inheritance</option>
+                <option value="other">Other</option>
+              </select>
+              <button type="submit" disabled={eventPending} style={btnPrimaryStyle}>{eventPending ? "Adding…" : "Add"}</button>
+              <button type="button" onClick={() => setAddingEvent(false)} style={btnSecondaryStyle}>Cancel</button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingEvent(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "7px 12px", borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)", background: "transparent",
+                color: "var(--text-tertiary)", fontSize: "12px",
+                fontFamily: "var(--font-body)", cursor: "pointer",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              Add event
+            </button>
+          )}
+
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Use negative amounts for expenses (e.g. −$50,000 home down payment) and positive for gains (e.g. +$200,000 inheritance). Events are incorporated into all three forecast bands.
           </p>
         </div>
       )}

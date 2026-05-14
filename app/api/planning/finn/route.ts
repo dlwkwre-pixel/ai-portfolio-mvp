@@ -15,6 +15,12 @@ export type FinnContext = {
   portfolio_total_value: number;
   financial_health_score: number;
   health_factors: { name: string; score: number; max: number; direction: "strength" | "weakness" | "neutral" }[];
+  // Phase 2
+  return_rate_pct?: number;
+  inflation_rate_pct?: number;
+  retirement_probability?: number | null;
+  projected_nw_at_retirement?: number | null;
+  future_events_count?: number;
 };
 
 export async function POST(req: NextRequest) {
@@ -37,6 +43,8 @@ export async function POST(req: NextRequest) {
     total_assets, total_liabilities, net_worth,
     monthly_income, monthly_expenses, monthly_savings, savings_rate_pct,
     portfolio_total_value, financial_health_score, health_factors,
+    return_rate_pct, inflation_rate_pct, retirement_probability,
+    projected_nw_at_retirement, future_events_count,
   } = context;
 
   const fmt = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -55,8 +63,16 @@ You use plain language. No jargon.
 You never give specific tax advice or act as a licensed financial advisor.
 Always end with: "For informational purposes only — not financial advice."`;
 
+  const phase2Lines = [
+    return_rate_pct != null ? `  Assumed return rate: ${return_rate_pct.toFixed(1)}%` : null,
+    inflation_rate_pct != null ? `  Assumed inflation: ${inflation_rate_pct.toFixed(1)}%` : null,
+    retirement_probability != null ? `  Retirement on-track probability: ${retirement_probability}%` : null,
+    projected_nw_at_retirement != null ? `  Projected net worth at retirement: ${fmt(projected_nw_at_retirement)}` : null,
+    future_events_count != null && future_events_count > 0 ? `  Future events planned: ${future_events_count}` : null,
+  ].filter(Boolean).join("\n");
+
   const userPrompt = `Analyze this user's financial snapshot and provide 2-4 sentences of clear, actionable commentary.
-Lead with the single most impactful insight. Be specific about numbers. Be encouraging but honest.
+Lead with the single most impactful insight. If a retirement probability is provided, lead with it. Be specific about numbers. Be encouraging but honest.
 
 Financial Health Score: ${financial_health_score}/100
 Age: ${current_age ?? "not set"} → Target retirement age: ${target_retirement_age ?? "not set"}${years_to_retire != null ? ` (${years_to_retire} years away)` : ""}
@@ -68,13 +84,14 @@ Balance Sheet:
   Portfolio value (invested): ${fmt(portfolio_total_value)}
 
 Cash Flow:
-  Monthly income: ${fmt(monthly_income)}
+  Monthly net income: ${fmt(monthly_income)}
   Monthly expenses: ${fmt(monthly_expenses)}
   Monthly savings: ${fmt(monthly_savings)}
   Savings rate: ${pct(savings_rate_pct)}
 
 Health Score Breakdown:
 ${factorLines}
+${phase2Lines ? `\nForecast:\n${phase2Lines}` : ""}
 
 Respond in 2-4 plain sentences. No bullet points. No headers. End with the disclaimer.`;
 

@@ -232,6 +232,95 @@ export async function deleteCashFlowItem(id: string): Promise<{ error?: string }
   return {};
 }
 
+// ── Planning Assumptions ──────────────────────────────────────────────────────
+
+export type PlanningAssumptions = {
+  id: string;
+  user_id: string;
+  return_rate: number;
+  inflation_rate: number;
+  salary_growth_rate: number;
+  updated_at: string;
+};
+
+export async function upsertPlanningAssumptions(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const return_rate = Number(formData.get("return_rate") ?? 7) / 100;
+  const inflation_rate = Number(formData.get("inflation_rate") ?? 3) / 100;
+  const salary_growth_rate = Number(formData.get("salary_growth_rate") ?? 2) / 100;
+
+  const { error } = await supabase.from("planning_assumptions").upsert(
+    { user_id: user.id, return_rate, inflation_rate, salary_growth_rate, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// ── Future Events ─────────────────────────────────────────────────────────────
+
+export type FutureEvent = {
+  id: string;
+  user_id: string;
+  label: string;
+  event_year: number;
+  amount_impact: number;
+  category: string;
+  sort_order: number;
+};
+
+export async function addFutureEvent(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const label = String(formData.get("label") || "").trim();
+  if (!label) return { error: "Label is required." };
+
+  const event_year = Number(formData.get("event_year") || new Date().getFullYear());
+  const amount_impact = Number(formData.get("amount_impact") || 0);
+  const category = String(formData.get("category") || "other");
+
+  const { data: existing } = await supabase
+    .from("planning_future_events")
+    .select("sort_order")
+    .eq("user_id", user.id)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const sort_order = (existing?.sort_order ?? -1) + 1;
+
+  const { error } = await supabase.from("planning_future_events").insert({
+    user_id: user.id, label, event_year, amount_impact, category, sort_order,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function deleteFutureEvent(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("planning_future_events")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
 // ── Net Worth Snapshot ────────────────────────────────────────────────────────
 
 export async function saveNetWorthSnapshot(

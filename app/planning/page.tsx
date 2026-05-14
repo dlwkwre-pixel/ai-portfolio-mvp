@@ -4,7 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 
 export default async function PlanningPage() {
   const supabase = await createClient();
@@ -17,12 +17,16 @@ export default async function PlanningPage() {
     { data: cashFlowItems },
     { data: netWorthHistory },
     { data: portfolios },
+    { data: assumptionsData },
+    { data: futureEventsData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
     supabase.from("cash_flow_items").select("*").eq("user_id", user.id).order("sort_order"),
     supabase.from("net_worth_history").select("*").eq("user_id", user.id).order("snapshot_date", { ascending: true }).limit(24),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
+    supabase.from("planning_assumptions").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase.from("planning_future_events").select("*").eq("user_id", user.id).order("sort_order"),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -97,6 +101,27 @@ export default async function PlanningPage() {
     portfolio_value: s.portfolio_value ? Number(s.portfolio_value) : null,
   }));
 
+  const assumptions: PlanningAssumptions | null = assumptionsData
+    ? {
+        id: assumptionsData.id,
+        user_id: assumptionsData.user_id,
+        return_rate: Number(assumptionsData.return_rate),
+        inflation_rate: Number(assumptionsData.inflation_rate),
+        salary_growth_rate: Number(assumptionsData.salary_growth_rate),
+        updated_at: assumptionsData.updated_at,
+      }
+    : null;
+
+  const typedFutureEvents: FutureEvent[] = (futureEventsData ?? []).map((e) => ({
+    id: e.id,
+    user_id: e.user_id,
+    label: e.label,
+    event_year: e.event_year,
+    amount_impact: Number(e.amount_impact),
+    category: e.category,
+    sort_order: e.sort_order,
+  }));
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -118,6 +143,8 @@ export default async function PlanningPage() {
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
           portfolioTotalValue={portfolioTotalValue}
+          assumptions={assumptions}
+          futureEvents={typedFutureEvents}
         />
       </div>
     </div>
