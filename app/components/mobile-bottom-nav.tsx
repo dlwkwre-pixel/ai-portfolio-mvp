@@ -71,6 +71,15 @@ function IconProfile({ active }: { active: boolean }) {
   );
 }
 
+function IconPlanning({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? "0" : "1.5"}>
+      <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+      <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+    </svg>
+  );
+}
+
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
 const PRIMARY_NAV = [
@@ -81,6 +90,7 @@ const PRIMARY_NAV = [
 ];
 
 const MORE_ITEMS = [
+  { href: "/planning",         label: "Planning",  Icon: IconPlanning },
   { href: "/community",       label: "Community", Icon: IconCommunity },
   { href: "/learn",           label: "Learn",     Icon: IconLearn },
   { href: "/settings/profile", label: "Profile",  Icon: IconProfile },
