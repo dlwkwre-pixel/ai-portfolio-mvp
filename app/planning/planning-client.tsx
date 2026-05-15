@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
+import * as XLSX from "xlsx";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -21,6 +22,7 @@ import {
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
+import type { ImportedItem } from "@/app/api/planning/import/route";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1114,6 +1116,578 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── AI Import Panel ───────────────────────────────────────────────────────────
+
+type AiImportPanelProps = {
+  onAdd: (items: ImportedItem[]) => Promise<void>;
+};
+
+function AiImportPanel({ onAdd }: AiImportPanelProps) {
+  const [open, setOpen] = useState(false);
+  const [rawText, setRawText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<(ImportedItem & { selected: boolean })[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addedCount, setAddedCount] = useState<number | null>(null);
+
+  async function handleParse() {
+    if (!rawText.trim()) return;
+    setParsing(true);
+    setParseError(null);
+    setPreview(null);
+    setAddedCount(null);
+    try {
+      const res = await fetch("/api/planning/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText }),
+      });
+      const data = await res.json() as { items?: ImportedItem[]; error?: string };
+      if (!res.ok || data.error) {
+        setParseError(data.error ?? "Something went wrong.");
+        return;
+      }
+      if (!data.items || data.items.length === 0) {
+        setParseError("No income or expense items could be detected. Try a more detailed description or paste a CSV.");
+        return;
+      }
+      setPreview(data.items.map((item) => ({ ...item, selected: true })));
+    } catch {
+      setParseError("Network error — please try again.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function handleAdd() {
+    if (!preview) return;
+    const selected = preview.filter((i) => i.selected);
+    if (selected.length === 0) return;
+    setAdding(true);
+    try {
+      await onAdd(selected);
+      setAddedCount(selected.length);
+      setPreview(null);
+      setRawText("");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  function toggleItem(idx: number) {
+    setPreview((prev) => prev ? prev.map((item, i) => i === idx ? { ...item, selected: !item.selected } : item) : prev);
+  }
+
+  function updateItem(idx: number, field: keyof ImportedItem, value: string | number) {
+    setPreview((prev) => prev ? prev.map((item, i) => i === idx ? { ...item, [field]: value } : item) : prev);
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setOpen(true); setAddedCount(null); }}
+        style={{
+          display: "flex", alignItems: "center", gap: "6px",
+          padding: "7px 14px", borderRadius: "var(--radius-md)",
+          border: "1px dashed var(--border-subtle)", background: "transparent",
+          color: "var(--text-tertiary)", fontFamily: "var(--font-body)",
+          fontSize: "12px", cursor: "pointer", width: "100%", justifyContent: "center",
+          transition: "border-color 0.15s, color 0.15s",
+        }}
+        onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = "var(--text-secondary)"; b.style.borderColor = "var(--text-tertiary)"; }}
+        onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = "var(--text-tertiary)"; b.style.borderColor = "var(--border-subtle)"; }}
+      >
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 2v8M5 7l3 3 3-3M2 11v1.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Import with AI — paste a bank statement or describe your finances
+      </button>
+    );
+  }
+
+  const selectedCount = preview ? preview.filter((i) => i.selected).length : 0;
+
+  return (
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>AI Financial Import</span>
+          <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "8px" }}>Powered by FINN</span>
+        </div>
+        <button type="button" onClick={() => { setOpen(false); setPreview(null); setParseError(null); setAddedCount(null); }}
+          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "16px", lineHeight: 1 }}>
+          ×
+        </button>
+      </div>
+
+      {addedCount != null ? (
+        <div style={{ textAlign: "center", padding: "12px 0" }}>
+          <div style={{ fontSize: "22px", marginBottom: "6px" }}>✓</div>
+          <p style={{ fontSize: "13px", color: "var(--green)", fontFamily: "var(--font-body)", margin: 0, fontWeight: 600 }}>
+            {addedCount} item{addedCount !== 1 ? "s" : ""} added to Cash Flow
+          </p>
+          <button type="button" onClick={() => { setAddedCount(null); setOpen(false); }}
+            style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)" }}>
+            Done
+          </button>
+        </div>
+      ) : preview ? (
+        <>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            FINN detected {preview.length} item{preview.length !== 1 ? "s" : ""}. Review and edit before adding.
+          </p>
+
+          {/* Preview table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "460px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  <th style={{ padding: "5px 6px", width: "28px" }} />
+                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Label</th>
+                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Type</th>
+                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "right", textTransform: "uppercase", letterSpacing: "0.06em" }}>Amount</th>
+                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Frequency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((item, idx) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)", opacity: item.selected ? 1 : 0.4 }}>
+                    <td style={{ padding: "5px 6px" }}>
+                      <input type="checkbox" checked={item.selected} onChange={() => toggleItem(idx)}
+                        style={{ accentColor: "var(--brand-blue)", cursor: "pointer" }} />
+                    </td>
+                    <td style={{ padding: "5px 6px" }}>
+                      <input
+                        value={item.label}
+                        onChange={(e) => updateItem(idx, "label", e.target.value)}
+                        style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "2px 4px", width: "140px", outline: "none" }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                      />
+                    </td>
+                    <td style={{ padding: "5px 6px" }}>
+                      <select value={item.type} onChange={(e) => updateItem(idx, "type", e.target.value)}
+                        style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "4px", color: item.type === "income" ? "var(--green)" : "var(--red)", fontFamily: "var(--font-body)", fontSize: "11px", padding: "2px 4px" }}>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                      </select>
+                    </td>
+                    <td style={{ padding: "5px 6px", textAlign: "right" }}>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={item.amount}
+                        onChange={(e) => updateItem(idx, "amount", Number(e.target.value))}
+                        style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 4px", width: "80px", textAlign: "right", outline: "none" }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                      />
+                    </td>
+                    <td style={{ padding: "5px 6px" }}>
+                      <select value={item.frequency} onChange={(e) => updateItem(idx, "frequency", e.target.value)}
+                        style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "4px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", padding: "2px 4px" }}>
+                        <option value="monthly">Monthly</option>
+                        <option value="annual">Annual</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleAdd} disabled={adding || selectedCount === 0}
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: selectedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: selectedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: selectedCount === 0 ? "default" : "pointer" }}>
+              {adding ? "Adding…" : `Add ${selectedCount} Item${selectedCount !== 1 ? "s" : ""}`}
+            </button>
+            <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
+              style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+              Back
+            </button>
+            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
+              {selectedCount} of {preview.length} selected
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Paste a bank statement, CSV rows, or describe your income and expenses in plain text. FINN will extract the items for you to review.
+          </p>
+          <textarea
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            placeholder={`Examples:\n• Salary $85,000/year, rent $1,800/mo, groceries $400/mo, Netflix $18/mo\n• Or paste raw CSV rows from your bank`}
+            rows={6}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-md)", color: "var(--text-primary)",
+              fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px",
+              resize: "vertical", outline: "none", lineHeight: 1.6,
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+          />
+          {parseError && (
+            <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>
+          )}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)", color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: !rawText.trim() || parsing ? "default" : "pointer" }}>
+              {parsing ? "Parsing…" : "Parse with FINN"}
+            </button>
+            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+              {rawText.length > 0 ? `${rawText.length} chars` : "Max 8,000 characters"}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Compare Tab ───────────────────────────────────────────────────────────────
+
+type ScenarioCfg = {
+  label: string;
+  retirementAge: number;
+  monthlySavings: number;
+  returnRate: number; // percent e.g. 7
+};
+
+type CompareTabProps = {
+  currentAge: number | null;
+  netWorth: number;
+  effectiveIncome: number;
+  effectiveExpenses: number;
+  defaultRetirementAge: number;
+  defaultMonthlySavings: number;
+  defaultReturnRate: number; // percent
+  defaultInflation: number; // percent
+  defaultSalaryGrowth: number; // percent
+  futureEvents: FutureEvent[];
+  currentYear: number;
+};
+
+function CompareTab({
+  currentAge, netWorth, effectiveIncome, effectiveExpenses,
+  defaultRetirementAge, defaultMonthlySavings, defaultReturnRate,
+  defaultInflation, defaultSalaryGrowth, futureEvents, currentYear,
+}: CompareTabProps) {
+  const baseRetire = defaultRetirementAge || 65;
+
+  const [cfgA, setCfgA] = useState<ScenarioCfg>({
+    label: "Scenario A",
+    retirementAge: baseRetire,
+    monthlySavings: defaultMonthlySavings,
+    returnRate: defaultReturnRate,
+  });
+  const [cfgB, setCfgB] = useState<ScenarioCfg>({
+    label: "Scenario B",
+    retirementAge: Math.min(baseRetire + 5, 75),
+    monthlySavings: defaultMonthlySavings,
+    returnRate: defaultReturnRate,
+  });
+
+  function applyPreset(preset: "early-late" | "save-more" | "bull-bear") {
+    if (preset === "early-late") {
+      setCfgA((c) => ({ ...c, label: "Early Retirement", retirementAge: Math.max((currentAge ?? 30) + 5, baseRetire - 7) }));
+      setCfgB((c) => ({ ...c, label: "Late Retirement", retirementAge: Math.min(baseRetire + 7, 75) }));
+    } else if (preset === "save-more") {
+      setCfgA((c) => ({ ...c, label: "Save More", monthlySavings: Math.round(defaultMonthlySavings * 1.25) }));
+      setCfgB((c) => ({ ...c, label: "Current Pace", monthlySavings: defaultMonthlySavings }));
+    } else {
+      setCfgA((c) => ({ ...c, label: "Bull Market", returnRate: Math.min(defaultReturnRate + 3, 14) }));
+      setCfgB((c) => ({ ...c, label: "Bear Market", returnRate: Math.max(defaultReturnRate - 3, 2) }));
+    }
+  }
+
+  function scenarioResult(cfg: ScenarioCfg) {
+    const age = currentAge ?? 35;
+    const yrs = Math.max(1, cfg.retirementAge - age);
+    const expensesForCalc = effectiveExpenses - defaultMonthlySavings + cfg.monthlySavings;
+    const incomeForCalc = effectiveIncome + (cfg.monthlySavings - defaultMonthlySavings);
+    const bands = buildForecastBands(
+      netWorth, incomeForCalc, expensesForCalc, yrs,
+      cfg.returnRate / 100, defaultInflation / 100, defaultSalaryGrowth / 100,
+      futureEvents, currentYear,
+    );
+    const retPt = bands[bands.length - 1];
+    const prob = retPt ? calcRetirementProbability(retPt.baseline, retPt.annualExpenses) : null;
+    const target = retPt ? retPt.annualExpenses * 25 : 0;
+    const sr = incomeForCalc > 0 ? ((cfg.monthlySavings / incomeForCalc) * 100) : 0;
+    return { bands, retPt, prob, target, yrs, sr };
+  }
+
+  const resA = useMemo(() => scenarioResult(cfgA),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cfgA, currentAge, netWorth, effectiveIncome, effectiveExpenses,
+     defaultInflation, defaultSalaryGrowth, futureEvents, currentYear]);
+
+  const resB = useMemo(() => scenarioResult(cfgB),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cfgB, currentAge, netWorth, effectiveIncome, effectiveExpenses,
+     defaultInflation, defaultSalaryGrowth, futureEvents, currentYear]);
+
+  // Build combined chart — pad shorter series with nulls
+  const combinedChart = useMemo(() => {
+    const maxLen = Math.max(resA.bands.length, resB.bands.length);
+    return Array.from({ length: maxLen }, (_, i) => ({
+      label: (resA.bands[i] ?? resB.bands[i]).label,
+      a: resA.bands[i]?.baseline ?? null,
+      b: resB.bands[i]?.baseline ?? null,
+    }));
+  }, [resA.bands, resB.bands]);
+
+  const BLUE = "#2563eb";
+  const VIOLET = "#7c3aed";
+
+  function delta(a: number | null, b: number | null) {
+    if (a == null || b == null) return null;
+    return b - a;
+  }
+
+  function DeltaCell({ d, fmt: fmtFn = (n: number) => fmt(n) }: { d: number | null; fmt?: (n: number) => string }) {
+    if (d == null) return <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-tertiary)", padding: "6px 10px", textAlign: "right" }}>—</td>;
+    const color = d > 0 ? "var(--green)" : d < 0 ? "var(--red)" : "var(--text-tertiary)";
+    return (
+      <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color, padding: "6px 10px", textAlign: "right", fontWeight: 600 }}>
+        {d > 0 ? "+" : ""}{fmtFn(d)}
+      </td>
+    );
+  }
+
+  function ScenarioPanel({ cfg, setCfg, color, result }: {
+    cfg: ScenarioCfg;
+    setCfg: React.Dispatch<React.SetStateAction<ScenarioCfg>>;
+    color: string;
+    result: ReturnType<typeof scenarioResult>;
+  }) {
+    const minAge = (currentAge ?? 25) + 2;
+    const savingsMin = 0;
+    const savingsMax = Math.max(Math.round(effectiveIncome * 0.8), defaultMonthlySavings + 2000);
+    const savingsStep = 100;
+
+    return (
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
+        {/* Label */}
+        <input
+          value={cfg.label}
+          onChange={(e) => setCfg((c) => ({ ...c, label: e.target.value }))}
+          style={{
+            background: "transparent", border: "none", borderBottom: `2px solid ${color}`,
+            color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "14px",
+            fontWeight: 600, padding: "2px 0", outline: "none", width: "100%",
+          }}
+        />
+
+        {/* Outcome badges */}
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div style={{ background: `${color}18`, border: `1px solid ${color}40`, borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>
+              {result.retPt ? fmt(result.retPt.baseline) : "—"}
+            </div>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
+          </div>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: result.prob != null && result.prob >= 70 ? "var(--green)" : "var(--amber)" }}>
+              {result.prob != null ? `${result.prob}%` : "—"}
+            </div>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>retire prob.</div>
+          </div>
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
+              {result.sr.toFixed(0)}%
+            </div>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>savings rate</div>
+          </div>
+        </div>
+
+        {/* Sliders */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Retire at</span>
+              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.retirementAge}</span>
+            </div>
+            <input type="range" min={minAge} max={80} step={1} value={cfg.retirementAge}
+              onChange={(e) => setCfg((c) => ({ ...c, retirementAge: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: color }} />
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Monthly savings</span>
+              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{fmt(cfg.monthlySavings)}</span>
+            </div>
+            <input type="range" min={savingsMin} max={savingsMax} step={savingsStep} value={cfg.monthlySavings}
+              onChange={(e) => setCfg((c) => ({ ...c, monthlySavings: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: color }} />
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Return rate</span>
+              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.returnRate.toFixed(1)}%</span>
+            </div>
+            <input type="range" min={2} max={14} step={0.5} value={cfg.returnRate}
+              onChange={(e) => setCfg((c) => ({ ...c, returnRate: Number(e.target.value) }))}
+              style={{ width: "100%", accentColor: color }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const compareRows: { label: string; a: string; b: string; rawA: number | null; rawB: number | null; fmtFn?: (n: number) => string }[] = [
+    {
+      label: "Retirement Age", rawA: cfgA.retirementAge, rawB: cfgB.retirementAge,
+      a: String(cfgA.retirementAge), b: String(cfgB.retirementAge),
+      fmtFn: (n) => (n > 0 ? `+${n} yrs` : `${n} yrs`),
+    },
+    {
+      label: "Years to Retire", rawA: resA.yrs, rawB: resB.yrs,
+      a: `${resA.yrs} yrs`, b: `${resB.yrs} yrs`,
+      fmtFn: (n) => (n > 0 ? `+${n} yrs` : `${n} yrs`),
+    },
+    {
+      label: "Monthly Savings", rawA: cfgA.monthlySavings, rawB: cfgB.monthlySavings,
+      a: fmt(cfgA.monthlySavings), b: fmt(cfgB.monthlySavings),
+    },
+    {
+      label: "Savings Rate", rawA: resA.sr, rawB: resB.sr,
+      a: `${resA.sr.toFixed(0)}%`, b: `${resB.sr.toFixed(0)}%`,
+      fmtFn: (n) => `${n > 0 ? "+" : ""}${n.toFixed(0)}pp`,
+    },
+    {
+      label: "Return Rate", rawA: cfgA.returnRate, rawB: cfgB.returnRate,
+      a: `${cfgA.returnRate.toFixed(1)}%`, b: `${cfgB.returnRate.toFixed(1)}%`,
+      fmtFn: (n) => `${n > 0 ? "+" : ""}${n.toFixed(1)}pp`,
+    },
+    {
+      label: "Projected at Retirement", rawA: resA.retPt?.baseline ?? null, rawB: resB.retPt?.baseline ?? null,
+      a: resA.retPt ? fmt(resA.retPt.baseline) : "—", b: resB.retPt ? fmt(resB.retPt.baseline) : "—",
+    },
+    {
+      label: "Retirement Target (25×)", rawA: resA.target, rawB: resB.target,
+      a: fmt(resA.target), b: fmt(resB.target),
+    },
+    {
+      label: "Retirement Probability", rawA: resA.prob, rawB: resB.prob,
+      a: resA.prob != null ? `${resA.prob}%` : "—", b: resB.prob != null ? `${resB.prob}%` : "—",
+      fmtFn: (n) => `${n > 0 ? "+" : ""}${n.toFixed(0)}pp`,
+    },
+  ];
+
+  const thStyle: React.CSSProperties = { padding: "6px 10px", fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" };
+  const tdLabelStyle: React.CSSProperties = { padding: "7px 10px", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" };
+  const tdValStyle: React.CSSProperties = { padding: "7px 10px", fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-primary)", textAlign: "right", fontWeight: 500 };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* Quick preset chips */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", alignSelf: "center", marginRight: "4px" }}>Quick compare:</span>
+        {([
+          ["early-late", "Early vs. Late Retirement"],
+          ["save-more", "Save More vs. Current"],
+          ["bull-bear", "Bull vs. Bear Market"],
+        ] as [string, string][]).map(([key, lbl]) => (
+          <button key={key} onClick={() => applyPreset(key as Parameters<typeof applyPreset>[0])}
+            style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "20px", padding: "4px 12px", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {/* Two panels */}
+      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+        <ScenarioPanel cfg={cfgA} setCfg={setCfgA} color={BLUE} result={resA} />
+        <div style={{ width: "1px", background: "var(--border-subtle)", alignSelf: "stretch", flexShrink: 0 }} />
+        <ScenarioPanel cfg={cfgB} setCfg={setCfgB} color={VIOLET} result={resB} />
+      </div>
+
+      {/* Combined trajectory chart */}
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "12px" }}>
+          <span style={{ fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 600, color: "var(--text-primary)" }}>Net Worth Trajectory</span>
+          <div style={{ display: "flex", gap: "12px", marginLeft: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "12px", height: "3px", background: BLUE, borderRadius: "2px" }} />
+              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{cfgA.label}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: "12px", height: "3px", background: VIOLET, borderRadius: "2px" }} />
+              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{cfgB.label}</span>
+            </div>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={combinedChart} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="cmpGradA" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={BLUE} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={BLUE} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="cmpGradB" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={VIOLET} stopOpacity={0.2} />
+                <stop offset="95%" stopColor={VIOLET} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+            <XAxis dataKey="label" tick={{ fontSize: 9, fill: "var(--text-tertiary)" }} interval="preserveStartEnd" />
+            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 9, fill: "var(--text-tertiary)" }} width={52} />
+            <Tooltip
+              contentStyle={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", fontSize: "11px" }}
+              formatter={(value, name) => [typeof value === "number" ? fmt(value) : String(value), name === "a" ? cfgA.label : cfgB.label]}
+            />
+            <Area type="monotone" dataKey="a" stroke={BLUE} strokeWidth={2} fill="url(#cmpGradA)" dot={false} connectNulls />
+            <Area type="monotone" dataKey="b" stroke={VIOLET} strokeWidth={2} fill="url(#cmpGradB)" dot={false} connectNulls />
+            {resA.yrs > 0 && resA.bands.length > 0 && (
+              <ReferenceLine x={resA.bands[resA.bands.length - 1]?.label} stroke={BLUE} strokeDasharray="4 2" strokeOpacity={0.6} />
+            )}
+            {resB.yrs > 0 && resB.bands.length > 0 && (
+              <ReferenceLine x={resB.bands[resB.bands.length - 1]?.label} stroke={VIOLET} strokeDasharray="4 2" strokeOpacity={0.6} />
+            )}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Head-to-head table */}
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "12px", overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+              <th style={{ ...thStyle, textAlign: "left" }}>Metric</th>
+              <th style={{ ...thStyle, color: BLUE }}>{cfgA.label}</th>
+              <th style={{ ...thStyle, color: VIOLET }}>{cfgB.label}</th>
+              <th style={{ ...thStyle }}>Δ B−A</th>
+            </tr>
+          </thead>
+          <tbody>
+            {compareRows.map((row, i) => (
+              <tr key={row.label} style={{ borderBottom: i < compareRows.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
+                <td style={tdLabelStyle}>{row.label}</td>
+                <td style={{ ...tdValStyle, color: BLUE }}>{row.a}</td>
+                <td style={{ ...tdValStyle, color: VIOLET }}>{row.b}</td>
+                <DeltaCell d={delta(row.rawA, row.rawB)} fmt={row.fmtFn} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -1126,7 +1700,7 @@ type Props = {
   futureEvents: FutureEvent[];
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "finn";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
@@ -1361,6 +1935,75 @@ export default function PlanningClient({
     return [...histPart, ...mcPart];
   }, [mcResult, netWorthHistory]);
 
+  // ── XLSX Export ───────────────────────────────────────────────────────────
+  function exportForecastXLSX() {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1 — Year-by-year forecast
+    const forecastRows = forecastBands.map((p) => ({
+      Year: p.label,
+      "Pessimistic ($)": Math.round(p.pessimistic),
+      "Baseline ($)": Math.round(p.baseline),
+      "Optimistic ($)": Math.round(p.optimistic),
+      "Annual Expenses ($)": Math.round(p.annualExpenses),
+      "Is Retirement Year": activeYearsToRetire != null && p.year === activeYearsToRetire ? "Yes" : "",
+    }));
+    const wsForecas = XLSX.utils.json_to_sheet(forecastRows);
+    wsForecas["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsForecas, "Forecast");
+
+    // Sheet 2 — Summary
+    const today = new Date().toLocaleDateString("en-US");
+    const summaryRows = [
+      { Field: "Export Date", Value: today },
+      { Field: "Current Age", Value: profile?.current_age ?? "—" },
+      { Field: "Target Retirement Age", Value: activeRetirementAge ?? "—" },
+      { Field: "Net Worth ($)", Value: Math.round(netWorth) },
+      { Field: "Monthly Income ($)", Value: Math.round(effectiveIncome) },
+      { Field: "Monthly Expenses ($)", Value: Math.round(effectiveExpenses) },
+      { Field: "Monthly Savings ($)", Value: Math.round(monthlySavings) },
+      { Field: "Savings Rate (%)", Value: savingsRate.toFixed(1) },
+      { Field: "Return Rate Assumption (%)", Value: localAssumptions.return_rate.toFixed(1) },
+      { Field: "Inflation Rate Assumption (%)", Value: localAssumptions.inflation_rate.toFixed(1) },
+      { Field: "Salary Growth Assumption (%)", Value: localAssumptions.salary_growth_rate.toFixed(1) },
+      { Field: "Projected NW at Retirement ($)", Value: retirementPoint ? Math.round(retirementPoint.baseline) : "—" },
+      { Field: "Retirement Probability (%)", Value: retirementProb ?? "—" },
+      { Field: "Financial Health Score", Value: healthData.total },
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    wsSummary["!cols"] = [{ wch: 32 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+
+    // Sheet 3 — Balance Sheet
+    if (balanceItems.length > 0) {
+      const bsRows = balanceItems.map((i) => ({
+        Label: i.label,
+        Category: i.category,
+        Type: i.is_liability ? "Liability" : "Asset",
+        "Value ($)": Math.round(i.value),
+      }));
+      const wsBs = XLSX.utils.json_to_sheet(bsRows);
+      wsBs["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 14 }];
+      XLSX.utils.book_append_sheet(wb, wsBs, "Balance Sheet");
+    }
+
+    // Sheet 4 — Cash Flow
+    if (cashFlowItems.length > 0) {
+      const cfRows = cashFlowItems.map((i) => ({
+        Label: i.label,
+        Type: i.type,
+        Frequency: i.frequency,
+        "Amount ($)": Math.round(i.amount),
+        "Monthly Equiv ($)": Math.round(toMonthly(i.amount, i.frequency)),
+      }));
+      const wsCf = XLSX.utils.json_to_sheet(cfRows);
+      wsCf["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, wsCf, "Cash Flow");
+    }
+
+    XLSX.writeFile(wb, `buytune-forecast-${currentYear}.xlsx`);
+  }
+
   // Sensitivity grid — return rate × retirement age matrix
   const sensitivityGrid = useMemo(() => {
     if (!profile?.current_age) return null;
@@ -1535,6 +2178,7 @@ export default function PlanningClient({
     { id: "balance", label: "Balance Sheet" },
     { id: "cashflow", label: "Cash Flow" },
     { id: "forecast", label: "Forecast" },
+    { id: "compare", label: "Compare" },
     { id: "events", label: "Future Events" },
     { id: "finn", label: "Ask FINN" },
   ];
@@ -1979,6 +2623,18 @@ export default function PlanningClient({
             <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
           </div>
 
+          {/* AI Import */}
+          <AiImportPanel onAdd={async (items) => {
+            for (const item of items) {
+              const fd = new FormData();
+              fd.set("label", item.label);
+              fd.set("amount", String(item.amount));
+              fd.set("frequency", item.frequency);
+              fd.set("type", item.type);
+              await addCashFlowItem(fd);
+            }
+          }} />
+
           {/* Summary */}
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
             {[
@@ -2045,6 +2701,25 @@ export default function PlanningClient({
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={exportForecastXLSX}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px",
+                padding: "6px 12px", borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border-subtle)", background: "var(--card-bg)",
+                color: "var(--text-secondary)", fontFamily: "var(--font-body)",
+                fontSize: "11px", cursor: "pointer", whiteSpace: "nowrap",
+                transition: "border-color 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--text-tertiary)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-subtle)"; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 1v9M4 7l4 4 4-4M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Export .xlsx
+            </button>
           </div>
 
           {/* Assumptions + Retirement Probability row */}
@@ -2345,6 +3020,23 @@ export default function PlanningClient({
             Income and expenses grow by your assumed rates. For informational purposes only.
           </p>
         </div>
+      )}
+
+      {/* ── Tab: Compare ── */}
+      {tab === "compare" && (
+        <CompareTab
+          currentAge={profile?.current_age ?? null}
+          netWorth={netWorth}
+          effectiveIncome={effectiveIncome}
+          effectiveExpenses={effectiveExpenses}
+          defaultRetirementAge={activeRetirementAge ?? 65}
+          defaultMonthlySavings={Math.max(0, monthlySavings)}
+          defaultReturnRate={localAssumptions.return_rate}
+          defaultInflation={localAssumptions.inflation_rate}
+          defaultSalaryGrowth={localAssumptions.salary_growth_rate}
+          futureEvents={futureEvents}
+          currentYear={currentYear}
+        />
       )}
 
       {/* ── Tab: Future Events ── */}
