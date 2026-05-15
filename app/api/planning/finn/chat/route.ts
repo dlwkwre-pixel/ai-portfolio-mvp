@@ -164,7 +164,7 @@ KEY BENCHMARKS (use these in calculations):
   Savings rate heuristic: each +5% savings rate ≈ +6–10 pp improvement in retirement probability`;
 
   try {
-    const model = process.env.GEMINI_FINN_CHAT_MODEL ?? "gemini-2.5-flash-preview-05-20";
+    const model = process.env.GEMINI_FINN_CHAT_MODEL ?? "gemini-2.0-flash";
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
