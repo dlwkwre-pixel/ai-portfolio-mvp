@@ -222,6 +222,47 @@ function runMonteCarlo(
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+function InfoTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}>
+      <button
+        type="button"
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onClick={(e) => { e.stopPropagation(); setVisible((v) => !v); }}
+        style={{
+          background: "none", border: "1px solid var(--text-tertiary)", cursor: "pointer",
+          color: "var(--text-tertiary)", padding: 0, margin: "0 3px",
+          fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 600,
+          lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: "13px", height: "13px", borderRadius: "50%", flexShrink: 0,
+        }}
+        aria-label="More info"
+      >i</button>
+      {visible && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
+          transform: "translateX(-50%)",
+          background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)", padding: "10px 13px",
+          fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)",
+          lineHeight: 1.55, width: "230px", zIndex: 100,
+          boxShadow: "0 6px 20px rgba(0,0,0,0.4)", pointerEvents: "none",
+        }}>
+          {text}
+          <div style={{
+            position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
+            borderTop: "5px solid var(--border)",
+          }} />
+        </div>
+      )}
+    </span>
+  );
+}
+
 function MetricCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div style={{
@@ -1206,9 +1247,9 @@ export default function PlanningClient({
             )}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "4px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "3px" }}>
               {[
-                { id: false, label: "3-Band" },
-                { id: true, label: "Monte Carlo" },
-              ].map(({ id, label }) => (
+                { id: false, label: "3-Band", tooltip: "Shows three fixed scenarios based on your return rate: optimistic (+3%), baseline, and pessimistic (−3%). Simple and fast — good for a quick directional view." },
+                { id: true, label: "Monte Carlo", tooltip: "Runs 1,000 simulations with random annual returns (σ=15% volatility). Shows a cone of realistic outcomes from worst-case to best-case, and a statistically accurate retirement probability." },
+              ].map(({ id, label, tooltip }) => (
                 <button
                   key={String(id)}
                   type="button"
@@ -1219,8 +1260,12 @@ export default function PlanningClient({
                     background: showMonteCarlo === id ? "var(--brand-blue)" : "transparent",
                     color: showMonteCarlo === id ? "#fff" : "var(--text-secondary)",
                     transition: "background 0.15s, color 0.15s",
+                    display: "flex", alignItems: "center", gap: "3px",
                   }}
-                >{label}</button>
+                >
+                  {label}
+                  <InfoTooltip text={tooltip} />
+                </button>
               ))}
             </div>
           </div>
@@ -1297,8 +1342,12 @@ export default function PlanningClient({
                     fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px",
                     color: prob >= 75 ? "var(--green)" : prob >= 50 ? "var(--amber)" : "var(--red)",
                   }}>{prob}%</span>
-                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center" }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center", display: "flex", alignItems: "center", gap: "2px" }}>
                     {mcResult ? "MC · 1k runs" : "4% rule"}
+                    <InfoTooltip text={mcResult
+                      ? "Monte Carlo: 1,000 simulations with random annual returns (σ=15%). This probability is the share of simulations where your portfolio hits 25× annual expenses by retirement."
+                      : "The 4% rule: you need 25× your annual expenses saved to retire. At that amount, withdrawing 4% per year should last 30+ years. This probability estimates how close you are to that target."
+                    } />
                   </span>
                 </div>
               );
