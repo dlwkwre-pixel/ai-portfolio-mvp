@@ -6,6 +6,7 @@ import type { StrategyCard } from "./types";
 import { updateStrategy, duplicateStrategy, deleteStrategy, archiveStrategy, unarchiveStrategy } from "./actions";
 import StrategyPublicToggle from "./strategy-public-toggle";
 import type { StrategyAnalysis } from "@/app/api/strategies/analyze/route";
+import type { ImprovementResult } from "@/app/api/strategies/improve/route";
 
 const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Options / Derivatives","Custom"];
 const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
@@ -145,7 +146,7 @@ function FactorBar({ factor, idx }: { factor: StrategyAnalysis["factors"][0]; id
   );
 }
 
-function FinnIntelligencePanel({ card }: { card: StrategyCard }) {
+function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAnalysis?: (a: StrategyAnalysis) => void }) {
   const [analysis, setAnalysis] = useState<StrategyAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +179,9 @@ function FinnIntelligencePanel({ card }: { card: StrategyCard }) {
       });
       const data = await res.json() as { analysis?: StrategyAnalysis; error?: string };
       if (!res.ok || data.error) { setError(data.error ?? "Analysis failed."); return; }
-      setAnalysis(data.analysis ?? null);
+      const a = data.analysis ?? null;
+      setAnalysis(a);
+      if (a) onAnalysis?.(a);
       fetchedRef.current = true;
     } catch {
       setError("Network error — please try again.");
@@ -316,6 +319,350 @@ function FinnIntelligencePanel({ card }: { card: StrategyCard }) {
   );
 }
 
+// ── Improve Strategy Panel ────────────────────────────────────────────────────
+
+const IMPROVE_MODES = [
+  { id: "Growth",              icon: "↑", label: "Growth"        },
+  { id: "Safety",              icon: "⛊", label: "Safety"        },
+  { id: "Taxes",               icon: "%", label: "Taxes"         },
+  { id: "Income",              icon: "$", label: "Income"        },
+  { id: "Downside Protection", icon: "▼", label: "Downside"      },
+  { id: "Diversification",     icon: "◈", label: "Diversify"     },
+  { id: "Retirement",          icon: "◎", label: "Retirement"    },
+  { id: "Simplicity",          icon: "—", label: "Simplicity"    },
+] as const;
+
+type ImproveMode = typeof IMPROVE_MODES[number]["id"];
+
+const IMPROVE_THINKING = [
+  "Identifying optimization targets…",
+  "Modeling parameter changes…",
+  "Projecting score deltas…",
+  "Evaluating tradeoffs…",
+  "Finalizing improvement plan…",
+];
+
+function ScoreDeltaRow({ factor, before, after }: { factor: string; before: number; after: number }) {
+  const delta = after - before;
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 80); return () => clearTimeout(t); }, []);
+  const afterColor = scoreColor(after);
+  return (
+    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+      <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", width: "148px", flexShrink: 0 }}>{factor}</span>
+      <div style={{ flex: 1, height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden", position: "relative" }}>
+        {/* Before bar (ghost) */}
+        <div style={{ position: "absolute", height: "100%", borderRadius: "2px", background: "rgba(255,255,255,0.12)", width: `${before}%` }} />
+        {/* After bar */}
+        <div style={{
+          position: "absolute", height: "100%", borderRadius: "2px", background: afterColor,
+          width: animated ? `${after}%` : "0%",
+          transition: "width 0.75s cubic-bezier(0.16,1,0.3,1)",
+        }} />
+      </div>
+      <span style={{
+        fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, width: "38px", textAlign: "right", flexShrink: 0,
+        color: delta > 0 ? "var(--green)" : delta < 0 ? "var(--red)" : "var(--text-muted)",
+      }}>
+        {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—"}
+      </span>
+    </div>
+  );
+}
+
+function ImproveStrategyPanel({
+  card,
+  currentFactors,
+  currentConfidence,
+  onApplied,
+}: {
+  card: StrategyCard;
+  currentFactors: StrategyAnalysis["factors"] | null;
+  currentConfidence: number | null;
+  onApplied: () => void;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState<ImproveMode | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ImprovementResult | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState(false);
+  const [thinkIdx, setThinkIdx] = useState(0);
+
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setThinkIdx((i) => (i + 1) % IMPROVE_THINKING.length), 1300);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  async function runImprovement(mode: ImproveMode) {
+    setActiveMode(mode);
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setApplied(false);
+    const v = card.latest_version;
+    try {
+      const res = await fetch("/api/strategies/improve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: card.name,
+          style: card.style,
+          risk_level: card.risk_level,
+          turnover_preference: v?.turnover_preference ?? null,
+          holding_period_bias: v?.holding_period_bias ?? null,
+          max_position_pct: v?.max_position_pct ?? null,
+          min_position_pct: v?.min_position_pct ?? null,
+          cash_min_pct: v?.cash_min_pct ?? null,
+          cash_max_pct: v?.cash_max_pct ?? null,
+          prompt_text: v?.prompt_text ?? null,
+          description: card.description,
+          current_factors: currentFactors ?? [],
+          current_confidence: currentConfidence ?? 0,
+          mode,
+        }),
+      });
+      const data = await res.json() as { result?: ImprovementResult; error?: string };
+      if (!res.ok || data.error) { setError(data.error ?? "Improvement failed."); return; }
+      setResult(data.result ?? null);
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function applyChanges() {
+    if (!result?.improved_params) return;
+    setApplying(true);
+    try {
+      const v = card.latest_version;
+      const p = result.improved_params;
+      const fd = new FormData();
+      fd.set("strategy_id", card.id);
+      fd.set("name", card.name);
+      fd.set("description", card.description ?? "");
+      fd.set("style", card.style ?? "Growth");
+      fd.set("risk_level", card.risk_level ?? "Moderate");
+      fd.set("turnover_preference", p.turnover_preference ?? v?.turnover_preference ?? "Moderate");
+      fd.set("holding_period_bias", p.holding_period_bias ?? v?.holding_period_bias ?? "Long-term");
+      fd.set("max_position_pct", String(p.max_position_pct ?? v?.max_position_pct ?? ""));
+      fd.set("min_position_pct", String(p.min_position_pct ?? v?.min_position_pct ?? ""));
+      fd.set("cash_min_pct", String(p.cash_min_pct ?? v?.cash_min_pct ?? ""));
+      fd.set("cash_max_pct", String(p.cash_max_pct ?? v?.cash_max_pct ?? ""));
+      fd.set("prompt_text", p.prompt_text ?? v?.prompt_text ?? "");
+      await updateStrategy(fd);
+      setApplied(true);
+      onApplied();
+      router.refresh();
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  const deltaSummary = result
+    ? result.score_deltas.reduce((sum, d) => sum + (d.after - d.before), 0)
+    : 0;
+  const confDelta = result ? result.projected_confidence - (currentConfidence ?? 0) : 0;
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        style={{
+          display: "flex", alignItems: "center", gap: "6px",
+          padding: "7px 14px", borderRadius: "var(--radius-xl)",
+          border: "1px solid rgba(124,58,237,0.22)", background: "rgba(109,40,217,0.08)",
+          color: "#7c3aed", fontFamily: "var(--font-body)",
+          fontSize: "12px", fontWeight: 600, cursor: "pointer",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(109,40,217,0.14)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(109,40,217,0.08)"; }}
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v3M8 11v3M2 8h3M11 8h3M4.22 4.22l2.12 2.12M9.66 9.66l2.12 2.12M4.22 11.78l2.12-2.12M9.66 6.34l2.12-2.12" stroke="#7c3aed" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+        Improve Strategy
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ background: "rgba(109,40,217,0.04)", border: "1px solid rgba(109,40,217,0.15)", borderRadius: "var(--radius-lg)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7c3aed", boxShadow: "0 0 6px rgba(124,58,237,0.5)" }} />
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Improve Strategy</span>
+        </div>
+        <button type="button" onClick={() => { setOpen(false); setResult(null); setActiveMode(null); }}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "2px" }}>
+          ×
+        </button>
+      </div>
+
+      {/* Mode chips */}
+      <div>
+        <p style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 8px", letterSpacing: "0.02em" }}>
+          Optimize for:
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          {IMPROVE_MODES.map(({ id, icon, label }) => {
+            const isActive = activeMode === id;
+            return (
+              <button key={id} type="button"
+                onClick={() => runImprovement(id as ImproveMode)}
+                disabled={loading}
+                style={{
+                  display: "flex", alignItems: "center", gap: "4px",
+                  padding: "5px 11px", borderRadius: "var(--radius-xl)",
+                  border: isActive ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                  background: isActive ? "rgba(109,40,217,0.15)" : "rgba(255,255,255,0.03)",
+                  color: isActive ? "#7c3aed" : "var(--text-secondary)",
+                  fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: isActive ? 700 : 400,
+                  cursor: loading ? "default" : "pointer", opacity: loading && !isActive ? 0.5 : 1,
+                  transition: "background 0.12s, border-color 0.12s, color 0.12s",
+                }}>
+                <span style={{ fontSize: "10px", opacity: 0.8 }}>{icon}</span>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Thinking state */}
+      {loading && (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" }}>
+          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#7c3aed", animation: "finnPulse 1.2s ease-in-out infinite" }} />
+          <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
+            {IMPROVE_THINKING[thinkIdx]}
+          </span>
+        </div>
+      )}
+
+      {error && !loading && (
+        <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{error}</p>
+      )}
+
+      {result && !loading && (
+        <>
+          {/* Confidence delta badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.03)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+            <div>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>FINN Confidence</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", color: "var(--text-muted)", fontWeight: 500 }}>{currentConfidence ?? "—"}</span>
+                <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M10 1l4 4-4 4" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: confDelta >= 0 ? "var(--green)" : "var(--red)" }}>
+                  {result.projected_confidence}
+                </span>
+                <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 600, color: confDelta > 0 ? "var(--green)" : confDelta < 0 ? "var(--red)" : "var(--text-muted)" }}>
+                  {confDelta > 0 ? `+${confDelta}` : confDelta}
+                </span>
+              </div>
+            </div>
+            <div style={{ marginLeft: "auto", textAlign: "right" }}>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Net factor Δ</div>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: deltaSummary > 0 ? "var(--green)" : deltaSummary < 0 ? "var(--red)" : "var(--text-muted)" }}>
+                {deltaSummary > 0 ? `+${deltaSummary}` : deltaSummary}
+              </span>
+            </div>
+          </div>
+
+          {/* Parameter changes */}
+          {result.changes.length > 0 && (
+            <div>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+                Parameter Changes
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+                {result.changes.map((c, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px", alignItems: "start", padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderBottom: i < result.changes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px", fontFamily: "var(--font-body)" }}>{c.label}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.4 }}>{c.reason}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, paddingTop: "1px" }}>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", textDecoration: "line-through", marginBottom: "2px" }}>{c.from}</div>
+                      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "#7c3aed" }}>{c.to}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Score deltas */}
+          <div>
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>
+              Factor Impact
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {result.score_deltas.map((d) => (
+                <ScoreDeltaRow key={d.factor} factor={d.factor} before={d.before} after={d.after} />
+              ))}
+            </div>
+          </div>
+
+          {/* Narrative */}
+          <div style={{ background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.16)", borderRadius: "var(--radius-md)", padding: "10px 13px" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
+              FINN Rationale
+            </p>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontFamily: "var(--font-body)" }}>
+              {result.narrative}
+            </p>
+          </div>
+
+          {/* Tradeoffs */}
+          {result.tradeoffs.length > 0 && (
+            <div>
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                Tradeoffs
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                {result.tradeoffs.map((t, i) => (
+                  <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                    <span style={{ color: "var(--amber)", fontSize: "11px", flexShrink: 0, marginTop: "1px" }}>↔</span>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0, fontFamily: "var(--font-body)" }}>{t}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Apply / Discard */}
+          {applied ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)", fontWeight: 600 }}>✓ Changes applied</span>
+              <button type="button" onClick={() => { setResult(null); setActiveMode(null); setApplied(false); }}
+                style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0, marginLeft: "4px" }}>
+                Try another
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" onClick={applyChanges} disabled={applying}
+                style={{ padding: "7px 18px", borderRadius: "var(--radius-xl)", border: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 700, cursor: applying ? "default" : "pointer", opacity: applying ? 0.7 : 1 }}>
+                {applying ? "Applying…" : "Apply Changes"}
+              </button>
+              <button type="button" onClick={() => { setResult(null); setActiveMode(null); }}
+                style={{ padding: "7px 13px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+                Discard
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 type CardMode = "collapsed" | "expanded" | "editing";
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -341,6 +688,7 @@ export default function StrategyCardItem({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editError, setEditError] = useState("");
   const [showParams, setShowParams] = useState(false);
+  const [sharedAnalysis, setSharedAnalysis] = useState<StrategyAnalysis | null>(null);
 
   const v = card.latest_version;
   const [editForm, setEditForm] = useState({
@@ -686,8 +1034,16 @@ export default function StrategyCardItem({
                   </div>
                 )}
 
-                {/* FINN Intelligence */}
-                <FinnIntelligencePanel card={card} />
+                {/* FINN Intelligence + Improve */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <FinnIntelligencePanel card={card} onAnalysis={setSharedAnalysis} />
+                  <ImproveStrategyPanel
+                    card={card}
+                    currentFactors={sharedAnalysis?.factors ?? null}
+                    currentConfidence={sharedAnalysis?.finn_confidence ?? null}
+                    onApplied={() => setSharedAnalysis(null)}
+                  />
+                </div>
 
                 {/* Destructive / archive actions */}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingTop: "2px", borderTop: "1px solid var(--border-subtle)" }}>
