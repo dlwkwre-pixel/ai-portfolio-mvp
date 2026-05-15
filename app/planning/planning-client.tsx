@@ -228,6 +228,162 @@ function runMonteCarlo(
   return { points, mcRetirementProbability };
 }
 
+// ── Optimization engine ───────────────────────────────────────────────────────
+
+type Optimization = {
+  id: string;
+  priority: number;
+  icon: string;
+  headline: string;
+  detail: string;
+  impact: string;
+  effort: "Low" | "Medium" | "High";
+};
+
+function computeOptimizations(p: {
+  savingsRate: number;
+  monthlySavings: number;
+  effectiveIncome: number;
+  effectiveExpenses: number;
+  liquidAssets: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+  retirementProb: number | null;
+  retirementPointBaseline: number | null;
+  retirementPointAnnualExpenses: number | null;
+  activeRetirementAge: number | null;
+  activeYearsToRetire: number | null;
+  forecastYears: number;
+  localReturn: number;
+  localInflation: number;
+  localSalaryGrowth: number;
+  futureEvents: FutureEvent[];
+  currentYear: number;
+}): Optimization[] {
+  const recs: Optimization[] = [];
+
+  // 1. Savings rate — run boosted forecast to quantify impact
+  if (p.effectiveIncome > 0 && p.savingsRate < 20) {
+    const monthlyIncrease = Math.max(100, p.effectiveIncome * 0.20 - p.monthlySavings);
+    const boostedBands = buildForecastBands(
+      p.netWorth, p.effectiveIncome, Math.max(0, p.effectiveExpenses - monthlyIncrease),
+      p.forecastYears, p.localReturn, p.localInflation, p.localSalaryGrowth,
+      p.futureEvents, p.currentYear,
+    );
+    const boostedPt = p.activeYearsToRetire != null
+      ? boostedBands[Math.min(p.activeYearsToRetire, boostedBands.length - 1)]
+      : boostedBands[boostedBands.length - 1];
+    const boostedProb = boostedPt ? calcRetirementProbability(boostedPt.baseline, boostedPt.annualExpenses) : null;
+    const nwDelta = boostedPt && p.retirementPointBaseline != null ? boostedPt.baseline - p.retirementPointBaseline : null;
+    const probDelta = boostedProb != null && p.retirementProb != null ? boostedProb - p.retirementProb : null;
+    const impactParts = [
+      nwDelta != null && nwDelta > 0 ? `+${fmt(nwDelta)} at retirement` : null,
+      probDelta != null && probDelta > 0 ? `probability ${p.retirementProb}% → ${boostedProb}%` : null,
+    ].filter(Boolean);
+    recs.push({
+      id: "savings-rate", priority: 1, icon: "📈",
+      headline: `Raise savings rate to 20% (+${fmt(monthlyIncrease)}/mo)`,
+      detail: `Currently ${p.savingsRate.toFixed(1)}%. Each extra $100/mo compounds significantly over time.`,
+      impact: impactParts.length > 0 ? impactParts.join(" · ") : "Significant improvement to retirement timeline",
+      effort: "Medium",
+    });
+  }
+
+  // 2. Emergency fund gap
+  const emergencyTarget = p.effectiveExpenses * 3;
+  const currentMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 0;
+  if (currentMonths < 3 && p.effectiveExpenses > 0) {
+    const gap = emergencyTarget - p.liquidAssets;
+    const monthsToFill = p.monthlySavings > 200 ? Math.ceil(gap / (p.monthlySavings * 0.3)) : null;
+    recs.push({
+      id: "emergency-fund", priority: 2, icon: "🛡️",
+      headline: `Fill ${fmt(gap)} emergency fund gap`,
+      detail: `${currentMonths.toFixed(1)} months of expenses in liquid assets. The 3-month target (${fmt(emergencyTarget)}) protects your investments from forced liquidation.`,
+      impact: monthsToFill != null
+        ? `~${monthsToFill} months at 30% of current savings · removes biggest health score drag`
+        : "Eliminates your biggest financial health score weakness",
+      effort: currentMonths < 1 ? "High" : "Low",
+    });
+  }
+
+  // 3. Retire later if probability is low
+  if (p.retirementProb != null && p.retirementProb < 65 && p.activeRetirementAge != null && p.activeYearsToRetire != null) {
+    const laterYears = p.activeYearsToRetire + 5;
+    const laterBands = buildForecastBands(
+      p.netWorth, p.effectiveIncome, p.effectiveExpenses,
+      laterYears, p.localReturn, p.localInflation, p.localSalaryGrowth,
+      p.futureEvents, p.currentYear,
+    );
+    const laterPt = laterBands[laterBands.length - 1];
+    const laterProb = laterPt ? calcRetirementProbability(laterPt.baseline, laterPt.annualExpenses) : null;
+    if (laterProb != null && laterProb > p.retirementProb + 8) {
+      const baselineDelta = laterPt && p.retirementPointBaseline != null ? laterPt.baseline - p.retirementPointBaseline : null;
+      recs.push({
+        id: "retire-later", priority: 3, icon: "⏳",
+        headline: `Retiring at ${p.activeRetirementAge + 5} adds 5 years of compounding`,
+        detail: `Your current ${p.retirementProb}% probability reflects the gap to 25× annual expenses. Extra years let existing assets compound harder.`,
+        impact: [
+          `probability ${p.retirementProb}% → ${laterProb}%`,
+          baselineDelta != null && baselineDelta > 0 ? `+${fmt(baselineDelta)} projected at retirement` : null,
+        ].filter(Boolean).join(" · "),
+        effort: "High",
+      });
+    }
+  }
+
+  // 4. Debt reduction if liabilities are high relative to assets
+  const debtRatio = p.totalAssets > 0 ? p.totalLiabilities / p.totalAssets : 0;
+  if (debtRatio > 0.35 && p.totalLiabilities > 5000) {
+    const reductionNeeded = p.totalLiabilities - p.totalAssets * 0.2;
+    recs.push({
+      id: "debt-reduction", priority: 4, icon: "💸",
+      headline: `Reduce debt by ${fmt(Math.max(0, reductionNeeded))}`,
+      detail: `Liabilities are ${(debtRatio * 100).toFixed(0)}% of total assets. Target: below 20% for full Debt Ratio score.`,
+      impact: "Brings Debt Ratio score from weakness to strength · unlocks up to 25 more health points",
+      effort: "High",
+    });
+  }
+
+  return recs.sort((a, b) => a.priority - b.priority).slice(0, 3);
+}
+
+function getFactorExplainer(
+  name: string,
+  savingsRate: number,
+  liquidAssets: number,
+  effectiveExpenses: number,
+  totalAssets: number,
+  totalLiabilities: number,
+  retirementProb: number | null,
+): string {
+  switch (name) {
+    case "Savings Rate": {
+      if (savingsRate >= 20) return `${savingsRate.toFixed(1)}% saved — above the 20% target. Strong.`;
+      if (savingsRate >= 10) return `${savingsRate.toFixed(1)}% saved. Increasing to 20% unlocks the full 25 points.`;
+      return `${savingsRate.toFixed(1)}% saved — below the 10% floor. Highest-priority improvement.`;
+    }
+    case "Emergency Fund": {
+      const months = effectiveExpenses > 0 ? liquidAssets / effectiveExpenses : 0;
+      if (months >= 3) return `${months.toFixed(1)} months of expenses in liquid assets — target met (3 months).`;
+      return `${months.toFixed(1)} months covered. Build to ${fmt(effectiveExpenses * 3)} (3 months) for full score.`;
+    }
+    case "Debt Ratio": {
+      const ratio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+      if (ratio < 20) return `Liabilities are ${ratio.toFixed(0)}% of assets — healthy. Target: below 20%.`;
+      if (ratio < 50) return `Liabilities are ${ratio.toFixed(0)}% of assets. Reduce to below 20% for the full 25 points.`;
+      return `Liabilities are ${ratio.toFixed(0)}% of assets — high. Debt reduction is the biggest lever here.`;
+    }
+    case "Retirement Trajectory": {
+      if (retirementProb == null) return "Set your age and retirement target to unlock this score.";
+      if (retirementProb >= 75) return `${retirementProb}% on-track probability — on pace for your retirement goal.`;
+      return `${retirementProb}% probability of hitting your retirement target. See Opportunities below for levers.`;
+    }
+    default:
+      return "";
+  }
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function InfoTooltip({ text }: { text: string }) {
@@ -1236,6 +1392,27 @@ export default function PlanningClient({
   }, [profile?.current_age, activeRetirementAge, netWorth, effectiveIncome, effectiveExpenses,
       localAssumptions.inflation_rate, localAssumptions.salary_growth_rate, futureEvents, currentYear]);
 
+  // Optimization recommendations — deterministic, no AI calls
+  const recommendations = useMemo(() => computeOptimizations({
+    savingsRate, monthlySavings, effectiveIncome, effectiveExpenses,
+    liquidAssets, totalAssets, totalLiabilities, netWorth,
+    retirementProb,
+    retirementPointBaseline: retirementPoint?.baseline ?? null,
+    retirementPointAnnualExpenses: retirementPoint?.annualExpenses ?? null,
+    activeRetirementAge, activeYearsToRetire, forecastYears,
+    localReturn: localAssumptions.return_rate / 100,
+    localInflation: localAssumptions.inflation_rate / 100,
+    localSalaryGrowth: localAssumptions.salary_growth_rate / 100,
+    futureEvents, currentYear,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [savingsRate, monthlySavings, effectiveIncome, effectiveExpenses,
+       liquidAssets, totalAssets, totalLiabilities, netWorth,
+       retirementProb, retirementPoint?.baseline, retirementPoint?.annualExpenses,
+       activeRetirementAge, activeYearsToRetire, forecastYears,
+       localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.salary_growth_rate,
+       // eslint-disable-next-line react-hooks/exhaustive-deps
+       futureEvents, currentYear]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -1461,6 +1638,7 @@ export default function PlanningClient({
                   <div style={{ width: `${(f.score / f.max) * 100}%`, height: "100%", background: f.direction === "strength" ? "var(--green)" : f.direction === "weakness" ? "var(--red)" : "var(--amber)", borderRadius: "2px", transition: "width 0.5s cubic-bezier(0.23,1,0.32,1)" }} />
                 </div>
                 <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{f.name}</span>
+                <InfoTooltip text={getFactorExplainer(f.name, savingsRate, liquidAssets, effectiveExpenses, totalAssets, totalLiabilities, retirementProb)} />
               </div>
             ))}
           </div>
@@ -1603,6 +1781,66 @@ export default function PlanningClient({
               )}
             </div>
           </div>
+
+          {/* Opportunities */}
+          {recommendations.length > 0 && (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                <div>
+                  <div style={sectionHeadStyle}>Opportunities</div>
+                  <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0", lineHeight: 1.4 }}>
+                    Highest-leverage changes, ranked by forecast impact
+                  </p>
+                </div>
+                <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", fontWeight: 500, flexShrink: 0 }}>
+                  {recommendations.length} identified
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {recommendations.map((rec, i) => (
+                  <div key={rec.id} style={{
+                    display: "flex", gap: "14px", alignItems: "flex-start", padding: "14px",
+                    borderRadius: "var(--radius-md)",
+                    background: i === 0 ? "rgba(37,99,235,0.05)" : "var(--bg-surface)",
+                    border: `1px solid ${i === 0 ? "rgba(37,99,235,0.15)" : "var(--border-subtle)"}`,
+                  }}>
+                    <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", paddingTop: "1px" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", fontWeight: 700, letterSpacing: "0.05em" }}>#{i + 1}</span>
+                      <span style={{ fontSize: "18px", lineHeight: 1 }}>{rec.icon}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
+                        {rec.headline}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>
+                        {rec.detail}
+                      </div>
+                      <div style={{
+                        display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px",
+                        borderRadius: "var(--radius-md)", fontSize: "11px",
+                        fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 500,
+                        background: "rgba(0,211,149,0.07)", border: "1px solid rgba(0,211,149,0.16)",
+                      }}>
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden>
+                          <path d="M5 9V1M1 5l4-4 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        {rec.impact}
+                      </div>
+                    </div>
+                    <div style={{
+                      flexShrink: 0, padding: "3px 9px", borderRadius: "20px", fontSize: "10px",
+                      fontWeight: 600, fontFamily: "var(--font-body)", whiteSpace: "nowrap",
+                      background: rec.effort === "Low" ? "rgba(0,211,149,0.1)" : rec.effort === "Medium" ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.08)",
+                      color: rec.effort === "Low" ? "var(--green)" : rec.effort === "Medium" ? "var(--amber)" : "var(--red)",
+                      border: `1px solid ${rec.effort === "Low" ? "rgba(0,211,149,0.2)" : rec.effort === "Medium" ? "rgba(245,158,11,0.2)" : "rgba(239,68,68,0.18)"}`,
+                    }}>
+                      {rec.effort} effort
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1895,6 +2133,14 @@ export default function PlanningClient({
                       : "The 4% rule: you need 25× your annual expenses saved to retire. At that amount, withdrawing 4% per year should last 30+ years. This probability estimates how close you are to that target."
                     } />
                   </span>
+                  {retirementTarget != null && retirementPoint != null && (
+                    <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5 }}>
+                      <span style={{ display: "block" }}>need {fmt(retirementTarget)}</span>
+                      <span style={{ display: "block", color: retirementPoint.baseline >= retirementTarget ? "var(--green)" : "var(--amber)" }}>
+                        proj. {fmt(retirementPoint.baseline)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })()}
