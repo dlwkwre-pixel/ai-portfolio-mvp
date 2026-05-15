@@ -20,6 +20,7 @@ import {
 } from "./planning-actions";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { FinnContext } from "@/app/api/planning/finn/route";
+import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -471,7 +472,8 @@ type Props = {
   futureEvents: FutureEvent[];
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "finn";
+type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
@@ -497,6 +499,16 @@ export default function PlanningClient({
   const [addingEvent, setAddingEvent] = useState(false);
   const [eventPending, startEventTransition] = useTransition();
   const eventFormRef = useRef<HTMLFormElement>(null);
+
+  // FINN chat
+  const [finnChatMessages, setFinnChatMessages] = useState<FinnChatEntry[]>([]);
+  const [finnChatInput, setFinnChatInput] = useState("");
+  const [finnChatLoading, setFinnChatLoading] = useState(false);
+  const [finnChatAnimatingIdx, setFinnChatAnimatingIdx] = useState<number | null>(null);
+  const [finnChatAnimatedText, setFinnChatAnimatedText] = useState("");
+  const finnChatInitialized = useRef(false);
+  const finnChatScrollRef = useRef<HTMLDivElement>(null);
+  const finnChatAnimationRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Forecast scenarios
   const [scenarioRetirementAge, setScenarioRetirementAge] = useState<number | null>(
@@ -719,12 +731,121 @@ export default function PlanningClient({
     });
   }
 
+  // ── FINN Chat ──────────────────────────────────────────────────────────────
+
+  function buildFinnChatContext(): FinnChatContext {
+    return {
+      current_age: profile?.current_age ?? null,
+      target_retirement_age: activeRetirementAge,
+      years_to_retire: activeYearsToRetire,
+      risk_tolerance: profile?.risk_tolerance ?? null,
+      net_worth: netWorth,
+      total_assets: totalAssets,
+      total_liabilities: totalLiabilities,
+      portfolio_value: portfolioTotalValue,
+      liquid_assets: liquidAssets,
+      monthly_net_income: effectiveIncome,
+      monthly_expenses: effectiveExpenses,
+      monthly_savings: monthlySavings,
+      savings_rate_pct: savingsRate,
+      asset_items: assets.map((a) => ({ label: a.label, category: a.category, value: a.value })),
+      liability_items: liabilities.map((l) => ({ label: l.label, value: l.value })),
+      income_items: cashFlowItems.filter((i) => i.type === "income").map((i) => ({ label: i.label, amount: i.amount, frequency: i.frequency })),
+      expense_items: cashFlowItems.filter((i) => i.type === "expense").map((i) => ({ label: i.label, amount: i.amount, frequency: i.frequency })),
+      return_rate_pct: localAssumptions.return_rate,
+      inflation_rate_pct: localAssumptions.inflation_rate,
+      salary_growth_rate_pct: localAssumptions.salary_growth_rate,
+      projected_nw_at_retirement: retirementPoint?.baseline ?? null,
+      retirement_probability: mcResult?.mcRetirementProbability ?? retirementProb,
+      financial_health_score: healthData.total,
+      health_factors: healthData.factors,
+      future_events: futureEvents.map((e) => ({ label: e.label, event_year: e.event_year, amount_impact: e.amount_impact, category: e.category })),
+    };
+  }
+
+  async function sendFinnChatMessage(text: string, isInit = false) {
+    if (!text.trim() && !isInit) return;
+
+    const userEntry: FinnChatEntry = { role: "user", text };
+    const updatedEntries = isInit ? [] : [...finnChatMessages, userEntry];
+    if (!isInit) setFinnChatMessages(updatedEntries);
+    setFinnChatInput("");
+    setFinnChatLoading(true);
+
+    const geminiMessages: FinnChatMessage[] = [
+      ...updatedEntries
+        .filter((m) => m.role === "user" || m.role === "finn")
+        .map((m) => ({
+          role: (m.role === "finn" ? "model" : "user") as "user" | "model",
+          parts: [{ text: m.text }] as [{ text: string }],
+        })),
+      {
+        role: "user",
+        parts: [{
+          text: isInit
+            ? "Introduce yourself briefly as FINN, then immediately analyze my financial situation. Lead with the single most important alert or insight — cite my actual numbers. Give 2–3 additional specific insights. End by suggesting 2 questions I could ask you."
+            : text,
+        }],
+      },
+    ];
+
+    try {
+      const res = await fetch("/api/planning/finn/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: geminiMessages, context: buildFinnChatContext() }),
+      });
+      const data = await res.json();
+      const response: string = data.response ?? data.error ?? "Unable to respond right now. Please try again.";
+
+      const newEntries: FinnChatEntry[] = [...updatedEntries, { role: "finn", text: response }];
+      setFinnChatMessages(newEntries);
+
+      const newIdx = newEntries.length - 1;
+      setFinnChatAnimatingIdx(newIdx);
+      setFinnChatAnimatedText("");
+      let i = 0;
+      const speed = Math.max(8, Math.min(22, 2400 / response.length));
+      finnChatAnimationRef.current = setInterval(() => {
+        i++;
+        if (i >= response.length) {
+          clearInterval(finnChatAnimationRef.current!);
+          setFinnChatAnimatingIdx(null);
+          setFinnChatAnimatedText("");
+        } else {
+          setFinnChatAnimatedText(response.slice(0, i));
+        }
+      }, speed);
+    } catch {
+      setFinnChatMessages((prev) => [...prev, { role: "finn", text: "Something went wrong. Please try again." }]);
+    } finally {
+      setFinnChatLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tab !== "finn") return;
+    if (finnChatInitialized.current) return;
+    finnChatInitialized.current = true;
+    sendFinnChatMessage("", true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  useEffect(() => {
+    finnChatScrollRef.current?.scrollTo({ top: finnChatScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [finnChatMessages, finnChatAnimatedText]);
+
+  useEffect(() => {
+    return () => { if (finnChatAnimationRef.current) clearInterval(finnChatAnimationRef.current); };
+  }, []);
+
   const TABS: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "balance", label: "Balance Sheet" },
     { id: "cashflow", label: "Cash Flow" },
     { id: "forecast", label: "Forecast" },
     { id: "events", label: "Future Events" },
+    { id: "finn", label: "Ask FINN" },
   ];
 
   function handleAssumptionsSave(e: React.FormEvent<HTMLFormElement>) {
@@ -1450,6 +1571,220 @@ export default function PlanningClient({
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
             Use negative amounts for expenses (e.g. −$50,000 home down payment) and positive for gains (e.g. +$200,000 inheritance). Events are incorporated into all three forecast bands.
           </p>
+        </div>
+      )}
+
+      {/* ── Tab: Ask FINN ── */}
+      {tab === "finn" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "560px" }}>
+
+          {/* FINN header */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: "12px",
+            paddingBottom: "14px", borderBottom: "1px solid var(--border-subtle)",
+          }}>
+            <div style={{
+              width: "38px", height: "38px", borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>F</span>
+            </div>
+            <div>
+              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>FINN</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)" }} />
+                <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Financial Planning AI</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages area */}
+          <div
+            ref={finnChatScrollRef}
+            style={{
+              flex: 1, overflowY: "auto", padding: "16px 0",
+              display: "flex", flexDirection: "column", gap: "14px",
+              minHeight: 0,
+            }}
+          >
+            {/* Initial loading dots */}
+            {finnChatLoading && finnChatMessages.length === 0 && (
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
+                <div style={{
+                  width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
+                  background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
+                </div>
+                <div style={{
+                  padding: "12px 16px", borderRadius: "14px 14px 14px 2px",
+                  background: "var(--violet-bg)", border: "1px solid var(--violet-border)",
+                  display: "flex", gap: "5px", alignItems: "center",
+                }}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} style={{
+                      width: "7px", height: "7px", borderRadius: "50%",
+                      background: "var(--violet)", opacity: 0.8,
+                      animation: `finnBounce 1.2s ${i * 0.2}s ease-in-out infinite`,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rendered messages */}
+            {finnChatMessages.map((msg, idx) => {
+              const isFinn = msg.role === "finn";
+              const isAnimating = finnChatAnimatingIdx === idx;
+              const displayText = isAnimating ? finnChatAnimatedText : msg.text;
+
+              return (
+                <div key={idx} style={{
+                  display: "flex",
+                  flexDirection: isFinn ? "row" : "row-reverse",
+                  gap: "10px", alignItems: "flex-end",
+                }}>
+                  {isFinn && (
+                    <div style={{
+                      width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
+                      background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
+                    </div>
+                  )}
+                  <div style={{
+                    maxWidth: "78%", padding: "11px 15px",
+                    borderRadius: isFinn ? "14px 14px 14px 2px" : "14px 14px 2px 14px",
+                    background: isFinn ? "var(--violet-bg)" : "var(--card-bg)",
+                    border: `1px solid ${isFinn ? "var(--violet-border)" : "var(--card-border)"}`,
+                    fontSize: "13px", lineHeight: 1.65,
+                    color: "var(--text-primary)", fontFamily: "var(--font-body)",
+                    whiteSpace: "pre-wrap",
+                  }}>
+                    {displayText}
+                    {isAnimating && (
+                      <span style={{
+                        display: "inline-block", width: "2px", height: "13px",
+                        background: "var(--violet)", marginLeft: "2px",
+                        verticalAlign: "text-bottom",
+                        animation: "finnBlink 0.75s step-end infinite",
+                      }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Loading dots while awaiting a follow-up response */}
+            {finnChatLoading && finnChatMessages.length > 0 && (
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
+                <div style={{
+                  width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
+                  background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
+                </div>
+                <div style={{
+                  padding: "12px 16px", borderRadius: "14px 14px 14px 2px",
+                  background: "var(--violet-bg)", border: "1px solid var(--violet-border)",
+                  display: "flex", gap: "5px", alignItems: "center",
+                }}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} style={{
+                      width: "7px", height: "7px", borderRadius: "50%",
+                      background: "var(--violet)", opacity: 0.8,
+                      animation: `finnBounce 1.2s ${i * 0.2}s ease-in-out infinite`,
+                    }} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Suggested prompts — visible after FINN's intro before user has sent anything */}
+          {finnChatMessages.length === 1 && !finnChatLoading && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingBottom: "12px" }}>
+              {[
+                "How much more should I save each month?",
+                "What if I retire 5 years earlier?",
+                "Stress test: what if markets drop 30%?",
+                "Where am I most at risk?",
+                "What’s my emergency fund gap?",
+                "What should I optimize first?",
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => { void sendFinnChatMessage(prompt); }}
+                  disabled={finnChatLoading}
+                  style={{
+                    padding: "6px 12px", borderRadius: "20px",
+                    border: "1px solid var(--violet-border)", background: "var(--violet-bg)",
+                    color: "var(--violet)", fontSize: "11px",
+                    fontFamily: "var(--font-body)", cursor: "pointer",
+                  }}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input row */}
+          <div style={{
+            display: "flex", gap: "8px", alignItems: "center",
+            borderTop: "1px solid var(--border-subtle)", paddingTop: "12px",
+          }}>
+            <input
+              type="text"
+              value={finnChatInput}
+              onChange={(e) => setFinnChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !finnChatLoading && finnChatInput.trim()) {
+                  e.preventDefault();
+                  void sendFinnChatMessage(finnChatInput);
+                }
+              }}
+              placeholder="Ask FINN anything about your finances…"
+              disabled={finnChatLoading}
+              style={{
+                flex: 1, padding: "10px 14px", borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border)", background: "var(--bg-surface)",
+                color: "var(--text-primary)", fontSize: "13px",
+                fontFamily: "var(--font-body)", outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => { void sendFinnChatMessage(finnChatInput); }}
+              disabled={finnChatLoading || !finnChatInput.trim()}
+              style={{
+                padding: "10px 18px", borderRadius: "var(--radius-md)",
+                background: "var(--brand-gradient)", color: "#fff",
+                border: "none", fontSize: "13px", fontWeight: 600,
+                fontFamily: "var(--font-body)", cursor: "pointer",
+                opacity: finnChatLoading || !finnChatInput.trim() ? 0.45 : 1,
+                transition: "opacity 0.15s",
+              }}
+            >
+              Send
+            </button>
+          </div>
+
+          <style>{`
+            @keyframes finnBounce {
+              0%, 60%, 100% { transform: translateY(0); }
+              30% { transform: translateY(-5px); }
+            }
+            @keyframes finnBlink {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0; }
+            }
+          `}</style>
         </div>
       )}
     </div>
