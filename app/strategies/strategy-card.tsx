@@ -306,6 +306,38 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
                 </div>
               </div>
 
+              {/* Bull vs. Bear */}
+              {(analysis.bull_case?.length > 0 || analysis.bear_case?.length > 0) && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div style={{ background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--green)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                      Bull Case
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      {(analysis.bull_case ?? []).map((b, i) => (
+                        <div key={i} style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                          <span style={{ color: "var(--green)", fontSize: "10px", flexShrink: 0, marginTop: "1px" }}>↑</span>
+                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0, fontFamily: "var(--font-body)" }}>{b}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                      Bear Case
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      {(analysis.bear_case ?? []).map((b, i) => (
+                        <div key={i} style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                          <span style={{ color: "var(--red)", fontSize: "10px", flexShrink: 0, marginTop: "1px" }}>↓</span>
+                          <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0, fontFamily: "var(--font-body)" }}>{b}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Refresh link */}
               <button type="button" onClick={() => { fetchedRef.current = false; setAnalysis(null); fetchAnalysis(); }}
                 style={{ alignSelf: "flex-start", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0 }}>

@@ -14,6 +14,8 @@ export type StrategyAnalysis = {
   thesis: string;
   weaknesses: string[];
   failure_conditions: string[];
+  bull_case: string[];
+  bear_case: string[];
 };
 
 type AnalyzeRequest = {
@@ -92,6 +94,16 @@ Required JSON shape:
     "<specific condition that would materially hurt this strategy>",
     "<specific condition 2>",
     "<specific condition 3>"
+  ],
+  "bull_case": [
+    "<specific bull argument for this strategy — cite parameters or market conditions>",
+    "<bull argument 2>",
+    "<bull argument 3>"
+  ],
+  "bear_case": [
+    "<specific bear argument or risk — cite actual parameters or structural weakness>",
+    "<bear argument 2>",
+    "<bear argument 3>"
   ]
 }
 
@@ -114,7 +126,7 @@ Rules:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 1500,
+      max_tokens: 1900,
       temperature: 0.3,
     });
 
@@ -133,6 +145,8 @@ Rules:
       analysis.thesis = String(analysis.thesis ?? "");
       analysis.weaknesses = (Array.isArray(analysis.weaknesses) ? analysis.weaknesses : []).map(String);
       analysis.failure_conditions = (Array.isArray(analysis.failure_conditions) ? analysis.failure_conditions : []).map(String);
+      analysis.bull_case = (Array.isArray(analysis.bull_case) ? analysis.bull_case : []).map(String);
+      analysis.bear_case = (Array.isArray(analysis.bear_case) ? analysis.bear_case : []).map(String);
     } catch {
       return NextResponse.json({ error: "AI returned unparseable output. Please try again." }, { status: 422 });
     }

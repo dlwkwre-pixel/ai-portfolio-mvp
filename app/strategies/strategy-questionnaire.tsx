@@ -285,6 +285,75 @@ function detectInsight(
   return null;
 }
 
+// ── Contradiction Detection ───────────────────────────────────────────────────
+
+type ContradictionDef = {
+  id: string;
+  a: RegExp;
+  b: RegExp;
+  title: string;
+  body: string;
+  resolution: string;
+};
+
+const CONTRADICTION_PAIRS: ContradictionDef[] = [
+  {
+    id: "aggr-safe",
+    a: /aggress|maximum.return|beat.market|outperform|high.alpha|best.return/i,
+    b: /low.risk|low.volatil|safe|protect.capital|minimal.loss|no.loss|conservative/i,
+    title: "Return vs. Risk Conflict",
+    body: "Aggressive returns and low volatility are structurally at odds. Higher expected returns require accepting higher variance — that's a foundational tradeoff. FINN is prioritizing long-term compounding with managed, not minimized, risk.",
+    resolution: "FINN will optimize for risk-adjusted returns rather than maximum upside or maximum safety independently.",
+  },
+  {
+    id: "income-growth",
+    a: /maximum.income|high.dividend|passive.income|yield.focused|income.first/i,
+    b: /maximum.growth|high.growth|capital.appreciat|growth.only|compound.wealth/i,
+    title: "Income vs. Growth Conflict",
+    body: "Maximum income and maximum growth pull capital in opposite directions. High-yield positions redirect earnings away from reinvestment; pure growth strategies rarely prioritize distributions. FINN will build a primary objective with a secondary allocation.",
+    resolution: "FINN will determine the dominant objective from your time horizon and bias the strategy accordingly.",
+  },
+  {
+    id: "concentr-safe",
+    a: /concentrat|few.stock|[3-9].stock|10.stock|focused.portf|high.conviction.few/i,
+    b: /low.risk|low.volatil|safe|stable|downside.protect|conservative|protect/i,
+    title: "Concentration vs. Safety Conflict",
+    body: "Concentrated portfolios carry materially higher single-position and sector risk. Low-risk positioning and high concentration are difficult to reconcile — concentrated bets amplify both upside and drawdowns. FINN will moderate position sizing.",
+    resolution: "FINN will cap single positions at 15–18% to preserve high-conviction character while limiting concentration risk.",
+  },
+  {
+    id: "tax-active",
+    a: /tax.effici|minimize.tax|low.tax|tax.optimal|defer.tax|tax.sensitive/i,
+    b: /active.trad|high.turnover|frequent.trad|short.term.trad|trade.often|swing.trad/i,
+    title: "Tax Efficiency vs. Active Trading Conflict",
+    body: "Frequent trading generates short-term capital gains taxed at ordinary income rates. Tax efficiency requires holding periods that active trading explicitly avoids. These objectives are structurally incompatible at high turnover.",
+    resolution: "FINN will bias toward lower turnover and longer holds to qualify for long-term capital gains treatment.",
+  },
+  {
+    id: "passive-alpha",
+    a: /passive|index.fund|index.invest|s&p.500|market.return/i,
+    b: /beat.market|outperform|alpha|above.market|excess.return|better.than.market/i,
+    title: "Passive Index vs. Alpha Pursuit Conflict",
+    body: "Passive index strategies are designed to match the market — not beat it. Pursuing alpha requires active selection, which is the structural opposite of a passive approach.",
+    resolution: "FINN will build a core-satellite strategy: index core for market exposure with selective active positions for alpha.",
+  },
+];
+
+function detectContradiction(
+  messages: { role: string; content: string; isInsight?: boolean }[],
+  shownIds: Set<string>,
+): ContradictionDef | null {
+  // Only check after 2+ user messages to reduce false positives
+  const userMessages = messages.filter(m => m.role === "user" && !m.isInsight);
+  if (userMessages.length < 2) return null;
+  const fullText = userMessages.map(m => m.content).join(" ");
+  for (const pair of CONTRADICTION_PAIRS) {
+    if (shownIds.has(pair.id)) continue;
+    if (pair.a.test(fullText) && pair.b.test(fullText)) return pair;
+  }
+  return null;
+}
+
 // ── Helpers: Tier 3 ───────────────────────────────────────────────────────────
 
 function buildSimpleSnapshot(s: GeneratedStrategy): Array<{ label: string; value: string }> {
@@ -519,6 +588,25 @@ function StrategyDNAChart({ profile }: { profile: DNAProfile }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function ContradictionCard({ title, body, resolution }: { title: string; body: string; resolution: string }) {
+  return (
+    <div
+      className="ml-10 max-w-[85%] rounded-xl border px-4 py-3"
+      style={{ background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.22)", animation: "bt-fade-up 0.25s ease both" }}
+    >
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="none">
+          <path d="M5 1v4M5 7.5v.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#ef4444" }}>FINN — Objective Conflict</span>
+      </div>
+      <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{body}</p>
+      <p className="mt-1.5 text-[10px] leading-relaxed" style={{ color: "rgba(239,68,68,0.7)" }}>{resolution}</p>
     </div>
   );
 }
@@ -864,6 +952,7 @@ export default function StrategyQuestionnaire({
   const [genThinkingIdx,  setGenThinkingIdx]  = useState(0);
   const [isBrandedName, setIsBrandedName]     = useState(false);
   const [pendingInsight, setPendingInsight]   = useState<{ id: string; title: string; body: string } | null>(null);
+  const [pendingContradiction, setPendingContradiction] = useState<ContradictionDef | null>(null);
   const shownInsightIdsRef                    = useRef(new Set<string>());
   const [explainMode, setExplainMode]         = useState<"simple" | "pro">("simple");
 
@@ -943,6 +1032,23 @@ export default function StrategyQuestionnaire({
     return () => clearTimeout(timer);
   }, [pendingInsight, animatingIdx]);
 
+  useEffect(() => {
+    if (!pendingContradiction || animatingIdx !== null) return;
+    const timer = setTimeout(() => {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content: pendingContradiction.body,
+          isInsight: true,
+          insightTitle: `⚡ ${pendingContradiction.title}`,
+        },
+      ]);
+      setPendingContradiction(null);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [pendingContradiction, animatingIdx]);
+
   async function generateStrategy(conversationMessages: Message[]) {
     setIsGenerating(true);
     try {
@@ -982,6 +1088,14 @@ export default function StrategyQuestionnaire({
     setInput("");
     const updatedMessages: Message[] = [...messages, { role: "user", content: userMessage }];
     setMessages(updatedMessages);
+
+    // Contradiction detection — fires before AI responds
+    const contradiction = detectContradiction(updatedMessages, shownInsightIdsRef.current);
+    if (contradiction) {
+      shownInsightIdsRef.current.add(contradiction.id);
+      setPendingContradiction(contradiction);
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch("/api/strategies/chat", {
@@ -1162,6 +1276,20 @@ export default function StrategyQuestionnaire({
       >
         {messages.map((msg, i) => {
           if (msg.isInsight) {
+            const isContradiction = msg.insightTitle?.startsWith("⚡");
+            if (isContradiction) {
+              const title = msg.insightTitle!.replace("⚡ ", "");
+              const contradiction = CONTRADICTION_PAIRS.find(p => p.title === title);
+              return (
+                <div key={i}>
+                  <ContradictionCard
+                    title={title}
+                    body={msg.content}
+                    resolution={contradiction?.resolution ?? "FINN will resolve the tension by prioritizing your primary objective."}
+                  />
+                </div>
+              );
+            }
             return <div key={i}><InsightCard title={msg.insightTitle!} body={msg.content} /></div>;
           }
           return (
