@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createStrategy } from "./actions";
+import { saveFinnProfile } from "./finn-profile-actions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1152,6 +1153,47 @@ export default function StrategyQuestionnaire({
     }
   }
 
+  function detectArchetype(s: GeneratedStrategy): string {
+    const style = s.style ?? "";
+    const holding = s.holding_period_bias ?? "";
+    if (style.includes("Dividend") || style.includes("Income")) return "Dividend Investor";
+    if (style === "Value") return "Value Investor";
+    if (style === "Quality") return "Quality Investor";
+    if (style.includes("Index") || style.includes("Passive")) return "Index Investor";
+    if (style.includes("Sector") || style.includes("Thematic")) return "Thematic Investor";
+    if (style === "Momentum") return "Momentum Investor";
+    if (style === "Mean Reversion") return "Contrarian Investor";
+    if (style === "Speculative") return "Speculative Trader";
+    if (style === "Defensive") return "Defensive Investor";
+    if (style === "Swing" || holding === "Swing" || holding === "Short-term") return "Swing Trader";
+    if (style === "Growth" && (holding === "Long-term" || holding === "Very Long-term")) return "Growth Compounder";
+    if (style === "Growth") return "Growth Investor";
+    if (style === "Balanced" || style === "Blend") return "Balanced Investor";
+    return "Independent Investor";
+  }
+
+  function detectTraits(s: GeneratedStrategy): string[] {
+    const traits: string[] = [];
+    const holding = s.holding_period_bias ?? "";
+    const turnover = s.turnover_preference ?? "";
+    const risk = s.risk_level ?? "";
+    const style = s.style ?? "";
+    const maxPos = s.max_position_pct;
+    const cashMin = s.cash_min_pct;
+    if (holding === "Long-term" || holding === "Very Long-term") traits.push("Long-term thinker");
+    if (turnover === "Low") traits.push("Tax-conscious");
+    if (turnover === "High") traits.push("Active trader");
+    if (style.includes("Dividend") || style.includes("Income")) traits.push("Income-focused");
+    if (risk === "Aggressive") traits.push("High conviction");
+    if (risk === "Conservative") traits.push("Capital protector");
+    if (maxPos != null && maxPos >= 20) traits.push("Concentrated positions");
+    if (maxPos != null && maxPos <= 8) traits.push("Diversified approach");
+    if (cashMin != null && cashMin >= 10) traits.push("Cash-strategic");
+    if (style.includes("Sector") || style.includes("Thematic")) traits.push("Thematic focus");
+    if (holding === "Short-term" || holding === "Swing") traits.push("Tactical mindset");
+    return traits.slice(0, 5);
+  }
+
   function handleSaveStrategy() {
     if (!editedStrategy) return;
     setSaveError("");
@@ -1170,6 +1212,10 @@ export default function StrategyQuestionnaire({
         fd.set("description",         editedStrategy.description);
         fd.set("prompt_text",         editedStrategy.prompt_text);
         await createStrategy(fd);
+        // Silently persist FINN profile — don't block or surface save errors
+        const arch = detectArchetype(editedStrategy);
+        const traits = detectTraits(editedStrategy);
+        saveFinnProfile(arch, traits).catch(() => {});
         if (onSaved && editedStrategy) onSaved(editedStrategy.name);
         else { router.refresh(); onClose(); }
       } catch (error) {

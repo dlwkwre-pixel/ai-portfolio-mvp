@@ -6,6 +6,8 @@ import StrategiesHub from "./strategies-hub";
 import StrategyCardItem from "./strategy-card";
 import ArchivedSection from "./archived-section";
 import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
+import { getFinnProfile } from "./finn-profile-actions";
+import FinnProfileCard from "./finn-profile-card";
 
 export default async function StrategiesPage() {
   const supabase = await createClient();
@@ -56,6 +58,8 @@ export default async function StrategiesPage() {
   const newestIsNew = activeCards.length > 0
     && (Date.now() - new Date(activeCards[0].created_at).getTime()) < 30_000;
 
+  const finnProfile = await getFinnProfile();
+
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
       <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
@@ -86,6 +90,11 @@ export default async function StrategiesPage() {
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
             <StrategiesHub />
+
+            {/* FINN Investor Profile */}
+            {finnProfile && (
+              <FinnProfileCard profile={finnProfile} strategyCount={activeCards.length} />
+            )}
 
             {/* Active strategy cards */}
             {activeCards.length > 0 && (
