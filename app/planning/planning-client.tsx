@@ -601,6 +601,363 @@ const sectionHeadStyle: React.CSSProperties = {
   fontFamily: "var(--font-body)", marginBottom: "8px",
 };
 
+// ── Cash flow categories ───────────────────────────────────────────────────────
+
+const EXPENSE_CATEGORIES: { label: string; keywords: string[]; emoji: string }[] = [
+  { label: "Housing",        keywords: ["rent", "mortgage", "hoa", "property tax", "home insurance", "maintenance", "repair", "condo", "lease", "landlord"],                                        emoji: "🏠" },
+  { label: "Transportation", keywords: ["car", "gas", "fuel", "auto insurance", "parking", "uber", "lyft", "transit", "bus", "subway", "toll", "vehicle", "train", "metro"],                       emoji: "🚗" },
+  { label: "Food & Dining",  keywords: ["grocery", "groceries", "food", "restaurant", "dining", "coffee", "lunch", "dinner", "breakfast", "meal", "delivery", "doordash", "instacart", "takeout"], emoji: "🍽️" },
+  { label: "Healthcare",     keywords: ["health", "medical", "doctor", "dental", "vision", "pharmacy", "prescription", "therapy", "counseling"],                                                   emoji: "🏥" },
+  { label: "Fitness",        keywords: ["gym", "fitness", "yoga", "workout", "pilates", "peloton", "crossfit", "exercise"],                                                                        emoji: "💪" },
+  { label: "Insurance",      keywords: ["life insurance", "disability", "renters insurance", "term life", "umbrella policy"],                                                                      emoji: "🛡️" },
+  { label: "Utilities",      keywords: ["electric", "electricity", "gas bill", "water", "internet", "phone", "cell", "utility", "heating", "cooling", "cable", "sewage"],                         emoji: "⚡" },
+  { label: "Entertainment",  keywords: ["streaming", "spotify", "netflix", "hulu", "disney", "games", "gaming", "movies", "books", "hobby", "concert", "theater"],                                emoji: "🎬" },
+  { label: "Travel",         keywords: ["travel", "vacation", "hotel", "flight", "airbnb", "trip", "cruise"],                                                                                     emoji: "✈️" },
+  { label: "Subscriptions",  keywords: ["subscription", "membership", "amazon prime", "premium", "software", "saas", "monthly service"],                                                          emoji: "📱" },
+  { label: "Childcare",      keywords: ["childcare", "daycare", "school", "tuition", "babysitter", "nanny", "kids", "children", "after school"],                                                   emoji: "👶" },
+  { label: "Other",          keywords: [],                                                                                                                                                         emoji: "📦" },
+];
+
+function getCategoryForExpense(label: string): string {
+  const lower = label.toLowerCase();
+  for (const cat of EXPENSE_CATEGORIES.slice(0, -1)) {
+    if (cat.keywords.some((k) => lower.includes(k))) return cat.label;
+  }
+  return "Other";
+}
+
+// ── Assumption presets ─────────────────────────────────────────────────────────
+
+const ASSUMPTION_PRESETS = {
+  Conservative: { return_rate: 5.0, inflation_rate: 3.5, salary_growth_rate: 1.5 },
+  Moderate:     { return_rate: 7.0, inflation_rate: 3.0, salary_growth_rate: 2.0 },
+  Aggressive:   { return_rate: 10.0, inflation_rate: 2.5, salary_growth_rate: 3.0 },
+} as const;
+
+type PresetName = keyof typeof ASSUMPTION_PRESETS;
+
+function getActivePreset(local: { return_rate: number; inflation_rate: number; salary_growth_rate: number }): PresetName | null {
+  for (const name of Object.keys(ASSUMPTION_PRESETS) as PresetName[]) {
+    const p = ASSUMPTION_PRESETS[name];
+    if (
+      Math.abs(local.return_rate - p.return_rate) < 0.05 &&
+      Math.abs(local.inflation_rate - p.inflation_rate) < 0.05 &&
+      Math.abs(local.salary_growth_rate - p.salary_growth_rate) < 0.05
+    ) return name;
+  }
+  return null;
+}
+
+// ── Onboarding Wizard ─────────────────────────────────────────────────────────
+
+function OnboardingWizard({ onClose }: { onClose: () => void }) {
+  const STEPS = ["Profile", "Income", "Expenses", "Assets & Debts", "Ready"];
+  const [step, setStep] = useState(0);
+  const [profPending, startProfTransition] = useTransition();
+  const [itemPending, startItemTransition] = useTransition();
+
+  const [wizardIncome, setWizardIncome] = useState<{ label: string; amount: number; frequency: string }[]>([]);
+  const [wizardExpenses, setWizardExpenses] = useState<{ label: string; amount: number; frequency: string }[]>([]);
+  const [wizardAssets, setWizardAssets] = useState<{ label: string; value: number; kind: "asset" | "debt" }[]>([]);
+
+  const incomeFormRef = useRef<HTMLFormElement>(null);
+  const expenseFormRef = useRef<HTMLFormElement>(null);
+  const assetFormRef = useRef<HTMLFormElement>(null);
+  const debtFormRef = useRef<HTMLFormElement>(null);
+
+  function dismiss() {
+    localStorage.setItem("buytune_planning_wizard_dismissed", "1");
+    onClose();
+  }
+
+  function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startProfTransition(async () => {
+      await upsertFinancialProfile(fd);
+      setStep(1);
+    });
+  }
+
+  function handleAddCf(
+    e: React.FormEvent<HTMLFormElement>,
+    cfType: "income" | "expense",
+    formRef: React.RefObject<HTMLFormElement>,
+    setter: React.Dispatch<React.SetStateAction<{ label: string; amount: number; frequency: string }[]>>,
+  ) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    fd.set("type", cfType);
+    const label = (fd.get("label") as string).trim();
+    const amount = Number(fd.get("amount"));
+    const frequency = fd.get("frequency") as string;
+    if (!label || !amount) return;
+    startItemTransition(async () => {
+      await addCashFlowItem(fd);
+      setter((prev) => [...prev, { label, amount, frequency }]);
+      formRef.current?.reset();
+    });
+  }
+
+  function handleAddBalance(
+    e: React.FormEvent<HTMLFormElement>,
+    kind: "asset" | "debt",
+    formRef: React.RefObject<HTMLFormElement>,
+  ) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    if (kind === "debt") fd.set("category", "liability");
+    else if (!fd.get("category")) fd.set("category", "other_asset");
+    const label = (fd.get("label") as string).trim();
+    const value = Number(fd.get("value"));
+    if (!label || !value) return;
+    startItemTransition(async () => {
+      await addBalanceSheetItem(fd);
+      setWizardAssets((prev) => [...prev, { label, value, kind }]);
+      formRef.current?.reset();
+    });
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    width: "100%", padding: "9px 12px", boxSizing: "border-box",
+    borderRadius: "8px", border: "1px solid var(--border)",
+    background: "var(--bg-surface)", color: "var(--text-primary)",
+    fontSize: "13px", fontFamily: "var(--font-body)", outline: "none",
+  };
+
+  const totalAdded = wizardIncome.length + wizardExpenses.length + wizardAssets.length;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(4, 13, 26, 0.93)",
+      backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "20px",
+    }}>
+      <div style={{
+        background: "var(--card-bg)", border: "1px solid var(--card-border)",
+        borderRadius: "var(--radius-lg)", padding: "32px",
+        width: "100%", maxWidth: "480px",
+        boxShadow: "0 32px 64px rgba(0,0,0,0.65)",
+        maxHeight: "90vh", overflowY: "auto",
+      }}>
+
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "28px", justifyContent: "center", alignItems: "center" }}>
+          {STEPS.map((s, i) => (
+            <div key={s} style={{
+              height: "6px",
+              width: i === step ? "20px" : "6px",
+              borderRadius: "3px",
+              background: i < step ? "#22d3a2" : i === step ? "var(--brand-blue)" : "var(--border)",
+              transition: "width 0.3s ease, background 0.3s ease",
+              flexShrink: 0,
+            }} />
+          ))}
+        </div>
+
+        {/* Step 0: Profile */}
+        {step === 0 && (
+          <div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Set up your profile</h2>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 22px", lineHeight: 1.6 }}>
+              A few basics so FINN can build your retirement forecast.
+            </p>
+            <form onSubmit={handleProfileSave}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "22px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Current Age</label>
+                    <input name="current_age" type="number" min="1" max="100" required placeholder="32" style={fieldStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Retire At</label>
+                    <input name="target_retirement_age" type="number" min="40" max="85" defaultValue="65" placeholder="65" style={fieldStyle} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Net Income</label>
+                    <input name="monthly_income" type="number" min="0" step="100" placeholder="e.g. 5000" style={fieldStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Expenses</label>
+                    <input name="monthly_expenses" type="number" min="0" step="100" placeholder="e.g. 3500" style={fieldStyle} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
+                  <select name="risk_tolerance" defaultValue="moderate" style={fieldStyle}>
+                    <option value="conservative">Conservative — capital preservation first</option>
+                    <option value="moderate">Moderate — balanced growth and protection</option>
+                    <option value="aggressive">Aggressive — maximize long-term growth</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="submit" disabled={profPending} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>
+                  {profPending ? "Saving…" : "Continue →"}
+                </button>
+                <button type="button" onClick={dismiss} style={{ ...btnSecondaryStyle, padding: "11px 14px", fontSize: "12px" }}>Skip</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Step 1: Income */}
+        {step === 1 && (
+          <div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Add income sources</h2>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 18px", lineHeight: 1.6 }}>
+              Salary, freelance, dividends — anything you receive regularly.
+            </p>
+            {wizardIncome.length > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                {wizardIncome.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)" }}>+{fmt(item.amount)} / {item.frequency === "annual" ? "yr" : "mo"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <form ref={incomeFormRef} onSubmit={(e) => handleAddCf(e, "income", incomeFormRef as React.RefObject<HTMLFormElement>, setWizardIncome)}
+              style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
+              <input name="label" placeholder="Income source (e.g. Salary)" style={fieldStyle} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
+                <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+                <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, whiteSpace: "nowrap" }}>Add</button>
+              </div>
+            </form>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" onClick={() => setStep(0)} style={{ ...btnSecondaryStyle, padding: "11px 14px" }}>← Back</button>
+              <button type="button" onClick={() => setStep(2)} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Expenses */}
+        {step === 2 && (
+          <div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Add monthly expenses</h2>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 18px", lineHeight: 1.6 }}>
+              Rent, groceries, subscriptions — your regular outflows.
+            </p>
+            {wizardExpenses.length > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                {wizardExpenses.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{fmt(item.amount)} / {item.frequency === "annual" ? "yr" : "mo"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <form ref={expenseFormRef} onSubmit={(e) => handleAddCf(e, "expense", expenseFormRef as React.RefObject<HTMLFormElement>, setWizardExpenses)}
+              style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
+              <input name="label" placeholder="Expense (e.g. Rent, Groceries)" style={fieldStyle} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
+                <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </select>
+                <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, whiteSpace: "nowrap" }}>Add</button>
+              </div>
+            </form>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" onClick={() => setStep(1)} style={{ ...btnSecondaryStyle, padding: "11px 14px" }}>← Back</button>
+              <button type="button" onClick={() => setStep(3)} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Assets & Debts */}
+        {step === 3 && (
+          <div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Assets & debts</h2>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 18px", lineHeight: 1.6 }}>
+              Savings, property, loans — your balance sheet snapshot.
+            </p>
+            {wizardAssets.length > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                {wizardAssets.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: item.kind === "debt" ? "var(--red)" : "var(--green)" }}>
+                      {item.kind === "debt" ? "−" : "+"}{fmt(item.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "20px" }}>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--green)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Asset</div>
+                <form ref={assetFormRef} onSubmit={(e) => handleAddBalance(e, "asset", assetFormRef as React.RefObject<HTMLFormElement>)}
+                  style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <input name="label" placeholder="e.g. Savings account" style={fieldStyle} />
+                  <select name="category" defaultValue="cash" style={fieldStyle}>
+                    <option value="cash">Cash / Savings</option>
+                    <option value="investment">Investment</option>
+                    <option value="real_asset">Real Estate</option>
+                    <option value="other_asset">Other</option>
+                  </select>
+                  <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" style={fieldStyle} />
+                  <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "7px 0" }}>Add Asset</button>
+                </form>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--red)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Debt</div>
+                <form ref={debtFormRef} onSubmit={(e) => handleAddBalance(e, "debt", debtFormRef as React.RefObject<HTMLFormElement>)}
+                  style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <input name="label" placeholder="e.g. Student loan" style={fieldStyle} />
+                  <input name="value" type="number" min="0" step="0.01" placeholder="Balance owed ($)" style={fieldStyle} />
+                  <button type="submit" disabled={itemPending} style={{ ...btnSecondaryStyle, fontSize: "11px", padding: "7px 0", borderColor: "rgba(239,68,68,0.4)", color: "var(--red)" }}>Add Debt</button>
+                </form>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button type="button" onClick={() => setStep(2)} style={{ ...btnSecondaryStyle, padding: "11px 14px" }}>← Back</button>
+              <button type="button" onClick={() => setStep(4)} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Ready */}
+        {step === 4 && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "42px", marginBottom: "14px" }}>🎯</div>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>You{"'"}re set up</h2>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 22px", lineHeight: 1.7 }}>
+              {totalAdded > 0
+                ? `${totalAdded} item${totalAdded !== 1 ? "s" : ""} added. FINN has everything it needs to build your forecast and start analyzing your picture.`
+                : "FINN is ready. Add your financial details from the tabs below to unlock the full forecast."}
+            </p>
+            {totalAdded > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
+                {wizardIncome.length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)" }}>{wizardIncome.length} income source{wizardIncome.length !== 1 ? "s" : ""}</span>}
+                {wizardExpenses.length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", fontSize: "11px", color: "var(--red)", fontFamily: "var(--font-body)" }}>{wizardExpenses.length} expense{wizardExpenses.length !== 1 ? "s" : ""}</span>}
+                {wizardAssets.filter((a) => a.kind === "asset").length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)", fontSize: "11px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>{wizardAssets.filter((a) => a.kind === "asset").length} asset{wizardAssets.filter((a) => a.kind === "asset").length !== 1 ? "s" : ""}</span>}
+                {wizardAssets.filter((a) => a.kind === "debt").length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)", fontSize: "11px", color: "var(--amber)", fontFamily: "var(--font-body)" }}>{wizardAssets.filter((a) => a.kind === "debt").length} debt item{wizardAssets.filter((a) => a.kind === "debt").length !== 1 ? "s" : ""}</span>}
+              </div>
+            )}
+            <button type="button" onClick={dismiss} style={{ ...btnPrimaryStyle, padding: "12px 36px", fontSize: "13px", fontWeight: 700 }}>
+              Start Planning
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -626,6 +983,10 @@ export default function PlanningClient({
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const snapshotSaved = useRef(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    () => new Set(EXPENSE_CATEGORIES.map((c) => c.label))
+  );
 
   // Assumptions local state — updates chart in real-time before saving
   const [localAssumptions, setLocalAssumptions] = useState({
@@ -633,7 +994,6 @@ export default function PlanningClient({
     inflation_rate: (assumptions?.inflation_rate ?? 0.03) * 100,
     salary_growth_rate: (assumptions?.salary_growth_rate ?? 0.02) * 100,
   });
-  const [editingAssumptions, setEditingAssumptions] = useState(false);
   const [assumptionsPending, startAssumptionsTransition] = useTransition();
 
   // Future events
@@ -705,6 +1065,14 @@ export default function PlanningClient({
       saveNetWorthSnapshot(totalAssets, totalLiabilities, portfolioTotalValue).catch(() => {});
     }
   }, [totalAssets, totalLiabilities, portfolioTotalValue]);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("buytune_planning_wizard_dismissed");
+    if (!dismissed && profile?.current_age == null) {
+      setShowWizard(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── FINN commentary ────────────────────────────────────────────────────────
 
@@ -994,12 +1362,13 @@ export default function PlanningClient({
     { id: "finn", label: "Ask FINN" },
   ];
 
-  function handleAssumptionsSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  function saveAssumptions() {
+    const fd = new FormData();
+    fd.set("return_rate", String(localAssumptions.return_rate));
+    fd.set("inflation_rate", String(localAssumptions.inflation_rate));
+    fd.set("salary_growth_rate", String(localAssumptions.salary_growth_rate));
     startAssumptionsTransition(async () => {
       await upsertPlanningAssumptions(fd);
-      setEditingAssumptions(false);
     });
   }
 
@@ -1017,6 +1386,8 @@ export default function PlanningClient({
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px" }}>
+
+      {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
 
       {/* Page header */}
       <div style={{ marginBottom: "24px" }}>
@@ -1300,18 +1671,74 @@ export default function PlanningClient({
             </div>
           </div>
 
-          {/* Expenses */}
+          {/* Expenses — grouped by category */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={sectionHeadStyle}>Expenses</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{fmt(monthlyExpenses)} / mo</span>
             </div>
-            {cashFlowItems.filter((i) => i.type === "expense").map((item) => (
-              <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} />
-            ))}
-            <div style={{ marginTop: "10px" }}>
-              <AddItemRow type="cashflow" placeholder="e.g. Rent" onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
-            </div>
+
+            {cashFlowItems.filter((i) => i.type === "expense").length === 0 ? (
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
+                No expenses added yet. Add one below — FINN auto-groups them by category.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "10px" }}>
+                {EXPENSE_CATEGORIES.map((cat) => {
+                  const items = cashFlowItems.filter(
+                    (i) => i.type === "expense" && getCategoryForExpense(i.label) === cat.label
+                  );
+                  if (items.length === 0) return null;
+                  const catTotal = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+                  const isExpanded = expandedCategories.has(cat.label);
+                  return (
+                    <div key={cat.label} style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCategories((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(cat.label)) next.delete(cat.label); else next.add(cat.label);
+                          return next;
+                        })}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "9px 12px", background: "var(--bg-surface)", border: "none",
+                          cursor: "pointer", textAlign: "left",
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "14px", lineHeight: 1 }}>{cat.emoji}</span>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
+                          <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>({items.length})</span>
+                        </span>
+                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{fmt(catTotal)}/mo</span>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
+                            <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                      {isExpanded && (
+                        <div style={{ padding: "0 12px 10px", background: "var(--card-bg)" }}>
+                          {items.map((item) => (
+                            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} />
+                          ))}
+                          <div style={{ marginTop: "8px" }}>
+                            <AddItemRow
+                              type="cashflow"
+                              placeholder={`Add ${cat.label.toLowerCase()} expense`}
+                              onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
           </div>
 
           {/* Summary */}
@@ -1385,57 +1812,64 @@ export default function PlanningClient({
           {/* Assumptions + Retirement Probability row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "start", flexWrap: "wrap" }}>
 
-            {/* Assumptions card */}
+            {/* Assumptions card — sliders with preset chips */}
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <span style={sectionHeadStyle}>Forecast Assumptions</span>
-                {!editingAssumptions && (
-                  <button type="button" onClick={() => setEditingAssumptions(true)} style={btnSecondaryStyle}>Edit</button>
-                )}
+                <div style={{ display: "flex", gap: "6px" }}>
+                  {(Object.keys(ASSUMPTION_PRESETS) as PresetName[]).map((name) => {
+                    const isActive = getActivePreset(localAssumptions) === name;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => setLocalAssumptions({ ...ASSUMPTION_PRESETS[name] })}
+                        style={{
+                          padding: "4px 10px", borderRadius: "20px", fontSize: "10px",
+                          fontFamily: "var(--font-body)", fontWeight: isActive ? 700 : 400,
+                          cursor: "pointer",
+                          background: isActive ? "var(--brand-blue)" : "transparent",
+                          border: `1px solid ${isActive ? "var(--brand-blue)" : "var(--border)"}`,
+                          color: isActive ? "#fff" : "var(--text-secondary)",
+                          transition: "all 0.15s",
+                        }}
+                      >{name}</button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {editingAssumptions ? (
-                <form onSubmit={handleAssumptionsSave}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
-                    {[
-                      { name: "return_rate", label: "Annual Return (%)", val: localAssumptions.return_rate },
-                      { name: "inflation_rate", label: "Inflation (%)", val: localAssumptions.inflation_rate },
-                      { name: "salary_growth_rate", label: "Income Growth (%)", val: localAssumptions.salary_growth_rate },
-                    ].map((f) => (
-                      <div key={f.name} style={{ flex: "1 1 100px" }}>
-                        <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{f.label}</label>
-                        <input
-                          name={f.name}
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="50"
-                          defaultValue={f.val.toFixed(1)}
-                          onChange={(e) => setLocalAssumptions((prev) => ({ ...prev, [f.name]: Number(e.target.value) }))}
-                          style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button type="submit" disabled={assumptionsPending} style={btnPrimaryStyle}>{assumptionsPending ? "Saving…" : "Save"}</button>
-                    <button type="button" onClick={() => setEditingAssumptions(false)} style={btnSecondaryStyle}>Cancel</button>
-                  </div>
-                </form>
-              ) : (
-                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-                  {[
-                    { label: "Return", value: localAssumptions.return_rate.toFixed(1) + "%" },
-                    { label: "Inflation", value: localAssumptions.inflation_rate.toFixed(1) + "%" },
-                    { label: "Income Growth", value: localAssumptions.salary_growth_rate.toFixed(1) + "%" },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
+              {([
+                { key: "return_rate" as const,       label: "Annual Return",  min: 1,   max: 20, step: 0.5, describe: (v: number) => v <= 5 ? "Conservative" : v <= 8 ? "Historical avg." : "Aggressive" },
+                { key: "inflation_rate" as const,    label: "Inflation",      min: 0.5, max: 8,  step: 0.5, describe: (v: number) => v <= 2 ? "Low" : v <= 4 ? "Moderate" : "High" },
+                { key: "salary_growth_rate" as const, label: "Income Growth", min: 0,   max: 8,  step: 0.5, describe: (v: number) => v <= 1 ? "Flat" : v <= 3 ? "Steady" : "High growth" },
+              ] as const).map(({ key, label, min, max, step, describe }) => (
+                <div key={key} style={{ marginBottom: "14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "7px" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{label}</span>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{describe(localAssumptions[key])}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", minWidth: "38px", textAlign: "right" }}>{localAssumptions[key].toFixed(1)}%</span>
                     </div>
-                  ))}
+                  </div>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={localAssumptions[key]}
+                    onChange={(e) => setLocalAssumptions((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                    style={{ width: "100%", accentColor: "var(--brand-blue)", cursor: "pointer", margin: 0 }}
+                  />
                 </div>
-              )}
+              ))}
+
+              <button
+                type="button"
+                disabled={assumptionsPending}
+                onClick={saveAssumptions}
+                style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "6px 14px", marginTop: "2px" }}
+              >{assumptionsPending ? "Saving…" : "Save Assumptions"}</button>
             </div>
 
             {/* Retirement probability badge */}
