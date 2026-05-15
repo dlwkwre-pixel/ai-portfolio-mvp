@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { StrategyCard } from "./types";
 import { updateStrategy, duplicateStrategy, deleteStrategy, archiveStrategy, unarchiveStrategy } from "./actions";
 import StrategyPublicToggle from "./strategy-public-toggle";
+import type { StrategyAnalysis } from "@/app/api/strategies/analyze/route";
 
 const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Options / Derivatives","Custom"];
 const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
@@ -64,6 +65,255 @@ function formatRelativeDate(dateStr: string): string {
   if (days < 30) return `${Math.floor(days / 7)}w ago`;
   if (days < 365) return `${Math.floor(days / 30)}mo ago`;
   return `${Math.floor(days / 365)}y ago`;
+}
+
+// ── FINN Intelligence Panel ───────────────────────────────────────────────────
+
+const FV = {
+  bg:     "rgba(109,40,217,0.06)",
+  border: "rgba(109,40,217,0.18)",
+  accent: "#7c3aed",
+  dim:    "rgba(124,58,237,0.5)",
+} as const;
+
+function scoreColor(s: number) {
+  if (s >= 80) return "var(--green)";
+  if (s >= 60) return "var(--amber)";
+  return "var(--red)";
+}
+function scoreBarBg(s: number) {
+  if (s >= 80) return "var(--green)";
+  if (s >= 60) return "var(--amber)";
+  return "var(--red)";
+}
+
+function ConfidenceRing({ score }: { score: number }) {
+  const r = 26;
+  const circ = 2 * Math.PI * r;
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 80); return () => clearTimeout(t); }, []);
+  const offset = animated ? circ - (score / 100) * circ : circ;
+  const color = scoreColor(score);
+  return (
+    <div style={{ position: "relative", width: "72px", height: "72px", flexShrink: 0 }}>
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+        <circle cx="36" cy="36" r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.16,1,0.3,1)" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{score}</span>
+        <span style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", letterSpacing: "0.04em", marginTop: "1px" }}>/ 100</span>
+      </div>
+    </div>
+  );
+}
+
+function FactorBar({ factor, idx }: { factor: StrategyAnalysis["factors"][0]; idx: number }) {
+  const [animated, setAnimated] = useState(false);
+  const [tooltip, setTooltip] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 120 + idx * 55); return () => clearTimeout(t); }, [idx]);
+  const color = scoreBarBg(factor.score);
+  return (
+    <div style={{ position: "relative" }}
+      onMouseEnter={() => setTooltip(true)} onMouseLeave={() => setTooltip(false)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: 500 }}>{factor.name}</span>
+        <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, color }}>{factor.score}</span>
+      </div>
+      <div style={{ height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <div style={{
+          height: "100%", borderRadius: "2px", background: color,
+          width: animated ? `${factor.score}%` : "0%",
+          transition: `width 0.75s cubic-bezier(0.16,1,0.3,1) ${idx * 40}ms`,
+        }} />
+      </div>
+      {tooltip && factor.explanation && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 6px)", left: 0, right: 0,
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
+          borderRadius: "var(--radius-md)", padding: "7px 10px",
+          fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)",
+          lineHeight: 1.5, zIndex: 10, pointerEvents: "none",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        }}>
+          {factor.explanation}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FinnIntelligencePanel({ card }: { card: StrategyCard }) {
+  const [analysis, setAnalysis] = useState<StrategyAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const fetchedRef = useRef(false);
+
+  async function fetchAnalysis() {
+    if (fetchedRef.current) { setOpen(true); return; }
+    setLoading(true);
+    setError(null);
+    setOpen(true);
+    const v = card.latest_version;
+    try {
+      const res = await fetch("/api/strategies/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: card.name,
+          style: card.style,
+          risk_level: card.risk_level,
+          turnover_preference: v?.turnover_preference ?? null,
+          holding_period_bias: v?.holding_period_bias ?? null,
+          max_position_pct: v?.max_position_pct ?? null,
+          min_position_pct: v?.min_position_pct ?? null,
+          cash_min_pct: v?.cash_min_pct ?? null,
+          cash_max_pct: v?.cash_max_pct ?? null,
+          prompt_text: v?.prompt_text ?? null,
+          description: card.description,
+        }),
+      });
+      const data = await res.json() as { analysis?: StrategyAnalysis; error?: string };
+      if (!res.ok || data.error) { setError(data.error ?? "Analysis failed."); return; }
+      setAnalysis(data.analysis ?? null);
+      fetchedRef.current = true;
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const THINKING = ["Evaluating strategy parameters…", "Analyzing risk profile…", "Calibrating factor scores…", "Building investment thesis…", "Identifying failure conditions…"];
+  const [thinkIdx, setThinkIdx] = useState(0);
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setThinkIdx((i) => (i + 1) % THINKING.length), 1400);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  return (
+    <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+      {/* Trigger button */}
+      {!open && (
+        <button type="button" onClick={fetchAnalysis}
+          style={{
+            display: "flex", alignItems: "center", gap: "7px",
+            padding: "7px 14px", borderRadius: "var(--radius-xl)",
+            border: `1px solid ${FV.border}`, background: FV.bg,
+            color: FV.accent, fontFamily: "var(--font-body)",
+            fontSize: "12px", fontWeight: 600, cursor: "pointer",
+            transition: "background 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(109,40,217,0.1)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = FV.bg; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="8" stroke={FV.accent} strokeWidth="1.5" />
+            <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke={FV.accent} strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="10" cy="15.5" r="0.75" fill={FV.accent} />
+          </svg>
+          FINN Analysis
+        </button>
+      )}
+
+      {/* Panel content */}
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Header bar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: FV.accent, boxShadow: `0 0 6px ${FV.dim}` }} />
+              <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FV.accent, fontFamily: "var(--font-body)" }}>FINN Analysis</span>
+            </div>
+            <button type="button" onClick={() => setOpen(false)}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "2px" }}>
+              ×
+            </button>
+          </div>
+
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 0" }}>
+              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: FV.accent, animation: "finnPulse 1.2s ease-in-out infinite" }} />
+              <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
+                {THINKING[thinkIdx]}
+              </span>
+              <style>{`@keyframes finnPulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }`}</style>
+            </div>
+          )}
+
+          {error && !loading && (
+            <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{error}</p>
+          )}
+
+          {analysis && !loading && (
+            <>
+              {/* Confidence ring + factor grid */}
+              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
+                  <ConfidenceRing score={analysis.finn_confidence} />
+                  <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", letterSpacing: "0.04em", textTransform: "uppercase" }}>FINN Confidence</span>
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
+                  {analysis.factors.map((f, i) => <FactorBar key={f.name} factor={f} idx={i} />)}
+                </div>
+              </div>
+
+              {/* Strategy Thesis */}
+              <div style={{ background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: FV.accent, margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                  Why This Strategy Exists
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, fontFamily: "var(--font-body)" }}>
+                  {analysis.thesis}
+                </p>
+              </div>
+
+              {/* Weaknesses */}
+              <div>
+                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+                  Weaknesses
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  {analysis.weaknesses.map((w, i) => (
+                    <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                      <span style={{ color: "var(--amber)", fontSize: "11px", flexShrink: 0, marginTop: "1px" }}>▲</span>
+                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0, fontFamily: "var(--font-body)" }}>{w}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Failure Conditions */}
+              <div style={{ paddingBottom: "4px" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+                  What Would Break This Strategy
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  {analysis.failure_conditions.map((fc, i) => (
+                    <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                      <span style={{ color: "var(--red)", fontSize: "11px", flexShrink: 0, marginTop: "1px" }}>✕</span>
+                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0, fontFamily: "var(--font-body)" }}>{fc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Refresh link */}
+              <button type="button" onClick={() => { fetchedRef.current = false; setAnalysis(null); fetchAnalysis(); }}
+                style={{ alignSelf: "flex-start", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0 }}>
+                Regenerate
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 type CardMode = "collapsed" | "expanded" | "editing";
@@ -435,6 +685,9 @@ export default function StrategyCardItem({
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{v.prompt_text}</p>
                   </div>
                 )}
+
+                {/* FINN Intelligence */}
+                <FinnIntelligencePanel card={card} />
 
                 {/* Destructive / archive actions */}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingTop: "2px", borderTop: "1px solid var(--border-subtle)" }}>
