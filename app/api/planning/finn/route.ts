@@ -96,8 +96,9 @@ ${phase2Lines ? `\nForecast:\n${phase2Lines}` : ""}
 Respond in 2-4 plain sentences. No bullet points. No headers. End with the disclaimer.`;
 
   try {
+    const model = process.env.GEMINI_FINN_COMMENTARY_MODEL ?? "gemini-2.5-flash-preview-05-20";
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

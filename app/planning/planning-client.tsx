@@ -596,6 +596,13 @@ export default function PlanningClient({
         body: JSON.stringify(ctx),
       });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        const msg = res.status === 429
+          ? "FINN is temporarily rate-limited. Try again in a moment."
+          : "FINN is temporarily unavailable. Please try again.";
+        setFinnCommentary(msg);
+        return;
+      }
       setFinnCommentary(data.commentary ?? null);
     } catch {
       setFinnCommentary("Unable to load FINN commentary at this time.");
