@@ -36,6 +36,14 @@ function fmtPct(n: number) {
 function toMonthly(amount: number, frequency: "monthly" | "annual") {
   return frequency === "annual" ? amount / 12 : amount;
 }
+function fmtDate(dateStr: string) {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function fmtDateShort(dateStr: string) {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
 
 function calcHealthScore(
   savingsRate: number,
@@ -260,6 +268,98 @@ function InfoTooltip({ text }: { text: string }) {
         </div>
       )}
     </span>
+  );
+}
+
+function NetWorthHistoryCard({
+  history, currentNW, currentAssets, currentLiabilities,
+}: {
+  history: NetWorthSnapshot[];
+  currentNW: number;
+  currentAssets: number;
+  currentLiabilities: number;
+}) {
+  const today = new Date().toISOString().split("T")[0];
+  const allPoints: { date: string; net_worth: number }[] = [
+    ...history
+      .filter((s) => s.snapshot_date !== today)
+      .map((s) => ({ date: s.snapshot_date, net_worth: s.net_worth })),
+    { date: today, net_worth: currentNW },
+  ].sort((a, b) => a.date.localeCompare(b.date));
+
+  const first = allPoints[0];
+  const change = allPoints.length >= 2 ? currentNW - first.net_worth : null;
+  const isUp = change == null || change >= 0;
+  const accentColor = isUp ? "#00d395" : "#f59e0b";
+
+  const useShortDates = allPoints.length > 8;
+  const chartData = allPoints.map((p) => ({
+    label: useShortDates ? fmtDateShort(p.date) : fmtDate(p.date),
+    value: p.net_worth,
+  }));
+
+  return (
+    <div style={{
+      background: "var(--card-bg)", border: "1px solid var(--card-border)",
+      borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "16px",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: allPoints.length >= 2 ? "16px" : "8px" }}>
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Net Worth</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "30px", color: currentNW >= 0 ? "var(--text-primary)" : "var(--red)", lineHeight: 1.1 }}>
+            {fmt(currentNW)}
+          </div>
+          {change != null && (
+            <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: isUp ? "var(--green)" : "var(--red)", marginTop: "4px" }}>
+              {isUp ? "▲" : "▼"} {isUp ? "+" : ""}{fmt(change)} since {fmtDate(first.date)}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+          {[
+            { label: "Total Assets", value: fmt(currentAssets), color: "var(--green)" },
+            { label: "Total Liabilities", value: fmt(currentLiabilities), color: currentLiabilities > 0 ? "var(--red)" : "var(--text-secondary)" },
+          ].map(({ label, value, color }) => (
+            <div key={label}>
+              <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "16px", color }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {allPoints.length >= 2 ? (
+        <ResponsiveContainer width="100%" height={150}>
+          <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="nwHistGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={accentColor} stopOpacity={0.18} />
+                <stop offset="95%" stopColor={accentColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <YAxis
+              tickFormatter={(v) => "$" + (Math.abs(v) >= 1000000 ? (v / 1000000).toFixed(1) + "M" : Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + "k" : v)}
+              tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }}
+              axisLine={false} tickLine={false} width={52}
+            />
+            <Tooltip
+              contentStyle={{ background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+              labelStyle={{ color: "var(--text-secondary)" }}
+              formatter={(value) => [fmt(typeof value === "number" ? value : 0), "Net Worth"]}
+            />
+            <Area type="monotone" dataKey="value" stroke={accentColor} strokeWidth={2} fill="url(#nwHistGrad)" dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ padding: "16px 0 4px", textAlign: "center" }}>
+          <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Your net worth is now being tracked. Return daily and this chart will fill in over time.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -928,28 +1028,40 @@ export default function PlanningClient({
         </p>
       </div>
 
-      {/* Hero metrics */}
+      {/* Net Worth History Chart */}
+      <NetWorthHistoryCard
+        history={netWorthHistory}
+        currentNW={netWorth}
+        currentAssets={totalAssets}
+        currentLiabilities={totalLiabilities}
+      />
+
+      {/* Supporting metrics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
         <MetricCard
-          label="Net Worth"
-          value={fmt(netWorth)}
-          color={netWorth >= 0 ? "var(--green)" : "var(--red)"}
-        />
-        <MetricCard
           label="Monthly Savings"
-          value={monthlySavings >= 0 ? fmt(monthlySavings) : "-" + fmt(Math.abs(monthlySavings))}
+          value={monthlySavings >= 0 ? fmt(monthlySavings) : "−" + fmt(Math.abs(monthlySavings))}
           sub={effectiveIncome > 0 ? `${fmtPct(savingsRate)} savings rate` : undefined}
           color={monthlySavings >= 0 ? "var(--text-primary)" : "var(--red)"}
         />
         <MetricCard
-          label="Total Assets"
-          value={fmt(totalAssets)}
+          label="Monthly Income"
+          value={fmt(effectiveIncome)}
+          sub="net, after taxes"
         />
         <MetricCard
-          label="Total Liabilities"
-          value={fmt(totalLiabilities)}
-          color={totalLiabilities > 0 ? "var(--red)" : "var(--text-secondary)"}
+          label="Monthly Expenses"
+          value={fmt(effectiveExpenses)}
+          color="var(--text-primary)"
         />
+        {retirementProb != null && (
+          <MetricCard
+            label="On Track"
+            value={`${mcResult?.mcRetirementProbability ?? retirementProb}%`}
+            sub={mcResult ? "Monte Carlo" : "4% rule"}
+            color={(mcResult?.mcRetirementProbability ?? retirementProb) >= 75 ? "var(--green)" : (mcResult?.mcRetirementProbability ?? retirementProb) >= 50 ? "var(--amber)" : "var(--red)"}
+          />
+        )}
       </div>
 
       {/* Health score + FINN banner */}
