@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import OpenAI from "openai";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type FinnChatMessage = {
-  role: "user" | "model";
-  parts: [{ text: string }];
+  role: "user" | "assistant";
+  content: string;
 };
 
 export type FinnChatContext = {
@@ -76,14 +77,14 @@ export async function POST(req: NextRequest) {
   const rateLimitMsg = checkRateLimit(user.id);
   if (rateLimitMsg) return NextResponse.json({ error: rateLimitMsg }, { status: 429 });
 
-  const apiKey = process.env.GEMINI_API_KEY_2 ?? process.env.GEMINI_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "Gemini not configured." }, { status: 500 });
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "Groq not configured." }, { status: 500 });
 
   let messages: FinnChatMessage[];
   let context: FinnChatContext;
   try {
     const body = await req.json();
-    messages = (body.messages as FinnChatMessage[]).slice(-20); // cap history
+    messages = (body.messages as FinnChatMessage[]).slice(-20);
     context = body.context as FinnChatContext;
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
@@ -164,28 +165,21 @@ KEY BENCHMARKS (use these in calculations):
   Savings rate heuristic: each +5% savings rate ≈ +6–10 pp improvement in retirement probability`;
 
   try {
-    const model = process.env.GEMINI_FINN_CHAT_MODEL ?? "gemini-2.0-flash-lite";
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents: messages,
-          generationConfig: { maxOutputTokens: 650, temperature: 0.5 },
-        }),
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      const err = await response.text();
-      return NextResponse.json({ error: `Gemini error: ${err}` }, { status: 502 });
-    }
-
-    const data = await response.json();
-    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const client = new OpenAI({
+      apiKey,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+    const model = process.env.GROQ_FINN_CHAT_MODEL ?? "llama-3.3-70b-versatile";
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ],
+      max_tokens: 650,
+      temperature: 0.5,
+    });
+    const text = completion.choices[0]?.message?.content ?? "";
     return NextResponse.json({ response: text.trim() });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

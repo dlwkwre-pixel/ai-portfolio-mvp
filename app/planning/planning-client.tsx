@@ -779,20 +779,18 @@ export default function PlanningClient({
     setFinnChatInput("");
     setFinnChatLoading(true);
 
-    const geminiMessages: FinnChatMessage[] = [
+    const messages: FinnChatMessage[] = [
       ...updatedEntries
         .filter((m) => m.role === "user" || m.role === "finn")
         .map((m) => ({
-          role: (m.role === "finn" ? "model" : "user") as "user" | "model",
-          parts: [{ text: m.text }] as [{ text: string }],
+          role: (m.role === "finn" ? "assistant" : "user") as "user" | "assistant",
+          content: m.text,
         })),
       {
-        role: "user",
-        parts: [{
-          text: isInit
-            ? "Introduce yourself briefly as FINN, then immediately analyze my financial situation. Lead with the single most important alert or insight — cite my actual numbers. Give 2–3 additional specific insights. End by suggesting 2 questions I could ask you."
-            : text,
-        }],
+        role: "user" as const,
+        content: isInit
+          ? "Introduce yourself briefly as FINN, then immediately analyze my financial situation. Lead with the single most important alert or insight — cite my actual numbers. Give 2–3 additional specific insights. End by suggesting 2 questions I could ask you."
+          : text,
       },
     ];
 
@@ -800,7 +798,7 @@ export default function PlanningClient({
       const res = await fetch("/api/planning/finn/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: geminiMessages, context: buildFinnChatContext() }),
+        body: JSON.stringify({ messages, context: buildFinnChatContext() }),
       });
       const data = await res.json();
       const response: string = data.response ?? data.error ?? "Unable to respond right now. Please try again.";
