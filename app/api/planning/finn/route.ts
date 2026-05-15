@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const apiKey = process.env.GEMINI_API_KEY_2 ?? process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Gemini not configured." }, { status: 500 });
 
   let context: FinnContext;

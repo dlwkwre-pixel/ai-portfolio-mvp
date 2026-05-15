@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const rateLimitMsg = checkRateLimit(user.id);
   if (rateLimitMsg) return NextResponse.json({ error: rateLimitMsg }, { status: 429 });
 
-  const apiKey = process.env.GEMINI_API_KEY_2 ?? process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Gemini not configured." }, { status: 500 });
 
   let messages: FinnChatMessage[];
