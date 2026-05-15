@@ -636,3 +636,13 @@ body {
   align-items: center;
 }
 
+/* ── FINN Personality System animations ── */
+@keyframes finnFadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes finnPulse {
+  0%, 100% { opacity: 0.25; transform: scaleY(0.5); }
+  50%       { opacity: 1;    transform: scaleY(1); }
+}
+
