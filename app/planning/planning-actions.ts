@@ -88,7 +88,8 @@ export async function addBalanceSheetItem(formData: FormData): Promise<{ error?:
 
   const category = String(formData.get("category") || "other_asset");
   const value = Number(formData.get("value") || 0);
-  const is_liability = category === "liability";
+  const LIABILITY_CATS = new Set(["mortgage", "auto_loan", "student_loan", "credit_card", "personal_loan", "other_liability", "liability"]);
+  const is_liability = LIABILITY_CATS.has(category);
 
   const { data: existing } = await supabase
     .from("balance_sheet_items")
@@ -125,7 +126,8 @@ export async function updateBalanceSheetItem(formData: FormData): Promise<{ erro
 
   const category = String(formData.get("category") || "other_asset");
   const value = Number(formData.get("value") || 0);
-  const is_liability = category === "liability";
+  const LIABILITY_CATS = new Set(["mortgage", "auto_loan", "student_loan", "credit_card", "personal_loan", "other_liability", "liability"]);
+  const is_liability = LIABILITY_CATS.has(category);
 
   const { error } = await supabase
     .from("balance_sheet_items")

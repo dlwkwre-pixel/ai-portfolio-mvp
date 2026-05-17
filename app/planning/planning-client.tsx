@@ -554,12 +554,33 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+const ASSET_CATEGORIES: [string, string][] = [
+  ["cash",              "Cash & Bank Accounts"],
+  ["investment",        "Investment / Brokerage"],
+  ["retirement",        "Retirement Account (401k / IRA / Roth)"],
+  ["real_estate",       "Real Estate"],
+  ["vehicle",           "Vehicle"],
+  ["personal_property", "Personal Property (jewelry, watches, art)"],
+  ["business",          "Business Interest"],
+  ["other_asset",       "Other Asset"],
+];
+
+const LIABILITY_CATEGORIES: [string, string][] = [
+  ["mortgage",      "Mortgage"],
+  ["auto_loan",     "Auto Loan"],
+  ["student_loan",  "Student Loan"],
+  ["credit_card",   "Credit Card Debt"],
+  ["personal_loan", "Personal Loan"],
+  ["other_liability","Other Debt"],
+];
+
 function AddItemRow({
-  type, onAdd, placeholder,
+  type, onAdd, placeholder, sectionType = "asset",
 }: {
   type: "balance" | "cashflow";
   onAdd: (fd: FormData) => void;
   placeholder?: string;
+  sectionType?: "asset" | "liability";
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -604,14 +625,12 @@ function AddItemRow({
 
       {type === "balance" ? (
         <>
-          <select name="category" style={selectStyle} defaultValue="cash">
-            <option value="cash">Cash</option>
-            <option value="investment">Investment</option>
-            <option value="real_asset">Real Asset</option>
-            <option value="other_asset">Other Asset</option>
-            <option value="liability">Liability</option>
+          <select name="category" style={selectStyle} defaultValue={sectionType === "liability" ? "mortgage" : "cash"}>
+            {(sectionType === "liability" ? LIABILITY_CATEGORIES : ASSET_CATEGORIES).map(([val, lbl]) => (
+              <option key={val} value={val}>{lbl}</option>
+            ))}
           </select>
-          <input name="value" type="number" min="0" step="0.01" placeholder="Value" required style={{ ...inputStyle, width: "120px" }} />
+          <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" required style={{ ...inputStyle, width: "120px" }} />
         </>
       ) : (
         <>
@@ -634,11 +653,12 @@ function AddItemRow({
 }
 
 function LineItemRow({
-  item, type, onDelete,
+  item, type, onDelete, isPrivate = false,
 }: {
   item: BalanceSheetItem | CashFlowItem;
   type: "balance" | "cashflow";
   onDelete: (id: string) => void;
+  isPrivate?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -647,9 +667,11 @@ function LineItemRow({
   const bal = item as BalanceSheetItem;
   const cf = item as CashFlowItem;
 
-  const displayValue = isBalance
-    ? fmtFull(bal.value)
-    : fmtFull(cf.amount) + " / " + (cf.frequency === "annual" ? "yr" : "mo");
+  const displayValue = isPrivate
+    ? "••••••"
+    : isBalance
+      ? fmtFull(bal.value)
+      : fmtFull(cf.amount) + " / " + (cf.frequency === "annual" ? "yr" : "mo");
 
   const accentColor = isBalance
     ? (bal.is_liability ? "var(--red)" : "var(--green)")
@@ -678,11 +700,9 @@ function LineItemRow({
         {isBalance ? (
           <>
             <select name="category" defaultValue={bal.category} style={selectStyle}>
-              <option value="cash">Cash</option>
-              <option value="investment">Investment</option>
-              <option value="real_asset">Real Asset</option>
-              <option value="other_asset">Other Asset</option>
-              <option value="liability">Liability</option>
+              {(bal.is_liability ? LIABILITY_CATEGORIES : ASSET_CATEGORIES).map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
             </select>
             <input name="value" type="number" min="0" step="0.01" defaultValue={bal.value} style={{ ...inputStyle, width: "120px" }} />
           </>
@@ -1708,6 +1728,19 @@ export default function PlanningClient({
   assumptions, futureEvents,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
+  const [isPrivate, setIsPrivateRaw] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("bt-privacy-mode") === "true") setIsPrivateRaw(true); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function togglePrivacy() {
+    setIsPrivateRaw((v) => {
+      const next = !v;
+      try { localStorage.setItem("bt-privacy-mode", String(next)); } catch {}
+      return next;
+    });
+  }
+  function pHide(value: string): string { return isPrivate ? "••••••" : value; }
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
@@ -2211,13 +2244,35 @@ export default function PlanningClient({
       {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
 
       {/* Page header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "22px", color: "var(--text-primary)", margin: 0 }}>
-          Financial Planning
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px", fontFamily: "var(--font-body)" }}>
-          Net worth, cash flow, and retirement trajectory.
-        </p>
+      <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+        <div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "22px", color: "var(--text-primary)", margin: 0 }}>
+            Financial Planning
+          </h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px", fontFamily: "var(--font-body)" }}>
+            Net worth, cash flow, and retirement trajectory.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={togglePrivacy}
+          title={isPrivate ? "Show values" : "Hide values"}
+          style={{
+            display: "flex", alignItems: "center", gap: "5px", flexShrink: 0,
+            padding: "6px 12px", borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)", background: isPrivate ? "var(--bg-surface)" : "transparent",
+            color: isPrivate ? "var(--text-primary)" : "var(--text-tertiary)",
+            fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+        >
+          {isPrivate ? (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M3.98 8.223A10.477 10.477 0 001.934 10C3.226 13.307 6.4 15.5 10 15.5c.84 0 1.647-.134 2.4-.378m3.62-2.9A10.48 10.48 0 0018.066 10C16.774 6.693 13.6 4.5 10 4.5c-.84 0-1.647.134-2.4.378m-2.75 2.264l9.5 9.5M4.5 4.5l11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/><path d="M1.934 10C3.226 6.693 6.4 4.5 10 4.5s6.774 2.193 8.066 5.5c-1.292 3.307-4.466 5.5-8.066 5.5S3.226 13.307 1.934 10z" stroke="currentColor" strokeWidth="1.5"/></svg>
+          )}
+          {isPrivate ? "Show" : "Hide"}
+        </button>
       </div>
 
       {/* Net Worth History Chart */}
@@ -2232,18 +2287,18 @@ export default function PlanningClient({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
         <MetricCard
           label="Monthly Savings"
-          value={monthlySavings >= 0 ? fmt(monthlySavings) : "−" + fmt(Math.abs(monthlySavings))}
+          value={pHide(monthlySavings >= 0 ? fmt(monthlySavings) : "−" + fmt(Math.abs(monthlySavings)))}
           sub={effectiveIncome > 0 ? `${fmtPct(savingsRate)} savings rate` : undefined}
           color={monthlySavings >= 0 ? "var(--text-primary)" : "var(--red)"}
         />
         <MetricCard
           label="Monthly Income"
-          value={fmt(effectiveIncome)}
+          value={pHide(fmt(effectiveIncome))}
           sub="net, after taxes"
         />
         <MetricCard
           label="Monthly Expenses"
-          value={fmt(effectiveExpenses)}
+          value={pHide(fmt(effectiveExpenses))}
           color="var(--text-primary)"
         />
         {retirementProb != null && (
@@ -2397,13 +2452,13 @@ export default function PlanningClient({
                   {portfolioTotalValue > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
                       <span>Portfolio (all accounts)</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{fmt(portfolioTotalValue)}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{pHide(fmt(portfolioTotalValue))}</span>
                     </div>
                   )}
                   {assets.map((a) => (
                     <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
                       <span>{a.label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)" }}>{fmt(a.value)}</span>
+                      <span style={{ fontFamily: "var(--font-mono)" }}>{pHide(fmt(a.value))}</span>
                     </div>
                   ))}
                 </div>
@@ -2418,7 +2473,7 @@ export default function PlanningClient({
                   {liabilities.map((l) => (
                     <div key={l.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
                       <span>{l.label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--red)" }}>{fmt(l.value)}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--red)" }}>{pHide(fmt(l.value))}</span>
                     </div>
                   ))}
                 </div>
@@ -2493,9 +2548,13 @@ export default function PlanningClient({
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
           {/* Portfolio integration notice */}
+          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+            <strong style={{ color: "var(--text-primary)" }}>Balance sheet vs. expenses:</strong> Only enter what you <em>own</em> (assets) and what you <em>owe as debt</em> (liabilities). Rent and regular bills are not liabilities — add those in the <strong>Cash Flow</strong> tab instead.
+          </div>
+
           {portfolioTotalValue > 0 && (
             <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--green-bg)", border: "1px solid var(--green-border)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-              <strong style={{ color: "var(--green)" }}>Portfolio auto-included:</strong> {fmt(portfolioTotalValue)} from your active BuyTune portfolios is counted in Total Assets.
+              <strong style={{ color: "var(--green)" }}>Portfolio auto-included:</strong> {pHide(fmt(portfolioTotalValue))} from your active BuyTune portfolios is counted in Total Assets.
             </div>
           )}
 
@@ -2503,10 +2562,10 @@ export default function PlanningClient({
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={sectionHeadStyle}>Assets</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{fmt(totalAssets)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{pHide(fmt(totalAssets))}</span>
             </div>
             {assets.map((item) => (
-              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} />
+              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />
             ))}
             <div style={{ marginTop: "10px" }}>
               <AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} />
@@ -2517,20 +2576,20 @@ export default function PlanningClient({
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={sectionHeadStyle}>Liabilities</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{fmt(totalLiabilities)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{pHide(fmt(totalLiabilities))}</span>
             </div>
             {liabilities.map((item) => (
-              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} />
+              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />
             ))}
             <div style={{ marginTop: "10px" }}>
-              <AddItemRow type="balance" placeholder="e.g. Student loan" onAdd={(fd) => { fd.set("category", "liability"); return addBalanceSheetItem(fd); }} />
+              <AddItemRow type="balance" sectionType="liability" placeholder="e.g. Student loan" onAdd={addBalanceSheetItem} />
             </div>
           </div>
 
           {/* Net worth total */}
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Net Worth</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)" }}>{fmt(netWorth)}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)" }}>{pHide(fmt(netWorth))}</span>
           </div>
         </div>
       )}
@@ -2539,14 +2598,18 @@ export default function PlanningClient({
       {tab === "cashflow" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
+          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+            <strong style={{ color: "var(--text-primary)" }}>Set up once, review periodically.</strong> Add all recurring income and expenses here — salary, rent, subscriptions, utilities, loan payments. Update when something changes (new job, moved, cancelled a subscription).
+          </div>
+
           {/* Income */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{fmt(monthlyIncome)} / mo</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{pHide(fmt(monthlyIncome))} / mo</span>
             </div>
             {cashFlowItems.filter((i) => i.type === "income").map((item) => (
-              <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} />
+              <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
             ))}
             <div style={{ marginTop: "10px" }}>
               <AddItemRow type="cashflow" placeholder="e.g. Salary" onAdd={(fd) => { fd.set("type", "income"); return addCashFlowItem(fd); }} />
@@ -2557,7 +2620,7 @@ export default function PlanningClient({
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <span style={sectionHeadStyle}>Expenses</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{fmt(monthlyExpenses)} / mo</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{pHide(fmt(monthlyExpenses))} / mo</span>
             </div>
 
             {cashFlowItems.filter((i) => i.type === "expense").length === 0 ? (
@@ -2594,7 +2657,7 @@ export default function PlanningClient({
                           <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>({items.length})</span>
                         </span>
                         <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{fmt(catTotal)}/mo</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{pHide(fmt(catTotal))}/mo</span>
                           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
                             <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
@@ -2603,7 +2666,7 @@ export default function PlanningClient({
                       {isExpanded && (
                         <div style={{ padding: "0 12px 10px", background: "var(--card-bg)" }}>
                           {items.map((item) => (
-                            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} />
+                            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
                           ))}
                           <div style={{ marginTop: "8px" }}>
                             <AddItemRow
