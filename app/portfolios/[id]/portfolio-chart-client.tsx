@@ -104,7 +104,7 @@ export default function PortfolioChartClient({
   hasEnoughSnapshots,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("twr");
+  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
