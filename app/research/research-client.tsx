@@ -34,8 +34,9 @@ type ScreenerSection = {
 };
 
 type TrendingTicker = {
-  ticker: string; company_name: string | null;
-  holder_count: number;
+  ticker: string; name: string;
+  price?: number; change?: number; changePct?: number;
+  analystRec?: { buy: number; hold: number; sell: number } | null;
 };
 
 type AIAnalysis = {
@@ -396,56 +397,6 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
   );
 }
 
-function TrendingCard({ t, onClick }: { t: TrendingTicker; onClick: (ticker: string) => void }) {
-  return (
-    <button
-      className="research-card-item"
-      onClick={() => onClick(t.ticker)}
-      style={{
-        padding: "12px 13px",
-        background: "var(--card-bg)",
-        border: "1px solid var(--card-border)",
-        borderRadius: "var(--radius-lg)",
-        textAlign: "left",
-        cursor: "pointer",
-        display: "flex",
-        flexDirection: "column",
-        gap: "5px",
-        minHeight: "88px",
-        transition: "border-color 150ms ease, background 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(124,58,237,0.35)";
-        e.currentTarget.style.background = "var(--card-hover)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--card-border)";
-        e.currentTarget.style.background = "var(--card-bg)";
-        e.currentTarget.style.transform = "";
-      }}
-      onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
-      onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
-      onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
-    >
-      <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", display: "inline-block", alignSelf: "flex-start" }}>
-        {t.ticker}
-      </span>
-      {t.company_name && (
-        <div style={{
-          fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.3,
-          overflow: "hidden", display: "-webkit-box",
-          WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-        }}>
-          {t.company_name}
-        </div>
-      )}
-      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "auto", paddingTop: "4px" }}>
-        <span className="num" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{t.holder_count}</span>
-        {" "}holder{t.holder_count !== 1 ? "s" : ""}
-      </div>
-    </button>
-  );
-}
 
 // ─── Buy Modal ────────────────────────────────────────────────────────────────
 
@@ -1480,10 +1431,10 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
           ) : (
             <div className="research-section-row">
               {trending.map((t) => (
-                <TrendingCard
+                <StockCard
                   key={t.ticker}
-                  t={{ ...t, company_name: t.company_name ?? nameMap.get(t.ticker) ?? null }}
-                  onClick={(ticker) => { setQuery(ticker); doSearch(ticker); }}
+                  t={{ ...t, name: t.name || nameMap.get(t.ticker) || t.ticker }}
+                  onClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "stock_card_click"); doSearch(ticker); }}
                 />
               ))}
             </div>
