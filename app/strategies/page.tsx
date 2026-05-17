@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import StrategiesHub from "./strategies-hub";
-import StrategyCardItem from "./strategy-card";
+import StrategyList from "./strategy-list";
 import ArchivedSection from "./archived-section";
 import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
 import { getFinnProfile } from "./finn-profile-actions";
@@ -96,18 +96,9 @@ export default async function StrategiesPage() {
               <FinnProfileCard profile={finnProfile} strategyCount={activeCards.length} />
             )}
 
-            {/* Active strategy cards */}
+            {/* Active strategy cards with compare mode */}
             {activeCards.length > 0 && (
-              <section>
-                <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>
-                  My strategies
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  {activeCards.map((card, i) => (
-                    <StrategyCardItem key={card.id} card={card} isNew={i === 0 && newestIsNew} />
-                  ))}
-                </div>
-              </section>
+              <StrategyList cards={activeCards} newestIsNew={newestIsNew} />
             )}
 
             {/* Archived strategies — collapsed toggle */}
