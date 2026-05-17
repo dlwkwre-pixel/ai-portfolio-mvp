@@ -25,6 +25,7 @@ type StrategyRow = {
   risk_level: string | null;
   likes_count: number;
   copies_count: number;
+  finn_confidence: number | null;
   created_at: string;
   is_own: boolean;
   is_liked: boolean;
@@ -41,6 +42,7 @@ type StrategyPreview = {
   risk_level: string | null;
   likes_count: number;
   copies_count: number;
+  finn_confidence: number | null;
   is_liked: boolean;
   is_saved: boolean;
   is_own: boolean;
@@ -291,7 +293,7 @@ function StrategyPreviewModal({
           </div>
 
           {/* Stats row */}
-          <div style={{ display: "flex", gap: "16px", padding: "10px 0", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", padding: "10px 0", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               <svg width="12" height="12" viewBox="0 0 20 20" fill={strategy.is_liked ? "#ff5c5c" : "none"} stroke={strategy.is_liked ? "#ff5c5c" : "var(--text-muted)"} strokeWidth="1.5">
                 <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
@@ -307,6 +309,18 @@ function StrategyPreviewModal({
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)" }}>{strategy.copies_count}</span>
               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>copies</span>
             </div>
+            {strategy.finn_confidence != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{
+                  padding: "2px 9px", borderRadius: "6px",
+                  background: "rgba(109,40,217,0.09)", border: "1px solid rgba(109,40,217,0.2)",
+                  fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "#8b5cf6",
+                }}>
+                  {strategy.finn_confidence}
+                </div>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>FINN score</span>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -648,6 +662,18 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
           </svg>
           <span className="num">{s.copies_count}</span>
         </div>
+
+        {s.finn_confidence != null && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "3px",
+            padding: "2px 7px", borderRadius: "5px",
+            background: "rgba(109,40,217,0.08)", border: "1px solid rgba(109,40,217,0.18)",
+            fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
+            color: "#8b5cf6", flexShrink: 0,
+          }}>
+            {s.finn_confidence}
+          </div>
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -1028,6 +1054,7 @@ export default function CommunityClient({
       id: s.id, name: s.name, description: s.description,
       style: s.style, risk_level: s.risk_level,
       likes_count: s.likes_count, copies_count: s.copies_count,
+      finn_confidence: s.finn_confidence,
       is_liked: s.is_liked, is_saved: s.is_saved, is_own: s.is_own,
       author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: s.author.is_following },
     });
@@ -1041,6 +1068,7 @@ export default function CommunityClient({
       id: item.id, name: item.name, description: item.description,
       style: item.style, risk_level: item.risk_level,
       likes_count: item.likes_count, copies_count: item.copies_count,
+      finn_confidence: null,
       is_liked: item.is_liked, is_saved: item.is_saved, is_own: item.is_own,
       author: { user_id: item.author.user_id, username: item.author.username, display_name: item.author.display_name, avatar_color: item.author.avatar_color, is_following: item.author.is_following },
     });
@@ -1190,6 +1218,7 @@ export default function CommunityClient({
                 <FilterChip active={initialSort === "popular"} label="Popular" onClick={() => updateUrl({ sort: "popular" })} />
                 <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
                 <FilterChip active={initialSort === "copied"} label="Most copied" onClick={() => updateUrl({ sort: "copied" })} />
+                <FilterChip active={initialSort === "finn"} label="FINN Score" onClick={() => updateUrl({ sort: "finn" })} />
               </>
             )}
             {section === "portfolios" && (

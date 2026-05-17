@@ -27,6 +27,21 @@ export async function saveFinnProfile(archetype: string, traits: string[]): Prom
   revalidatePath("/strategies");
 }
 
+export async function saveFinnScore(strategyId: string, confidence: number): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("strategies")
+    .update({ finn_confidence: confidence })
+    .eq("id", strategyId)
+    .eq("user_id", user.id);
+
+  revalidatePath("/strategies");
+  revalidatePath("/community");
+}
+
 export async function getFinnProfile(): Promise<FinnProfile | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

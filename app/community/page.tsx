@@ -64,7 +64,7 @@ export default async function CommunityPage({
   // ── Public strategies ─────────────────────────────────────────────────────────
   let stratQuery = supabase
     .from("strategies")
-    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id")
+    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id, finn_confidence")
     .eq("is_public", true)
     .eq("is_active", true);
 
@@ -72,9 +72,10 @@ export default async function CommunityPage({
   if (risk)  stratQuery = stratQuery.eq("risk_level", risk);
   if (q)     stratQuery = stratQuery.ilike("name", `%${q}%`);
   if (mine === "true") stratQuery = stratQuery.eq("user_id", user.id);
-  if (sort === "popular") stratQuery = stratQuery.order("likes_count", { ascending: false });
+  if (sort === "popular")    stratQuery = stratQuery.order("likes_count", { ascending: false });
   else if (sort === "newest") stratQuery = stratQuery.order("created_at", { ascending: false });
   else if (sort === "copied") stratQuery = stratQuery.order("copies_count", { ascending: false });
+  else if (sort === "finn")   stratQuery = stratQuery.order("finn_confidence", { ascending: false, nullsFirst: false });
 
   const { data: strategiesRaw } = await stratQuery.limit(PAGE_SIZE);
 
@@ -92,6 +93,7 @@ export default async function CommunityPage({
     risk_level: s.risk_level,
     likes_count: s.likes_count ?? 0,
     copies_count: s.copies_count ?? 0,
+    finn_confidence: (s as { finn_confidence?: number | null }).finn_confidence ?? null,
     created_at: s.created_at,
     is_own: s.user_id === user.id,
     is_liked: likedIds.has(s.id),

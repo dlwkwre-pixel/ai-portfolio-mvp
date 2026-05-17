@@ -7,7 +7,7 @@ import StrategyList from "./strategy-list";
 import ArchivedSection from "./archived-section";
 import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
 import { getFinnProfile } from "./finn-profile-actions";
-import FinnProfileCard from "./finn-profile-card";
+import FinnProfileCard, { deriveMemoryInsights } from "./finn-profile-card";
 
 export default async function StrategiesPage() {
   const supabase = await createClient();
@@ -59,6 +59,7 @@ export default async function StrategiesPage() {
     && (Date.now() - new Date(activeCards[0].created_at).getTime()) < 30_000;
 
   const finnProfile = await getFinnProfile();
+  const memoryInsights = deriveMemoryInsights(activeCards);
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
@@ -93,7 +94,7 @@ export default async function StrategiesPage() {
 
             {/* FINN Investor Profile */}
             {finnProfile && (
-              <FinnProfileCard profile={finnProfile} strategyCount={activeCards.length} />
+              <FinnProfileCard profile={finnProfile} strategyCount={activeCards.length} insights={memoryInsights} />
             )}
 
             {/* Active strategy cards with compare mode */}

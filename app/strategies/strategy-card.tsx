@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { StrategyCard } from "./types";
 import { updateStrategy, duplicateStrategy, deleteStrategy, archiveStrategy, unarchiveStrategy } from "./actions";
+import { saveFinnScore } from "./finn-profile-actions";
 import StrategyPublicToggle from "./strategy-public-toggle";
 import type { StrategyAnalysis } from "@/app/api/strategies/analyze/route";
 import type { ImprovementResult } from "@/app/api/strategies/improve/route";
@@ -181,7 +182,10 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
       if (!res.ok || data.error) { setError(data.error ?? "Analysis failed."); return; }
       const a = data.analysis ?? null;
       setAnalysis(a);
-      if (a) onAnalysis?.(a);
+      if (a) {
+        onAnalysis?.(a);
+        saveFinnScore(card.id, a.finn_confidence).catch(() => {});
+      }
       fetchedRef.current = true;
     } catch {
       setError("Network error — please try again.");
