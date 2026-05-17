@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function toggleStrategyPublic(strategyId: string, isPublic: boolean) {
   const supabase = await createClient();
@@ -120,8 +121,12 @@ export async function copyStrategyAsTemplate(strategyId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Get the source strategy and its latest version
-  const { data: source } = await supabase
+  // Use admin client to read source data — strategy_versions RLS only allows
+  // the owner to read their own rows, so a user-scoped client would return null
+  // for another user's version, silently dropping all AI instructions.
+  const admin = createAdminClient();
+
+  const { data: source } = await admin
     .from("strategies")
     .select("*")
     .eq("id", strategyId)
@@ -131,7 +136,7 @@ export async function copyStrategyAsTemplate(strategyId: string) {
   if (!source) throw new Error("Strategy not found or not public");
   if (source.user_id === user.id) throw new Error("Cannot copy your own strategy");
 
-  const { data: latestVersion } = await supabase
+  const { data: latestVersion } = await admin
     .from("strategy_versions")
     .select("*")
     .eq("strategy_id", strategyId)

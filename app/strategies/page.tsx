@@ -7,7 +7,8 @@ import StrategyList from "./strategy-list";
 import ArchivedSection from "./archived-section";
 import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
 import { getFinnProfile } from "./finn-profile-actions";
-import FinnProfileCard, { deriveMemoryInsights } from "./finn-profile-card";
+import FinnProfileCard from "./finn-profile-card";
+import { deriveMemoryInsights } from "./finn-profile-utils";
 
 export default async function StrategiesPage() {
   const supabase = await createClient();
