@@ -1,35 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
+import OpenAI from "openai";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+const SYSTEM_PROMPT = `You are a concise institutional financial analyst. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
+
 function buildPrompt(ticker: string, company: string, price: number, changePct: number): string {
-  return `You are a concise financial analyst. Analyze ${ticker} (${company}).
+  return `Analyze ${ticker} (${company}).
 Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)
 
-Respond ONLY with a valid JSON object — no markdown, no extra text:
+Return this exact JSON shape:
 {
-  "bull_case": "2-3 key bullish arguments in 1-2 sentences",
-  "bear_case": "2-3 key bearish arguments in 1-2 sentences",
-  "key_catalysts": "Near-term events or trends to watch in 1-2 sentences",
-  "key_risks": "Main downside risks in 1-2 sentences",
-  "takeaway": "One-sentence summary for a typical long-term investor",
-  "confidence": "Low or Medium or High"
+  "bull_case": "<2-3 key bullish arguments, 1-2 sentences, cite specific fundamentals or catalysts>",
+  "bear_case": "<2-3 key bearish arguments, 1-2 sentences, cite specific risks or headwinds>",
+  "key_catalysts": "<near-term events or trends that could move the stock, 1-2 sentences>",
+  "key_risks": "<main downside risks, 1-2 sentences, be specific>",
+  "takeaway": "<one sentence summary for a long-term investor>",
+  "confidence": "<Low or Medium or High>"
 }`;
 }
 
 export async function POST(req: NextRequest) {
   const { limited, retryAfter } = checkRateLimit(`ai-analysis:${getIp(req)}`, 5, 5 * 60_000);
   if (limited) {
-    return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
   }
 
   try {
-    const { ticker, company_name, price, change_pct } = await req.json();
+    const { ticker, company_name, price, change_pct } = await req.json() as {
+      ticker?: string;
+      company_name?: string;
+      price?: number;
+      change_pct?: number;
+    };
 
     if (!ticker) {
-      return NextResponse.json({ error: "Ticker required" }, { status: 400 });
+      return NextResponse.json({ error: "Ticker required." }, { status: 400 });
     }
 
     const t = String(ticker).trim().toUpperCase();
@@ -45,69 +56,59 @@ export async function POST(req: NextRequest) {
 
     if (cached?.analysis_text) {
       try {
-        const parsed = JSON.parse(cached.analysis_text);
+        const parsed = JSON.parse(cached.analysis_text) as Record<string, string>;
         return NextResponse.json({ ...parsed, cached_at: cached.created_at });
       } catch {
         // Corrupted cache — fall through to regenerate
       }
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            role: "user",
-            parts: [{ text: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0) }],
-          }],
-          generationConfig: { maxOutputTokens: 600, temperature: 0.3 },
-        }),
-      }
-    );
+    const client = new OpenAI({
+      apiKey,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
 
-    if (!geminiRes.ok) {
-      if (geminiRes.status === 429) {
-        return NextResponse.json(
-          { error: "AI is busy right now. Please try again in a moment." },
-          { status: 429 }
-        );
-      }
-      return NextResponse.json({ error: "AI request failed." }, { status: 502 });
-    }
+    const completion = await client.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0) },
+      ],
+      max_tokens: 600,
+      temperature: 0.3,
+    });
 
-    const geminiData = await geminiRes.json();
-    const rawText: string = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
 
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
+      return NextResponse.json({ error: "AI returned an unexpected response. Please try again." }, { status: 502 });
     }
 
     let analysis: Record<string, string>;
     try {
-      analysis = JSON.parse(jsonMatch[0]);
+      analysis = JSON.parse(jsonMatch[0]) as Record<string, string>;
     } catch {
-      return NextResponse.json({ error: "Failed to parse AI response." }, { status: 502 });
+      return NextResponse.json({ error: "Failed to parse AI response. Please try again." }, { status: 502 });
     }
 
     const now = new Date().toISOString();
 
-    // Upsert into cache (one row per ticker, replace on conflict)
-    await supabase.from("stock_ai_analyses").upsert(
+    // Upsert into cache — fire and forget, failure doesn't affect response
+    void supabase.from("stock_ai_analyses").upsert(
       { ticker: t, analysis_text: JSON.stringify(analysis), created_at: now },
       { onConflict: "ticker" }
     );
 
     return NextResponse.json({ ...analysis, cached_at: now });
   } catch (err) {
-    console.error("AI analysis error:", err);
-    return NextResponse.json({ error: "Analysis failed." }, { status: 500 });
+    console.error("[ai-analysis] error:", err);
+    const msg = err instanceof Error ? err.message : "Analysis failed.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
