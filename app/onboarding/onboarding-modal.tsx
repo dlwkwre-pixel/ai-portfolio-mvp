@@ -602,7 +602,7 @@ export default function OnboardingModal({
           {step === 5 && (
             <div>
               <h2 style={headingStyle}>Choose an investment strategy</h2>
-              <p style={subStyle}>Your strategy guides the AI when generating recommendations for your portfolio.</p>
+              <p style={subStyle}>Your strategy defines how you invest. FINN will analyze it, score it, and surface ways to improve it over time.</p>
 
               {/* Tabs */}
               <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
@@ -706,53 +706,119 @@ export default function OnboardingModal({
                   ))}
                 </div>
               )}
+
+              {/* FINN note */}
+              <div style={{
+                marginTop: "14px", padding: "9px 12px",
+                background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.18)",
+                borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "8px",
+              }}>
+                <span style={{ fontSize: "12px", flexShrink: 0, marginTop: "1px" }}>✦</span>
+                <p style={{ fontSize: "11px", color: "rgba(167,139,250,0.9)", lineHeight: 1.5, margin: 0 }}>
+                  Once saved, FINN will score your strategy, explain its thesis, surface weaknesses, and build your investor profile as you add more strategies.
+                </p>
+              </div>
             </div>
           )}
 
-          {/* ── Step 6: AI Tutorial */}
+          {/* ── Step 6: AI + FINN Tutorial */}
           {step === 6 && (
             <div>
-              <h2 style={headingStyle}>How AI recommendations work</h2>
-              <p style={subStyle}>Here&apos;s what to expect once your portfolio is live.</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {[
-                  {
-                    icon: "🧠",
-                    title: "Context-aware analysis",
-                    body: "BuyTune uses your portfolio, holdings, cash balance, and assigned strategy to generate personalized recommendations — not generic market picks.",
-                  },
-                  {
-                    icon: "📋",
-                    title: "Action types",
-                    body: "Recommendations come with an action: BUY, ADD, TRIM, SELL, HOLD, or WATCH. Each includes a thesis, rationale, conviction level, and suggested sizing.",
-                  },
-                  {
-                    icon: "✅",
-                    title: "You stay in control",
-                    body: "No trades execute automatically. You review each recommendation and choose to act, reject, or keep watching. Your decisions are tracked over time.",
-                  },
-                  {
-                    icon: "⚡",
-                    title: "Powered by Grok + live search",
-                    body: "Recommendations use live web and market data, so they reflect current prices, earnings, and news — not stale training data.",
-                  },
-                ].map((item) => (
-                  <div key={item.title} style={{
-                    padding: "12px 14px",
-                    background: "var(--card-bg)", border: "1px solid var(--card-border)",
-                    borderRadius: "10px",
-                    display: "flex", gap: "12px",
-                  }}>
-                    <span style={{ fontSize: "18px", flexShrink: 0, marginTop: "1px" }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>{item.title}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{item.body}</div>
-                    </div>
-                  </div>
-                ))}
-                <div style={{ padding: "8px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                  BuyTune&apos;s recommendations are informational only and not financial advice. Always apply your own judgement before making investment decisions.
+              <h2 style={headingStyle}>Your AI-powered edge</h2>
+              <p style={subStyle}>BuyTune gives you two layers of AI — portfolio recommendations and strategy intelligence.</p>
+
+              {/* Section: AI Recommendations */}
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{
+                  fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
+                  letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px",
+                }}>
+                  Portfolio Recommendations
                 </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                  {[
+                    {
+                      icon: "🧠",
+                      title: "Context-aware",
+                      body: "Uses your holdings, cash balance, and strategy to generate personalized picks — not generic market calls.",
+                    },
+                    {
+                      icon: "📋",
+                      title: "Actionable signals",
+                      body: "Each rec comes with an action (BUY, ADD, TRIM, SELL, HOLD, WATCH), a thesis, conviction level, and suggested sizing.",
+                    },
+                    {
+                      icon: "⚡",
+                      title: "Live data via Grok",
+                      body: "Powered by live web and market search so recommendations reflect current prices, earnings, and news.",
+                    },
+                  ].map((item) => (
+                    <div key={item.title} style={{
+                      padding: "10px 12px",
+                      background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                      borderRadius: "9px",
+                      display: "flex", gap: "10px",
+                    }}>
+                      <span style={{ fontSize: "15px", flexShrink: 0, marginTop: "1px" }}>{item.icon}</span>
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "2px" }}>{item.title}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.45 }}>{item.body}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section: FINN Strategy Intelligence */}
+              <div style={{
+                padding: "12px 14px",
+                background: "rgba(109,40,217,0.05)",
+                border: "1px solid rgba(109,40,217,0.18)",
+                borderRadius: "10px",
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px",
+                }}>
+                  <div style={{
+                    width: "20px", height: "20px",
+                    background: "linear-gradient(135deg, #6d28d9, #8b5cf6)",
+                    borderRadius: "5px",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "10px", fontWeight: 700, color: "#fff",
+                    letterSpacing: "-0.3px",
+                  }}>F</div>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(167,139,250,1)", letterSpacing: "-0.1px" }}>
+                    FINN Strategy Intelligence
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                  {[
+                    { label: "Strategy Score", detail: "Rates your strategy 0–100 across focus, discipline, clarity, and edge. Explains why." },
+                    { label: "Bull / Bear Analysis", detail: "Breaks down the strongest case for and against your strategy, and flags internal contradictions." },
+                    { label: "Improve Strategy", detail: "Suggests concrete parameter tweaks to make your strategy stronger, with a before/after comparison." },
+                    { label: "Strategy Comparison", detail: "Run two strategies head-to-head across 8 factors. See which wins and by how much." },
+                    { label: "Investor Profile", detail: "Detects your investing archetype from your strategy history and tracks behavioral patterns over time." },
+                  ].map((item) => (
+                    <div key={item.label} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                      <div style={{
+                        width: "4px", height: "4px", borderRadius: "50%",
+                        background: "#7c3aed", flexShrink: 0, marginTop: "6px",
+                      }} />
+                      <div>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(196,181,253,0.95)" }}>{item.label}:</span>
+                        {" "}
+                        <span style={{ fontSize: "11px", color: "rgba(196,181,253,0.65)", lineHeight: 1.45 }}>{item.detail}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: "10px", color: "rgba(167,139,250,0.5)", marginTop: "10px", marginBottom: 0, lineHeight: 1.4 }}>
+                  Find FINN on every strategy card in the Strategies tab.
+                </p>
+              </div>
+
+              <div style={{ padding: "8px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "10px" }}>
+                BuyTune&apos;s recommendations are informational only and not financial advice. Always apply your own judgement before making investment decisions.
               </div>
             </div>
           )}

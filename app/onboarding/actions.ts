@@ -136,16 +136,26 @@ export async function createOnboardingPortfolio(data: {
 
   const name = data.name.trim() || "My Portfolio";
 
-  // Idempotency: return existing if same name already exists
+  // Idempotency: return existing portfolio with same name (active or not)
+  // Checking both active and archived prevents unique constraint errors on re-use
   const { data: existing } = await supabase
     .from("portfolios")
-    .select("id")
+    .select("id, is_active")
     .eq("user_id", user.id)
     .eq("name", name)
-    .eq("is_active", true)
     .maybeSingle();
 
-  if (existing) return { id: existing.id };
+  if (existing) {
+    // Reactivate if archived
+    if (!existing.is_active) {
+      await supabase
+        .from("portfolios")
+        .update({ is_active: true, status: "active" })
+        .eq("id", existing.id)
+        .eq("user_id", user.id);
+    }
+    return { id: existing.id };
+  }
 
   const { data: portfolio, error } = await supabase
     .from("portfolios")
@@ -236,25 +246,18 @@ export async function setOnboardingCash(portfolioId: string, cashAmount: number)
     .select("id")
     .eq("id", portfolioId)
     .eq("user_id", user.id)
-    .single();
-  if (!portfolio) throw new Error("Portfolio not found");
+    .maybeSingle();
+  if (!portfolio) throw new Error("Portfolio not found. Please go back and create a portfolio first.");
 
   const amount = Math.max(0, cashAmount);
 
-  if (amount > 0) {
-    await supabase.from("cash_ledger").insert({
-      portfolio_id: portfolioId,
-      amount,
-      direction: "IN",
-      reason: "deposit",
-      effective_at: new Date().toISOString(),
-    });
-  }
-
-  await supabase.from("portfolios")
+  const { error } = await supabase
+    .from("portfolios")
     .update({ cash_balance: amount })
     .eq("id", portfolioId)
     .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
 }
 
 // ─── Strategy ──────────────────────────────────────────────────────────────────
