@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
-import * as XLSX from "xlsx";
+import XLSXStyle from "xlsx-js-style";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -1968,73 +1968,411 @@ export default function PlanningClient({
     return [...histPart, ...mcPart];
   }, [mcResult, netWorthHistory]);
 
-  // ── XLSX Export ───────────────────────────────────────────────────────────
+  // ── XLSX Export (styled) ──────────────────────────────────────────────────
   function exportForecastXLSX() {
-    const wb = XLSX.utils.book_new();
+    // ── Style primitives ────────────────────────────────────────────────────
+    const C = {
+      navy:       "0F172A",
+      navyMid:    "1E293B",
+      blue:       "1D4ED8",
+      blueMid:    "2563EB",
+      bluePale:   "EFF6FF",
+      green:      "166534",
+      greenPale:  "DCFCE7",
+      red:        "991B1B",
+      redPale:    "FEE2E2",
+      amber:      "92400E",
+      amberPale:  "FEF3C7",
+      white:      "FFFFFF",
+      offWhite:   "F8FAFC",
+      border:     "CBD5E1",
+      textMuted:  "64748B",
+    };
 
-    // Sheet 1 — Year-by-year forecast
-    const forecastRows = forecastBands.map((p) => ({
-      Year: p.label,
-      "Pessimistic ($)": Math.round(p.pessimistic),
-      "Baseline ($)": Math.round(p.baseline),
-      "Optimistic ($)": Math.round(p.optimistic),
-      "Annual Expenses ($)": Math.round(p.annualExpenses),
-      "Is Retirement Year": activeYearsToRetire != null && p.year === activeYearsToRetire ? "Yes" : "",
-    }));
-    const wsForecas = XLSX.utils.json_to_sheet(forecastRows);
-    wsForecas["!cols"] = [{ wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 20 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, wsForecas, "Forecast");
+    const border = (color = C.border) => ({
+      top:    { style: "thin", color: { rgb: color } },
+      bottom: { style: "thin", color: { rgb: color } },
+      left:   { style: "thin", color: { rgb: color } },
+      right:  { style: "thin", color: { rgb: color } },
+    });
 
-    // Sheet 2 — Summary
-    const today = new Date().toLocaleDateString("en-US");
-    const summaryRows = [
-      { Field: "Export Date", Value: today },
-      { Field: "Current Age", Value: profile?.current_age ?? "—" },
-      { Field: "Target Retirement Age", Value: activeRetirementAge ?? "—" },
-      { Field: "Net Worth ($)", Value: Math.round(netWorth) },
-      { Field: "Monthly Income ($)", Value: Math.round(effectiveIncome) },
-      { Field: "Monthly Expenses ($)", Value: Math.round(effectiveExpenses) },
-      { Field: "Monthly Savings ($)", Value: Math.round(monthlySavings) },
-      { Field: "Savings Rate (%)", Value: savingsRate.toFixed(1) },
-      { Field: "Return Rate Assumption (%)", Value: localAssumptions.return_rate.toFixed(1) },
-      { Field: "Inflation Rate Assumption (%)", Value: localAssumptions.inflation_rate.toFixed(1) },
-      { Field: "Salary Growth Assumption (%)", Value: localAssumptions.salary_growth_rate.toFixed(1) },
-      { Field: "Projected NW at Retirement ($)", Value: retirementPoint ? Math.round(retirementPoint.baseline) : "—" },
-      { Field: "Retirement Probability (%)", Value: retirementProb ?? "—" },
-      { Field: "Financial Health Score", Value: healthData.total },
-    ];
-    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-    wsSummary["!cols"] = [{ wch: 32 }, { wch: 20 }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
+    function cell(
+      value: string | number | null,
+      opts: {
+        bold?: boolean; italic?: boolean; sz?: number;
+        fgColor?: string; fontColor?: string;
+        numFmt?: string; align?: "left" | "center" | "right";
+        wrapText?: boolean; bordered?: boolean; topBorderThick?: boolean;
+      } = {}
+    ) {
+      const isNum = typeof value === "number";
+      return {
+        t: value === null ? "z" : isNum ? "n" : "s",
+        v: value ?? undefined,
+        z: opts.numFmt,
+        s: {
+          font: {
+            bold: opts.bold ?? false,
+            italic: opts.italic ?? false,
+            sz: opts.sz ?? 10,
+            color: { rgb: opts.fontColor ?? (opts.fgColor ? C.white : C.navy) },
+            name: "Calibri",
+          },
+          fill: opts.fgColor ? { fgColor: { rgb: opts.fgColor }, patternType: "solid" } : { patternType: "none" },
+          alignment: { horizontal: opts.align ?? (isNum ? "right" : "left"), vertical: "center", wrapText: opts.wrapText },
+          border: opts.bordered
+            ? (opts.topBorderThick
+                ? { ...border(), top: { style: "medium", color: { rgb: C.navy } } }
+                : border())
+            : {},
+        },
+      };
+    }
 
-    // Sheet 3 — Balance Sheet
+    const titleCell   = (v: string) => cell(v, { bold: true, sz: 14, fgColor: C.navy,    fontColor: C.white, align: "left" });
+    const sectionCell = (v: string, color = C.blue) =>
+      cell(v, { bold: true, sz: 10, fgColor: color, fontColor: C.white, align: "left" });
+    const headerCell  = (v: string) => cell(v, { bold: true, sz: 10, fgColor: C.navyMid, fontColor: C.white, align: "center", bordered: true });
+    const labelCell   = (v: string, shade = false) =>
+      cell(v, { bold: false, sz: 10, fgColor: shade ? C.offWhite : C.white, fontColor: C.navy, align: "left", bordered: true });
+    const metricLabel = (v: string) => cell(v, { sz: 10, fontColor: C.textMuted, align: "left", bordered: true, fgColor: C.white });
+    const moneyCell   = (v: number, shade = false, positive?: boolean) =>
+      cell(v, { sz: 10, numFmt: '"$"#,##0', bordered: true, fgColor: shade ? C.offWhite : C.white,
+                fontColor: positive === true ? C.green : positive === false ? C.red : C.navy, align: "right" });
+    const pctCell     = (v: number, shade = false) =>
+      cell(v / 100, { sz: 10, numFmt: "0.0%", bordered: true, fgColor: shade ? C.offWhite : C.white, fontColor: C.navy, align: "right" });
+    const totalMoney  = (v: number, color: string) =>
+      cell(v, { bold: true, sz: 11, numFmt: '"$"#,##0', bordered: true, topBorderThick: true,
+                fgColor: color === "green" ? C.greenPale : C.redPale,
+                fontColor: color === "green" ? C.green : C.red, align: "right" });
+    const emptyCell   = () => cell(null, { fgColor: C.white });
+    const shadedEmpty = () => cell(null, { fgColor: C.offWhite });
+
+    const merge = (r1: number, c1: number, r2: number, c2: number) => ({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+
+    function setCell(ws: Record<string, unknown>, row: number, col: number, c: unknown) {
+      const addr = XLSXStyle.utils.encode_cell({ r: row, c: col });
+      ws[addr] = c;
+    }
+
+    function setRow(ws: Record<string, unknown>, row: number, cells: unknown[]) {
+      cells.forEach((c, col) => setCell(ws, row, col, c));
+    }
+
+    function finalizeSheet(ws: Record<string, unknown>, maxRow: number, maxCol: number) {
+      ws["!ref"] = XLSXStyle.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRow, c: maxCol } });
+    }
+
+    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const wb = XLSXStyle.utils.book_new();
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Sheet 1: Summary
+    // ────────────────────────────────────────────────────────────────────────
+    {
+      const ws: Record<string, unknown> = {};
+      let r = 0;
+
+      // Title banner (spans 4 cols)
+      setRow(ws, r++, [
+        titleCell("BuyTune  ·  Financial Planning Report"),
+        cell("", { fgColor: C.navy }), cell("", { fgColor: C.navy }), cell("", { fgColor: C.navy }),
+      ]);
+      setRow(ws, r++, [
+        cell(`Generated ${today}  ·  Confidential`, { sz: 9, italic: true, fgColor: C.navyMid, fontColor: "94A3B8", align: "left" }),
+        cell("", { fgColor: C.navyMid }), cell("", { fgColor: C.navyMid }), cell("", { fgColor: C.navyMid }),
+      ]);
+      setRow(ws, r++, [emptyCell(), emptyCell(), emptyCell(), emptyCell()]);
+
+      // Key Metrics section
+      setRow(ws, r++, [sectionCell("  KEY METRICS"), cell("", { fgColor: C.blue }), sectionCell("  RETIREMENT OUTLOOK"), cell("", { fgColor: C.blue })]);
+
+      const metricsLeft: [string, number | string, string?][] = [
+        ["Net Worth",       netWorth,          netWorth >= 0 ? "$" : "-$"],
+        ["Monthly Income",  effectiveIncome,   "$"],
+        ["Monthly Expenses", effectiveExpenses, "$"],
+        ["Monthly Savings", monthlySavings,    monthlySavings >= 0 ? "$" : "-$"],
+        ["Savings Rate",    savingsRate / 100, "%"],
+        ["Health Score",    healthData.total,  "/100"],
+      ];
+      const metricsRight: [string, number | string][] = [
+        ["Current Age",           profile?.current_age ?? "—"],
+        ["Target Retirement Age", activeRetirementAge ?? "—"],
+        ["Years to Retirement",   yearsToRetire ?? "—"],
+        ["Projected NW (baseline)", retirementPoint ? Math.round(retirementPoint.baseline) : "—"],
+        ["Retirement Probability",  retirementProb != null ? `${retirementProb}%` : "—"],
+        ["Model: Return Rate",      `${localAssumptions.return_rate.toFixed(1)}%`],
+      ];
+
+      const maxMetricRows = Math.max(metricsLeft.length, metricsRight.length);
+      for (let i = 0; i < maxMetricRows; i++) {
+        const shade = i % 2 === 1;
+        const ml = metricsLeft[i];
+        const mr = metricsRight[i];
+        const leftLabel = ml ? metricLabel(ml[0]) : shadedEmpty();
+        let leftVal;
+        if (!ml) {
+          leftVal = shadedEmpty();
+        } else if (ml[2] === "%" ) {
+          leftVal = pctCell(typeof ml[1] === "number" ? ml[1] * 100 : 0, shade);
+        } else if (typeof ml[1] === "number") {
+          leftVal = moneyCell(Math.abs(ml[1]), shade, ml[1] >= 0 ? undefined : false);
+        } else {
+          leftVal = cell(String(ml[1]), { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, align: "right" });
+        }
+        const rightLabel = mr ? metricLabel(mr[0]) : shadedEmpty();
+        const rightVal = mr
+          ? typeof mr[1] === "number"
+            ? moneyCell(mr[1], shade)
+            : cell(String(mr[1]), { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, align: "right" })
+          : shadedEmpty();
+        setRow(ws, r++, [leftLabel, leftVal, rightLabel, rightVal]);
+      }
+
+      // Assumptions section
+      r++;
+      setRow(ws, r++, [sectionCell("  MODEL ASSUMPTIONS"), cell("", { fgColor: C.blue }), sectionCell("  FINANCIAL HEALTH BREAKDOWN"), cell("", { fgColor: C.blue })]);
+      const assumpLeft: [string, string][] = [
+        ["Expected Annual Return", `${localAssumptions.return_rate.toFixed(1)}%`],
+        ["Inflation Rate",         `${localAssumptions.inflation_rate.toFixed(1)}%`],
+        ["Salary Growth Rate",     `${localAssumptions.salary_growth_rate.toFixed(1)}%`],
+      ];
+      const scoreRight: [string, string][] = healthData.factors.map((f) => [
+        f.name, `${f.score}/${f.max}  ${f.direction === "strength" ? "✓" : f.direction === "weakness" ? "⚠" : "~"}`
+      ]);
+      const maxAssump = Math.max(assumpLeft.length, scoreRight.length);
+      for (let i = 0; i < maxAssump; i++) {
+        const shade = i % 2 === 1;
+        const al = assumpLeft[i];
+        const sr2 = scoreRight[i];
+        setRow(ws, r++, [
+          al ? metricLabel(al[0]) : shadedEmpty(),
+          al ? cell(al[1], { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, align: "right" }) : shadedEmpty(),
+          sr2 ? metricLabel(sr2[0]) : shadedEmpty(),
+          sr2 ? cell(sr2[1], { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, align: "right",
+                               fontColor: scoreRight[i] ? (healthData.factors[i]?.direction === "strength" ? C.green : healthData.factors[i]?.direction === "weakness" ? C.red : C.amber) : C.navy }) : shadedEmpty(),
+        ]);
+      }
+
+      // Disclaimer
+      r++;
+      setRow(ws, r++, [
+        cell("This report is auto-generated by BuyTune and is for informational purposes only. It does not constitute financial advice.", {
+          sz: 8, italic: true, fontColor: C.textMuted, align: "left", wrapText: true,
+          fgColor: C.offWhite,
+        }),
+        cell("", { fgColor: C.offWhite }), cell("", { fgColor: C.offWhite }), cell("", { fgColor: C.offWhite }),
+      ]);
+
+      finalizeSheet(ws, r, 3);
+      ws["!merges"] = [
+        merge(0, 0, 0, 3), merge(1, 0, 1, 3),
+        merge(3, 0, 3, 1), merge(3, 2, 3, 3),
+        merge(r - 1 - 1, 0, r - 1 - 1, 3), // section headers (assump + health) merge
+        merge(r - 1, 0, r - 1, 3),
+      ];
+      ws["!cols"] = [{ wch: 26 }, { wch: 18 }, { wch: 28 }, { wch: 18 }];
+      ws["!rows"] = [{ hpt: 28 }, { hpt: 18 }, { hpt: 6 }];
+      XLSXStyle.utils.book_append_sheet(wb, ws, "Summary");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Sheet 2: Net Worth Forecast
+    // ────────────────────────────────────────────────────────────────────────
+    {
+      const ws: Record<string, unknown> = {};
+      let r = 0;
+      const COLS = 6;
+
+      setRow(ws, r++, [
+        titleCell("Net Worth Forecast"),
+        ...Array(COLS - 1).fill(cell("", { fgColor: C.navy })),
+      ]);
+      setRow(ws, r++, [
+        cell(`Baseline: ${localAssumptions.return_rate.toFixed(1)}% return · ${localAssumptions.inflation_rate.toFixed(1)}% inflation · ${localAssumptions.salary_growth_rate.toFixed(1)}% salary growth`, {
+          sz: 9, italic: true, fgColor: C.navyMid, fontColor: "94A3B8",
+        }),
+        ...Array(COLS - 1).fill(cell("", { fgColor: C.navyMid })),
+      ]);
+      r++;
+
+      setRow(ws, r++, [
+        headerCell("Year"),
+        headerCell("Pessimistic"),
+        headerCell("Baseline"),
+        headerCell("Optimistic"),
+        headerCell("Annual Expenses"),
+        headerCell("Notes"),
+      ]);
+
+      forecastBands.forEach((p, i) => {
+        const isRetire = activeYearsToRetire != null && p.year === activeYearsToRetire;
+        const shade = i % 2 === 1;
+        const bg = isRetire ? C.bluePale : undefined;
+        const fgOverride = isRetire ? C.blue : undefined;
+
+        setRow(ws, r++, [
+          cell(p.label, { sz: 10, bordered: true, bold: isRetire, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? C.navy }),
+          cell(p.pessimistic, { sz: 10, numFmt: '"$"#,##0', bordered: true, bold: isRetire, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? (p.pessimistic >= 0 ? C.green : C.red), align: "right" }),
+          cell(p.baseline,    { sz: 10, numFmt: '"$"#,##0', bordered: true, bold: isRetire, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? C.navy, align: "right" }),
+          cell(p.optimistic,  { sz: 10, numFmt: '"$"#,##0', bordered: true, bold: isRetire, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? C.navy, align: "right" }),
+          cell(p.annualExpenses, { sz: 10, numFmt: '"$"#,##0', bordered: true, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? C.textMuted, align: "right" }),
+          cell(isRetire ? "← Retirement Year" : "", { sz: 10, bordered: true, bold: isRetire, fgColor: bg ?? (shade ? C.offWhite : C.white), fontColor: fgOverride ?? C.textMuted }),
+        ]);
+      });
+
+      finalizeSheet(ws, r, COLS - 1);
+      ws["!merges"] = [merge(0, 0, 0, COLS - 1), merge(1, 0, 1, COLS - 1)];
+      ws["!cols"] = [{ wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 20 }];
+      ws["!rows"] = [{ hpt: 24 }, { hpt: 16 }];
+      ws["!freeze"] = { xSplit: 0, ySplit: 4 };
+      XLSXStyle.utils.book_append_sheet(wb, ws, "Forecast");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Sheet 3: Balance Sheet
+    // ────────────────────────────────────────────────────────────────────────
     if (balanceItems.length > 0) {
-      const bsRows = balanceItems.map((i) => ({
-        Label: i.label,
-        Category: i.category,
-        Type: i.is_liability ? "Liability" : "Asset",
-        "Value ($)": Math.round(i.value),
-      }));
-      const wsBs = XLSX.utils.json_to_sheet(bsRows);
-      wsBs["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, wsBs, "Balance Sheet");
+      const ws: Record<string, unknown> = {};
+      let r = 0;
+      const COLS = 3;
+
+      setRow(ws, r++, [titleCell("Balance Sheet"), cell("", { fgColor: C.navy }), cell("", { fgColor: C.navy })]);
+      setRow(ws, r++, [cell(`As of ${today}`, { sz: 9, italic: true, fgColor: C.navyMid, fontColor: "94A3B8" }), cell("", { fgColor: C.navyMid }), cell("", { fgColor: C.navyMid })]);
+      r++;
+
+      // Assets
+      setRow(ws, r++, [sectionCell("  ASSETS", "166534"), cell("", { fgColor: "166534" }), sectionCell("", "166534")]);
+      const assetItems = balanceItems.filter((i) => !i.is_liability);
+      assetItems.forEach((item, i) => {
+        const shade = i % 2 === 1;
+        setRow(ws, r++, [
+          labelCell(item.label, shade),
+          cell(item.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), { sz: 9, bordered: true, fgColor: shade ? C.offWhite : C.white, fontColor: C.textMuted }),
+          moneyCell(item.value, shade),
+        ]);
+      });
+      if (portfolioTotalValue > 0) {
+        setRow(ws, r++, [
+          labelCell("Investment Portfolios (BuyTune)", assetItems.length % 2 === 1),
+          cell("Portfolio", { sz: 9, bordered: true, fgColor: assetItems.length % 2 === 1 ? C.offWhite : C.white, fontColor: C.textMuted }),
+          moneyCell(portfolioTotalValue, assetItems.length % 2 === 1),
+        ]);
+      }
+      setRow(ws, r++, [
+        cell("Total Assets", { bold: true, sz: 11, bordered: true, topBorderThick: true, fgColor: C.greenPale, fontColor: C.green }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.greenPale }),
+        totalMoney(totalAssets, "green"),
+      ]);
+      r++;
+
+      // Liabilities
+      setRow(ws, r++, [sectionCell("  LIABILITIES", "991B1B"), cell("", { fgColor: "991B1B" }), sectionCell("", "991B1B")]);
+      const liabItems = balanceItems.filter((i) => i.is_liability);
+      liabItems.forEach((item, i) => {
+        const shade = i % 2 === 1;
+        setRow(ws, r++, [
+          labelCell(item.label, shade),
+          cell(item.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), { sz: 9, bordered: true, fgColor: shade ? C.offWhite : C.white, fontColor: C.textMuted }),
+          moneyCell(item.value, shade, false),
+        ]);
+      });
+      setRow(ws, r++, [
+        cell("Total Liabilities", { bold: true, sz: 11, bordered: true, topBorderThick: true, fgColor: C.redPale, fontColor: C.red }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.redPale }),
+        totalMoney(totalLiabilities, "red"),
+      ]);
+      r++;
+
+      // Net Worth
+      setRow(ws, r++, [
+        cell("NET WORTH", { bold: true, sz: 13, fgColor: netWorth >= 0 ? C.navy : C.navyMid, fontColor: C.white }),
+        cell("", { fgColor: netWorth >= 0 ? C.navy : C.navyMid }),
+        cell(netWorth, { bold: true, sz: 13, numFmt: '"$"#,##0', fgColor: netWorth >= 0 ? C.navy : C.navyMid, fontColor: netWorth >= 0 ? "34D399" : "F87171", align: "right" }),
+      ]);
+
+      finalizeSheet(ws, r, COLS - 1);
+      ws["!merges"] = [merge(0, 0, 0, COLS - 1), merge(1, 0, 1, COLS - 1)];
+      ws["!cols"] = [{ wch: 32 }, { wch: 22 }, { wch: 18 }];
+      ws["!rows"] = [{ hpt: 24 }, { hpt: 16 }];
+      XLSXStyle.utils.book_append_sheet(wb, ws, "Balance Sheet");
     }
 
-    // Sheet 4 — Cash Flow
+    // ────────────────────────────────────────────────────────────────────────
+    // Sheet 4: Cash Flow
+    // ────────────────────────────────────────────────────────────────────────
     if (cashFlowItems.length > 0) {
-      const cfRows = cashFlowItems.map((i) => ({
-        Label: i.label,
-        Type: i.type,
-        Frequency: i.frequency,
-        "Amount ($)": Math.round(i.amount),
-        "Monthly Equiv ($)": Math.round(toMonthly(i.amount, i.frequency)),
-      }));
-      const wsCf = XLSX.utils.json_to_sheet(cfRows);
-      wsCf["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 18 }];
-      XLSX.utils.book_append_sheet(wb, wsCf, "Cash Flow");
+      const ws: Record<string, unknown> = {};
+      let r = 0;
+      const COLS = 4;
+
+      setRow(ws, r++, [titleCell("Monthly Cash Flow"), ...Array(COLS - 1).fill(cell("", { fgColor: C.navy }))]);
+      setRow(ws, r++, [cell(`As of ${today}`, { sz: 9, italic: true, fgColor: C.navyMid, fontColor: "94A3B8" }), ...Array(COLS - 1).fill(cell("", { fgColor: C.navyMid }))]);
+      r++;
+
+      // Column headers
+      setRow(ws, r++, [headerCell("Item"), headerCell("Frequency"), headerCell("Amount"), headerCell("Monthly Equiv.")]);
+
+      // Income
+      const incomeItems = cashFlowItems.filter((i) => i.type === "income");
+      setRow(ws, r++, [sectionCell("  INCOME", "166534"), cell("", { fgColor: "166534" }), cell("", { fgColor: "166534" }), cell("", { fgColor: "166534" })]);
+      incomeItems.forEach((item, i) => {
+        const shade = i % 2 === 1;
+        setRow(ws, r++, [
+          labelCell(item.label, shade),
+          cell(item.frequency === "monthly" ? "Monthly" : "Annual", { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, fontColor: C.textMuted }),
+          moneyCell(item.amount, shade),
+          moneyCell(Math.round(toMonthly(item.amount, item.frequency)), shade, true),
+        ]);
+      });
+      const totalIncome = incomeItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+      setRow(ws, r++, [
+        cell("Total Monthly Income", { bold: true, sz: 11, bordered: true, topBorderThick: true, fgColor: C.greenPale, fontColor: C.green }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.greenPale }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.greenPale }),
+        totalMoney(Math.round(totalIncome), "green"),
+      ]);
+      r++;
+
+      // Expenses
+      const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
+      setRow(ws, r++, [sectionCell("  EXPENSES", "991B1B"), cell("", { fgColor: "991B1B" }), cell("", { fgColor: "991B1B" }), cell("", { fgColor: "991B1B" })]);
+      expenseItems.forEach((item, i) => {
+        const shade = i % 2 === 1;
+        setRow(ws, r++, [
+          labelCell(item.label, shade),
+          cell(item.frequency === "monthly" ? "Monthly" : "Annual", { sz: 10, bordered: true, fgColor: shade ? C.offWhite : C.white, fontColor: C.textMuted }),
+          moneyCell(item.amount, shade),
+          moneyCell(Math.round(toMonthly(item.amount, item.frequency)), shade, false),
+        ]);
+      });
+      const totalExpenses = expenseItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+      setRow(ws, r++, [
+        cell("Total Monthly Expenses", { bold: true, sz: 11, bordered: true, topBorderThick: true, fgColor: C.redPale, fontColor: C.red }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.redPale }),
+        cell("", { bordered: true, topBorderThick: true, fgColor: C.redPale }),
+        totalMoney(Math.round(totalExpenses), "red"),
+      ]);
+      r++;
+
+      // Net savings
+      const netSavings = totalIncome - totalExpenses;
+      setRow(ws, r++, [
+        cell("NET MONTHLY SAVINGS", { bold: true, sz: 13, fgColor: netSavings >= 0 ? C.navy : C.navyMid, fontColor: C.white }),
+        cell("", { fgColor: netSavings >= 0 ? C.navy : C.navyMid }),
+        cell("", { fgColor: netSavings >= 0 ? C.navy : C.navyMid }),
+        cell(Math.round(netSavings), { bold: true, sz: 13, numFmt: '"$"#,##0', fgColor: netSavings >= 0 ? C.navy : C.navyMid, fontColor: netSavings >= 0 ? "34D399" : "F87171", align: "right" }),
+      ]);
+
+      finalizeSheet(ws, r, COLS - 1);
+      ws["!merges"] = [merge(0, 0, 0, COLS - 1), merge(1, 0, 1, COLS - 1)];
+      ws["!cols"] = [{ wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
+      ws["!rows"] = [{ hpt: 24 }, { hpt: 16 }];
+      ws["!freeze"] = { xSplit: 0, ySplit: 4 };
+      XLSXStyle.utils.book_append_sheet(wb, ws, "Cash Flow");
     }
 
-    XLSX.writeFile(wb, `buytune-forecast-${currentYear}.xlsx`);
+    XLSXStyle.writeFile(wb, `buytune-financial-plan-${currentYear}.xlsx`);
   }
 
   // Sensitivity grid — return rate × retirement age matrix
