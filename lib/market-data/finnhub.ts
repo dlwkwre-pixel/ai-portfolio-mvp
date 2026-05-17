@@ -60,6 +60,51 @@ export type FinnhubPriceTarget = {
   targetMedian: number;
 };
 
+// Finnhub requires exchange-prefixed symbols for crypto (e.g. BINANCE:BTCUSDT).
+// Entering "BTC" plain hits a different stock ticker and returns pennies.
+const CRYPTO_FINNHUB_MAP: Record<string, string> = {
+  BTC:      "BINANCE:BTCUSDT",
+  BITCOIN:  "BINANCE:BTCUSDT",
+  ETH:      "BINANCE:ETHUSDT",
+  ETHEREUM: "BINANCE:ETHUSDT",
+  SOL:      "BINANCE:SOLUSDT",
+  BNB:      "BINANCE:BNBUSDT",
+  XRP:      "BINANCE:XRPUSDT",
+  ADA:      "BINANCE:ADAUSDT",
+  DOGE:     "BINANCE:DOGEUSDT",
+  AVAX:     "BINANCE:AVAXUSDT",
+  DOT:      "BINANCE:DOTUSDT",
+  MATIC:    "BINANCE:MATICUSDT",
+  POL:      "BINANCE:POLUSDT",
+  LINK:     "BINANCE:LINKUSDT",
+  LTC:      "BINANCE:LTCUSDT",
+  UNI:      "BINANCE:UNIUSDT",
+  ATOM:     "BINANCE:ATOMUSDT",
+  SHIB:     "BINANCE:SHIBUSDT",
+  TRX:      "BINANCE:TRXUSDT",
+  TON:      "BINANCE:TONUSDT",
+  ARB:      "BINANCE:ARBUSDT",
+  OP:       "BINANCE:OPUSDT",
+  NEAR:     "BINANCE:NEARUSDT",
+  FTM:      "BINANCE:FTMUSDT",
+  PEPE:     "BINANCE:PEPEUSDT",
+  WIF:      "BINANCE:WIFUSDT",
+  SUI:      "BINANCE:SUIUSDT",
+  APT:      "BINANCE:APTUSDT",
+  INJ:      "BINANCE:INJUSDT",
+  FET:      "BINANCE:FETUSDT",
+  RENDER:   "BINANCE:RENDERUSDT",
+  SEI:      "BINANCE:SEIUSDT",
+};
+
+function cryptoFinnhubSymbol(ticker: string): string | null {
+  return CRYPTO_FINNHUB_MAP[ticker.toUpperCase()] ?? null;
+}
+
+export function isCryptoTicker(ticker: string): boolean {
+  return ticker.toUpperCase() in CRYPTO_FINNHUB_MAP;
+}
+
 function getApiKey(): string {
   const apiKey = process.env.FINNHUB_API_KEY;
   if (!apiKey) throw new Error("Missing FINNHUB_API_KEY in environment variables.");
@@ -104,8 +149,11 @@ export async function getFinnhubQuote(symbol: string): Promise<FinnhubQuote | nu
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return null;
 
+  // Remap crypto tickers to exchange-prefixed format so Finnhub returns real prices
+  const finnhubSymbol = cryptoFinnhubSymbol(normalizedSymbol) ?? normalizedSymbol;
+
   const url = new URL("https://finnhub.io/api/v1/quote");
-  url.searchParams.set("symbol", normalizedSymbol);
+  url.searchParams.set("symbol", finnhubSymbol);
   url.searchParams.set("token", apiKey);
 
   try {
@@ -149,8 +197,14 @@ export async function getFinnhubDailyCandles(args: {
   const symbol = args.symbol.trim().toUpperCase();
   if (!symbol) return null;
 
-  const url = new URL("https://finnhub.io/api/v1/stock/candle");
-  url.searchParams.set("symbol", symbol);
+  // Crypto needs a different endpoint and exchange-prefixed symbol
+  const mappedSymbol = cryptoFinnhubSymbol(symbol) ?? symbol;
+  const endpoint = isCryptoTicker(symbol)
+    ? "https://finnhub.io/api/v1/crypto/candle"
+    : "https://finnhub.io/api/v1/stock/candle";
+
+  const url = new URL(endpoint);
+  url.searchParams.set("symbol", mappedSymbol);
   url.searchParams.set("resolution", "D");
   url.searchParams.set("from", String(args.fromUnix));
   url.searchParams.set("to", String(args.toUnix));
