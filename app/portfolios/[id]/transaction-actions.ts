@@ -56,6 +56,7 @@ export async function createPortfolioTransaction(formData: FormData) {
   const feesRaw = String(formData.get("fees") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
   const tradedAt = String(formData.get("traded_at") || "").trim();
+  const acquiredAtRaw = String(formData.get("acquired_at") || "").trim();
 
   if (!portfolioId) {
     throw new Error("Portfolio ID is required.");
@@ -278,6 +279,7 @@ export async function createPortfolioTransaction(formData: FormData) {
       realized_gain_loss_pct: realizedGainLossPct,
       notes: notes || null,
       traded_at: tradedAt || new Date().toISOString(),
+      acquired_at: (transactionType === "sell" && acquiredAtRaw) ? acquiredAtRaw : null,
     });
 
   if (insertTransactionError) {

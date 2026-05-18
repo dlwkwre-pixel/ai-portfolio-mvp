@@ -169,6 +169,17 @@ export default function AddTransactionForm({
               />
             </div>
 
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
+                Date Acquired <span className="normal-case text-slate-600">(sell only, for tax)</span>
+              </label>
+              <input
+                name="acquired_at"
+                type="date"
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+              />
+            </div>
+
             <div className="md:col-span-2">
               <label className="mb-1.5 block text-xs uppercase tracking-wide text-slate-500">
                 Notes

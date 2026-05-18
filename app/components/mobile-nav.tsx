@@ -8,6 +8,8 @@ const navItems = [
   { href: "/portfolios", label: "Portfolios" },
   { href: "/strategies", label: "Strategies" },
   { href: "/research", label: "Research" },
+  { href: "/tax", label: "Tax" },
+  { href: "/planning", label: "Planning" },
 ];
 
 export default function MobileNav() {
