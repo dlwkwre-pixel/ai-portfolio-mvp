@@ -9,14 +9,13 @@ export async function acceptTerms(): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase.from("user_profiles").upsert(
-    {
-      id: user.id,
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({
       terms_accepted_at: new Date().toISOString(),
       terms_version: TERMS_VERSION,
-    },
-    { onConflict: "id" }
-  );
+    })
+    .eq("id", user.id);
 
   if (error) throw new Error(error.message);
 }
