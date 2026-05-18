@@ -30,6 +30,22 @@ type MarketData = {
   } | null;
 };
 
+type InsiderTx = {
+  name: string;
+  transactionDate: string;
+  transactionCode: string;
+  share: number;
+  change: number;
+  transactionPrice: number;
+};
+
+type InsiderData = {
+  transactions: InsiderTx[];
+  netBuys: number;
+  netSells: number;
+  signal: "buy" | "sell" | "neutral";
+};
+
 type HoldingsTableProps = {
   portfolioId: string;
   holdings: ValuedHolding[];
@@ -143,10 +159,62 @@ function MarketDataPanel({ ticker, currentPrice, data }: {
   );
 }
 
+function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
+  const { transactions, netBuys, netSells, signal } = data;
+
+  if (transactions.length === 0) {
+    return (
+      <div className="border-t border-white/5 bg-white/1 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Insider Activity</p>
+        <p className="text-xs text-slate-600">No open-market transactions in the last 90 days for {ticker}.</p>
+      </div>
+    );
+  }
+
+  const signalColor = signal === "buy" ? "text-emerald-400" : signal === "sell" ? "text-red-400" : "text-slate-400";
+  const signalBg    = signal === "buy" ? "bg-emerald-500/10 border-emerald-500/20" : signal === "sell" ? "bg-red-500/10 border-red-500/20" : "bg-white/3 border-white/8";
+  const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed";
+
+  return (
+    <div className="border-t border-white/5 bg-white/1 px-4 py-3">
+      <div className="flex items-center gap-3 mb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Insider Activity · 90 days</p>
+        <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${signalBg} ${signalColor}`}>
+          {signalLabel} · {netBuys}B / {netSells}S
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {transactions.slice(0, 6).map((tx, i) => {
+          const isBuy = tx.transactionCode === "P";
+          const value = tx.transactionPrice > 0 ? Math.abs(tx.change) * tx.transactionPrice : null;
+          return (
+            <div key={i} className="flex items-center gap-3 text-xs">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isBuy ? "bg-emerald-500" : "bg-red-500"}`} />
+              <span className={`font-semibold w-8 flex-shrink-0 ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
+                {isBuy ? "BUY" : "SELL"}
+              </span>
+              <span className="text-slate-300 flex-1 min-w-0 truncate">{tx.name}</span>
+              <span className="text-slate-500 flex-shrink-0">
+                {Math.abs(tx.change).toLocaleString()} shares
+                {value != null && ` · $${(value / 1000).toFixed(0)}k`}
+              </span>
+              <span className="text-slate-600 flex-shrink-0 hidden sm:block">{tx.transactionDate}</span>
+            </div>
+          );
+        })}
+      </div>
+      {transactions.length > 6 && (
+        <p className="mt-2 text-[10px] text-slate-600">+{transactions.length - 6} more transactions · SEC Form 4</p>
+      )}
+    </div>
+  );
+}
+
 export default function HoldingsTable({ portfolioId, holdings }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
+  const [insiderData, setInsiderData] = useState<Record<string, InsiderData>>({});
   const [loadingTicker, setLoadingTicker] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -158,20 +226,27 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
 
     setExpandedId(holding.id);
 
-    // Already loaded
-    if (marketData[holding.ticker]) return;
-
-    setLoadingTicker(holding.ticker);
-    try {
-      const res = await fetch(`/api/market-data/${holding.ticker}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMarketData((prev) => ({ ...prev, [holding.ticker]: data }));
+    const alreadyLoaded = marketData[holding.ticker];
+    if (!alreadyLoaded) {
+      setLoadingTicker(holding.ticker);
+      try {
+        const [mktRes, insRes] = await Promise.all([
+          fetch(`/api/market-data/${holding.ticker}`),
+          fetch(`/api/insider/${holding.ticker}`),
+        ]);
+        if (mktRes.ok) {
+          const data = await mktRes.json();
+          setMarketData((prev) => ({ ...prev, [holding.ticker]: data }));
+        }
+        if (insRes.ok) {
+          const data = await insRes.json();
+          setInsiderData((prev) => ({ ...prev, [holding.ticker]: data }));
+        }
+      } catch {
+        // fail silently
+      } finally {
+        setLoadingTicker(null);
       }
-    } catch {
-      // fail silently
-    } finally {
-      setLoadingTicker(null);
     }
   }
 
@@ -211,6 +286,16 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                     className="flex items-center gap-1.5 font-bold text-white hover:text-blue-300 transition"
                   >
                     {holding.ticker}
+                    {insiderData[holding.ticker]?.signal === "buy" && (
+                      <span title="Net insider buying (90d)" className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1 leading-4">
+                        INS▲
+                      </span>
+                    )}
+                    {insiderData[holding.ticker]?.signal === "sell" && (
+                      <span title="Net insider selling (90d)" className="text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded px-1 leading-4">
+                        INS▼
+                      </span>
+                    )}
                     <svg
                       viewBox="0 0 20 20"
                       fill="currentColor"
@@ -286,6 +371,10 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                           showRangeControls
                         />
                       </div>
+                    )}
+                    {/* Insider transactions */}
+                    {insiderData[holding.ticker] && (
+                      <InsiderPanel ticker={holding.ticker} data={insiderData[holding.ticker]} />
                     )}
                   </td>
                 </tr>

@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
+import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
 import OpenAI from "openai";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const SYSTEM_PROMPT = `You are a concise institutional financial analyst. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
 
-function buildPrompt(ticker: string, company: string, price: number, changePct: number): string {
+function buildPrompt(
+  ticker: string,
+  company: string,
+  price: number,
+  changePct: number,
+  insiderSummary?: string,
+): string {
+  const insiderLine = insiderSummary
+    ? `\nInsider activity (last 90 days, open-market only): ${insiderSummary}`
+    : "";
   return `Analyze ${ticker} (${company}).
-Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)
+Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}
 
 Return this exact JSON shape:
 {
@@ -68,6 +78,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
+    // Fetch insider data to enrich the prompt (fire and don't block on failure)
+    let insiderSummary: string | undefined;
+    try {
+      const insider = await getFinnhubInsiderTransactions(t);
+      if (insider && insider.transactions.length > 0) {
+        const buys = insider.transactions.filter((tx) => tx.transactionCode === "P");
+        const sells = insider.transactions.filter((tx) => tx.transactionCode === "S");
+        const parts: string[] = [];
+        if (buys.length > 0) parts.push(`${buys.length} open-market purchase${buys.length > 1 ? "s" : ""}`);
+        if (sells.length > 0) parts.push(`${sells.length} open-market sale${sells.length > 1 ? "s" : ""}`);
+        insiderSummary = parts.join(", ") + ` (signal: ${insider.signal})`;
+      }
+    } catch {
+      // Non-fatal — proceed without insider data
+    }
+
     const client = new OpenAI({
       apiKey,
       baseURL: "https://api.groq.com/openai/v1",
@@ -77,7 +103,7 @@ export async function POST(req: NextRequest) {
       model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0) },
+        { role: "user", content: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary) },
       ],
       max_tokens: 600,
       temperature: 0.3,

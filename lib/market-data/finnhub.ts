@@ -60,6 +60,24 @@ export type FinnhubPriceTarget = {
   targetMedian: number;
 };
 
+export type InsiderTransaction = {
+  name: string;
+  transactionDate: string;
+  transactionCode: string; // P=purchase, S=sale, A=award, F=tax, M=exercise, G=gift
+  share: number;
+  change: number;
+  transactionPrice: number;
+  filingDate: string;
+  isDerivative: boolean;
+};
+
+export type InsiderSummary = {
+  transactions: InsiderTransaction[];
+  netBuys: number;
+  netSells: number;
+  signal: "buy" | "sell" | "neutral";
+};
+
 // Finnhub requires exchange-prefixed symbols for crypto (e.g. BINANCE:BTCUSDT).
 // Entering "BTC" plain hits a different stock ticker and returns pennies.
 const CRYPTO_FINNHUB_MAP: Record<string, string> = {
@@ -480,6 +498,58 @@ export async function getFinnhubProfile(symbol: string): Promise<{ name: string;
     if (!data || !data.name) return null;
 
     return { name: data.name, logo: data.logo ?? "", weburl: data.weburl ?? "" };
+  } catch {
+    return null;
+  }
+}
+
+export async function getFinnhubInsiderTransactions(symbol: string): Promise<InsiderSummary | null> {
+  if (isCryptoTicker(symbol)) return null; // Crypto has no insider filings
+
+  const apiKey = getApiKey();
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  if (!normalizedSymbol) return null;
+
+  const from = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const to = new Date().toISOString().split("T")[0];
+
+  const url = new URL("https://finnhub.io/api/v1/stock/insider-transactions");
+  url.searchParams.set("symbol", normalizedSymbol);
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+  url.searchParams.set("token", apiKey);
+
+  try {
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      next: { revalidate: 3600 }, // 1-hour cache
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (!data?.data || !Array.isArray(data.data)) return null;
+
+    // Only open-market buys (P) and sells (S), exclude derivatives
+    const transactions: InsiderTransaction[] = (data.data as Record<string, unknown>[])
+      .filter((t) => (t.transactionCode === "P" || t.transactionCode === "S") && t.isDerivative === false)
+      .slice(0, 15)
+      .map((t) => ({
+        name: String(t.name ?? ""),
+        transactionDate: String(t.transactionDate ?? ""),
+        transactionCode: String(t.transactionCode ?? ""),
+        share: Number(t.share ?? 0),
+        change: Number(t.change ?? 0),
+        transactionPrice: Number(t.transactionPrice ?? 0),
+        filingDate: String(t.filingDate ?? ""),
+        isDerivative: Boolean(t.isDerivative),
+      }));
+
+    const netBuys = transactions.filter((t) => t.transactionCode === "P").length;
+    const netSells = transactions.filter((t) => t.transactionCode === "S").length;
+    const signal: InsiderSummary["signal"] =
+      netBuys > netSells ? "buy" : netSells > netBuys ? "sell" : "neutral";
+
+    return { transactions, netBuys, netSells, signal };
   } catch {
     return null;
   }

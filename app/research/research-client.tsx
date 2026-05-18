@@ -46,7 +46,23 @@ type AIAnalysis = {
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
-type DetailTab = "overview" | "news" | "ai" | "social";
+type DetailTab = "overview" | "news" | "ai" | "social" | "insiders";
+
+type InsiderTx = {
+  name: string;
+  transactionDate: string;
+  transactionCode: string;
+  share: number;
+  change: number;
+  transactionPrice: number;
+};
+
+type InsiderData = {
+  transactions: InsiderTx[];
+  netBuys: number;
+  netSells: number;
+  signal: "buy" | "sell" | "neutral";
+};
 
 type RedditPulse = {
   source?: "reddit" | "apewisdom";
@@ -665,6 +681,9 @@ function DetailView({
   const [socialError, setSocialError]         = useState<string | null>(null);
   const [socialTicker, setSocialTicker]       = useState<string | null>(null);
   const [socialShowSources, setSocialShowSources] = useState(false);
+  const [insiderData, setInsiderData]         = useState<InsiderData | null>(null);
+  const [insiderLoading, setInsiderLoading]   = useState(false);
+  const [insiderTicker, setInsiderTicker]     = useState<string | null>(null);
 
   const rating = analystLabel(result.recommendation);
   const upside =
@@ -693,6 +712,18 @@ function DetailView({
       .catch((err) => setAiError(err.message ?? "Analysis failed. Try again later."))
       .finally(() => setAiLoading(false));
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (tab !== "insiders" || insiderTicker === result.ticker || insiderLoading) return;
+    setInsiderLoading(true);
+    setInsiderData(null);
+    fetch(`/api/insider/${result.ticker}`)
+      .then((r) => r.json())
+      .then((d: InsiderData) => { setInsiderData(d); setInsiderTicker(result.ticker); })
+      .catch(() => setInsiderData({ transactions: [], netBuys: 0, netSells: 0, signal: "neutral" }))
+      .finally(() => setInsiderLoading(false));
+  }, [tab, result.ticker]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -741,6 +772,7 @@ function DetailView({
     { id: "news",     label: result.news.length > 0 ? `News (${result.news.length})` : "News" },
     { id: "ai",       label: "AI Analysis" },
     { id: "social",   label: "Reddit Pulse" },
+    { id: "insiders", label: "Insiders" },
   ];
 
   return (
@@ -1201,6 +1233,111 @@ function DetailView({
                   >
                     Refresh
                   </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {tab === "insiders" && (
+        <div style={{ padding: "14px 18px" }}>
+          {insiderLoading ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: "13px" }}>
+              Loading insider data...
+            </div>
+          ) : !insiderData || insiderData.transactions.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+              <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px" }}>No insider transactions found</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                Insider data comes from SEC Form 4 filings (open-market transactions only, last 90 days).
+                Crypto and foreign-listed stocks are not covered.
+              </div>
+            </div>
+          ) : (() => {
+            const { transactions, netBuys, netSells, signal } = insiderData;
+            const signalColor = signal === "buy" ? "var(--green)" : signal === "sell" ? "var(--red)" : "var(--text-muted)";
+            const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed Activity";
+            return (
+              <div>
+                {/* Signal summary */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "12px",
+                  padding: "10px 12px", marginBottom: "14px",
+                  background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+                  borderRadius: "var(--radius-md)",
+                }}>
+                  <div style={{
+                    padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                    fontFamily: "var(--font-mono)", letterSpacing: "0.04em",
+                    background: signal === "buy" ? "rgba(34,197,94,0.12)" : signal === "sell" ? "rgba(239,68,68,0.12)" : "var(--bg-elevated)",
+                    color: signalColor,
+                  }}>
+                    {signal === "buy" ? "INS▲" : signal === "sell" ? "INS▼" : "INS—"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: signalColor }}>{signalLabel}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
+                      {netBuys > 0 && <span style={{ color: "var(--green)", marginRight: "10px" }}>{netBuys} purchase{netBuys !== 1 ? "s" : ""}</span>}
+                      {netSells > 0 && <span style={{ color: "var(--red)" }}>{netSells} sale{netSells !== 1 ? "s" : ""}</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Transaction list */}
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>
+                    Recent Transactions
+                  </div>
+                  {transactions.map((tx, i) => {
+                    const isBuy = tx.transactionCode === "P";
+                    const value = tx.share * tx.transactionPrice;
+                    return (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: "10px",
+                        padding: "8px 0",
+                        borderBottom: i < transactions.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                      }}>
+                        <div style={{
+                          padding: "2px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700,
+                          fontFamily: "var(--font-mono)", flexShrink: 0,
+                          background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                          color: isBuy ? "var(--green)" : "var(--red)",
+                        }}>
+                          {isBuy ? "BUY" : "SELL"}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {tx.name}
+                          </div>
+                          <div className="num" style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
+                            {Math.abs(tx.share).toLocaleString()} shares
+                            {tx.transactionPrice > 0 && (
+                              <span style={{ marginLeft: "6px" }}>
+                                @ ${tx.transactionPrice.toFixed(2)}
+                                {value > 0 && (
+                                  <span style={{ color: "var(--text-secondary)", marginLeft: "4px" }}>
+                                    (${value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(0)}K` : value.toFixed(0)})
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>
+                          {new Date(tx.transactionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Caveat note */}
+                <div style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  Buying is a stronger signal than selling. Insiders sell for many reasons (diversification, taxes, RSU vesting) but buy for only one.
+                </div>
+                <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>
+                  Source: SEC Form 4 filings via Finnhub · Open-market transactions only · Last 90 days
                 </div>
               </div>
             );
