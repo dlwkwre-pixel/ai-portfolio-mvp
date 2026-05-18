@@ -20,6 +20,7 @@ import PortfolioHeader, { PortfolioStatCards } from "./portfolio-header";
 import { PortfolioPrivacyProvider } from "./portfolio-privacy-context";
 import PortfolioShareSection from "./portfolio-share-section";
 import AuditPortfolioModal from "./audit-portfolio-modal";
+import ExportReportButton from "./export-report-button";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -196,6 +197,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </span>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
+                <ExportReportButton portfolioId={portfolio.id} />
                 <AuditPortfolioModal
                   portfolioId={portfolio.id}
                   currentHoldings={(holdings ?? []).map((h) => ({
