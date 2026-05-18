@@ -53,14 +53,15 @@ export default async function DashboardPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  // Fetch onboarding status
+  // Fetch profile (onboarding + terms acceptance)
   const { data: profileData } = await supabase
     .from("user_profiles")
-    .select("onboarding_status, onboarding_step")
+    .select("onboarding_status, onboarding_step, terms_accepted_at")
     .eq("id", user.id)
     .maybeSingle();
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
+  const termsAccepted = !!(profileData as { terms_accepted_at?: string | null } | null)?.terms_accepted_at;
 
   const { data: portfolios } = await supabase
     .from("portfolios")
@@ -267,7 +268,8 @@ export default async function DashboardPage({
               totalCash={totalCash}
               latestAiSummary={recentRuns[0]?.summary ?? null}
               latestAiRunPortfolioId={recentRuns[0]?.portfolio_id ?? null}
-              showOnboarding={forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress"}
+              termsAccepted={termsAccepted}
+              showOnboarding={termsAccepted && (forceOnboarding || onboardingStatus === "not_started" || onboardingStatus === "in_progress")}
               forceOnboarding={forceOnboarding}
               initialOnboardingStep={onboardingStep}
               existingPortfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name, account_type: p.account_type, cash_balance: Number(p.cash_balance ?? 0) }))}

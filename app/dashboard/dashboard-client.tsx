@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
+import TermsAcceptModal from "@/app/components/terms-accept-modal";
 
 type PortfolioRow = {
   id: string;
@@ -67,6 +68,7 @@ export default function DashboardClient({
   totalCash,
   latestAiSummary,
   latestAiRunPortfolioId,
+  termsAccepted,
   showOnboarding,
   forceOnboarding,
   initialOnboardingStep,
@@ -84,6 +86,7 @@ export default function DashboardClient({
   totalCash: number;
   latestAiSummary: string | null;
   latestAiRunPortfolioId: string | null;
+  termsAccepted: boolean;
   showOnboarding?: boolean;
   forceOnboarding?: boolean;
   initialOnboardingStep?: number;
@@ -137,6 +140,7 @@ export default function DashboardClient({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {!termsAccepted && <TermsAcceptModal />}
       {onboardingOpen && (
         <OnboardingModal
           initialStep={initialOnboardingStep ?? 1}
