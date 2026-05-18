@@ -4,93 +4,177 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getPortfolioPerformanceSummary } from "@/lib/portfolio/performance";
 import XLSXStyle from "xlsx-js-style";
 
-// ─── cell helpers ─────────────────────────────────────────────────────────────
+// ─── palette ──────────────────────────────────────────────────────────────────
+
+const P = {
+  // backgrounds
+  COVER:    "020B18",   // deepest navy — title block
+  BASE:     "040D1A",   // page background
+  ROW_ALT:  "071828",   // alternate data row
+  HDR:      "0A1F38",   // column header row
+  SECTION:  "0D2540",   // section header row
+  TOTAL:    "0F2A48",   // totals row
+
+  // text
+  WHITE:    "F1F5F9",
+  MUTED:    "94A3B8",
+  DIM:      "475569",
+  BLUE_LT:  "93C5FD",   // section labels / accents
+  BLUE:     "2563EB",
+
+  // signals
+  GREEN:    "22C55E",
+  RED:      "EF4444",
+  AMBER:    "F59E0B",
+
+  // borders
+  BORDER:   "1E3A5F",
+  BORDER_LT:"0F2240",
+} as const;
+
+// ─── cell factory ─────────────────────────────────────────────────────────────
 
 type CellOpts = {
   bold?: boolean;
   italic?: boolean;
-  fontSize?: number;
+  sz?: number;
   color?: string;
   bg?: string;
   align?: "left" | "center" | "right";
   numFmt?: string;
-  border?: boolean;
+  bTop?: boolean;
+  bBottom?: boolean;
+  bLeft?: boolean;
+  bRight?: boolean;
+  indent?: number;
 };
 
-function cell(
+function c(
   value: string | number | null | undefined,
   opts: CellOpts = {}
 ): XLSXStyle.CellObject {
   const {
-    bold,
-    italic,
-    fontSize = 10,
-    color = "F1F5F9",
-    bg,
-    align = "left",
-    numFmt,
-    border = false,
+    bold = false, italic = false, sz = 10,
+    color = P.WHITE, bg = P.BASE,
+    align = "left", numFmt,
+    bTop = false, bBottom = false, bLeft = false, bRight = false,
+    indent = 0,
   } = opts;
 
-  const c: XLSXStyle.CellObject = {
+  const borderSide = (on: boolean, style = "thin") =>
+    on ? { style, color: { rgb: P.BORDER } } : undefined;
+
+  const obj: XLSXStyle.CellObject = {
     v: value ?? "",
     t: typeof value === "number" ? "n" : "s",
     s: {
-      font: {
-        bold: bold ?? false,
-        italic: italic ?? false,
-        sz: fontSize,
-        color: { rgb: color },
-        name: "Calibri",
+      font:      { bold, italic, sz, color: { rgb: color }, name: "Calibri" },
+      alignment: { horizontal: align, vertical: "center", indent },
+      fill:      { fgColor: { rgb: bg } },
+      border: {
+        top:    borderSide(bTop),
+        bottom: borderSide(bBottom),
+        left:   borderSide(bLeft),
+        right:  borderSide(bRight),
       },
-      alignment: { horizontal: align, vertical: "center", wrapText: false },
-      fill: bg ? { fgColor: { rgb: bg } } : { fgColor: { rgb: "040D1A" } },
     },
   };
 
-  if (numFmt) (c.s as Record<string, unknown>).numFmt = numFmt;
-
-  if (border) {
-    const b = { style: "thin", color: { rgb: "1E293B" } };
-    (c.s as Record<string, unknown>).border = { top: b, bottom: b, left: b, right: b };
-  }
-
-  return c;
+  if (numFmt) (obj.s as Record<string, unknown>).numFmt = numFmt;
+  return obj;
 }
 
-function headerCell(v: string): XLSXStyle.CellObject {
-  return cell(v, { bold: true, bg: "0F172A", color: "94A3B8", fontSize: 9, border: true });
-}
+// convenience wrappers
+const e = (bg: string = P.BASE) => c("", { bg });                 // empty
+const bordered = (v: string | number | null | undefined, opts: CellOpts = {}) =>
+  c(v, { bTop: true, bBottom: true, bLeft: true, bRight: true, ...opts });
 
-function titleCell(v: string): XLSXStyle.CellObject {
-  return cell(v, { bold: true, fontSize: 14, color: "F1F5F9", bg: "040D1A" });
-}
-
-function sectionCell(v: string): XLSXStyle.CellObject {
-  return cell(v, { bold: true, fontSize: 11, color: "93C5FD", bg: "040D1A" });
-}
-
-function moneyCell(v: number | null | undefined, highlight = false): XLSXStyle.CellObject {
-  if (v == null) return cell("—", { align: "right" });
-  const color =
-    highlight && v > 0 ? "22C55E" : highlight && v < 0 ? "EF4444" : "F1F5F9";
-  return cell(v, {
-    numFmt: '"$"#,##0.00',
-    align: "right",
-    color,
-    border: true,
+function colHeader(v: string): XLSXStyle.CellObject {
+  return c(v, {
+    bold: true, sz: 9, color: P.BLUE_LT, bg: P.HDR,
+    bTop: true, bBottom: true, bLeft: true, bRight: true,
   });
 }
 
-function pctCell(v: number | null | undefined, highlight = false): XLSXStyle.CellObject {
-  if (v == null) return cell("—", { align: "right" });
-  const color =
-    highlight && v > 0 ? "22C55E" : highlight && v < 0 ? "EF4444" : "F1F5F9";
-  return cell(v / 100, { numFmt: "0.00%", align: "right", color, border: true });
+function sectionHeader(v: string, cols: number): XLSXStyle.CellObject[] {
+  const bg: string = P.SECTION;
+  return [
+    c(v, { bold: true, sz: 10, color: P.BLUE_LT, bg }),
+    ...Array(cols - 1).fill(e(bg)),
+  ];
 }
 
-function empty(): XLSXStyle.CellObject {
-  return cell("", { bg: "040D1A" });
+function moneyC(v: number | null | undefined, opts: CellOpts = {}): XLSXStyle.CellObject {
+  if (v == null) return bordered("—", { align: "right", ...opts });
+  return bordered(v, { numFmt: '"$"#,##0.00', align: "right", bg: P.BASE, ...opts });
+}
+
+function plMoneyC(v: number | null | undefined, opts: CellOpts = {}): XLSXStyle.CellObject {
+  if (v == null) return bordered("—", { align: "right", ...opts });
+  const col = v > 0 ? P.GREEN : v < 0 ? P.RED : P.WHITE;
+  return bordered(v, { numFmt: '"$"#,##0.00', align: "right", color: col, bg: P.BASE, ...opts });
+}
+
+function pctC(v: number | null | undefined, opts: CellOpts = {}): XLSXStyle.CellObject {
+  if (v == null) return bordered("—", { align: "right", ...opts });
+  return bordered(v / 100, { numFmt: "0.00%", align: "right", bg: P.BASE, ...opts });
+}
+
+function plPctC(v: number | null | undefined, opts: CellOpts = {}): XLSXStyle.CellObject {
+  if (v == null) return bordered("—", { align: "right", ...opts });
+  const col = v > 0 ? P.GREEN : v < 0 ? P.RED : P.WHITE;
+  return bordered(v / 100, { numFmt: "0.00%", align: "right", color: col, bg: P.BASE, ...opts });
+}
+
+function sharesC(v: number, opts: CellOpts = {}): XLSXStyle.CellObject {
+  // Show up to 4 decimal places but strip trailing zeros so "2" not "2.0000"
+  const fmt = v % 1 === 0 ? "#,##0" : "#,##0.0###";
+  return bordered(v, { numFmt: fmt, align: "right", bg: P.BASE, ...opts });
+}
+
+// ─── sheet title block (rows 0–2) ─────────────────────────────────────────────
+
+function titleBlock(
+  portfolioName: string,
+  exportDate: string,
+  subtitle: string,
+  cols: number
+): { rows: XLSXStyle.CellObject[][]; rowHeights: { hpt: number }[] } {
+  const fill = cols - 1;
+  return {
+    rows: [
+      // Row 0: BuyTune wordmark + export date
+      [
+        c("BUYTUNE", { bold: true, sz: 14, color: P.WHITE, bg: P.COVER as string }),
+        ...Array(fill - 1).fill(e(P.COVER as string)),
+        c(exportDate, { sz: 9, color: P.DIM, bg: P.COVER as string, align: "right" }),
+      ],
+      // Row 1: Portfolio name
+      [
+        c(portfolioName, { bold: true, sz: 12, color: P.BLUE_LT, bg: P.COVER as string }),
+        ...Array(fill).fill(e(P.COVER as string)),
+      ],
+      // Row 2: Subtitle/sheet label
+      [
+        c(subtitle.toUpperCase(), { sz: 9, color: P.DIM, bg: P.COVER as string }),
+        ...Array(fill).fill(e(P.COVER as string)),
+      ],
+      // Row 3: Visual divider (thin bottom border on all cells)
+      Array(cols).fill(c("", {
+        bg: P.COVER as string,
+        bBottom: true,
+      })),
+      // Row 4: spacer
+      Array(cols).fill(e(P.BASE as string)),
+    ],
+    rowHeights: [
+      { hpt: 32 }, // title
+      { hpt: 22 }, // portfolio name
+      { hpt: 16 }, // subtitle
+      { hpt: 4  }, // divider
+      { hpt: 6  }, // spacer
+    ],
+  };
 }
 
 // ─── route ────────────────────────────────────────────────────────────────────
@@ -102,9 +186,7 @@ export async function GET(
   const { id } = await params;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [
@@ -124,24 +206,15 @@ export async function GET(
     supabase
       .from("portfolio_strategy_assignments")
       .select(`*, strategies(name, description, style, risk_level), strategy_versions(version_number, max_position_pct, turnover_preference, holding_period_bias)`)
-      .eq("portfolio_id", id)
-      .eq("is_active", true)
-      .is("ended_at", null)
-      .order("assigned_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .eq("portfolio_id", id).eq("is_active", true).is("ended_at", null)
+      .order("assigned_at", { ascending: false }).limit(1).maybeSingle(),
     supabase
       .from("recommendation_items")
       .select("action_type, ticker, company_name, thesis, conviction, recommendation_status, created_at")
-      .eq("portfolio_id", id)
-      .order("created_at", { ascending: false })
-      .limit(20),
+      .eq("portfolio_id", id).order("created_at", { ascending: false }).limit(20),
     supabase
       .from("cash_ledger")
-      .select("*")
-      .eq("portfolio_id", id)
-      .order("effective_at", { ascending: false })
-      .limit(50),
+      .select("*").eq("portfolio_id", id).order("effective_at", { ascending: false }).limit(50),
   ]);
 
   if (!portfolio) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -163,9 +236,7 @@ export async function GET(
   });
 
   const totalReturnPct =
-    perf.invested_capital > 0
-      ? (perf.total_pl / perf.invested_capital) * 100
-      : null;
+    perf.invested_capital > 0 ? (perf.total_pl / perf.invested_capital) * 100 : null;
 
   const totalMV = perf.holdings_market_value_total;
   const holdings = valuation.valued_holdings
@@ -177,201 +248,288 @@ export async function GET(
 
   const strategy = (assignment as { strategies?: { name: string; description: string | null; style: string | null; risk_level: string | null } | null } | null)?.strategies ?? null;
   const stratVer = (assignment as { strategy_versions?: { version_number: number | null; max_position_pct: number | null; turnover_preference: string | null; holding_period_bias: string | null } | null } | null)?.strategy_versions ?? null;
+
   const exportDate = new Date().toLocaleDateString("en-US", {
     month: "long", day: "numeric", year: "numeric",
   });
 
   const wb = XLSXStyle.utils.book_new();
-  const COL_BG = "040D1A";
-  const HDR_BG = "0F172A";
 
   // ── Sheet 1: Summary ────────────────────────────────────────────────────────
-  const summaryRows: XLSXStyle.CellObject[][] = [
-    [titleCell("BUYTUNE — PORTFOLIO REPORT"), ...Array(5).fill(empty())],
-    [cell(portfolio.name, { bold: true, fontSize: 12, bg: COL_BG }), ...Array(5).fill(empty())],
-    [cell(`Exported: ${exportDate}`, { color: "475569", bg: COL_BG }), ...Array(5).fill(empty())],
-    Array(6).fill(empty()),
-    [sectionCell("PERFORMANCE SUMMARY"), ...Array(5).fill(empty())],
-    [headerCell("Metric"), headerCell("Value"), ...Array(4).fill(empty())],
-    [
-      cell("Total Portfolio Value", { border: true, bg: HDR_BG }),
-      moneyCell(perf.total_portfolio_value),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Invested Capital", { border: true, bg: HDR_BG }),
-      moneyCell(perf.invested_capital),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Cost Basis", { border: true, bg: HDR_BG }),
-      moneyCell(perf.holdings_cost_basis_total),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Market Value", { border: true, bg: HDR_BG }),
-      moneyCell(perf.holdings_market_value_total),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Cash Balance", { border: true, bg: HDR_BG }),
-      moneyCell(cashBalance),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Unrealized P/L", { border: true, bg: HDR_BG }),
-      moneyCell(perf.unrealized_pl_total, true),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Realized P/L", { border: true, bg: HDR_BG }),
-      moneyCell(perf.realized_pl_total, true),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Total P/L", { border: true, bg: HDR_BG }),
-      moneyCell(perf.total_pl, true),
-      ...Array(4).fill(empty()),
-    ],
-    [
-      cell("Return on Capital", { border: true, bg: HDR_BG }),
-      pctCell(totalReturnPct, true),
-      ...Array(4).fill(empty()),
-    ],
-    Array(6).fill(empty()),
-  ];
-
-  if (strategy) {
-    summaryRows.push(
-      [sectionCell("STRATEGY PROFILE"), ...Array(5).fill(empty())],
-      [
-        cell("Strategy Name", { border: true, bg: HDR_BG }),
-        cell(strategy.name, { border: true }),
-        ...Array(4).fill(empty()),
-      ],
-      [
-        cell("Style", { border: true, bg: HDR_BG }),
-        cell(strategy.style ?? "—", { border: true }),
-        ...Array(4).fill(empty()),
-      ],
-      [
-        cell("Risk Level", { border: true, bg: HDR_BG }),
-        cell(strategy.risk_level ?? "—", { border: true }),
-        ...Array(4).fill(empty()),
-      ],
-      [
-        cell("Version", { border: true, bg: HDR_BG }),
-        cell(stratVer?.version_number != null ? `v${stratVer.version_number}` : "—", { border: true }),
-        ...Array(4).fill(empty()),
-      ],
-      [
-        cell("Max Position", { border: true, bg: HDR_BG }),
-        cell(stratVer?.max_position_pct != null ? `${stratVer.max_position_pct}%` : "—", { border: true }),
-        ...Array(4).fill(empty()),
-      ]
+  {
+    const COLS = 6;
+    const { rows: headerRows, rowHeights: headerHeights } = titleBlock(
+      portfolio.name, exportDate, "Portfolio Summary", COLS
     );
+
+    const metricRow = (label: string, valueCell: XLSXStyle.CellObject): XLSXStyle.CellObject[] => [
+      bordered(label, { bg: P.HDR, color: P.MUTED, sz: 10 }),
+      valueCell,
+      ...Array(COLS - 2).fill(e()),
+    ];
+
+    const kpiRows: XLSXStyle.CellObject[][] = [
+      sectionHeader("PERFORMANCE METRICS", COLS),
+      [colHeader("Metric"), colHeader("Value"), ...Array(COLS - 2).fill(e(P.HDR))],
+      metricRow("Total Portfolio Value",    moneyC(perf.total_portfolio_value)),
+      metricRow("Invested Capital",         moneyC(perf.invested_capital)),
+      metricRow("Holdings Cost Basis",      moneyC(perf.holdings_cost_basis_total)),
+      metricRow("Holdings Market Value",    moneyC(perf.holdings_market_value_total)),
+      metricRow("Cash Balance",             moneyC(cashBalance)),
+      metricRow("Unrealized P/L",           plMoneyC(perf.unrealized_pl_total)),
+      metricRow("Realized P/L",             plMoneyC(perf.realized_pl_total)),
+      metricRow("Total P/L",                plMoneyC(perf.total_pl)),
+      metricRow("Return on Capital",        plPctC(totalReturnPct)),
+      Array(COLS).fill(e()),
+    ];
+
+    const stratRows: XLSXStyle.CellObject[][] = strategy ? [
+      sectionHeader("STRATEGY PROFILE", COLS),
+      [colHeader("Field"), colHeader("Value"), ...Array(COLS - 2).fill(e(P.HDR))],
+      metricRow("Strategy Name",  bordered(strategy.name ?? "—")),
+      metricRow("Style",          bordered(strategy.style ?? "—")),
+      metricRow("Risk Level",     bordered(strategy.risk_level ?? "—")),
+      metricRow("Version",        bordered(stratVer?.version_number != null ? `v${stratVer.version_number}` : "—")),
+      metricRow("Max Position",   bordered(stratVer?.max_position_pct != null ? `${stratVer.max_position_pct}%` : "—")),
+      metricRow("Turnover",       bordered(stratVer?.turnover_preference ?? "—")),
+      metricRow("Holding Period", bordered(stratVer?.holding_period_bias ?? "—")),
+    ] : [];
+
+    const footerRows: XLSXStyle.CellObject[][] = [
+      Array(COLS).fill(e()),
+      [
+        c("Generated by BuyTune AI · Investment intelligence platform", { sz: 8, color: P.DIM, italic: true }),
+        ...Array(COLS - 1).fill(e()),
+      ],
+    ];
+
+    const allRows = [...headerRows, ...kpiRows, ...stratRows, ...footerRows];
+    const dataRowHeights = [
+      { hpt: 16 }, // section header
+      { hpt: 18 }, // col header
+      ...Array(9).fill({ hpt: 18 }), // metrics
+      { hpt: 8  }, // spacer
+      ...(strategy ? [
+        { hpt: 16 },
+        { hpt: 18 },
+        ...Array(7).fill({ hpt: 18 }),
+      ] : []),
+      { hpt: 8  },
+      { hpt: 14 },
+    ];
+
+    const ws = XLSXStyle.utils.aoa_to_sheet(allRows);
+    ws["!cols"] = [{ wch: 30 }, { wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+    ws["!rows"] = [...headerHeights, ...dataRowHeights];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: COLS - 2 } }, // BuyTune wordmark spans cols 0–4
+      { s: { r: 1, c: 0 }, e: { r: 1, c: COLS - 1 } }, // portfolio name spans all
+      { s: { r: 2, c: 0 }, e: { r: 2, c: COLS - 1 } }, // subtitle spans all
+    ];
+    XLSXStyle.utils.book_append_sheet(wb, ws, "Summary");
   }
 
-  const summarySheet = XLSXStyle.utils.aoa_to_sheet(summaryRows);
-  summarySheet["!cols"] = [{ wch: 28 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }];
-  XLSXStyle.utils.book_append_sheet(wb, summarySheet, "Summary");
-
   // ── Sheet 2: Holdings ────────────────────────────────────────────────────────
-  const holdingRows: XLSXStyle.CellObject[][] = [
-    [
-      headerCell("Ticker"),
-      headerCell("Company"),
-      headerCell("Shares"),
-      headerCell("Avg Cost"),
-      headerCell("Current Price"),
-      headerCell("Market Value"),
-      headerCell("Weight %"),
-      headerCell("Unrealized P/L"),
-      headerCell("Return %"),
-    ],
-    ...holdings.map((h, i) => {
-      const rowBg = i % 2 === 0 ? COL_BG : "071224";
-      return [
-        cell(h.ticker, { bold: true, bg: rowBg, border: true }),
-        cell(h.company_name || h.ticker, { bg: rowBg, color: "94A3B8", border: true }),
-        cell(h.shares_number, { numFmt: "#,##0", align: "right", bg: rowBg, border: true }),
-        moneyCell(h.average_cost_basis_number),
-        h.current_price != null ? moneyCell(h.current_price) : cell("—", { align: "right", bg: rowBg, border: true }),
-        moneyCell(h.market_value),
-        pctCell(h.weight_pct),
-        moneyCell(h.unrealized_pl, true),
-        pctCell(h.unrealized_pl_pct, true),
-      ];
-    }),
-  ];
+  {
+    const COLS = 9;
+    const { rows: headerRows, rowHeights: headerHeights } = titleBlock(
+      portfolio.name, exportDate,
+      `Holdings · ${holdings.length} Position${holdings.length !== 1 ? "s" : ""}`,
+      COLS
+    );
 
-  const holdingsSheet = XLSXStyle.utils.aoa_to_sheet(holdingRows);
-  holdingsSheet["!cols"] = [
-    { wch: 10 }, { wch: 28 }, { wch: 12 }, { wch: 14 }, { wch: 14 },
-    { wch: 16 }, { wch: 10 }, { wch: 16 }, { wch: 12 },
-  ];
-  XLSXStyle.utils.book_append_sheet(wb, holdingsSheet, "Holdings");
+    const colHeaders = [
+      colHeader("Ticker"),
+      colHeader("Company"),
+      colHeader("Shares"),
+      colHeader("Avg Cost"),
+      colHeader("Current"),
+      colHeader("Mkt Value"),
+      colHeader("Weight"),
+      colHeader("Unrealized P/L"),
+      colHeader("Return"),
+    ];
+
+    const dataRows = holdings.map((h, i) => {
+      const bg = i % 2 === 0 ? P.BASE : P.ROW_ALT;
+      return [
+        bordered(h.ticker,                   { bold: true, color: P.WHITE, bg }),
+        bordered(h.company_name || h.ticker,  { color: P.MUTED, bg }),
+        sharesC(h.shares_number,              { bg }),
+        moneyC(h.average_cost_basis_number,   { bg }),
+        h.current_price != null ? moneyC(h.current_price, { bg }) : bordered("—", { align: "right", bg }),
+        moneyC(h.market_value,               { bg }),
+        pctC(h.weight_pct,                   { bg }),
+        plMoneyC(h.unrealized_pl,            { bg }),
+        plPctC(h.unrealized_pl_pct,          { bg }),
+      ];
+    });
+
+    // Totals row
+    const totalUnrealized = holdings.reduce((s, h) => s + (h.unrealized_pl ?? 0), 0);
+    const totalsRow: XLSXStyle.CellObject[] = [
+      c("TOTAL", { bold: true, sz: 10, color: P.BLUE_LT, bg: P.TOTAL, bTop: true, bBottom: true, bLeft: true }),
+      c("",      { bg: P.TOTAL, bTop: true, bBottom: true }),
+      c("",      { bg: P.TOTAL, bTop: true, bBottom: true }),
+      c("",      { bg: P.TOTAL, bTop: true, bBottom: true }),
+      c("",      { bg: P.TOTAL, bTop: true, bBottom: true }),
+      bordered(perf.holdings_market_value_total, {
+        numFmt: '"$"#,##0.00', align: "right", bold: true, color: P.WHITE, bg: P.TOTAL,
+      }),
+      bordered(1.0, { numFmt: "0.00%", align: "right", bold: true, color: P.WHITE, bg: P.TOTAL }),
+      plMoneyC(totalUnrealized, { bold: true, bg: P.TOTAL }),
+      c("", { bg: P.TOTAL, bTop: true, bBottom: true, bRight: true }),
+    ];
+
+    const allRows = [
+      ...headerRows,
+      colHeaders,
+      ...dataRows,
+      totalsRow,
+    ];
+
+    const ws = XLSXStyle.utils.aoa_to_sheet(allRows);
+    ws["!cols"] = [
+      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 14 },
+      { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 18 }, { wch: 12 },
+    ];
+    ws["!rows"] = [
+      ...headerHeights,
+      { hpt: 20 },                           // col headers
+      ...Array(holdings.length).fill({ hpt: 19 }), // data rows
+      { hpt: 22 },                           // totals
+    ];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: COLS - 2 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: COLS - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: COLS - 1 } },
+    ];
+    // Freeze title block + header row (rows 0–5 = 5 title rows + 1 col header)
+    ws["!freeze"] = { xSplit: 0, ySplit: 6 };
+    XLSXStyle.utils.book_append_sheet(wb, ws, "Holdings");
+  }
 
   // ── Sheet 3: AI Recommendations ──────────────────────────────────────────────
   if (recs && recs.length > 0) {
-    const recRows: XLSXStyle.CellObject[][] = [
-      [
-        headerCell("Action"),
-        headerCell("Ticker"),
-        headerCell("Company"),
-        headerCell("Thesis"),
-        headerCell("Conviction"),
-        headerCell("Status"),
-        headerCell("Date"),
-      ],
-      ...recs.map((r, i) => {
-        const rowBg = i % 2 === 0 ? COL_BG : "071224";
-        return [
-          cell((r.action_type ?? "—").replace(/_/g, " ").toUpperCase(), { bold: true, bg: rowBg, border: true }),
-          cell(r.ticker ?? "—", { bold: true, bg: rowBg, border: true }),
-          cell(r.company_name ?? "—", { bg: rowBg, color: "94A3B8", border: true }),
-          cell(r.thesis ?? "—", { bg: rowBg, color: "94A3B8", border: true }),
-          cell(r.conviction ?? "—", { bg: rowBg, border: true }),
-          cell(r.recommendation_status ?? "proposed", { bg: rowBg, border: true }),
-          cell(new Date(r.created_at).toLocaleDateString(), { bg: rowBg, border: true }),
-        ];
-      }),
+    const COLS = 7;
+    const { rows: headerRows, rowHeights: headerHeights } = titleBlock(
+      portfolio.name, exportDate, "AI Recommendations", COLS
+    );
+
+    const colHeaders = [
+      colHeader("Action"),
+      colHeader("Ticker"),
+      colHeader("Company"),
+      colHeader("Thesis"),
+      colHeader("Conviction"),
+      colHeader("Status"),
+      colHeader("Date"),
     ];
 
-    const recSheet = XLSXStyle.utils.aoa_to_sheet(recRows);
-    recSheet["!cols"] = [
-      { wch: 14 }, { wch: 10 }, { wch: 24 }, { wch: 60 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
+    const dataRows = recs.map((r, i) => {
+      const bg = i % 2 === 0 ? P.BASE : P.ROW_ALT;
+      const action = (r.action_type ?? "—").replace(/_/g, " ").toUpperCase();
+      const acColor =
+        action.includes("BUY") || action.includes("ADD") ? P.GREEN :
+        action.includes("SELL") || action.includes("REDUCE") || action.includes("EXIT") ? P.RED :
+        P.AMBER;
+      const stColor =
+        r.recommendation_status === "executed" ? P.GREEN :
+        r.recommendation_status === "rejected"  ? P.RED : P.MUTED;
+
+      return [
+        bordered(action,                   { bold: true, color: acColor, bg }),
+        bordered(r.ticker ?? "—",          { bold: true, color: P.WHITE, bg }),
+        bordered(r.company_name ?? "—",    { color: P.MUTED, bg }),
+        bordered(r.thesis ?? "—",          { color: P.MUTED, bg }),
+        bordered(r.conviction ?? "—",      { bg }),
+        bordered(r.recommendation_status ?? "proposed", { color: stColor, bg }),
+        bordered(new Date(r.created_at).toLocaleDateString(), { color: P.MUTED, bg }),
+      ];
+    });
+
+    const allRows = [...headerRows, colHeaders, ...dataRows];
+    const ws = XLSXStyle.utils.aoa_to_sheet(allRows);
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 10 }, { wch: 26 }, { wch: 64 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
     ];
-    XLSXStyle.utils.book_append_sheet(wb, recSheet, "AI Recommendations");
+    ws["!rows"] = [
+      ...headerHeights,
+      { hpt: 20 },
+      ...Array(recs.length).fill({ hpt: 40 }), // thesis cells may wrap
+    ];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: COLS - 2 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: COLS - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: COLS - 1 } },
+    ];
+    ws["!freeze"] = { xSplit: 0, ySplit: 6 };
+    // Allow thesis column to wrap
+    if (ws["!cols"]) ws["!cols"][3] = { wch: 64 };
+    XLSXStyle.utils.book_append_sheet(wb, ws, "AI Recommendations");
   }
 
   // ── Sheet 4: Cash Activity ────────────────────────────────────────────────────
   if (cashLedger && cashLedger.length > 0) {
-    const cashRows: XLSXStyle.CellObject[][] = [
-      [
-        headerCell("Date"),
-        headerCell("Type"),
-        headerCell("Direction"),
-        headerCell("Amount"),
-        headerCell("Notes"),
-      ],
-      ...cashLedger.map((e, i) => {
-        const rowBg = i % 2 === 0 ? COL_BG : "071224";
-        const amountColor = e.direction === "IN" ? "22C55E" : "EF4444";
-        const signed = e.direction === "IN" ? Number(e.amount) : -Number(e.amount);
-        return [
-          cell(new Date(e.effective_at).toLocaleDateString(), { bg: rowBg, border: true }),
-          cell((e.reason ?? "").replace(/_/g, " "), { bg: rowBg, border: true }),
-          cell(e.direction ?? "—", { bg: rowBg, color: amountColor, bold: true, border: true }),
-          cell(signed, { numFmt: '"$"#,##0.00', align: "right", bg: rowBg, color: amountColor, border: true }),
-          cell(e.notes ?? "", { bg: rowBg, color: "475569", border: true }),
-        ];
-      }),
+    const COLS = 5;
+    const { rows: headerRows, rowHeights: headerHeights } = titleBlock(
+      portfolio.name, exportDate, "Cash Activity", COLS
+    );
+
+    const colHeaders = [
+      colHeader("Date"),
+      colHeader("Type"),
+      colHeader("Direction"),
+      colHeader("Amount"),
+      colHeader("Notes"),
     ];
 
-    const cashSheet = XLSXStyle.utils.aoa_to_sheet(cashRows);
-    cashSheet["!cols"] = [{ wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 16 }, { wch: 40 }];
-    XLSXStyle.utils.book_append_sheet(wb, cashSheet, "Cash Activity");
+    const dataRows = cashLedger.map((entry, i) => {
+      const bg = i % 2 === 0 ? P.BASE : P.ROW_ALT;
+      const isIn = entry.direction === "IN";
+      const amtColor = isIn ? P.GREEN : P.RED;
+      const signed = isIn ? Number(entry.amount) : -Number(entry.amount);
+      return [
+        bordered(new Date(entry.effective_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), { bg }),
+        bordered((entry.reason ?? "").replace(/_/g, " "), { bg }),
+        bordered(entry.direction ?? "—", { bold: true, color: amtColor, bg }),
+        bordered(signed, { numFmt: '"$"#,##0.00', align: "right", color: amtColor, bg }),
+        bordered(entry.notes ?? "", { color: P.DIM, bg }),
+      ];
+    });
+
+    // Net flow summary row
+    const netFlow = cashLedger.reduce((sum, e) => {
+      return sum + (e.direction === "IN" ? Number(e.amount) : -Number(e.amount));
+    }, 0);
+
+    const totalsRow: XLSXStyle.CellObject[] = [
+      c("NET FLOW", { bold: true, sz: 10, color: P.BLUE_LT, bg: P.TOTAL, bTop: true, bBottom: true, bLeft: true }),
+      c("",         { bg: P.TOTAL, bTop: true, bBottom: true }),
+      c("",         { bg: P.TOTAL, bTop: true, bBottom: true }),
+      bordered(netFlow, {
+        numFmt: '"$"#,##0.00', align: "right", bold: true,
+        color: netFlow >= 0 ? P.GREEN : P.RED, bg: P.TOTAL,
+      }),
+      c("", { bg: P.TOTAL, bTop: true, bBottom: true, bRight: true }),
+    ];
+
+    const allRows = [...headerRows, colHeaders, ...dataRows, totalsRow];
+    const ws = XLSXStyle.utils.aoa_to_sheet(allRows);
+    ws["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 18 }, { wch: 42 }];
+    ws["!rows"] = [
+      ...headerHeights,
+      { hpt: 20 },
+      ...Array(cashLedger.length).fill({ hpt: 18 }),
+      { hpt: 22 },
+    ];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: COLS - 2 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: COLS - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: COLS - 1 } },
+    ];
+    ws["!freeze"] = { xSplit: 0, ySplit: 6 };
+    XLSXStyle.utils.book_append_sheet(wb, ws, "Cash Activity");
   }
 
   // ── serialize & return ────────────────────────────────────────────────────────
@@ -382,9 +540,9 @@ export async function GET(
   return new NextResponse(buffer as unknown as BodyInit, {
     status: 200,
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type":        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "no-store",
+      "Cache-Control":       "no-store",
     },
   });
 }
