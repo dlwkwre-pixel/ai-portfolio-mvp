@@ -4,6 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import AddHoldingForm from "./add-holding-form";
+import ImportHoldingsCSV from "./import-holdings-csv";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
@@ -271,7 +272,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                           <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Holdings</h2>
                           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Current positions with live market valuation</p>
                         </div>
-                        <AddHoldingForm portfolioId={portfolio.id} />
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <ImportHoldingsCSV portfolioId={portfolio.id} />
+                          <AddHoldingForm portfolioId={portfolio.id} />
+                        </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
                         <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>

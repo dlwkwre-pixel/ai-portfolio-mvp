@@ -280,3 +280,105 @@ export async function updatePortfolio(formData: FormData) {
   revalidatePath("/portfolios");
   revalidatePath("/dashboard");
 }
+
+export type CSVHoldingRow = {
+  ticker: string;
+  shares: number;
+  average_cost_basis: number;
+  company_name?: string;
+  asset_type?: string;
+  notes?: string;
+};
+
+export type ImportHoldingsResult = {
+  imported: number;
+  updated: number;
+  errors: { row: number; ticker: string; message: string }[];
+};
+
+export async function importHoldingsCSV(
+  portfolioId: string,
+  rows: CSVHoldingRow[]
+): Promise<ImportHoldingsResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated.");
+
+  if (!portfolioId) throw new Error("Portfolio ID is required.");
+  if (!rows || rows.length === 0) throw new Error("No rows to import.");
+  if (rows.length > 200) throw new Error("Maximum 200 holdings per import.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "other"];
+  const errors: ImportHoldingsResult["errors"] = [];
+  const validRows: { portfolio_id: string; ticker: string; shares: number; average_cost_basis: number; company_name: string | null; asset_type: string; notes: string | null }[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 1;
+    const ticker = (row.ticker || "").trim().toUpperCase();
+
+    if (!ticker || !/^[A-Z0-9.\-]{1,20}$/.test(ticker)) {
+      errors.push({ row: rowNum, ticker: ticker || "(blank)", message: "Invalid ticker symbol." });
+      continue;
+    }
+    if (!Number.isFinite(row.shares) || row.shares <= 0) {
+      errors.push({ row: rowNum, ticker, message: "Shares must be greater than 0." });
+      continue;
+    }
+    if (!Number.isFinite(row.average_cost_basis) || row.average_cost_basis < 0) {
+      errors.push({ row: rowNum, ticker, message: "Average cost basis must be 0 or greater." });
+      continue;
+    }
+
+    const assetType = VALID_ASSET_TYPES.includes(row.asset_type || "") ? (row.asset_type as string) : "stock";
+    validRows.push({
+      portfolio_id: portfolioId,
+      ticker,
+      shares: row.shares,
+      average_cost_basis: row.average_cost_basis,
+      company_name: row.company_name?.trim() || null,
+      asset_type: assetType,
+      notes: row.notes?.trim() || null,
+    });
+  }
+
+  if (validRows.length === 0) {
+    return { imported: 0, updated: 0, errors };
+  }
+
+  // Upsert: if ticker already exists in portfolio, update shares + cost basis
+  const { data: existing } = await supabase
+    .from("holdings").select("id, ticker").eq("portfolio_id", portfolioId);
+  const existingTickers = new Set((existing ?? []).map(h => h.ticker));
+
+  let imported = 0;
+  let updated = 0;
+
+  for (const row of validRows) {
+    if (existingTickers.has(row.ticker)) {
+      const { error } = await supabase.from("holdings")
+        .update({ shares: row.shares, average_cost_basis: row.average_cost_basis, company_name: row.company_name, asset_type: row.asset_type, notes: row.notes })
+        .eq("portfolio_id", portfolioId).eq("ticker", row.ticker);
+      if (error) {
+        errors.push({ row: -1, ticker: row.ticker, message: error.message });
+      } else {
+        updated++;
+      }
+    } else {
+      const { error } = await supabase.from("holdings").insert(row);
+      if (error) {
+        errors.push({ row: -1, ticker: row.ticker, message: error.message });
+      } else {
+        imported++;
+        existingTickers.add(row.ticker);
+      }
+    }
+  }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { imported, updated, errors };
+}
