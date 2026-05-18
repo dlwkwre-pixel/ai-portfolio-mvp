@@ -17,8 +17,8 @@ export default function TermsAcceptModal() {
         await acceptTerms();
         // Reload to clear the modal (server re-check will show it as accepted)
         window.location.reload();
-      } catch {
-        setError("Something went wrong. Please try again.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       }
     });
   }
