@@ -110,6 +110,12 @@ export default function TermsAcceptModal() {
           display: "flex", alignItems: "flex-start", gap: "10px",
           cursor: "pointer", marginBottom: "20px",
         }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+            style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+          />
           <div style={{
             width: "16px", height: "16px", flexShrink: 0,
             border: `2px solid ${checked ? "var(--brand-blue)" : "var(--border-strong)"}`,
@@ -117,21 +123,13 @@ export default function TermsAcceptModal() {
             background: checked ? "var(--brand-blue)" : "transparent",
             display: "flex", alignItems: "center", justifyContent: "center",
             marginTop: "1px", transition: "all 0.15s",
-          }}
-            onClick={() => setChecked((v) => !v)}
-          >
+          }}>
             {checked && (
               <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                 <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </div>
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-            style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
-          />
           <span style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
             I have read and agree to BuyTune&apos;s{" "}
             <Link href="/terms" target="_blank" style={{ color: "var(--brand-blue)" }}>
