@@ -378,10 +378,10 @@ Additional rules:
 - Return JSON only, no markdown fences.
 
 Portfolio context:
-${JSON.stringify(context, null, 2)}${contextNote ? `\n\n## Investor Note (one-time context for this run only)\n${contextNote}` : ""}`.trim();
+${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time context for this run only)\n${contextNote}` : ""}`.trim();
 
   const response = await client.responses.create({
-    model: "grok-4-fast",
+    model: "grok-4.3",
     input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -433,7 +433,7 @@ async function callGeminiForHealthReport(context: unknown): Promise<HealthReport
 }
 
 Portfolio context:
-${JSON.stringify(context, null, 2)}`;
+${JSON.stringify(context)}`;
 
   try {
     const response = await fetch(
@@ -559,8 +559,8 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       strategy_version_id: activeAssignment?.strategy_version_id ?? null,
       run_type: "ai_review",
       triggered_by: "manual",
-      model_name: "grok-4-fast",
-      model_version: "grok-4-fast",
+      model_name: "grok-4.3",
+      model_version: "grok-4.3",
       summary: "AI review in progress...",
       status: "pending",
     })
