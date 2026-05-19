@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useLayoutEffect } from "react";
+import { useState, useTransition, useRef, useLayoutEffect, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate } from "./social-actions";
@@ -774,6 +774,291 @@ function CommentBox({ onSubmit, onCancel }: { onSubmit: (text: string) => Promis
   );
 }
 
+// ─── Leaderboard types ────────────────────────────────────────────────────────
+
+type LbStrategyItem = {
+  id: string;
+  name: string;
+  style: string | null;
+  risk_level: string | null;
+  likes_count: number;
+  copies_count: number;
+  finn_confidence: number | null;
+  author: { user_id: string; username: string; display_name: string | null; avatar_color: string };
+};
+
+type LbPortfolioItem = {
+  id: string;
+  public_name: string;
+  risk_level: string | null;
+  follower_count: number;
+  copy_count: number;
+  author: { user_id: string; username: string; avatar_color: string };
+};
+
+// ─── Market Pulse card ────────────────────────────────────────────────────────
+
+function MarketPulseCard() {
+  const [content, setContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetch("/api/community/market-pulse")
+      .then(r => r.json())
+      .then(d => setContent(d.content ?? null))
+      .catch(() => setContent(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{
+      padding: "14px 16px", marginBottom: "24px",
+      background: "rgba(37,99,235,0.04)",
+      border: "1px solid rgba(37,99,235,0.14)",
+      borderRadius: "var(--radius-lg)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <div style={{
+          width: "20px", height: "20px", borderRadius: "6px",
+          background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#93c5fd" }}>
+          FINN&apos;s Market Pulse
+        </span>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
+          {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+        </span>
+      </div>
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+          <div style={{ height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", width: "88%" }} />
+          <div style={{ height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", width: "65%" }} />
+        </div>
+      ) : content ? (
+        <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+          {content}
+        </p>
+      ) : (
+        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
+          Commentary unavailable right now.
+        </p>
+      )}
+      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", fontStyle: "italic" }}>
+        AI-generated educational commentary. Not financial advice.
+      </p>
+    </div>
+  );
+}
+
+// ─── Leaderboard row ──────────────────────────────────────────────────────────
+
+function LeaderboardRow({ rank, name, sub, pct, author, onClick, href }: {
+  rank: number;
+  name: string;
+  sub: string;
+  pct: number;
+  author: { username: string; avatar_color: string };
+  onClick?: () => void;
+  href?: string;
+}) {
+  const rankColors = ["#fbbf24", "#94a3b8", "#cd7c3e"];
+  const isGold = rank === 0;
+  const rankColor = rank < 3 ? rankColors[rank] : "var(--text-muted)";
+  const barColor = isGold ? "#fbbf24" : rank === 1 ? "#94a3b8" : rank === 2 ? "#cd7c3e" : "rgba(37,99,235,0.5)";
+
+  const inner = (
+    <div style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      padding: "9px 12px",
+      background: isGold ? "rgba(251,191,36,0.04)" : "var(--card-bg)",
+      border: `1px solid ${isGold ? "rgba(251,191,36,0.15)" : "var(--card-border)"}`,
+      borderRadius: "var(--radius-md)", marginBottom: "6px",
+      transition: "border-color 120ms ease, background 120ms ease",
+    }}>
+      <span style={{
+        fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
+        color: rankColor, minWidth: "18px", flexShrink: 0, textAlign: "center",
+      }}>
+        {rank + 1}
+      </span>
+      <Avatar username={author.username} color={author.avatar_color} size={22} />
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+        <span style={{
+          fontSize: "12px", fontWeight: 600, color: "var(--text-primary)",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {name}
+        </span>
+        <div style={{ height: "2px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.max(pct, 4)}%`, background: barColor, borderRadius: "2px" }} />
+        </div>
+      </div>
+      <span style={{
+        fontSize: "10px", color: "var(--text-muted)", flexShrink: 0,
+        fontFamily: "var(--font-mono)", textAlign: "right",
+        maxWidth: "72px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {sub}
+      </span>
+    </div>
+  );
+
+  const hoverIn = (el: HTMLElement) => {
+    const row = el.tagName === "A" || el.tagName === "BUTTON" ? (el.firstChild as HTMLElement) : el;
+    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.3)" : "rgba(255,255,255,0.1)";
+  };
+  const hoverOut = (el: HTMLElement) => {
+    const row = el.tagName === "A" || el.tagName === "BUTTON" ? (el.firstChild as HTMLElement) : el;
+    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.15)" : "var(--card-border)";
+  };
+
+  if (href) return (
+    <Link href={href} style={{ textDecoration: "none", display: "block" }}
+      onMouseEnter={(e) => hoverIn(e.currentTarget as HTMLElement)}
+      onMouseLeave={(e) => hoverOut(e.currentTarget as HTMLElement)}
+    >
+      {inner}
+    </Link>
+  );
+  if (onClick) return (
+    <button type="button" onClick={onClick} style={{ width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+      onMouseEnter={(e) => hoverIn(e.currentTarget as HTMLElement)}
+      onMouseLeave={(e) => hoverOut(e.currentTarget as HTMLElement)}
+    >
+      {inner}
+    </button>
+  );
+  return inner;
+}
+
+// ─── Leaderboard section ──────────────────────────────────────────────────────
+
+function LeaderboardSection({ lbStrategies, lbPortfolios, onPreviewStrategy }: {
+  lbStrategies: LbStrategyItem[];
+  lbPortfolios: LbPortfolioItem[];
+  onPreviewStrategy: (s: LbStrategyItem) => void;
+}) {
+  const topStrategies = useMemo(() =>
+    [...lbStrategies]
+      .sort((a, b) => (b.likes_count * 2 + b.copies_count * 3) - (a.likes_count * 2 + a.copies_count * 3))
+      .slice(0, 8),
+    [lbStrategies]
+  );
+
+  const topPortfolios = useMemo(() =>
+    [...lbPortfolios]
+      .sort((a, b) => (b.follower_count + b.copy_count * 2) - (a.follower_count + a.copy_count * 2))
+      .slice(0, 6),
+    [lbPortfolios]
+  );
+
+  const topInvestors = useMemo(() => {
+    const map = new Map<string, { score: number; count: number; author: LbStrategyItem["author"] }>();
+    for (const s of lbStrategies) {
+      const score = s.likes_count * 2 + s.copies_count * 3;
+      const existing = map.get(s.author.user_id);
+      if (existing) { existing.score += score; existing.count++; }
+      else map.set(s.author.user_id, { score, count: 1, author: s.author });
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1].score - a[1].score)
+      .slice(0, 6);
+  }, [lbStrategies]);
+
+  const maxStratScore = topStrategies[0] ? topStrategies[0].likes_count * 2 + topStrategies[0].copies_count * 3 : 1;
+  const maxPortScore = topPortfolios[0] ? topPortfolios[0].follower_count + topPortfolios[0].copy_count * 2 : 1;
+  const maxInvScore = topInvestors[0]?.[1].score ?? 1;
+
+  return (
+    <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "28px" }}>
+      <MarketPulseCard />
+
+      {/* Top Strategies */}
+      <section>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "12px" }}>
+          <h3 style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+            Top Strategies
+          </h3>
+          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>by engagement</span>
+        </div>
+        {topStrategies.length === 0 ? (
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "12px 0" }}>No public strategies yet.</div>
+        ) : topStrategies.map((s, i) => {
+          const score = s.likes_count * 2 + s.copies_count * 3;
+          return (
+            <LeaderboardRow
+              key={s.id}
+              rank={i}
+              name={s.name}
+              sub={`${s.likes_count} likes`}
+              pct={maxStratScore > 0 ? (score / maxStratScore) * 100 : 0}
+              author={s.author}
+              onClick={() => onPreviewStrategy(s)}
+            />
+          );
+        })}
+      </section>
+
+      {/* Two-column: Portfolios + Investors */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px" }}>
+        <section>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "12px" }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+              Top Portfolios
+            </h3>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>by followers</span>
+          </div>
+          {topPortfolios.length === 0 ? (
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "12px 0" }}>No public portfolios yet.</div>
+          ) : topPortfolios.map((p, i) => {
+            const score = p.follower_count + p.copy_count * 2;
+            return (
+              <LeaderboardRow
+                key={p.id}
+                rank={i}
+                name={p.public_name}
+                sub={`${p.follower_count} followers`}
+                pct={maxPortScore > 0 ? (score / maxPortScore) * 100 : 0}
+                author={p.author}
+                href={`/community/portfolios/${p.id}`}
+              />
+            );
+          })}
+        </section>
+        <section>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "12px" }}>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>
+              Top Investors
+            </h3>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>by strategy score</span>
+          </div>
+          {topInvestors.length === 0 ? (
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "12px 0" }}>No strategy authors yet.</div>
+          ) : topInvestors.map(([userId, data], i) => (
+            <LeaderboardRow
+              key={userId}
+              rank={i}
+              name={data.author.display_name || data.author.username}
+              sub={`${data.count} ${data.count === 1 ? "strategy" : "strategies"}`}
+              pct={maxInvScore > 0 ? (data.score / maxInvScore) * 100 : 0}
+              author={data.author}
+              href={`/${data.author.username}`}
+            />
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // ─── Allocation bar ───────────────────────────────────────────────────────────
 
 function AllocationBar({ holdings }: { holdings: PortfolioHolding[] }) {
@@ -959,6 +1244,8 @@ export default function CommunityClient({
   followingIds: followingIdsArray,
   trendingStrategies: initialTrendingStrategies,
   trendingPortfolios,
+  leaderboardStrategies,
+  leaderboardPortfolios,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
@@ -970,6 +1257,8 @@ export default function CommunityClient({
   followingIds: string[];
   trendingStrategies: TrendingStrategyItem[];
   trendingPortfolios: TrendingPortfolioItem[];
+  leaderboardStrategies: LbStrategyItem[];
+  leaderboardPortfolios: LbPortfolioItem[];
 }) {
   const router = useRouter();
   const [strategies, setStrategies]       = useState(initialStrategies);
@@ -1096,11 +1385,12 @@ export default function CommunityClient({
   const followingStrategies = strategies.filter(s => !s.is_own && s.author.is_following);
   const followingPortfolios = portfolios.filter(p => !p.is_own && p.author.is_following);
 
-  const TABS = ["strategies", "portfolios", "following"] as const;
+  const TABS = ["strategies", "portfolios", "following", "leaderboard"] as const;
   const TAB_LABELS: Record<string, string> = {
     strategies: "Strategies",
     portfolios: "Portfolios",
     following: "Following",
+    leaderboard: "Leaderboard",
   };
 
   const dropdownStyle: React.CSSProperties = {
@@ -1160,7 +1450,7 @@ export default function CommunityClient({
       </div>
 
       {/* ── Filter row ──────────────────────────────────────────────────────── */}
-      {section !== "following" && (
+      {section !== "following" && section !== "leaderboard" && (
         <div style={{ padding: "14px 0", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "4px" }}>
           {/* Row 1: search + sort + risk */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1250,7 +1540,20 @@ export default function CommunityClient({
 
       {/* ── Section content ──────────────────────────────────────────────────── */}
 
-      {section === "following" ? (
+      {section === "leaderboard" ? (
+        <LeaderboardSection
+          lbStrategies={leaderboardStrategies}
+          lbPortfolios={leaderboardPortfolios}
+          onPreviewStrategy={(s) => setPreviewStrategy({
+            id: s.id, name: s.name, description: null,
+            style: s.style, risk_level: s.risk_level,
+            likes_count: s.likes_count, copies_count: s.copies_count,
+            finn_confidence: s.finn_confidence,
+            is_liked: false, is_saved: false, is_own: false,
+            author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: false },
+          })}
+        />
+      ) : section === "following" ? (
         followingSet.size === 0 ? (
           /* Empty: no one followed — show suggestions from trending */
           <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>

@@ -171,8 +171,11 @@ export default async function CommunityPage({
     };
   });
 
-  // ── Trending strips (top 4 by copies) ────────────────────────────────────────
-  const [{ data: trendingStratsRaw }, { data: trendingPortsRaw }] = await Promise.all([
+  // ── Trending strips (top 6 by copies) ────────────────────────────────────────
+  const [
+    { data: trendingStratsRaw }, { data: trendingPortsRaw },
+    { data: lbStratsRaw }, { data: lbPortsRaw },
+  ] = await Promise.all([
     supabase
       .from("strategies")
       .select("id, name, description, style, risk_level, copies_count, likes_count, user_id")
@@ -185,12 +188,28 @@ export default async function CommunityPage({
       .eq("is_public", true)
       .order("copy_count", { ascending: false })
       .limit(6),
+    // Leaderboard: top 15 strategies by likes
+    supabase
+      .from("strategies")
+      .select("id, name, style, risk_level, likes_count, copies_count, finn_confidence, user_id")
+      .eq("is_public", true).eq("is_active", true)
+      .order("likes_count", { ascending: false })
+      .limit(15),
+    // Leaderboard: top 10 portfolios by followers
+    supabase
+      .from("public_portfolios")
+      .select("id, public_name, risk_level, follower_count, copy_count, owner_user_id")
+      .eq("is_public", true)
+      .order("follower_count", { ascending: false })
+      .limit(10),
   ]);
 
   // Build a combined profile lookup (reuse existing maps + fetch any missing)
   const trendingMissingIds = [
     ...(trendingStratsRaw ?? []).map(s => s.user_id),
     ...(trendingPortsRaw ?? []).map(p => p.owner_user_id),
+    ...(lbStratsRaw ?? []).map(s => s.user_id),
+    ...(lbPortsRaw ?? []).map(p => p.owner_user_id),
   ].filter(id => !profileMap.has(id) && !pubOwnerMap.has(id));
   const uniqueMissing = [...new Set(trendingMissingIds)];
   const { data: trendingExtraProfiles } = uniqueMissing.length > 0
@@ -229,6 +248,36 @@ export default async function CommunityPage({
     style: p.style,
     copy_count: p.copy_count ?? 0,
     follower_count: p.follower_count ?? 0,
+    author: {
+      user_id: p.owner_user_id,
+      username: allProfileMap.get(p.owner_user_id)?.username ?? p.owner_user_id.slice(0, 8),
+      avatar_color: allProfileMap.get(p.owner_user_id)?.avatar_color ?? "#2563eb",
+    },
+  }));
+
+  // ── Leaderboard data ──────────────────────────────────────────────────────────
+  const leaderboardStrategies = (lbStratsRaw ?? []).map(s => ({
+    id: s.id,
+    name: s.name,
+    style: s.style,
+    risk_level: s.risk_level,
+    likes_count: s.likes_count ?? 0,
+    copies_count: s.copies_count ?? 0,
+    finn_confidence: (s as { finn_confidence?: number | null }).finn_confidence ?? null,
+    author: {
+      user_id: s.user_id,
+      username: allProfileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
+      display_name: allProfileMap.get(s.user_id)?.display_name ?? null,
+      avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
+    },
+  }));
+
+  const leaderboardPortfolios = (lbPortsRaw ?? []).map(p => ({
+    id: p.id,
+    public_name: p.public_name,
+    risk_level: p.risk_level,
+    follower_count: p.follower_count ?? 0,
+    copy_count: p.copy_count ?? 0,
     author: {
       user_id: p.owner_user_id,
       username: allProfileMap.get(p.owner_user_id)?.username ?? p.owner_user_id.slice(0, 8),
@@ -296,6 +345,8 @@ export default async function CommunityPage({
               followingIds={[...followingIds]}
               trendingStrategies={trendingStrategies}
               trendingPortfolios={trendingPortfolios}
+              leaderboardStrategies={leaderboardStrategies}
+              leaderboardPortfolios={leaderboardPortfolios}
             />
           </div>
         </div>
