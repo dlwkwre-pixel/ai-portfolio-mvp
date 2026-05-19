@@ -11,19 +11,6 @@ export default async function AIRecommendationsSection({
 }: AIRecommendationsSectionProps) {
   const supabase = await createClient();
 
-  // Auto-archive proposals older than 30 days
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  await supabase
-    .from("recommendation_items")
-    .update({
-      recommendation_status: "archived",
-      user_decision: "archived",
-      decision_notes: "Auto-archived: proposed > 30 days",
-    })
-    .eq("portfolio_id", portfolioId)
-    .eq("recommendation_status", "proposed")
-    .lt("created_at", thirtyDaysAgo);
-
   const { data: runs, error: runsError } = await supabase
     .from("recommendation_runs")
     .select("*")
@@ -167,7 +154,7 @@ export default async function AIRecommendationsSection({
 
       {runs && runs.length > 0 ? (
         <div className="mt-4">
-          <AIRecommendationRunsList portfolioId={portfolioId} />
+          <AIRecommendationRunsList portfolioId={portfolioId} latestRunId={latestRun?.id ?? null} />
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">

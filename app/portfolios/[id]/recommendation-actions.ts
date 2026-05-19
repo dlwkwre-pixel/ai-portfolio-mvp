@@ -497,6 +497,14 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
   const contextNote = String(formData.get("context_note") || "").trim().slice(0, 500);
 
+  // Auto-archive stale proposals (>30 days) at run time, not on every tab view
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  supabase.from("recommendation_items").update({
+    recommendation_status: "archived",
+    user_decision: "archived",
+    decision_notes: "Auto-archived: proposed > 30 days",
+  }).eq("portfolio_id", portfolioId).eq("recommendation_status", "proposed").lt("created_at", thirtyDaysAgo);
+
   const context = await buildPortfolioAiContext(portfolioId, user.id);
   const activeAssignment = (context as any).strategy?.assignment ?? null;
 

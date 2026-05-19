@@ -280,9 +280,9 @@ function RedditPulsePanel({ sp }: { sp: RedditPulse }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type Props = { portfolioId: string };
+type Props = { portfolioId: string; latestRunId?: string | null };
 
-export default function AIRecommendationRunsList({ portfolioId }: Props) {
+export default function AIRecommendationRunsList({ portfolioId, latestRunId }: Props) {
   // Data state
   const [localRecs, setLocalRecs]       = useState<LocalRec[]>([]);
   const [tabCounts, setTabCounts]       = useState<Record<string, number>>({});
@@ -333,7 +333,7 @@ export default function AIRecommendationRunsList({ portfolioId }: Props) {
     }>;
   }, [portfolioId]);
 
-  // Refetch when filter or sort changes
+  // Refetch when filter, sort, or the latest run ID changes (new run completed)
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -354,7 +354,7 @@ export default function AIRecommendationRunsList({ portfolioId }: Props) {
       .finally(() => { if (!cancelled) setIsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [statusFilter, sortBy, fetchPage]);
+  }, [statusFilter, sortBy, fetchPage, latestRunId]);
 
   async function loadMore() {
     const nextPage = currentPage + 1;
