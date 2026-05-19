@@ -1,26 +1,26 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { acceptTerms } from "@/app/actions/terms-actions";
 
 export default function TermsAcceptModal() {
   const [checked, setChecked] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleAccept() {
+  async function handleAccept() {
     if (!checked || isPending) return;
     setError(null);
-    startTransition(async () => {
-      try {
-        await acceptTerms();
-        // Reload to clear the modal (server re-check will show it as accepted)
-        window.location.reload();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-      }
-    });
+    setIsPending(true);
+    try {
+      const res = await fetch("/api/accept-terms", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Request failed");
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setIsPending(false);
+    }
   }
 
   return (
