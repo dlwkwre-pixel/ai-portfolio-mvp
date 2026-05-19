@@ -137,7 +137,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     { data: recentRuns, error: recentRunsError },
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolioId).order("ticker", { ascending: true }),
-    supabase.from("portfolio_transactions").select("*").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
+    supabase.from("portfolio_transactions").select("ticker, transaction_type, shares, price_per_share, traded_at, notes").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
     supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolioId).order("effective_at", { ascending: false }).limit(10),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(5),
     supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: false }).limit(5),
@@ -146,7 +146,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
       strategies (id, name, description, style, risk_level),
       strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)
     `).eq("portfolio_id", portfolioId).eq("is_active", true).is("ended_at", null).order("assigned_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("recommendation_runs").select("id, status, summary, model_name, created_at").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(10),
+    supabase.from("recommendation_runs").select("id, status, model_name, created_at").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(10),
   ]);
 
   if (holdingsError) throw new Error(holdingsError.message);
@@ -163,9 +163,9 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
   if (recentRunIds.length > 0) {
     const { data: items, error: itemsError } = await supabase
       .from("recommendation_items")
-      .select("recommendation_run_id, action_type, ticker, company_name, thesis, conviction, confidence_score, priority_rank, recommendation_status, created_at")
+      .select("action_type, ticker, conviction, recommendation_status")
       .eq("portfolio_id", portfolioId)
-      .in("recommendation_run_id", recentRunIds)
+      .in("recommendation_run_id", recentRunIds.slice(0, 1))
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -243,6 +243,17 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     }
   }
 
+  // Prune news to headline + source + datetime only — summaries/images/URLs waste tokens
+  const prunedMarketContext: Record<string, unknown> = {};
+  for (const [ticker, data] of Object.entries(marketContext)) {
+    const d = data as { news: { headline: string; source: string; datetime: number }[]; recommendation: unknown; priceTarget: unknown };
+    prunedMarketContext[ticker] = {
+      news: d.news.map(({ headline, source, datetime }) => ({ headline, source, datetime })),
+      recommendation: d.recommendation,
+      priceTarget: d.priceTarget,
+    };
+  }
+
   return {
     generated_at: new Date().toISOString(),
     portfolio: {
@@ -276,7 +287,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_snapshots: snapshots ?? [],
     recent_recommendation_runs: recentRuns ?? [],
     recent_recommendation_items: recentRecommendationItems,
-    market_context: marketContext,
+    market_context: prunedMarketContext,
     reddit_sentiment: redditSentiment,
   };
 }
