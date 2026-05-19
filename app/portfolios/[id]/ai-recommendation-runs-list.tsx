@@ -487,6 +487,22 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
     setBulkError(null);
   }
 
+  function selectByActionType(action: string) {
+    const ids = localRecs
+      .filter(r => (r.action_type ?? "other").toLowerCase() === action)
+      .map(r => r.id);
+    const allSelected = ids.length > 0 && ids.every(id => selectedIds.has(id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        ids.forEach(id => next.delete(id));
+      } else {
+        ids.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  }
+
   // ── Reddit Pulse ───────────────────────────────────────────────────────────
 
   function loadPulse(ticker: string, companyName: string | null) {
@@ -571,11 +587,31 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
       {/* Action type pills */}
       {!isLoading && localRecs.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {Object.entries(actionCounts).map(([action, count]) => (
-            <span key={action} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${actionStyle(action)}`}>
-              {action.replace(/_/g, " ")} · {count}
-            </span>
-          ))}
+          {Object.entries(actionCounts).map(([action, count]) => {
+            const idsOfType = localRecs
+              .filter(r => (r.action_type ?? "other").toLowerCase() === action)
+              .map(r => r.id);
+            const allSelected = isBulkMode && idsOfType.length > 0 && idsOfType.every(id => selectedIds.has(id));
+            if (isBulkMode) {
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  onClick={() => selectByActionType(action)}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${actionStyle(action)} ${
+                    allSelected ? "ring-2 ring-blue-400 ring-offset-1 ring-offset-slate-900" : "opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  {allSelected ? "✓ " : ""}{action.replace(/_/g, " ")} · {count}
+                </button>
+              );
+            }
+            return (
+              <span key={action} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${actionStyle(action)}`}>
+                {action.replace(/_/g, " ")} · {count}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -605,14 +641,10 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
             className="text-xs text-slate-400 hover:text-white transition">
             Select all ({localRecs.length} on page)
           </button>
-          {selectedIds.size > 0 && (
-            <span className="text-slate-600">·</span>
-          )}
-          {selectedIds.size > 0 && (
-            <span className="text-xs text-slate-500">
-              Bulk: Acknowledge for HOLDs, Watch/Reject/Archive for any
-            </span>
-          )}
+          <span className="text-slate-600">·</span>
+          <span className="text-xs text-slate-500">
+            Tap a pill above to select by type
+          </span>
         </div>
       )}
 
