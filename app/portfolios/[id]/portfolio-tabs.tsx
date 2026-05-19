@@ -62,7 +62,7 @@ export default function PortfolioTabs({
     const params = new URLSearchParams();
     if (tabId !== "overview") params.set("tab", tabId);
     const query = params.toString();
-    router.push(`${pathname}${query ? `?${query}` : ""}`);
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
   }
 
   return (
