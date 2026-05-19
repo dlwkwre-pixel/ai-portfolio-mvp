@@ -137,7 +137,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     { data: recentRuns, error: recentRunsError },
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolioId).order("ticker", { ascending: true }),
-    supabase.from("portfolio_transactions").select("ticker, transaction_type, shares, price_per_share, traded_at, notes").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
+    supabase.from("portfolio_transactions").select("ticker, transaction_type, quantity, price_per_share, traded_at, notes").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
     supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolioId).order("effective_at", { ascending: false }).limit(10),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(5),
     supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: false }).limit(5),
