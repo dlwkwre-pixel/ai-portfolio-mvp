@@ -34,20 +34,20 @@ export default function LandingPage() {
         .btn-primary:hover{box-shadow:0 6px 24px rgba(37,99,235,0.5);transform:translateY(-1px)}
 
         /* Hero */
-        .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px 24px 60px;position:relative}
+        .hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:88px 24px 36px;position:relative}
         .hero-bg{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 90% 70% at 50% -10%,rgba(37,99,235,0.15) 0%,transparent 55%),radial-gradient(ellipse 50% 50% at 85% 30%,rgba(124,58,237,0.08) 0%,transparent 50%),radial-gradient(ellipse 40% 40% at 15% 70%,rgba(37,99,235,0.06) 0%,transparent 50%)}
         .hero-grid{position:absolute;inset:0;pointer-events:none;opacity:0.025;background-image:linear-gradient(rgba(255,255,255,0.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.6) 1px,transparent 1px);background-size:60px 60px}
 
         .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:99px;border:1px solid rgba(37,99,235,0.28);background:rgba(37,99,235,0.07);font-size:12px;color:#93c5fd;font-weight:500;margin-bottom:24px}
         .badge-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:pulse 2s ease infinite}
 
-        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(42px,7vw,82px);font-weight:800;letter-spacing:-2.5px;line-height:1.03;color:#f0f4ff;margin:0 0 20px;max-width:820px}
+        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(34px,5.5vw,66px);font-weight:800;letter-spacing:-2px;line-height:1.05;color:#f0f4ff;margin:0 0 14px;max-width:760px}
         .hero-h .accent{color:#93c5fd}
         .hero-sub{font-size:clamp(14px,1.8vw,17px);color:#64748b;line-height:1.72;max-width:540px;margin:0 auto 16px}
-        .hero-trust{font-size:12px;color:#334155;margin:0 auto 36px;letter-spacing:0.01em}
+        .hero-trust{font-size:12px;color:#334155;margin:0 auto 22px;letter-spacing:0.01em}
         .hero-trust strong{color:#475569;font-weight:500}
 
-        .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:56px}
+        .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
         .btn-hero{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;text-decoration:none;box-shadow:0 8px 28px rgba(37,99,235,0.38);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
         .btn-hero:hover{box-shadow:0 12px 40px rgba(37,99,235,0.55);transform:translateY(-2px)}
         .btn-hero:active{transform:scale(0.97)}
@@ -153,7 +153,7 @@ export default function LandingPage() {
           .nav-btns .btn-ghost{display:none}
           .btn-primary{padding:7px 14px;font-size:12px}
 
-          .hero{padding:80px 20px 40px;min-height:auto}
+          .hero{padding:76px 20px 32px}
           h1.hero-h{font-size:clamp(32px,9vw,52px);letter-spacing:-1.5px;margin-bottom:16px}
           .hero-sub{font-size:14px;margin-bottom:12px}
           .hero-trust{margin-bottom:28px}
@@ -242,8 +242,12 @@ export default function LandingPage() {
           </Link>
           <Link href="/login" className="btn-hero-ghost">Sign in to your account</Link>
         </div>
+      </section>
 
-        {/* App mockup */}
+      <MarketRibbon />
+
+      {/* App mockup */}
+      <div style={{padding:"48px 24px 60px",background:"#07090f"}}>
         <div className="mockup-wrap fu4">
           <div className="mockup-halo"/>
           <div className="mockup-window">
@@ -351,9 +355,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
-
-      <MarketRibbon />
+      </div>
 
       {/* How it works */}
       <div id="how-it-works">
