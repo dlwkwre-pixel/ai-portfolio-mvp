@@ -478,7 +478,7 @@ export async function getFinnhubMarketNews(category = "general"): Promise<Finnhu
   }
 }
 
-export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string } | null> {
+export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null } | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return null;
@@ -497,7 +497,44 @@ export async function getFinnhubProfile(symbol: string): Promise<{ name: string;
     const data = await response.json();
     if (!data || !data.name) return null;
 
-    return { name: data.name, logo: data.logo ?? "", weburl: data.weburl ?? "" };
+    return {
+      name: data.name,
+      logo: data.logo ?? "",
+      weburl: data.weburl ?? "",
+      marketCap: typeof data.marketCapitalization === "number" ? data.marketCapitalization : null,
+      industry: data.finnhubIndustry ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getFinnhubMetrics(symbol: string): Promise<{ peRatio: number | null; weekHigh52: number | null; weekLow52: number | null } | null> {
+  if (isCryptoTicker(symbol)) return null;
+
+  const apiKey = getApiKey();
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  if (!normalizedSymbol) return null;
+
+  const url = new URL("https://finnhub.io/api/v1/stock/metric");
+  url.searchParams.set("symbol", normalizedSymbol);
+  url.searchParams.set("metric", "all");
+  url.searchParams.set("token", apiKey);
+
+  try {
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      next: { revalidate: 3600 },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const m = data?.metric ?? {};
+    return {
+      peRatio: typeof m.peTTM === "number" ? m.peTTM : null,
+      weekHigh52: typeof m["52WeekHigh"] === "number" ? m["52WeekHigh"] : null,
+      weekLow52: typeof m["52WeekLow"] === "number" ? m["52WeekLow"] : null,
+    };
   } catch {
     return null;
   }

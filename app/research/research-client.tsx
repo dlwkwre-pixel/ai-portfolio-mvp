@@ -14,12 +14,13 @@ type Quote = { c: number; d: number; dp: number };
 type SearchResult = {
   ticker: string;
   quote: Quote;
-  profile: { name: string; logo: string; weburl: string } | null;
+  profile: { name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null } | null;
   recommendation: {
     buy: number; hold: number; sell: number;
     strongBuy: number; strongSell: number;
   } | null;
   priceTarget: { targetMean: number; targetHigh: number; targetLow: number } | null;
+  metrics: { peRatio: number | null; weekHigh52: number | null; weekLow52: number | null } | null;
   news: { headline: string; source: string; url: string; datetime: number }[];
 };
 
@@ -896,6 +897,49 @@ function DetailView({
             <StockChart key={result.ticker} ticker={result.ticker} height={180} defaultRange="1D" showRangeControls />
           </div>
 
+          {/* Key stats row */}
+          {(result.profile?.marketCap || result.profile?.industry || result.metrics?.peRatio || result.metrics?.weekHigh52) && (
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
+              gap: "1px", background: "var(--border-subtle)",
+              border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)",
+              overflow: "hidden", marginBottom: "18px",
+            }}>
+              {result.profile?.marketCap && (
+                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
+                  <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {result.profile.marketCap >= 1000
+                      ? `$${(result.profile.marketCap / 1000).toFixed(1)}T`
+                      : `$${result.profile.marketCap.toFixed(1)}B`}
+                  </div>
+                </div>
+              )}
+              {result.metrics?.peRatio && result.metrics.peRatio > 0 && (
+                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
+                  <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{result.metrics.peRatio.toFixed(1)}x</div>
+                </div>
+              )}
+              {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
+                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
+                  <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                    <span style={{ color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</span>
+                    <span style={{ color: "var(--text-muted)", margin: "0 3px" }}>–</span>
+                    <span style={{ color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</span>
+                  </div>
+                </div>
+              )}
+              {result.profile?.industry && (
+                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
+                  <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{result.profile.industry}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           {(result.recommendation || result.priceTarget) ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               {result.recommendation && (() => {
@@ -1348,6 +1392,90 @@ function DetailView({
   );
 }
 
+// ─── Portfolio News ───────────────────────────────────────────────────────────
+
+type PortfolioNewsItem = { ticker: string; headline: string; source: string; url: string; datetime: number };
+
+function PortfolioNewsSection({
+  items, loading, onTickerClick,
+}: {
+  items: PortfolioNewsItem[];
+  loading: boolean;
+  onTickerClick: (ticker: string) => void;
+}) {
+  if (!loading && items.length === 0) return null;
+  return (
+    <div style={{ marginBottom: "28px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+        <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-secondary)" }}>
+          Your Portfolio News
+        </span>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>from your holdings</span>
+      </div>
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--border-subtle)" }}>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} style={{ padding: "11px 14px", background: "var(--bg-elevated)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
+              <div className="bt-skeleton" style={{ width: "40px", height: "18px", borderRadius: "4px", flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "5px" }}>
+                <div className="bt-skeleton" style={{ width: "80%", height: "10px", borderRadius: "3px" }} />
+                <div className="bt-skeleton" style={{ width: "40%", height: "9px", borderRadius: "3px" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--border-subtle)" }}>
+          {items.map((item, i) => (
+            <div key={i} style={{
+              display: "flex", gap: "10px", alignItems: "flex-start",
+              padding: "11px 14px",
+              background: "var(--bg-elevated)",
+              borderBottom: i < items.length - 1 ? "1px solid var(--border-subtle)" : "none",
+            }}>
+              <button
+                onClick={() => onTickerClick(item.ticker)}
+                style={{
+                  padding: "2px 7px", fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                  background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+                  borderRadius: "4px", color: "var(--brand-blue)", cursor: "pointer",
+                  flexShrink: 0, letterSpacing: "0.03em",
+                  transition: "background 120ms ease",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--card-hover)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface)"; }}
+              >
+                {item.ticker}
+              </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <a
+                  href={item.url} target="_blank" rel="noopener noreferrer"
+                  style={{ textDecoration: "none" }}
+                >
+                  <div style={{
+                    fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4,
+                    overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box",
+                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    transition: "color 100ms ease",
+                  }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--brand-blue)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                  >
+                    {item.headline}
+                  </div>
+                </a>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>
+                  {item.source} · {timeAgo(item.datetime)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ResearchClient({ portfolios }: { portfolios: Portfolio[] }) {
@@ -1362,6 +1490,9 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
   const [trending, setTrending]               = useState<TrendingTicker[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [trendingHasData, setTrendingHasData] = useState(false);
+
+  const [portfolioNews, setPortfolioNews]         = useState<PortfolioNewsItem[]>([]);
+  const [portfolioNewsLoading, setPortfolioNewsLoading] = useState(true);
 
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
 
@@ -1387,6 +1518,11 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       .then((d) => { setTrending(d.trending ?? []); setTrendingHasData(d.has_data ?? false); })
       .catch(() => {})
       .finally(() => setTrendingLoading(false));
+    fetch("/api/research/portfolio-news")
+      .then((r) => r.json())
+      .then((d) => setPortfolioNews(d.items ?? []))
+      .catch(() => {})
+      .finally(() => setPortfolioNewsLoading(false));
   }, []);
 
   // Lock body scroll on mobile when detail panel is open
@@ -1577,6 +1713,15 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
             </div>
           )}
         </div>
+      )}
+
+      {/* Portfolio news */}
+      {(activeFilter === "all" || activeFilter === "popular") && (
+        <PortfolioNewsSection
+          items={portfolioNews}
+          loading={portfolioNewsLoading}
+          onTickerClick={(ticker) => { setQuery(ticker); doSearch(ticker); }}
+        />
       )}
 
       {/* Screener sections */}

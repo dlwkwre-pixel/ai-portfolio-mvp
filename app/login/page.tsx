@@ -77,18 +77,41 @@ export default function LoginPage() {
         </Link>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "99px", background: "rgba(0,211,149,0.07)", border: "1px solid rgba(0,211,149,0.18)", marginBottom: "20px" }}>
-            <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#00d395" }} />
-            <span style={{ fontSize: "11px", color: "#00d395", fontWeight: 500 }}>AI-powered portfolio analysis</span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "99px", background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.2)", marginBottom: "20px" }}>
+            <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#3b82f6", animation: "pulse 2s ease infinite" }} />
+            <span style={{ fontSize: "11px", color: "#93c5fd", fontWeight: 500 }}>Portfolio · Planning · Tax · Community</span>
           </div>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
-            Your portfolio,<br />
-            analyzed and tuned<br />
-            <span style={{ color: "#93c5fd" }}>by AI.</span>
+            Every tool your<br />
+            portfolio needs,<br />
+            <span style={{ color: "#93c5fd" }}>in one place.</span>
           </h2>
           <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.65 }}>
-            Specific buy, trim, hold, or sell calls for your actual holdings — backed by live prices, earnings, and market sentiment.
+            AI recommendations, financial planning, tax tracking, stock research, and a community of investors — all tied to your actual holdings.
           </p>
+
+          {/* Feature pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "7px", marginTop: "20px", marginBottom: "20px" }}>
+            {[
+              { label: "AI Recommendations", color: "#a78bfa", bg: "rgba(124,58,237,0.1)", border: "rgba(124,58,237,0.2)" },
+              { label: "Financial Planning", color: "#34d399", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.2)" },
+              { label: "Tax Center", color: "#fb7185", bg: "rgba(244,63,94,0.08)", border: "rgba(244,63,94,0.2)" },
+              { label: "Stock Research", color: "#38bdf8", bg: "rgba(56,189,248,0.08)", border: "rgba(56,189,248,0.2)" },
+              { label: "Community", color: "#818cf8", bg: "rgba(99,102,241,0.08)", border: "rgba(99,102,241,0.2)" },
+              { label: "Portfolio Health", color: "#00d395", bg: "rgba(0,211,149,0.07)", border: "rgba(0,211,149,0.18)" },
+            ].map(f => (
+              <div key={f.label} style={{
+                padding: "4px 10px",
+                borderRadius: "99px",
+                background: f.bg,
+                border: `1px solid ${f.border}`,
+                fontSize: "11px",
+                color: f.color,
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+              }}>{f.label}</div>
+            ))}
+          </div>
 
           {/* Mini portfolio preview */}
           <div className="lp-preview">

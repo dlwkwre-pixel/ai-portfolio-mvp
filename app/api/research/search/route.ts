@@ -5,6 +5,7 @@ import {
   getFinnhubRecommendations,
   getFinnhubPriceTarget,
   getFinnhubProfile,
+  getFinnhubMetrics,
 } from "@/lib/market-data/finnhub";
 import { validateTicker } from "@/lib/validation";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
@@ -25,12 +26,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [quote, news, recommendation, priceTarget, profile] = await Promise.all([
+    const [quote, news, recommendation, priceTarget, profile, metrics] = await Promise.all([
       getFinnhubQuote(ticker).catch(() => null),
       getFinnhubNews(ticker, 7).catch(() => []),
       getFinnhubRecommendations(ticker).catch(() => null),
       getFinnhubPriceTarget(ticker).catch(() => null),
       getFinnhubProfile(ticker).catch(() => null),
+      getFinnhubMetrics(ticker).catch(() => null),
     ]);
 
     if (!quote) {
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { ticker, quote, news, recommendation, priceTarget, profile },
+      { ticker, quote, news, recommendation, priceTarget, profile, metrics },
       { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" } }
     );
   } catch (error) {

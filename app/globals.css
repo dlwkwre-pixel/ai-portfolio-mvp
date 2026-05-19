@@ -472,8 +472,12 @@ body {
   /* Prevent horizontal scroll within page content */
   .bt-page-content { overflow-x: hidden; }
 
-  /* Dashboard stat values — prevent large mono text overflow in 2-col grid */
+  /* Stat value font size — prevent large mono text overflow in 2-col grid */
   .dashboard-stat-value { font-size: 14px !important; }
+
+  /* Portfolio stat grid: tighten padding and shrink value text */
+  .portfolio-stat-grid .label { font-size: 8px !important; }
+  .portfolio-stat-grid [style*="font-size: 16px"] { font-size: 13px !important; }
 
   /* Buttons */
   .bt-btn-sm {

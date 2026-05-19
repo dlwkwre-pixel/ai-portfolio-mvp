@@ -198,7 +198,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </span>
               </div>
               <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
-                <ExportReportButton portfolioId={portfolio.id} />
+                <div className="hidden sm:block">
+                  <ExportReportButton portfolioId={portfolio.id} />
+                </div>
                 <AuditPortfolioModal
                   portfolioId={portfolio.id}
                   currentHoldings={(holdings ?? []).map((h) => ({

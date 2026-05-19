@@ -215,7 +215,7 @@ export default function LandingPage() {
 
         <div className="badge fu0">
           <div className="badge-dot"/>
-          AI-powered investment recommendations
+          Portfolio, planning, tax, and community in one platform
         </div>
 
         <h1 className="hero-h fu1">
@@ -225,9 +225,8 @@ export default function LandingPage() {
         </h1>
 
         <p className="hero-sub fu2">
-          Connect your holdings, set a strategy, and get specific buy, trim, hold, or sell calls
-          backed by live prices, earnings data, and market sentiment — every recommendation
-          tied to your actual positions.
+          AI portfolio analysis, financial planning, tax tracking, stock research, and a community
+          of investors — all in one place. Every recommendation tied to your actual positions.
         </p>
 
         <p className="hero-trust fu2">
@@ -270,6 +269,8 @@ export default function LandingPage() {
                   {l:"Research",on:false},
                   {l:"Strategies",on:false},
                   {l:"Community",on:false},
+                  {l:"Planning",on:false},
+                  {l:"Tax Center",on:false},
                 ].map(item => (
                   <div key={item.l} className={`m-ni ${item.on ? "on" : ""}`}>
                     <div style={{width:"4px",height:"4px",borderRadius:"50%",background:item.on?"#93c5fd":"#1e293b",flexShrink:0}}/>
@@ -438,6 +439,24 @@ export default function LandingPage() {
                 desc:"A banner appears before any holding reports earnings so you can pull up the AI recommendation, check analyst expectations, and decide before the market moves.",
                 bg:"rgba(245,158,11,0.1)",
                 icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#f59e0b"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>,
+              },
+              {
+                title:"Community Strategies",
+                desc:"Browse public portfolios and strategies from real investors, follow the ones that match your style, copy a strategy as a template, and see what's performing on the leaderboard.",
+                bg:"rgba(99,102,241,0.1)",
+                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#818cf8"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>,
+              },
+              {
+                title:"Financial Planning",
+                desc:"Track your full financial picture: balance sheet, cash flow, and savings rate. Run deterministic net-worth projections and get FINN commentary on your financial health trajectory.",
+                bg:"rgba(16,185,129,0.08)",
+                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#34d399"><path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd"/></svg>,
+              },
+              {
+                title:"Tax Center",
+                desc:"See your realized and unrealized gains across every portfolio in one table. Identify harvesting candidates, calculate estimated tax liability, and export a summary for your accountant.",
+                bg:"rgba(244,63,94,0.07)",
+                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#fb7185"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v6a1 1 0 102 0V8z" clipRule="evenodd"/></svg>,
               },
             ].map(f => (
               <div key={f.title} className="feat">
