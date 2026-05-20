@@ -22,6 +22,10 @@ import { PortfolioPrivacyProvider } from "./portfolio-privacy-context";
 import PortfolioShareSection from "./portfolio-share-section";
 import AuditPortfolioModal from "./audit-portfolio-modal";
 import ExportReportButton from "./export-report-button";
+import EarningsCalendarSection from "./earnings-calendar-section";
+import RebalancingCalculator from "./rebalancing-calculator";
+import StressTestSection from "./stress-test-section";
+import RecommendationOutcomesSection from "./recommendation-outcomes-section";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -294,6 +298,18 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       />
                     </div>
                     <PortfolioPerformanceSection portfolioId={portfolio.id} cashBalance={Number(portfolio.cash_balance ?? 0)} />
+                    <RebalancingCalculator
+                      valuedHoldings={valuation.valued_holdings}
+                      totalValue={valuation.total_portfolio_value}
+                      cashBalance={Number(portfolio.cash_balance ?? 0)}
+                      strategyConstraints={activeAssignment?.strategy_versions ? {
+                        max_position_pct: activeAssignment.strategy_versions.max_position_pct ?? null,
+                        min_position_pct: activeAssignment.strategy_versions.min_position_pct ?? null,
+                        cash_min_pct: activeAssignment.strategy_versions.cash_min_pct ?? null,
+                        cash_max_pct: activeAssignment.strategy_versions.cash_max_pct ?? null,
+                      } : null}
+                      strategyName={activeAssignment?.strategies?.name ?? null}
+                    />
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -377,6 +393,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       </div>
                     </div>
 
+                    {/* Upcoming Earnings */}
+                    {tickers.length > 0 && (
+                      <EarningsCalendarSection tickers={tickers} />
+                    )}
+
                     {/* Community sharing */}
                     <PortfolioShareSection
                       portfolioId={portfolio.id}
@@ -410,6 +431,19 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                     )}
                   </div>
                   <AIRecommendationsSection portfolioId={portfolio.id} />
+                  <RecommendationOutcomesSection portfolioId={portfolio.id} />
+                  <StressTestSection
+                    holdings={valuation.valued_holdings
+                      .filter((h) => h.market_value !== null)
+                      .map((h) => ({
+                        ticker: h.ticker,
+                        company_name: h.company_name,
+                        market_value: h.market_value!,
+                        weight_pct: h.weight_pct ?? 0,
+                      }))}
+                    totalValue={valuation.total_portfolio_value}
+                    cashBalance={Number(portfolio.cash_balance ?? 0)}
+                  />
                 </div>
               )}
 
