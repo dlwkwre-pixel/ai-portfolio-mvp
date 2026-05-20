@@ -40,7 +40,6 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     );
   }
 
-  // Fetch current holdings for cost basis
   const { data: holdings } = await supabase
     .from("holdings")
     .select("ticker, average_cost_basis, shares")
@@ -50,7 +49,6 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     (holdings ?? []).map((h) => [h.ticker.toUpperCase(), h])
   );
 
-  // Get unique tickers and fetch quotes
   const uniqueTickers = [...new Set(executedItems.map((i) => i.ticker?.toUpperCase()).filter(Boolean))] as string[];
   const quoteResults = await Promise.allSettled(
     uniqueTickers.map((t) => getFinnhubQuote(t).then((q) => ({ ticker: t, quote: q })))
@@ -61,6 +59,13 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
       quoteMap.set(r.value.ticker, { c: r.value.quote.c, pc: r.value.quote.pc ?? 0 });
     }
   }
+
+  // Verdict rules:
+  // BUY/ADD: correct if current >= cost_basis (profitable vs what you paid). "Too early" if < 7 days old.
+  // SELL/TRIM: correct if current <= target_price (price fell to/below target). "Heading there" if between sell price and target.
+  //            Without a target, verdict = pending.
+  // HOLD: verdict = pending (no clear pass/fail criterion)
+  type Verdict = "correct" | "incorrect" | "pending" | "no-data";
 
   type OutcomeRow = {
     id: string;
@@ -75,8 +80,10 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     costBasis: number | null;
     plPct: number | null;
     daysAgo: number;
-    verdict: "win" | "loss" | "neutral" | "no-data";
+    verdict: Verdict;
     vsTarget: number | null;
+    tooEarly: boolean;
+    sellPriceDrop: number | null;
   };
 
   const rows: OutcomeRow[] = executedItems.map((item) => {
@@ -86,6 +93,8 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     const action = (item.action_type ?? "").toLowerCase();
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
+    const isHold = action === "hold" || action === "watch";
+    const daysAgo = daysSince(item.created_at);
 
     const currentPrice = quote?.c ?? null;
     const costBasis = holding ? Number(holding.average_cost_basis) : null;
@@ -97,18 +106,37 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     }
 
     let vsTarget: number | null = null;
-    if (currentPrice !== null && target !== null && target > 0) {
+    if (isBuy && currentPrice !== null && target !== null && target > 0) {
       vsTarget = ((target - currentPrice) / currentPrice) * 100;
     }
 
-    let verdict: OutcomeRow["verdict"] = "no-data";
-    if (isBuy && plPct !== null) {
-      verdict = plPct >= 0 ? "win" : "loss";
-    } else if (isSell && currentPrice !== null) {
-      // For sells, check if price went down (confirming the sell was right)
-      // Use target_price_1 as the "expected lower price" — if current < target, sell was premature
-      // If no target, just mark neutral
-      verdict = "neutral";
+    // For SELL: how much the price has dropped since recommendation (approx, using target as sell price proxy)
+    let sellPriceDrop: number | null = null;
+    if (isSell && currentPrice !== null && target !== null && target > 0) {
+      // positive = stock dropped below target (sell was correct), negative = stock still above target
+      sellPriceDrop = ((target - currentPrice) / target) * 100;
+    }
+
+    let verdict: Verdict = "no-data";
+    const tooEarly = daysAgo < 7;
+
+    if (isBuy) {
+      if (currentPrice === null || costBasis === null) {
+        verdict = "no-data";
+      } else if (tooEarly) {
+        verdict = "pending";
+      } else {
+        verdict = plPct !== null && plPct >= 0 ? "correct" : "incorrect";
+      }
+    } else if (isSell) {
+      if (target === null || currentPrice === null) {
+        verdict = "pending";
+      } else {
+        // Correct if stock is AT or BELOW the sell target
+        verdict = currentPrice <= target * 1.05 ? "correct" : "incorrect";
+      }
+    } else if (isHold) {
+      verdict = "pending";
     }
 
     return {
@@ -123,19 +151,31 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
       currentPrice,
       costBasis,
       plPct,
-      daysAgo: daysSince(item.created_at),
+      daysAgo,
       verdict,
       vsTarget,
+      tooEarly,
+      sellPriceDrop,
     };
   });
 
-  const wins = rows.filter((r) => r.verdict === "win").length;
-  const losses = rows.filter((r) => r.verdict === "loss").length;
-  const tracked = wins + losses;
-  const winRate = tracked > 0 ? Math.round((wins / tracked) * 100) : null;
+  const scored = rows.filter((r) => r.verdict === "correct" || r.verdict === "incorrect");
+  const correct = rows.filter((r) => r.verdict === "correct").length;
+  const accuracyRate = scored.length > 0 ? Math.round((correct / scored.length) * 100) : null;
 
-  const verdictColor = { win: "#00d395", loss: "#f87171", neutral: "#60a5fa", "no-data": "var(--text-muted)" };
-  const verdictLabel = { win: "Gain", loss: "Loss", neutral: "Neutral", "no-data": "No data" };
+  const verdictColor: Record<Verdict, string> = {
+    correct: "#00d395",
+    incorrect: "#f87171",
+    pending: "#60a5fa",
+    "no-data": "var(--text-muted)",
+  };
+
+  const verdictDotTitle: Record<Verdict, string> = {
+    correct: "Correct",
+    incorrect: "Off target",
+    pending: "Pending",
+    "no-data": "—",
+  };
 
   const actionBg: Record<string, string> = {
     buy: "rgba(0,211,149,0.08)", add: "rgba(0,211,149,0.08)",
@@ -151,7 +191,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
   return (
     <div style={{ background: "rgba(0,211,149,0.02)", border: "1px solid rgba(0,211,149,0.1)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <svg width="13" height="13" viewBox="0 0 20 20" fill="#00d395">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -159,9 +199,9 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
           <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>AI Recommendation Outcomes</h2>
         </div>
         <div style={{ display: "flex", gap: "6px" }}>
-          {winRate !== null && (
-            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: winRate >= 50 ? "rgba(0,211,149,0.1)" : "rgba(248,113,113,0.1)", border: `1px solid ${winRate >= 50 ? "rgba(0,211,149,0.25)" : "rgba(248,113,113,0.25)"}`, color: winRate >= 50 ? "#00d395" : "#f87171", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-              {winRate}% win rate
+          {accuracyRate !== null && (
+            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: accuracyRate >= 50 ? "rgba(0,211,149,0.1)" : "rgba(248,113,113,0.1)", border: `1px solid ${accuracyRate >= 50 ? "rgba(0,211,149,0.25)" : "rgba(248,113,113,0.25)"}`, color: accuracyRate >= 50 ? "#00d395" : "#f87171", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+              {accuracyRate}% accurate
             </span>
           )}
           <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
@@ -170,90 +210,105 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
         </div>
       </div>
 
+      {/* Legend */}
+      <div style={{ display: "flex", gap: "12px", marginBottom: "14px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00d395", display: "inline-block" }} /> BUY: profitable vs cost basis · SELL: price hit target
+        </span>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#60a5fa", display: "inline-block" }} /> Pending: &lt;7 days old or no target
+        </span>
+      </div>
+
       {/* Rows */}
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            style={{
-              padding: "10px 12px",
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-md)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: row.thesis ? "6px" : "0" }}>
-              {/* Action badge */}
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: actionColor[row.action_type] ?? "var(--text-secondary)", background: actionBg[row.action_type] ?? "var(--bg-elevated)", border: `1px solid ${actionColor[row.action_type] ?? "var(--border-subtle)"}30`, padding: "1px 6px", borderRadius: "var(--radius-sm)", flexShrink: 0 }}>
-                {row.action_type}
-              </span>
-
-              {/* Ticker */}
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>
-                {row.ticker}
-              </span>
-
-              {/* Company */}
-              {row.company_name && (
-                <span style={{ fontSize: "11px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                  {row.company_name}
+        {rows.map((row) => {
+          const isSell = row.action_type === "sell" || row.action_type === "trim";
+          return (
+            <div
+              key={row.id}
+              style={{
+                padding: "10px 12px",
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: row.thesis ? "6px" : "0" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: actionColor[row.action_type] ?? "var(--text-secondary)", background: actionBg[row.action_type] ?? "var(--bg-elevated)", border: `1px solid ${(actionColor[row.action_type] ?? "var(--border-subtle)") + "30"}`, padding: "1px 6px", borderRadius: "var(--radius-sm)", flexShrink: 0 }}>
+                  {row.action_type}
                 </span>
-              )}
-
-              {/* Spacer */}
-              {!row.company_name && <span style={{ flex: 1 }} />}
-
-              {/* P&L */}
-              {row.plPct !== null && (
-                <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 600, color: verdictColor[row.verdict], flexShrink: 0 }}>
-                  {formatPct(row.plPct)}
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {row.ticker}
                 </span>
-              )}
+                {row.company_name && (
+                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                    {row.company_name}
+                  </span>
+                )}
+                {!row.company_name && <span style={{ flex: 1 }} />}
 
-              {/* Verdict dot */}
-              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: verdictColor[row.verdict], flexShrink: 0 }} />
+                {/* Performance value */}
+                {row.plPct !== null && !isSell && (
+                  <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 600, color: verdictColor[row.verdict], flexShrink: 0 }}>
+                    {formatPct(row.plPct)}
+                  </span>
+                )}
+                {isSell && row.sellPriceDrop !== null && (
+                  <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: verdictColor[row.verdict], flexShrink: 0 }}>
+                    {row.verdict === "correct" ? "target reached" : "above target"}
+                  </span>
+                )}
+
+                {/* Verdict dot with tooltip-style title */}
+                <div
+                  title={verdictDotTitle[row.verdict]}
+                  style={{ width: "6px", height: "6px", borderRadius: "50%", background: verdictColor[row.verdict], flexShrink: 0 }}
+                />
+              </div>
+
+              {/* Price row */}
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                {row.currentPrice !== null && (
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+                    Now <strong style={{ color: "var(--text-secondary)" }}>${row.currentPrice.toFixed(2)}</strong>
+                  </span>
+                )}
+                {row.costBasis !== null && !isSell && (
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+                    Avg cost <strong style={{ color: "var(--text-secondary)" }}>${row.costBasis.toFixed(2)}</strong>
+                  </span>
+                )}
+                {row.target_price_1 !== null && (
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+                    {isSell ? "Sell target" : "AI target"}{" "}
+                    <strong style={{ color: "#a78bfa" }}>${row.target_price_1.toFixed(2)}</strong>
+                    {!isSell && row.vsTarget !== null && (
+                      <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>
+                        ({row.vsTarget > 0 ? "+" : ""}{row.vsTarget.toFixed(1)}% to target)
+                      </span>
+                    )}
+                  </span>
+                )}
+                <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
+                  {row.daysAgo === 0 ? "today" : `${row.daysAgo}d ago`}
+                  {row.tooEarly && row.verdict === "pending" && " · too early to score"}
+                  {row.conviction && ` · ${row.conviction}`}
+                </span>
+              </div>
+
+              {row.thesis && (
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {row.thesis}
+                </p>
+              )}
             </div>
-
-            {/* Price row */}
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: row.thesis ? "0" : "2px" }}>
-              {row.currentPrice !== null && (
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-                  Now <strong style={{ color: "var(--text-secondary)" }}>${row.currentPrice.toFixed(2)}</strong>
-                </span>
-              )}
-              {row.costBasis !== null && (
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-                  Avg cost <strong style={{ color: "var(--text-secondary)" }}>${row.costBasis.toFixed(2)}</strong>
-                </span>
-              )}
-              {row.target_price_1 !== null && (
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-                  Target <strong style={{ color: "#a78bfa" }}>${row.target_price_1.toFixed(2)}</strong>
-                  {row.vsTarget !== null && (
-                    <span style={{ color: row.vsTarget > 0 ? "#00d395" : "#f87171", marginLeft: "4px" }}>
-                      ({row.vsTarget > 0 ? "+" : ""}{row.vsTarget.toFixed(1)}% to go)
-                    </span>
-                  )}
-                </span>
-              )}
-              <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
-                {row.daysAgo === 0 ? "today" : `${row.daysAgo}d ago`}
-                {row.conviction && ` · ${row.conviction} conviction`}
-              </span>
-            </div>
-
-            {/* Thesis snippet */}
-            {row.thesis && (
-              <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                {row.thesis}
-              </p>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "10px" }}>
-        P&L vs average cost basis in holdings. BUY outcomes only. Win rate excludes HOLDs and SELLs.
+        Accuracy scored after 7+ days. BUYs: correct if profitable vs cost basis. SELLs: correct if price hit the AI sell target.
       </p>
     </div>
   );

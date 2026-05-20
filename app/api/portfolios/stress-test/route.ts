@@ -38,50 +38,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No holdings provided" }, { status: 400 });
   }
 
-  const holdingsSummary = holdings
-    .map((h) => `${h.ticker} (${h.company_name ?? "—"}): ${h.weight_pct.toFixed(1)}% = $${h.market_value.toLocaleString()}`)
-    .join("\n");
+  // Limit to top 8 by weight to keep prompt concise
+  const topHoldings = [...holdings]
+    .sort((a, b) => b.weight_pct - a.weight_pct)
+    .slice(0, 8);
+
+  const holdingsSummary = topHoldings
+    .map((h) => `${h.ticker}: ${h.weight_pct.toFixed(1)}%`)
+    .join(", ");
 
   const cashPct = ((cashBalance / totalValue) * 100).toFixed(1);
 
-  const prompt = `You are a portfolio risk analyst. A user wants to stress test their equity portfolio against 4 macro shock scenarios.
+  const prompt = `Portfolio risk analyst. Stress test this portfolio against 4 macro scenarios. Reply with JSON only, no markdown.
 
-Portfolio overview:
-Total value: $${totalValue.toLocaleString()}
-Cash: $${cashBalance.toLocaleString()} (${cashPct}%)
+Portfolio: $${totalValue.toLocaleString()} total, ${cashPct}% cash
+Top holdings: ${holdingsSummary}
 
-Holdings (ticker: weight% = $value):
-${holdingsSummary}
+JSON format (all 4 scenarios + overallRisk):
+{"scenarios":[{"id":"tech_crash","label":"Tech selloff","estimatedLoss":"-X%","estimatedDollars":"-$X","exposed":["TICK"],"hedges":["TICK"],"summary":"1-2 sentences"},{"id":"rate_spike","label":"Rate spike","estimatedLoss":"-X%","estimatedDollars":"-$X","exposed":[],"hedges":[],"summary":"1-2 sentences"},{"id":"recession","label":"Recession","estimatedLoss":"-X%","estimatedDollars":"-$X","exposed":[],"hedges":[],"summary":"1-2 sentences"},{"id":"inflation","label":"Stagflation","estimatedLoss":"-X%","estimatedDollars":"-$X","exposed":[],"hedges":[],"summary":"1-2 sentences"}],"overallRisk":"one sentence"}
 
-For each of the following 4 scenarios, provide a SHORT 2-3 sentence analysis:
-1. Tech selloff: Technology/growth stocks fall 25%
-2. Rate spike: 10-year yield +100bps, rate-sensitive names fall 15%
-3. Recession: Broad market -30%, defensives outperform
-4. Stagflation: Equities -20%, inflation spikes, commodities rise
-
-For each scenario:
-- Estimate the approximate portfolio impact in % and dollars (rough estimate is fine)
-- Name 1-2 specific holdings most exposed
-- Note any natural hedges or protective positions
-
-Format your response EXACTLY as JSON:
-{
-  "scenarios": [
-    {
-      "id": "tech_crash",
-      "label": "Tech selloff",
-      "estimatedLoss": "-12%",
-      "estimatedDollars": "-$4,200",
-      "exposed": ["AAPL", "NVDA"],
-      "hedges": ["XOM"],
-      "summary": "2-3 sentence analysis..."
-    },
-    ... (repeat for all 4 scenarios)
-  ],
-  "overallRisk": "one sentence on the portfolio's biggest macro vulnerability"
-}
-
-Only respond with the JSON object. No markdown, no code blocks.`;
+Scenarios: 1) Tech selloff: growth stocks -25% 2) Rate spike: yields +100bps, rate-sensitive -15% 3) Recession: market -30%, defensives outperform 4) Stagflation: equities -20%, inflation spike`;
 
   try {
     const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
@@ -89,14 +65,15 @@ Only respond with the JSON object. No markdown, no code blocks.`;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1200 },
+        generationConfig: { temperature: 0.2, maxOutputTokens: 600 },
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("[stress-test] Gemini error:", err);
-      return NextResponse.json({ error: "AI request failed" }, { status: 500 });
+      console.error("[stress-test] Gemini error", res.status, err.slice(0, 400));
+      const msg = res.status === 429 ? "Rate limited — try again in a moment" : "AI request failed";
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
 
     const data = await res.json();
