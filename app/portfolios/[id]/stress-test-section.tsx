@@ -135,7 +135,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
       </div>
 
       <p style={{ fontSize: "12px", color: "var(--text-tertiary)", marginBottom: result ? "16px" : "0", lineHeight: 1.5 }}>
-        Gemini estimates your portfolio&apos;s exposure to 4 macro shock scenarios: tech selloff, rate spike, recession, and stagflation.
+        Grok estimates your portfolio&apos;s exposure to 4 macro shock scenarios: tech selloff, rate spike, recession, and stagflation.
       </p>
 
       {error && (
