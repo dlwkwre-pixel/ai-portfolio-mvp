@@ -5,6 +5,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
+import MarketRegimeCard from "@/app/components/market-regime-card";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -256,6 +257,9 @@ export default async function DashboardPage({
           </div>
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            <div style={{ marginBottom: "16px" }}>
+              <MarketRegimeCard />
+            </div>
             <DashboardClient
               portfolioRows={portfolioRows}
               archivedRows={archivedPortfolios.map((p) => ({ id: p.id, name: p.name }))}

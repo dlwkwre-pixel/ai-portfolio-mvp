@@ -26,6 +26,7 @@ import EarningsCalendarSection from "./earnings-calendar-section";
 import RebalancingCalculator from "./rebalancing-calculator";
 import StressTestSection from "./stress-test-section";
 import RecommendationOutcomesSection from "./recommendation-outcomes-section";
+import MarketRegimeCard from "@/app/components/market-regime-card";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -417,6 +418,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               {/* AI ANALYSIS */}
               {activeTab === "ai" && (
                 <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <MarketRegimeCard compact />
                   <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "20px 24px" }}>
                     <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px", marginBottom: "6px" }}>
                       AI Portfolio Analysis

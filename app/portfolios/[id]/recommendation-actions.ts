@@ -7,6 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
 import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-data/reddit-pulse";
+import { getFredMacroSignals } from "@/lib/market-data/fred";
+import { computeRegime, regimePromptContext } from "@/lib/market-data/regime";
+import { getFinnhubMetrics } from "@/lib/market-data/finnhub";
 
 type AiRecommendation = {
   action_type: string | null;
@@ -580,9 +583,38 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
   if (runError || !run) throw new Error(runError?.message || "Failed to create AI recommendation run.");
 
+  // Fetch market regime in parallel with AI calls (soft-fail — regime is advisory only)
+  const regimeContextStr = await (async () => {
+    try {
+      const [macro, spyQuote, spyMetrics] = await Promise.all([
+        getFredMacroSignals(),
+        getFinnhubQuote("SPY"),
+        getFinnhubMetrics("SPY"),
+      ]);
+      const spyDailyMove = spyQuote?.dp !== undefined ? Math.abs(spyQuote.dp) : null;
+      const regime = computeRegime(macro, {
+        spyPrice: spyQuote?.c ?? null,
+        spy52wHigh: spyMetrics?.weekHigh52 ?? null,
+        spy52wLow: spyMetrics?.weekLow52 ?? null,
+        spyMomentum1m: null,
+        qqqVsSpyRatio: null,
+        techVsDefensiveRatio: null,
+        impliedVolProxy: spyDailyMove !== null ? Math.round(spyDailyMove * (252 ** 0.5) * 0.7) : null,
+      });
+      return regimePromptContext(regime);
+    } catch {
+      return null;
+    }
+  })();
+
+  const regimePrefixedNote = [
+    regimeContextStr,
+    contextNote || null,
+  ].filter(Boolean).join("\n\n") || undefined;
+
   try {
     const [grokResult, geminiResult] = await Promise.all([
-      callGrokForRecommendations(context, contextNote || undefined),
+      callGrokForRecommendations(context, regimePrefixedNote),
       callGeminiForHealthReport(context),
     ]);
 
