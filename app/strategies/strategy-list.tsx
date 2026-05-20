@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { StrategyCard } from "./types";
 import StrategyCardItem from "./strategy-card";
 import StrategyComparePanel from "./strategy-compare-panel";
@@ -15,6 +15,14 @@ export default function StrategyList({
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
+  const [regimeLevel, setRegimeLevel] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/market/regime")
+      .then((r) => r.json())
+      .then((d) => { if (d?.level) setRegimeLevel(d.level); })
+      .catch(() => {});
+  }, []);
 
   function toggleCard(id: string) {
     setCompareIds(prev => {
@@ -107,7 +115,7 @@ export default function StrategyList({
                 opacity: isDisabled ? 0.45 : 1,
                 transition: "outline 0.15s, opacity 0.15s",
               }}>
-                <StrategyCardItem card={card} isNew={i === 0 && newestIsNew} />
+                <StrategyCardItem card={card} isNew={i === 0 && newestIsNew} regimeLevel={regimeLevel} />
               </div>
 
               {/* Overlay select button — only visible in compare mode */}

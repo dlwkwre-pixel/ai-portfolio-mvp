@@ -10,6 +10,7 @@ import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-d
 import { getFredMacroSignals } from "@/lib/market-data/fred";
 import { computeRegime, regimePromptContext } from "@/lib/market-data/regime";
 import { getFinnhubMetrics } from "@/lib/market-data/finnhub";
+import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
 
 type AiRecommendation = {
   action_type: string | null;
@@ -586,21 +587,26 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   // Fetch market regime in parallel with AI calls (soft-fail — regime is advisory only)
   const regimeContextStr = await (async () => {
     try {
-      const [macro, spyQuote, spyMetrics] = await Promise.all([
+      const [macro, spyQuote, spyMetrics, xlkQuote, xluQuote, breadth] = await Promise.all([
         getFredMacroSignals(),
         getFinnhubQuote("SPY"),
         getFinnhubMetrics("SPY"),
+        getFinnhubQuote("XLK"),
+        getFinnhubQuote("XLU"),
+        getFmpMarketBreadth(),
       ]);
       const spyDailyMove = spyQuote?.dp !== undefined ? Math.abs(spyQuote.dp) : null;
+      const xlkDp = xlkQuote?.dp ?? null;
+      const xluDp = xluQuote?.dp ?? null;
       const regime = computeRegime(macro, {
         spyPrice: spyQuote?.c ?? null,
         spy52wHigh: spyMetrics?.weekHigh52 ?? null,
         spy52wLow: spyMetrics?.weekLow52 ?? null,
         spyMomentum1m: null,
         qqqVsSpyRatio: null,
-        techVsDefensiveRatio: null,
+        techVsDefensiveRatio: xlkDp !== null && xluDp !== null ? xlkDp - xluDp : null,
         impliedVolProxy: spyDailyMove !== null ? Math.round(spyDailyMove * (252 ** 0.5) * 0.7) : null,
-        marketBreadthRatio: null,
+        marketBreadthRatio: breadth?.ratio ?? null,
       });
       return regimePromptContext(regime);
     } catch {

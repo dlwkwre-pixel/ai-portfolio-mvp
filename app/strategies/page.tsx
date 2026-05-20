@@ -9,6 +9,8 @@ import type { StrategyRow, StrategyVersion, StrategyCard } from "./types";
 import { getFinnProfile } from "./finn-profile-actions";
 import FinnProfileCard from "./finn-profile-card";
 import { deriveMemoryInsights } from "./finn-profile-utils";
+import RegimeCompactBanner from "@/app/components/regime-compact-banner";
+import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 
 export default async function StrategiesPage() {
   const supabase = await createClient();
@@ -92,6 +94,10 @@ export default async function StrategiesPage() {
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
             <StrategiesHub />
+
+            {/* Market regime context — regime shift alert + compact banner */}
+            <RegimeShiftAlert />
+            <RegimeCompactBanner />
 
             {/* FINN Investor Profile */}
             {finnProfile && (

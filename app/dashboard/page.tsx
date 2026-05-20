@@ -6,6 +6,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
 import MarketRegimeCard from "@/app/components/market-regime-card";
+import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -257,7 +258,8 @@ export default async function DashboardPage({
           </div>
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-            <div style={{ marginBottom: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+              <RegimeShiftAlert />
               <MarketRegimeCard />
             </div>
             <DashboardClient

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
+import { getFredMacroSignals } from "@/lib/market-data/fred";
+import { getFinnhubQuote, getFinnhubMetrics } from "@/lib/market-data/finnhub";
+import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
+import { computeRegime, regimePromptContext } from "@/lib/market-data/regime";
 
 // ── Phase 1: Conversation ─────────────────────────────────────────────────────
 // Warm, focused interview. Ends with READY_TO_GENERATE signal (no JSON).
@@ -88,6 +92,46 @@ WEAK (never produce this):
 
 STRONG (produce this quality):
 "Prioritize businesses with durable competitive moats: target companies with FCF yield above 4%, ROIC above 15% sustained over three or more years, and net debt below 2x EBITDA. Favor category leaders in secular growth markets — cloud infrastructure, healthcare technology, consumer staples with pricing power — where demand is structurally driven rather than cyclical. Avoid capital-intensive industrials, highly leveraged balance sheets (debt/equity above 1.5x), and companies with sustained insider selling over 12+ months. Position sizing: initiate at 4–6% with moderate conviction; add to 8–12% only after two or more quarters of confirmed thesis strength; never exceed 15% in a single name. Trim automatically if a position grows beyond 18% through appreciation. Sell triggers: revenue growth falls below 8% for two consecutive quarters without a clear recovery catalyst; management credibility is damaged by a guidance miss of more than 20%; a direct competitor achieves a durable cost or technology advantage. Since this is a Roth IRA, prioritize high-growth compounders that generate large unrealized gains — the tax-free structure rewards patience over years, not quarters. Maintain 5–12% cash at all times to act on meaningful price dislocations."`;
+
+// ── Regime context (injected into chat system prompt) ────────────────────────
+
+let _regimeCache: { text: string; fetchedAt: number } | null = null;
+const REGIME_CACHE_MS = 4 * 60 * 60 * 1000; // 4-hour server-side cache
+
+async function getRegimeSystemPrefix(): Promise<string> {
+  const now = Date.now();
+  if (_regimeCache && now - _regimeCache.fetchedAt < REGIME_CACHE_MS) {
+    return _regimeCache.text;
+  }
+  try {
+    const [macro, spyQuote, spyMetrics, xlkQuote, xluQuote, breadth] = await Promise.all([
+      getFredMacroSignals(),
+      getFinnhubQuote("SPY"),
+      getFinnhubMetrics("SPY"),
+      getFinnhubQuote("XLK"),
+      getFinnhubQuote("XLU"),
+      getFmpMarketBreadth(),
+    ]);
+    const spyDailyMove = spyQuote?.dp !== undefined ? Math.abs(spyQuote.dp) : null;
+    const xlkDp = xlkQuote?.dp ?? null;
+    const xluDp = xluQuote?.dp ?? null;
+    const regime = computeRegime(macro, {
+      spyPrice: spyQuote?.c ?? null,
+      spy52wHigh: spyMetrics?.weekHigh52 ?? null,
+      spy52wLow: spyMetrics?.weekLow52 ?? null,
+      spyMomentum1m: null,
+      qqqVsSpyRatio: null,
+      techVsDefensiveRatio: xlkDp !== null && xluDp !== null ? xlkDp - xluDp : null,
+      impliedVolProxy: spyDailyMove !== null ? Math.round(spyDailyMove * (252 ** 0.5) * 0.7) : null,
+      marketBreadthRatio: breadth?.ratio ?? null,
+    });
+    const text = `[Current market context: ${regimePromptContext(regime)}]\n\n`;
+    _regimeCache = { text, fetchedAt: now };
+    return text;
+  } catch {
+    return "";
+  }
+}
 
 // ── Per-user rate limiting ────────────────────────────────────────────────────
 
@@ -215,12 +259,19 @@ export async function POST(req: NextRequest) {
       }, { status: 503 });
     }
 
+    // Build system prompt — inject live market regime into chat phase only
+    let systemPrompt = isGeneration ? GENERATION_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT;
+    if (!isGeneration) {
+      const regimePrefix = await getRegimeSystemPrefix();
+      if (regimePrefix) systemPrompt = regimePrefix + CHAT_SYSTEM_PROMPT;
+    }
+
     for (const config of providers) {
       try {
         const completion = await config.client.chat.completions.create({
           model: config.model,
           messages: [
-            { role: "system", content: isGeneration ? GENERATION_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             ...history,
             // For generation phase: explicit final instruction to output only JSON
             ...(isGeneration ? [{

@@ -58,6 +58,37 @@ function deriveHealthLabel(v: StrategyCard["latest_version"], risk: string | nul
   return null;
 }
 
+function regimeFitBadge(
+  style: string | null,
+  riskLevel: string | null,
+  regimeLevel: string | null,
+): { label: string; color: string; bg: string; border: string } | null {
+  if (!regimeLevel) return null;
+  const risk = riskLevel?.toLowerCase() ?? "moderate";
+  const s = (style ?? "").toLowerCase();
+
+  if (regimeLevel === "risk-off" || regimeLevel === "defensive") {
+    if (risk === "aggressive" || s.includes("speculative") || s.includes("momentum")) {
+      return { label: "Regime caution", color: "var(--red)", bg: "var(--red-bg)", border: "var(--red-border)" };
+    }
+    if (s.includes("defensive") || s.includes("dividend") || s.includes("income") || risk === "conservative") {
+      return { label: "Regime suited", color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
+    }
+    return { label: "Regime neutral", color: "var(--amber)", bg: "var(--amber-bg)", border: "var(--amber-border)" };
+  }
+
+  if (regimeLevel === "risk-on") {
+    if (risk === "aggressive" || s.includes("growth") || s.includes("momentum")) {
+      return { label: "Regime suited", color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
+    }
+    if (s.includes("defensive") && risk === "conservative") {
+      return { label: "Regime neutral", color: "var(--amber)", bg: "var(--amber-bg)", border: "var(--amber-border)" };
+    }
+  }
+
+  return null;
+}
+
 function formatRelativeDate(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86_400_000);
@@ -707,15 +738,18 @@ export default function StrategyCardItem({
   card,
   isNew,
   isArchived = false,
+  regimeLevel = null,
 }: {
   card: StrategyCard;
   isNew?: boolean;
   isArchived?: boolean;
+  regimeLevel?: string | null;
 }) {
   const router = useRouter();
   const rs = riskStyle(card.risk_level);
   const chips = deriveChips(card.latest_version);
   const health = deriveHealthLabel(card.latest_version, card.risk_level);
+  const regimeFit = regimeFitBadge(card.style, card.risk_level, regimeLevel);
   const [mode, setMode] = useState<CardMode>("collapsed");
   const [isEditPending, startEdit] = useTransition();
   const [isDupPending, startDup] = useTransition();
@@ -809,6 +843,11 @@ export default function StrategyCardItem({
                   {health && (
                     <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: health.bg, border: `1px solid ${health.border}`, color: health.color }}>
                       {health.label}
+                    </span>
+                  )}
+                  {regimeFit && (
+                    <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: regimeFit.bg, border: `1px solid ${regimeFit.border}`, color: regimeFit.color }}>
+                      {regimeFit.label}
                     </span>
                   )}
                 </>
