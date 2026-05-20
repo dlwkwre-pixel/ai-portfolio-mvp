@@ -30,6 +30,10 @@ const DIMENSION_LABELS: Record<string, string> = {
   liquidity: "Liquidity", inflation: "Inflation",
 };
 
+const DIM_WEIGHTS: Record<string, number> = {
+  macro: 0.30, growth: 0.25, volatility: 0.20, liquidity: 0.15, inflation: 0.10,
+};
+
 type DimComponent = { label: string; weight: number; signalKey?: string };
 
 const DIM_INFO: Record<string, { desc: string; components: DimComponent[] }> = {
@@ -283,6 +287,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
   const [activeDim, setActiveDim] = useState<string | null>(null);
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
+  const [showGaugeDetail, setShowGaugeDetail] = useState(false);
 
   useEffect(() => {
     fetch("/api/market/regime")
@@ -351,8 +356,18 @@ export default function MarketRegimeCard({ compact = false }: Props) {
           </div>
         </div>
 
-        {/* Score gauge */}
-        <div style={{ position: "relative", width: "48px", height: "48px" }}>
+        {/* Score gauge — click to see breakdown */}
+        <button
+          type="button"
+          onClick={() => setShowGaugeDetail((v) => !v)}
+          title="Click to see score breakdown"
+          style={{
+            position: "relative", width: "48px", height: "48px",
+            background: "none", border: "none", cursor: "pointer", padding: 0,
+            outline: showGaugeDetail ? `1px solid ${cfg.color}44` : "none",
+            borderRadius: "50%",
+          }}
+        >
           <svg width="48" height="48" viewBox="0 0 48 48" style={{ transform: "rotate(-90deg)" }}>
             <circle cx="24" cy="24" r="18" fill="none" stroke="var(--bg-elevated)" strokeWidth="4" />
             <circle
@@ -368,8 +383,46 @@ export default function MarketRegimeCard({ compact = false }: Props) {
           }}>
             {regime.score}
           </span>
-        </div>
+        </button>
       </div>
+
+      {/* Score breakdown panel */}
+      {showGaugeDetail && (
+        <div style={{
+          marginBottom: "14px", padding: "12px 14px",
+          background: "var(--bg-elevated)", borderRadius: "var(--radius-md)",
+          border: "1px solid var(--border-subtle)",
+        }}>
+          <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            How the score is calculated
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {Object.entries(regime.dimensions).map(([key, score]) => {
+              const weight = DIM_WEIGHTS[key] ?? 0;
+              const contribution = Math.round(score * weight * 10) / 10;
+              const barColor = score >= 65 ? "#00d395" : score >= 45 ? "#f59e0b" : "#f87171";
+              return (
+                <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px" }}>
+                  <span style={{ width: "54px", color: "var(--text-muted)", flexShrink: 0 }}>{DIMENSION_LABELS[key]}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)", width: "18px", textAlign: "right", flexShrink: 0 }}>{score}</span>
+                  <span style={{ color: "var(--border-subtle)", flexShrink: 0 }}>×</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)", width: "26px", flexShrink: 0 }}>{Math.round(weight * 100)}%</span>
+                  <span style={{ color: "var(--border-subtle)", flexShrink: 0 }}>=</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: barColor, width: "30px", flexShrink: 0, fontWeight: 600 }}>{contribution}</span>
+                  <div style={{ flex: 1, height: "2px", background: "var(--bg-base)", borderRadius: "1px", overflow: "hidden" }}>
+                    <div style={{ width: `${score}%`, height: "100%", background: barColor, borderRadius: "1px", transition: "width 0.5s ease" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: cfg.color, fontWeight: 700 }}>
+              = {regime.score} / 100
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Narrative */}
       <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "14px" }}>
