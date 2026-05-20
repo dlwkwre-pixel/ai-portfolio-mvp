@@ -288,6 +288,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
   const [activeSignal, setActiveSignal] = useState<string | null>(null);
   const [hoveredBar, setHoveredBar] = useState<string | null>(null);
   const [showGaugeDetail, setShowGaugeDetail] = useState(false);
+  const [cardHovered, setCardHovered] = useState(false);
 
   useEffect(() => {
     fetch("/api/market/regime")
@@ -334,8 +335,28 @@ export default function MarketRegimeCard({ compact = false }: Props) {
     );
   }
 
+  // Extract raw color for glow — cfg.color is hex like "#00d395"
+  const glowRgb = cfg.color
+    .replace("#", "")
+    .match(/.{2}/g)
+    ?.map((h) => parseInt(h, 16))
+    .join(",") ?? "0,211,149";
+
   return (
-    <div style={{ background: cfg.bgColor, border: `1px solid ${cfg.borderColor}`, borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
+    <div
+      onMouseEnter={() => setCardHovered(true)}
+      onMouseLeave={() => setCardHovered(false)}
+      style={{
+        background: cfg.bgColor,
+        border: `1px solid ${cardHovered ? cfg.color + "55" : cfg.borderColor}`,
+        borderRadius: "var(--radius-lg)",
+        padding: "16px 20px",
+        boxShadow: cardHovered
+          ? `0 0 0 1px ${cfg.color}22, 0 4px 32px rgba(${glowRgb}, 0.12), 0 0 60px rgba(${glowRgb}, 0.06)`
+          : "none",
+        transition: "border-color 0.25s ease, box-shadow 0.35s ease",
+      }}
+    >
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
