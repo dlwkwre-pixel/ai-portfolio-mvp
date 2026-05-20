@@ -1,20 +1,26 @@
 import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubMetrics } from "@/lib/market-data/finnhub";
 import { getFredMacroSignals } from "@/lib/market-data/fred";
+import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
 import { computeRegime } from "@/lib/market-data/regime";
 import type { MarketSignals } from "@/lib/market-data/regime";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const revalidate = 14400; // 4-hour server-side cache
 
 export async function GET() {
   try {
     // Fetch macro + market data in parallel
-    const [macroSignals, spyQuote, spyMetrics, qqqQuote] = await Promise.allSettled([
-      getFredMacroSignals(),
-      getFinnhubQuote("SPY"),
-      getFinnhubMetrics("SPY"),
-      getFinnhubQuote("QQQ"),
-    ]);
+    const [macroSignals, spyQuote, spyMetrics, qqqQuote, xlkQuote, xluQuote, breadth] =
+      await Promise.allSettled([
+        getFredMacroSignals(),
+        getFinnhubQuote("SPY"),
+        getFinnhubMetrics("SPY"),
+        getFinnhubQuote("QQQ"),
+        getFinnhubQuote("XLK"),
+        getFinnhubQuote("XLU"),
+        getFmpMarketBreadth(),
+      ]);
 
     const macro = macroSignals.status === "fulfilled"
       ? macroSignals.value
@@ -27,31 +33,60 @@ export async function GET() {
     const spy = spyQuote.status === "fulfilled" ? spyQuote.value : null;
     const spyMeta = spyMetrics.status === "fulfilled" ? spyMetrics.value : null;
     const qqq = qqqQuote.status === "fulfilled" ? qqqQuote.value : null;
+    const xlk = xlkQuote.status === "fulfilled" ? xlkQuote.value : null;
+    const xlu = xluQuote.status === "fulfilled" ? xluQuote.value : null;
+    const breadthData = breadth.status === "fulfilled" ? breadth.value : null;
 
-    // Compute realized volatility proxy from SPY day change %
-    // Rough proxy: if dp (daily % change) is large in magnitude, treat as elevated vol signal
-    // For a proper vol estimate we'd need candles — using |dp| * scaling as a simple proxy
+    // Implied vol proxy from SPY daily % move
     const spyDailyMove = spy?.dp !== undefined ? Math.abs(spy.dp) : null;
-    // Map daily move to annualized vol proxy: typical daily move ~0.7% → ~11% annualized
-    // 0.7% daily → ~11 vol, 1.5% daily → ~24 vol, 2.5% daily → ~40 vol
     const impliedVolProxy = spyDailyMove !== null
       ? Math.round(spyDailyMove * 252 ** 0.5 * 0.7)
       : null;
 
-    // QQQ vs SPY ratio (tech leadership indicator)
+    // QQQ vs SPY ratio (tech leadership indicator — kept for compatibility)
     const qqqVsSpyRatio = (spy?.c && qqq?.c) ? qqq.c / spy.c : null;
+
+    // Tech vs defensive: XLK daily % minus XLU daily % (positive = tech outperforming)
+    const techVsDefensiveRatio =
+      xlk?.dp !== undefined && xlu?.dp !== undefined
+        ? xlk.dp - xlu.dp
+        : null;
 
     const market: MarketSignals = {
       spyPrice: spy?.c ?? null,
       spy52wHigh: spyMeta?.weekHigh52 ?? null,
       spy52wLow: spyMeta?.weekLow52 ?? null,
-      spyMomentum1m: null, // would need candle history — skipped for Phase 1
+      spyMomentum1m: null,
       qqqVsSpyRatio,
-      techVsDefensiveRatio: null, // would need XLK/XLU — skipped for Phase 1
+      techVsDefensiveRatio,
       impliedVolProxy,
+      marketBreadthRatio: breadthData?.ratio ?? null,
     };
 
     const regime = computeRegime(macro, market);
+
+    // Persist snapshot for trend history (fire-and-forget — non-critical)
+    void (async () => {
+      try {
+        const admin = createAdminClient();
+        const today = new Date().toISOString().slice(0, 10);
+        await admin.from("market_regime_snapshots").upsert(
+          {
+            date: today,
+            level: regime.level,
+            score: regime.score,
+            label: regime.label,
+            dimensions: regime.dimensions,
+            narrative: regime.narrative,
+            data_quality: regime.dataQuality,
+            calculated_at: regime.calculatedAt,
+          },
+          { onConflict: "date" }
+        );
+      } catch {
+        // Non-critical — table may not exist yet, do not fail the response
+      }
+    })();
 
     return NextResponse.json(regime);
   } catch (err) {

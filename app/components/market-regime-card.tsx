@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react";
 import type { RegimeSnapshot, RegimeLevel } from "@/lib/market-data/regime";
 
+type HistoryPoint = {
+  date: string;
+  level: RegimeLevel;
+  score: number;
+  label: string;
+};
+
 const LEVEL_CONFIG: Record<RegimeLevel, {
   color: string;
   bgColor: string;
@@ -82,6 +89,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
   const [regime, setRegime] = useState<RegimeSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSignals, setShowSignals] = useState(false);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
 
   useEffect(() => {
     fetch("/api/market/regime")
@@ -91,6 +99,14 @@ export default function MarketRegimeCard({ compact = false }: Props) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Fetch trend history independently — non-blocking
+    fetch("/api/market/regime/history")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setHistory(data as HistoryPoint[]);
+      })
+      .catch(() => {});
   }, []);
 
   if (loading) {
@@ -229,11 +245,13 @@ export default function MarketRegimeCard({ compact = false }: Props) {
               inflation: "Inflation",
               employment: "Employment",
               creditConditions: "Credit",
+              marketBreadth: "Breadth",
+              sectorLeadership: "Sector rotation",
             };
             return (
               <div key={key} style={{ display: "flex", gap: "8px", fontSize: "11px" }}>
-                <span style={{ color: "var(--text-muted)", minWidth: "80px", flexShrink: 0 }}>{labelMap[key] ?? key}</span>
-                <span style={{ color: "var(--text-secondary)" }}>{value}</span>
+                <span style={{ color: "var(--text-muted)", minWidth: "96px", flexShrink: 0 }}>{labelMap[key] ?? key}</span>
+                <span style={{ color: "var(--text-secondary)" }}>{String(value)}</span>
               </div>
             );
           })}
@@ -241,9 +259,40 @@ export default function MarketRegimeCard({ compact = false }: Props) {
             {regime.dataQuality === "market-only"
               ? "FRED API key not configured — macro signals unavailable. Add FRED_API_KEY to enable full regime."
               : regime.dataQuality === "partial"
-              ? "Some signals unavailable — regime calculated from partial data."
+              ? "FRED macro active. Breadth or sector data unavailable — regime calculated from partial signals."
               : `Updated ${new Date(regime.calculatedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} · Refreshes every 4h`}
           </p>
+        </div>
+      )}
+
+      {/* 30-day regime trend timeline */}
+      {history.length > 1 && (
+        <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            30-day trend
+          </p>
+          <div style={{ display: "flex", gap: "3px", alignItems: "flex-end" }}>
+            {history.map((h) => {
+              const dotCfg = LEVEL_CONFIG[h.level as RegimeLevel];
+              const dateLabel = new Date(h.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+              return (
+                <div
+                  key={h.date}
+                  title={`${dateLabel}: ${h.label} (${h.score})`}
+                  style={{
+                    flex: 1,
+                    height: `${Math.round(4 + (h.score / 100) * 12)}px`,
+                    borderRadius: "2px",
+                    background: dotCfg?.color ?? "#64748b",
+                    opacity: 0.75,
+                    cursor: "default",
+                    minWidth: "4px",
+                    maxWidth: "14px",
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -600,6 +600,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
         qqqVsSpyRatio: null,
         techVsDefensiveRatio: null,
         impliedVolProxy: spyDailyMove !== null ? Math.round(spyDailyMove * (252 ** 0.5) * 0.7) : null,
+        marketBreadthRatio: null,
       });
       return regimePromptContext(regime);
     } catch {

@@ -33,10 +33,12 @@ export type MarketSignals = {
   spyMomentum1m: number | null;    // 1-month % return proxy
   // QQQ relative strength vs SPY
   qqqVsSpyRatio: number | null;
-  // Sector ETF relative performance (XLK vs XLU = growth vs defensive)
+  // Sector ETF: XLK daily % change minus XLU daily % change (positive = tech leading)
   techVsDefensiveRatio: number | null;
   // Implied volatility proxy (SPY 30-day realized vol)
   impliedVolProxy: number | null;
+  // NYSE+NASDAQ breadth: advancing / (advancing + declining), 0–1
+  marketBreadthRatio: number | null;
 };
 
 export type RegimeSnapshot = {
@@ -52,6 +54,8 @@ export type RegimeSnapshot = {
     inflation: string;
     employment: string;
     creditConditions: string;
+    marketBreadth: string;         // "64% advancing — healthy" or "Unavailable"
+    sectorLeadership: string;      // "Tech +0.8% vs Defensives — leading" or "Unavailable"
   };
   dataQuality: "full" | "partial" | "market-only";  // what data was available
   calculatedAt: string;
@@ -176,6 +180,33 @@ function scoreVolatility(impliedVol: number | null): number {
   return 10;
 }
 
+function scoreBreadth(ratio: number | null): number {
+  if (ratio === null) return 50; // neutral fallback
+  // advancing / (advancing + declining): 0-1
+  // > 0.65 = strong breadth: 80-90
+  // 0.55-0.65 = healthy: 65-78
+  // 0.45-0.55 = neutral: 45-62
+  // 0.35-0.45 = weak: 25-42
+  // < 0.35 = very weak: 5-22
+  if (ratio >= 0.65) return clamp(75 + (ratio - 0.65) * 150, 80, 92);
+  if (ratio >= 0.55) return clamp(55 + (ratio - 0.55) * 200, 65, 78);
+  if (ratio >= 0.45) return clamp(45 + (ratio - 0.45) * 200, 45, 62);
+  if (ratio >= 0.35) return clamp(20 + (ratio - 0.35) * 250, 25, 42);
+  return clamp(ratio * 60, 5, 22);
+}
+
+function scoreTechLeadership(dpDiff: number | null): number {
+  // dpDiff = XLK daily % change minus XLU daily % change
+  // Positive = tech outperforming defensives = risk-on signal
+  if (dpDiff === null) return 50; // neutral fallback
+  if (dpDiff >= 1.5) return 85;
+  if (dpDiff >= 0.5) return 70;
+  if (dpDiff >= 0.0) return 55;
+  if (dpDiff >= -0.5) return 45;
+  if (dpDiff >= -1.5) return 32;
+  return 18;
+}
+
 // ─── Compute dimension scores ─────────────────────────────────────────────────
 
 function computeDimensions(macro: MacroSignals, market: MarketSignals): DimensionScores {
@@ -186,12 +217,15 @@ function computeDimensions(macro: MacroSignals, market: MarketSignals): Dimensio
   const emplScore = scoreEmployment(macro.unemployment, macro.unemploymentPrev);
   const trendScore = scoreSpyTrend(market.spyPrice, market.spy52wHigh, market.spy52wLow);
   const volScore = scoreVolatility(market.impliedVolProxy);
+  const breadthScore = scoreBreadth(market.marketBreadthRatio);
+  const techLeadScore = scoreTechLeadership(market.techVsDefensiveRatio);
 
   // Macro: yield curve (40%), fed policy (35%), credit (25%)
   const macroScore = yieldScore * 0.4 + fedScore * 0.35 + creditScore * 0.25;
 
-  // Growth: SPY trend (60%), momentum (40%) — simplified without momentum data
-  const growthScore = trendScore;
+  // Growth: SPY 52w position (40%), breadth (35%), tech vs defensive leadership (25%)
+  // Null signals fall back to 50 (neutral) via their respective scoring functions
+  const growthScore = trendScore * 0.40 + breadthScore * 0.35 + techLeadScore * 0.25;
 
   // Volatility: vol proxy (100%)
   const volatilityScore = volScore;
@@ -332,6 +366,26 @@ function creditLabel(spread: number | null): string {
   return `HY OAS ${Math.round(spread)}bps — stress`;
 }
 
+function breadthLabel(ratio: number | null): string {
+  if (ratio === null) return "Unavailable";
+  const pct = Math.round(ratio * 100);
+  if (pct >= 65) return `${pct}% advancing — strong breadth`;
+  if (pct >= 55) return `${pct}% advancing — healthy`;
+  if (pct >= 45) return `${pct}% advancing — neutral`;
+  if (pct >= 35) return `${pct}% advancing — weak breadth`;
+  return `${pct}% advancing — narrow / deteriorating`;
+}
+
+function sectorLeadershipLabel(dpDiff: number | null): string {
+  if (dpDiff === null) return "Unavailable";
+  const sign = dpDiff >= 0 ? "+" : "";
+  if (dpDiff >= 1.0) return `XLK ${sign}${dpDiff.toFixed(1)}% vs XLU — tech strongly leading`;
+  if (dpDiff >= 0.3) return `XLK ${sign}${dpDiff.toFixed(1)}% vs XLU — tech leading`;
+  if (dpDiff >= -0.3) return `XLK/XLU spread ${sign}${dpDiff.toFixed(1)}% — neutral rotation`;
+  if (dpDiff >= -1.0) return `XLK ${sign}${dpDiff.toFixed(1)}% vs XLU — defensives leading`;
+  return `XLK ${sign}${dpDiff.toFixed(1)}% vs XLU — defensives strongly leading`;
+}
+
 // ─── Narrative generator ──────────────────────────────────────────────────────
 
 function buildNarrative(level: RegimeLevel, dims: DimensionScores): string {
@@ -366,8 +420,10 @@ function assessDataQuality(macro: MacroSignals, market: MarketSignals): RegimeSn
     macro.yieldCurveSpread !== null &&
     macro.fedFundsRate !== null;
   const marketAvailable = market.spyPrice !== null;
+  const extendedAvailable = market.marketBreadthRatio !== null || market.techVsDefensiveRatio !== null;
 
-  if (macroAvailable && marketAvailable) return "full";
+  if (macroAvailable && marketAvailable && extendedAvailable) return "full";
+  if (macroAvailable && marketAvailable) return "partial"; // FRED ok but no breadth/sector
   if (marketAvailable) return "market-only";
   return "partial";
 }
@@ -396,6 +452,8 @@ export function computeRegime(macro: MacroSignals, market: MarketSignals): Regim
       inflation: inflationLabel(macro.cpi),
       employment: employmentLabel(macro.unemployment, macro.unemploymentPrev),
       creditConditions: creditLabel(macro.creditSpread),
+      marketBreadth: breadthLabel(market.marketBreadthRatio),
+      sectorLeadership: sectorLeadershipLabel(market.techVsDefensiveRatio),
     },
     dataQuality,
     calculatedAt: new Date().toISOString(),
