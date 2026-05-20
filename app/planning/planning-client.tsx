@@ -20,6 +20,8 @@ import {
   deleteFutureEvent,
 } from "./planning-actions";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
+import type { HomeScenario } from "./home/home-actions";
+import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
@@ -1718,6 +1720,7 @@ type Props = {
   portfolioTotalValue: number;
   assumptions: PlanningAssumptions | null;
   futureEvents: FutureEvent[];
+  homeScenarios: HomeScenario[];
 };
 
 type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "finn";
@@ -1725,7 +1728,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
-  assumptions, futureEvents,
+  assumptions, futureEvents, homeScenarios,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -2550,7 +2553,7 @@ export default function PlanningClient({
     { id: "cashflow", label: "Cash Flow" },
     { id: "forecast", label: "Forecast" },
     { id: "compare", label: "Compare" },
-    { id: "events", label: "Future Events" },
+    { id: "events", label: "Life Events" },
     { id: "finn", label: "Ask FINN" },
   ];
 
@@ -3440,76 +3443,175 @@ export default function PlanningClient({
         />
       )}
 
-      {/* ── Tab: Future Events ── */}
+      {/* ── Tab: Life Events ── */}
       {tab === "events" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Add one-time financial events that affect your forecast: home purchase, inheritance, major expenses, and more.
-          </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
 
-          {/* Event list */}
-          {futureEvents.length === 0 && !addingEvent ? (
-            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>No future events added yet. Events appear as spikes or dips in your forecast chart.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {futureEvents.map((ev) => (
-                <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)", flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{ev.label}</span>
-                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ev.event_year}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 500, color: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)" }}>
-                    {ev.amount_impact >= 0 ? "+" : ""}{fmt(ev.amount_impact)}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={eventPending}
-                    onClick={() => startEventTransition(async () => { await deleteFutureEvent(ev.id); })}
-                    style={{ ...iconBtnStyle, color: "var(--red)" }}
-                    title="Remove"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                  </button>
-                </div>
-              ))}
+          {/* ── Home Planning section ── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Home Planning</div>
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Rent vs. buy scenarios with break-even analysis</div>
+              </div>
+              <Link
+                href="/planning/home"
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "6px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--accent)", color: "#fff",
+                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
+                  textDecoration: "none", flexShrink: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Open Planner
+              </Link>
             </div>
-          )}
 
-          {/* Add event form */}
-          {addingEvent ? (
-            <form ref={eventFormRef} onSubmit={handleAddEvent} style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "flex-end" }}>
-              <input name="label" required placeholder="e.g. Home purchase" autoFocus style={inputStyle} />
-              <input name="event_year" type="number" required min={currentYear} max={currentYear + 80} defaultValue={currentYear + 5} placeholder="Year" style={{ ...inputStyle, minWidth: "unset", width: "90px" }} />
-              <input name="amount_impact" type="number" required placeholder="Amount (+ gain / − expense)" style={{ ...inputStyle, minWidth: "unset", width: "200px" }} />
-              <select name="category" style={selectStyle} defaultValue="other">
-                <option value="home_purchase">Home Purchase</option>
-                <option value="home_sale">Home Sale</option>
-                <option value="education">Education</option>
-                <option value="inheritance">Inheritance</option>
-                <option value="other">Other</option>
-              </select>
-              <button type="submit" disabled={eventPending} style={btnPrimaryStyle}>{eventPending ? "Adding…" : "Add"}</button>
-              <button type="button" onClick={() => setAddingEvent(false)} style={btnSecondaryStyle}>Cancel</button>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingEvent(true)}
-              style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                padding: "7px 12px", borderRadius: "var(--radius-md)",
-                border: "1px dashed var(--border)", background: "transparent",
-                color: "var(--text-tertiary)", fontSize: "12px",
-                fontFamily: "var(--font-body)", cursor: "pointer",
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              Add event
-            </button>
-          )}
+            {homeScenarios.length === 0 ? (
+              <div style={{
+                padding: "20px", borderRadius: "var(--radius-lg)",
+                border: "1px dashed var(--border)", textAlign: "center",
+              }}>
+                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>
+                  No home scenarios yet
+                </div>
+                <Link
+                  href="/planning/home"
+                  style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}
+                >
+                  Build your first rent vs. buy scenario
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {homeScenarios.map((s) => {
+                  const loan = s.purchase_price - s.down_payment;
+                  const r = s.mortgage_rate / 12;
+                  const n = s.loan_term_years * 12;
+                  const monthlyPmt = loan > 0 && r > 0
+                    ? loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+                    : loan / n;
+                  const maintMonthly = (s.purchase_price * s.maintenance_pct) / 12;
+                  const totalMonthly = monthlyPmt + s.property_tax_monthly + s.insurance_monthly + s.hoa_monthly + maintMonthly;
+                  const delta = totalMonthly - s.monthly_rent;
 
-          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Use negative amounts for expenses (e.g. −$50,000 home down payment) and positive for gains (e.g. +$200,000 inheritance). Events are incorporated into all three forecast bands.
-          </p>
+                  return (
+                    <Link
+                      key={s.id}
+                      href="/planning/home"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "12px 14px", borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-subtle)",
+                        background: "var(--bg-card)", textDecoration: "none",
+                        transition: "border-color 0.15s",
+                      }}
+                    >
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
+                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
+                          <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
+                          <path d="M7 18V12h6v6" />
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                          {fmt(s.purchase_price)} · {s.hold_years}yr hold
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(Math.round(totalMonthly))}/mo</div>
+                        <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: delta >= 0 ? "var(--red)" : "var(--green)", marginTop: "1px" }}>
+                          {delta >= 0 ? "+" : ""}{fmt(Math.round(delta))} vs rent
+                        </div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Other Events section ── */}
+          <div>
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Other Events</div>
+              <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>One-time financial events that affect your forecast: inheritance, tuition, major expenses, and more.</div>
+            </div>
+
+            {futureEvents.length === 0 && !addingEvent ? (
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>No events added yet. Events appear as spikes or dips in your forecast chart.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {futureEvents.map((ev) => (
+                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)", flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{ev.label}</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ev.event_year}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 500, color: ev.amount_impact >= 0 ? "var(--green)" : "var(--red)" }}>
+                      {ev.amount_impact >= 0 ? "+" : ""}{fmt(ev.amount_impact)}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={eventPending}
+                      onClick={() => startEventTransition(async () => { await deleteFutureEvent(ev.id); })}
+                      style={{ ...iconBtnStyle, color: "var(--red)" }}
+                      title="Remove"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {addingEvent ? (
+              <form ref={eventFormRef} onSubmit={handleAddEvent} style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "flex-end", marginTop: "12px" }}>
+                <input name="label" required placeholder="e.g. Inheritance" autoFocus style={inputStyle} />
+                <input name="event_year" type="number" required min={currentYear} max={currentYear + 80} defaultValue={currentYear + 5} placeholder="Year" style={{ ...inputStyle, minWidth: "unset", width: "90px" }} />
+                <input name="amount_impact" type="number" required placeholder="Amount (+ gain / − expense)" style={{ ...inputStyle, minWidth: "unset", width: "200px" }} />
+                <select name="category" style={selectStyle} defaultValue="other">
+                  <option value="home_purchase">Home Purchase</option>
+                  <option value="home_sale">Home Sale</option>
+                  <option value="education">Education</option>
+                  <option value="inheritance">Inheritance</option>
+                  <option value="other">Other</option>
+                </select>
+                <button type="submit" disabled={eventPending} style={btnPrimaryStyle}>{eventPending ? "Adding…" : "Add"}</button>
+                <button type="button" onClick={() => setAddingEvent(false)} style={btnSecondaryStyle}>Cancel</button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingEvent(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "6px",
+                  padding: "7px 12px", borderRadius: "var(--radius-md)",
+                  border: "1px dashed var(--border)", background: "transparent",
+                  color: "var(--text-tertiary)", fontSize: "12px",
+                  fontFamily: "var(--font-body)", cursor: "pointer",
+                  marginTop: futureEvents.length > 0 ? "8px" : "0",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Add event
+              </button>
+            )}
+
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "12px 0 0" }}>
+              Use negative amounts for expenses and positive for gains. Events are incorporated into all three forecast bands.
+            </p>
+          </div>
+
         </div>
       )}
 

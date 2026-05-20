@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
+import type { HomeScenario } from "./home/home-actions";
 
 export default async function PlanningPage() {
   const supabase = await createClient();
@@ -19,6 +20,7 @@ export default async function PlanningPage() {
     { data: portfolios },
     { data: assumptionsData },
     { data: futureEventsData },
+    { data: homeScenariosData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -27,6 +29,7 @@ export default async function PlanningPage() {
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
     supabase.from("planning_assumptions").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("planning_future_events").select("*").eq("user_id", user.id).order("sort_order"),
+    supabase.from("home_planning_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -122,6 +125,8 @@ export default async function PlanningPage() {
     sort_order: e.sort_order,
   }));
 
+  const typedHomeScenarios: HomeScenario[] = (homeScenariosData ?? []) as HomeScenario[];
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -145,6 +150,7 @@ export default async function PlanningPage() {
           portfolioTotalValue={portfolioTotalValue}
           assumptions={assumptions}
           futureEvents={typedFutureEvents}
+          homeScenarios={typedHomeScenarios}
         />
       </div>
     </div>
