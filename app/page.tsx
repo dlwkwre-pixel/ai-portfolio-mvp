@@ -603,6 +603,142 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* AI Stock Analysis Showcase */}
+      <div style={{
+        maxWidth: "900px", margin: "0 auto", padding: "80px 24px 0",
+      }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <span style={{
+            display: "inline-block", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "#3b82f6", marginBottom: "14px",
+          }}>
+            AI Analysis
+          </span>
+          <h2 style={{
+            fontSize: "clamp(28px, 5vw, 44px)", fontWeight: 800, color: "oklch(0.94 0.01 250)",
+            letterSpacing: "-0.8px", lineHeight: 1.15, margin: "0 0 16px",
+          }}>
+            Every holding, analyzed
+          </h2>
+          <p style={{
+            fontSize: "16px", color: "oklch(0.55 0.02 250)", maxWidth: "560px",
+            margin: "0 auto", lineHeight: 1.65,
+          }}>
+            BuyTune runs Grok live web search on each stock in your portfolio — surfacing news, earnings signals, and momentum shifts with a buy, hold, or sell call.
+          </p>
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "16px",
+        }}>
+          {[
+            {
+              ticker: "NVDA",
+              name: "NVIDIA Corporation",
+              action: "BUY",
+              actionColor: "#4ade80",
+              actionBg: "rgba(74,222,128,0.08)",
+              actionBorder: "rgba(74,222,128,0.2)",
+              confidence: 87,
+              rationale: "Jensen Huang's keynote confirmed Blackwell Ultra shipments are tracking ahead of schedule and hyperscaler capex guidance was raised across AWS, Azure, and Google Cloud. Near-term supply constraints are clearing faster than consensus models.",
+              tag: "Earnings beat",
+            },
+            {
+              ticker: "TSLA",
+              name: "Tesla, Inc.",
+              action: "HOLD",
+              actionColor: "#fbbf24",
+              actionBg: "rgba(251,191,36,0.08)",
+              actionBorder: "rgba(251,191,36,0.2)",
+              confidence: 61,
+              rationale: "Cybertruck recall news and softening EV demand in China are near-term headwinds, but the FSD v13 rollout and energy storage segment growth offset the risk. Conviction is split — hold and watch the next delivery report.",
+              tag: "Mixed signals",
+            },
+            {
+              ticker: "AAPL",
+              name: "Apple Inc.",
+              action: "HOLD",
+              actionColor: "#fbbf24",
+              actionBg: "rgba(251,191,36,0.08)",
+              actionBorder: "rgba(251,191,36,0.2)",
+              confidence: 70,
+              rationale: "Services revenue hit a new record at $26.6B but hardware units missed slightly. The AI feature rollout is still limited to newer devices, capping the upgrade cycle. Valuation is fair — no urgency to add or trim.",
+              tag: "Services strength",
+            },
+          ].map(({ ticker, name, action, actionColor, actionBg, actionBorder, confidence, rationale, tag }) => (
+            <div key={ticker} style={{
+              background: "oklch(0.11 0.012 250)",
+              border: "1px solid oklch(0.2 0.012 250)",
+              borderRadius: "14px",
+              padding: "22px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+            }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                <div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "oklch(0.94 0.01 250)", letterSpacing: "-0.3px", fontFamily: "var(--font-mono, monospace)" }}>
+                    {ticker}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "oklch(0.52 0.02 250)", marginTop: "2px" }}>{name}</div>
+                </div>
+                <span style={{
+                  flexShrink: 0, fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase", padding: "4px 10px", borderRadius: "999px",
+                  background: actionBg, border: `1px solid ${actionBorder}`,
+                  color: actionColor,
+                }}>
+                  {action}
+                </span>
+              </div>
+
+              {/* Confidence bar */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "oklch(0.45 0.02 250)" }}>Confidence</span>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: actionColor, fontFamily: "var(--font-mono, monospace)" }}>{confidence}%</span>
+                </div>
+                <div style={{ height: "4px", background: "oklch(0.18 0.01 250)", borderRadius: "999px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${confidence}%`, background: actionColor, borderRadius: "999px", opacity: 0.7 }} />
+                </div>
+              </div>
+
+              {/* Rationale */}
+              <p style={{ fontSize: "12px", color: "oklch(0.56 0.02 250)", lineHeight: 1.65, margin: 0 }}>
+                {rationale}
+              </p>
+
+              {/* Tag */}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <span style={{
+                  fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px",
+                  background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.18)",
+                  color: "#93c5fd",
+                }}>
+                  {tag}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: "36px" }}>
+          <Link href="/signup" style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            padding: "10px 22px", borderRadius: "10px",
+            background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.25)",
+            color: "#93c5fd", fontSize: "13px", fontWeight: 600, textDecoration: "none",
+          }}>
+            Analyze your own portfolio — free
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
+          </Link>
+        </div>
+      </div>
+
       {/* CTA */}
       <div className="cta-wrap">
         <div className="cta-glow"/>
