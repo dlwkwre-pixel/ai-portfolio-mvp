@@ -35,6 +35,18 @@ export type FinnChatContext = {
   financial_health_score: number;
   health_factors: { name: string; score: number; max: number; direction: string }[];
   future_events: { label: string; event_year: number; amount_impact: number; category: string }[];
+  home_scenarios?: {
+    name: string;
+    purchase_price: number;
+    monthly_payment: number;
+    total_monthly: number;
+    monthly_rent: number;
+    break_even_year: number | null;
+    equity_at_hold: number;
+    hold_years: number;
+    down_payment: number;
+    mortgage_rate_pct: number;
+  }[];
 };
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -106,6 +118,13 @@ export async function POST(req: NextRequest) {
     ? context.future_events.map((e) => `  - ${e.label} (${e.event_year}): ${e.amount_impact >= 0 ? "+" : ""}${fmt(e.amount_impact)}`).join("\n")
     : null;
 
+  const homeLines = context.home_scenarios && context.home_scenarios.length > 0
+    ? context.home_scenarios.map((s) => {
+        const delta = s.total_monthly - s.monthly_rent;
+        return `  - "${s.name}": ${fmt(s.purchase_price)} @ ${s.mortgage_rate_pct.toFixed(2)}%, ${fmt(s.down_payment)} down — ${fmt(s.total_monthly)}/mo total vs ${fmt(s.monthly_rent)}/mo rent (${delta >= 0 ? "+" : ""}${fmt(delta)}/mo vs renting), break-even yr ${s.break_even_year ?? "N/A"}, equity ${fmt(s.equity_at_hold)} at yr ${s.hold_years}`;
+      }).join("\n")
+    : null;
+
   const systemPrompt = `You are FINN, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
 
 CAPABILITIES:
@@ -157,6 +176,7 @@ FORECAST (${pct(context.return_rate_pct)} return · ${pct(context.inflation_rate
 FINANCIAL HEALTH SCORE: ${context.financial_health_score}/100
 ${factorLines}
 ${eventLines ? `\nFUTURE EVENTS PLANNED:\n${eventLines}` : ""}
+${homeLines ? `\nHOME PLANNING SCENARIOS:\n${homeLines}` : ""}
 
 KEY BENCHMARKS (use these in calculations):
   Emergency fund target: ${fmt(context.monthly_expenses * 3)}–${fmt(context.monthly_expenses * 6)} (3–6 months expenses)

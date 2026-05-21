@@ -7,6 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { HomeScenario } from "./home-actions";
 import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
+import { addFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
 
 // ── Math engines ──────────────────────────────────────────────────────────────
@@ -106,6 +107,57 @@ function calcRetirementProb(netWorth: number, annualExpenses: number): number | 
   if (ratio >= 0.6) return 55;
   if (ratio >= 0.4) return 38;
   return 20;
+}
+
+// ── Amortization table ────────────────────────────────────────────────────────
+
+type AmorRow = {
+  year: number;
+  balance: number;
+  annualPrincipal: number;
+  annualInterest: number;
+  cumulativeInterest: number;
+  homeValue: number;
+  equity: number;
+};
+
+function buildAmortization(
+  loan: number,
+  annualRate: number,
+  termYears: number,
+  purchasePrice: number,
+  appreciation: number,
+  showYears: number,
+): AmorRow[] {
+  if (loan <= 0 || annualRate <= 0) return [];
+  const r = annualRate / 12;
+  const n = termYears * 12;
+  const monthlyPmt = (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+
+  let balance = loan;
+  let homeValue = purchasePrice;
+  let cumulativeInterest = 0;
+  const rows: AmorRow[] = [
+    { year: 0, balance, annualPrincipal: 0, annualInterest: 0, cumulativeInterest, homeValue, equity: homeValue - balance },
+  ];
+
+  const maxYear = Math.min(termYears, showYears);
+  for (let year = 1; year <= maxYear; year++) {
+    let annualPrincipal = 0;
+    let annualInterest = 0;
+    for (let m = 0; m < 12; m++) {
+      if (balance <= 0) break;
+      homeValue *= 1 + appreciation / 12;
+      const interest = balance * r;
+      const principal = Math.min(monthlyPmt - interest, balance);
+      balance = Math.max(0, balance - principal);
+      annualPrincipal += principal;
+      annualInterest += interest;
+      cumulativeInterest += interest;
+    }
+    rows.push({ year, balance, annualPrincipal, annualInterest, cumulativeInterest, homeValue, equity: homeValue - balance });
+  }
+  return rows;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -264,6 +316,8 @@ export default function HomeClient({
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showAmortization, setShowAmortization] = useState(false);
+  const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
     setInputs((p) => ({ ...p, [key]: val }));
@@ -330,11 +384,15 @@ export default function HomeClient({
       }
     }
 
+    const amortization = buildAmortization(
+      loan, rate / 100, term, pp, appr / 100, hold,
+    );
+
     return {
       loan, monthlyPmt, maintMonthly, totalMonthly,
       firstPrincipal, firstInterest, trueEffectiveCost, opportunityCostOnEquity,
       timeline, lastPoint, breakEvenYear, closingCosts,
-      retirBaselineProb, retirWithHomeProb,
+      retirBaselineProb, retirWithHomeProb, amortization,
     };
   }, [inputs, profile]);
 
@@ -511,7 +569,7 @@ export default function HomeClient({
         )}
 
         {/* Main layout: inputs left, analysis right */}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
+        <div data-home-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
 
           {/* ── LEFT: Inputs ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -826,6 +884,99 @@ export default function HomeClient({
                     <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                   </svg>
                   {finnLoading ? "FINN is thinking…" : "Get FINN Analysis"}
+                </button>
+              )}
+            </div>
+
+            {/* Amortization schedule */}
+            {computed.amortization.length > 1 && (
+              <div style={cardS}>
+                <button
+                  type="button"
+                  onClick={() => setShowAmortization((v) => !v)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, gap: "8px" }}
+                >
+                  <p style={{ ...sectionHead, margin: 0 }}>Amortization Schedule</p>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" style={{ transform: showAmortization ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}>
+                    <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {showAmortization && (
+                  <div style={{ marginTop: "12px", overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                          {["Yr", "Balance", "Principal", "Interest", "Cum. Interest", "Home Value", "Equity"].map((h) => (
+                            <th key={h} style={{ padding: "4px 8px 6px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {computed.amortization.map((row) => (
+                          <tr
+                            key={row.year}
+                            style={{ borderBottom: "1px solid var(--border-subtle)", background: row.year === inputs.hold_years ? "color-mix(in oklch, var(--accent) 6%, transparent)" : "transparent" }}
+                          >
+                            <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{row.year}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.balance)}</td>
+                            <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--red)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
+                            <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", fontFamily: "var(--font-body)" }}>
+                      Row highlighted in blue = your planned hold year. Equity = home value minus remaining loan balance.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Add to financial plan */}
+            <div style={cardS}>
+              <p style={sectionHead}>Link to Financial Plan</p>
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
+              </p>
+              {applyStatus === "done" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Added to your forecast. View in Planning &gt; Life Events.
+                </div>
+              ) : applyStatus === "error" ? (
+                <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={applyStatus === "applying" || !computed.lastPoint}
+                  onClick={async () => {
+                    if (!computed.lastPoint) return;
+                    setApplyStatus("applying");
+                    const currentYear = new Date().getFullYear();
+                    const fdDown = new FormData();
+                    fdDown.set("label", `Down payment: ${inputs.name}`);
+                    fdDown.set("event_year", String(currentYear));
+                    fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
+                    fdDown.set("category", "home_purchase");
+                    const fdEquity = new FormData();
+                    fdEquity.set("label", `Home equity sale: ${inputs.name}`);
+                    fdEquity.set("event_year", String(currentYear + inputs.hold_years));
+                    fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
+                    fdEquity.set("category", "home_sale");
+                    const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
+                    if (r1.error || r2.error) { setApplyStatus("error"); return; }
+                    setApplyStatus("done");
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
+                  {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
                 </button>
               )}
             </div>

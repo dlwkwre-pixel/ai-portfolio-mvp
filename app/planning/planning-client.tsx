@@ -2444,6 +2444,65 @@ export default function PlanningClient({
   // ── FINN Chat ──────────────────────────────────────────────────────────────
 
   function buildFinnChatContext(): FinnChatContext {
+    const homeScenariosForFinn = homeScenarios.map((s) => {
+      const loan = s.purchase_price - s.down_payment;
+      const r = s.mortgage_rate / 12;
+      const n = s.loan_term_years * 12;
+      const monthlyPmt = loan > 0 && r > 0
+        ? (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+        : loan / n;
+      const maintMonthly = (s.purchase_price * s.maintenance_pct) / 12;
+      const totalMonthly = monthlyPmt + s.property_tax_monthly + s.insurance_monthly + s.hoa_monthly + maintMonthly;
+      // Rough equity at hold: appreciate home value, amortize balance
+      let balance = loan;
+      let homeValue = s.purchase_price;
+      const ir = s.mortgage_rate / 12;
+      for (let m = 0; m < s.hold_years * 12; m++) {
+        homeValue *= 1 + s.expected_appreciation / 12;
+        if (balance > 0) {
+          const interest = balance * ir;
+          const principal = Math.min(monthlyPmt - interest, balance);
+          balance = Math.max(0, balance - principal);
+        }
+      }
+      const equityAtHold = homeValue - balance;
+      // Simple break-even estimate: find first year homeEquity > rentPortfolio (approximation)
+      let breakEven: number | null = null;
+      let rentPortfolio = s.down_payment + s.purchase_price * s.closing_cost_pct;
+      let bal2 = loan;
+      let hv2 = s.purchase_price;
+      const investR = s.investment_return / 12;
+      for (let y = 1; y <= s.hold_years; y++) {
+        for (let m = 0; m < 12; m++) {
+          hv2 *= 1 + s.expected_appreciation / 12;
+          const rent = s.monthly_rent * Math.pow(1 + s.rent_growth_rate, y - 1 + m / 12);
+          const ownCost = totalMonthly;
+          const delta = ownCost - rent;
+          if (delta > 0) rentPortfolio += delta;
+          rentPortfolio *= 1 + investR;
+          if (bal2 > 0) {
+            const interest = bal2 * ir;
+            const principal = Math.min(monthlyPmt - interest, bal2);
+            bal2 = Math.max(0, bal2 - principal);
+          }
+        }
+        const equity = hv2 - bal2;
+        if (breakEven === null && equity > rentPortfolio) breakEven = y;
+      }
+      return {
+        name: s.name,
+        purchase_price: s.purchase_price,
+        monthly_payment: Math.round(monthlyPmt),
+        total_monthly: Math.round(totalMonthly),
+        monthly_rent: s.monthly_rent,
+        break_even_year: breakEven,
+        equity_at_hold: Math.round(equityAtHold),
+        hold_years: s.hold_years,
+        down_payment: s.down_payment,
+        mortgage_rate_pct: +(s.mortgage_rate * 100).toFixed(2),
+      };
+    });
+
     return {
       current_age: profile?.current_age ?? null,
       target_retirement_age: activeRetirementAge,
@@ -2470,6 +2529,7 @@ export default function PlanningClient({
       financial_health_score: healthData.total,
       health_factors: healthData.factors,
       future_events: futureEvents.map((e) => ({ label: e.label, event_year: e.event_year, amount_impact: e.amount_impact, category: e.category })),
+      home_scenarios: homeScenariosForFinn,
     };
   }
 
