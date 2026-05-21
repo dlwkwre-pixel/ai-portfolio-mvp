@@ -66,5 +66,12 @@ export default async function SharePortfolioPage({ params }: { params: Promise<{
 
   if (!pub) notFound();
 
-  return <ShareCardClient pub={pub} />;
+  const { data: holdings } = await supabase
+    .from("public_portfolio_holdings")
+    .select("ticker, company_name, allocation_pct, is_cash, display_order")
+    .eq("public_portfolio_id", pub.id)
+    .order("display_order")
+    .limit(5);
+
+  return <ShareCardClient pub={pub} holdings={holdings ?? []} />;
 }
