@@ -627,8 +627,7 @@ export default function LandingPage() {
         </div>
 
         <div style={{
-          background: "oklch(0.09 0.012 250)",
-          border: "1px solid oklch(0.17 0.012 250)",
+          border: "1px solid rgba(255,255,255,0.07)",
           borderRadius: "16px",
           overflow: "hidden",
         }}>
@@ -669,7 +668,7 @@ export default function LandingPage() {
             return (
               <div key={ticker} style={{
                 padding: "18px 20px",
-                borderBottom: isLast ? "none" : "1px solid oklch(0.14 0.01 250)",
+                borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
               }}>
                 {/* Top row */}
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
