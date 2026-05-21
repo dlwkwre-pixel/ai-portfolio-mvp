@@ -77,6 +77,9 @@ export type FinnChatContext = {
     total_cost_to_18: number;
     monthly_expenses_now: number;
   }[];
+  partner_name?: string | null;
+  partner_age?: number | null;
+  partner_target_retirement_age?: number | null;
 };
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -199,7 +202,7 @@ COMMUNICATION RULES:
 
 USER'S COMPLETE FINANCIAL PICTURE:
 
-Profile: Age ${context.current_age ?? "not set"} | Retirement target: ${context.target_retirement_age ?? "not set"}${context.years_to_retire != null ? ` (${context.years_to_retire} yrs away)` : ""} | Risk tolerance: ${context.risk_tolerance ?? "moderate"}
+Profile: Age ${context.current_age ?? "not set"} | Retirement target: ${context.target_retirement_age ?? "not set"}${context.years_to_retire != null ? ` (${context.years_to_retire} yrs away)` : ""} | Risk tolerance: ${context.risk_tolerance ?? "moderate"}${context.partner_name ? `\nHousehold: Joint planning — partner ${context.partner_name}${context.partner_age != null ? ` (age ${context.partner_age})` : ""}${context.partner_target_retirement_age != null ? `, retire at ${context.partner_target_retirement_age}` : ""}. Reference both people when discussing retirement timelines and household cashflow.` : ""}
 
 NET WORTH: ${fmt(context.net_worth)}
   Total assets: ${fmt(context.total_assets)} | Total liabilities: ${fmt(context.total_liabilities)}

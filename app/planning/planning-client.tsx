@@ -2631,6 +2631,9 @@ export default function PlanningClient({
           monthly_expenses_now: Number(s.monthly_expenses_now),
         };
       }),
+      partner_name: profile?.partner_name ?? null,
+      partner_age: profile?.partner_age ?? null,
+      partner_target_retirement_age: profile?.partner_target_retirement_age ?? null,
     };
   }
 
@@ -2917,24 +2920,57 @@ export default function PlanningClient({
                     </select>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "16px 0 14px", paddingTop: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px", fontFamily: "var(--font-body)" }}>Partner (optional)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Name</label>
+                      <input name="partner_name" type="text" placeholder="e.g. Alex" defaultValue={profile?.partner_name ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Age</label>
+                      <input name="partner_age" type="number" min="18" max="100" placeholder="e.g. 34" defaultValue={profile?.partner_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Retire At</label>
+                      <input name="partner_target_retirement_age" type="number" min="40" max="85" placeholder="e.g. 62" defaultValue={profile?.partner_target_retirement_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                   <button type="submit" disabled={profilePending} style={btnPrimaryStyle}>{profilePending ? "Saving…" : "Save Profile"}</button>
                   {profile && <button type="button" onClick={() => setEditingProfile(false)} style={btnSecondaryStyle}>Cancel</button>}
                 </div>
               </form>
             ) : profile ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
-                {[
-                  { label: "Age", value: profile.current_age ? String(profile.current_age) : "—" },
-                  { label: "Retirement Target", value: profile.target_retirement_age ? String(profile.target_retirement_age) : "—" },
-                  { label: "Years Left", value: yearsToRetire != null ? `${yearsToRetire} yrs` : "—" },
-                  { label: "Risk Tolerance", value: profile.risk_tolerance ?? "—" },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
+                  {[
+                    { label: "Age", value: profile.current_age ? String(profile.current_age) : "—" },
+                    { label: "Retirement Target", value: profile.target_retirement_age ? String(profile.target_retirement_age) : "—" },
+                    { label: "Years Left", value: yearsToRetire != null ? `${yearsToRetire} yrs` : "—" },
+                    { label: "Risk Tolerance", value: profile.risk_tolerance ?? "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                {profile.partner_name && (
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
+                    {[
+                      { label: "Partner", value: profile.partner_name },
+                      { label: "Partner Age", value: profile.partner_age ? String(profile.partner_age) : "—" },
+                      { label: "Partner Retires At", value: profile.partner_target_retirement_age ? String(profile.partner_target_retirement_age) : "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             ) : (
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>

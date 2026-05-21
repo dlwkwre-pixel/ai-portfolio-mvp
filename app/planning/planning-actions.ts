@@ -13,6 +13,9 @@ export type FinancialProfile = {
   risk_tolerance: string | null;
   monthly_income: number | null;
   monthly_expenses: number | null;
+  partner_name: string | null;
+  partner_age: number | null;
+  partner_target_retirement_age: number | null;
   updated_at: string;
 };
 
@@ -57,6 +60,9 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const risk_tolerance = String(formData.get("risk_tolerance") || "moderate");
   const monthly_income = formData.get("monthly_income") ? Number(formData.get("monthly_income")) : null;
   const monthly_expenses = formData.get("monthly_expenses") ? Number(formData.get("monthly_expenses")) : null;
+  const partner_name = String(formData.get("partner_name") || "").trim() || null;
+  const partner_age = formData.get("partner_age") ? Number(formData.get("partner_age")) : null;
+  const partner_target_retirement_age = formData.get("partner_target_retirement_age") ? Number(formData.get("partner_target_retirement_age")) : null;
 
   const { error } = await supabase.from("financial_profiles").upsert(
     {
@@ -66,6 +72,9 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       risk_tolerance,
       monthly_income,
       monthly_expenses,
+      partner_name,
+      partner_age,
+      partner_target_retirement_age,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

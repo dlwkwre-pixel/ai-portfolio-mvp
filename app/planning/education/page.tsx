@@ -50,6 +50,9 @@ export default async function EducationPlanningPage() {
         risk_tolerance: profileData.risk_tolerance ?? "moderate",
         monthly_income: profileData.monthly_income ? Number(profileData.monthly_income) : null,
         monthly_expenses: profileData.monthly_expenses ? Number(profileData.monthly_expenses) : null,
+        partner_name: profileData.partner_name ?? null,
+        partner_age: profileData.partner_age ?? null,
+        partner_target_retirement_age: profileData.partner_target_retirement_age ?? null,
         updated_at: profileData.updated_at,
       }
     : null;
