@@ -104,53 +104,51 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     .from("portfolios").select("*").eq("id", id).eq("user_id", user.id).single();
   if (portfolioError || !portfolio) notFound();
 
-  const { data: holdings } = await supabase
-    .from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true });
-
-  const valuation = await getPortfolioValuation({
-    holdings: (holdings ?? []).map((h) => ({
-      id: h.id, ticker: h.ticker, company_name: h.company_name,
-      asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
-    })),
-    cashBalance: Number(portfolio.cash_balance ?? 0),
-  });
-
-  const { data: notes } = await supabase
-    .from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false });
-
-  const { data: cashLedger } = await supabase
-    .from("cash_ledger").select("*").eq("portfolio_id", portfolio.id).order("effective_at", { ascending: false }).limit(8);
-
-  const { data: strategies } = await supabase
-    .from("strategies").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false });
-
-  const { data: activeAssignment } = await supabase
-    .from("portfolio_strategy_assignments")
-    .select(`*, strategies (id, name, description, style, risk_level), strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)`)
-    .eq("portfolio_id", portfolio.id).eq("is_active", true).is("ended_at", null)
-    .order("assigned_at", { ascending: false }).limit(1).maybeSingle();
-
-  const { data: allPortfolios } = await supabase
-    .from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true);
-
-  const { data: publicPortfolioData, error: pubPortfolioErr } = await supabase
-    .from("public_portfolios")
-    .select("id, public_name, public_description, follower_count, copy_count, last_synced_at")
-    .eq("source_portfolio_id", portfolio.id)
-    .eq("owner_user_id", user.id)
-    .eq("is_public", true)
-    .maybeSingle();
+  // Run all independent queries in parallel — previously sequential, each 100-200ms
+  const [
+    { data: holdings },
+    { data: notes },
+    { data: cashLedger },
+    { data: strategies },
+    { data: activeAssignment },
+    { data: allPortfolios },
+    { data: publicPortfolioData, error: pubPortfolioErr },
+    digestPrefs,
+  ] = await Promise.all([
+    supabase.from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true }),
+    supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false }),
+    supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolio.id).order("effective_at", { ascending: false }).limit(8),
+    supabase.from("strategies").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
+    supabase.from("portfolio_strategy_assignments")
+      .select(`*, strategies (id, name, description, style, risk_level), strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)`)
+      .eq("portfolio_id", portfolio.id).eq("is_active", true).is("ended_at", null)
+      .order("assigned_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true),
+    supabase.from("public_portfolios")
+      .select("id, public_name, public_description, follower_count, copy_count, last_synced_at")
+      .eq("source_portfolio_id", portfolio.id).eq("owner_user_id", user.id).eq("is_public", true)
+      .maybeSingle(),
+    activeTab === "emails" ? getDigestPrefs(portfolio.id) : Promise.resolve(null),
+  ]);
   if (pubPortfolioErr) console.error("[portfolio page] public_portfolios query error:", pubPortfolioErr.message);
 
-  let latestAvailableVersionNumber: number | null = null;
-  if (activeAssignment?.strategy_id) {
-    const { data: latestVersion } = await supabase
-      .from("strategy_versions").select("id, version_number")
-      .eq("strategy_id", activeAssignment.strategy_id)
-      .order("version_number", { ascending: false }).limit(1).maybeSingle();
-    latestAvailableVersionNumber = latestVersion?.version_number ?? null;
-  }
+  // Valuation (Finnhub) + latest strategy version run after parallel queries complete
+  const [valuation, latestVersionResult] = await Promise.all([
+    getPortfolioValuation({
+      holdings: (holdings ?? []).map((h) => ({
+        id: h.id, ticker: h.ticker, company_name: h.company_name,
+        asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+      })),
+      cashBalance: Number(portfolio.cash_balance ?? 0),
+    }),
+    activeAssignment?.strategy_id
+      ? supabase.from("strategy_versions").select("id, version_number")
+          .eq("strategy_id", activeAssignment.strategy_id)
+          .order("version_number", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
+  const latestAvailableVersionNumber = latestVersionResult.data?.version_number ?? null;
   const currentVersionNumber = activeAssignment?.strategy_versions?.version_number ?? null;
   const shouldShowUpgradeButton =
     currentVersionNumber !== null &&
@@ -158,8 +156,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     latestAvailableVersionNumber > currentVersionNumber;
 
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
-
-  const digestPrefs = activeTab === "emails" ? await getDigestPrefs(portfolio.id) : null;
 
   const statCards = [
     { label: "Holdings Value", value: formatMoney(valuation.holdings_value), isMoney: true },
