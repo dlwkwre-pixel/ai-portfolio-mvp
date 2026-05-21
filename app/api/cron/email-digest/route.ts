@@ -6,15 +6,45 @@ import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
 
-function shouldSendToday(frequency: string, now: Date): boolean {
-  const day = now.getUTCDay(); // 0=Sun … 6=Sat
-  const date = now.getUTCDate();
-  switch (frequency) {
-    case "daily_close":    return day >= 1 && day <= 5;
-    case "weekly_monday":  return day === 1;
-    case "weekly_friday":  return day === 5;
-    case "monthly_first":  return date === 1;
-    default: return false;
+// Get the current hour (0-23) in the user's local timezone
+function getLocalHour(date: Date, timezone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: timezone,
+    }).formatToParts(date);
+    const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0");
+    return h === 24 ? 0 : h; // Intl can return 24 for midnight
+  } catch {
+    return date.getUTCHours();
+  }
+}
+
+// Use local timezone date for weekday/month-day checks
+function shouldSendNow(frequency: string, sendHour: number, timezone: string, now: Date): boolean {
+  const localHour = getLocalHour(now, timezone);
+  if (localHour !== sendHour) return false;
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      day: "numeric",
+      timeZone: timezone,
+    }).formatToParts(now);
+
+    const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+    const dayOfMonth = parseInt(parts.find((p) => p.type === "day")?.value ?? "0");
+
+    switch (frequency) {
+      case "daily_close":   return !["Saturday", "Sunday"].includes(weekday);
+      case "weekly_monday": return weekday === "Monday";
+      case "weekly_friday": return weekday === "Friday";
+      case "monthly_first": return dayOfMonth === 1;
+      default: return false;
+    }
+  } catch {
+    return false;
   }
 }
 
@@ -82,7 +112,7 @@ export async function GET(request: Request) {
   // Load all enabled preferences whose frequency matches today
   const { data: allPrefs, error: prefsError } = await adminSupabase
     .from("portfolio_digest_preferences")
-    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, email_override")
+    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, email_override, send_hour, timezone")
     .eq("enabled", true);
 
   if (prefsError) {
@@ -90,7 +120,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: prefsError.message }, { status: 500 });
   }
 
-  const todayPrefs = (allPrefs ?? []).filter((p) => shouldSendToday(p.frequency, now));
+  const todayPrefs = (allPrefs ?? []).filter((p) =>
+    shouldSendNow(p.frequency, p.send_hour ?? 16, p.timezone ?? "America/Chicago", now)
+  );
   if (todayPrefs.length === 0) {
     return NextResponse.json({ message: "No digests to send today.", sent: 0 });
   }

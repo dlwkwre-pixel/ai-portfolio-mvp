@@ -12,6 +12,8 @@ export type DigestPrefs = {
   include_earnings: boolean;
   include_ai_score: boolean;
   email_override: string | null;
+  send_hour: number;       // 0–23 in the user's local timezone
+  timezone: string;        // IANA timezone string e.g. "America/Chicago"
   last_sent_at: string | null;
 };
 
@@ -45,6 +47,8 @@ export async function upsertDigestPrefs(
         include_earnings: prefs.include_earnings,
         include_ai_score: prefs.include_ai_score,
         email_override: prefs.email_override?.trim() || null,
+        send_hour: prefs.send_hour,
+        timezone: prefs.timezone,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "portfolio_id,user_id" }
@@ -79,6 +83,8 @@ export async function getDigestPrefs(portfolioId: string): Promise<DigestPrefs |
     include_earnings: data.include_earnings,
     include_ai_score: data.include_ai_score,
     email_override: data.email_override ?? null,
+    send_hour: data.send_hour ?? 16,
+    timezone: data.timezone ?? "America/Chicago",
     last_sent_at: data.last_sent_at ?? null,
   };
 }
