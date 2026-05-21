@@ -86,6 +86,28 @@ export default function EmailDigestSettings({
     setContent((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok?: boolean; error?: string } | null>(null);
+
+  async function handleSendTest() {
+    setSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/portfolios/test-digest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portfolioId }),
+      });
+      const json = await res.json() as { ok?: boolean; error?: string; sentTo?: string };
+      setTestResult(json.ok ? { ok: true } : { error: json.error ?? "Failed to send" });
+      setTimeout(() => setTestResult(null), 5000);
+    } catch {
+      setTestResult({ error: "Network error" });
+    } finally {
+      setSendingTest(false);
+    }
+  }
+
   const lastSent = initialPrefs?.last_sent_at
     ? new Date(initialPrefs.last_sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
@@ -324,7 +346,7 @@ export default function EmailDigestSettings({
       )}
 
       {/* Save + status */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
         <button
           onClick={handleSave}
           disabled={isPending}
@@ -344,12 +366,30 @@ export default function EmailDigestSettings({
           {isPending ? "Saving…" : "Save preferences"}
         </button>
 
-        {saved && (
-          <span style={{ fontSize: "12px", color: "#4ade80" }}>Saved</span>
-        )}
-        {saveError && (
-          <span style={{ fontSize: "12px", color: "#f87171" }}>{saveError}</span>
-        )}
+        <button
+          onClick={handleSendTest}
+          disabled={sendingTest}
+          style={{
+            padding: "9px 16px",
+            borderRadius: "8px",
+            border: "1px solid var(--border-subtle)",
+            background: "var(--bg-card)",
+            color: "var(--text-secondary)",
+            fontSize: "13px",
+            fontWeight: 500,
+            cursor: sendingTest ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-body)",
+            transition: "all 0.15s",
+            opacity: sendingTest ? 0.6 : 1,
+          }}
+        >
+          {sendingTest ? "Sending…" : "Send test email"}
+        </button>
+
+        {saved && <span style={{ fontSize: "12px", color: "#4ade80" }}>Saved</span>}
+        {saveError && <span style={{ fontSize: "12px", color: "#f87171" }}>{saveError}</span>}
+        {testResult?.ok && <span style={{ fontSize: "12px", color: "#4ade80" }}>Test email sent!</span>}
+        {testResult?.error && <span style={{ fontSize: "12px", color: "#f87171" }}>{testResult.error}</span>}
       </div>
 
       {/* Last sent info */}
