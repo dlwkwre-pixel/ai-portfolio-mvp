@@ -143,7 +143,7 @@ const sectionHead: React.CSSProperties = {
 
 // ── Default scenario ──────────────────────────────────────────────────────────
 
-const DEFAULTS = {
+const BASE_DEFAULTS = {
   name: "New Home Scenario",
   purchase_price: 500000,
   down_payment: 100000,
@@ -161,7 +161,62 @@ const DEFAULTS = {
   closing_cost_pct: 3.0,
 };
 
-type Inputs = typeof DEFAULTS;
+type Inputs = typeof BASE_DEFAULTS;
+
+// Derive smart defaults from the user's financial profile.
+// Uses the 28% front-end DTI rule to estimate a comfortable purchase price,
+// then backs into a down payment (20%) and property tax/insurance from price.
+function buildDefaults(
+  profile: FinancialProfile | null,
+  defaultInvestmentReturn: number,
+): Inputs {
+  const base: Inputs = {
+    ...BASE_DEFAULTS,
+    investment_return: +(defaultInvestmentReturn * 100).toFixed(2),
+  };
+
+  if (!profile?.monthly_income || profile.monthly_income <= 0) return base;
+
+  const income = profile.monthly_income;
+
+  // 28% rule: max PITI (principal + interest + tax + insurance)
+  const maxPITI = income * 0.28;
+
+  // At a standard 6.75% rate, 30yr, 20% down:
+  // monthly P&I factor on the full loan amount = mortgage_factor
+  const rMonthly = 0.0675 / 12;
+  const n = 360;
+  const mortgageFactor = (rMonthly * Math.pow(1 + rMonthly, n)) / (Math.pow(1 + rMonthly, n) - 1);
+  // P&I per dollar of purchase price (80% LTV) = 0.8 * mortgageFactor
+  const piPerDollar = 0.8 * mortgageFactor;
+
+  // Annual overhead per dollar of price: tax 1.2% + insurance 0.4% = 1.6%/yr → /12
+  const overheadPerDollar = 0.016 / 12;
+
+  // price = maxPITI / (piPerDollar + overheadPerDollar), rounded to nearest $5k
+  const rawPrice = maxPITI / (piPerDollar + overheadPerDollar);
+  const suggestedPrice = Math.round(rawPrice / 5000) * 5000;
+
+  if (suggestedPrice < 50_000) return base;
+
+  const suggestedDown = Math.round(suggestedPrice * 0.2 / 1000) * 1000;
+  const suggestedTax = Math.round((suggestedPrice * 0.012) / 12 / 10) * 10;
+  const suggestedIns = Math.round((suggestedPrice * 0.004) / 12 / 10) * 10;
+
+  // Use monthly_expenses as a proxy for current rent if available
+  const suggestedRent = profile.monthly_expenses && profile.monthly_expenses > 0
+    ? Math.round(profile.monthly_expenses / 100) * 100
+    : base.monthly_rent;
+
+  return {
+    ...base,
+    purchase_price: suggestedPrice,
+    down_payment: suggestedDown,
+    property_tax_monthly: suggestedTax,
+    insurance_monthly: Math.max(75, suggestedIns),
+    monthly_rent: suggestedRent,
+  };
+}
 
 function scenarioToInputs(s: HomeScenario): Inputs {
   return {
@@ -195,13 +250,14 @@ export default function HomeClient({
   defaultInvestmentReturn: number;
 }) {
   const router = useRouter();
+  const smartDefaults = buildDefaults(profile, defaultInvestmentReturn);
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(
     scenarios.length > 0 ? scenarios[0].id : null,
   );
   const [inputs, setInputs] = useState<Inputs>(() => {
     const first = scenarios[0];
     if (first) return scenarioToInputs(first);
-    return { ...DEFAULTS, investment_return: +(defaultInvestmentReturn * 100).toFixed(2) };
+    return smartDefaults;
   });
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isPending, startTransition] = useTransition();
@@ -320,7 +376,7 @@ export default function HomeClient({
 
   function handleNewScenario() {
     setActiveScenarioId(null);
-    setInputs({ ...DEFAULTS, investment_return: +(defaultInvestmentReturn * 100).toFixed(2) });
+    setInputs(smartDefaults);
     setFinnCommentary(null);
     setSaveStatus("idle");
   }
@@ -465,6 +521,42 @@ export default function HomeClient({
               <label style={labelS}>Scenario Name</label>
               <input value={inputs.name} onChange={(e) => set("name", e.target.value)} style={inputS} />
             </div>
+
+            {/* Affordability hint — shown when income is known */}
+            {profile?.monthly_income && profile.monthly_income > 0 && (() => {
+              const maxPITI = profile.monthly_income! * 0.28;
+              const totalMonthly = computed.totalMonthly;
+              const ratio = totalMonthly / maxPITI;
+              const isOver = ratio > 1;
+              return (
+                <div style={{
+                  padding: "9px 12px", borderRadius: "var(--radius-md)",
+                  background: isOver
+                    ? "color-mix(in oklch, oklch(0.45 0.18 25) 12%, transparent)"
+                    : "color-mix(in oklch, oklch(0.55 0.15 155) 10%, transparent)",
+                  border: `1px solid ${isOver ? "color-mix(in oklch, oklch(0.45 0.18 25) 30%, transparent)" : "color-mix(in oklch, oklch(0.55 0.15 155) 22%, transparent)"}`,
+                  display: "flex", alignItems: "flex-start", gap: "8px",
+                }}>
+                  <div style={{
+                    width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, marginTop: "1px",
+                    background: isOver ? "oklch(0.45 0.18 25)" : "oklch(0.55 0.15 155)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <span style={{ fontSize: "9px", color: "#fff", fontWeight: 700 }}>{isOver ? "!" : "✓"}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: isOver ? "oklch(0.75 0.12 25)" : "oklch(0.80 0.12 155)", fontFamily: "var(--font-body)" }}>
+                      {isOver
+                        ? `${Math.round(ratio * 100)}% of income — above 28% guideline`
+                        : `${Math.round(ratio * 100)}% of income — within 28% guideline`}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
+                      Based on {fmt(profile.monthly_income!)}/mo income · 28% rule suggests max {fmt(Math.round(maxPITI))}/mo PITI
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Property */}
             <div style={cardS}>
