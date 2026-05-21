@@ -57,6 +57,26 @@ export type FinnChatContext = {
     retirement_prob_current: number | null;
     retirement_prob_new: number | null;
   }[];
+  education_scenarios?: {
+    name: string;
+    child_name: string | null;
+    child_current_age: number;
+    years_until_college: number;
+    total_college_cost: number;
+    fv529: number;
+    coverage_pct: number;
+    funding_gap: number;
+    monthly_needed: number;
+    monthly_contribution: number;
+  }[];
+  family_scenarios?: {
+    name: string;
+    child_name: string | null;
+    child_current_age: number;
+    current_monthly_impact: number;
+    total_cost_to_18: number;
+    monthly_expenses_now: number;
+  }[];
 };
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -142,6 +162,21 @@ export async function POST(req: NextRequest) {
       }).join("\n")
     : null;
 
+  const educationLines = context.education_scenarios && context.education_scenarios.length > 0
+    ? context.education_scenarios.map((s) => {
+        const childLabel = s.child_name ? `${s.child_name} (age ${s.child_current_age})` : `age ${s.child_current_age}`;
+        return `  - "${s.name}" [${childLabel}, ${s.years_until_college} yrs to college]: total cost ${fmt(s.total_college_cost)}, projected 529 ${fmt(s.fv529)}, coverage ${s.coverage_pct}%${s.funding_gap > 0 ? `, gap ${fmt(s.funding_gap)} (need ${fmt(s.monthly_needed)}/mo vs current ${fmt(s.monthly_contribution)}/mo)` : " — fully funded"}`;
+      }).join("\n")
+    : null;
+
+  const familyLines = context.family_scenarios && context.family_scenarios.length > 0
+    ? context.family_scenarios.map((s) => {
+        const childLabel = s.child_name ? `${s.child_name} (age ${s.child_current_age})` : `age ${s.child_current_age}`;
+        const pct = s.monthly_expenses_now > 0 ? ((s.current_monthly_impact / s.monthly_expenses_now) * 100).toFixed(0) : "?";
+        return `  - "${s.name}" [${childLabel}]: ${fmt(s.current_monthly_impact)}/mo current cost (${pct}% of ${fmt(s.monthly_expenses_now)}/mo expenses), total cost to 18 ${fmt(s.total_cost_to_18)}`;
+      }).join("\n")
+    : null;
+
   const systemPrompt = `You are FINN, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
 
 CAPABILITIES:
@@ -195,6 +230,8 @@ ${factorLines}
 ${eventLines ? `\nFUTURE EVENTS PLANNED:\n${eventLines}` : ""}
 ${homeLines ? `\nHOME PLANNING SCENARIOS:\n${homeLines}` : ""}
 ${careerLines ? `\nCAREER CHANGE SCENARIOS:\n${careerLines}` : ""}
+${educationLines ? `\nEDUCATION / 529 SCENARIOS:\n${educationLines}` : ""}
+${familyLines ? `\nFAMILY PLANNING SCENARIOS:\n${familyLines}` : ""}
 
 KEY BENCHMARKS (use these in calculations):
   Emergency fund target: ${fmt(context.monthly_expenses * 3)}–${fmt(context.monthly_expenses * 6)} (3–6 months expenses)

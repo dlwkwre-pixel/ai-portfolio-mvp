@@ -7,6 +7,8 @@ import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
+import type { EducationScenario } from "./education/education-actions";
+import type { FamilyScenario } from "./family/family-actions";
 
 export default async function PlanningPage() {
   const supabase = await createClient();
@@ -23,6 +25,8 @@ export default async function PlanningPage() {
     { data: futureEventsData },
     { data: homeScenariosData },
     { data: careerScenariosData },
+    { data: educationScenariosData },
+    { data: familyScenariosData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -33,6 +37,8 @@ export default async function PlanningPage() {
     supabase.from("planning_future_events").select("*").eq("user_id", user.id).order("sort_order"),
     supabase.from("home_planning_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("career_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("education_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("family_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -130,6 +136,8 @@ export default async function PlanningPage() {
 
   const typedHomeScenarios: HomeScenario[] = (homeScenariosData ?? []) as HomeScenario[];
   const typedCareerScenarios: CareerScenario[] = (careerScenariosData ?? []) as CareerScenario[];
+  const typedEducationScenarios: EducationScenario[] = (educationScenariosData ?? []) as EducationScenario[];
+  const typedFamilyScenarios: FamilyScenario[] = (familyScenariosData ?? []) as FamilyScenario[];
 
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
@@ -156,6 +164,8 @@ export default async function PlanningPage() {
           futureEvents={typedFutureEvents}
           homeScenarios={typedHomeScenarios}
           careerScenarios={typedCareerScenarios}
+          educationScenarios={typedEducationScenarios}
+          familyScenarios={typedFamilyScenarios}
         />
       </div>
     </div>

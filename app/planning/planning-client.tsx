@@ -22,6 +22,8 @@ import {
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
+import type { EducationScenario } from "./education/education-actions";
+import type { FamilyScenario } from "./family/family-actions";
 import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
@@ -1723,6 +1725,8 @@ type Props = {
   futureEvents: FutureEvent[];
   homeScenarios: HomeScenario[];
   careerScenarios: CareerScenario[];
+  educationScenarios: EducationScenario[];
+  familyScenarios: FamilyScenario[];
 };
 
 type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "finn";
@@ -1730,7 +1734,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
-  assumptions, futureEvents, homeScenarios, careerScenarios,
+  assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -2582,6 +2586,49 @@ export default function PlanningClient({
           income_at_year10_delta: Math.round(income10New - income10Current),
           retirement_prob_current: retirYears ? toProb(nwC) : null,
           retirement_prob_new: retirYears ? toProb(nwN) : null,
+        };
+      }),
+      education_scenarios: educationScenarios.map((s) => {
+        const yearsUntil = Math.max(0, 18 - s.child_current_age);
+        const inflRate = Number(s.cost_inflation_rate);
+        const futureAnnual = Number(s.annual_cost_today) * Math.pow(1 + inflRate, yearsUntil);
+        const totalCost = futureAnnual * s.years_in_college;
+        const r = Number(s.investment_return) / 12;
+        const n = yearsUntil * 12;
+        const bal = Number(s.current_529_balance);
+        const pmt = Number(s.monthly_contribution);
+        const fv = n === 0 ? bal : bal * Math.pow(1 + r, n) + (r > 0 ? pmt * ((Math.pow(1 + r, n) - 1) / r) : pmt * n);
+        const coverage = totalCost > 0 ? Math.round((fv / totalCost) * 100) : 100;
+        const fundingGap = Math.max(0, totalCost - fv);
+        const remainder = totalCost - bal * (n > 0 ? Math.pow(1 + r, n) : 1);
+        const monthlyNeeded = remainder <= 0 || n === 0 ? 0 : r > 0 ? (remainder * r) / (Math.pow(1 + r, n) - 1) : remainder / n;
+        return {
+          name: s.name,
+          child_name: s.child_name,
+          child_current_age: s.child_current_age,
+          years_until_college: yearsUntil,
+          total_college_cost: Math.round(totalCost),
+          fv529: Math.round(fv),
+          coverage_pct: coverage,
+          funding_gap: Math.round(fundingGap),
+          monthly_needed: Math.round(monthlyNeeded),
+          monthly_contribution: pmt,
+        };
+      }),
+      family_scenarios: familyScenarios.map((s) => {
+        const age = s.child_current_age;
+        const currentImpact = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+        let totalCostTo18 = 0;
+        for (let a = age; a < 18; a++) {
+          totalCostTo18 += (a < 3 ? Number(s.monthly_infant_cost) : a <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost)) * 12;
+        }
+        return {
+          name: s.name,
+          child_name: s.child_name,
+          child_current_age: age,
+          current_monthly_impact: currentImpact,
+          total_cost_to_18: Math.round(totalCostTo18),
+          monthly_expenses_now: Number(s.monthly_expenses_now),
         };
       }),
     };
@@ -3722,6 +3769,167 @@ export default function PlanningClient({
                         <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
                           yr 1 delta
                         </div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Education / 529 section ── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Education / 529</div>
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Project 529 growth vs college cost, track funding gaps</div>
+              </div>
+              <Link
+                href="/planning/education"
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "6px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--accent)", color: "#fff",
+                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
+                  textDecoration: "none", flexShrink: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Open Planner
+              </Link>
+            </div>
+
+            {educationScenarios.length === 0 ? (
+              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No education scenarios yet</div>
+                <Link href="/planning/education" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                  Plan your first college savings scenario
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {educationScenarios.map((s) => {
+                  const yearsUntil = Math.max(0, 18 - s.child_current_age);
+                  const futureAnnual = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yearsUntil);
+                  const totalCost = futureAnnual * s.years_in_college;
+                  const r = Number(s.investment_return) / 12;
+                  const n = yearsUntil * 12;
+                  const bal = Number(s.current_529_balance);
+                  const pmt = Number(s.monthly_contribution);
+                  const fv = n === 0 ? bal : bal * Math.pow(1 + r, n) + (r > 0 ? pmt * ((Math.pow(1 + r, n) - 1) / r) : pmt * n);
+                  const coverage = totalCost > 0 ? Math.round((fv / totalCost) * 100) : 100;
+                  return (
+                    <Link
+                      key={s.id}
+                      href="/planning/education"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "12px 14px", borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
+                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
+                          <path d="M2 10l8-7 8 7v9H6v-5h4v5h6v-9" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
+                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age} · {yearsUntil} yrs to college
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: coverage >= 100 ? "var(--green)" : coverage >= 60 ? "#f59e0b" : "var(--red)" }}>
+                          {coverage}%
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>coverage</div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Family Planning section ── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Family Planning</div>
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model child costs by phase and retirement impact</div>
+              </div>
+              <Link
+                href="/planning/family"
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "6px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--accent)", color: "#fff",
+                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
+                  textDecoration: "none", flexShrink: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Open Planner
+              </Link>
+            </div>
+
+            {familyScenarios.length === 0 ? (
+              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No family scenarios yet</div>
+                <Link href="/planning/family" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                  Model your first child cost scenario
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {familyScenarios.map((s) => {
+                  const age = s.child_current_age;
+                  const monthly = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+                  return (
+                    <Link
+                      key={s.id}
+                      href="/planning/family"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "12px 14px", borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
+                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
+                          <circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/>
+                          <path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/>
+                          <path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
+                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {fmt(monthly)}/mo
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>current phase</div>
                       </div>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
                         <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
