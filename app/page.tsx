@@ -650,12 +650,12 @@ export default function LandingPage() {
               pills: ["1.2 shares", "$248.50", "Target $260"],
             },
             {
-              ticker: "ICHR",
-              name: "Ichor Holdings",
+              ticker: "AMD",
+              name: "Advanced Micro Devices",
               action: "SELL" as const,
               confidence: 60,
-              rationale: "Lags the broader semis rally with no fresh catalyst in sight. Weak price action relative to peer group — position size doesn't justify the risk.",
-              pills: ["0.6 shares", "$69.94", "Target $60.00"],
+              rationale: "MI300X traction positive but AMD continues to lose AI accelerator share to NVDA. Data center GPU revenue guidance missed — price action relative to the broader semis rally is weak.",
+              pills: ["0.8 shares", "$154.20", "Target $130.00"],
             },
           ] as const).map(({ ticker, name, action, confidence, rationale, pills }, idx, arr) => {
             const cfg = {
@@ -664,7 +664,7 @@ export default function LandingPage() {
               SELL: { color: "#f87171", bg: "rgba(248,113,113,0.14)" },
             }[action];
             const confLabel = confidence >= 80 ? "Very High" : confidence >= 66 ? "High" : "Low";
-            const confColor = confidence >= 66 ? "#4ade80" : "#64748b";
+            const confColor = confidence >= 66 ? "#4ade80" : "#94a3b8";
             const isLast = idx === arr.length - 1;
             return (
               <div key={ticker} style={{
@@ -686,16 +686,16 @@ export default function LandingPage() {
                   }}>
                     {ticker}
                   </span>
-                  <span style={{ fontSize: "12px", color: "#475569" }}>{name}</span>
+                  <span style={{ fontSize: "12px", color: "#94a3b8" }}>{name}</span>
                   <div style={{ flex: 1 }} />
                   <span style={{ fontSize: "12px", fontWeight: 600, color: confColor }}>{confLabel}</span>
                   <span style={{
-                    fontSize: "13px", color: "#475569",
+                    fontSize: "13px", color: "#94a3b8",
                     fontFamily: "var(--font-geist-mono, monospace)",
                   }}>{confidence}%</span>
                 </div>
                 {/* Rationale */}
-                <p style={{ fontSize: "12px", color: "#475569", lineHeight: 1.65, margin: "0 0 10px" }}>
+                <p style={{ fontSize: "12px", color: "#94a3b8", lineHeight: 1.65, margin: "0 0 10px" }}>
                   {rationale}
                 </p>
                 {/* Pills */}
@@ -705,8 +705,8 @@ export default function LandingPage() {
                     return (
                       <span key={pill} style={{
                         fontSize: "11px", padding: "2px 8px", borderRadius: "6px",
-                        border: isTarget ? "1px solid rgba(74,222,128,0.22)" : "1px solid rgba(255,255,255,0.08)",
-                        color: isTarget ? "#4ade80" : "#475569",
+                        border: isTarget ? "1px solid rgba(74,222,128,0.22)" : "1px solid rgba(255,255,255,0.1)",
+                        color: isTarget ? "#4ade80" : "#94a3b8",
                       }}>
                         {pill}
                       </span>
