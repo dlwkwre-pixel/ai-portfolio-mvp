@@ -27,6 +27,8 @@ import RebalancingCalculator from "./rebalancing-calculator";
 import StressTestSection from "./stress-test-section";
 import RecommendationOutcomesSection from "./recommendation-outcomes-section";
 import MarketRegimeCard from "@/app/components/market-regime-card";
+import EmailDigestSettings from "./email-digest-settings";
+import { getDigestPrefs } from "./email-digest-actions";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -156,6 +158,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     latestAvailableVersionNumber > currentVersionNumber;
 
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
+
+  const digestPrefs = activeTab === "emails" ? await getDigestPrefs(portfolio.id) : null;
 
   const statCards = [
     { label: "Holdings Value", value: formatMoney(valuation.holdings_value), isMoney: true },
@@ -498,6 +502,23 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* EMAILS */}
+              {activeTab === "emails" && (
+                <div className="bt-tab-enter" style={{ gap: "16px" }}>
+                  <div className="bt-card">
+                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "4px" }}>Email Digest</h2>
+                    <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "20px" }}>
+                      Get this portfolio delivered to your inbox. Choose your schedule and what to include.
+                    </p>
+                    <EmailDigestSettings
+                      portfolioId={portfolio.id}
+                      userEmail={user.email ?? ""}
+                      initialPrefs={digestPrefs}
+                    />
                   </div>
                 </div>
               )}
