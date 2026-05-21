@@ -604,10 +604,8 @@ export default function LandingPage() {
       </div>
 
       {/* AI Stock Analysis Showcase */}
-      <div style={{
-        maxWidth: "900px", margin: "0 auto", padding: "80px 24px 0",
-      }}>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "80px 24px 0" }}>
+        <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <span style={{
             display: "inline-block", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em",
             textTransform: "uppercase", color: "#3b82f6", marginBottom: "14px",
@@ -624,109 +622,103 @@ export default function LandingPage() {
             fontSize: "16px", color: "oklch(0.55 0.02 250)", maxWidth: "560px",
             margin: "0 auto", lineHeight: 1.65,
           }}>
-            BuyTune runs Grok live web search on each stock in your portfolio — surfacing news, earnings signals, and momentum shifts with a buy, hold, or sell call.
+            BuyTune runs Grok live web search on each stock — surfacing earnings signals, news, and momentum shifts with a buy, hold, or sell call.
           </p>
         </div>
 
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: "16px",
+          background: "oklch(0.09 0.012 250)",
+          border: "1px solid oklch(0.17 0.012 250)",
+          borderRadius: "16px",
+          overflow: "hidden",
         }}>
-          {[
+          {([
             {
               ticker: "NVDA",
               name: "NVIDIA Corporation",
-              action: "BUY",
-              actionColor: "#4ade80",
-              actionBg: "rgba(74,222,128,0.08)",
-              actionBorder: "rgba(74,222,128,0.2)",
+              action: "BUY" as const,
               confidence: 87,
-              rationale: "Jensen Huang's keynote confirmed Blackwell Ultra shipments are tracking ahead of schedule and hyperscaler capex guidance was raised across AWS, Azure, and Google Cloud. Near-term supply constraints are clearing faster than consensus models.",
-              tag: "Earnings beat",
+              rationale: "Blackwell Ultra shipments tracking ahead of schedule. Hyperscaler capex guidance raised across AWS, Azure, and Google Cloud — near-term supply constraints clearing faster than consensus.",
+              pills: ["0.5 shares", "$875.40", "Target $1,050"],
             },
             {
               ticker: "TSLA",
               name: "Tesla, Inc.",
-              action: "HOLD",
-              actionColor: "#fbbf24",
-              actionBg: "rgba(251,191,36,0.08)",
-              actionBorder: "rgba(251,191,36,0.2)",
+              action: "HOLD" as const,
               confidence: 61,
-              rationale: "Cybertruck recall news and softening EV demand in China are near-term headwinds, but the FSD v13 rollout and energy storage segment growth offset the risk. Conviction is split — hold and watch the next delivery report.",
-              tag: "Mixed signals",
+              rationale: "Cybertruck recall and EV demand softness near-term headwinds, offset by FSD v13 momentum and energy storage growth. Conviction split — watch the next delivery print.",
+              pills: ["1.2 shares", "$248.50", "Target $260"],
             },
             {
-              ticker: "AAPL",
-              name: "Apple Inc.",
-              action: "HOLD",
-              actionColor: "#fbbf24",
-              actionBg: "rgba(251,191,36,0.08)",
-              actionBorder: "rgba(251,191,36,0.2)",
-              confidence: 70,
-              rationale: "Services revenue hit a new record at $26.6B but hardware units missed slightly. The AI feature rollout is still limited to newer devices, capping the upgrade cycle. Valuation is fair — no urgency to add or trim.",
-              tag: "Services strength",
+              ticker: "ICHR",
+              name: "Ichor Holdings",
+              action: "SELL" as const,
+              confidence: 60,
+              rationale: "Lags the broader semis rally with no fresh catalyst in sight. Weak price action relative to peer group — position size doesn't justify the risk.",
+              pills: ["0.6 shares", "$69.94", "Target $60.00"],
             },
-          ].map(({ ticker, name, action, actionColor, actionBg, actionBorder, confidence, rationale, tag }) => (
-            <div key={ticker} style={{
-              background: "oklch(0.11 0.012 250)",
-              border: "1px solid oklch(0.2 0.012 250)",
-              borderRadius: "14px",
-              padding: "22px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "14px",
-            }}>
-              {/* Header */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
-                <div>
-                  <div style={{ fontSize: "18px", fontWeight: 800, color: "oklch(0.94 0.01 250)", letterSpacing: "-0.3px", fontFamily: "var(--font-mono, monospace)" }}>
+          ] as const).map(({ ticker, name, action, confidence, rationale, pills }, idx, arr) => {
+            const cfg = {
+              BUY:  { color: "#4ade80", bg: "rgba(74,222,128,0.14)" },
+              HOLD: { color: "#fbbf24", bg: "rgba(251,191,36,0.14)" },
+              SELL: { color: "#f87171", bg: "rgba(248,113,113,0.14)" },
+            }[action];
+            const confLabel = confidence >= 80 ? "Very High" : confidence >= 66 ? "High" : "Low";
+            const confColor = confidence >= 66 ? "#4ade80" : "#64748b";
+            const isLast = idx === arr.length - 1;
+            return (
+              <div key={ticker} style={{
+                padding: "18px 20px",
+                borderBottom: isLast ? "none" : "1px solid oklch(0.14 0.01 250)",
+              }}>
+                {/* Top row */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                  <span style={{
+                    fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em",
+                    textTransform: "uppercase", padding: "3px 9px", borderRadius: "999px",
+                    background: cfg.bg, color: cfg.color, flexShrink: 0,
+                  }}>
+                    {action}
+                  </span>
+                  <span style={{
+                    fontSize: "15px", fontWeight: 700, color: "#f0f4ff",
+                    fontFamily: "var(--font-geist-mono, monospace)", letterSpacing: "-0.2px",
+                  }}>
                     {ticker}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "oklch(0.52 0.02 250)", marginTop: "2px" }}>{name}</div>
+                  </span>
+                  <span style={{ fontSize: "12px", color: "#475569" }}>{name}</span>
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: confColor }}>{confLabel}</span>
+                  <span style={{
+                    fontSize: "13px", color: "#475569",
+                    fontFamily: "var(--font-geist-mono, monospace)",
+                  }}>{confidence}%</span>
                 </div>
-                <span style={{
-                  flexShrink: 0, fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em",
-                  textTransform: "uppercase", padding: "4px 10px", borderRadius: "999px",
-                  background: actionBg, border: `1px solid ${actionBorder}`,
-                  color: actionColor,
-                }}>
-                  {action}
-                </span>
-              </div>
-
-              {/* Confidence bar */}
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "oklch(0.45 0.02 250)" }}>Confidence</span>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: actionColor, fontFamily: "var(--font-mono, monospace)" }}>{confidence}%</span>
+                {/* Rationale */}
+                <p style={{ fontSize: "12px", color: "#475569", lineHeight: 1.65, margin: "0 0 10px" }}>
+                  {rationale}
+                </p>
+                {/* Pills */}
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {pills.map((pill) => {
+                    const isTarget = pill.startsWith("Target");
+                    return (
+                      <span key={pill} style={{
+                        fontSize: "11px", padding: "2px 8px", borderRadius: "6px",
+                        border: isTarget ? "1px solid rgba(74,222,128,0.22)" : "1px solid rgba(255,255,255,0.08)",
+                        color: isTarget ? "#4ade80" : "#475569",
+                      }}>
+                        {pill}
+                      </span>
+                    );
+                  })}
                 </div>
-                <div style={{ height: "4px", background: "oklch(0.18 0.01 250)", borderRadius: "999px", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${confidence}%`, background: actionColor, borderRadius: "999px", opacity: 0.7 }} />
-                </div>
               </div>
-
-              {/* Rationale */}
-              <p style={{ fontSize: "12px", color: "oklch(0.56 0.02 250)", lineHeight: 1.65, margin: 0 }}>
-                {rationale}
-              </p>
-
-              {/* Tag */}
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <span style={{
-                  fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
-                  textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px",
-                  background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.18)",
-                  color: "#93c5fd",
-                }}>
-                  {tag}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <div style={{ textAlign: "center", marginTop: "36px" }}>
+        <div style={{ textAlign: "center", marginTop: "32px" }}>
           <Link href="/signup" style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             padding: "10px 22px", borderRadius: "10px",

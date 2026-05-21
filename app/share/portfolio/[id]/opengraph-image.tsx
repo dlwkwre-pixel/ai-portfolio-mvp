@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 export const alt = "BuyTune Portfolio Performance";
@@ -14,13 +14,31 @@ function fmtPct(n: number | null): string {
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const { data: pub } = await supabase
-    .from("public_portfolios")
-    .select("public_name, return_pct_alltime, benchmark_symbol, benchmark_return_pct, created_at")
-    .eq("id", id)
-    .eq("is_public", true)
-    .maybeSingle();
+  // Use direct anon client — public_portfolios has a public RLS SELECT policy for is_public=true rows.
+  // Avoids the cookies() dependency which can fail when called by unauthenticated scrapers.
+  let pub: {
+    public_name: string;
+    return_pct_alltime: number | null;
+    benchmark_symbol: string | null;
+    benchmark_return_pct: number | null;
+  } | null = null;
+
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    const { data } = await supabase
+      .from("public_portfolios")
+      .select("public_name, return_pct_alltime, benchmark_symbol, benchmark_return_pct")
+      .eq("id", id)
+      .eq("is_public", true)
+      .maybeSingle();
+    pub = data;
+  } catch {
+    // Render generic image on any failure
+  }
 
   const name = pub?.public_name ?? "Portfolio";
   const ret = pub?.return_pct_alltime ?? null;
