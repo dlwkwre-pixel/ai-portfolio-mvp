@@ -148,31 +148,36 @@ export async function GET(request: Request) {
       // ── Performance ──────────────────────────────────────────────────────────
       let performance: DigestTemplateData["performance"] = null;
       if (pref.include_performance) {
-        const { data: snapshots } = await adminSupabase
-          .from("portfolio_snapshots")
-          .select("total_value, snapshot_date")
-          .eq("portfolio_id", pref.portfolio_id)
-          .order("snapshot_date", { ascending: false })
-          .limit(30);
+        const [{ data: recentSnaps }, { data: oldestSnap }] = await Promise.all([
+          adminSupabase
+            .from("portfolio_snapshots")
+            .select("total_value, snapshot_date")
+            .eq("portfolio_id", pref.portfolio_id)
+            .order("snapshot_date", { ascending: false })
+            .limit(30),
+          adminSupabase
+            .from("portfolio_snapshots")
+            .select("total_value, snapshot_date")
+            .eq("portfolio_id", pref.portfolio_id)
+            .order("snapshot_date", { ascending: true })
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-        if (snapshots && snapshots.length >= 2) {
-          const latest = snapshots[0];
-          const weekOld = snapshots.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo) ?? snapshots[snapshots.length - 1];
-          const oldest = snapshots[snapshots.length - 1];
-
+        if (recentSnaps && recentSnaps.length >= 1) {
+          const latest = recentSnaps[0];
+          const weekOld = recentSnaps.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo);
           const latestVal = Number(latest.total_value);
-          const weekOldVal = Number(weekOld.total_value);
-          const oldestVal = Number(oldest.total_value);
-
-          const weekReturnAbs = latestVal - weekOldVal;
-          const weekReturnPct = weekOldVal > 0 ? ((latestVal - weekOldVal) / weekOldVal) * 100 : null;
-          const allTimeReturnPct = oldestVal > 0 ? ((latestVal - oldestVal) / oldestVal) * 100 : null;
+          const weekOldVal = weekOld ? Number(weekOld.total_value) : null;
+          const inceptionVal = oldestSnap ? Number(oldestSnap.total_value) : null;
+          const isFirstSnap = oldestSnap?.snapshot_date === latest.snapshot_date;
 
           performance = {
             totalValue: latestVal,
-            allTimeReturnPct: allTimeReturnPct != null ? Math.round(allTimeReturnPct * 10) / 10 : null,
-            weekReturnPct: weekReturnPct != null ? Math.round(weekReturnPct * 10) / 10 : null,
-            weekReturnAbs: Math.round(weekReturnAbs),
+            weekReturnPct: weekOldVal && weekOldVal > 0 ? Math.round(((latestVal - weekOldVal) / weekOldVal) * 1000) / 10 : null,
+            weekReturnAbs: weekOldVal != null ? Math.round(latestVal - weekOldVal) : null,
+            allTimeReturnPct: inceptionVal && inceptionVal > 0 && !isFirstSnap ? Math.round(((latestVal - inceptionVal) / inceptionVal) * 1000) / 10 : null,
+            inceptionDate: oldestSnap?.snapshot_date ?? null,
           };
         }
       }
@@ -261,12 +266,14 @@ export async function GET(request: Request) {
       // ── Build + send ──────────────────────────────────────────────────────────
       const token = makeUnsubToken(pref.user_id, pref.portfolio_id);
       const portfolioUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}`;
+      const reportUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}/report`;
       const manageUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}?tab=emails`;
       const unsubscribeUrl = `${SITE_URL}/api/unsubscribe?userId=${pref.user_id}&portfolioId=${pref.portfolio_id}&token=${token}`;
 
       const templateData: DigestTemplateData = {
         portfolioName: portfolio.name,
         portfolioUrl,
+        reportUrl,
         manageUrl,
         unsubscribeUrl,
         performance,
@@ -286,6 +293,10 @@ export async function GET(request: Request) {
         to: recipientEmail,
         subject,
         html,
+        headers: {
+          "List-Unsubscribe": `<${unsubscribeUrl}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
       });
 
       if (sendError) {

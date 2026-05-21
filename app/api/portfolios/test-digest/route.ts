@@ -84,24 +84,34 @@ export async function POST(request: Request) {
   // Performance
   let performance: DigestTemplateData["performance"] = null;
   if (include_performance) {
-    const { data: snapshots } = await adminSupabase
-      .from("portfolio_snapshots")
-      .select("total_value, snapshot_date")
-      .eq("portfolio_id", portfolioId)
-      .order("snapshot_date", { ascending: false })
-      .limit(30);
-    if (snapshots && snapshots.length >= 2) {
-      const latest = snapshots[0];
-      const weekOld = snapshots.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo) ?? snapshots[snapshots.length - 1];
-      const oldest = snapshots[snapshots.length - 1];
+    const [{ data: recentSnaps }, { data: oldestSnap }] = await Promise.all([
+      adminSupabase
+        .from("portfolio_snapshots")
+        .select("total_value, snapshot_date")
+        .eq("portfolio_id", portfolioId)
+        .order("snapshot_date", { ascending: false })
+        .limit(30),
+      adminSupabase
+        .from("portfolio_snapshots")
+        .select("total_value, snapshot_date")
+        .eq("portfolio_id", portfolioId)
+        .order("snapshot_date", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (recentSnaps && recentSnaps.length >= 1) {
+      const latest = recentSnaps[0];
+      const weekOld = recentSnaps.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo);
       const latestVal = Number(latest.total_value);
-      const weekOldVal = Number(weekOld.total_value);
-      const oldestVal = Number(oldest.total_value);
+      const weekOldVal = weekOld ? Number(weekOld.total_value) : null;
+      const inceptionVal = oldestSnap ? Number(oldestSnap.total_value) : null;
+      const isFirstSnap = oldestSnap?.snapshot_date === latest.snapshot_date;
       performance = {
         totalValue: latestVal,
-        allTimeReturnPct: oldestVal > 0 ? Math.round(((latestVal - oldestVal) / oldestVal) * 1000) / 10 : null,
-        weekReturnPct: weekOldVal > 0 ? Math.round(((latestVal - weekOldVal) / weekOldVal) * 1000) / 10 : null,
-        weekReturnAbs: Math.round(latestVal - weekOldVal),
+        weekReturnPct: weekOldVal && weekOldVal > 0 ? Math.round(((latestVal - weekOldVal) / weekOldVal) * 1000) / 10 : null,
+        weekReturnAbs: weekOldVal != null ? Math.round(latestVal - weekOldVal) : null,
+        allTimeReturnPct: inceptionVal && inceptionVal > 0 && !isFirstSnap ? Math.round(((latestVal - inceptionVal) / inceptionVal) * 1000) / 10 : null,
+        inceptionDate: oldestSnap?.snapshot_date ?? null,
       };
     }
   }
@@ -175,11 +185,13 @@ export async function POST(request: Request) {
   }
 
   const token = makeUnsubToken(user.id, portfolioId);
+  const unsubscribeUrl = `${SITE_URL}/api/unsubscribe?userId=${user.id}&portfolioId=${portfolioId}&token=${token}`;
   const templateData: DigestTemplateData = {
     portfolioName: portfolio.name,
     portfolioUrl: `${SITE_URL}/portfolios/${portfolioId}`,
+    reportUrl: `${SITE_URL}/portfolios/${portfolioId}/report`,
     manageUrl: `${SITE_URL}/portfolios/${portfolioId}?tab=emails`,
-    unsubscribeUrl: `${SITE_URL}/api/unsubscribe?userId=${user.id}&portfolioId=${portfolioId}&token=${token}`,
+    unsubscribeUrl,
     performance,
     holdings,
     earnings,
@@ -193,7 +205,16 @@ export async function POST(request: Request) {
   const resend = new Resend(resendKey);
   const fromAddress = process.env.RESEND_FROM_EMAIL ?? "digest@buytune.io";
 
-  const { error: sendError } = await resend.emails.send({ from: fromAddress, to: recipientEmail, subject, html });
+  const { error: sendError } = await resend.emails.send({
+    from: fromAddress,
+    to: recipientEmail,
+    subject,
+    html,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
   if (sendError) {
     return NextResponse.json({ error: sendError.message }, { status: 500 });
   }
