@@ -45,8 +45,16 @@ export default function EmailDigestSettings({
     include_ai_score:    initialPrefs?.include_ai_score    ?? false,
   });
   const [emailOverride, setEmailOverride] = useState(initialPrefs?.email_override ?? "");
-  const [sendHour, setSendHour] = useState(initialPrefs?.send_hour ?? 16);
-  const [timezone, setTimezone] = useState(initialPrefs?.timezone ?? "America/Chicago");
+  const [sendHour] = useState(initialPrefs?.send_hour ?? 16);
+  const [timezone] = useState(initialPrefs?.timezone ?? "America/Chicago");
+  const [localCronTime, setLocalCronTime] = useState<string | null>(null);
+
+  // Compute local time equivalent of 9pm UTC cron
+  useEffect(() => {
+    const d = new Date();
+    d.setUTCHours(21, 0, 0, 0);
+    setLocalCronTime(d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }));
+  }, []);
 
   // Clear saved flash after 3s
   useEffect(() => {
@@ -210,6 +218,11 @@ export default function EmailDigestSettings({
                 </label>
               ))}
             </div>
+            {localCronTime && (
+              <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.14)", borderRadius: "7px", fontSize: "12px", color: "var(--text-secondary)" }}>
+                Sends around <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{localCronTime}</span> your time
+              </div>
+            )}
           </div>
 
           {/* Content */}
