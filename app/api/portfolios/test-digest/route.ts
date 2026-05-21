@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Resend } from "resend";
 import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
+import { generateDigestPDF } from "@/lib/email/generate-pdf";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
 
@@ -201,9 +202,17 @@ export async function POST(request: Request) {
 
   const html = buildDigestHtml(templateData);
   const subject = `[TEST] ${buildDigestSubject(portfolio.name, performance)}`;
-
   const resend = new Resend(resendKey);
   const fromAddress = process.env.RESEND_FROM_EMAIL ?? "digest@buytune.io";
+
+  const dateSlug = now.toISOString().slice(0, 10);
+  const safePortfolioName = portfolio.name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+  let pdfBuffer: Buffer | null = null;
+  try {
+    pdfBuffer = await generateDigestPDF(templateData);
+  } catch (pdfErr) {
+    console.error("PDF generation failed (non-fatal):", pdfErr);
+  }
 
   const { error: sendError } = await resend.emails.send({
     from: fromAddress,
@@ -214,6 +223,12 @@ export async function POST(request: Request) {
       "List-Unsubscribe": `<${unsubscribeUrl}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
+    ...(pdfBuffer ? {
+      attachments: [{
+        filename: `${safePortfolioName}-investor-update-${dateSlug}.pdf`,
+        content: pdfBuffer.toString("base64"),
+      }],
+    } : {}),
   });
   if (sendError) {
     return NextResponse.json({ error: sendError.message }, { status: 500 });
