@@ -21,6 +21,7 @@ import {
 } from "./planning-actions";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
+import type { CareerScenario } from "./career/career-actions";
 import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
@@ -1721,6 +1722,7 @@ type Props = {
   assumptions: PlanningAssumptions | null;
   futureEvents: FutureEvent[];
   homeScenarios: HomeScenario[];
+  careerScenarios: CareerScenario[];
 };
 
 type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "finn";
@@ -1728,7 +1730,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
-  assumptions, futureEvents, homeScenarios,
+  assumptions, futureEvents, homeScenarios, careerScenarios,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -2530,6 +2532,58 @@ export default function PlanningClient({
       health_factors: healthData.factors,
       future_events: futureEvents.map((e) => ({ label: e.label, event_year: e.event_year, amount_impact: e.amount_impact, category: e.category })),
       home_scenarios: homeScenariosForFinn,
+      career_scenarios: careerScenarios.map((s) => {
+        const gapYears = s.gap_months / 12;
+        const income10Current = s.current_monthly_income * 12 * Math.pow(1 + s.current_growth_rate, 10);
+        const income10New = s.gap_months > 0 && 10 < gapYears
+          ? 0
+          : s.new_monthly_income * 12 * Math.pow(1 + s.new_growth_rate, Math.max(0, 10 - gapYears));
+        // Simple cumulative break-even estimate
+        let cumCurrent = 0;
+        let cumNew = -s.transition_cost;
+        let breakEven: number | null = null;
+        for (let y = 1; y <= s.projection_years; y++) {
+          cumCurrent += s.current_monthly_income * 12 * Math.pow(1 + s.current_growth_rate, y);
+          const yearsInNew = Math.max(0, y - gapYears);
+          const newIncome = y < gapYears ? 0 : s.new_monthly_income * 12 * Math.pow(1 + s.new_growth_rate, yearsInNew);
+          cumNew += newIncome;
+          if (breakEven === null && cumNew >= cumCurrent) breakEven = y;
+        }
+        // Retirement prob delta (simplified)
+        const annualExpenses = s.monthly_expenses * 12;
+        const retirYears = profile?.current_age && profile?.target_retirement_age
+          ? profile.target_retirement_age - profile.current_age : null;
+        let nwC = 0, nwN = 0;
+        const r = s.investment_return / 12;
+        if (retirYears) {
+          for (let y = 1; y <= retirYears && y <= s.projection_years; y++) {
+            const incC = s.current_monthly_income * 12 * Math.pow(1 + s.current_growth_rate, y);
+            const incN = y < gapYears ? 0 : s.new_monthly_income * 12 * Math.pow(1 + s.new_growth_rate, Math.max(0, y - gapYears));
+            const svgC = Math.max(0, incC - annualExpenses) / 12;
+            const svgN = Math.max(0, incN - annualExpenses) / 12;
+            nwC = r > 0 ? nwC * Math.pow(1 + r, 12) + svgC * (Math.pow(1 + r, 12) - 1) / r : nwC + svgC * 12;
+            nwN = r > 0 ? nwN * Math.pow(1 + r, 12) + svgN * (Math.pow(1 + r, 12) - 1) / r : nwN + svgN * 12;
+          }
+        }
+        const retirProbs = [1.5, 1.2, 1.0, 0.8, 0.6, 0.4, 0.2];
+        const retirVals = [95, 88, 82, 70, 55, 38, 20];
+        function toProb(nw: number) {
+          if (!annualExpenses || !nw) return null;
+          const ratio = nw / (annualExpenses * 25);
+          for (let i = 0; i < retirProbs.length; i++) if (ratio >= retirProbs[i]) return retirVals[i];
+          return 8;
+        }
+        return {
+          name: s.name,
+          current_monthly: s.current_monthly_income,
+          new_monthly: s.new_monthly_income,
+          gap_months: s.gap_months,
+          break_even_year: breakEven,
+          income_at_year10_delta: Math.round(income10New - income10Current),
+          retirement_prob_current: retirYears ? toProb(nwC) : null,
+          retirement_prob_new: retirYears ? toProb(nwN) : null,
+        };
+      }),
     };
   }
 
@@ -3589,6 +3643,84 @@ export default function PlanningClient({
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(Math.round(totalMonthly))}/mo</div>
                         <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: delta >= 0 ? "var(--red)" : "var(--green)", marginTop: "1px" }}>
                           {delta >= 0 ? "+" : ""}{fmt(Math.round(delta))} vs rent
+                        </div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Career Planning section ── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Career Change</div>
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model income trajectory, transition costs, and break-even timing</div>
+              </div>
+              <Link
+                href="/planning/career"
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "6px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--accent)", color: "#fff",
+                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
+                  textDecoration: "none", flexShrink: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Open Planner
+              </Link>
+            </div>
+
+            {careerScenarios.length === 0 ? (
+              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No career scenarios yet</div>
+                <Link href="/planning/career" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                  Model your first career change
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {careerScenarios.map((s) => {
+                  const incomeDelta = s.new_monthly_income - s.current_monthly_income;
+                  const isPayCut = incomeDelta < 0;
+                  return (
+                    <Link
+                      key={s.id}
+                      href="/planning/career"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "12px 14px", borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
+                        textDecoration: "none", transition: "border-color 0.15s",
+                      }}
+                    >
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
+                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
+                          <path d="M3 10L10 4l7 6M5 8v8h10V8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                          ${Math.round(s.current_monthly_income).toLocaleString()}/mo → ${Math.round(s.new_monthly_income).toLocaleString()}/mo
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: isPayCut ? "var(--red)" : "var(--green)" }}>
+                          {isPayCut ? "" : "+"}{fmt(incomeDelta)}/mo
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
+                          yr 1 delta
                         </div>
                       </div>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>

@@ -47,6 +47,16 @@ export type FinnChatContext = {
     down_payment: number;
     mortgage_rate_pct: number;
   }[];
+  career_scenarios?: {
+    name: string;
+    current_monthly: number;
+    new_monthly: number;
+    gap_months: number;
+    break_even_year: number | null;
+    income_at_year10_delta: number;
+    retirement_prob_current: number | null;
+    retirement_prob_new: number | null;
+  }[];
 };
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -125,6 +135,13 @@ export async function POST(req: NextRequest) {
       }).join("\n")
     : null;
 
+  const careerLines = context.career_scenarios && context.career_scenarios.length > 0
+    ? context.career_scenarios.map((s) => {
+        const delta = s.new_monthly - s.current_monthly;
+        return `  - "${s.name}": ${fmt(s.current_monthly)}/mo → ${fmt(s.new_monthly)}/mo (${delta >= 0 ? "+" : ""}${fmt(delta)}/mo yr1)${s.gap_months > 0 ? `, ${s.gap_months}-mo income gap` : ""}, break-even yr ${s.break_even_year ?? "N/A"}, yr10 income delta ${s.income_at_year10_delta >= 0 ? "+" : ""}${fmt(s.income_at_year10_delta)}${s.retirement_prob_current != null && s.retirement_prob_new != null ? `, retirement probability ${s.retirement_prob_current}% → ${s.retirement_prob_new}%` : ""}`;
+      }).join("\n")
+    : null;
+
   const systemPrompt = `You are FINN, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
 
 CAPABILITIES:
@@ -177,6 +194,7 @@ FINANCIAL HEALTH SCORE: ${context.financial_health_score}/100
 ${factorLines}
 ${eventLines ? `\nFUTURE EVENTS PLANNED:\n${eventLines}` : ""}
 ${homeLines ? `\nHOME PLANNING SCENARIOS:\n${homeLines}` : ""}
+${careerLines ? `\nCAREER CHANGE SCENARIOS:\n${careerLines}` : ""}
 
 KEY BENCHMARKS (use these in calculations):
   Emergency fund target: ${fmt(context.monthly_expenses * 3)}–${fmt(context.monthly_expenses * 6)} (3–6 months expenses)
