@@ -323,7 +323,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
+      <div data-edu-grid style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
         {/* ── Left Panel: Scenarios list + form ─────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Scenarios list */}

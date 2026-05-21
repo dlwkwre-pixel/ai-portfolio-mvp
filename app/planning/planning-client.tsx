@@ -2860,20 +2860,20 @@ export default function PlanningClient({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "20px" }}>
+      <div className="planning-tabs-bar" style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "20px" }}>
         {TABS.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
             style={{
-              padding: "9px 16px", background: "none", border: "none",
+              padding: "9px 14px", background: "none", border: "none",
               borderBottom: tab === id ? "2px solid var(--brand-blue)" : "2px solid transparent",
               color: tab === id ? "var(--text-primary)" : "var(--text-tertiary)",
               fontSize: "13px", fontWeight: tab === id ? 600 : 400,
               fontFamily: "var(--font-body)", cursor: "pointer",
               transition: "color 0.15s",
-              marginBottom: "-1px",
+              marginBottom: "-1px", whiteSpace: "nowrap", flexShrink: 0,
             }}
           >
             {label}

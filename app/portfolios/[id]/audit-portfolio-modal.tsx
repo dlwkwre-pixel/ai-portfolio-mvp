@@ -413,7 +413,7 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
         <path d="M12.5 3.5L13.5 5.5 11.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M3.5 12.5L2.5 10.5 4.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      Sync Holdings
+      <span className="hidden sm:inline">Sync Holdings</span>
     </button>
   );
 

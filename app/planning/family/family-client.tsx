@@ -338,7 +338,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
+      <div data-family-grid style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
         {/* ── Left Panel ─────────────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* Scenarios list */}

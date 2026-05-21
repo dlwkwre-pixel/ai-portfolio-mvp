@@ -59,9 +59,20 @@ export default function EditPortfolioForm({ portfolio }: EditPortfolioFormProps)
       <button
         type="button"
         onClick={() => setIsOpen((p) => !p)}
-        className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/8 hover:text-white"
+        title={isOpen ? "Cancel" : "Edit Portfolio"}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/8 hover:text-white sm:px-4"
       >
-        {isOpen ? "Cancel" : "Edit Portfolio"}
+        {isOpen ? (
+          <>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            <span className="hidden sm:inline">Cancel</span>
+          </>
+        ) : (
+          <>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="shrink-0"><path d="M11 2a1.5 1.5 0 012.121 2.121L5.5 11.742l-2.5.5.5-2.5L11 2z" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="hidden sm:inline">Edit Portfolio</span>
+          </>
+        )}
       </button>
 
       {isOpen && (
