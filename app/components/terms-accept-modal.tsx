@@ -5,6 +5,7 @@ import Link from "next/link";
 
 export default function TermsAcceptModal() {
   const [checked, setChecked] = useState(false);
+  const [emailOptIn, setEmailOptIn] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +14,11 @@ export default function TermsAcceptModal() {
     setError(null);
     setIsPending(true);
     try {
-      const res = await fetch("/api/accept-terms", { method: "POST" });
+      const res = await fetch("/api/accept-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailOptIn }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Request failed");
       window.location.reload();
@@ -140,6 +145,36 @@ export default function TermsAcceptModal() {
               Privacy Policy
             </Link>
             . I understand that BuyTune does not provide investment advice.
+          </span>
+        </label>
+
+        {/* Email opt-in */}
+        <label style={{
+          display: "flex", alignItems: "flex-start", gap: "10px",
+          cursor: "pointer", marginBottom: "20px",
+        }}>
+          <input
+            type="checkbox"
+            checked={emailOptIn}
+            onChange={(e) => setEmailOptIn(e.target.checked)}
+            style={{ position: "absolute", opacity: 0, width: 0, height: 0 }}
+          />
+          <div style={{
+            width: "16px", height: "16px", flexShrink: 0,
+            border: `2px solid ${emailOptIn ? "var(--brand-blue)" : "var(--border-strong)"}`,
+            borderRadius: "4px",
+            background: emailOptIn ? "var(--brand-blue)" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginTop: "1px", transition: "all 0.15s",
+          }}>
+            {emailOptIn && (
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <span style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            Send me a weekly FINN digest — portfolio highlights and one financial insight. Unsubscribe anytime. (Optional)
           </span>
         </label>
 

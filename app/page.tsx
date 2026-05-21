@@ -515,6 +515,94 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Demo preview */}
+      <div style={{ padding: "80px 24px", maxWidth: "900px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: "48px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#3b82f6", marginBottom: "10px" }}>
+            See it in action
+          </div>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "clamp(22px,4vw,32px)", fontWeight: 800, color: "#f0f4ff", letterSpacing: "-0.8px", margin: "0 0 10px" }}>
+            FINN answers your hardest money questions
+          </h2>
+          <p style={{ fontSize: "14px", color: "#475569", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
+            Add your income, expenses, and goals. FINN runs your retirement forecast and tells you exactly where you stand.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+          {[
+            {
+              q: "Am I on track to retire at 60?",
+              a: "At your current savings rate of 22%, you're projected to hit $1.4M by 60 — about 89% of your target. Bumping to 27% closes the gap completely.",
+              tag: "Retirement",
+            },
+            {
+              q: "What happens if markets drop 30% next year?",
+              a: "A 30% drawdown would drop your probability from 74% to 61%. Your timeline is long enough that recovery is likely, but your emergency fund is thin — 2.1 months vs the 3–6 month target.",
+              tag: "Stress test",
+            },
+            {
+              q: "Should we buy a house or keep renting?",
+              a: "At $650K with 20% down, you'd break even on buying vs renting in year 6. Your current savings rate can sustain the down payment in 18 months without hurting retirement.",
+              tag: "Home planning",
+            },
+          ].map(({ q, a, tag }) => (
+            <div key={tag} style={{
+              background: "oklch(0.11 0.008 250)",
+              border: "1px solid oklch(0.2 0.012 250)",
+              borderRadius: "16px",
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                <p style={{ fontSize: "14px", fontWeight: 600, color: "#f0f4ff", margin: 0, lineHeight: 1.4, fontFamily: "'Syne',sans-serif" }}>
+                  &ldquo;{q}&rdquo;
+                </p>
+                <span style={{
+                  flexShrink: 0, fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px",
+                  background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)",
+                  color: "#93c5fd",
+                }}>
+                  {tag}
+                </span>
+              </div>
+              <div style={{
+                background: "oklch(0.15 0.01 250)",
+                border: "1px solid oklch(0.22 0.012 250)",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                display: "flex",
+                gap: "10px",
+                alignItems: "flex-start",
+              }}>
+                <div style={{
+                  width: "22px", height: "22px", flexShrink: 0, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>F</span>
+                </div>
+                <p style={{ fontSize: "12px", color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>{a}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ textAlign: "center", marginTop: "36px" }}>
+          <Link href="/signup" style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            padding: "10px 22px", borderRadius: "10px",
+            background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.25)",
+            color: "#93c5fd", fontSize: "13px", fontWeight: 600, textDecoration: "none",
+            transition: "all 0.15s",
+          }}>
+            Get your own FINN analysis — free
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
+          </Link>
+        </div>
+      </div>
+
       {/* CTA */}
       <div className="cta-wrap">
         <div className="cta-glow"/>

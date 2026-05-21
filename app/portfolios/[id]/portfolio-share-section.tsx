@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -105,6 +105,16 @@ export default function PortfolioShareSection({
       }
     });
   }
+
+  const [shareCopied, setShareCopied] = useState(false);
+  const copyShareLink = useCallback(() => {
+    if (!publicPortfolio) return;
+    const url = `${window.location.origin}/share/portfolio/${publicPortfolio.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
+  }, [publicPortfolio]);
 
   const relativeSync = (() => {
     if (!publicPortfolio?.last_synced_at) return null;
@@ -357,6 +367,26 @@ export default function PortfolioShareSection({
                     </svg>
                     View Public Page
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={copyShareLink}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "4px",
+                      padding: "6px 12px", borderRadius: "var(--radius-md)",
+                      fontSize: "11px", fontWeight: 500, fontFamily: "var(--font-body)",
+                      background: shareCopied ? "rgba(74,222,128,0.08)" : "rgba(37,99,235,0.08)",
+                      border: `1px solid ${shareCopied ? "rgba(74,222,128,0.2)" : "rgba(37,99,235,0.2)"}`,
+                      color: shareCopied ? "#4ade80" : "#93c5fd",
+                      cursor: "pointer", transition: "all 150ms ease",
+                    }}
+                  >
+                    {shareCopied ? (
+                      <><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 8l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> Copied!</>
+                    ) : (
+                      <><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3M9 1h6v6M15 1L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> Share Card</>
+                    )}
+                  </button>
 
                   <button
                     type="button"

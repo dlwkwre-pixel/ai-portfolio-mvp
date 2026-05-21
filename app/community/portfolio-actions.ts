@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { validateLength } from "@/lib/validation";
+import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -253,7 +254,7 @@ export async function syncPublicAllocation(portfolioId: string) {
   // Fetch current portfolio state
   const { data: portfolio } = await supabase
     .from("portfolios")
-    .select("cash_balance")
+    .select("cash_balance, benchmark_symbol")
     .eq("id", portfolioId)
     .eq("user_id", user.id)
     .single();
@@ -306,10 +307,41 @@ export async function syncPublicAllocation(portfolioId: string) {
     { onConflict: "public_portfolio_id,snapshot_date" }
   );
 
-  // Update last_synced_at
+  // Compute all-time benchmark comparison for the share card
+  const benchmarkSymbol = portfolio.benchmark_symbol || "SPY";
+  let returnPctAlltime: number | null = null;
+  let benchmarkReturnPct: number | null = null;
+  try {
+    const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
+      supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date"),
+      supabase.from("portfolio_cashflows").select("effective_at, direction, amount").eq("portfolio_id", portfolioId),
+    ]);
+    if (snapshots && snapshots.length >= 2) {
+      const result = await getBenchmarkComparison({
+        snapshots: snapshots.map((s) => ({ snapshot_date: s.snapshot_date, total_value: s.total_value })),
+        benchmarkSymbol,
+        cashFlows: (cashFlows ?? []).map((c) => ({ effective_at: c.effective_at, direction: c.direction, amount: c.amount })),
+      });
+      returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;
+      benchmarkReturnPct = result.benchmarkReturnPct ?? null;
+    }
+  } catch {
+    // Non-fatal — share card stats just won't update this sync
+  }
+
+  // Update last_synced_at + share card stats
   await supabase
     .from("public_portfolios")
-    .update({ last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...(returnPctAlltime != null ? {
+        return_pct_alltime: Math.round(returnPctAlltime * 100) / 100,
+        benchmark_symbol: benchmarkSymbol,
+        benchmark_return_pct: benchmarkReturnPct != null ? Math.round(benchmarkReturnPct * 100) / 100 : null,
+        stats_updated_at: new Date().toISOString(),
+      } : {}),
+    })
     .eq("id", pubPortfolio.id);
 
   // Create notifications for followers if meaningful changes detected
