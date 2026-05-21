@@ -1,26 +1,55 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAnonClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
 import ShareCardClient from "./share-card-client";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("public_portfolios")
-    .select("public_name, return_pct_alltime, benchmark_symbol, benchmark_return_pct")
-    .eq("id", id)
-    .eq("is_public", true)
-    .maybeSingle();
 
-  if (!data) return { title: "Portfolio — BuyTune" };
-  const ret = data.return_pct_alltime != null
+  // Use anon client for metadata — scrapers (iMessage, WhatsApp) send no cookies
+  let data: { public_name: string; return_pct_alltime: number | null } | null = null;
+  try {
+    const supabase = createAnonClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    const res = await supabase
+      .from("public_portfolios")
+      .select("public_name, return_pct_alltime")
+      .eq("id", id)
+      .eq("is_public", true)
+      .maybeSingle();
+    data = res.data;
+  } catch { /* fall through to defaults */ }
+
+  const name = data?.public_name ?? "Portfolio";
+  const ret = data?.return_pct_alltime != null
     ? `${data.return_pct_alltime >= 0 ? "+" : ""}${data.return_pct_alltime.toFixed(1)}% all-time`
     : "Performance card";
+
+  const imageUrl = `${SITE_URL}/share/portfolio/${id}/opengraph-image`;
+  const title = `${name} · ${ret} — BuyTune`;
+  const description = `See ${name} on BuyTune — AI-powered portfolio analytics, free.`;
+
   return {
-    title: `${data.public_name} · ${ret} — BuyTune`,
-    description: `Track ${data.public_name} on BuyTune — free AI-powered portfolio analytics.`,
-    openGraph: { title: `${data.public_name} · ${ret}`, description: "Track your portfolio on BuyTune", siteName: "BuyTune" },
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: "BuyTune",
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: `${name} portfolio performance` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
   };
 }
 
