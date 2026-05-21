@@ -35,10 +35,8 @@ export default function TermsAcceptModal() {
       zIndex: 9999,
       background: "rgba(2,7,18,0.92)",
       backdropFilter: "blur(8px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "20px",
+      overflowY: "auto",
+      padding: "5vh 20px 20px",
     }}>
       <div style={{
         background: "var(--bg-elevated)",
@@ -48,6 +46,7 @@ export default function TermsAcceptModal() {
         width: "100%",
         padding: "32px",
         boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+        margin: "0 auto",
       }}>
         {/* Logo + heading */}
         <div style={{ marginBottom: "24px" }}>

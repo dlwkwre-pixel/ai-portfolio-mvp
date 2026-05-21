@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 
 // This route is called daily by Vercel Cron
-// It automatically saves a snapshot of every active portfolio's current value
+// It saves a snapshot for every active portfolio and syncs allocations + stats for public portfolios
 
 export async function GET(request: Request) {
   // Verify the request is from Vercel Cron
@@ -15,18 +16,16 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
 
-  // Admin client bypasses RLS — needed for writing public portfolio performance
   let adminSupabase: ReturnType<typeof createAdminClient> | null = null;
   try {
     adminSupabase = createAdminClient();
   } catch {
-    console.warn("SUPABASE_SERVICE_ROLE_KEY not set — public portfolio performance updates will be skipped.");
+    console.warn("SUPABASE_SERVICE_ROLE_KEY not set — public portfolio sync will be skipped.");
   }
 
-  // Get all active portfolios across all users
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
-    .select("id, user_id, cash_balance")
+    .select("id, user_id, cash_balance, benchmark_symbol")
     .eq("is_active", true);
 
   if (portfoliosError) {
@@ -56,14 +55,15 @@ export async function GET(request: Request) {
 
       if (existingSnapshot) {
         skipCount++;
-        continue; // Already snapshotted today, skip
+        continue;
       }
 
-      // Get current holdings to calculate total value
       const { data: holdings } = await supabase
         .from("holdings")
         .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
         .eq("portfolio_id", portfolio.id);
+
+      const cashBalance = Number(portfolio.cash_balance ?? 0);
 
       const valuation = await getPortfolioValuation({
         holdings: (holdings ?? []).map((h) => ({
@@ -74,18 +74,17 @@ export async function GET(request: Request) {
           shares: h.shares,
           average_cost_basis: h.average_cost_basis,
         })),
-        cashBalance: Number(portfolio.cash_balance ?? 0),
+        cashBalance,
       });
 
       const totalValue = valuation.total_portfolio_value;
 
-      // Save snapshot
       const { error: insertError } = await supabase
         .from("portfolio_snapshots")
         .insert({
           portfolio_id: portfolio.id,
           total_value: totalValue,
-          cash_balance: Number(portfolio.cash_balance ?? 0),
+          cash_balance: cashBalance,
           snapshot_date: new Date().toISOString(),
           notes: "Auto daily snapshot",
         });
@@ -93,32 +92,131 @@ export async function GET(request: Request) {
       if (insertError) {
         console.error(`Snapshot failed for portfolio ${portfolio.id}:`, insertError.message);
         errorCount++;
-      } else {
-        successCount++;
+        continue;
+      }
 
-        // Update public portfolio performance if this portfolio is shared
-        if (adminSupabase) {
-          try {
-            const { data: pubPortfolio } = await adminSupabase
-              .from("public_portfolios")
-              .select("id, baseline_total_value")
-              .eq("source_portfolio_id", portfolio.id)
-              .eq("is_public", true)
-              .maybeSingle();
+      successCount++;
 
-            if (pubPortfolio) {
-              const baseline = Number(pubPortfolio.baseline_total_value ?? 0);
-              const returnPct = baseline > 0 ? ((totalValue - baseline) / baseline) * 100 : 0;
-              await adminSupabase
-                .from("public_portfolio_performance")
-                .upsert(
-                  { public_portfolio_id: pubPortfolio.id, snapshot_date: today, return_pct: returnPct },
-                  { onConflict: "public_portfolio_id,snapshot_date" }
-                );
+      // Sync public portfolio if this portfolio is shared
+      if (adminSupabase) {
+        try {
+          const { data: pubPortfolio } = await adminSupabase
+            .from("public_portfolios")
+            .select("id, baseline_total_value")
+            .eq("source_portfolio_id", portfolio.id)
+            .eq("is_public", true)
+            .maybeSingle();
+
+          if (pubPortfolio) {
+            // 1. Upsert today's performance point
+            const baseline = Number(pubPortfolio.baseline_total_value ?? 0);
+            const returnPct = baseline > 0 ? ((totalValue - baseline) / baseline) * 100 : 0;
+            await adminSupabase
+              .from("public_portfolio_performance")
+              .upsert(
+                { public_portfolio_id: pubPortfolio.id, snapshot_date: today, return_pct: returnPct },
+                { onConflict: "public_portfolio_id,snapshot_date" }
+              );
+
+            // 2. Rebuild allocations from today's valuation
+            const newAllocations: Array<{
+              ticker: string;
+              company_name: string | null;
+              allocation_pct: number;
+              is_cash: boolean;
+            }> = [];
+
+            if (totalValue > 0) {
+              valuation.valued_holdings
+                .filter((h) => h.market_value != null && h.market_value > 0)
+                .sort((a, b) => (b.market_value ?? 0) - (a.market_value ?? 0))
+                .forEach((h) => {
+                  newAllocations.push({
+                    ticker: h.ticker,
+                    company_name: h.company_name ?? null,
+                    allocation_pct: Number(((h.market_value! / totalValue) * 100).toFixed(4)),
+                    is_cash: false,
+                  });
+                });
+
+              if (cashBalance > 0) {
+                const cashPct = Number(((cashBalance / totalValue) * 100).toFixed(4));
+                if (cashPct > 0.01) {
+                  newAllocations.push({ ticker: "CASH", company_name: "Cash", allocation_pct: cashPct, is_cash: true });
+                }
+              }
             }
-          } catch (perfErr) {
-            console.error(`Public perf update failed for portfolio ${portfolio.id}:`, perfErr);
+
+            if (newAllocations.length > 0) {
+              await adminSupabase
+                .from("public_portfolio_holdings")
+                .delete()
+                .eq("public_portfolio_id", pubPortfolio.id);
+              await adminSupabase.from("public_portfolio_holdings").insert(
+                newAllocations.map((h, i) => ({
+                  public_portfolio_id: pubPortfolio.id,
+                  ticker: h.ticker,
+                  company_name: h.company_name,
+                  allocation_pct: h.allocation_pct,
+                  is_cash: h.is_cash,
+                  display_order: i,
+                }))
+              );
+            }
+
+            // 3. Compute TWR vs benchmark for share card
+            const benchmarkSymbol = portfolio.benchmark_symbol || "SPY";
+            let returnPctAlltime: number | null = null;
+            let benchmarkReturnPct: number | null = null;
+            try {
+              const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
+                supabase
+                  .from("portfolio_snapshots")
+                  .select("snapshot_date, total_value")
+                  .eq("portfolio_id", portfolio.id)
+                  .order("snapshot_date"),
+                supabase
+                  .from("portfolio_cashflows")
+                  .select("effective_at, direction, amount")
+                  .eq("portfolio_id", portfolio.id),
+              ]);
+              if (snapshots && snapshots.length >= 2) {
+                const result = await getBenchmarkComparison({
+                  snapshots: snapshots.map((s) => ({ snapshot_date: s.snapshot_date, total_value: s.total_value })),
+                  benchmarkSymbol,
+                  cashFlows: (cashFlows ?? []).map((c) => ({
+                    effective_at: c.effective_at,
+                    direction: c.direction,
+                    amount: c.amount,
+                  })),
+                });
+                returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;
+                benchmarkReturnPct = result.benchmarkReturnPct ?? null;
+              }
+            } catch {
+              // Non-fatal — share card stats will be updated on next manual sync
+            }
+
+            // 4. Update last_synced_at + share card stats on public_portfolios
+            await adminSupabase
+              .from("public_portfolios")
+              .update({
+                last_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                ...(returnPctAlltime != null
+                  ? {
+                      return_pct_alltime: Math.round(returnPctAlltime * 100) / 100,
+                      benchmark_symbol: benchmarkSymbol,
+                      benchmark_return_pct:
+                        benchmarkReturnPct != null ? Math.round(benchmarkReturnPct * 100) / 100 : null,
+                      stats_updated_at: new Date().toISOString(),
+                    }
+                  : {}),
+              })
+              .eq("id", pubPortfolio.id);
           }
+        } catch (pubErr) {
+          console.error(`Public portfolio sync failed for ${portfolio.id}:`, pubErr);
         }
       }
     } catch (err) {
@@ -128,7 +226,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    message: `Snapshots complete.`,
+    message: "Snapshots complete.",
     success: successCount,
     skipped: skipCount,
     errors: errorCount,

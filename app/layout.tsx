@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io"),
   title: "BuyTune.io — AI-Powered Portfolio Analysis",
   description: "Institutional-grade AI investing insights, personalized to your strategy and risk profile.",
   manifest: "/manifest.json",
