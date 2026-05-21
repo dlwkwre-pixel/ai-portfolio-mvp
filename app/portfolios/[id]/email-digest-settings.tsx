@@ -10,41 +10,6 @@ const FREQUENCIES = [
   { value: "monthly_first", label: "Monthly",         description: "1st of each month" },
 ] as const;
 
-const TIMEZONES = [
-  { value: "America/New_York",    label: "Eastern (ET)" },
-  { value: "America/Chicago",     label: "Central (CT)" },
-  { value: "America/Denver",      label: "Mountain (MT)" },
-  { value: "America/Los_Angeles", label: "Pacific (PT)" },
-  { value: "America/Anchorage",   label: "Alaska (AKT)" },
-  { value: "Pacific/Honolulu",    label: "Hawaii (HT)" },
-  { value: "America/Halifax",     label: "Atlantic (AT)" },
-  { value: "Europe/London",       label: "London (GMT/BST)" },
-  { value: "Europe/Paris",        label: "Paris (CET/CEST)" },
-  { value: "Europe/Berlin",       label: "Berlin (CET/CEST)" },
-  { value: "Asia/Tokyo",          label: "Tokyo (JST)" },
-  { value: "Asia/Shanghai",       label: "Shanghai (CST)" },
-  { value: "Asia/Kolkata",        label: "India (IST)" },
-  { value: "Australia/Sydney",    label: "Sydney (AEST)" },
-  { value: "UTC",                 label: "UTC" },
-] as const;
-
-// Send-hour options: 6am–10pm
-const SEND_HOURS = Array.from({ length: 17 }, (_, i) => i + 6);
-
-function fmtHour(h: number): string {
-  if (h === 0)  return "12:00 AM";
-  if (h === 12) return "12:00 PM";
-  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`;
-}
-
-function getLocalHourLabel(sendHour: number, timezone: string): string {
-  try {
-    const tz = TIMEZONES.find((t) => t.value === timezone);
-    return `${fmtHour(sendHour)} ${tz?.label ?? timezone}`;
-  } catch {
-    return fmtHour(sendHour);
-  }
-}
 
 const CONTENT_OPTIONS = [
   { key: "include_performance", label: "Performance",      description: "All-time return and this week's change" },
@@ -307,88 +272,6 @@ export default function EmailDigestSettings({
             </div>
           </div>
 
-          {/* Delivery time */}
-          <div
-            style={{
-              padding: "20px",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "12px",
-              marginBottom: "16px",
-            }}
-          >
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "14px" }}>
-              Delivery Time
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
-              {/* Time picker */}
-              <div>
-                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginBottom: "5px" }}>Time</div>
-                <select
-                  value={sendHour}
-                  onChange={(e) => setSendHour(parseInt(e.target.value))}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-subtle)",
-                    background: "var(--bg-base)",
-                    color: "var(--text-primary)",
-                    fontSize: "13px",
-                    outline: "none",
-                    fontFamily: "var(--font-body)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {SEND_HOURS.map((h) => (
-                    <option key={h} value={h}>{fmtHour(h)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Timezone picker */}
-              <div>
-                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginBottom: "5px" }}>Time Zone</div>
-                <select
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-subtle)",
-                    background: "var(--bg-base)",
-                    color: "var(--text-primary)",
-                    fontSize: "13px",
-                    outline: "none",
-                    fontFamily: "var(--font-body)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>{tz.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div style={{
-              padding: "9px 12px",
-              background: "rgba(37,99,235,0.07)",
-              border: "1px solid rgba(37,99,235,0.15)",
-              borderRadius: "7px",
-              fontSize: "12px",
-              color: "var(--text-secondary)",
-            }}>
-              Emails will arrive at{" "}
-              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
-                {getLocalHourLabel(sendHour, timezone)}
-              </span>
-            </div>
-          </div>
-
           {/* Email address */}
           <div
             style={{
@@ -463,23 +346,6 @@ export default function EmailDigestSettings({
         </div>
       )}
 
-      {/* Setup hint */}
-      {!process.env.NEXT_PUBLIC_RESEND_CONFIGURED && enabled && (
-        <div
-          style={{
-            marginTop: "16px",
-            padding: "12px 14px",
-            background: "rgba(251,191,36,0.07)",
-            border: "1px solid rgba(251,191,36,0.2)",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "#fbbf24",
-          }}
-        >
-          Email delivery requires <code style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>RESEND_API_KEY</code> and{" "}
-          <code style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>RESEND_FROM_EMAIL</code> environment variables to be set.
-        </div>
-      )}
     </div>
   );
 }
