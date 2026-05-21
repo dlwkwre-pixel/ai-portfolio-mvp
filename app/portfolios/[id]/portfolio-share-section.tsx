@@ -109,7 +109,8 @@ export default function PortfolioShareSection({
   const [shareCopied, setShareCopied] = useState(false);
   const copyShareLink = useCallback(() => {
     if (!publicPortfolio) return;
-    const url = `${window.location.origin}/share/portfolio/${publicPortfolio.id}`;
+    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+    const url = `${origin}/share/portfolio/${publicPortfolio.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
