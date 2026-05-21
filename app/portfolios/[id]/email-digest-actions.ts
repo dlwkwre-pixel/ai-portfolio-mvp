@@ -60,6 +60,33 @@ export async function upsertDigestPrefs(
   return {};
 }
 
+export async function toggleDigestEnabled(portfolioId: string, enabled: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const { data: portfolio } = await supabase
+    .from("portfolios")
+    .select("id")
+    .eq("id", portfolioId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!portfolio) return { error: "Portfolio not found" };
+
+  const { error } = await supabase
+    .from("portfolio_digest_preferences")
+    .upsert(
+      { portfolio_id: portfolioId, user_id: user.id, enabled, updated_at: new Date().toISOString() },
+      { onConflict: "portfolio_id,user_id" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath(`/portfolios/${portfolioId}`);
+  revalidatePath("/settings/emails");
+  return {};
+}
+
 export async function getDigestPrefs(portfolioId: string): Promise<DigestPrefs | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
