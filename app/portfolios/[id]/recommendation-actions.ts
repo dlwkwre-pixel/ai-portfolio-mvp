@@ -119,6 +119,304 @@ async function fetchRedditSentimentForTickers(
   return result;
 }
 
+// ─── Factor Intelligence ─────────────────────────────────────────────────────
+
+type FactorScores = Record<string, number>;
+
+const TICKER_FACTORS: Record<string, FactorScores> = {
+  // AI / Semiconductors
+  NVDA: { ai_infrastructure: 0.95, high_beta_growth: 0.85, liquidity_sensitive: 0.80, speculative_momentum: 0.40 },
+  AMD:  { ai_infrastructure: 0.85, high_beta_growth: 0.80, liquidity_sensitive: 0.75 },
+  AVGO: { ai_infrastructure: 0.80, high_beta_growth: 0.60, defensive: 0.20 },
+  TSM:  { ai_infrastructure: 0.90, high_beta_growth: 0.55 },
+  SMCI: { ai_infrastructure: 0.90, high_beta_growth: 0.85, speculative_momentum: 0.70 },
+  ARM:  { ai_infrastructure: 0.80, high_beta_growth: 0.75, speculative_momentum: 0.50 },
+  AMAT: { ai_infrastructure: 0.75, high_beta_growth: 0.60 },
+  LRCX: { ai_infrastructure: 0.75, high_beta_growth: 0.60 },
+  KLAC: { ai_infrastructure: 0.70, high_beta_growth: 0.55 },
+  MRVL: { ai_infrastructure: 0.80, high_beta_growth: 0.65 },
+  MU:   { ai_infrastructure: 0.80, high_beta_growth: 0.70, liquidity_sensitive: 0.65 },
+  ON:   { ai_infrastructure: 0.55, high_beta_growth: 0.60 },
+  INTC: { ai_infrastructure: 0.50, high_beta_growth: 0.20 },
+  QCOM: { ai_infrastructure: 0.55, consumer_tech: 0.40, high_beta_growth: 0.40 },
+  // Big Tech / Cloud Platform
+  MSFT: { cloud_growth: 0.80, ai_infrastructure: 0.50, consumer_tech: 0.30, defensive: 0.30 },
+  AMZN: { cloud_growth: 0.70, consumer_tech: 0.50, high_beta_growth: 0.50 },
+  GOOG: { cloud_growth: 0.70, consumer_tech: 0.60, ai_infrastructure: 0.50 },
+  GOOGL:{ cloud_growth: 0.70, consumer_tech: 0.60, ai_infrastructure: 0.50 },
+  META: { consumer_tech: 0.80, high_beta_growth: 0.60, ai_infrastructure: 0.35 },
+  AAPL: { consumer_tech: 0.80, defensive: 0.35, high_beta_growth: 0.25 },
+  TSLA: { high_beta_growth: 0.85, speculative_momentum: 0.75, ai_infrastructure: 0.35, liquidity_sensitive: 0.80 },
+  // SaaS / Cloud
+  CRM:  { cloud_growth: 0.85, high_beta_growth: 0.65 },
+  NOW:  { cloud_growth: 0.90, high_beta_growth: 0.70 },
+  SNOW: { cloud_growth: 0.90, high_beta_growth: 0.80, liquidity_sensitive: 0.75, speculative_momentum: 0.55 },
+  DDOG: { cloud_growth: 0.85, high_beta_growth: 0.75, liquidity_sensitive: 0.70 },
+  NET:  { cloud_growth: 0.85, high_beta_growth: 0.75, liquidity_sensitive: 0.70 },
+  PANW: { cloud_growth: 0.75, high_beta_growth: 0.65 },
+  CRWD: { cloud_growth: 0.80, high_beta_growth: 0.70, liquidity_sensitive: 0.65 },
+  OKTA: { cloud_growth: 0.80, high_beta_growth: 0.70, liquidity_sensitive: 0.65 },
+  ZS:   { cloud_growth: 0.80, high_beta_growth: 0.70 },
+  WDAY: { cloud_growth: 0.80, high_beta_growth: 0.65 },
+  ADBE: { cloud_growth: 0.80, high_beta_growth: 0.60 },
+  INTU: { cloud_growth: 0.75, fintech: 0.40, high_beta_growth: 0.55 },
+  // Consumer Tech / Media
+  NFLX: { consumer_tech: 0.82, high_beta_growth: 0.60 },
+  SPOT: { consumer_tech: 0.75, high_beta_growth: 0.70, speculative_momentum: 0.40 },
+  UBER: { consumer_tech: 0.70, high_beta_growth: 0.65 },
+  ABNB: { consumer_tech: 0.75, high_beta_growth: 0.65 },
+  PINS: { consumer_tech: 0.70, speculative_momentum: 0.50, liquidity_sensitive: 0.55 },
+  SNAP: { consumer_tech: 0.65, speculative_momentum: 0.60, liquidity_sensitive: 0.70 },
+  DIS:  { consumer_tech: 0.55, defensive: 0.40, high_beta_growth: 0.35 },
+  RBLX: { consumer_tech: 0.70, speculative_momentum: 0.65, liquidity_sensitive: 0.70 },
+  // Fintech
+  V:    { fintech: 0.85, defensive: 0.40 },
+  MA:   { fintech: 0.85, defensive: 0.40 },
+  PYPL: { fintech: 0.80, high_beta_growth: 0.45, speculative_momentum: 0.35 },
+  SQ:   { fintech: 0.80, high_beta_growth: 0.75, speculative_momentum: 0.55 },
+  AFRM: { fintech: 0.65, speculative_momentum: 0.80, liquidity_sensitive: 0.85 },
+  NU:   { fintech: 0.75, high_beta_growth: 0.70, speculative_momentum: 0.50 },
+  SOFI: { fintech: 0.70, rates_sensitive: 0.50, speculative_momentum: 0.55 },
+  COIN: { crypto_adjacent: 0.90, speculative_momentum: 0.85, liquidity_sensitive: 0.85, high_beta_growth: 0.75 },
+  // Financials
+  JPM:  { fintech: 0.30, rates_sensitive: 0.75, defensive: 0.50 },
+  BAC:  { fintech: 0.25, rates_sensitive: 0.80, defensive: 0.40 },
+  GS:   { fintech: 0.50, rates_sensitive: 0.65, high_beta_growth: 0.40 },
+  MS:   { fintech: 0.50, rates_sensitive: 0.65, high_beta_growth: 0.40 },
+  WFC:  { rates_sensitive: 0.80, defensive: 0.45 },
+  C:    { rates_sensitive: 0.80, defensive: 0.35 },
+  // Energy
+  XOM:  { energy: 0.90, defensive: 0.45 },
+  CVX:  { energy: 0.90, defensive: 0.45 },
+  COP:  { energy: 0.85 },
+  OXY:  { energy: 0.85, speculative_momentum: 0.35 },
+  SLB:  { energy: 0.85 },
+  EOG:  { energy: 0.80 },
+  PSX:  { energy: 0.75, defensive: 0.30 },
+  // Defensive / Staples
+  JNJ:  { defensive: 0.90, rates_sensitive: 0.30 },
+  PG:   { defensive: 0.92 },
+  KO:   { defensive: 0.90, rates_sensitive: 0.35 },
+  PEP:  { defensive: 0.88, rates_sensitive: 0.35 },
+  WMT:  { defensive: 0.82, consumer_tech: 0.20 },
+  COST: { defensive: 0.78 },
+  MCD:  { defensive: 0.82, rates_sensitive: 0.25 },
+  SBUX: { consumer_tech: 0.55, defensive: 0.55 },
+  TGT:  { defensive: 0.72, consumer_tech: 0.25 },
+  HD:   { defensive: 0.70, rates_sensitive: 0.35 },
+  LOW:  { defensive: 0.68, rates_sensitive: 0.35 },
+  // Healthcare
+  UNH:  { defensive: 0.80, rates_sensitive: 0.20 },
+  LLY:  { defensive: 0.55, high_beta_growth: 0.65, speculative_momentum: 0.40 },
+  AMGN: { defensive: 0.72, rates_sensitive: 0.30 },
+  PFE:  { defensive: 0.82, rates_sensitive: 0.25 },
+  MRK:  { defensive: 0.80, rates_sensitive: 0.25 },
+  ABT:  { defensive: 0.75 },
+  BMY:  { defensive: 0.80, rates_sensitive: 0.25 },
+  ABBV: { defensive: 0.78, rates_sensitive: 0.30 },
+  // Industrials / Defense
+  CAT:  { industrials_cycle: 0.85, defensive: 0.30 },
+  DE:   { industrials_cycle: 0.85 },
+  BA:   { industrials_cycle: 0.80, high_beta_growth: 0.35 },
+  HON:  { industrials_cycle: 0.75, defensive: 0.40 },
+  GE:   { industrials_cycle: 0.80 },
+  RTX:  { industrials_cycle: 0.80, defensive: 0.40 },
+  LMT:  { industrials_cycle: 0.78, defensive: 0.50 },
+  NOC:  { industrials_cycle: 0.78, defensive: 0.50 },
+  UPS:  { industrials_cycle: 0.70, defensive: 0.40 },
+  FDX:  { industrials_cycle: 0.70, high_beta_growth: 0.30 },
+  // Crypto adjacent
+  MSTR: { crypto_adjacent: 0.95, speculative_momentum: 0.90, liquidity_sensitive: 0.90 },
+  MARA: { crypto_adjacent: 0.90, speculative_momentum: 0.85 },
+  RIOT: { crypto_adjacent: 0.90, speculative_momentum: 0.85 },
+  HUT:  { crypto_adjacent: 0.85, speculative_momentum: 0.80 },
+  // ETFs
+  SPY:  { defensive: 0.50, high_beta_growth: 0.35, ai_infrastructure: 0.20 },
+  QQQ:  { high_beta_growth: 0.70, ai_infrastructure: 0.45, cloud_growth: 0.40 },
+  VOO:  { defensive: 0.55, high_beta_growth: 0.30 },
+  IWM:  { high_beta_growth: 0.60, speculative_momentum: 0.40, liquidity_sensitive: 0.55 },
+  XLK:  { ai_infrastructure: 0.55, cloud_growth: 0.50, high_beta_growth: 0.65 },
+  XLE:  { energy: 0.90 },
+  XLF:  { fintech: 0.40, rates_sensitive: 0.75 },
+  XLU:  { defensive: 0.80, rates_sensitive: 0.65 },
+  GLD:  { defensive: 0.70 },
+  TLT:  { rates_sensitive: 0.90, defensive: 0.60 },
+};
+
+const FACTOR_ENVIRONMENTS: Record<string, { up: string[]; down: string[] }> = {
+  ai_infrastructure: { up: ["AI capex expansion", "growth leadership", "tech earnings beats"], down: ["AI spending pullback", "semiconductor cycles", "risk-off rotation"] },
+  cloud_growth:      { up: ["SaaS re-rating", "enterprise IT spending growth"], down: ["rate spikes", "multiple compression", "cloud spend scrutiny"] },
+  high_beta_growth:  { up: ["risk-on environments", "liquidity easing", "momentum runs"], down: ["rate spikes", "momentum reversals", "value rotation"] },
+  liquidity_sensitive: { up: ["Fed easing cycles", "credit expansion"], down: ["liquidity contraction", "credit tightening", "rates spike"] },
+  speculative_momentum: { up: ["retail momentum", "low-volatility environments", "risk appetite peaks"], down: ["deleveraging", "sentiment reversals", "VIX spikes"] },
+  crypto_adjacent:   { up: ["crypto bull markets", "speculative risk appetite"], down: ["regulatory crackdowns", "broad deleveraging", "risk-off"] },
+  energy:            { up: ["oil price spikes", "inflation regimes", "supply shocks"], down: ["demand destruction", "oil gluts", "green transition acceleration"] },
+  rates_sensitive:   { up: ["rate-cutting cycles", "yield curve steepening"], down: ["rate spikes", "hawkish Fed", "inflation surprises"] },
+  defensive:         { up: ["volatility spikes", "bear markets", "flight to quality"], down: ["bull markets", "growth leadership", "risk-on rotation"] },
+  fintech:           { up: ["consumer spending growth", "digital payments adoption"], down: ["credit tightening", "recession fears"] },
+  industrials_cycle: { up: ["infrastructure spending", "manufacturing expansion"], down: ["recession", "inventory destocking"] },
+  consumer_tech:     { up: ["consumer confidence", "ad market expansion"], down: ["consumer slowdown", "ad market contraction"] },
+};
+
+function buildFactorIntelligence(
+  holdings: { ticker: string; company_name?: string | null; weight_pct: number | null | undefined }[],
+  strategy: { name?: string | null; style?: string | null; risk_level?: string | null } | null,
+  strategyVersion: { prompt_text?: string | null } | null
+) {
+  const name = (strategy?.name ?? "").toLowerCase();
+  const style = (strategy?.style ?? "").toLowerCase();
+  const promptText = (strategyVersion?.prompt_text ?? "").toLowerCase();
+  const combined = `${name} ${style} ${promptText}`;
+
+  // Portfolio-weighted factor scores
+  const portFactors: Record<string, number> = {};
+  let totalWeight = 0;
+
+  for (const h of holdings) {
+    const w = h.weight_pct ?? 0;
+    if (w <= 0) continue;
+    totalWeight += w;
+
+    const ticker = h.ticker.toUpperCase();
+    let tf: FactorScores = TICKER_FACTORS[ticker] ?? {};
+
+    // Fallback to company name keywords when ticker is unknown
+    if (Object.keys(tf).length === 0) {
+      const cn = (h.company_name ?? "").toLowerCase();
+      if (/semiconductor|chip|foundry|wafer|lithograph/.test(cn))       tf = { ai_infrastructure: 0.60, high_beta_growth: 0.50 };
+      else if (/cloud|saas|enterprise software|platform/.test(cn))      tf = { cloud_growth: 0.60, high_beta_growth: 0.55 };
+      else if (/\bai\b|artificial intelligence|machine learning/.test(cn)) tf = { ai_infrastructure: 0.65, high_beta_growth: 0.60 };
+      else if (/oil|gas|energy|petroleum|lng|refin/.test(cn))           tf = { energy: 0.80 };
+      else if (/bank|financial|insurance|capital market/.test(cn))      tf = { rates_sensitive: 0.65, fintech: 0.30 };
+      else if (/pharma|biotech|drug|therapeut|genomic/.test(cn))        tf = { defensive: 0.55, speculative_momentum: 0.45 };
+      else if (/consumer|retail|restaurant|food|beverage/.test(cn))     tf = { defensive: 0.65 };
+      else if (/defense|aerospace|weapon|military/.test(cn))            tf = { industrials_cycle: 0.70, defensive: 0.45 };
+      else if (/crypto|blockchain|bitcoin|digital asset/.test(cn))      tf = { crypto_adjacent: 0.85, speculative_momentum: 0.80 };
+      else tf = { high_beta_growth: 0.35 };
+    }
+
+    for (const [factor, score] of Object.entries(tf)) {
+      portFactors[factor] = (portFactors[factor] ?? 0) + score * w;
+    }
+  }
+
+  if (totalWeight > 0) {
+    for (const k of Object.keys(portFactors)) portFactors[k] = portFactors[k] / totalWeight;
+  }
+
+  // Filter to meaningful exposures and round
+  const factorExposure: Record<string, number> = {};
+  for (const [k, v] of Object.entries(portFactors)) {
+    if (v >= 0.08) factorExposure[k] = Math.round(v * 100) / 100;
+  }
+
+  // Top 3 dominant factors
+  const dominantFactors = Object.entries(factorExposure)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k]) => k);
+
+  // Crowding detection — pairs of high-exposure factors with amplified correlation risk
+  const CROWDING_PAIRS: [string, string, string][] = [
+    ["ai_infrastructure", "high_beta_growth", "AI/tech factor crowding — correlated drawdown risk in risk-off episodes"],
+    ["ai_infrastructure", "liquidity_sensitive", "AI + liquidity crowding — amplified sensitivity to funding conditions"],
+    ["speculative_momentum", "liquidity_sensitive", "Speculation + liquidity crowding — vulnerable to sentiment reversals"],
+    ["crypto_adjacent", "speculative_momentum", "Crypto/speculative crowding — extreme volatility amplification"],
+    ["rates_sensitive", "defensive", "Duration clustering — concentrated sensitivity to rate changes"],
+  ];
+  const highFactors = new Set(Object.entries(factorExposure).filter(([, v]) => v >= 0.50).map(([k]) => k));
+  const crowdingRisks = CROWDING_PAIRS
+    .filter(([f1, f2]) => highFactors.has(f1) && highFactors.has(f2))
+    .map(([,, msg]) => msg);
+
+  // Behavior profile
+  const volScore = (factorExposure.speculative_momentum ?? 0) * 0.40 +
+    (factorExposure.high_beta_growth ?? 0) * 0.35 +
+    (factorExposure.crypto_adjacent ?? 0) * 0.25;
+  const volatility = volScore > 0.65 ? "very_high" : volScore > 0.45 ? "high" : volScore > 0.25 ? "moderate" : "low";
+
+  const macroScore = (factorExposure.liquidity_sensitive ?? 0) * 0.40 +
+    (factorExposure.rates_sensitive ?? 0) * 0.35 +
+    (factorExposure.energy ?? 0) * 0.25;
+  const macroSensitivity = macroScore > 0.55 ? "high" : macroScore > 0.35 ? "moderate_high" : macroScore > 0.20 ? "moderate" : "low";
+
+  const ddScore = (factorExposure.speculative_momentum ?? 0) * 0.40 +
+    (factorExposure.liquidity_sensitive ?? 0) * 0.35 +
+    (factorExposure.high_beta_growth ?? 0) * 0.25;
+  const drawdownRisk = ddScore > 0.60 ? "high" : ddScore > 0.40 ? "elevated" : ddScore > 0.20 ? "moderate" : "low";
+
+  // Outperforms/underperforms derived from dominant factors
+  const outperformsIn: string[] = [];
+  const underperformsIn: string[] = [];
+  const seenUp = new Set<string>(); const seenDown = new Set<string>();
+  for (const factor of dominantFactors) {
+    const env = FACTOR_ENVIRONMENTS[factor];
+    if (!env) continue;
+    env.up.slice(0, 2).forEach(e => { if (!seenUp.has(e)) { outperformsIn.push(e); seenUp.add(e); } });
+    env.down.slice(0, 2).forEach(e => { if (!seenDown.has(e)) { underperformsIn.push(e); seenDown.add(e); } });
+  }
+
+  // Strategy integrity score — how well the factor exposure matches strategy intent
+  const EXPECTED_HIGH_MAP: [string, string[]][] = [
+    ["ai", ["ai_infrastructure", "high_beta_growth"]],
+    ["semiconductor", ["ai_infrastructure"]],
+    ["cloud", ["cloud_growth", "high_beta_growth"]],
+    ["growth", ["high_beta_growth"]],
+    ["momentum", ["high_beta_growth", "speculative_momentum"]],
+    ["speculative", ["speculative_momentum", "high_beta_growth"]],
+    ["energy", ["energy"]],
+    ["defensive", ["defensive"]],
+    ["income", ["defensive", "rates_sensitive"]],
+    ["dividend", ["defensive", "rates_sensitive"]],
+    ["fintech", ["fintech"]],
+  ];
+  const EXPECTED_LOW_MAP: [string, string[]][] = [
+    ["defensive", ["high_beta_growth", "speculative_momentum", "crypto_adjacent"]],
+    ["income", ["speculative_momentum", "crypto_adjacent"]],
+    ["dividend", ["speculative_momentum", "crypto_adjacent"]],
+    ["growth", ["defensive"]],
+    ["ai", ["defensive", "energy"]],
+  ];
+
+  const expectedHigh = new Set<string>();
+  const expectedLow = new Set<string>();
+  for (const [kw, factors] of EXPECTED_HIGH_MAP) {
+    if (combined.includes(kw)) factors.forEach(f => expectedHigh.add(f));
+  }
+  for (const [kw, factors] of EXPECTED_LOW_MAP) {
+    if (combined.includes(kw)) factors.forEach(f => expectedLow.add(f));
+  }
+
+  let integrityScore = strategy ? 75 : 70;
+  for (const f of expectedHigh) { if ((factorExposure[f] ?? 0) >= 0.45) integrityScore += 5; }
+  for (const f of expectedLow)  { if ((factorExposure[f] ?? 0) >= 0.40) integrityScore -= 10; }
+  integrityScore = Math.max(0, Math.min(100, integrityScore));
+
+  const integrityLabel =
+    integrityScore >= 90 ? "Highly Aligned" :
+    integrityScore >= 75 ? "Well Aligned" :
+    integrityScore >= 60 ? "Moderate Drift" :
+    integrityScore >= 45 ? "Notable Drift" : "Strategy Misaligned";
+
+  const topTwo = dominantFactors.slice(0, 2).join(" + ");
+  const isIntentional = strategy?.risk_level === "aggressive" || strategy?.risk_level === "very_aggressive" || expectedHigh.has(dominantFactors[0] ?? "");
+  const factorNote = `Portfolio driven by ${topTwo || "diversified factors"}.${crowdingRisks.length > 0 ? " " + crowdingRisks[0] + "." : ""} Factor exposure is ${isIntentional ? "intentional" : "potentially accidental"} for ${strategy?.name ?? "this strategy"}.`;
+
+  return {
+    factor_exposure: factorExposure,
+    dominant_factors: dominantFactors,
+    crowding_risks: crowdingRisks,
+    behavior_profile: { volatility, macro_sensitivity: macroSensitivity, drawdown_risk: drawdownRisk },
+    outperforms_in: outperformsIn.slice(0, 4),
+    underperforms_in: underperformsIn.slice(0, 4),
+    strategy_integrity_score: integrityScore,
+    strategy_integrity_label: integrityLabel,
+    factor_note: factorNote,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function buildPortfolioConstruction(
   holdings: { ticker: string; weight_pct: number | null | undefined }[],
   strategy: { name?: string | null; description?: string | null; style?: string | null; risk_level?: string | null } | null,
@@ -329,6 +627,12 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     latestStrategyVersion,
   );
 
+  const factorIntelligence = buildFactorIntelligence(
+    simplifiedHoldings,
+    (activeAssignment as any)?.strategies ?? null,
+    latestStrategyVersion,
+  );
+
   return {
     generated_at: new Date().toISOString(),
     portfolio: {
@@ -365,6 +669,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     market_context: prunedMarketContext,
     reddit_sentiment: redditSentiment,
     portfolio_construction: portfolioConstruction,
+    portfolio_factor_intelligence: factorIntelligence,
   };
 }
 
@@ -395,6 +700,8 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(2) STRATEGY FIT: Does it align with the user's selected strategy style, risk tolerance, and portfolio construction rules?",
     "(3) MACRO OVERLAY: How do current conditions affect HOW AGGRESSIVELY to express this conviction? The macro_overlay in context is a sizing/aggressiveness input — it does NOT veto attractive securities and does NOT justify HOLD for sound positions.",
     "(4) PORTFOLIO CONSTRUCTION INTELLIGENCE: Evaluate holdings as a portfolio system, not isolated positions. The portfolio_construction context tells you the strategy's concentration tolerance, whether high concentration is intentional, and which positions (if any) genuinely exceed their limit. NEVER penalize intentional concentration for a concentrated strategy — high single-name weights in an aggressive thematic strategy are by design. Only flag overweight positions that appear in overweight_flags (these exceed the strategy's position limit by >5%). Time horizon separation: distinguish structural positions (core long-term holdings) from tactical positions (short-term catalysts) — never apply the same trim logic to both. Strategy override protection: never recommend exiting a strategically-defined core position due to macro conditions alone.",
+
+    "(5) FACTOR INTELLIGENCE: The portfolio_factor_intelligence context provides estimated factor exposures, dominant factors, crowding risks, and behavior profile. Reason at the factor level — not just the security level. A portfolio of NVDA, AMD, TSM, and SMCI may look diversified by company but is a single-factor AI infrastructure bet. Use factor_exposure and dominant_factors to identify hidden correlation risk. Only flag factor crowding listed in crowding_risks as a risk. NEVER flag high factor concentration if it is strategy-aligned (an AI Breakout Growth strategy should have high ai_infrastructure exposure — that is the intent, not a flaw). Use outperforms_in and underperforms_in to provide expectation-setting commentary. strategy_integrity_score measures factor alignment to the stated strategy — scores below 65 warrant noting as factor drift. Always explain what causes the portfolio to win and what causes it to lose. Avoid language like 'dangerously concentrated' — instead: 'This strategy intentionally concentrates into AI infrastructure trends.'",
 
     // Participation bias — critical
     "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has opportunity cost — missing rallies is risk. The default posture is intelligent participation. Inactivity requires strong security-specific evidence, not macro caution.",
@@ -438,7 +745,7 @@ RECOMMENDATION STRUCTURE — for each recommendation, structure the fields as fo
 Return this exact JSON shape:
 
 {
-  "summary": "1 sentence on portfolio state and biggest opportunity or risk. Max 160 chars.",
+  "summary": "1-2 sentences: portfolio's dominant factor exposure and what environment it thrives or struggles in, plus the biggest current opportunity or risk. Max 200 chars.",
   "recommendations": [
     {
       "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",
