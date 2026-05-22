@@ -201,7 +201,7 @@ export async function GET(request: Request) {
             .eq("public_portfolio_id", pubPortfolio.id)
             .eq("is_cash", false)
             .order("display_order")
-            .limit(5);
+            .limit(10);
           if (pubHoldings && pubHoldings.length > 0) {
             holdings = pubHoldings.map((h) => ({
               ticker: h.ticker,
@@ -218,7 +218,7 @@ export async function GET(request: Request) {
             .select("ticker, company_name")
             .eq("portfolio_id", pref.portfolio_id)
             .order("ticker")
-            .limit(5);
+            .limit(10);
           if (rawHoldings && rawHoldings.length > 0) {
             holdings = rawHoldings.map((h) => ({
               ticker: h.ticker,
