@@ -95,6 +95,28 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
   };
 }
 
+function inferPortfolioRole(actionType: string | null, conviction: string | null): string {
+  const conv = (conviction ?? "").toLowerCase().replace(/\s+/g, "_");
+  if (conv === "very_high") return "high_conviction_growth";
+  const act = (actionType ?? "").toLowerCase();
+  if (act === "add") return "core_holding";
+  if (conv === "low") return "starter_position";
+  if (conv === "moderate") return "tactical_momentum";
+  return "core_holding";
+}
+
+function inferHoldingProfile(timeHorizon: string | null): string {
+  const th = (timeHorizon ?? "").toLowerCase();
+  if (th === "short_term") return "short_term_tactical";
+  if (th === "long_term") return "long_term_compounder";
+  return "medium_term_momentum";
+}
+
+function normalizeConviction(conviction: string | null): string | null {
+  if (!conviction) return null;
+  return conviction.toLowerCase().replace(/\s+/g, "_");
+}
+
 async function fetchRedditSentimentForTickers(
   holdings: { ticker: string; company_name?: string | null }[]
 ): Promise<Record<string, CompactRedditPulse>> {
@@ -629,6 +651,29 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recentRecommendationItems = items ?? [];
   }
 
+  // Position thesis memory — keyed by ticker, non-fatal (table may not exist yet)
+  let positionThesisMemory: Record<string, unknown> = {};
+  try {
+    const { data: thesisList } = await supabase
+      .from("position_thesis")
+      .select("ticker, original_thesis, portfolio_role, holding_profile, entry_conviction, thesis_status, thesis_notes")
+      .eq("portfolio_id", portfolioId);
+    if (thesisList && thesisList.length > 0) {
+      positionThesisMemory = Object.fromEntries(
+        thesisList.map((t: any) => [t.ticker.toUpperCase(), {
+          original_thesis: t.original_thesis,
+          portfolio_role: t.portfolio_role,
+          holding_profile: t.holding_profile,
+          entry_conviction: t.entry_conviction,
+          thesis_status: t.thesis_status,
+          notes: t.thesis_notes,
+        }])
+      );
+    }
+  } catch {
+    // non-fatal — thesis memory degrades gracefully
+  }
+
   const valuation = await getPortfolioValuation({
     holdings: (holdings ?? []).map((holding: any) => ({
       id: holding.id,
@@ -780,6 +825,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     portfolio_construction: portfolioConstruction,
     portfolio_factor_intelligence: factorIntelligence,
     portfolio_evolution: portfolioEvolution,
+    position_thesis_memory: positionThesisMemory,
   };
 }
 
@@ -814,6 +860,8 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(5) FACTOR INTELLIGENCE: The portfolio_factor_intelligence context provides estimated factor exposures, dominant factors, crowding risks, and behavior profile. Reason at the factor level — not just the security level. A portfolio of NVDA, AMD, TSM, and SMCI may look diversified by company but is a single-factor AI infrastructure bet. Use factor_exposure and dominant_factors to identify hidden correlation risk. Only flag factor crowding listed in crowding_risks as a risk. NEVER flag high factor concentration if it is strategy-aligned (an AI Breakout Growth strategy should have high ai_infrastructure exposure — that is the intent, not a flaw). Use outperforms_in and underperforms_in to provide expectation-setting commentary. strategy_integrity_score measures factor alignment to the stated strategy — scores below 65 warrant noting as factor drift. Always explain what causes the portfolio to win and what causes it to lose. Avoid language like 'dangerously concentrated' — instead: 'This strategy intentionally concentrates into AI infrastructure trends.'",
 
     "(6) PORTFOLIO EVOLUTION INTELLIGENCE: The portfolio_evolution context (if present) shows how the portfolio changed versus a historical baseline. factor_drift lists factor exposures that moved by >7pp — use these to explain portfolio trajectory, not just current state. volatility_direction tells you if risk is expanding or contracting. strategy_integrity_change shows if alignment to the strategy improved or drifted. Distinguish INTENTIONAL drift (an AI strategy naturally accumulating more AI exposure during a bull run — aligned with intent) from ACCIDENTAL drift (a balanced strategy silently becoming speculative momentum-heavy — worth flagging). Time horizon matters: short-term factor movements in a momentum strategy are normal; structural drift away from the stated strategy identity is the real risk. Use the evolution note and factor_drift array to add temporal narrative to your summary ('Over the past X days, AI exposure increased and volatility profile elevated — consistent with the strategy's aggressive intent') rather than treating the portfolio as a static snapshot. If portfolio_evolution is null, this is the first run — no historical comparison available.",
+
+    "(7) POSITION THESIS MEMORY: The position_thesis_memory context contains the original thesis, portfolio role, holding profile, entry conviction, and thesis status for each position that has been executed through BuyTune (null if no record exists for that ticker). Use this as institutional memory. For each recommendation, first ask: does this position still fulfill the reason we bought it? Thesis status: intact = original drivers valid, proceed on security merit; strengthening = catalysts improving, lean toward adding; weakening = original assumptions deteriorating, reduce or watch; broken = core reason for ownership gone, exit regardless of price action. For positions with null thesis records, infer the likely thesis from factor exposure, strategy alignment, and entry timing — then reason accordingly. CRITICAL: macro conditions alone should not change thesis status — they affect sizing only. Short-term price volatility does not break a long-term structural thesis. Never trim a core holding solely because it appreciated — trim when the original thesis deteriorated, crowding risk materialized, or better opportunities exist in the same factor. Mention thesis continuity in your rationale field: 'The original AI momentum thesis remains intact — maintaining core position.' or 'The original breakout thesis has weakened — reducing exposure.'",
 
     // Participation bias — critical
     "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has opportunity cost — missing rallies is risk. The default posture is intelligent participation. Inactivity requires strong security-specific evidence, not macro caution.",
@@ -1375,7 +1423,7 @@ export async function updateRecommendationStatus(formData: FormData) {
 
   const { data: item, error: itemError } = await supabase
     .from("recommendation_items")
-    .select("id, recommendation_status, action_type, ticker, company_name, share_quantity, sizing_dollars, sizing_pct, target_price_1")
+    .select("id, recommendation_status, action_type, ticker, company_name, share_quantity, sizing_dollars, sizing_pct, target_price_1, conviction, time_horizon, thesis, recommendation_run_id")
     .eq("id", recommendationItemId).eq("portfolio_id", portfolioId).single();
   if (itemError || !item) throw new Error("Recommendation item not found.");
 
@@ -1489,6 +1537,25 @@ export async function updateRecommendationStatus(formData: FormData) {
           notes: `Auto-created from AI recommendation. Edit if actual price differs.`,
           traded_at: new Date().toISOString(),
         });
+      }
+    }
+
+    // Auto-seed position thesis on executed buy — preserves original thesis on re-buys (non-fatal)
+    if (isBuy) {
+      try {
+        await supabase.from("position_thesis").upsert({
+          portfolio_id: portfolioId,
+          ticker: item.ticker.toUpperCase(),
+          original_thesis: item.thesis ? String(item.thesis).slice(0, 300) : null,
+          portfolio_role: inferPortfolioRole(item.action_type, item.conviction),
+          holding_profile: inferHoldingProfile(item.time_horizon),
+          entry_conviction: normalizeConviction(item.conviction),
+          thesis_status: "intact",
+          seeded_from_run_id: (item as any).recommendation_run_id ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "portfolio_id,ticker", ignoreDuplicates: true });
+      } catch {
+        // non-fatal — thesis table may not exist yet
       }
     }
   }
