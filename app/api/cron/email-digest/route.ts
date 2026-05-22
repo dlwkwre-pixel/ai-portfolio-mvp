@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
+import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytuneio.vercel.app";
 
@@ -183,48 +184,42 @@ export async function GET(request: Request) {
         }
       }
 
-      // ── Holdings ─────────────────────────────────────────────────────────────
+      // ── Holdings — live Finnhub prices, works for public and private portfolios ─
       let holdings: DigestTemplateData["holdings"] = null;
       if (pref.include_holdings) {
-        // Prefer public portfolio holdings (have allocation %)
-        const { data: pubPortfolio } = await adminSupabase
-          .from("public_portfolios")
-          .select("id")
-          .eq("source_portfolio_id", pref.portfolio_id)
-          .eq("is_public", true)
-          .maybeSingle();
-
-        if (pubPortfolio) {
-          const { data: pubHoldings } = await adminSupabase
-            .from("public_portfolio_holdings")
-            .select("ticker, company_name, allocation_pct")
-            .eq("public_portfolio_id", pubPortfolio.id)
-            .eq("is_cash", false)
-            .order("display_order")
-            .limit(10);
-          if (pubHoldings && pubHoldings.length > 0) {
-            holdings = pubHoldings.map((h) => ({
-              ticker: h.ticker,
-              company_name: h.company_name ?? null,
-              allocation_pct: Number(h.allocation_pct),
+        const { data: rawHoldings } = await adminSupabase
+          .from("holdings")
+          .select("ticker, company_name, shares, avg_cost")
+          .eq("portfolio_id", pref.portfolio_id)
+          .order("ticker");
+        if (rawHoldings && rawHoldings.length > 0) {
+          const quotes: Record<string, number> = {};
+          const BATCH = 3;
+          for (let i = 0; i < rawHoldings.length; i += BATCH) {
+            const batch = rawHoldings.slice(i, i + BATCH);
+            await Promise.all(batch.map(async (h) => {
+              const q = await getFinnhubQuote(h.ticker);
+              quotes[h.ticker] = q?.c ?? (Number(h.avg_cost) || 0);
             }));
+            if (i + BATCH < rawHoldings.length) await new Promise(r => setTimeout(r, 300));
           }
-        }
-
-        // Fallback: raw holdings (no allocation %, just names)
-        if (!holdings) {
-          const { data: rawHoldings } = await adminSupabase
-            .from("holdings")
-            .select("ticker, company_name")
-            .eq("portfolio_id", pref.portfolio_id)
-            .order("ticker")
-            .limit(10);
-          if (rawHoldings && rawHoldings.length > 0) {
-            holdings = rawHoldings.map((h) => ({
-              ticker: h.ticker,
-              company_name: h.company_name ?? null,
-              allocation_pct: null,
-            }));
+          const withValues = rawHoldings.map((h) => ({
+            ticker: h.ticker,
+            company_name: h.company_name ?? null,
+            marketValue: Number(h.shares) * (quotes[h.ticker] ?? 0),
+          }));
+          const cashBalance = Number(portfolio.cash_balance ?? 0);
+          const totalValue = withValues.reduce((s, h) => s + h.marketValue, 0) + cashBalance;
+          if (totalValue > 0) {
+            holdings = withValues
+              .filter((h) => h.marketValue > 0)
+              .sort((a, b) => b.marketValue - a.marketValue)
+              .slice(0, 10)
+              .map((h) => ({
+                ticker: h.ticker,
+                company_name: h.company_name,
+                allocation_pct: Math.round((h.marketValue / totalValue) * 1000) / 10,
+              }));
           }
         }
       }
