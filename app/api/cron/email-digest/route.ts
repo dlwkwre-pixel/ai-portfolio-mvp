@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytuneio.vercel.app";
 
 // Get the current hour (0-23) in the user's local timezone
 function getLocalHour(date: Date, timezone: string): number {
