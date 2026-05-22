@@ -415,6 +415,95 @@ function buildFactorIntelligence(
   };
 }
 
+// ─── Portfolio Evolution Intelligence ────────────────────────────────────────
+
+type EvolutionSnap = {
+  recorded_at: string;
+  strategy_integrity_score: number | null;
+  portfolio_hhi: number | null;
+  factor_exposure: unknown;
+  behavior_profile: unknown;
+  dominant_factors: unknown;
+};
+
+function buildEvolutionNote(
+  drifts: { factor: string; delta: number }[],
+  hhiChange: number,
+  volDelta: number,
+  integrityDelta: number,
+  window: string
+): string {
+  const parts: string[] = [];
+  if (drifts.length > 0) {
+    const top = drifts[0];
+    parts.push(`${top.factor.replace(/_/g, " ")} exposure ${top.delta > 0 ? "increased" : "decreased"} ${Math.abs(Math.round(top.delta * 100))}pp over ${window}`);
+  }
+  if (Math.abs(hhiChange) >= 200) {
+    parts.push(`concentration ${hhiChange > 0 ? "increased" : "decreased"} (HHI ${hhiChange > 0 ? "+" : ""}${hhiChange})`);
+  }
+  if (Math.abs(volDelta) >= 1) {
+    parts.push(`volatility profile ${volDelta > 0 ? "elevated" : "reduced"}`);
+  }
+  if (Math.abs(integrityDelta) >= 8) {
+    parts.push(`strategy integrity ${integrityDelta > 0 ? "improved" : "declined"} ${Math.abs(integrityDelta)}pts`);
+  }
+  return parts.length === 0
+    ? `No significant evolution detected over ${window}.`
+    : parts.join("; ") + ".";
+}
+
+function computeEvolutionDrift(
+  snaps: EvolutionSnap[],
+  current: ReturnType<typeof buildFactorIntelligence>,
+  currentHhi: number
+) {
+  const now = Date.now();
+  // Prefer a baseline ~20+ days old; fall back to oldest available
+  const baselineSnap = snaps.find(s =>
+    now - new Date(s.recorded_at).getTime() >= 20 * 24 * 60 * 60 * 1000
+  ) ?? snaps[snaps.length - 1];
+
+  const daysSince = Math.max(0, Math.round((now - new Date(baselineSnap.recorded_at).getTime()) / (24 * 60 * 60 * 1000)));
+  const comparisonWindow = daysSince <= 3 ? "prior run" : `${daysSince}d`;
+
+  // Factor drift
+  const prevFactors = ((baselineSnap.factor_exposure ?? {}) as Record<string, number>);
+  const currFactors = current.factor_exposure;
+  const drifts: { factor: string; delta: number }[] = [];
+  for (const f of new Set([...Object.keys(prevFactors), ...Object.keys(currFactors)])) {
+    const delta = Math.round(((currFactors[f] ?? 0) - (prevFactors[f] ?? 0)) * 100) / 100;
+    if (Math.abs(delta) >= 0.07) drifts.push({ factor: f, delta });
+  }
+  drifts.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  // HHI / concentration change
+  const hhiChange = Math.round(currentHhi - (baselineSnap.portfolio_hhi ?? currentHhi));
+
+  // Volatility direction
+  const VOL_RANK: Record<string, number> = { low: 0, moderate: 1, high: 2, very_high: 3 };
+  const prevVolStr = ((baselineSnap.behavior_profile as Record<string, string> | null)?.volatility) ?? "moderate";
+  const volDelta = (VOL_RANK[current.behavior_profile.volatility] ?? 1) - (VOL_RANK[prevVolStr] ?? 1);
+
+  // Strategy integrity change
+  const integrityDelta = Math.round(current.strategy_integrity_score - (baselineSnap.strategy_integrity_score ?? 75));
+
+  // Dominant factor changes
+  const prevDom = ((baselineSnap.dominant_factors ?? []) as string[]);
+  const newDom = current.dominant_factors.filter(f => !prevDom.includes(f));
+  const droppedDom = prevDom.filter(f => !current.dominant_factors.includes(f));
+
+  return {
+    comparison_window: comparisonWindow,
+    factor_drift: drifts.slice(0, 4),
+    hhi_change: hhiChange,
+    volatility_direction: (volDelta > 0 ? "elevated" : volDelta < 0 ? "reduced" : "stable") as string,
+    strategy_integrity_change: integrityDelta,
+    new_dominant_factors: newDom,
+    dropped_dominant_factors: droppedDom,
+    note: buildEvolutionNote(drifts, hhiChange, volDelta, integrityDelta, comparisonWindow),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildPortfolioConstruction(
@@ -633,6 +722,26 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     latestStrategyVersion,
   );
 
+  // Portfolio evolution — compare current factor state against historical snapshots
+  let portfolioEvolution: ReturnType<typeof computeEvolutionDrift> | null = null;
+  try {
+    const { data: historicalSnaps } = await supabase
+      .from("portfolio_factor_snapshots")
+      .select("recorded_at, strategy_integrity_score, portfolio_hhi, factor_exposure, behavior_profile, dominant_factors")
+      .eq("portfolio_id", portfolioId)
+      .order("recorded_at", { ascending: false })
+      .limit(5);
+    if (historicalSnaps && historicalSnaps.length >= 1) {
+      portfolioEvolution = computeEvolutionDrift(
+        historicalSnaps as EvolutionSnap[],
+        factorIntelligence,
+        portfolioConstruction.portfolio_hhi,
+      );
+    }
+  } catch {
+    // non-fatal — table may not exist yet or network failure
+  }
+
   return {
     generated_at: new Date().toISOString(),
     portfolio: {
@@ -670,6 +779,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     reddit_sentiment: redditSentiment,
     portfolio_construction: portfolioConstruction,
     portfolio_factor_intelligence: factorIntelligence,
+    portfolio_evolution: portfolioEvolution,
   };
 }
 
@@ -702,6 +812,8 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(4) PORTFOLIO CONSTRUCTION INTELLIGENCE: Evaluate holdings as a portfolio system, not isolated positions. The portfolio_construction context tells you the strategy's concentration tolerance, whether high concentration is intentional, and which positions (if any) genuinely exceed their limit. NEVER penalize intentional concentration for a concentrated strategy — high single-name weights in an aggressive thematic strategy are by design. Only flag overweight positions that appear in overweight_flags (these exceed the strategy's position limit by >5%). Time horizon separation: distinguish structural positions (core long-term holdings) from tactical positions (short-term catalysts) — never apply the same trim logic to both. Strategy override protection: never recommend exiting a strategically-defined core position due to macro conditions alone.",
 
     "(5) FACTOR INTELLIGENCE: The portfolio_factor_intelligence context provides estimated factor exposures, dominant factors, crowding risks, and behavior profile. Reason at the factor level — not just the security level. A portfolio of NVDA, AMD, TSM, and SMCI may look diversified by company but is a single-factor AI infrastructure bet. Use factor_exposure and dominant_factors to identify hidden correlation risk. Only flag factor crowding listed in crowding_risks as a risk. NEVER flag high factor concentration if it is strategy-aligned (an AI Breakout Growth strategy should have high ai_infrastructure exposure — that is the intent, not a flaw). Use outperforms_in and underperforms_in to provide expectation-setting commentary. strategy_integrity_score measures factor alignment to the stated strategy — scores below 65 warrant noting as factor drift. Always explain what causes the portfolio to win and what causes it to lose. Avoid language like 'dangerously concentrated' — instead: 'This strategy intentionally concentrates into AI infrastructure trends.'",
+
+    "(6) PORTFOLIO EVOLUTION INTELLIGENCE: The portfolio_evolution context (if present) shows how the portfolio changed versus a historical baseline. factor_drift lists factor exposures that moved by >7pp — use these to explain portfolio trajectory, not just current state. volatility_direction tells you if risk is expanding or contracting. strategy_integrity_change shows if alignment to the strategy improved or drifted. Distinguish INTENTIONAL drift (an AI strategy naturally accumulating more AI exposure during a bull run — aligned with intent) from ACCIDENTAL drift (a balanced strategy silently becoming speculative momentum-heavy — worth flagging). Time horizon matters: short-term factor movements in a momentum strategy are normal; structural drift away from the stated strategy identity is the real risk. Use the evolution note and factor_drift array to add temporal narrative to your summary ('Over the past X days, AI exposure increased and volatility profile elevated — consistent with the strategy's aggressive intent') rather than treating the portfolio as a static snapshot. If portfolio_evolution is null, this is the first run — no historical comparison available.",
 
     // Participation bias — critical
     "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has opportunity cost — missing rallies is risk. The default posture is intelligent participation. Inactivity requires strong security-specific evidence, not macro caution.",
@@ -1101,6 +1213,24 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       snapshot_date: new Date().toISOString(),
       notes: "Auto snapshot — AI analysis",
     });
+
+    // Save factor intelligence snapshot for future evolution/drift detection (non-fatal)
+    try {
+      const fi = (context as any).portfolio_factor_intelligence;
+      const pc = (context as any).portfolio_construction;
+      if (fi) {
+        await supabase.from("portfolio_factor_snapshots").insert({
+          portfolio_id: portfolioId,
+          strategy_integrity_score: fi.strategy_integrity_score ?? null,
+          portfolio_hhi: pc?.portfolio_hhi ?? null,
+          factor_exposure: fi.factor_exposure ?? null,
+          behavior_profile: fi.behavior_profile ?? null,
+          dominant_factors: fi.dominant_factors ?? null,
+        });
+      }
+    } catch {
+      // non-fatal — table may not exist yet
+    }
 
     revalidatePath(`/portfolios/${portfolioId}`);
     revalidatePath("/dashboard");
