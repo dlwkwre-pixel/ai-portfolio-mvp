@@ -387,6 +387,8 @@ Return this exact JSON shape:
 Additional rules:
 - Use the current_price already in the holdings context. Only run live search for new buy candidates or if a price appears $0/null.
 - Provide a recommendation for EVERY existing holding — none should be skipped.
+- HOLD RULE: "hold" is valid only when there is a SPECIFIC fundamental reason (e.g., "holding into upcoming catalyst", "valuation reasonable at current price — no edge to add or trim here"). Generic macro caution is NOT a valid reason for hold. Never recommend hold simply because the market is cautious or defensive.
+- MINIMUM ACTION REQUIREMENT: Every run MUST include at least 2-3 non-hold recommendations (buy, add, trim, sell, rebalance, or raise_cash). A run where every position is "hold" fails this requirement. Identify the strongest add candidate among existing holdings AND the weakest or most stretched position, even in a cautious regime.
 - Suggest new buy candidates ONLY if: (1) cash remains after sizing all add recommendations to existing holdings, (2) there is a genuinely compelling opportunity that fits the strategy — not just because cash is available. Do not invent buys to fill cash. If no strong new opportunity exists, say so and leave cash as-is. Max 1-3 new candidates, real tickers only, search for their current price.
 - For trim/sell/hold, only reference tickers that exist in the provided holdings.
 - Keep thesis concise but investment-grade (1-2 sentences), always mentioning current price from context.

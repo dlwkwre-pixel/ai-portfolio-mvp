@@ -477,6 +477,6 @@ export function regimePromptContext(regime: RegimeSnapshot): string {
       ? `- Conviction threshold: ${mods.convictionDelta > 0 ? "+" : ""}${mods.convictionDelta}% (${mods.convictionDelta < 0 ? "raise the bar for new positions" : "slight latitude for strong setups"})`
       : null,
     `Key signals: yield curve ${regime.signals.yieldCurve}, fed ${regime.signals.fedPolicy}, inflation ${regime.signals.inflation}.`,
-    `IMPORTANT: These are modest tactical overlays only. Long-term strategy and conviction in fundamentally strong positions should NOT be abandoned based on regime alone.`,
+    `IMPORTANT: Regime overlays affect NEW buy sizing and cash targets only — they do NOT mean "hold everything." Existing positions must be evaluated on their own fundamental merits. A regime signal is never justification for recommending HOLD across the board. Strong positions may still be added to; weak positions may still be trimmed. Always find actionable recommendations.`,
   ].filter(Boolean).join(" ");
 }
