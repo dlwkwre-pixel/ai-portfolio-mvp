@@ -460,23 +460,67 @@ export function computeRegime(macro: MacroSignals, market: MarketSignals): Regim
   };
 }
 
-// Produces a compact string for injecting into Grok prompts (low token cost)
+// Compact structured overlay for Grok prompts.
+// Returns a JSON object string + a brief usage note — much more token-efficient
+// than verbose text and prevents LLMs from interpreting macro labels emotionally.
 export function regimePromptContext(regime: RegimeSnapshot): string {
-  const mods = regime.modifiers;
+  // Sizing modifier: multiplier applied to new position max size
+  const sizingModifier: Record<RegimeLevel, number> = {
+    "risk-on":      1.00,
+    "constructive": 0.95,
+    "cautious":     0.80,
+    "defensive":    0.65,
+    "risk-off":     0.50,
+  };
+
+  // Speculative penalty: extra bar raised for low-quality or high-risk names
+  const speculativePenalty: Record<RegimeLevel, number> = {
+    "risk-on":      0.00,
+    "constructive": 0.05,
+    "cautious":     0.20,
+    "defensive":    0.35,
+    "risk-off":     0.50,
+  };
+
+  const participationBias: Record<RegimeLevel, string> = {
+    "risk-on":      "favor_participation",
+    "constructive": "favor_participation",
+    "cautious":     "balanced",
+    "defensive":    "favor_caution",
+    "risk-off":     "favor_caution",
+  };
+
+  function dimLabel(score: number): string {
+    if (score >= 65) return "strong";
+    if (score >= 45) return "mixed";
+    return "stressed";
+  }
+
+  function volLabel(score: number): string {
+    if (score >= 65) return "calm";
+    if (score >= 45) return "elevated";
+    return "high";
+  }
+
+  const overlay = {
+    macro_score:        regime.score,
+    macro_conditions:   dimLabel(regime.dimensions.macro),
+    liquidity:          dimLabel(regime.dimensions.liquidity),
+    breadth:            dimLabel(regime.dimensions.growth),
+    volatility:         volLabel(regime.dimensions.volatility),
+    inflation:          dimLabel(regime.dimensions.inflation),
+    participation_bias: participationBias[regime.level],
+    sizing_modifier:    sizingModifier[regime.level],
+    speculative_penalty: speculativePenalty[regime.level],
+    key_signals: {
+      yield_curve: regime.signals.yieldCurve,
+      fed_policy:  regime.signals.fedPolicy,
+      inflation:   regime.signals.inflation,
+    },
+  };
+
   return [
-    `MARKET REGIME: ${regime.label} (score ${regime.score}/100).`,
-    `${regime.narrative}`,
-    `Regime influence (apply as tactical overlay, do NOT override strategy direction):`,
-    mods.positionSizingDelta !== 0
-      ? `- Position sizing: ${mods.positionSizingDelta > 0 ? "+" : ""}${mods.positionSizingDelta}% adjustment to max size`
-      : null,
-    mods.cashAllocationDelta !== 0
-      ? `- Cash allocation: ${mods.cashAllocationDelta > 0 ? "+" : ""}${mods.cashAllocationDelta}% adjustment to cash target`
-      : null,
-    mods.convictionDelta !== 0
-      ? `- Conviction threshold: ${mods.convictionDelta > 0 ? "+" : ""}${mods.convictionDelta}% (${mods.convictionDelta < 0 ? "raise the bar for new positions" : "slight latitude for strong setups"})`
-      : null,
-    `Key signals: yield curve ${regime.signals.yieldCurve}, fed ${regime.signals.fedPolicy}, inflation ${regime.signals.inflation}.`,
-    `IMPORTANT: Regime overlays affect NEW buy sizing and cash targets only — they do NOT mean "hold everything." Existing positions must be evaluated on their own fundamental merits. A regime signal is never justification for recommending HOLD across the board. Strong positions may still be added to; weak positions may still be trimmed. Always find actionable recommendations.`,
-  ].filter(Boolean).join(" ");
+    `MACRO_OVERLAY: ${JSON.stringify(overlay)}`,
+    `Usage: sizing_modifier scales new position sizes (0.8 = 80% of standard max). speculative_penalty raises the bar for low-quality or high-risk names only. These are portfolio construction inputs — they DO NOT determine whether securities are attractive and DO NOT justify HOLD for fundamentally sound positions. Security quality and strategy fit are evaluated independently of this overlay.`,
+  ].join("\n");
 }
