@@ -11,12 +11,19 @@ export default async function AIRecommendationsSection({
 }: AIRecommendationsSectionProps) {
   const supabase = await createClient();
 
-  const { data: runs, error: runsError } = await supabase
-    .from("recommendation_runs")
-    .select("*")
-    .eq("portfolio_id", portfolioId)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const [{ data: runs, error: runsError }, { count: trackedCount }] = await Promise.all([
+    supabase
+      .from("recommendation_runs")
+      .select("*")
+      .eq("portfolio_id", portfolioId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("recommendation_items")
+      .select("id", { count: "exact", head: true })
+      .eq("portfolio_id", portfolioId)
+      .not("executed_price", "is", null),
+  ]);
 
   if (runsError) {
     throw new Error(runsError.message);
@@ -59,6 +66,11 @@ export default async function AIRecommendationsSection({
               ? new Date(latestRun.created_at).toLocaleDateString()
               : "—"}
           </span>
+          {(trackedCount ?? 0) > 0 && (
+            <span className="rounded-full border border-emerald-900/50 bg-emerald-950/40 px-3 py-1 text-emerald-400">
+              {trackedCount} outcome{trackedCount === 1 ? "" : "s"} tracked
+            </span>
+          )}
         </div>
       </div>
 

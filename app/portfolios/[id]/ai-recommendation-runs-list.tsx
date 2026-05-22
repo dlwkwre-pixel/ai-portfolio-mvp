@@ -44,6 +44,9 @@ type RecommendationItem = {
   time_horizon: string | null;
   recommendation_status: string | null;
   created_at: string;
+  // Outcome tracking fields (populated on execution)
+  executed_at: string | null;
+  executed_price: number | null;
 };
 
 type LocalRec = RecommendationItem & { _syncing?: boolean };
@@ -361,6 +364,9 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
   const [pulseLoading, setPulseLoading] = useState<Set<string>>(new Set());
   const [pulseError, setPulseError]     = useState<Record<string, string>>({});
 
+  // Live price for outcome return calc — keyed by ticker
+  const [livePrices, setLivePrices]     = useState<Record<string, number>>({});
+
   // Bulk select state
   const [isBulkMode, setIsBulkMode]     = useState(false);
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
@@ -578,6 +584,16 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
       .finally(() => setPulseLoading(prev => { const n = new Set(prev); n.delete(ticker); return n; }));
   }
 
+  function loadLivePrice(ticker: string) {
+    if (!ticker || livePrices[ticker] !== undefined) return;
+    fetch(`/api/market/quote/${encodeURIComponent(ticker)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { price: number } | null) => {
+        if (d?.price && d.price > 0) setLivePrices(prev => ({ ...prev, [ticker]: d.price }));
+      })
+      .catch(() => {});
+  }
+
   // ── Action counts from current page ───────────────────────────────────────
   const actionCounts: Record<string, number> = {};
   localRecs.forEach(item => {
@@ -785,7 +801,11 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                     if (isBulkMode) { toggleSelect(item.id); return; }
                     setExpandedId(isExpanded ? null : item.id);
                     setOpenMoreId(null);
-                    if (!isExpanded && item.ticker) loadPulse(item.ticker, item.company_name);
+                    if (!isExpanded && item.ticker) {
+                      loadPulse(item.ticker, item.company_name);
+                      // Load live price for outcome return if executed with a recorded price
+                      if (item.executed_price) loadLivePrice(item.ticker);
+                    }
                   }}
                 >
                   {/* ── Card header ──────────────────────────────────────── */}
@@ -884,6 +904,19 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                                 )}
                               </span>
                             )}
+                            {/* Outcome return chip (executed items with a captured price) */}
+                            {item.executed_price != null && item.ticker && (() => {
+                              const liveP = livePrices[item.ticker];
+                              if (!liveP) return null;
+                              const ret = ((liveP - item.executed_price) / item.executed_price) * 100;
+                              const retStr = (ret >= 0 ? "+" : "") + ret.toFixed(1) + "%";
+                              const retClass = ret >= 0 ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/8" : "text-red-400 border-red-500/20 bg-red-500/8";
+                              return (
+                                <span className={`rounded-md border px-1.5 py-0.5 text-xs font-semibold tabular-nums ${retClass}`}>
+                                  {retStr} since exec
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1084,6 +1117,55 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                           )}
                         </div>
                       )}
+
+                      {/* Outcome Return */}
+                      {item.executed_price != null && item.executed_at && item.ticker && (() => {
+                        const liveP = livePrices[item.ticker];
+                        const execDate = new Date(item.executed_at);
+                        const daysSince = Math.floor((Date.now() - execDate.getTime()) / (1000 * 60 * 60 * 24));
+                        const ret = liveP ? ((liveP - item.executed_price) / item.executed_price) * 100 : null;
+                        const retPositive = ret !== null && ret >= 0;
+                        return (
+                          <div className="mt-3 rounded-xl border border-white/5 bg-white/2 p-3">
+                            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Outcome</p>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div>
+                                <p className="text-[9px] uppercase tracking-widest text-slate-600">Executed</p>
+                                <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">{fmt$(item.executed_price)}</p>
+                                <p className="text-[9px] text-slate-600">{execDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}{daysSince > 0 ? ` · ${daysSince}d ago` : ""}</p>
+                              </div>
+                              {liveP != null && (
+                                <>
+                                  <div>
+                                    <p className="text-[9px] uppercase tracking-widest text-slate-600">Current</p>
+                                    <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">{fmt$(liveP)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] uppercase tracking-widest text-slate-600">Return</p>
+                                    <p className={`mt-0.5 text-lg font-bold tabular-nums ${retPositive ? "text-emerald-400" : "text-red-400"}`}>
+                                      {retPositive ? "+" : ""}{ret!.toFixed(1)}%
+                                    </p>
+                                  </div>
+                                  {item.target_price_1 != null && (
+                                    <div>
+                                      <p className="text-[9px] uppercase tracking-widest text-slate-600">To Target</p>
+                                      <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-300">
+                                        {(((item.target_price_1 - liveP) / liveP) * 100).toFixed(1)}%
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                              {liveP == null && (
+                                <button type="button" onClick={e => { e.stopPropagation(); if (item.ticker) loadLivePrice(item.ticker); }}
+                                  className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 transition hover:bg-white/8 hover:text-white">
+                                  Check return
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Reddit Pulse */}
                       {item.ticker && (

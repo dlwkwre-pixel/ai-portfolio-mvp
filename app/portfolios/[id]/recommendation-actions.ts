@@ -1570,6 +1570,7 @@ export async function updateRecommendationStatus(formData: FormData) {
       recommendation_status: newStatus,
       user_decision: userDecisionMap[newStatus] ?? null,
       decision_notes: note || null,
+      ...(newStatus === "executed" ? { executed_at: new Date().toISOString() } : {}),
     })
     .eq("id", recommendationItemId).eq("portfolio_id", portfolioId);
   if (updateError) throw new Error(updateError.message);
@@ -1592,18 +1593,29 @@ export async function updateRecommendationStatus(formData: FormData) {
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
 
+    // Capture execution price for outcome tracking: target_price_1 first, then live Finnhub quote
+    let executedPrice: number | null = item.target_price_1 ? Number(item.target_price_1) : null;
+    if (!executedPrice) {
+      try {
+        const liveQuote = await getFinnhubQuote(item.ticker);
+        if (liveQuote && liveQuote.c > 0) executedPrice = liveQuote.c;
+      } catch { /* non-fatal */ }
+    }
+    if (executedPrice) {
+      // Fire-and-forget — column may not exist yet until migration is applied
+      void Promise.resolve(
+        supabase.from("recommendation_items")
+          .update({ executed_price: executedPrice })
+          .eq("id", recommendationItemId)
+          .eq("portfolio_id", portfolioId)
+      ).catch(() => {});
+    }
+
     if (isBuy || isSell) {
       const transactionType = isBuy ? "buy" : "sell";
       const quantity = item.share_quantity ? Number(item.share_quantity) : null;
 
-      // Use target_price_1 first, fall back to live Finnhub price
-      let pricePerShare = item.target_price_1 ? Number(item.target_price_1) : null;
-      if (!pricePerShare && item.ticker) {
-        try {
-          const liveQuote = await getFinnhubQuote(item.ticker);
-          if (liveQuote && liveQuote.c > 0) pricePerShare = liveQuote.c;
-        } catch { /* soft fail */ }
-      }
+      const pricePerShare = executedPrice;
 
       const grossAmount = quantity && pricePerShare
         ? quantity * pricePerShare
