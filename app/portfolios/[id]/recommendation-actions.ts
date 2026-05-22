@@ -437,6 +437,132 @@ function buildFactorIntelligence(
   };
 }
 
+// ─── Catalyst Intelligence ───────────────────────────────────────────────────
+
+const FACTOR_CATALYST_TYPE: Record<string, string> = {
+  ai_infrastructure: "secular_growth",
+  cloud_growth: "secular_growth",
+  consumer_tech: "secular_growth",
+  fintech: "secular_growth",
+  high_beta_growth: "earnings_momentum",
+  speculative_momentum: "momentum_driven",
+  liquidity_sensitive: "liquidity_driven",
+  rates_sensitive: "macro_sensitive",
+  energy: "cyclical_recovery",
+  industrials_cycle: "cyclical_recovery",
+  defensive: "macro_sensitive",
+  crypto_adjacent: "momentum_driven",
+};
+
+const FACTOR_CATALYSTS: Record<string, { key: string[]; deps: string[]; invalid: string[] }> = {
+  ai_infrastructure: {
+    key: ["AI capex expansion", "positive earnings revisions", "data center demand growth"],
+    deps: ["hyperscaler AI spend", "semiconductor cycle momentum"],
+    invalid: ["AI spending slowdown", "inventory buildup", "revision deterioration"],
+  },
+  cloud_growth: {
+    key: ["enterprise IT spending", "SaaS revenue acceleration", "margin expansion"],
+    deps: ["cloud spend growth", "enterprise demand resilience"],
+    invalid: ["spend scrutiny", "multiple compression", "churn acceleration"],
+  },
+  high_beta_growth: {
+    key: ["liquidity easing", "growth earnings beats", "momentum persistence"],
+    deps: ["risk-on environment", "positive earnings revisions"],
+    invalid: ["rate spikes", "multiple compression", "momentum reversal"],
+  },
+  speculative_momentum: {
+    key: ["retail participation", "sentiment expansion", "low-vol persistence"],
+    deps: ["risk appetite", "liquidity conditions"],
+    invalid: ["VIX spike", "deleveraging event", "sentiment reversal"],
+  },
+  liquidity_sensitive: {
+    key: ["Fed easing signals", "credit expansion", "risk appetite improvement"],
+    deps: ["favorable liquidity", "credit market stability"],
+    invalid: ["credit tightening", "liquidity withdrawal", "rate surprises"],
+  },
+  rates_sensitive: {
+    key: ["Fed rate cuts", "yield curve steepening", "inflation moderation"],
+    deps: ["rate trajectory", "inflation trend"],
+    invalid: ["rate spikes", "hawkish Fed pivot", "inflation surprises"],
+  },
+  energy: {
+    key: ["oil price persistence", "supply discipline", "demand resilience"],
+    deps: ["commodity price trajectory", "OPEC discipline"],
+    invalid: ["demand destruction", "supply glut", "green transition acceleration"],
+  },
+  defensive: {
+    key: ["volatility persistence", "flight-to-quality demand", "dividend stability"],
+    deps: ["risk-off environment", "earnings consistency"],
+    invalid: ["risk appetite return", "rising rates", "bull market acceleration"],
+  },
+  fintech: {
+    key: ["consumer spending growth", "digital payments volume", "margin expansion"],
+    deps: ["consumer health", "credit conditions"],
+    invalid: ["recession fears", "credit tightening", "regulatory headwinds"],
+  },
+  industrials_cycle: {
+    key: ["infrastructure spend", "manufacturing expansion", "capex cycle"],
+    deps: ["economic growth", "government spending"],
+    invalid: ["recession", "inventory destocking", "capex freeze"],
+  },
+  consumer_tech: {
+    key: ["ad market expansion", "consumer spending resilience", "engagement growth"],
+    deps: ["consumer confidence", "digital advertising demand"],
+    invalid: ["ad market contraction", "consumer slowdown", "platform regulation"],
+  },
+  crypto_adjacent: {
+    key: ["crypto bull market persistence", "institutional adoption", "regulatory clarity"],
+    deps: ["crypto sentiment", "risk appetite"],
+    invalid: ["regulatory crackdown", "broad deleveraging", "crypto market collapse"],
+  },
+};
+
+type CatalystProfile = {
+  catalyst_type: string;
+  key_catalysts: string[];
+  dependencies: string[];
+  invalidation_signals: string[];
+  dominant_factor: string;
+};
+
+function buildCatalystIntelligence(
+  holdings: { ticker: string; company_name?: string | null; weight_pct: number | null | undefined }[]
+): Record<string, CatalystProfile> {
+  const result: Record<string, CatalystProfile> = {};
+
+  for (const h of holdings) {
+    const ticker = h.ticker.toUpperCase();
+    let tf: FactorScores = TICKER_FACTORS[ticker] ?? {};
+
+    if (Object.keys(tf).length === 0) {
+      const cn = (h.company_name ?? "").toLowerCase();
+      if (/semiconductor|chip|foundry|wafer/.test(cn))         tf = { ai_infrastructure: 0.60 };
+      else if (/cloud|saas|enterprise software/.test(cn))      tf = { cloud_growth: 0.60 };
+      else if (/\bai\b|artificial intelligence/.test(cn))       tf = { ai_infrastructure: 0.65 };
+      else if (/oil|gas|energy|petroleum/.test(cn))            tf = { energy: 0.80 };
+      else if (/bank|financial|insurance/.test(cn))            tf = { rates_sensitive: 0.65 };
+      else if (/pharma|biotech|drug|therapeut/.test(cn))       tf = { defensive: 0.55 };
+      else if (/consumer|retail|restaurant/.test(cn))          tf = { defensive: 0.65 };
+      else if (/crypto|blockchain|bitcoin/.test(cn))           tf = { crypto_adjacent: 0.85 };
+      else tf = { high_beta_growth: 0.35 };
+    }
+
+    const dominantFactor = Object.entries(tf).sort((a, b) => b[1] - a[1]).map(([k]) => k)[0] ?? "high_beta_growth";
+    const cp = FACTOR_CATALYSTS[dominantFactor];
+    if (!cp) continue;
+
+    result[ticker] = {
+      catalyst_type: FACTOR_CATALYST_TYPE[dominantFactor] ?? "earnings_momentum",
+      key_catalysts: cp.key.slice(0, 3),
+      dependencies: cp.deps.slice(0, 2),
+      invalidation_signals: cp.invalid.slice(0, 2),
+      dominant_factor: dominantFactor,
+    };
+  }
+
+  return result;
+}
+
 // ─── Portfolio Evolution Intelligence ────────────────────────────────────────
 
 type EvolutionSnap = {
@@ -767,6 +893,8 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     latestStrategyVersion,
   );
 
+  const catalystIntelligence = buildCatalystIntelligence(simplifiedHoldings);
+
   // Portfolio evolution — compare current factor state against historical snapshots
   let portfolioEvolution: ReturnType<typeof computeEvolutionDrift> | null = null;
   try {
@@ -826,6 +954,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     portfolio_factor_intelligence: factorIntelligence,
     portfolio_evolution: portfolioEvolution,
     position_thesis_memory: positionThesisMemory,
+    position_catalyst_context: catalystIntelligence,
   };
 }
 
@@ -862,6 +991,8 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(6) PORTFOLIO EVOLUTION INTELLIGENCE: The portfolio_evolution context (if present) shows how the portfolio changed versus a historical baseline. factor_drift lists factor exposures that moved by >7pp — use these to explain portfolio trajectory, not just current state. volatility_direction tells you if risk is expanding or contracting. strategy_integrity_change shows if alignment to the strategy improved or drifted. Distinguish INTENTIONAL drift (an AI strategy naturally accumulating more AI exposure during a bull run — aligned with intent) from ACCIDENTAL drift (a balanced strategy silently becoming speculative momentum-heavy — worth flagging). Time horizon matters: short-term factor movements in a momentum strategy are normal; structural drift away from the stated strategy identity is the real risk. Use the evolution note and factor_drift array to add temporal narrative to your summary ('Over the past X days, AI exposure increased and volatility profile elevated — consistent with the strategy's aggressive intent') rather than treating the portfolio as a static snapshot. If portfolio_evolution is null, this is the first run — no historical comparison available.",
 
     "(7) POSITION THESIS MEMORY: The position_thesis_memory context contains the original thesis, portfolio role, holding profile, entry conviction, and thesis status for each position that has been executed through BuyTune (null if no record exists for that ticker). Use this as institutional memory. For each recommendation, first ask: does this position still fulfill the reason we bought it? Thesis status: intact = original drivers valid, proceed on security merit; strengthening = catalysts improving, lean toward adding; weakening = original assumptions deteriorating, reduce or watch; broken = core reason for ownership gone, exit regardless of price action. For positions with null thesis records, infer the likely thesis from factor exposure, strategy alignment, and entry timing — then reason accordingly. CRITICAL: macro conditions alone should not change thesis status — they affect sizing only. Short-term price volatility does not break a long-term structural thesis. Never trim a core holding solely because it appreciated — trim when the original thesis deteriorated, crowding risk materialized, or better opportunities exist in the same factor. Mention thesis continuity in your rationale field: 'The original AI momentum thesis remains intact — maintaining core position.' or 'The original breakout thesis has weakened — reducing exposure.'",
+
+    "(8) CATALYST INTELLIGENCE: The position_catalyst_context provides the catalyst type, key catalysts, thesis dependencies, and invalidation signals for each holding (derived from factor exposure). Use these to evaluate forward-looking thesis health. For each recommendation, assess whether the key catalysts are currently intact, strengthening, or showing early signs of deterioration based on the Finnhub analyst data, news, and Reddit sentiment in context. Check if any invalidation signals are present. Lead with catalyst status: 'The [X] thesis depends on [dependency] and is currently [strengthening/intact/showing early weakness]. Key risk: [invalidation signal].' Keep catalyst commentary to 1-2 sentences per position — precision over volume. Catalyst awareness must stay strategy-sensitive: a speculative momentum strategy may tolerate shorter catalyst windows and higher uncertainty; a long-term compounder strategy requires durable secular drivers. Macro conditions influence catalyst urgency and sizing — not automatic invalidation. For positions with no catalyst profile, use your own knowledge of the company's business model and thesis. Never sound certain about future outcomes — be probabilistic and conditional.",
 
     // Participation bias — critical
     "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has opportunity cost — missing rallies is risk. The default posture is intelligent participation. Inactivity requires strong security-specific evidence, not macro caution.",
