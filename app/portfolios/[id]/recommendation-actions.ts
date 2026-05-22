@@ -119,6 +119,71 @@ async function fetchRedditSentimentForTickers(
   return result;
 }
 
+function buildPortfolioConstruction(
+  holdings: { ticker: string; weight_pct: number | null | undefined }[],
+  strategy: { name?: string | null; description?: string | null; style?: string | null; risk_level?: string | null } | null,
+  strategyVersion: { max_position_pct?: number | null; prompt_text?: string | null } | null
+) {
+  const name = (strategy?.name ?? "").toLowerCase();
+  const style = (strategy?.style ?? "").toLowerCase();
+  const riskLevel = (strategy?.risk_level ?? "").toLowerCase();
+  const promptText = (strategyVersion?.prompt_text ?? "").toLowerCase();
+  const combined = `${name} ${style} ${promptText}`;
+
+  let concentrationTolerance: "low" | "moderate" | "high" | "very_high" = "moderate";
+  if (riskLevel === "conservative") concentrationTolerance = "low";
+  else if (riskLevel === "moderate") concentrationTolerance = "moderate";
+  else if (riskLevel === "aggressive") concentrationTolerance = "high";
+  else if (riskLevel === "very_aggressive") concentrationTolerance = "very_high";
+
+  const concentratedKeywords = ["concentrated", "thematic", "focused", "conviction", "high-conviction", "sector", "breakout", "momentum", "speculative"];
+  const diversifiedKeywords = ["diversified", "balanced", "broad", "blend", "income", "dividend", "defensive"];
+  const isConcentratedStyle = concentratedKeywords.some(kw => combined.includes(kw));
+  const isDiversifiedStyle = diversifiedKeywords.some(kw => combined.includes(kw));
+
+  if (isConcentratedStyle && concentrationTolerance === "moderate") concentrationTolerance = "high";
+  if (isDiversifiedStyle && concentrationTolerance === "high") concentrationTolerance = "moderate";
+
+  const intentionalConcentration = (riskLevel === "aggressive" || riskLevel === "very_aggressive") && isConcentratedStyle;
+
+  const inferredMax: Record<string, number> = { low: 10, moderate: 15, high: 25, very_high: 40 };
+  const maxSinglePositionPct: number = strategyVersion?.max_position_pct != null
+    ? strategyVersion.max_position_pct
+    : inferredMax[concentrationTolerance];
+
+  const safeHoldings = holdings.map(h => ({ ticker: h.ticker, weight_pct: h.weight_pct ?? 0 }));
+  const hhi = safeHoldings.reduce((sum, h) => sum + (h.weight_pct / 100) ** 2, 0) * 10000;
+  const sorted = [...safeHoldings].sort((a, b) => b.weight_pct - a.weight_pct);
+  const top3Weight = sorted.slice(0, 3).reduce((s, h) => s + h.weight_pct, 0);
+
+  const hardLimit = maxSinglePositionPct + 5;
+  const overweightFlags = sorted
+    .filter(h => h.weight_pct > hardLimit)
+    .map(h => `${h.ticker} at ${h.weight_pct.toFixed(1)}% (strategy limit: ${maxSinglePositionPct}%)`);
+
+  let constructionNote: string;
+  if (safeHoldings.length === 0) {
+    constructionNote = "No holdings — portfolio is all cash.";
+  } else if (intentionalConcentration) {
+    constructionNote = `Concentrated strategy by design — high single-name weights are intentional. Only flag positions exceeding the hard limit of ${hardLimit.toFixed(0)}% (${maxSinglePositionPct}% limit + 5% buffer).`;
+  } else if (concentrationTolerance === "low" || concentrationTolerance === "moderate") {
+    constructionNote = `Diversification-oriented strategy — flag positions above ${maxSinglePositionPct}% and consider trimming top-heavy positions.`;
+  } else {
+    constructionNote = `Growth strategy with ${maxSinglePositionPct}% position limit. Top-3 holdings at ${top3Weight.toFixed(1)}% combined.`;
+  }
+
+  return {
+    concentration_tolerance: concentrationTolerance,
+    intentional_concentration: intentionalConcentration,
+    max_single_position_pct: maxSinglePositionPct,
+    portfolio_hhi: Math.round(hhi),
+    top3_weight_pct: Math.round(top3Weight * 10) / 10,
+    position_count: safeHoldings.length,
+    overweight_flags: overweightFlags,
+    construction_note: constructionNote,
+  };
+}
+
 async function buildPortfolioAiContext(portfolioId: string, userId: string) {
   const supabase = await createClient();
 
@@ -258,6 +323,12 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     };
   }
 
+  const portfolioConstruction = buildPortfolioConstruction(
+    simplifiedHoldings,
+    (activeAssignment as any)?.strategies ?? null,
+    latestStrategyVersion,
+  );
+
   return {
     generated_at: new Date().toISOString(),
     portfolio: {
@@ -293,6 +364,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_recommendation_items: recentRecommendationItems,
     market_context: prunedMarketContext,
     reddit_sentiment: redditSentiment,
+    portfolio_construction: portfolioConstruction,
   };
 }
 
@@ -317,11 +389,12 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     // Role
     "You are an institutional portfolio manager at a top investment firm. Your goal is to maximize long-term risk-adjusted outcomes, not to predict markets or generate activity.",
 
-    // Three-layer evaluation discipline
-    "EVALUATION PROCESS — think in three independent layers before any recommendation:",
+    // Four-layer evaluation discipline
+    "EVALUATION PROCESS — think in four independent layers before any recommendation:",
     "(1) SECURITY ANALYSIS: Is this security fundamentally attractive? Earnings quality, growth, valuation, momentum, analyst revisions, catalysts, balance sheet. Evaluate independent of macro.",
     "(2) STRATEGY FIT: Does it align with the user's selected strategy style, risk tolerance, and portfolio construction rules?",
     "(3) MACRO OVERLAY: How do current conditions affect HOW AGGRESSIVELY to express this conviction? The macro_overlay in context is a sizing/aggressiveness input — it does NOT veto attractive securities and does NOT justify HOLD for sound positions.",
+    "(4) PORTFOLIO CONSTRUCTION INTELLIGENCE: Evaluate holdings as a portfolio system, not isolated positions. The portfolio_construction context tells you the strategy's concentration tolerance, whether high concentration is intentional, and which positions (if any) genuinely exceed their limit. NEVER penalize intentional concentration for a concentrated strategy — high single-name weights in an aggressive thematic strategy are by design. Only flag overweight positions that appear in overweight_flags (these exceed the strategy's position limit by >5%). Time horizon separation: distinguish structural positions (core long-term holdings) from tactical positions (short-term catalysts) — never apply the same trim logic to both. Strategy override protection: never recommend exiting a strategically-defined core position due to macro conditions alone.",
 
     // Participation bias — critical
     "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has opportunity cost — missing rallies is risk. The default posture is intelligent participation. Inactivity requires strong security-specific evidence, not macro caution.",
@@ -368,7 +441,7 @@ Return this exact JSON shape:
   "summary": "1 sentence on portfolio state and biggest opportunity or risk. Max 160 chars.",
   "recommendations": [
     {
-      "action_type": "buy|add|trim|sell|hold|rebalance|raise_cash",
+      "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",
       "ticker": "string",
       "company_name": "string|null",
       "thesis": "string — [SECURITY] fundamental assessment + [SIZING] guidance",
@@ -391,8 +464,10 @@ Return this exact JSON shape:
 Execution rules:
 - Cover EVERY existing holding. No exceptions.
 - HOLD: only with security-specific justification (stretched valuation, no catalyst, awaiting earnings, already overweight, trend weakening). Never for macro reasons alone.
+- CONSTRUCTION: use portfolio_construction.overweight_flags to identify the only positions that warrant concentration-based trim recommendations. If intentional_concentration is true, do NOT recommend trimming for diversification — only trim if a position appears in overweight_flags.
+- TIME HORIZON: label each recommendation's time_horizon accurately. Never recommend trimming a structural long-term position on a short-term catalyst miss.
 - New buy candidates: only if cash remains after existing position adds AND there is a genuinely compelling opportunity. Max 1-3 new names, search for current price. Do not invent buys to deploy cash.
-- Trim/sell/hold: only tickers in existing holdings.
+- scale_in: use for positions with strong thesis but better entry possible (average down or stagger buys). rotate: use when exiting one name to fund another in the same sector/theme. Trim/sell/hold: only tickers in existing holdings.
 - Apply sizing_modifier from macro overlay to scale new position sizes. Apply speculative_penalty to reduce conviction on low-quality names only.
 - Return JSON only, no markdown fences.
 
