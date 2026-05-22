@@ -110,6 +110,59 @@ function fmtHorizon(v: string | null) {
   return m[v] ?? v;
 }
 
+// ── Thesis signal extraction ──────────────────────────────────────────────────
+
+type ThesisSignal = { label: string; badgeClass: string; dotColor: string };
+
+function extractThesisSignal(rationale: string | null): ThesisSignal | null {
+  if (!rationale) return null;
+  if (/thesis (has )?broken|core reason.*gone|original.*broken|exit.*thesis/i.test(rationale))
+    return { label: "Broken", badgeClass: "border-red-500/20 bg-red-500/8 text-red-400", dotColor: "bg-red-400" };
+  if (/thesis.*weakened?|thesis weakening|assumptions deteriorating|original.*weaken|reduced exposure|reducing exposure/i.test(rationale))
+    return { label: "Weakening", badgeClass: "border-amber-500/20 bg-amber-500/8 text-amber-400", dotColor: "bg-amber-400" };
+  if (/thesis.*strengthening|catalysts improving|thesis improving|conviction increasing/i.test(rationale))
+    return { label: "Strengthening", badgeClass: "border-emerald-500/20 bg-emerald-500/8 text-emerald-400", dotColor: "bg-emerald-400" };
+  if (/thesis (remains )?intact|original.*intact|thesis valid|thesis holds|maintaining.*position/i.test(rationale))
+    return { label: "Intact", badgeClass: "border-slate-500/20 bg-slate-500/8 text-slate-400", dotColor: "bg-slate-500" };
+  return null;
+}
+
+// ── Section tag parser ────────────────────────────────────────────────────────
+
+type ParsedSection = { label: string; content: string; labelClass: string };
+
+const SECTION_DEFS: Array<{ tag: string; label: string; labelClass: string }> = [
+  { tag: "SECURITY",     label: "Fundamentals",    labelClass: "text-blue-400" },
+  { tag: "SIZING",       label: "Sizing",          labelClass: "text-slate-400" },
+  { tag: "STRATEGY FIT", label: "Strategy Fit",    labelClass: "text-violet-400" },
+  { tag: "PORTFOLIO",    label: "Portfolio Impact", labelClass: "text-slate-400" },
+  { tag: "MACRO IMPACT", label: "Macro Overlay",   labelClass: "text-amber-400" },
+  { tag: "DOWNSIDE",     label: "Downside",        labelClass: "text-red-400" },
+];
+
+function parseSections(text: string): ParsedSection[] {
+  const hasTags = SECTION_DEFS.some(s => text.includes(`[${s.tag}]`));
+  if (!hasTags) return [];
+
+  const result: ParsedSection[] = [];
+  for (let i = 0; i < SECTION_DEFS.length; i++) {
+    const { tag, label, labelClass } = SECTION_DEFS[i];
+    const marker = `[${tag}]`;
+    const start = text.indexOf(marker);
+    if (start === -1) continue;
+
+    let end = text.length;
+    for (let j = i + 1; j < SECTION_DEFS.length; j++) {
+      const next = text.indexOf(`[${SECTION_DEFS[j].tag}]`);
+      if (next !== -1 && next < end) end = next;
+    }
+
+    const content = text.slice(start + marker.length, end).trim();
+    if (content) result.push({ label, content, labelClass });
+  }
+  return result;
+}
+
 // ── Style helpers ─────────────────────────────────────────────────────────────
 
 function actionStyle(action: string | null) {
@@ -313,6 +366,9 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
   const [bulkPending, setBulkPending]   = useState(false);
   const [bulkError, setBulkError]       = useState<string | null>(null);
+
+  // Grouped view — monitoring section collapsed by default
+  const [monitoringCollapsed, setMonitoringCollapsed] = useState(true);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -529,6 +585,31 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
     actionCounts[a] = (actionCounts[a] ?? 0) + 1;
   });
 
+  // ── Grouped render items (Active Signals / Position Monitoring) ────────────
+  type RenderItem =
+    | { kind: "card"; item: LocalRec }
+    | { kind: "section"; label: string; count: number; collapsible: boolean };
+
+  const showGrouped = statusFilter === "open" && !isBulkMode && !isLoading && !fetchError;
+  const renderItems: RenderItem[] = [];
+
+  if (showGrouped && localRecs.length > 0) {
+    const actives   = localRecs.filter(r => !HOLD_LIKE.has((r.action_type ?? "").toLowerCase()));
+    const monitors  = localRecs.filter(r =>  HOLD_LIKE.has((r.action_type ?? "").toLowerCase()));
+    if (actives.length > 0) {
+      renderItems.push({ kind: "section", label: "Active Signals", count: actives.length, collapsible: false });
+      actives.forEach(item => renderItems.push({ kind: "card", item }));
+    }
+    if (monitors.length > 0) {
+      renderItems.push({ kind: "section", label: "Position Monitoring", count: monitors.length, collapsible: true });
+      if (!monitoringCollapsed) {
+        monitors.forEach(item => renderItems.push({ kind: "card", item }));
+      }
+    }
+  } else {
+    localRecs.forEach(item => renderItems.push({ kind: "card", item }));
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -652,7 +733,34 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
       {!isLoading && !fetchError && (
         localRecs.length > 0 ? (
           <div className="space-y-2">
-            {localRecs.map(item => {
+            {renderItems.map((ri, riIdx) => {
+              if (ri.kind === "section") {
+                return (
+                  <div key={`section-${riIdx}`}>
+                    {ri.collapsible ? (
+                      <button
+                        type="button"
+                        onClick={() => setMonitoringCollapsed(v => !v)}
+                        className="flex w-full items-center gap-2 rounded-xl border border-white/6 bg-white/2 px-3 py-2.5 text-left hover:bg-white/3 transition"
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{ri.label}</span>
+                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] tabular-nums text-slate-600">{ri.count}</span>
+                        <svg viewBox="0 0 20 20" fill="currentColor"
+                          className={`ml-auto h-3.5 w-3.5 shrink-0 text-slate-600 transition-transform ${monitoringCollapsed ? "" : "rotate-180"}`}>
+                          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2 px-1 py-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{ri.label}</span>
+                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] tabular-nums text-slate-600">{ri.count}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              const item = ri.item;
               const isExpanded    = expandedId === item.id;
               const isSyncing     = item._syncing ?? false;
               const isPending     = pendingIds.has(item.id);
@@ -733,13 +841,21 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                     </div>
 
                     {/* Rows 2+3: only when collapsed and not in bulk mode */}
-                    {!isExpanded && !isBulkMode && (
+                    {!isExpanded && !isBulkMode && (() => {
+                      const thesisSignal = extractThesisSignal(item.rationale);
+                      return (
                       <>
-                        {/* Row 2: thesis preview + sizing chips */}
+                        {/* Row 2: thesis signal · thesis preview · sizing chips */}
                         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                          {thesisSignal && (
+                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${thesisSignal.badgeClass}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${thesisSignal.dotColor}`} />
+                              {thesisSignal.label}
+                            </span>
+                          )}
                           {item.thesis && (
                             <span className="min-w-0 flex-1 truncate text-xs text-slate-400" style={{ maxWidth: "45ch" }}>
-                              {item.thesis}
+                              {item.thesis.replace(/\[SECURITY\]|\[SIZING\]/g, "").trim()}
                             </span>
                           )}
                           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
@@ -844,34 +960,91 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                           {actionError && <span className="text-xs text-red-400">{actionError}</span>}
                         </div>
                       </>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   {/* ── Expanded detail ─────────────────────────────────── */}
                   {isExpanded && !isBulkMode && (
                     <div className="border-t border-white/5 px-4 pb-4 pt-3" onClick={e => e.stopPropagation()}>
 
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {item.thesis && (
-                          <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
-                            <p className="text-sm leading-6 text-slate-200">{item.thesis}</p>
-                          </div>
-                        )}
-                        {item.rationale && (
-                          <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
-                            <p className="text-sm leading-6 text-slate-300">{item.rationale}</p>
-                          </div>
-                        )}
-                      </div>
+                      {/* Thesis + Rationale: prefer parsed sections, fall back to full text */}
+                      {(() => {
+                        const thesisSections = parseSections(item.thesis ?? "");
+                        const rationaleSections = parseSections(item.rationale ?? "");
+                        const riskSections = parseSections(item.risks ?? "");
+                        const hasParsed = thesisSections.length > 0 || rationaleSections.length > 0;
+                        const thesisSignalExp = extractThesisSignal(item.rationale);
 
-                      {item.risks && (
-                        <div className="mt-3 rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
-                          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
-                          <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
-                        </div>
-                      )}
+                        if (hasParsed) {
+                          const allSections = [...thesisSections, ...rationaleSections];
+                          return (
+                            <div className="space-y-2">
+                              {thesisSignalExp && (
+                                <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${thesisSignalExp.badgeClass}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${thesisSignalExp.dotColor}`} />
+                                  Thesis {thesisSignalExp.label}
+                                </div>
+                              )}
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {allSections.map((s, i) => (
+                                  <div key={i} className="rounded-xl border border-white/5 bg-white/2 p-3">
+                                    <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
+                                    <p className="text-sm leading-6 text-slate-300">{s.content}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              {riskSections.length > 0 ? (
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {riskSections.map((s, i) => (
+                                    <div key={i} className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
+                                      <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
+                                      <p className="text-sm leading-6 text-slate-300">{s.content}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : item.risks ? (
+                                <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
+                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
+                                  <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        }
+
+                        // Fallback: unstructured plain text
+                        return (
+                          <div className="space-y-2">
+                            {thesisSignalExp && (
+                              <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${thesisSignalExp.badgeClass}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${thesisSignalExp.dotColor}`} />
+                                Thesis {thesisSignalExp.label}
+                              </div>
+                            )}
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {item.thesis && (
+                                <div className="rounded-xl border border-white/5 bg-white/2 p-3">
+                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
+                                  <p className="text-sm leading-6 text-slate-200">{item.thesis}</p>
+                                </div>
+                              )}
+                              {item.rationale && (
+                                <div className="rounded-xl border border-white/5 bg-white/2 p-3">
+                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
+                                  <p className="text-sm leading-6 text-slate-300">{item.rationale}</p>
+                                </div>
+                              )}
+                            </div>
+                            {item.risks && (
+                              <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
+                                <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
+                                <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
                         {[

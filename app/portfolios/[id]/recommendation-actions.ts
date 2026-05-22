@@ -1036,7 +1036,7 @@ RECOMMENDATION STRUCTURE — for each recommendation, structure the fields as fo
 Return this exact JSON shape:
 
 {
-  "summary": "1-2 sentences: portfolio's dominant factor exposure and what environment it thrives or struggles in, plus the biggest current opportunity or risk. Max 200 chars.",
+  "summary": "3 sentences max. Sentence 1: portfolio's dominant factor bet and whether current conditions favor it. Sentence 2: what materially changed since last run (factor drift, new thesis developments, macro shift) — or 'No material change' if stable. Sentence 3: the single highest-priority action and why. Max 280 chars.",
   "recommendations": [
     {
       "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",

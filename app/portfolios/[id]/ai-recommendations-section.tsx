@@ -94,29 +94,90 @@ export default async function AIRecommendationsSection({
         </div>
       </div>
 
-      {latestRun?.summary && (
-        <div className="mt-4 rounded-xl border p-5" style={{ background: "rgba(124,58,237,0.03)", borderColor: "rgba(124,58,237,0.15)" }}>
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="#a78bfa">
-                <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/>
-                <path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/>
-              </svg>
-              <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#a78bfa" }}>
-                Latest Analysis
+      {latestRun?.summary && (() => {
+        const raw = latestRun.summary;
+
+        // Parse: "{grok summary} | Health Score: X/100. Focus: {focus}"
+        const healthMatch = raw.match(/\|\s*Health Score:\s*(\d+)\/100/i);
+        const healthScore = healthMatch ? parseInt(healthMatch[1], 10) : null;
+        const focusMatch = raw.match(/\bFocus:\s*(.+?)(?:\s*$)/i);
+        const focusText = focusMatch ? focusMatch[1].trim() : null;
+        const mainText = raw
+          .replace(/\|\s*Health Score:\s*\d+\/100\.?/i, "")
+          .replace(/\bFocus:\s*.+$/i, "")
+          .trim()
+          .replace(/\s+$/, "")
+          .replace(/\.$/, "");
+
+        const scoreColor =
+          healthScore === null ? null :
+          healthScore >= 75 ? "#22c55e" :
+          healthScore >= 55 ? "#f59e0b" : "#ef4444";
+        const scoreBg =
+          healthScore === null ? null :
+          healthScore >= 75 ? "rgba(34,197,94,0.08)" :
+          healthScore >= 55 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)";
+        const scoreBorder =
+          healthScore === null ? null :
+          healthScore >= 75 ? "rgba(34,197,94,0.15)" :
+          healthScore >= 55 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)";
+
+        return (
+          <div className="mt-4 rounded-xl border border-white/8 bg-white/2 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="text-slate-500">
+                  <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/>
+                  <path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/>
+                </svg>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                  Morning Briefing
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-600">
+                {new Date(latestRun.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                {" · "}
+                {new Date(latestRun.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">
-              {new Date(latestRun.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              {" · "}
-              {new Date(latestRun.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-            </span>
+
+            <div className="flex items-start gap-4">
+              {/* Health score badge */}
+              {healthScore !== null && (
+                <div
+                  className="shrink-0 rounded-xl border px-3 py-2 text-center"
+                  style={{ background: scoreBg ?? undefined, borderColor: scoreBorder ?? undefined }}
+                >
+                  <p className="text-xl font-bold tabular-nums leading-none" style={{ color: scoreColor ?? undefined }}>
+                    {healthScore}
+                  </p>
+                  <p className="mt-0.5 text-[9px] uppercase tracking-widest" style={{ color: scoreColor ?? undefined, opacity: 0.7 }}>
+                    Health
+                  </p>
+                </div>
+              )}
+
+              {/* Main briefing text */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-relaxed text-slate-300">{mainText}</p>
+              </div>
+            </div>
+
+            {/* Focus callout */}
+            {focusText && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-blue-500/15 bg-blue-500/6 px-3 py-2">
+                <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" className="mt-0.5 shrink-0 text-blue-400">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" />
+                </svg>
+                <p className="text-xs text-slate-300">
+                  <span className="font-semibold text-blue-400">Focus: </span>
+                  {focusText}
+                </p>
+              </div>
+            )}
           </div>
-          <p className="text-sm leading-relaxed text-slate-300 overflow-y-auto" style={{ maxHeight: "260px", whiteSpace: "pre-wrap" }}>
-            {latestRun.summary}
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {runs && runs.length > 1 && (
         <details className="mt-3 group">
