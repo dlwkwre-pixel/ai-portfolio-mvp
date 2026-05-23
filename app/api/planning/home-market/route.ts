@@ -14,13 +14,13 @@ const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 type CensusRow = [string, string, string, string]; // [homeValue, rent, income, zipCode]
 
 async function fetchCensusData(zip: string): Promise<{ medianHomeValue: number | null; medianRent: number | null; medianHouseholdIncome: number | null }> {
-  const url = new URL(CENSUS_BASE);
-  url.searchParams.set("get", CENSUS_VARS);
-  url.searchParams.set("for", `zip code tabulation area:${zip}`);
+  // Build URL as a string — URLSearchParams encodes the colon in "zip code tabulation area:XXXXX"
+  // as %3A, which Census API rejects. The colon must stay literal.
   const apiKey = process.env.CENSUS_API_KEY;
-  if (apiKey) url.searchParams.set("key", apiKey);
+  const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : "";
+  const censusUrl = `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip%20code%20tabulation%20area:${zip}${keyParam}`;
 
-  const res = await fetch(url.toString(), { next: { revalidate: 86400 } }); // 24h cache — ACS data is annual
+  const res = await fetch(censusUrl, { next: { revalidate: 86400 } }); // 24h cache — ACS data is annual
   if (!res.ok) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
 
   const rows = await res.json() as CensusRow[];
