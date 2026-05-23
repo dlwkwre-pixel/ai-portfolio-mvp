@@ -4,7 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -28,6 +28,7 @@ export default async function PlanningPage() {
     { data: educationScenariosData },
     { data: familyScenariosData },
     { data: expenseActualsData },
+    { data: estateProfileData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -41,6 +42,7 @@ export default async function PlanningPage() {
     supabase.from("education_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("family_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
+    supabase.from("estate_profiles").select("*").eq("user_id", user.id).maybeSingle(),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -144,6 +146,31 @@ export default async function PlanningPage() {
   const typedEducationScenarios: EducationScenario[] = (educationScenariosData ?? []) as EducationScenario[];
   const typedFamilyScenarios: FamilyScenario[] = (familyScenariosData ?? []) as FamilyScenario[];
 
+  const typedEstateProfile: EstateProfile | null = estateProfileData
+    ? {
+        id: estateProfileData.id,
+        user_id: estateProfileData.user_id,
+        doc_will:                 estateProfileData.doc_will ?? "none",
+        doc_living_trust:         estateProfileData.doc_living_trust ?? "none",
+        doc_durable_poa:          estateProfileData.doc_durable_poa ?? "none",
+        doc_healthcare_directive: estateProfileData.doc_healthcare_directive ?? "none",
+        doc_beneficiary_desig:    estateProfileData.doc_beneficiary_desig ?? "none",
+        doc_digital_assets:       estateProfileData.doc_digital_assets ?? "none",
+        executor_name:            estateProfileData.executor_name ?? null,
+        executor_phone:           estateProfileData.executor_phone ?? null,
+        executor_email:           estateProfileData.executor_email ?? null,
+        attorney_name:            estateProfileData.attorney_name ?? null,
+        attorney_phone:           estateProfileData.attorney_phone ?? null,
+        attorney_email:           estateProfileData.attorney_email ?? null,
+        healthcare_proxy_name:    estateProfileData.healthcare_proxy_name ?? null,
+        healthcare_proxy_phone:   estateProfileData.healthcare_proxy_phone ?? null,
+        beneficiaries:            (estateProfileData.beneficiaries ?? []) as EstateBeneficiary[],
+        notes:                    estateProfileData.notes ?? null,
+        last_reviewed_at:         estateProfileData.last_reviewed_at ?? null,
+        updated_at:               estateProfileData.updated_at,
+      }
+    : null;
+
   const typedExpenseActuals: ExpenseActual[] = (expenseActualsData ?? []).map((r) => ({
     id: r.id,
     user_id: r.user_id,
@@ -184,6 +211,7 @@ export default async function PlanningPage() {
           educationScenarios={typedEducationScenarios}
           familyScenarios={typedFamilyScenarios}
           expenseActuals={typedExpenseActuals}
+          estateProfile={typedEstateProfile}
         />
       </div>
     </div>

@@ -19,8 +19,8 @@ import {
   addFutureEvent,
   deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual } from "./planning-actions";
-import { logExpenseActual, deleteExpenseActual, syncForecastToActuals } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary } from "./planning-actions";
+import { logExpenseActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -1714,6 +1714,324 @@ function CompareTab({
   );
 }
 
+// ── Estate & Will ────────────────────────────────────────────────────────────
+
+const DOC_STATUSES = [
+  { value: "none",       label: "Not started",  color: "var(--text-muted)" },
+  { value: "draft",      label: "Draft",         color: "#f59e0b" },
+  { value: "signed",     label: "Signed",        color: "#3b82f6" },
+  { value: "notarized",  label: "Notarized",     color: "#8b5cf6" },
+  { value: "filed",      label: "Filed",         color: "var(--green)" },
+] as const;
+
+const DOCS: { key: keyof Pick<EstateProfile, "doc_will"|"doc_living_trust"|"doc_durable_poa"|"doc_healthcare_directive"|"doc_beneficiary_desig"|"doc_digital_assets">; label: string; description: string }[] = [
+  { key: "doc_will",                 label: "Last Will & Testament",        description: "Distributes assets, names executor and guardians" },
+  { key: "doc_living_trust",         label: "Living Trust",                 description: "Avoids probate, controls asset distribution" },
+  { key: "doc_durable_poa",          label: "Durable Power of Attorney",    description: "Authorizes someone to manage finances if incapacitated" },
+  { key: "doc_healthcare_directive", label: "Healthcare Directive / POA",   description: "Medical decisions and end-of-life instructions" },
+  { key: "doc_beneficiary_desig",    label: "Beneficiary Designations",     description: "Named on accounts, retirement plans, and insurance" },
+  { key: "doc_digital_assets",       label: "Digital Assets Inventory",     description: "Passwords, crypto, online accounts list" },
+];
+
+const RELATIONSHIPS = ["Spouse","Partner","Child","Parent","Sibling","Grandchild","Friend","Charity","Trust","Other"];
+
+function statusColor(val: string): string {
+  return DOC_STATUSES.find((s) => s.value === val)?.color ?? "var(--text-muted)";
+}
+function statusLabel(val: string): string {
+  return DOC_STATUSES.find((s) => s.value === val)?.label ?? "Not started";
+}
+
+function EstatePlanningTab({
+  estateProfile,
+  balanceItems,
+  portfolioTotalValue,
+  isPrivate,
+}: {
+  estateProfile: EstateProfile | null;
+  balanceItems: BalanceSheetItem[];
+  portfolioTotalValue: number;
+  isPrivate: boolean;
+}) {
+  const [editing, setEditing] = useState(!estateProfile);
+  const [pending, startTransition] = useTransition();
+  const [beneficiaries, setBeneficiaries] = useState<EstateBeneficiary[]>(
+    () => estateProfile?.beneficiaries ?? []
+  );
+  const [addingBenef, setAddingBenef] = useState(false);
+  const [newBenef, setNewBenef] = useState<Omit<EstateBeneficiary, "id">>({ name: "", relationship: "Spouse", allocation_pct: 0, notes: "" });
+  const [benPending, setBenPending] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  const totalAssets = balanceItems.filter((i) => !i.is_liability).reduce((s, i) => s + i.value, 0) + portfolioTotalValue;
+  const totalLiabilities = balanceItems.filter((i) => i.is_liability).reduce((s, i) => s + i.value, 0);
+  const estateValue = totalAssets - totalLiabilities;
+  const FEDERAL_THRESHOLD = 13_610_000;
+
+  const docComplete = DOCS.filter((d) => (estateProfile?.[d.key] ?? "none") !== "none").length;
+  const allocTotal = beneficiaries.reduce((s, b) => s + b.allocation_pct, 0);
+
+  function fmt(n: number) {
+    return isPrivate ? "••••" : `$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  }
+
+  async function saveBeneficiaries(updated: EstateBeneficiary[]) {
+    setBenPending(true);
+    await upsertEstateBeneficiaries(updated);
+    setBenPending(false);
+  }
+
+  function addBeneficiary() {
+    if (!newBenef.name.trim()) return;
+    const updated = [...beneficiaries, { ...newBenef, id: crypto.randomUUID() }];
+    setBeneficiaries(updated);
+    void saveBeneficiaries(updated);
+    setNewBenef({ name: "", relationship: "Spouse", allocation_pct: 0, notes: "" });
+    setAddingBenef(false);
+  }
+
+  function removeBeneficiary(id: string) {
+    const updated = beneficiaries.filter((b) => b.id !== id);
+    setBeneficiaries(updated);
+    void saveBeneficiaries(updated);
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "7px 10px", borderRadius: "8px", fontSize: "13px",
+    background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+    color: "var(--text-primary)", fontFamily: "var(--font-body)",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "11px", fontWeight: 500, color: "var(--text-tertiary)",
+    textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "5px",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* Legal disclaimer */}
+      <div style={{
+        padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: "11px",
+        background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)",
+        color: "var(--text-muted)", lineHeight: 1.6,
+      }}>
+        This is an organizational tool only. BuyTune is not a law firm and this is not legal advice.
+        Consult a licensed estate attorney in your state for document preparation and legal guidance.
+      </div>
+
+      {/* Estate value summary */}
+      <div style={{
+        display: "flex", gap: "16px", flexWrap: "wrap", padding: "14px 18px",
+        borderRadius: "var(--radius-lg)", background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+      }}>
+        {[
+          { label: "Estimated estate value", value: fmt(estateValue), note: "assets minus liabilities" },
+          { label: "Federal exemption 2024", value: "$13.6M", note: estateValue >= FEDERAL_THRESHOLD ? "Estate may be taxable" : "Below threshold" },
+          { label: "Documents complete", value: `${docComplete}/${DOCS.length}`, note: docComplete === DOCS.length ? "All accounted for" : `${DOCS.length - docComplete} remaining` },
+        ].map(({ label, value, note }) => (
+          <div key={label} style={{ flex: "1 1 140px" }}>
+            <div style={labelStyle}>{label}</div>
+            <div style={{ fontSize: "18px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{note}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Documents checklist */}
+      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Document Checklist</div>
+          <button onClick={() => { setEditing((v) => !v); setSaveMsg(""); }} style={{ fontSize: "11px", color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer" }}>
+            {editing ? "Cancel" : "Edit"}
+          </button>
+        </div>
+        {editing ? (
+          <form
+            action={(fd) => {
+              // preserve beneficiaries — not part of this form
+              startTransition(async () => {
+                const result = await upsertEstateProfile(fd);
+                if (!result.error) { setEditing(false); setSaveMsg("Saved."); }
+              });
+            }}
+            style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: "14px" }}
+          >
+            {/* Document status dropdowns */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "10px" }}>
+              {DOCS.map((doc) => (
+                <div key={doc.key}>
+                  <div style={labelStyle}>{doc.label}</div>
+                  <select name={doc.key} defaultValue={estateProfile?.[doc.key] ?? "none"} style={{ ...inputStyle, width: "100%" }}>
+                    {DOC_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>{doc.description}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Key contacts */}
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>Key Contacts</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
+              {[
+                { prefix: "executor",         label: "Executor" },
+                { prefix: "attorney",         label: "Estate Attorney" },
+                { prefix: "healthcare_proxy", label: "Healthcare Proxy" },
+              ].map(({ prefix, label }) => (
+                <div key={prefix} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{label}</div>
+                  <input name={`${prefix}_name`}  defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_name`] ?? ""} placeholder="Name" style={inputStyle} />
+                  <input name={`${prefix}_phone`} defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_phone`] ?? ""} placeholder="Phone" style={inputStyle} />
+                  {prefix !== "healthcare_proxy" && (
+                    <input name={`${prefix}_email`} defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_email`] ?? ""} placeholder="Email" style={inputStyle} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Last reviewed + notes */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
+              <div>
+                <div style={labelStyle}>Last reviewed</div>
+                <input type="date" name="last_reviewed_at" defaultValue={estateProfile?.last_reviewed_at ?? ""} style={inputStyle} />
+              </div>
+              <div>
+                <div style={labelStyle}>Notes / instructions</div>
+                <textarea name="notes" defaultValue={estateProfile?.notes ?? ""} rows={3} placeholder="e.g. Safe deposit box location, digital password manager, specific bequests…" style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <button type="submit" disabled={pending} style={{ padding: "8px 18px", borderRadius: "8px", background: "var(--brand-blue)", color: "#fff", border: "none", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                {pending ? "Saving…" : "Save"}
+              </button>
+              {saveMsg && <span style={{ fontSize: "12px", color: "var(--green)" }}>{saveMsg}</span>}
+            </div>
+          </form>
+        ) : (
+          <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {DOCS.map((doc) => {
+              const status = estateProfile?.[doc.key] ?? "none";
+              return (
+                <div key={doc.key} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{
+                    width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0,
+                    background: statusColor(status),
+                  }} />
+                  <div style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)" }}>{doc.label}</div>
+                  <div style={{ fontSize: "11px", fontWeight: 500, color: statusColor(status) }}>{statusLabel(status)}</div>
+                </div>
+              );
+            })}
+            {estateProfile?.last_reviewed_at && (
+              <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--text-muted)" }}>
+                Last reviewed: {estateProfile.last_reviewed_at}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Key contacts read view */}
+      {!editing && estateProfile && (estateProfile.executor_name || estateProfile.attorney_name || estateProfile.healthcare_proxy_name) && (
+        <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 18px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "12px" }}>Key Contacts</div>
+          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+            {[
+              { label: "Executor",          name: estateProfile.executor_name,        phone: estateProfile.executor_phone,        email: estateProfile.executor_email },
+              { label: "Estate Attorney",   name: estateProfile.attorney_name,        phone: estateProfile.attorney_phone,        email: estateProfile.attorney_email },
+              { label: "Healthcare Proxy",  name: estateProfile.healthcare_proxy_name, phone: estateProfile.healthcare_proxy_phone, email: null },
+            ].filter((c) => c.name).map((c) => (
+              <div key={c.label} style={{ flex: "1 1 160px" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>{c.label}</div>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{isPrivate ? "••••••" : c.name}</div>
+                {c.phone && <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{isPrivate ? "••••••" : c.phone}</div>}
+                {c.email && <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{isPrivate ? "••••••" : c.email}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Beneficiaries */}
+      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Beneficiaries</div>
+            {beneficiaries.length > 0 && (
+              <div style={{ fontSize: "11px", color: allocTotal === 100 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+                {allocTotal}% allocated {allocTotal !== 100 && `— ${allocTotal < 100 ? `${100 - allocTotal}% unallocated` : `${allocTotal - 100}% over`}`}
+              </div>
+            )}
+          </div>
+          <button onClick={() => setAddingBenef((v) => !v)} style={{ fontSize: "11px", color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer" }}>
+            {addingBenef ? "Cancel" : "+ Add"}
+          </button>
+        </div>
+
+        {addingBenef && (
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px", gap: "8px" }}>
+              <div>
+                <div style={labelStyle}>Name</div>
+                <input value={newBenef.name} onChange={(e) => setNewBenef((b) => ({ ...b, name: e.target.value }))} placeholder="Full name" style={inputStyle} />
+              </div>
+              <div>
+                <div style={labelStyle}>Relationship</div>
+                <select value={newBenef.relationship} onChange={(e) => setNewBenef((b) => ({ ...b, relationship: e.target.value }))} style={inputStyle}>
+                  {RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={labelStyle}>% Share</div>
+                <input type="number" min="0" max="100" value={newBenef.allocation_pct} onChange={(e) => setNewBenef((b) => ({ ...b, allocation_pct: Number(e.target.value) }))} style={inputStyle} />
+              </div>
+            </div>
+            <input value={newBenef.notes} onChange={(e) => setNewBenef((b) => ({ ...b, notes: e.target.value }))} placeholder="Notes (optional)" style={inputStyle} />
+            <button onClick={addBeneficiary} disabled={!newBenef.name.trim() || benPending} style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: "8px", background: "var(--brand-blue)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+              {benPending ? "Saving…" : "Add Beneficiary"}
+            </button>
+          </div>
+        )}
+
+        {beneficiaries.length === 0 && !addingBenef ? (
+          <div style={{ padding: "30px 18px", textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
+            No beneficiaries added yet.
+          </div>
+        ) : (
+          <div style={{ padding: "6px 0" }}>
+            {beneficiaries.map((b) => (
+              <div key={b.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 18px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{isPrivate ? "••••••" : b.name}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{b.relationship}{b.notes && ` · ${b.notes}`}</div>
+                </div>
+                <div style={{
+                  padding: "2px 10px", borderRadius: "4px", fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700,
+                  background: allocTotal === 100 ? "rgba(34,197,94,0.1)" : "var(--bg-elevated)",
+                  color: allocTotal === 100 ? "var(--green)" : "var(--text-secondary)",
+                }}>
+                  {b.allocation_pct}%
+                </div>
+                <button onClick={() => removeBeneficiary(b.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Notes read view */}
+      {!editing && estateProfile?.notes && (
+        <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 18px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px" }}>Notes & Instructions</div>
+          <div style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            {isPrivate ? "••••••••••••" : estateProfile.notes}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Budget Tracker ────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -1976,15 +2294,16 @@ type Props = {
   educationScenarios: EducationScenario[];
   familyScenarios: FamilyScenario[];
   expenseActuals: ExpenseActual[];
+  estateProfile: EstateProfile | null;
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "budget" | "finn";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "budget" | "estate" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  expenseActuals,
+  expenseActuals, estateProfile,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -2969,6 +3288,7 @@ export default function PlanningClient({
     { id: "forecast", label: "Forecast" },
     { id: "compare", label: "Compare" },
     { id: "events", label: "Life Events" },
+    { id: "estate", label: "Estate & Will" },
     { id: "finn", label: "Ask FINN" },
   ];
 
@@ -4309,6 +4629,16 @@ export default function PlanningClient({
           </div>
 
         </div>
+      )}
+
+      {/* ── Tab: Estate & Will ── */}
+      {tab === "estate" && (
+        <EstatePlanningTab
+          estateProfile={estateProfile}
+          balanceItems={balanceItems}
+          portfolioTotalValue={portfolioTotalValue}
+          isPrivate={isPrivate}
+        />
       )}
 
       {/* ── Tab: Ask FINN ── */}

@@ -418,6 +418,92 @@ export async function syncForecastToActuals(cash_flow_item_id: string): Promise<
   return { newAmount: rounded };
 }
 
+// ── Estate Profile ────────────────────────────────────────────────────────────
+
+export type EstateBeneficiary = {
+  id: string;
+  name: string;
+  relationship: string;
+  allocation_pct: number;
+  notes: string;
+};
+
+export type EstateProfile = {
+  id: string;
+  user_id: string;
+  doc_will: string;
+  doc_living_trust: string;
+  doc_durable_poa: string;
+  doc_healthcare_directive: string;
+  doc_beneficiary_desig: string;
+  doc_digital_assets: string;
+  executor_name: string | null;
+  executor_phone: string | null;
+  executor_email: string | null;
+  attorney_name: string | null;
+  attorney_phone: string | null;
+  attorney_email: string | null;
+  healthcare_proxy_name: string | null;
+  healthcare_proxy_phone: string | null;
+  beneficiaries: EstateBeneficiary[];
+  notes: string | null;
+  last_reviewed_at: string | null;
+  updated_at: string;
+};
+
+export async function upsertEstateProfile(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const str = (key: string) => String(formData.get(key) || "").trim() || null;
+
+  const { error } = await supabase.from("estate_profiles").upsert(
+    {
+      user_id: user.id,
+      doc_will:                 String(formData.get("doc_will") || "none"),
+      doc_living_trust:         String(formData.get("doc_living_trust") || "none"),
+      doc_durable_poa:          String(formData.get("doc_durable_poa") || "none"),
+      doc_healthcare_directive: String(formData.get("doc_healthcare_directive") || "none"),
+      doc_beneficiary_desig:    String(formData.get("doc_beneficiary_desig") || "none"),
+      doc_digital_assets:       String(formData.get("doc_digital_assets") || "none"),
+      executor_name:            str("executor_name"),
+      executor_phone:           str("executor_phone"),
+      executor_email:           str("executor_email"),
+      attorney_name:            str("attorney_name"),
+      attorney_phone:           str("attorney_phone"),
+      attorney_email:           str("attorney_email"),
+      healthcare_proxy_name:    str("healthcare_proxy_name"),
+      healthcare_proxy_phone:   str("healthcare_proxy_phone"),
+      notes:                    str("notes"),
+      last_reviewed_at:         str("last_reviewed_at"),
+      updated_at:               new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function upsertEstateBeneficiaries(
+  beneficiaries: EstateBeneficiary[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase.from("estate_profiles").upsert(
+    { user_id: user.id, beneficiaries, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
 // ── Net Worth Snapshot ────────────────────────────────────────────────────────
 
 export async function saveNetWorthSnapshot(
