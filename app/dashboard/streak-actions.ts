@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkAndAwardBadges } from "@/lib/badges/check";
 
 export async function recordDailyActivity(): Promise<number> {
   const supabase = await createClient();
@@ -35,6 +36,9 @@ export async function recordDailyActivity(): Promise<number> {
       last_active_date: today,
     } as Record<string, unknown>)
     .eq("id", user.id);
+
+  // Fire-and-forget badge check — non-fatal if user_badges table doesn't exist yet
+  void checkAndAwardBadges(user.id).catch(() => {});
 
   return newStreak;
 }

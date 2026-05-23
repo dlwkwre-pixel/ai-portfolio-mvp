@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import ProfileClient from "./profile-client";
+import BadgesSection from "./badges-section";
 
 export default async function UserProfilePage({
   params,
@@ -81,6 +82,7 @@ export default async function UserProfilePage({
         <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {currentUser && <MobileNav />}
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "32px 24px" }}>
+            <div style={{ maxWidth: "680px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
             <ProfileClient
               profile={{
                 id: profile.id,
@@ -102,6 +104,8 @@ export default async function UserProfilePage({
               isOwnProfile={isOwnProfile}
               isLoggedIn={!!currentUser}
             />
+            <BadgesSection userId={profile.id} isOwnProfile={isOwnProfile} />
+            </div>
           </div>
         </div>
       </div>
