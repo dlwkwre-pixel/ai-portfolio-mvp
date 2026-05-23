@@ -56,24 +56,19 @@ export default async function DashboardPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  // Fetch profile (onboarding + terms acceptance) — columns that must exist
-  const [{ data: profileData }, { data: streakData }] = await Promise.all([
-    supabase
-      .from("user_profiles")
-      .select("onboarding_status, onboarding_step, terms_accepted_at")
-      .eq("id", user.id)
-      .maybeSingle(),
-    // Streak columns added by streak-setup.sql — fetched separately so a missing migration
-    // doesn't break the terms check above
-    supabase
-      .from("user_profiles")
-      .select("login_streak, last_active_date")
-      .eq("id", user.id)
-      .maybeSingle(),
-  ]);
+  // Use select("*") so that unrun migrations (missing columns) never crash the query.
+  // PostgREST errors on unknown column names; selecting all avoids that entirely.
+  const { data: rawProfile } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profileData = rawProfile as Record<string, any> | null;
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
-  const termsAccepted = !!(profileData as { terms_accepted_at?: string | null } | null)?.terms_accepted_at;
+  const termsAccepted = !!(profileData?.terms_accepted_at);
+  const streakData = profileData;
 
   // Streak: read stored value; client component will update it async
   const pd = streakData as { login_streak?: number | null; last_active_date?: string | null } | null;

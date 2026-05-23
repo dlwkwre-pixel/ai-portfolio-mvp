@@ -58,13 +58,14 @@ export default function UsernameSetupPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
-    const { error } = await supabase.from("user_profiles").insert({
+    // Use upsert in case a trigger already created a stub row with null username
+    const { error } = await supabase.from("user_profiles").upsert({
       id: user.id,
       username,
       display_name: displayName || username,
       bio: bio || null,
       avatar_color: randomColor(),
-    });
+    }, { onConflict: "id" });
 
     if (error) { setError(error.message); setLoading(false); return; }
     router.push("/dashboard");

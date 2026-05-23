@@ -27,29 +27,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // If the user somehow has no profile row (bypassed setup-username), create one so
-    // the update above actually persists. UPDATE on 0 rows returns no error in Supabase.
+    // If UPDATE touched 0 rows (no profile exists, or a trigger made a stub with no username),
+    // upsert to create/update the row so terms_accepted_at is always persisted.
     const { data: existing } = await supabase
       .from("user_profiles")
-      .select("id")
+      .select("id, username")
       .eq("id", user.id)
       .maybeSingle();
 
     if (!existing) {
       const emailBase = user.email?.split("@")[0]?.replace(/[^a-z0-9]/gi, "").toLowerCase() ?? "user";
       const fallbackUsername = `${emailBase}_${user.id.slice(0, 6)}`;
-      const { error: insertError } = await supabase
+      const { error: upsertError } = await supabase
         .from("user_profiles")
-        .insert({
+        .upsert({
           id: user.id,
           username: fallbackUsername,
           display_name: user.email?.split("@")[0] ?? "User",
           terms_accepted_at: now,
           terms_version: TERMS_VERSION,
-        });
-      if (insertError) {
-        console.error("[accept-terms] insert error:", insertError.message, insertError.code);
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
+        }, { onConflict: "id" });
+      if (upsertError) {
+        console.error("[accept-terms] upsert error:", upsertError.message, upsertError.code);
+        return NextResponse.json({ error: upsertError.message }, { status: 500 });
       }
     }
 
