@@ -143,7 +143,8 @@ export default function OnboardingModal({
           name: portfolioName.trim(),
           account_type: accountType,
         });
-        setPortfolioId(result.id);
+        if (result.error) throw new Error(result.error);
+        setPortfolioId(result.id ?? "");
         await go(3);
       }
     } catch (e) {

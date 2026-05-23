@@ -129,54 +129,58 @@ export async function createOnboardingPortfolio(data: {
   name: string;
   account_type: string;
   description?: string;
-}) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+}): Promise<{ id?: string; error?: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Not authenticated" };
 
-  const name = data.name.trim() || "My Portfolio";
+    const name = data.name.trim() || "My Portfolio";
 
-  // Idempotency: return existing portfolio with same name (active or not)
-  // Checking both active and archived prevents unique constraint errors on re-use
-  const { data: existing } = await supabase
-    .from("portfolios")
-    .select("id, is_active")
-    .eq("user_id", user.id)
-    .eq("name", name)
-    .maybeSingle();
+    // Idempotency: return existing portfolio with same name (active or not)
+    // Checking both active and archived prevents unique constraint errors on re-use
+    const { data: existing } = await supabase
+      .from("portfolios")
+      .select("id, is_active")
+      .eq("user_id", user.id)
+      .eq("name", name)
+      .maybeSingle();
 
-  if (existing) {
-    // Reactivate if archived
-    if (!existing.is_active) {
-      await supabase
-        .from("portfolios")
-        .update({ is_active: true, status: "active" })
-        .eq("id", existing.id)
-        .eq("user_id", user.id);
+    if (existing) {
+      // Reactivate if archived
+      if (!existing.is_active) {
+        await supabase
+          .from("portfolios")
+          .update({ is_active: true, status: "active" })
+          .eq("id", existing.id)
+          .eq("user_id", user.id);
+      }
+      return { id: existing.id };
     }
-    return { id: existing.id };
+
+    const { data: portfolio, error } = await supabase
+      .from("portfolios")
+      .insert({
+        user_id: user.id,
+        name,
+        account_type: data.account_type,
+        description: data.description || null,
+        benchmark_symbol: "SPY",
+        cash_balance: 0,
+        status: "active",
+        is_active: true,
+      })
+      .select("id")
+      .single();
+
+    if (error || !portfolio) return { error: error?.message || "Failed to create portfolio" };
+
+    revalidatePath("/portfolios");
+
+    return { id: portfolio.id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Unexpected error creating portfolio" };
   }
-
-  const { data: portfolio, error } = await supabase
-    .from("portfolios")
-    .insert({
-      user_id: user.id,
-      name,
-      account_type: data.account_type,
-      description: data.description || null,
-      benchmark_symbol: "SPY",
-      cash_balance: 0,
-      status: "active",
-      is_active: true,
-    })
-    .select("id")
-    .single();
-
-  if (error || !portfolio) throw new Error(error?.message || "Failed to create portfolio");
-
-  revalidatePath("/portfolios");
-
-  return { id: portfolio.id };
 }
 
 // ─── Holdings ──────────────────────────────────────────────────────────────────
