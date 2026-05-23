@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type OnboardingStatus = "not_started" | "in_progress" | "completed" | "skipped";
@@ -175,7 +174,8 @@ export async function createOnboardingPortfolio(data: {
 
     if (error || !portfolio) return { error: error?.message || "Failed to create portfolio" };
 
-    revalidatePath("/portfolios");
+    // Don't revalidatePath here — it can trigger a route re-render that throws
+    // back into this action. The portfolio page refreshes naturally on navigation.
 
     return { id: portfolio.id };
   } catch (e) {
@@ -235,7 +235,6 @@ export async function addOnboardingHoldings(
   }
 
   if (errors.length > 0) throw new Error(errors.join("; "));
-  revalidatePath(`/portfolios/${portfolioId}`);
 }
 
 // ─── Cash ──────────────────────────────────────────────────────────────────────
@@ -334,9 +333,6 @@ export async function createAndAssignStrategy(
   });
   if (assignErr) throw new Error(assignErr.message);
 
-  revalidatePath("/strategies");
-  revalidatePath(`/portfolios/${portfolioId}`);
-
   return { strategyId: strategy.id };
 }
 
@@ -370,8 +366,6 @@ export async function assignExistingStrategyToPortfolio(
     is_active: true,
     assigned_at: new Date().toISOString(),
   });
-
-  revalidatePath(`/portfolios/${portfolioId}`);
 }
 
 export async function getUserStrategies() {
