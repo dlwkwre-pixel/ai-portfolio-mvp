@@ -1,46 +1,74 @@
-// QuiverQuant API — congressional trading data (STOCK Act disclosures)
-// Register for a free key at quiverquant.com. Set QUIVER_API_KEY in env.
-// Docs: https://quiverquant.com/quiverapi/
+// Congressional trading data via Financial Modeling Prep (FMP)
+// Senate: /api/v4/senate-trading?symbol=AAPL&apikey=KEY
+// House:  /api/v4/house-disclosure?symbol=AAPL&apikey=KEY
+// Uses FMP_API_KEY (already required for benchmark data)
 
 export type CongressTrade = {
   ticker: string;
   representative: string;
-  party: "Democrat" | "Republican" | "Independent" | string;
+  party: string;
   chamber: "House" | "Senate" | string;
   state: string;
-  transaction: "Purchase" | "Sale" | "Sale (Full)" | "Sale (Partial)" | "Exchange" | string;
-  amount: string;         // e.g. "$1,001-$15,000" — range, not exact
+  transaction: string;
+  amount: string;         // e.g. "$1,001 - $15,000"
   transactionDate: string; // YYYY-MM-DD
   reportDate: string;      // YYYY-MM-DD
 };
 
-type QuiverRow = {
-  Ticker?: string;
-  Representative?: string;
-  Party?: string;
-  Chamber?: string;
-  State?: string;
-  Transaction?: string;
-  Amount?: string;
-  TransactionDate?: string;
-  ReportDate?: string;
+type FMPSenateRow = {
+  firstName?: string;
+  lastName?: string;
+  dateRecieved?: string; // FMP typos "Received"
+  transactionDate?: string;
+  type?: string;
+  amount?: string;
+  symbol?: string;
+};
+
+type FMPHouseRow = {
+  representative?: string;
+  disclosureDate?: string;
+  transactionDate?: string;
+  type?: string;
+  amount?: string;
+  ticker?: string;
+  district?: string;
 };
 
 function getKey(): string | null {
-  return process.env.QUIVER_API_KEY ?? null;
+  return process.env.FMP_API_KEY ?? null;
 }
 
-function mapRow(row: QuiverRow, fallbackTicker?: string): CongressTrade {
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+function mapSenateRow(row: FMPSenateRow, fallbackTicker: string): CongressTrade {
   return {
-    ticker:          row.Ticker ?? fallbackTicker ?? "",
-    representative:  row.Representative ?? "Unknown",
-    party:           row.Party ?? "",
-    chamber:         row.Chamber ?? "",
-    state:           row.State ?? "",
-    transaction:     row.Transaction ?? "",
-    amount:          row.Amount ?? "",
-    transactionDate: row.TransactionDate ?? "",
-    reportDate:      row.ReportDate ?? "",
+    ticker:          row.symbol ?? fallbackTicker,
+    representative:  [row.firstName, row.lastName].filter(Boolean).join(" ") || "Unknown",
+    party:           "",
+    chamber:         "Senate",
+    state:           "",
+    transaction:     capitalize(row.type ?? ""),
+    amount:          row.amount ?? "",
+    transactionDate: row.transactionDate ?? "",
+    reportDate:      row.dateRecieved ?? row.transactionDate ?? "",
+  };
+}
+
+function mapHouseRow(row: FMPHouseRow, fallbackTicker: string): CongressTrade {
+  const state = row.district ? row.district.split("-")[0] : "";
+  return {
+    ticker:          row.ticker ?? fallbackTicker,
+    representative:  row.representative ?? "Unknown",
+    party:           "",
+    chamber:         "House",
+    state,
+    transaction:     capitalize(row.type ?? ""),
+    amount:          row.amount ?? "",
+    transactionDate: row.transactionDate ?? "",
+    reportDate:      row.disclosureDate ?? row.transactionDate ?? "",
   };
 }
 
@@ -52,70 +80,39 @@ export async function getCongressTrades(ticker: string): Promise<CongressTrade[]
   if (!sym) return [];
 
   try {
-    const res = await fetch(
-      `https://api.quiverquant.com/beta/historical/congresstrading/${sym}`,
-      {
-        headers: {
-          Authorization: `Bearer ${key}`,
-          Accept: "application/json",
-        },
-        next: { revalidate: 21_600 }, // cache 6 hours
-      }
+    const [senateRes, houseRes] = await Promise.all([
+      fetch(
+        `https://financialmodelingprep.com/api/v4/senate-trading?symbol=${sym}&apikey=${key}`,
+        { next: { revalidate: 21_600 } }
+      ),
+      fetch(
+        `https://financialmodelingprep.com/api/v4/house-disclosure?symbol=${sym}&apikey=${key}`,
+        { next: { revalidate: 21_600 } }
+      ),
+    ]);
+
+    const senate: FMPSenateRow[] = senateRes.ok ? await senateRes.json() : [];
+    const house: FMPHouseRow[] = houseRes.ok ? await houseRes.json() : [];
+
+    return [
+      ...(Array.isArray(senate) ? senate.map((r) => mapSenateRow(r, sym)) : []),
+      ...(Array.isArray(house) ? house.map((r) => mapHouseRow(r, sym)) : []),
+    ].sort((a, b) =>
+      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
     );
-
-    if (!res.ok) return [];
-
-    const rows: QuiverRow[] = await res.json();
-    if (!Array.isArray(rows)) return [];
-
-    return rows
-      .map((r) => mapRow(r, sym))
-      .sort((a, b) =>
-        new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-      );
   } catch {
     return [];
   }
 }
 
-// Fetch the most recent trades across ALL tickers (useful for email digest cross-referencing).
-// Returns up to ~100 rows (QuiverQuant live feed).
+// Kept for API compatibility — FMP has no cross-ticker live feed endpoint
 export async function getRecentCongressTrades(): Promise<CongressTrade[]> {
-  const key = getKey();
-  if (!key) return [];
-
-  try {
-    const res = await fetch(
-      "https://api.quiverquant.com/beta/live/congresstrading",
-      {
-        headers: {
-          Authorization: `Bearer ${key}`,
-          Accept: "application/json",
-        },
-        next: { revalidate: 21_600 },
-      }
-    );
-
-    if (!res.ok) return [];
-
-    const rows: QuiverRow[] = await res.json();
-    if (!Array.isArray(rows)) return [];
-
-    return rows
-      .map((r) => mapRow(r))
-      .sort((a, b) =>
-        new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-      );
-  } catch {
-    return [];
-  }
+  return [];
 }
 
-// Format the dollar-range amount string into a short human-readable form.
 export function formatCongressAmount(amount: string): string {
   if (!amount) return "";
-  // "$1,001-$15,000" → "$1K–$15K"
-  const clean = amount.replace(/\$/g, "").replace(/,/g, "");
+  const clean = amount.replace(/\$/g, "").replace(/,/g, "").replace(/\s/g, "");
   const parts = clean.split("-").map((p) => {
     const n = parseInt(p.trim(), 10);
     if (isNaN(n)) return p.trim();

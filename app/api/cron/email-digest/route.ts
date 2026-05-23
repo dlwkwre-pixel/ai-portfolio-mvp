@@ -262,7 +262,7 @@ export async function GET(request: Request) {
 
       // ── Congressional trades ──────────────────────────────────────────────────
       let congressTrades: DigestTemplateData["congressTrades"] = null;
-      if (process.env.QUIVER_API_KEY) {
+      if (process.env.FMP_API_KEY) {
         const { data: holdingRows } = await adminSupabase
           .from("holdings")
           .select("ticker")
