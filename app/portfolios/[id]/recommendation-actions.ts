@@ -1190,7 +1190,7 @@ async function insertRecommendationStatusHistory(args: {
   if (error) throw new Error(error.message);
 }
 
-const COOLDOWN_MS = 1 * 60 * 1000; // 1 minute (testing — restore to 4 * 60 * 60 * 1000)
+const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 export async function runPortfolioAiRecommendation(formData: FormData) {
   const supabase = await createClient();

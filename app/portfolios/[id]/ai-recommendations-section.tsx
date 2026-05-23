@@ -38,7 +38,7 @@ export default async function AIRecommendationsSection({
     ).length ?? 0;
 
   // Pre-calculate cooldown window for the UI
-  const COOLDOWN_MS = 1 * 60 * 1000; // 1 minute (testing — restore to 4 * 60 * 60 * 1000)
+  const COOLDOWN_MS = 4 * 60 * 60 * 1000;
   const lastCompleted = runs?.find((r) => r.status === "completed") ?? null;
   const cooldownEndsAt = lastCompleted
     ? new Date(new Date(lastCompleted.created_at).getTime() + COOLDOWN_MS).toISOString()
