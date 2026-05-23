@@ -9,6 +9,7 @@ import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import { addFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
+import type { HomeMarketData } from "@/app/api/planning/home-market/route";
 
 // ── Math engines ──────────────────────────────────────────────────────────────
 
@@ -268,6 +269,255 @@ function buildDefaults(
     insurance_monthly: Math.max(75, suggestedIns),
     monthly_rent: suggestedRent,
   };
+}
+
+// ── Local Market Panel ────────────────────────────────────────────────────────
+
+const SIGNAL_CONFIG: Record<NonNullable<HomeMarketData["buyRentSignal"]>, { label: string; color: string; bg: string }> = {
+  strongly_buy:  { label: "Strong Buy Signal",  color: "oklch(0.80 0.15 155)", bg: "color-mix(in oklch, oklch(0.55 0.15 155) 12%, transparent)" },
+  lean_buy:      { label: "Lean Buy",           color: "oklch(0.78 0.12 160)", bg: "color-mix(in oklch, oklch(0.55 0.15 155) 8%, transparent)" },
+  neutral:       { label: "Neutral",            color: "oklch(0.80 0.10 80)",  bg: "color-mix(in oklch, oklch(0.70 0.12 80) 10%, transparent)" },
+  lean_rent:     { label: "Lean Rent",          color: "oklch(0.75 0.12 45)",  bg: "color-mix(in oklch, oklch(0.60 0.15 45) 10%, transparent)" },
+  strongly_rent: { label: "Strong Rent Signal", color: "oklch(0.70 0.15 25)",  bg: "color-mix(in oklch, oklch(0.45 0.18 25) 12%, transparent)" },
+};
+
+function LocalMarketPanel({
+  profile,
+  onApplyData,
+}: {
+  profile: FinancialProfile | null;
+  onApplyData: (data: { purchasePrice: number; monthlyRent: number; mortgageRate: number }) => void;
+}) {
+  const [zip, setZip] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<HomeMarketData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [applied, setApplied] = useState(false);
+
+  async function lookup() {
+    const trimmed = zip.trim();
+    if (!/^\d{5}$/.test(trimmed)) { setError("Enter a valid 5-digit ZIP code."); return; }
+    setLoading(true);
+    setError(null);
+    setData(null);
+    setApplied(false);
+    try {
+      const res = await fetch(`/api/planning/home-market?zip=${trimmed}`);
+      const json = await res.json() as HomeMarketData & { error?: string };
+      if (json.error) { setError(json.error); return; }
+      if (!json.censusAvailable) { setError("No Census data found for this ZIP. Try a nearby ZIP."); return; }
+      setData(json);
+    } catch {
+      setError("Unable to fetch market data. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const signal = data?.buyRentSignal ? SIGNAL_CONFIG[data.buyRentSignal] : null;
+
+  // Affordability check against the user's income
+  const userAffordability = (() => {
+    if (!data?.monthlyPIAtMedian || !profile?.monthly_income) return null;
+    const maxPITI = profile.monthly_income * 0.28;
+    const pct = Math.round((data.monthlyPIAtMedian / maxPITI) * 100);
+    return { pct, isOver: pct > 100, maxPITI };
+  })();
+
+  // Max home price the user can afford at 28% DTI
+  const maxAffordable = (() => {
+    if (!profile?.monthly_income) return null;
+    const maxPI = profile.monthly_income * 0.28 - 400; // rough tax+insurance
+    const rate = (data?.mortgageRate ?? 6.75) / 100 / 12;
+    const n = 360;
+    if (rate <= 0) return null;
+    const loanMax = maxPI * ((Math.pow(1 + rate, n) - 1) / (rate * Math.pow(1 + rate, n)));
+    return Math.round(loanMax / 0.8 / 5000) * 5000; // divide by 0.8 for 20% down
+  })();
+
+  const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+  const fmtK = (n: number) => {
+    if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(2) + "M";
+    if (n >= 1_000) return "$" + (n / 1000).toFixed(0) + "K";
+    return "$" + Math.round(n);
+  };
+
+  return (
+    <div style={{ ...cardS, display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+        <p style={{ ...sectionHead, margin: 0 }}>Local Market Intelligence</p>
+        {data && (
+          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+            Census ACS 2022 · {data.fredAvailable ? "FRED live rate" : "FRED unavailable"}
+          </span>
+        )}
+      </div>
+
+      {/* ZIP input */}
+      <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={5}
+          placeholder="ZIP code (e.g. 90210)"
+          value={zip}
+          onChange={(e) => { setZip(e.target.value.replace(/\D/g, "").slice(0, 5)); setError(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
+          style={{ ...inputS, flex: 1 }}
+        />
+        <button
+          type="button"
+          onClick={() => void lookup()}
+          disabled={loading}
+          style={{ padding: "7px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1, flexShrink: 0, fontFamily: "var(--font-body)" }}
+        >
+          {loading ? "…" : "Look up"}
+        </button>
+      </div>
+
+      {error && (
+        <p style={{ fontSize: "11px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{error}</p>
+      )}
+
+      {data && signal && (
+        <>
+          {/* Buy vs Rent signal banner */}
+          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: signal.bg, border: `1px solid ${signal.color.replace("0.80", "0.50")}20`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: signal.color, fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{signal.label}</div>
+              {data.priceToRentRatio && (
+                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                  Price-to-rent ratio: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{data.priceToRentRatio}x</span>
+                  {" "}— {data.priceToRentRatio < 15 ? "cheap to own relative to rent" : data.priceToRentRatio < 20 ? "buying is competitive" : data.priceToRentRatio < 25 ? "borderline, depends on your plan" : data.priceToRentRatio < 30 ? "renting often wins financially" : "renting is strongly favored"}
+                </div>
+              )}
+            </div>
+            {data.mortgageRate && (
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{data.mortgageRate.toFixed(2)}%</div>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>30yr rate</div>
+              </div>
+            )}
+          </div>
+
+          {/* Key stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+            {[
+              { label: "Median Home", value: data.medianHomeValue ? fmtK(data.medianHomeValue) : "—", sub: "Census ACS" },
+              { label: "Median Rent", value: data.medianRent ? fmt(data.medianRent) + "/mo" : "—", sub: "Census ACS" },
+              { label: "Median Income", value: data.medianHouseholdIncome ? fmtK(data.medianHouseholdIncome) + "/yr" : "—", sub: "household" },
+            ].map(({ label, value, sub }) => (
+              <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
+                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Affordability breakdown */}
+          {data.monthlyPIAtMedian && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                <span style={{ color: "var(--text-secondary)" }}>Est. monthly P&I at median (20% down)</span>
+                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(data.monthlyPIAtMedian)}/mo</span>
+              </div>
+              {data.debtToIncomeAtMedian && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>DTI at median income</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: data.debtToIncomeAtMedian > 36 ? "var(--amber)" : "var(--text-primary)" }}>{data.debtToIncomeAtMedian}%{data.debtToIncomeAtMedian > 36 ? " ▲ high" : ""}</span>
+                </div>
+              )}
+              {data.downPayment20Pct && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>20% down needed</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(data.downPayment20Pct)}</span>
+                </div>
+              )}
+              {data.yearsToSave20Pct && (
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Years to save down (20% savings rate)</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{data.yearsToSave20Pct} yrs</span>
+                </div>
+              )}
+
+              {/* User-specific affordability vs local market */}
+              {userAffordability && (
+                <div style={{
+                  marginTop: "4px", padding: "9px 12px", borderRadius: "var(--radius-md)",
+                  background: userAffordability.isOver
+                    ? "color-mix(in oklch, oklch(0.45 0.18 25) 10%, transparent)"
+                    : "color-mix(in oklch, oklch(0.55 0.15 155) 8%, transparent)",
+                  border: `1px solid ${userAffordability.isOver ? "color-mix(in oklch, oklch(0.45 0.18 25) 25%, transparent)" : "color-mix(in oklch, oklch(0.55 0.15 155) 20%, transparent)"}`,
+                }}>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: userAffordability.isOver ? "oklch(0.75 0.12 25)" : "oklch(0.80 0.12 155)", fontFamily: "var(--font-body)" }}>
+                    {userAffordability.isOver
+                      ? `Median home is ${userAffordability.pct}% of your 28% limit — likely a stretch`
+                      : `Median home is ${userAffordability.pct}% of your 28% limit — within range`}
+                  </div>
+                  {maxAffordable && (
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "3px", fontFamily: "var(--font-body)" }}>
+                      Your max affordable price: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtK(maxAffordable)}</span>
+                      {data.medianHomeValue && maxAffordable < data.medianHomeValue
+                        ? ` — ${Math.round(((data.medianHomeValue - maxAffordable) / data.medianHomeValue) * 100)}% below local median`
+                        : data.medianHomeValue
+                          ? ` — above local median`
+                          : ""}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            {!applied && data.medianHomeValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!data.medianHomeValue || !data.medianRent) return;
+                  onApplyData({
+                    purchasePrice: data.medianHomeValue,
+                    monthlyRent: data.medianRent,
+                    mortgageRate: data.mortgageRate ?? 6.75,
+                  });
+                  setApplied(true);
+                }}
+                style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}
+              >
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4l12 6-12 6V4z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Use local data
+              </button>
+            )}
+            {applied && (
+              <span style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "4px" }}>
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Applied to scenario
+              </span>
+            )}
+            {data.medianHomeValue && (
+              <a
+                href={`https://www.zillow.com/homes/${zip}_rb/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textDecoration: "none" }}
+              >
+                Browse listings on Zillow
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 3h10v10M17 3L3 17" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </a>
+            )}
+          </div>
+        </>
+      )}
+
+      {!data && !loading && !error && (
+        <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
+          Enter your target ZIP to pull Census median home values, rents, and income — plus the live 30-year mortgage rate. Data is used to benchmark your scenario and check local affordability.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function scenarioToInputs(s: HomeScenario): Inputs {
@@ -567,6 +817,23 @@ export default function HomeClient({
             ))}
           </div>
         )}
+
+        {/* Local Market Intelligence */}
+        <LocalMarketPanel
+          profile={profile}
+          onApplyData={({ purchasePrice, monthlyRent, mortgageRate }) => {
+            setInputs((p) => ({
+              ...p,
+              purchase_price: purchasePrice,
+              down_payment: Math.round(purchasePrice * 0.2 / 1000) * 1000,
+              monthly_rent: monthlyRent,
+              mortgage_rate: +mortgageRate.toFixed(3),
+              property_tax_monthly: Math.round((purchasePrice * 0.012) / 12 / 10) * 10,
+              insurance_monthly: Math.max(75, Math.round((purchasePrice * 0.004) / 12 / 10) * 10),
+            }));
+            setFinnCommentary(null);
+          }}
+        />
 
         {/* Main layout: inputs left, analysis right */}
         <div data-home-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
