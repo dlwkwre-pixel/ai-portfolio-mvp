@@ -7,6 +7,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
 import MarketRegimeCard from "@/app/components/market-regime-card";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
+import StreakBadge from "./streak-badge";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -58,12 +59,21 @@ export default async function DashboardPage({
   // Fetch profile (onboarding + terms acceptance)
   const { data: profileData } = await supabase
     .from("user_profiles")
-    .select("onboarding_status, onboarding_step, terms_accepted_at")
+    .select("onboarding_status, onboarding_step, terms_accepted_at, login_streak, last_active_date")
     .eq("id", user.id)
     .maybeSingle();
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
   const termsAccepted = !!(profileData as { terms_accepted_at?: string | null } | null)?.terms_accepted_at;
+
+  // Streak: read stored value; client component will update it async
+  const pd = profileData as { login_streak?: number | null; last_active_date?: string | null } | null;
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const lastActive = pd?.last_active_date ?? null;
+  // If last active was neither today nor yesterday, the streak is broken — show 0 until client updates
+  const streakStale = lastActive !== today && lastActive !== yesterday;
+  const initialStreak = streakStale ? 0 : (pd?.login_streak ?? 0);
 
   const { data: portfolios } = await supabase
     .from("portfolios")
@@ -247,13 +257,16 @@ export default async function DashboardPage({
                 Welcome back, {user.email?.split("@")[0]}
               </p>
             </div>
-            <div className="hidden sm:flex" style={{ gap: "8px" }}>
-              <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
-                Manage Portfolios
-              </Link>
-              <Link href="/strategies" className="bt-btn bt-btn-ghost bt-btn-sm">
-                Strategies
-              </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <StreakBadge initialStreak={initialStreak} />
+              <div className="hidden sm:flex" style={{ gap: "8px" }}>
+                <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
+                  Manage Portfolios
+                </Link>
+                <Link href="/strategies" className="bt-btn bt-btn-ghost bt-btn-sm">
+                  Strategies
+                </Link>
+              </div>
             </div>
           </div>
 
