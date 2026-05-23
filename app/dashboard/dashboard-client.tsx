@@ -72,6 +72,7 @@ export default function DashboardClient({
   showOnboarding,
   forceOnboarding,
   initialOnboardingStep,
+  onboardingStatus,
   existingPortfolios,
   existingStrategies,
 }: {
@@ -90,6 +91,7 @@ export default function DashboardClient({
   showOnboarding?: boolean;
   forceOnboarding?: boolean;
   initialOnboardingStep?: number;
+  onboardingStatus?: string;
   existingPortfolios?: OnboardingPortfolio[];
   existingStrategies?: OnboardingStrategy[];
 }) {
@@ -116,6 +118,13 @@ export default function DashboardClient({
   const [onboardingOpen, setOnboardingOpen] = useState(() => {
     if (!(showOnboarding ?? false)) return false;
     if (forceOnboarding) { try { localStorage.removeItem("bt-onboarding-done"); } catch {} return true; }
+    // DB says this is a brand-new user — always show regardless of localStorage.
+    // localStorage is domain-scoped, so a previous account's "done" flag would
+    // incorrectly suppress the onboarding for a fresh account on the same browser.
+    if (onboardingStatus === "not_started") {
+      try { localStorage.removeItem("bt-onboarding-done"); } catch {}
+      return true;
+    }
     try { return localStorage.getItem("bt-onboarding-done") !== "true"; } catch { return true; }
   });
 
