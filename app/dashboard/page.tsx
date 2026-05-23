@@ -56,18 +56,27 @@ export default async function DashboardPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  // Fetch profile (onboarding + terms acceptance)
-  const { data: profileData } = await supabase
-    .from("user_profiles")
-    .select("onboarding_status, onboarding_step, terms_accepted_at, login_streak, last_active_date")
-    .eq("id", user.id)
-    .maybeSingle();
+  // Fetch profile (onboarding + terms acceptance) — columns that must exist
+  const [{ data: profileData }, { data: streakData }] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("onboarding_status, onboarding_step, terms_accepted_at")
+      .eq("id", user.id)
+      .maybeSingle(),
+    // Streak columns added by streak-setup.sql — fetched separately so a missing migration
+    // doesn't break the terms check above
+    supabase
+      .from("user_profiles")
+      .select("login_streak, last_active_date")
+      .eq("id", user.id)
+      .maybeSingle(),
+  ]);
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
   const termsAccepted = !!(profileData as { terms_accepted_at?: string | null } | null)?.terms_accepted_at;
 
   // Streak: read stored value; client component will update it async
-  const pd = profileData as { login_streak?: number | null; last_active_date?: string | null } | null;
+  const pd = streakData as { login_streak?: number | null; last_active_date?: string | null } | null;
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
   const lastActive = pd?.last_active_date ?? null;

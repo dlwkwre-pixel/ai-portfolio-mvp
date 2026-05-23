@@ -20,7 +20,6 @@ export async function POST(req: NextRequest) {
       .update({
         terms_accepted_at: new Date().toISOString(),
         terms_version: TERMS_VERSION,
-        email_digest_opt_in: emailOptIn,
       })
       .eq("id", user.id);
 
@@ -28,6 +27,12 @@ export async function POST(req: NextRequest) {
       console.error("[accept-terms] supabase error:", error.message, error.code);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // email_digest_opt_in is optional — non-fatal if column not yet migrated
+    await supabase
+      .from("user_profiles")
+      .update({ email_digest_opt_in: emailOptIn })
+      .eq("id", user.id);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
