@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   saveOnboardingProgress,
-  createOnboardingPortfolio,
   addOnboardingHoldings,
   setOnboardingCash,
   createAndAssignStrategy,
@@ -139,11 +138,13 @@ export default function OnboardingModal({
         await go(3);
       } else {
         if (!portfolioName.trim()) throw new Error("Portfolio name is required.");
-        const result = await createOnboardingPortfolio({
-          name: portfolioName.trim(),
-          account_type: accountType,
+        const res = await fetch("/api/onboarding/portfolio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: portfolioName.trim(), account_type: accountType }),
         });
-        if (result.error) throw new Error(result.error);
+        const result = await res.json() as { id?: string; error?: string };
+        if (!res.ok || result.error) throw new Error(result.error || "Failed to create portfolio");
         setPortfolioId(result.id ?? "");
         await go(3);
       }
