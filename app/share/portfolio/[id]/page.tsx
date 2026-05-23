@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createClient as createAnonClient } from "@supabase/supabase-js";
 import type { Metadata } from "next";
 import ShareCardClient from "./share-card-client";
@@ -55,7 +54,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function SharePortfolioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
+
+  // Use anon client — share pages must be readable without a session.
+  // The authenticated server client returns null for anon visitors because
+  // all RLS policies on public_portfolios are TO authenticated only.
+  const supabase = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false } }
+  );
 
   const { data: pub } = await supabase
     .from("public_portfolios")
