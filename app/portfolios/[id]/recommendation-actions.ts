@@ -11,6 +11,7 @@ import { getFredMacroSignals } from "@/lib/market-data/fred";
 import { computeRegime, regimePromptContext } from "@/lib/market-data/regime";
 import { getFinnhubMetrics } from "@/lib/market-data/finnhub";
 import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
+import { getCongressTrades } from "@/lib/market-data/quiver";
 
 type AiRecommendation = {
   action_type: string | null;
@@ -870,6 +871,39 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     }
   }
 
+  // Fetch congressional signals per holding (last 60 days, non-fatal, 6s timeout)
+  type CongressSignal = { net_signal: string; purchases: number; sales: number; most_recent_date: string };
+  let congressionalSignals: Record<string, CongressSignal> = {};
+  if (tickers.length > 0 && process.env.FMP_API_KEY) {
+    try {
+      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const fetchSignals = async (): Promise<Record<string, CongressSignal>> => {
+        const results = await Promise.all(tickers.slice(0, 15).map((t) => getCongressTrades(t)));
+        const signals: Record<string, CongressSignal> = {};
+        results.forEach((trades, i) => {
+          const ticker = tickers[i];
+          const recent = trades.filter((tr) => tr.transactionDate >= cutoff);
+          if (recent.length === 0) return;
+          const buys = recent.filter((tr) => !/sale/i.test(tr.transaction)).length;
+          const sells = recent.filter((tr) => /sale/i.test(tr.transaction)).length;
+          signals[ticker] = {
+            net_signal: buys > sells ? "bullish" : sells > buys ? "bearish" : "neutral",
+            purchases: buys,
+            sales: sells,
+            most_recent_date: recent[0]?.transactionDate ?? "",
+          };
+        });
+        return signals;
+      };
+      const timeout = new Promise<Record<string, CongressSignal>>((resolve) =>
+        setTimeout(() => resolve({}), 6000)
+      );
+      congressionalSignals = await Promise.race([fetchSignals(), timeout]);
+    } catch {
+      // non-fatal
+    }
+  }
+
   // Prune news to headline + source + datetime only — summaries/images/URLs waste tokens
   const prunedMarketContext: Record<string, unknown> = {};
   for (const [ticker, data] of Object.entries(marketContext)) {
@@ -955,6 +989,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     portfolio_evolution: portfolioEvolution,
     position_thesis_memory: positionThesisMemory,
     position_catalyst_context: catalystIntelligence,
+    congressional_signals: Object.keys(congressionalSignals).length > 0 ? congressionalSignals : undefined,
   };
 }
 
@@ -1010,6 +1045,9 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
 
     // ── HOLD Discipline
     "HOLD DISCIPLINE: HOLD is a valid and important action — but it must earn its place. HOLD is correct when: the thesis is fully intact and position is appropriately sized, there is no better marginal use of capital, or you are awaiting a specific catalyst or entry point. HOLD is WRONG when it results from: generalized macro nervousness, fear of being wrong, vague caution, or default inactivity. 'Macro is mixed' is NOT a valid HOLD reason. A fundamentally attractive security with intact thesis should receive a sized recommendation — potentially smaller due to macro overlay, but not HOLD. When in doubt: if you'd recommend buying this security for a new portfolio at current prices, HOLD is the wrong answer.",
+
+    // ── Congressional Activity Signal
+    "CONGRESSIONAL SIGNALS: If congressional_signals is present in context, use it as a corroborating behavioral indicator. Net purchasing by multiple members is a mild bullish signal — politicians have access to non-public legislative information. Net selling is a mild risk flag. Weight these signals lightly: STOCK Act disclosures lag by up to 45 days, so congressional activity is a lagging indicator. Never make a recommendation solely on congressional activity. Use it as a tie-breaker or supporting detail in thesis — e.g., 'Congressional net buying ($50K–$250K range) corroborates the bull thesis here.'",
 
     // ── Data Discipline + Discovery Search
     "DATA AND DISCOVERY SEARCHES: Current prices, Finnhub data, and Reddit sentiment are pre-loaded for existing holdings. DO NOT use training-data memory for stock prices. Use web_search PROACTIVELY — the majority of your searches should be DISCOVERY searches, not price lookups. Discovery search protocol: (1) Run 2-4 searches to find external candidates relevant to this portfolio's strategy theme and current environment — e.g., '[strategy theme] best stocks 2025', '[sector] momentum leaders today', 'top [style] stocks outperforming now', 'analyst upgrades [theme] sector'. (2) Then run 1-2 targeted searches to get current prices for specific candidates you identified. (3) Use x_search for recent sentiment on high-conviction new names. Total budget: 5-7 searches per run, with discovery searches taking clear priority over price lookups for existing holdings.",

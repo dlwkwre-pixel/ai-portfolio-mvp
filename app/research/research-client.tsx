@@ -1427,9 +1427,7 @@ function DetailView({
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px" }}>No congressional trades found</div>
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                {process.env.NEXT_PUBLIC_QUIVER_CONFIGURED !== "true"
-                  ? "Set QUIVER_API_KEY to enable congressional trade data."
-                  : "No STOCK Act disclosures on record for this ticker."}
+                No STOCK Act disclosures on record for this ticker.
               </div>
             </div>
           ) : (() => {
