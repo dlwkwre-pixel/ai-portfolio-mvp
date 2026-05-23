@@ -332,6 +332,92 @@ export async function deleteFutureEvent(id: string): Promise<{ error?: string }>
   return {};
 }
 
+// ── Expense Actuals ───────────────────────────────────────────────────────────
+
+export type ExpenseActual = {
+  id: string;
+  user_id: string;
+  cash_flow_item_id: string | null;
+  label: string;
+  period_year: number;
+  period_month: number;
+  actual_amount: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export async function logExpenseActual(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const cash_flow_item_id = String(formData.get("cash_flow_item_id") || "").trim() || null;
+  const label = String(formData.get("label") || "").trim();
+  if (!label) return { error: "Label is required." };
+
+  const period_year = Number(formData.get("period_year") || new Date().getFullYear());
+  const period_month = Number(formData.get("period_month") || new Date().getMonth() + 1);
+  const actual_amount = Number(formData.get("actual_amount") || 0);
+  const notes = String(formData.get("notes") || "").trim() || null;
+
+  const { error } = await supabase.from("expense_actuals").upsert(
+    { user_id: user.id, cash_flow_item_id, label, period_year, period_month, actual_amount, notes, updated_at: new Date().toISOString() },
+    { onConflict: "user_id,cash_flow_item_id,period_year,period_month" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function deleteExpenseActual(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("expense_actuals")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// When 3+ months of actuals exist for a cash_flow_item, compute rolling average
+// and update the forecasted amount to reflect learned spending behavior.
+export async function syncForecastToActuals(cash_flow_item_id: string): Promise<{ error?: string; newAmount?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: actuals } = await supabase
+    .from("expense_actuals")
+    .select("actual_amount, period_year, period_month")
+    .eq("user_id", user.id)
+    .eq("cash_flow_item_id", cash_flow_item_id)
+    .order("period_year", { ascending: false })
+    .order("period_month", { ascending: false })
+    .limit(6);
+
+  if (!actuals || actuals.length < 3) return { error: "Need at least 3 months of actuals to sync." };
+
+  const avg = actuals.slice(0, 3).reduce((sum, r) => sum + Number(r.actual_amount), 0) / 3;
+  const rounded = Math.round(avg * 100) / 100;
+
+  const { error } = await supabase
+    .from("cash_flow_items")
+    .update({ amount: rounded, updated_at: new Date().toISOString() })
+    .eq("id", cash_flow_item_id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return { newAmount: rounded };
+}
+
 // ── Net Worth Snapshot ────────────────────────────────────────────────────────
 
 export async function saveNetWorthSnapshot(

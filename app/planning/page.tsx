@@ -4,7 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -27,6 +27,7 @@ export default async function PlanningPage() {
     { data: careerScenariosData },
     { data: educationScenariosData },
     { data: familyScenariosData },
+    { data: expenseActualsData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -39,6 +40,7 @@ export default async function PlanningPage() {
     supabase.from("career_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("education_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("family_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -142,6 +144,18 @@ export default async function PlanningPage() {
   const typedEducationScenarios: EducationScenario[] = (educationScenariosData ?? []) as EducationScenario[];
   const typedFamilyScenarios: FamilyScenario[] = (familyScenariosData ?? []) as FamilyScenario[];
 
+  const typedExpenseActuals: ExpenseActual[] = (expenseActualsData ?? []).map((r) => ({
+    id: r.id,
+    user_id: r.user_id,
+    cash_flow_item_id: r.cash_flow_item_id ?? null,
+    label: r.label,
+    period_year: r.period_year,
+    period_month: r.period_month,
+    actual_amount: Number(r.actual_amount),
+    notes: r.notes ?? null,
+    created_at: r.created_at,
+  }));
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -169,6 +183,7 @@ export default async function PlanningPage() {
           careerScenarios={typedCareerScenarios}
           educationScenarios={typedEducationScenarios}
           familyScenarios={typedFamilyScenarios}
+          expenseActuals={typedExpenseActuals}
         />
       </div>
     </div>

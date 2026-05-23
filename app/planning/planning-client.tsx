@@ -19,7 +19,8 @@ import {
   addFutureEvent,
   deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual } from "./planning-actions";
+import { logExpenseActual, deleteExpenseActual, syncForecastToActuals } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -1713,6 +1714,253 @@ function CompareTab({
   );
 }
 
+// ── Budget Tracker ────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function BudgetTrackerTab({
+  cashFlowItems,
+  expenseActuals,
+  isPrivate,
+}: {
+  cashFlowItems: CashFlowItem[];
+  expenseActuals: ExpenseActual[];
+  isPrivate: boolean;
+}) {
+  const now = new Date();
+  const [selYear, setSelYear] = useState(now.getFullYear());
+  const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
+
+  const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
+
+  function getActual(itemId: string): ExpenseActual | undefined {
+    return expenseActuals.find(
+      (a) => a.cash_flow_item_id === itemId && a.period_year === selYear && a.period_month === selMonth
+    );
+  }
+
+  function getHistory(itemId: string): ExpenseActual[] {
+    return expenseActuals
+      .filter((a) => a.cash_flow_item_id === itemId)
+      .sort((a, b) => b.period_year !== a.period_year ? b.period_year - a.period_year : b.period_month - a.period_month)
+      .slice(0, 6);
+  }
+
+  function forecastedMonthly(item: CashFlowItem): number {
+    return item.frequency === "annual" ? item.amount / 12 : item.amount;
+  }
+
+  const totalForecasted = expenseItems.reduce((s, i) => s + forecastedMonthly(i), 0);
+  const totalActual = expenseItems.reduce((s, i) => {
+    const a = getActual(i.id);
+    return a ? s + a.actual_amount : s;
+  }, 0);
+  const loggedCount = expenseItems.filter((i) => getActual(i.id)).length;
+  const overallVariance = totalActual - totalForecasted;
+
+  async function handleSync(itemId: string) {
+    setSyncingId(itemId);
+    const fd = new FormData();
+    fd.set("cash_flow_item_id", itemId);
+    const result = await syncForecastToActuals(itemId);
+    if (result.error) {
+      setSyncMsg((m) => ({ ...m, [itemId]: result.error! }));
+    } else {
+      setSyncMsg((m) => ({ ...m, [itemId]: `Forecast updated to $${result.newAmount?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/mo` }));
+    }
+    setSyncingId(null);
+  }
+
+  function fmt(n: number) {
+    return isPrivate ? "••••" : `$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  }
+
+  // Build year options (current year + 1 past year)
+  const yearOptions = [now.getFullYear(), now.getFullYear() - 1];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Period selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontWeight: 500 }}>Period:</span>
+        <select
+          value={selMonth}
+          onChange={(e) => setSelMonth(Number(e.target.value))}
+          style={{ padding: "5px 10px", borderRadius: "8px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "12px" }}
+        >
+          {MONTH_NAMES.map((m, i) => (
+            <option key={i} value={i + 1}>{m}</option>
+          ))}
+        </select>
+        <select
+          value={selYear}
+          onChange={(e) => setSelYear(Number(e.target.value))}
+          style={{ padding: "5px 10px", borderRadius: "8px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "12px" }}
+        >
+          {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {/* Summary bar */}
+      <div style={{
+        display: "flex", gap: "16px", flexWrap: "wrap",
+        padding: "14px 18px", borderRadius: "var(--radius-lg)",
+        background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+      }}>
+        {[
+          { label: "Budgeted", value: fmt(totalForecasted), color: "var(--text-primary)" },
+          { label: "Logged actuals", value: fmt(totalActual), color: "var(--text-primary)" },
+          {
+            label: loggedCount === expenseItems.length ? "Variance" : `Variance (${loggedCount}/${expenseItems.length} items)`,
+            value: loggedCount > 0 ? `${overallVariance >= 0 ? "+" : ""}${fmt(overallVariance)}` : "—",
+            color: overallVariance > 0 ? "var(--red)" : overallVariance < 0 ? "var(--green)" : "var(--text-muted)",
+          },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ flex: "1 1 120px" }}>
+            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>{label}</div>
+            <div style={{ fontSize: "16px", fontFamily: "var(--font-mono)", fontWeight: 600, color }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* No expense items */}
+      {expenseItems.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: "13px" }}>
+          Add expense items in the Cash Flow tab first.
+        </div>
+      )}
+
+      {/* Per-item rows */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+        {expenseItems.map((item) => {
+          const actual = getActual(item.id);
+          const fcast = forecastedMonthly(item);
+          const variance = actual ? actual.actual_amount - fcast : null;
+          const history = getHistory(item.id);
+          const canSync = history.length >= 3;
+          const msg = syncMsg[item.id];
+
+          return (
+            <div key={item.id} style={{
+              padding: "12px 16px", borderRadius: "var(--radius-md)",
+              background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                {/* Name + forecasted */}
+                <div style={{ flex: "1 1 160px", minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", marginBottom: "2px" }}>{item.label}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    {fmt(fcast)}/mo forecasted
+                    {item.frequency === "annual" && <span style={{ marginLeft: "4px", color: "var(--text-tertiary)" }}>(÷12)</span>}
+                  </div>
+                </div>
+
+                {/* Actual input */}
+                <form
+                  action={(fd) => {
+                    fd.set("cash_flow_item_id", item.id);
+                    fd.set("label", item.label);
+                    fd.set("period_year", String(selYear));
+                    fd.set("period_month", String(selMonth));
+                    startTransition(() => { void logExpenseActual(fd); });
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <input
+                    name="actual_amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={actual?.actual_amount ?? ""}
+                    placeholder={isPrivate ? "••••" : "Actual $"}
+                    style={{
+                      width: "110px", padding: "5px 8px", borderRadius: "8px", fontSize: "12px",
+                      background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+                      color: "var(--text-primary)", fontFamily: "var(--font-mono)",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={pending}
+                    style={{
+                      padding: "5px 10px", borderRadius: "8px", fontSize: "11px", fontWeight: 600,
+                      background: "var(--brand-blue)", color: "#fff", border: "none", cursor: "pointer",
+                    }}
+                  >
+                    Log
+                  </button>
+                </form>
+
+                {/* Variance badge */}
+                {variance !== null && (
+                  <div style={{
+                    padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600,
+                    fontFamily: "var(--font-mono)",
+                    background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
+                    color: variance > 0 ? "var(--red)" : "var(--green)",
+                  }}>
+                    {variance > 0 ? "+" : ""}{fmt(variance)} {variance > 0 ? "over" : "under"}
+                  </div>
+                )}
+
+                {/* Sync forecast */}
+                {canSync && (
+                  <button
+                    onClick={() => handleSync(item.id)}
+                    disabled={syncingId === item.id}
+                    title="Update forecasted amount to your 3-month actual average"
+                    style={{
+                      padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 500,
+                      background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {syncingId === item.id ? "Syncing…" : "Sync forecast"}
+                  </button>
+                )}
+              </div>
+
+              {/* Sync feedback */}
+              {msg && (
+                <div style={{ marginTop: "6px", fontSize: "11px", color: msg.startsWith("Forecast") ? "var(--green)" : "var(--red)" }}>
+                  {msg}
+                </div>
+              )}
+
+              {/* Sparkline history — last 6 months */}
+              {history.length > 1 && (
+                <div style={{ marginTop: "8px", display: "flex", gap: "6px", alignItems: "flex-end" }}>
+                  {history.slice().reverse().map((h, i) => {
+                    const barHeight = Math.max(4, Math.min(32, (h.actual_amount / (fcast * 2 || 1)) * 28));
+                    const over = h.actual_amount > fcast;
+                    return (
+                      <div key={i} title={`${MONTH_NAMES[h.period_month - 1]} ${h.period_year}: $${h.actual_amount.toLocaleString()}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                        <div style={{ width: "18px", height: `${barHeight}px`, borderRadius: "2px", background: over ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.5)" }} />
+                        <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1].slice(0, 1)}</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ width: "1px", background: "var(--border-subtle)", height: "24px", margin: "0 2px" }} />
+                  <div style={{ width: "18px", height: "20px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: $${fcast.toLocaleString()}`}>
+                    <span style={{ position: "absolute", bottom: "-14px", fontSize: "9px", color: "var(--text-muted)" }}>F</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+        Log actuals for 3+ months and use &ldquo;Sync forecast&rdquo; to update your forecasted amount to your real spending average.
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -1727,14 +1975,16 @@ type Props = {
   careerScenarios: CareerScenario[];
   educationScenarios: EducationScenario[];
   familyScenarios: FamilyScenario[];
+  expenseActuals: ExpenseActual[];
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "finn";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "budget" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
+  expenseActuals,
 }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -2715,6 +2965,7 @@ export default function PlanningClient({
     { id: "overview", label: "Overview" },
     { id: "balance", label: "Balance Sheet" },
     { id: "cashflow", label: "Cash Flow" },
+    { id: "budget", label: "Budget Tracker" },
     { id: "forecast", label: "Forecast" },
     { id: "compare", label: "Compare" },
     { id: "events", label: "Life Events" },
@@ -3251,6 +3502,15 @@ export default function PlanningClient({
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── Tab: Budget Tracker ── */}
+      {tab === "budget" && (
+        <BudgetTrackerTab
+          cashFlowItems={cashFlowItems}
+          expenseActuals={expenseActuals}
+          isPrivate={isPrivate}
+        />
       )}
 
       {/* ── Tab: Forecast ── */}
