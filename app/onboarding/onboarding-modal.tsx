@@ -3,14 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  saveOnboardingProgress,
-  addOnboardingHoldings,
-  setOnboardingCash,
-  createAndAssignStrategy,
-  assignExistingStrategyToPortfolio,
   triggerFirstRecommendation,
   STARTER_STRATEGIES,
 } from "./actions";
+
+async function apiPost(path: string, body: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json() as Record<string, unknown>;
+  return { ok: res.ok, data };
+}
 
 type Portfolio = { id: string; name: string; account_type: string | null; cash_balance: number };
 type Strategy = { id: string; name: string; description: string | null; risk_level: string | null };
@@ -97,30 +102,29 @@ export default function OnboardingModal({
     router.refresh();
   }
 
-  async function go(nextStep: number, saveStatus?: Parameters<typeof saveOnboardingProgress>[1]) {
+  async function go(nextStep: number, saveStatus?: "in_progress" | "completed" | "skipped") {
     setError(null);
     setSaving(true);
     try {
-      await saveOnboardingProgress(nextStep, saveStatus ?? "in_progress");
-      setStep(nextStep);
+      await apiPost("/api/onboarding/progress", { step: nextStep, status: saveStatus ?? "in_progress" });
     } catch {
-      // Non-critical — just advance the step
-      setStep(nextStep);
+      // Non-critical — best effort
     } finally {
+      setStep(nextStep);
       setSaving(false);
     }
   }
 
   async function handleSkipAll() {
     setSaving(true);
-    try { await saveOnboardingProgress(step, "skipped"); } catch {}
+    try { await apiPost("/api/onboarding/progress", { step, status: "skipped" }); } catch {}
     setSaving(false);
     dismiss();
   }
 
   async function handleFinish() {
     setSaving(true);
-    try { await saveOnboardingProgress(TOTAL_STEPS, "completed"); } catch {}
+    try { await apiPost("/api/onboarding/progress", { step: TOTAL_STEPS, status: "completed" }); } catch {}
     setSaving(false);
     dismiss();
   }
@@ -178,14 +182,15 @@ export default function OnboardingModal({
     setSaving(true);
     try {
       if (portfolioId && draftHoldings.length > 0) {
-        await addOnboardingHoldings(
-          portfolioId,
-          draftHoldings.map((h) => ({
+        const { ok, data } = await apiPost("/api/onboarding/holdings", {
+          portfolio_id: portfolioId,
+          holdings: draftHoldings.map((h) => ({
             ticker: h.ticker,
             shares: parseFloat(h.shares),
             average_cost_basis: parseFloat(h.costBasis),
-          }))
-        );
+          })),
+        });
+        if (!ok) throw new Error((data.error as string) || "Failed to save holdings");
         setHoldingsSaved(true);
       }
       await go(4);
@@ -203,7 +208,11 @@ export default function OnboardingModal({
     setSaving(true);
     try {
       if (portfolioId && !cashSaved) {
-        await setOnboardingCash(portfolioId, cashNum);
+        const { ok, data } = await apiPost("/api/onboarding/cash", {
+          portfolio_id: portfolioId,
+          cash_amount: cashNum,
+        });
+        if (!ok) throw new Error((data.error as string) || "Failed to save cash");
         setCashSaved(true);
       }
       await go(5);
@@ -220,13 +229,13 @@ export default function OnboardingModal({
     if (!portfolioId) { await go(6); return; }
     setSaving(true);
     try {
+      let payload: Record<string, unknown>;
       if (strategyTab === "existing" && selectedExistingId) {
-        await assignExistingStrategyToPortfolio(portfolioId, selectedExistingId);
+        payload = { portfolio_id: portfolioId, mode: "assign", strategy_id: selectedExistingId };
       } else if (strategyTab === "starter") {
         const s = STARTER_STRATEGIES[selectedStarterIdx];
-        await createAndAssignStrategy(portfolioId, s);
+        payload = { portfolio_id: portfolioId, mode: "create", strategy: s };
       } else {
-        // Custom
         const riskMap: Record<string, { max: number; cashMax: number; turnover: string }> = {
           conservative: { max: 10, cashMax: 10, turnover: "low" },
           moderate: { max: 15, cashMax: 15, turnover: "medium" },
@@ -236,20 +245,26 @@ export default function OnboardingModal({
           short: "short_term", medium: "medium_term", long: "long_term",
         };
         const rm = riskMap[customRisk];
-        await createAndAssignStrategy(portfolioId, {
-          name: `Custom ${customStyle.charAt(0).toUpperCase() + customStyle.slice(1)} Strategy`,
-          description: `${customRisk} risk, ${customHorizon}-term ${customStyle} strategy.`,
-          style: customStyle,
-          risk_level: customRisk,
-          prompt_text: `Portfolio with ${customRisk} risk tolerance. Investment horizon: ${customHorizon}-term. Primary style: ${customStyle}. Optimize for appropriate risk-adjusted returns. Suitable position sizing and diversification.`,
-          max_position_pct: rm.max,
-          min_position_pct: 2,
-          cash_min_pct: 5,
-          cash_max_pct: rm.cashMax,
-          turnover_preference: rm.turnover,
-          holding_period_bias: horizonMap[customHorizon],
-        });
+        payload = {
+          portfolio_id: portfolioId,
+          mode: "create",
+          strategy: {
+            name: `Custom ${customStyle.charAt(0).toUpperCase() + customStyle.slice(1)} Strategy`,
+            description: `${customRisk} risk, ${customHorizon}-term ${customStyle} strategy.`,
+            style: customStyle,
+            risk_level: customRisk,
+            prompt_text: `Portfolio with ${customRisk} risk tolerance. Investment horizon: ${customHorizon}-term. Primary style: ${customStyle}. Optimize for appropriate risk-adjusted returns. Suitable position sizing and diversification.`,
+            max_position_pct: rm.max,
+            min_position_pct: 2,
+            cash_min_pct: 5,
+            cash_max_pct: rm.cashMax,
+            turnover_preference: rm.turnover,
+            holding_period_bias: horizonMap[customHorizon],
+          },
+        };
       }
+      const { ok, data } = await apiPost("/api/onboarding/strategy", payload);
+      if (!ok) throw new Error((data.error as string) || "Failed to save strategy");
       setStrategySaved(true);
       await go(6);
     } catch (e) {
