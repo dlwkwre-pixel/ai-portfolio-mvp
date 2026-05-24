@@ -17,6 +17,21 @@ async function apiPost(path: string, body: unknown): Promise<{ ok: boolean; data
 type Portfolio = { id: string; name: string; account_type: string | null; cash_balance: number };
 type Strategy = { id: string; name: string; description: string | null; risk_level: string | null };
 type DraftHolding = { ticker: string; shares: string; costBasis: string };
+type FinnMessage = { role: "user" | "assistant"; content: string };
+type FinnGenerated = {
+  name: string; description: string; style: string; risk_level: string;
+  prompt_text: string; max_position_pct: number; min_position_pct: number;
+  cash_min_pct: number; cash_max_pct: number; turnover_preference: string;
+  holding_period_bias: string;
+};
+
+const FV = {
+  bg: "rgba(109,40,217,0.05)",
+  bgMed: "rgba(109,40,217,0.09)",
+  border: "rgba(109,40,217,0.18)",
+  accent: "#7c3aed",
+  accentBright: "#8b5cf6",
+} as const;
 
 const TOTAL_STEPS = 7;
 const ACCOUNT_TYPES = [
@@ -78,7 +93,7 @@ export default function OnboardingModal({
   const [cashSaved, setCashSaved] = useState(false);
 
   // ── Step 5: Strategy
-  const [strategyTab, setStrategyTab] = useState<"starter" | "custom" | "existing">(
+  const [strategyTab, setStrategyTab] = useState<"starter" | "custom" | "existing" | "finn">(
     existingStrategies.length > 0 ? "existing" : "starter"
   );
   const [selectedStarterIdx, setSelectedStarterIdx] = useState(0);
@@ -87,6 +102,14 @@ export default function OnboardingModal({
   const [customStyle, setCustomStyle] = useState("balanced");
   const [selectedExistingId, setSelectedExistingId] = useState(existingStrategies[0]?.id ?? "");
   const [strategySaved, setStrategySaved] = useState(false);
+
+  // ── Step 5: FINN
+  const [finnMessages, setFinnMessages] = useState<FinnMessage[]>([]);
+  const [finnInput, setFinnInput] = useState("");
+  const [finnThinking, setFinnThinking] = useState(false);
+  const [finnGenerated, setFinnGenerated] = useState<FinnGenerated | null>(null);
+  const [finnError, setFinnError] = useState<string | null>(null);
+  const [finnStarted, setFinnStarted] = useState(false);
 
   // ── Step 7: Scan
   const [scanStatus, setScanStatus] = useState<"idle" | "running" | "done" | "error">("idle");
@@ -229,9 +252,30 @@ export default function OnboardingModal({
       let payload: Record<string, unknown>;
       if (strategyTab === "existing" && selectedExistingId) {
         payload = { portfolio_id: portfolioId, mode: "assign", strategy_id: selectedExistingId };
+      } else if (strategyTab === "finn" && finnGenerated) {
+        const riskNorm = finnGenerated.risk_level.toLowerCase();
+        const turnoverNorm = finnGenerated.turnover_preference.toLowerCase();
+        const horizonNorm = finnGenerated.holding_period_bias.toLowerCase().replace(/[\s-]+/g, "_").replace("very_long_term", "long_term");
+        payload = {
+          portfolio_id: portfolioId, mode: "create",
+          strategy: {
+            name: finnGenerated.name, description: finnGenerated.description,
+            style: finnGenerated.style.toLowerCase(), risk_level: riskNorm,
+            prompt_text: finnGenerated.prompt_text,
+            max_position_pct: finnGenerated.max_position_pct,
+            min_position_pct: finnGenerated.min_position_pct,
+            cash_min_pct: finnGenerated.cash_min_pct,
+            cash_max_pct: finnGenerated.cash_max_pct,
+            turnover_preference: turnoverNorm, holding_period_bias: horizonNorm,
+          },
+        };
       } else if (strategyTab === "starter") {
         const s = STARTER_STRATEGIES[selectedStarterIdx];
         payload = { portfolio_id: portfolioId, mode: "create", strategy: s };
+      } else if (strategyTab === "finn") {
+        // FINN started but hasn't generated yet — skip
+        await go(6);
+        return;
       } else {
         const riskMap: Record<string, { max: number; cashMax: number; turnover: string }> = {
           conservative: { max: 10, cashMax: 10, turnover: "low" },
@@ -282,6 +326,80 @@ export default function OnboardingModal({
     } catch (e) {
       setScanStatus("error");
       setScanError(e instanceof Error ? e.message : "AI scan failed. You can run it later from the portfolio page.");
+    }
+  }
+
+  // ── FINN functions
+
+  async function startFinn() {
+    if (finnStarted) return;
+    setFinnStarted(true);
+    setFinnThinking(true);
+    setFinnError(null);
+    try {
+      const res = await fetch("/api/strategies/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [], phase: "chat" }),
+      });
+      const data = await res.json() as { text?: string; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error || "FINN failed to start");
+      const reply = (data.text ?? "").replace(/READY_TO_GENERATE/g, "").trim();
+      setFinnMessages([{ role: "assistant", content: reply }]);
+    } catch (e) {
+      setFinnError(e instanceof Error ? e.message : "FINN failed to start. Try again.");
+      setFinnStarted(false);
+    } finally {
+      setFinnThinking(false);
+    }
+  }
+
+  async function sendFinnMessage(text: string) {
+    if (!text.trim() || finnThinking) return;
+    const userMsg: FinnMessage = { role: "user", content: text.trim() };
+    const next = [...finnMessages, userMsg];
+    setFinnMessages(next);
+    setFinnInput("");
+    setFinnThinking(true);
+    setFinnError(null);
+    try {
+      const res = await fetch("/api/strategies/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next, phase: "chat" }),
+      });
+      const data = await res.json() as { text?: string; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error || "FINN error");
+      const reply = data.text ?? "";
+      const withReply = [...next, { role: "assistant" as const, content: reply }];
+      setFinnMessages(withReply);
+      if (reply.includes("READY_TO_GENERATE")) {
+        await generateFinnStrategy(withReply);
+      }
+    } catch (e) {
+      setFinnError(e instanceof Error ? e.message : "Something went wrong. Try again.");
+    } finally {
+      setFinnThinking(false);
+    }
+  }
+
+  async function generateFinnStrategy(msgs: FinnMessage[]) {
+    setFinnThinking(true);
+    try {
+      const res = await fetch("/api/strategies/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: msgs, phase: "generate" }),
+      });
+      const data = await res.json() as { text?: string; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error || "Generation failed");
+      const raw = (data.text ?? "").replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(raw) as FinnGenerated;
+      setFinnGenerated(parsed);
+    } catch (e) {
+      setFinnError(e instanceof Error ? e.message : "Strategy generation failed. Try again.");
+    } finally {
+      setFinnThinking(false);
     }
   }
 
@@ -620,14 +738,15 @@ export default function OnboardingModal({
               <p style={subStyle}>Your strategy defines how you invest. FINN will analyze it, score it, and surface ways to improve it over time.</p>
 
               {/* Tabs */}
-              <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
-                {(["starter", "custom", ...(existingStrategies.length > 0 ? ["existing"] : [])] as const).map((tab) => (
+              <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
+                {(["starter", "custom", ...(existingStrategies.length > 0 ? ["existing"] : []), "finn"] as Array<typeof strategyTab>).map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setStrategyTab(tab as typeof strategyTab)}
+                    onClick={() => { setStrategyTab(tab); if (tab === "finn") startFinn(); }}
                     className={strategyTab === tab ? "bt-btn bt-btn-primary bt-btn-sm" : "bt-btn bt-btn-ghost bt-btn-sm"}
+                    style={tab === "finn" && strategyTab !== "finn" ? { borderColor: FV.border, color: FV.accentBright } : {}}
                   >
-                    {tab === "starter" ? "Starter templates" : tab === "custom" ? "Build custom" : "My strategies"}
+                    {tab === "starter" ? "Starter templates" : tab === "custom" ? "Build custom" : tab === "existing" ? "My strategies" : "✦ Build with FINN"}
                   </button>
                 ))}
               </div>
@@ -722,7 +841,121 @@ export default function OnboardingModal({
                 </div>
               )}
 
-              {/* FINN note */}
+              {/* FINN chat tab */}
+              {strategyTab === "finn" && (
+                <div>
+                  <style>{`
+                    @keyframes finnDot {
+                      0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
+                      40% { opacity: 1; transform: scale(1); }
+                    }
+                  `}</style>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", padding: "9px 12px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
+                    <div style={{ width: "22px", height: "22px", flexShrink: 0, background: "linear-gradient(135deg, #6d28d9, #8b5cf6)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#fff" }}>F</div>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentBright }}>FINN Strategy Builder</div>
+                      <div style={{ fontSize: "10px", color: "rgba(167,139,250,0.55)" }}>Personalized strategy through conversation — 5 to 7 exchanges</div>
+                    </div>
+                  </div>
+
+                  {!finnStarted && !finnThinking && finnMessages.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "20px 12px", background: FV.bg, border: `1px dashed ${FV.border}`, borderRadius: "10px", marginBottom: "12px" }}>
+                      <p style={{ fontSize: "11px", color: "rgba(167,139,250,0.65)", marginBottom: "12px", lineHeight: 1.5 }}>
+                        FINN will ask you a few questions to build a strategy tailored specifically to how you invest.
+                      </p>
+                      <button onClick={startFinn} style={{ background: FV.bgMed, color: FV.accentBright, border: `1px solid ${FV.border}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                        Start conversation ✦
+                      </button>
+                    </div>
+                  )}
+
+                  {(finnStarted || finnMessages.length > 0) && (
+                    <div style={{ maxHeight: "210px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "7px", padding: "10px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "10px", marginBottom: "10px" }}>
+                      {finnMessages.map((msg, i) => (
+                        <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                          <div style={{
+                            maxWidth: "86%", padding: "6px 10px",
+                            borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
+                            background: msg.role === "user" ? "rgba(37,99,235,0.18)" : FV.bgMed,
+                            border: `1px solid ${msg.role === "user" ? "rgba(37,99,235,0.28)" : FV.border}`,
+                            fontSize: "11px", lineHeight: 1.5, whiteSpace: "pre-wrap",
+                            color: msg.role === "user" ? "rgba(191,219,254,0.9)" : "rgba(221,214,254,0.88)",
+                          }}>
+                            {msg.content.replace(/READY_TO_GENERATE/g, "").trim()}
+                          </div>
+                        </div>
+                      ))}
+                      {finnThinking && (
+                        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                          <div style={{ padding: "8px 12px", borderRadius: "10px 10px 10px 2px", background: FV.bgMed, border: `1px solid ${FV.border}`, display: "flex", gap: "4px", alignItems: "center" }}>
+                            {[0, 1, 2].map((d) => (
+                              <div key={d} style={{ width: "4px", height: "4px", borderRadius: "50%", background: FV.accentBright, animation: `finnDot 1.2s ${d * 0.2}s ease-in-out infinite` }} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {finnError && (
+                    <div style={{ padding: "8px 12px", background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)", borderRadius: "8px", fontSize: "11px", color: "var(--red)", marginBottom: "10px" }}>
+                      {finnError}
+                    </div>
+                  )}
+
+                  {finnStarted && !finnGenerated && (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        className="bt-input"
+                        value={finnInput}
+                        onChange={(e) => setFinnInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendFinnMessage(finnInput); } }}
+                        placeholder="Reply to FINN..."
+                        disabled={finnThinking}
+                        style={{ flex: 1, fontSize: "12px" }}
+                      />
+                      <button
+                        onClick={() => void sendFinnMessage(finnInput)}
+                        disabled={finnThinking || !finnInput.trim()}
+                        className="bt-btn bt-btn-primary bt-btn-sm"
+                        style={{ flexShrink: 0, paddingLeft: "14px", paddingRight: "14px" }}
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+
+                  {finnGenerated && (
+                    <div style={{ padding: "12px 14px", background: FV.bgMed, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: FV.accentBright }}>{finnGenerated.name}</div>
+                        <RiskBadge level={finnGenerated.risk_level.toLowerCase()} />
+                      </div>
+                      <div style={{ fontSize: "11px", color: "rgba(221,214,254,0.72)", lineHeight: 1.5, marginBottom: "8px" }}>
+                        {finnGenerated.description}
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {[
+                          { label: "Style", value: finnGenerated.style },
+                          { label: "Turnover", value: finnGenerated.turnover_preference },
+                          { label: "Horizon", value: finnGenerated.holding_period_bias },
+                        ].map((item) => (
+                          <div key={item.label} style={{ padding: "3px 8px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "6px" }}>
+                            <span style={{ fontSize: "9px", color: "rgba(167,139,250,0.45)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}: </span>
+                            <span style={{ fontSize: "10px", color: "rgba(196,181,253,0.85)" }}>{item.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: "10px", color: "rgba(167,139,250,0.45)", marginTop: "8px", marginBottom: 0 }}>
+                        ✦ Strategy built by FINN — click Continue to save it.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* FINN note — shown for all other tabs */}
+              {strategyTab !== "finn" && (
               <div style={{
                 marginTop: "14px", padding: "9px 12px",
                 background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.18)",
@@ -733,6 +966,7 @@ export default function OnboardingModal({
                   Once saved, FINN will score your strategy, explain its thesis, surface weaknesses, and build your investor profile as you add more strategies.
                 </p>
               </div>
+              )}
             </div>
           )}
 
@@ -855,6 +1089,8 @@ export default function OnboardingModal({
                     ? (existingStrategies.find((s) => s.id === selectedExistingId)?.name ?? "—")
                     : strategyTab === "starter"
                     ? STARTER_STRATEGIES[selectedStarterIdx]?.name
+                    : strategyTab === "finn"
+                    ? (finnGenerated?.name ?? "FINN Strategy")
                     : `Custom ${customStyle}`
                 } />
               </div>
