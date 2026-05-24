@@ -33,16 +33,6 @@ export type DigestTemplateData = {
     label: string;
   } | null;
 
-  congressTrades: {
-    ticker: string;
-    representative: string;
-    party: string;
-    chamber: string;
-    transaction: string;
-    amount: string;
-    transactionDate: string;
-  }[] | null;
-
   sentAt: string;
 };
 
@@ -310,71 +300,6 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
-  // ── Congressional trades section ────────────────────────────────────────────
-  function congressSection(): string {
-    if (!data.congressTrades || data.congressTrades.length === 0) return "";
-
-    const rows = data.congressTrades.slice(0, 8).map((t, i) => {
-      const rowBg = i % 2 === 0 ? WHITE : RULE2;
-      const isBuy = !/sale/i.test(t.transaction);
-      const actionColor = isBuy ? "#15803d" : "#b91c1c";
-      const partyLabel = t.party.toLowerCase().includes("dem") ? "D"
-        : t.party.toLowerCase().includes("rep") ? "R" : t.party[0] ?? "";
-      const partyColor = t.party.toLowerCase().includes("dem") ? "#1d4ed8"
-        : t.party.toLowerCase().includes("rep") ? "#b91c1c" : "#64748b";
-      const dateStr = t.transactionDate
-        ? new Date(t.transactionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        : "—";
-      return `
-      <tr style="background-color:${rowBg};">
-        <td style="padding:8px 10px;font-size:11px;font-family:Helvetica Neue,Arial,sans-serif;color:${TEXT};font-weight:600;">
-          ${t.ticker}
-        </td>
-        <td style="padding:8px 10px;font-size:11px;font-family:Helvetica Neue,Arial,sans-serif;color:${TEXT};">
-          ${t.representative}
-          ${partyLabel ? `<span style="color:${partyColor};font-weight:700;font-size:10px;"> (${partyLabel})</span>` : ""}
-        </td>
-        <td style="padding:8px 10px;font-size:10px;font-family:Helvetica Neue,Arial,sans-serif;color:${MUTED};">
-          ${t.chamber}
-        </td>
-        <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;font-weight:700;color:${actionColor};">
-          ${isBuy ? "BUY" : "SELL"}
-        </td>
-        <td style="padding:8px 10px;font-size:10px;font-family:Helvetica Neue,Arial,sans-serif;color:${MUTED};">
-          ${t.amount}
-        </td>
-        <td style="padding:8px 10px;font-size:10px;font-family:'Courier New',monospace;color:${MUTED};white-space:nowrap;">
-          ${dateStr}
-        </td>
-      </tr>`;
-    }).join("");
-
-    return `
-    <!-- Congressional Trades -->
-    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
-      <div style="border-bottom:2px solid ${NAV};padding-bottom:8px;margin-bottom:4px;">
-        <span style="font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${NAV};font-family:Helvetica Neue,Arial,sans-serif;">Congressional Trades</span>
-        <span style="float:right;font-size:9px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;letter-spacing:0.04em;text-transform:uppercase;">STOCK Act · Your Holdings</span>
-      </div>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:6px;overflow:hidden;border:1px solid ${RULE};">
-        <thead>
-          <tr style="background-color:${RULE2};">
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Ticker</th>
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Member</th>
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Chamber</th>
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Action</th>
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Amount</th>
-            <th style="padding:6px 10px;font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;text-align:left;">Date</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p style="margin:8px 0 0;font-size:10px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;">
-        Amounts are disclosed as ranges per STOCK Act requirements. Filings may lag trades by up to 45 days.
-      </p>
-    </td></tr>`;
-  }
-
   // ── No-data placeholder ─────────────────────────────────────────────────────
   function noDataSection(): string {
     return `
@@ -385,7 +310,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
-  const hasContent = data.performance || data.holdings || data.earnings || data.aiScore || data.congressTrades?.length;
+  const hasContent = data.performance || data.holdings || data.earnings || data.aiScore;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
@@ -463,7 +388,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
 
               ${hasContent
-                ? [perfSection(), holdingsSection(), earningsSection(), congressSection(), aiScoreSection()].join("")
+                ? [perfSection(), holdingsSection(), earningsSection(), aiScoreSection()].join("")
                 : noDataSection()
               }
 

@@ -206,7 +206,6 @@ export async function POST(request: Request) {
     holdings,
     earnings,
     aiScore,
-    congressTrades: null,
     sentAt: now.toISOString(),
   };
 

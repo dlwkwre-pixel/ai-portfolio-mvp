@@ -5,7 +5,7 @@ import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
-import { getCongressTrades } from "@/lib/market-data/quiver";
+
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytuneio.vercel.app";
 
@@ -260,26 +260,6 @@ export async function GET(request: Request) {
         }
       }
 
-      // ── Congressional trades ──────────────────────────────────────────────────
-      let congressTrades: DigestTemplateData["congressTrades"] = null;
-      if (process.env.FMP_API_KEY) {
-        const { data: holdingRows } = await adminSupabase
-          .from("holdings")
-          .select("ticker")
-          .eq("portfolio_id", pref.portfolio_id);
-        const tickers = [...new Set((holdingRows ?? []).map((h) => h.ticker))];
-        if (tickers.length > 0) {
-          const cutoff = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-          const results = await Promise.all(
-            tickers.slice(0, 10).map((t) => getCongressTrades(t))
-          );
-          const recent = results.flat()
-            .filter((t) => t.transactionDate >= cutoff)
-            .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
-            .slice(0, 10);
-          if (recent.length > 0) congressTrades = recent;
-        }
-      }
 
       // ── Build + send ──────────────────────────────────────────────────────────
       const token = makeUnsubToken(pref.user_id, pref.portfolio_id);
@@ -298,7 +278,6 @@ export async function GET(request: Request) {
         holdings,
         earnings,
         aiScore,
-        congressTrades,
         sentAt: now.toISOString(),
       };
 

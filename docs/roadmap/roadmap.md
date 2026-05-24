@@ -44,18 +44,6 @@ When ready:
 
 ---
 
-## Planning Phase 2: Monte Carlo
-
-Phase 1 is built (deterministic forecast, health score, FINN commentary). Phase 2 is not.
-
-- 10,000-path Monte Carlo simulation
-- Recharts area chart with P10/P50/P90 percentile bands
-- Scenario analysis panel: custom rate/inflation/return assumptions
-- Retirement readiness probability as a % (e.g., "73% chance of reaching goal")
-- See `docs/roadmap/phases.md` for full spec
-
----
-
 ## Deferred: Push Notifications
 
 Skip until BuyTune is a native iOS/Android app and the $99 Apple developer fee makes sense.

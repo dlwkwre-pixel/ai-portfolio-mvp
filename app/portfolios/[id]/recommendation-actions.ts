@@ -11,7 +11,7 @@ import { getFredMacroSignals } from "@/lib/market-data/fred";
 import { computeRegime, regimePromptContext } from "@/lib/market-data/regime";
 import { getFinnhubMetrics } from "@/lib/market-data/finnhub";
 import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
-import { getCongressTrades } from "@/lib/market-data/quiver";
+
 
 type AiRecommendation = {
   action_type: string | null;
@@ -871,38 +871,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     }
   }
 
-  // Fetch congressional signals per holding (last 60 days, non-fatal, 6s timeout)
-  type CongressSignal = { net_signal: string; purchases: number; sales: number; most_recent_date: string };
-  let congressionalSignals: Record<string, CongressSignal> = {};
-  if (tickers.length > 0 && process.env.FMP_API_KEY) {
-    try {
-      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const fetchSignals = async (): Promise<Record<string, CongressSignal>> => {
-        const results = await Promise.all(tickers.slice(0, 15).map((t) => getCongressTrades(t)));
-        const signals: Record<string, CongressSignal> = {};
-        results.forEach((trades, i) => {
-          const ticker = tickers[i];
-          const recent = trades.filter((tr) => tr.transactionDate >= cutoff);
-          if (recent.length === 0) return;
-          const buys = recent.filter((tr) => !/sale/i.test(tr.transaction)).length;
-          const sells = recent.filter((tr) => /sale/i.test(tr.transaction)).length;
-          signals[ticker] = {
-            net_signal: buys > sells ? "bullish" : sells > buys ? "bearish" : "neutral",
-            purchases: buys,
-            sales: sells,
-            most_recent_date: recent[0]?.transactionDate ?? "",
-          };
-        });
-        return signals;
-      };
-      const timeout = new Promise<Record<string, CongressSignal>>((resolve) =>
-        setTimeout(() => resolve({}), 6000)
-      );
-      congressionalSignals = await Promise.race([fetchSignals(), timeout]);
-    } catch {
-      // non-fatal
-    }
-  }
 
   // Prune news to headline + source + datetime only — summaries/images/URLs waste tokens
   const prunedMarketContext: Record<string, unknown> = {};
@@ -989,7 +957,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     portfolio_evolution: portfolioEvolution,
     position_thesis_memory: positionThesisMemory,
     position_catalyst_context: catalystIntelligence,
-    congressional_signals: Object.keys(congressionalSignals).length > 0 ? congressionalSignals : undefined,
   };
 }
 

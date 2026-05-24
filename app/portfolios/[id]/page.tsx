@@ -29,7 +29,7 @@ import RecommendationOutcomesSection from "./recommendation-outcomes-section";
 import MarketRegimeCard from "@/app/components/market-regime-card";
 import EmailDigestSettings from "./email-digest-settings";
 import { getDigestPrefs } from "./email-digest-actions";
-import CongressTradesSection from "./congress-trades-section";
+
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
@@ -503,18 +503,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </div>
               )}
 
-              {/* CONGRESS */}
-              {activeTab === "congress" && (
-                <div className="bt-tab-enter">
-                  <div className="bt-card">
-                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "4px" }}>Congressional Trades</h2>
-                    <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "20px" }}>
-                      STOCK Act disclosures for your current holdings — what members of Congress are buying and selling.
-                    </p>
-                    <CongressTradesSection tickers={(holdings ?? []).map((h) => h.ticker)} />
-                  </div>
-                </div>
-              )}
 
               {/* EMAILS */}
               {activeTab === "emails" && (
