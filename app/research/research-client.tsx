@@ -47,19 +47,7 @@ type AIAnalysis = {
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
-type DetailTab = "overview" | "news" | "ai" | "social" | "insiders" | "congress";
-
-type CongressTrade = {
-  ticker: string;
-  representative: string;
-  party: string;
-  chamber: string;
-  state: string;
-  transaction: string;
-  amount: string;
-  transactionDate: string;
-  reportDate: string;
-};
+type DetailTab = "overview" | "news" | "ai" | "social" | "insiders";
 
 type InsiderTx = {
   name: string;
@@ -697,9 +685,7 @@ function DetailView({
   const [insiderData, setInsiderData]         = useState<InsiderData | null>(null);
   const [insiderLoading, setInsiderLoading]   = useState(false);
   const [insiderTicker, setInsiderTicker]     = useState<string | null>(null);
-  const [congressTrades, setCongressTrades]   = useState<CongressTrade[]>([]);
-  const [congressLoading, setCongressLoading] = useState(false);
-  const [congressTicker, setCongressTicker]   = useState<string | null>(null);
+
 
   const rating = analystLabel(result.recommendation);
   const upside =
@@ -739,18 +725,6 @@ function DetailView({
       .then((d: InsiderData) => { setInsiderData(d); setInsiderTicker(result.ticker); })
       .catch(() => setInsiderData({ transactions: [], netBuys: 0, netSells: 0, signal: "neutral" }))
       .finally(() => setInsiderLoading(false));
-  }, [tab, result.ticker]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (tab !== "congress" || congressTicker === result.ticker || congressLoading) return;
-    setCongressLoading(true);
-    setCongressTrades([]);
-    fetch(`/api/congress/${result.ticker}`)
-      .then((r) => r.json())
-      .then((d: { trades: CongressTrade[] }) => { setCongressTrades(d.trades ?? []); setCongressTicker(result.ticker); })
-      .catch(() => setCongressTrades([]))
-      .finally(() => setCongressLoading(false));
   }, [tab, result.ticker]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -801,7 +775,6 @@ function DetailView({
     { id: "ai",       label: "AI Analysis" },
     { id: "social",   label: "Reddit Pulse" },
     { id: "insiders", label: "Insiders" },
-    { id: "congress", label: "Congress" },
   ];
 
   return (
@@ -1417,117 +1390,6 @@ function DetailView({
         </div>
       )}
 
-      {tab === "congress" && (
-        <div style={{ padding: "14px 18px" }}>
-          {congressLoading ? (
-            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: "13px" }}>
-              Loading congressional trades...
-            </div>
-          ) : congressTrades.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px" }}>No congressional trades found</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                No STOCK Act disclosures on record for this ticker.
-              </div>
-            </div>
-          ) : (() => {
-            const purchases = congressTrades.filter((t) => !/sale/i.test(t.transaction));
-            const sales     = congressTrades.filter((t) =>  /sale/i.test(t.transaction));
-            const netSignal = purchases.length > sales.length ? "buy"
-              : sales.length > purchases.length ? "sell" : "neutral";
-            const signalColor = netSignal === "buy" ? "var(--green)" : netSignal === "sell" ? "var(--red)" : "var(--text-muted)";
-            return (
-              <div>
-                {/* Summary bar */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: "12px",
-                  padding: "10px 12px", marginBottom: "14px",
-                  background: "var(--bg-surface)", border: "1px solid var(--card-border)",
-                  borderRadius: "var(--radius-md)",
-                }}>
-                  <div style={{
-                    padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                    fontFamily: "var(--font-mono)", letterSpacing: "0.04em",
-                    background: netSignal === "buy" ? "rgba(34,197,94,0.12)" : netSignal === "sell" ? "rgba(239,68,68,0.12)" : "var(--bg-elevated)",
-                    color: signalColor,
-                  }}>
-                    {netSignal === "buy" ? "GOV▲" : netSignal === "sell" ? "GOV▼" : "GOV—"}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: signalColor }}>
-                      {netSignal === "buy" ? "Net Buying" : netSignal === "sell" ? "Net Selling" : "Mixed Activity"}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
-                      {purchases.length > 0 && <span style={{ color: "var(--green)", marginRight: "10px" }}>{purchases.length} purchase{purchases.length !== 1 ? "s" : ""}</span>}
-                      {sales.length > 0 && <span style={{ color: "var(--red)" }}>{sales.length} sale{sales.length !== 1 ? "s" : ""}</span>}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                    {congressTrades.length} total disclosures
-                  </div>
-                </div>
-
-                {/* Trade list — most recent 25 */}
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>
-                    Disclosures
-                  </div>
-                  {congressTrades.slice(0, 25).map((t, i) => {
-                    const isBuy = !/sale/i.test(t.transaction);
-                    const partyColor = t.party.toLowerCase().includes("dem") ? "#3b82f6"
-                      : t.party.toLowerCase().includes("rep") ? "#ef4444" : "#64748b";
-                    return (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "flex-start", gap: "10px",
-                        padding: "9px 0",
-                        borderBottom: i < Math.min(congressTrades.length, 25) - 1 ? "1px solid var(--border-subtle)" : "none",
-                      }}>
-                        <div style={{
-                          padding: "2px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700,
-                          fontFamily: "var(--font-mono)", flexShrink: 0, marginTop: "1px",
-                          background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-                          color: isBuy ? "var(--green)" : "var(--red)",
-                        }}>
-                          {isBuy ? "BUY" : "SELL"}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {t.representative}
-                            <span style={{
-                              marginLeft: "6px", fontSize: "10px", fontWeight: 700,
-                              color: partyColor,
-                            }}>
-                              {t.party ? `(${t.party[0]})` : ""}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
-                            {t.chamber}{t.state ? ` · ${t.state}` : ""} · {t.amount || "amount undisclosed"}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0, fontFamily: "var(--font-mono)", textAlign: "right" }}>
-                          <div>{t.transactionDate ? new Date(t.transactionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }) : "—"}</div>
-                          {t.reportDate && t.reportDate !== t.transactionDate && (
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>
-                              filed {new Date(t.reportDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                  STOCK Act requires members of Congress to disclose trades within 45 days. Amounts are ranges, not exact figures.
-                </div>
-                <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>
-                  Source: QuiverQuant · Senate and House disclosures
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
     </>
   );
 }

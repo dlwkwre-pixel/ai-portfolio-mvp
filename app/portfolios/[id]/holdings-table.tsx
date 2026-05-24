@@ -46,6 +46,14 @@ type InsiderData = {
   signal: "buy" | "sell" | "neutral";
 };
 
+type CongressTrade = {
+  representative: string;
+  chamber: string;
+  transaction: string;
+  amount: string;
+  transactionDate: string;
+};
+
 type HoldingsTableProps = {
   portfolioId: string;
   holdings: ValuedHolding[];
@@ -210,11 +218,62 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
   );
 }
 
+function CongressPanel({ ticker, trades }: { ticker: string; trades: CongressTrade[] }) {
+  if (trades.length === 0) {
+    return (
+      <div className="border-t border-white/5 bg-white/1 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Congressional Trades</p>
+        <p className="text-xs text-slate-600">No STOCK Act disclosures on record for {ticker}.</p>
+      </div>
+    );
+  }
+
+  const purchases = trades.filter((t) => !/sale/i.test(t.transaction));
+  const sales = trades.filter((t) => /sale/i.test(t.transaction));
+  const signal = purchases.length > sales.length ? "buy" : sales.length > purchases.length ? "sell" : "neutral";
+  const signalColor = signal === "buy" ? "text-emerald-400" : signal === "sell" ? "text-red-400" : "text-slate-400";
+  const signalBg = signal === "buy" ? "bg-emerald-500/10 border-emerald-500/20" : signal === "sell" ? "bg-red-500/10 border-red-500/20" : "bg-white/3 border-white/8";
+  const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed";
+
+  return (
+    <div className="border-t border-white/5 bg-white/1 px-4 py-3">
+      <div className="flex items-center gap-3 mb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Congressional Trades</p>
+        <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${signalBg} ${signalColor}`}>
+          {signalLabel} · {purchases.length}B / {sales.length}S
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {trades.slice(0, 8).map((t, i) => {
+          const isBuy = !/sale/i.test(t.transaction);
+          const chamberBadge = t.chamber === "Senate" ? "S" : "H";
+          return (
+            <div key={i} className="flex items-center gap-3 text-xs">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isBuy ? "bg-emerald-500" : "bg-red-500"}`} />
+              <span className={`font-semibold w-8 flex-shrink-0 ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
+                {isBuy ? "BUY" : "SELL"}
+              </span>
+              <span className="text-[9px] font-bold text-slate-600 bg-white/5 rounded px-1 flex-shrink-0">{chamberBadge}</span>
+              <span className="text-slate-300 flex-1 min-w-0 truncate">{t.representative}</span>
+              {t.amount && <span className="text-slate-500 flex-shrink-0 hidden sm:block">{t.amount}</span>}
+              <span className="text-slate-600 flex-shrink-0 hidden sm:block">{t.transactionDate}</span>
+            </div>
+          );
+        })}
+      </div>
+      {trades.length > 8 && (
+        <p className="mt-2 text-[10px] text-slate-600">+{trades.length - 8} more disclosures · STOCK Act</p>
+      )}
+    </div>
+  );
+}
+
 export default function HoldingsTable({ portfolioId, holdings }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
   const [insiderData, setInsiderData] = useState<Record<string, InsiderData>>({});
+  const [congressData, setCongressData] = useState<Record<string, CongressTrade[]>>({});
   const [loadingTicker, setLoadingTicker] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -230,9 +289,10 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
     if (!alreadyLoaded) {
       setLoadingTicker(holding.ticker);
       try {
-        const [mktRes, insRes] = await Promise.all([
+        const [mktRes, insRes, cngRes] = await Promise.all([
           fetch(`/api/market-data/${holding.ticker}`),
           fetch(`/api/insider/${holding.ticker}`),
+          fetch(`/api/congress/${holding.ticker}`),
         ]);
         if (mktRes.ok) {
           const data = await mktRes.json();
@@ -241,6 +301,10 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
         if (insRes.ok) {
           const data = await insRes.json();
           setInsiderData((prev) => ({ ...prev, [holding.ticker]: data }));
+        }
+        if (cngRes.ok) {
+          const data = await cngRes.json() as { trades: CongressTrade[] };
+          setCongressData((prev) => ({ ...prev, [holding.ticker]: data.trades ?? [] }));
         }
       } catch {
         // fail silently
@@ -375,6 +439,10 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                     {/* Insider transactions */}
                     {insiderData[holding.ticker] && (
                       <InsiderPanel ticker={holding.ticker} data={insiderData[holding.ticker]} />
+                    )}
+                    {/* Congressional trades */}
+                    {congressData[holding.ticker] !== undefined && (
+                      <CongressPanel ticker={holding.ticker} trades={congressData[holding.ticker]} />
                     )}
                   </td>
                 </tr>
