@@ -9,7 +9,6 @@ import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import { addFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
-import type { HomeMarketData } from "@/app/api/planning/home-market/route";
 
 // ── Math engines ──────────────────────────────────────────────────────────────
 
@@ -120,6 +119,17 @@ type AmorRow = {
   cumulativeInterest: number;
   homeValue: number;
   equity: number;
+  equityPct: number;
+  isCrossover: boolean;
+};
+
+type AmorStats = {
+  totalInterest: number;
+  crossoverYear: number | null;
+  equity20Year: number | null;
+  equity50Year: number | null;
+  equity80Year: number | null;
+  monthlyPayment: number;
 };
 
 function buildAmortization(
@@ -128,9 +138,13 @@ function buildAmortization(
   termYears: number,
   purchasePrice: number,
   appreciation: number,
-  showYears: number,
-): AmorRow[] {
-  if (loan <= 0 || annualRate <= 0) return [];
+): { rows: AmorRow[]; stats: AmorStats } {
+  const empty: { rows: AmorRow[]; stats: AmorStats } = {
+    rows: [],
+    stats: { totalInterest: 0, crossoverYear: null, equity20Year: null, equity50Year: null, equity80Year: null, monthlyPayment: 0 },
+  };
+  if (loan <= 0 || annualRate <= 0) return empty;
+
   const r = annualRate / 12;
   const n = termYears * 12;
   const monthlyPmt = (loan * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
@@ -138,12 +152,21 @@ function buildAmortization(
   let balance = loan;
   let homeValue = purchasePrice;
   let cumulativeInterest = 0;
+  let crossoverYear: number | null = null;
+  let equity20Year: number | null = null;
+  let equity50Year: number | null = null;
+  let equity80Year: number | null = null;
+
+  const initEquityPct = homeValue > 0 ? ((homeValue - balance) / homeValue) * 100 : 0;
   const rows: AmorRow[] = [
-    { year: 0, balance, annualPrincipal: 0, annualInterest: 0, cumulativeInterest, homeValue, equity: homeValue - balance },
+    {
+      year: 0, balance, annualPrincipal: 0, annualInterest: 0,
+      cumulativeInterest, homeValue, equity: homeValue - balance,
+      equityPct: initEquityPct, isCrossover: false,
+    },
   ];
 
-  const maxYear = Math.min(termYears, showYears);
-  for (let year = 1; year <= maxYear; year++) {
+  for (let year = 1; year <= termYears; year++) {
     let annualPrincipal = 0;
     let annualInterest = 0;
     for (let m = 0; m < 12; m++) {
@@ -156,9 +179,27 @@ function buildAmortization(
       annualInterest += interest;
       cumulativeInterest += interest;
     }
-    rows.push({ year, balance, annualPrincipal, annualInterest, cumulativeInterest, homeValue, equity: homeValue - balance });
+    const equity = homeValue - balance;
+    const equityPct = homeValue > 0 ? (equity / homeValue) * 100 : 0;
+    const isCrossover = crossoverYear == null && annualPrincipal > annualInterest;
+    if (isCrossover) crossoverYear = year;
+    if (equity20Year == null && equityPct >= 20) equity20Year = year;
+    if (equity50Year == null && equityPct >= 50) equity50Year = year;
+    if (equity80Year == null && equityPct >= 80) equity80Year = year;
+    rows.push({ year, balance, annualPrincipal, annualInterest, cumulativeInterest, homeValue, equity, equityPct, isCrossover: !!isCrossover });
   }
-  return rows;
+
+  return {
+    rows,
+    stats: {
+      totalInterest: cumulativeInterest,
+      crossoverYear,
+      equity20Year,
+      equity50Year,
+      equity80Year,
+      monthlyPayment: monthlyPmt,
+    },
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -271,254 +312,6 @@ function buildDefaults(
   };
 }
 
-// ── Local Market Panel ────────────────────────────────────────────────────────
-
-const SIGNAL_CONFIG: Record<NonNullable<HomeMarketData["buyRentSignal"]>, { label: string; color: string; bg: string }> = {
-  strongly_buy:  { label: "Strong Buy Signal",  color: "oklch(0.80 0.15 155)", bg: "color-mix(in oklch, oklch(0.55 0.15 155) 12%, transparent)" },
-  lean_buy:      { label: "Lean Buy",           color: "oklch(0.78 0.12 160)", bg: "color-mix(in oklch, oklch(0.55 0.15 155) 8%, transparent)" },
-  neutral:       { label: "Neutral",            color: "oklch(0.80 0.10 80)",  bg: "color-mix(in oklch, oklch(0.70 0.12 80) 10%, transparent)" },
-  lean_rent:     { label: "Lean Rent",          color: "oklch(0.75 0.12 45)",  bg: "color-mix(in oklch, oklch(0.60 0.15 45) 10%, transparent)" },
-  strongly_rent: { label: "Strong Rent Signal", color: "oklch(0.70 0.15 25)",  bg: "color-mix(in oklch, oklch(0.45 0.18 25) 12%, transparent)" },
-};
-
-function LocalMarketPanel({
-  profile,
-  onApplyData,
-}: {
-  profile: FinancialProfile | null;
-  onApplyData: (data: { purchasePrice: number; monthlyRent: number; mortgageRate: number }) => void;
-}) {
-  const [zip, setZip] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<HomeMarketData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [applied, setApplied] = useState(false);
-
-  async function lookup() {
-    const trimmed = zip.trim();
-    if (!/^\d{5}$/.test(trimmed)) { setError("Enter a valid 5-digit ZIP code."); return; }
-    setLoading(true);
-    setError(null);
-    setData(null);
-    setApplied(false);
-    try {
-      const res = await fetch(`/api/planning/home-market?zip=${trimmed}`);
-      const json = await res.json() as HomeMarketData & { error?: string };
-      if (json.error) { setError(json.error); return; }
-      if (!json.censusAvailable) { setError("No Census data found for this ZIP. Try a nearby ZIP."); return; }
-      setData(json);
-    } catch {
-      setError("Unable to fetch market data. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const signal = data?.buyRentSignal ? SIGNAL_CONFIG[data.buyRentSignal] : null;
-
-  // Affordability check against the user's income
-  const userAffordability = (() => {
-    if (!data?.monthlyPIAtMedian || !profile?.monthly_income) return null;
-    const maxPITI = profile.monthly_income * 0.28;
-    const pct = Math.round((data.monthlyPIAtMedian / maxPITI) * 100);
-    return { pct, isOver: pct > 100, maxPITI };
-  })();
-
-  // Max home price the user can afford at 28% DTI
-  const maxAffordable = (() => {
-    if (!profile?.monthly_income) return null;
-    const maxPI = profile.monthly_income * 0.28 - 400; // rough tax+insurance
-    const rate = (data?.mortgageRate ?? 6.75) / 100 / 12;
-    const n = 360;
-    if (rate <= 0) return null;
-    const loanMax = maxPI * ((Math.pow(1 + rate, n) - 1) / (rate * Math.pow(1 + rate, n)));
-    return Math.round(loanMax / 0.8 / 5000) * 5000; // divide by 0.8 for 20% down
-  })();
-
-  const fmt = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
-  const fmtK = (n: number) => {
-    if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(2) + "M";
-    if (n >= 1_000) return "$" + (n / 1000).toFixed(0) + "K";
-    return "$" + Math.round(n);
-  };
-
-  return (
-    <div style={{ ...cardS, display: "flex", flexDirection: "column", gap: "14px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-        <p style={{ ...sectionHead, margin: 0 }}>Local Market Intelligence</p>
-        {data && (
-          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-            Census ACS 2022 · {data.fredAvailable ? "FRED live rate" : "FRED unavailable"}
-          </span>
-        )}
-      </div>
-
-      {/* ZIP input */}
-      <div style={{ display: "flex", gap: "8px", alignItems: "stretch" }}>
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={5}
-          placeholder="ZIP code (e.g. 90210)"
-          value={zip}
-          onChange={(e) => { setZip(e.target.value.replace(/\D/g, "").slice(0, 5)); setError(null); }}
-          onKeyDown={(e) => { if (e.key === "Enter") void lookup(); }}
-          style={{ ...inputS, flex: 1 }}
-        />
-        <button
-          type="button"
-          onClick={() => void lookup()}
-          disabled={loading}
-          style={{ padding: "7px 16px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1, flexShrink: 0, fontFamily: "var(--font-body)" }}
-        >
-          {loading ? "…" : "Look up"}
-        </button>
-      </div>
-
-      {error && (
-        <p style={{ fontSize: "11px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{error}</p>
-      )}
-
-      {data && signal && (
-        <>
-          {/* Buy vs Rent signal banner */}
-          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: signal.bg, border: `1px solid ${signal.color.replace("0.80", "0.50")}20`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-            <div>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: signal.color, fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{signal.label}</div>
-              {data.priceToRentRatio && (
-                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
-                  Price-to-rent ratio: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{data.priceToRentRatio}x</span>
-                  {" "}— {data.priceToRentRatio < 15 ? "cheap to own relative to rent" : data.priceToRentRatio < 20 ? "buying is competitive" : data.priceToRentRatio < 25 ? "borderline, depends on your plan" : data.priceToRentRatio < 30 ? "renting often wins financially" : "renting is strongly favored"}
-                </div>
-              )}
-            </div>
-            {data.mortgageRate && (
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{data.mortgageRate.toFixed(2)}%</div>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>30yr rate</div>
-              </div>
-            )}
-          </div>
-
-          {/* Key stats grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-            {[
-              { label: "Median Home", value: data.medianHomeValue ? fmtK(data.medianHomeValue) : "—", sub: "Census ACS" },
-              { label: "Median Rent", value: data.medianRent ? fmt(data.medianRent) + "/mo" : "—", sub: "Census ACS" },
-              { label: "Median Income", value: data.medianHouseholdIncome ? fmtK(data.medianHouseholdIncome) + "/yr" : "—", sub: "household" },
-            ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
-                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
-                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sub}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Affordability breakdown */}
-          {data.monthlyPIAtMedian && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                <span style={{ color: "var(--text-secondary)" }}>Est. monthly P&I at median (20% down)</span>
-                <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(data.monthlyPIAtMedian)}/mo</span>
-              </div>
-              {data.debtToIncomeAtMedian && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>DTI at median income</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: data.debtToIncomeAtMedian > 36 ? "var(--amber)" : "var(--text-primary)" }}>{data.debtToIncomeAtMedian}%{data.debtToIncomeAtMedian > 36 ? " ▲ high" : ""}</span>
-                </div>
-              )}
-              {data.downPayment20Pct && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>20% down needed</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(data.downPayment20Pct)}</span>
-                </div>
-              )}
-              {data.yearsToSave20Pct && (
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Years to save down (20% savings rate)</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{data.yearsToSave20Pct} yrs</span>
-                </div>
-              )}
-
-              {/* User-specific affordability vs local market */}
-              {userAffordability && (
-                <div style={{
-                  marginTop: "4px", padding: "9px 12px", borderRadius: "var(--radius-md)",
-                  background: userAffordability.isOver
-                    ? "color-mix(in oklch, oklch(0.45 0.18 25) 10%, transparent)"
-                    : "color-mix(in oklch, oklch(0.55 0.15 155) 8%, transparent)",
-                  border: `1px solid ${userAffordability.isOver ? "color-mix(in oklch, oklch(0.45 0.18 25) 25%, transparent)" : "color-mix(in oklch, oklch(0.55 0.15 155) 20%, transparent)"}`,
-                }}>
-                  <div style={{ fontSize: "11px", fontWeight: 600, color: userAffordability.isOver ? "oklch(0.75 0.12 25)" : "oklch(0.80 0.12 155)", fontFamily: "var(--font-body)" }}>
-                    {userAffordability.isOver
-                      ? `Median home is ${userAffordability.pct}% of your 28% limit — likely a stretch`
-                      : `Median home is ${userAffordability.pct}% of your 28% limit — within range`}
-                  </div>
-                  {maxAffordable && (
-                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "3px", fontFamily: "var(--font-body)" }}>
-                      Your max affordable price: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtK(maxAffordable)}</span>
-                      {data.medianHomeValue && maxAffordable < data.medianHomeValue
-                        ? ` — ${Math.round(((data.medianHomeValue - maxAffordable) / data.medianHomeValue) * 100)}% below local median`
-                        : data.medianHomeValue
-                          ? ` — above local median`
-                          : ""}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            {!applied && data.medianHomeValue && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!data.medianHomeValue || !data.medianRent) return;
-                  onApplyData({
-                    purchasePrice: data.medianHomeValue,
-                    monthlyRent: data.medianRent,
-                    mortgageRate: data.mortgageRate ?? 6.75,
-                  });
-                  setApplied(true);
-                }}
-                style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}
-              >
-                <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 4l12 6-12 6V4z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Use local data
-              </button>
-            )}
-            {applied && (
-              <span style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "4px" }}>
-                <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                Applied to scenario
-              </span>
-            )}
-            {data.medianHomeValue && (
-              <a
-                href={`https://www.zillow.com/homes/${zip}_rb/`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textDecoration: "none" }}
-              >
-                Browse listings on Zillow
-                <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7 3h10v10M17 3L3 17" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </a>
-            )}
-          </div>
-        </>
-      )}
-
-      {!data && !loading && !error && (
-        <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
-          Enter your target ZIP to pull Census median home values, rents, and income — plus the live 30-year mortgage rate. Data is used to benchmark your scenario and check local affordability.
-        </p>
-      )}
-    </div>
-  );
-}
 
 function scenarioToInputs(s: HomeScenario): Inputs {
   return {
@@ -634,15 +427,15 @@ export default function HomeClient({
       }
     }
 
-    const amortization = buildAmortization(
-      loan, rate / 100, term, pp, appr / 100, hold,
+    const { rows: amortization, stats: amortStats } = buildAmortization(
+      loan, rate / 100, term, pp, appr / 100,
     );
 
     return {
       loan, monthlyPmt, maintMonthly, totalMonthly,
       firstPrincipal, firstInterest, trueEffectiveCost, opportunityCostOnEquity,
       timeline, lastPoint, breakEvenYear, closingCosts,
-      retirBaselineProb, retirWithHomeProb, amortization,
+      retirBaselineProb, retirWithHomeProb, amortization, amortStats,
     };
   }, [inputs, profile]);
 
@@ -818,23 +611,6 @@ export default function HomeClient({
           </div>
         )}
 
-        {/* Local Market Intelligence */}
-        <LocalMarketPanel
-          profile={profile}
-          onApplyData={({ purchasePrice, monthlyRent, mortgageRate }) => {
-            setInputs((p) => ({
-              ...p,
-              purchase_price: purchasePrice,
-              down_payment: Math.round(purchasePrice * 0.2 / 1000) * 1000,
-              monthly_rent: monthlyRent,
-              mortgage_rate: +mortgageRate.toFixed(3),
-              property_tax_monthly: Math.round((purchasePrice * 0.012) / 12 / 10) * 10,
-              insurance_monthly: Math.max(75, Math.round((purchasePrice * 0.004) / 12 / 10) * 10),
-            }));
-            setFinnCommentary(null);
-          }}
-        />
-
         {/* Main layout: inputs left, analysis right */}
         <div data-home-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
 
@@ -913,7 +689,7 @@ export default function HomeClient({
                 <div>
                   <label style={labelS}>Term (years)</label>
                   <select value={inputs.loan_term_years} onChange={(e) => set("loan_term_years", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-body)" }}>
-                    {[10, 15, 20, 25, 30].map((t) => <option key={t} value={t}>{t} yr</option>)}
+                    {[10, 15, 20, 25, 30, 50].map((t) => <option key={t} value={t}>{t} yr</option>)}
                   </select>
                 </div>
               </div>
@@ -1163,42 +939,92 @@ export default function HomeClient({
                   onClick={() => setShowAmortization((v) => !v)}
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, gap: "8px" }}
                 >
-                  <p style={{ ...sectionHead, margin: 0 }}>Amortization Schedule</p>
+                  <p style={{ ...sectionHead, margin: 0 }}>Amortization Schedule — Full {inputs.loan_term_years}-Year Term</p>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" style={{ transform: showAmortization ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}>
                     <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
+
                 {showAmortization && (
-                  <div style={{ marginTop: "12px", overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                          {["Yr", "Balance", "Principal", "Interest", "Cum. Interest", "Home Value", "Equity"].map((h) => (
-                            <th key={h} style={{ padding: "4px 8px 6px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {computed.amortization.map((row) => (
-                          <tr
-                            key={row.year}
-                            style={{ borderBottom: "1px solid var(--border-subtle)", background: row.year === inputs.hold_years ? "color-mix(in oklch, var(--accent) 6%, transparent)" : "transparent" }}
-                          >
-                            <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{row.year}</td>
-                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.balance)}</td>
-                            <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
-                            <td style={{ padding: "5px 8px", color: "var(--red)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
-                            <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
-                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
-                            <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
-                          </tr>
+                  <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
+                    {/* Summary stats */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
+                      {[
+                        { label: "Monthly P&I", value: fmt(computed.amortStats.monthlyPayment), color: "var(--text-primary)" },
+                        { label: "Total Interest Paid", value: fmtK(computed.amortStats.totalInterest), color: "var(--red)" },
+                        { label: "Principal/Interest Crossover", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#3b82f6", sub: "more principal than interest paid" },
+                        { label: "50% Equity Milestone", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "#00d395", sub: "home half-owned" },
+                      ].map(({ label, value, color, sub }) => (
+                        <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
+                          {sub && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Equity milestones strip */}
+                    {(computed.amortStats.equity20Year != null || computed.amortStats.equity50Year != null || computed.amortStats.equity80Year != null) && (
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {[
+                          { label: "20% equity", year: computed.amortStats.equity20Year, note: "drop PMI" },
+                          { label: "50% equity", year: computed.amortStats.equity50Year, note: "halfway there" },
+                          { label: "80% equity", year: computed.amortStats.equity80Year, note: "strong position" },
+                        ].filter(m => m.year != null).map(({ label, year, note }) => (
+                          <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+                            <span style={{ color: "#00d395", fontWeight: 600 }}>Year {year}</span>
+                            <span style={{ color: "var(--text-tertiary)" }}>· {label}</span>
+                            <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>({note})</span>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                    <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", fontFamily: "var(--font-body)" }}>
-                      Row highlighted in blue = your planned hold year. Equity = home value minus remaining loan balance.
+                      </div>
+                    )}
+
+                    {/* Table */}
+                    <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "420px" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
+                        <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
+                          <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                            {["Yr", "Balance", "Annual Principal", "Annual Interest", "Cum. Interest", "Home Value", "Equity", "Equity %"].map((h) => (
+                              <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {computed.amortization.map((row) => {
+                            const isHoldYear = row.year === inputs.hold_years;
+                            const isCrossover = row.isCrossover;
+                            const rowBg = isHoldYear
+                              ? "color-mix(in oklch, #3b82f6 8%, transparent)"
+                              : isCrossover
+                                ? "color-mix(in oklch, #00d395 5%, transparent)"
+                                : "transparent";
+                            return (
+                              <tr key={row.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: rowBg }}>
+                                <td style={{ padding: "5px 8px", color: isHoldYear ? "#3b82f6" : "var(--text-tertiary)", textAlign: "right", fontWeight: isHoldYear ? 700 : 400 }}>
+                                  {row.year}{isHoldYear ? " ★" : ""}
+                                </td>
+                                <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
+                                <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
+                                <td style={{ padding: "5px 8px", color: "oklch(0.70 0.15 25)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
+                                <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
+                                <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
+                                <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "var(--text-tertiary)" }}>
+                                  {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                      ★ = your planned hold year (blue). Green tint = crossover year (principal paid exceeds interest). Equity % uses projected home value with {inputs.expected_appreciation}%/yr appreciation.
                     </p>
                   </div>
                 )}

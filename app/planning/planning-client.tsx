@@ -2297,7 +2297,7 @@ type Props = {
   estateProfile: EstateProfile | null;
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "compare" | "events" | "budget" | "estate" | "finn";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "budget" | "estate" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
@@ -3286,7 +3286,6 @@ export default function PlanningClient({
     { id: "cashflow", label: "Cash Flow" },
     { id: "budget", label: "Budget Tracker" },
     { id: "forecast", label: "Forecast" },
-    { id: "compare", label: "Compare" },
     { id: "events", label: "Life Events" },
     { id: "estate", label: "Estate & Will" },
     { id: "finn", label: "Ask FINN" },
@@ -4200,24 +4199,26 @@ export default function PlanningClient({
             {showMonteCarlo ? "Monte Carlo uses 1,000 simulations with 15% annual return volatility (σ). " : "Optimistic/pessimistic bands are ±3% on the return rate. "}
             Income and expenses grow by your assumed rates. For informational purposes only.
           </p>
-        </div>
-      )}
 
-      {/* ── Tab: Compare ── */}
-      {tab === "compare" && (
-        <CompareTab
-          currentAge={profile?.current_age ?? null}
-          netWorth={netWorth}
-          effectiveIncome={effectiveIncome}
-          effectiveExpenses={effectiveExpenses}
-          defaultRetirementAge={activeRetirementAge ?? 65}
-          defaultMonthlySavings={Math.max(0, monthlySavings)}
-          defaultReturnRate={localAssumptions.return_rate}
-          defaultInflation={localAssumptions.inflation_rate}
-          defaultSalaryGrowth={localAssumptions.salary_growth_rate}
-          futureEvents={futureEvents}
-          currentYear={currentYear}
-        />
+          {/* Scenario Comparison */}
+          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px" }}>
+            <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)", marginBottom: "4px" }}>Scenario Comparison</div>
+            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 16px" }}>Dial retirement age, savings, and return rate to compare two paths side by side.</p>
+            <CompareTab
+              currentAge={profile?.current_age ?? null}
+              netWorth={netWorth}
+              effectiveIncome={effectiveIncome}
+              effectiveExpenses={effectiveExpenses}
+              defaultRetirementAge={activeRetirementAge ?? 65}
+              defaultMonthlySavings={Math.max(0, monthlySavings)}
+              defaultReturnRate={localAssumptions.return_rate}
+              defaultInflation={localAssumptions.inflation_rate}
+              defaultSalaryGrowth={localAssumptions.salary_growth_rate}
+              futureEvents={futureEvents}
+              currentYear={currentYear}
+            />
+          </div>
+        </div>
       )}
 
       {/* ── Tab: Life Events ── */}
