@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import ProfileSettingsClient from "./profile-settings-client";
+import BadgesSection from "@/app/[username]/badges-section";
 
 export default async function ProfileSettingsPage() {
   const supabase = await createClient();
@@ -57,16 +58,21 @@ export default async function ProfileSettingsPage() {
             </div>
           </div>
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
-            <ProfileSettingsClient
-              userId={user.id}
-              email={user.email ?? ""}
-              existingProfile={profile ? {
-                username: profile.username,
-                display_name: profile.display_name,
-                bio: profile.bio,
-                avatar_color: profile.avatar_color,
-              } : null}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: "32px", maxWidth: "640px" }}>
+              <ProfileSettingsClient
+                userId={user.id}
+                email={user.email ?? ""}
+                existingProfile={profile ? {
+                  username: profile.username,
+                  display_name: profile.display_name,
+                  bio: profile.bio,
+                  avatar_color: profile.avatar_color,
+                } : null}
+              />
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "28px" }}>
+                <BadgesSection userId={user.id} isOwnProfile={true} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
