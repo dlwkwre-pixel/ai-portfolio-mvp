@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  triggerFirstRecommendation,
-  STARTER_STRATEGIES,
-} from "./actions";
+import { STARTER_STRATEGIES } from "./config";
 
 async function apiPost(path: string, body: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
   const res = await fetch(path, {
@@ -279,7 +276,8 @@ export default function OnboardingModal({
     setScanStatus("running");
     setScanError(null);
     try {
-      await triggerFirstRecommendation(portfolioId);
+      const { ok, data } = await apiPost("/api/onboarding/scan", { portfolio_id: portfolioId });
+      if (!ok) throw new Error((data.error as string) || "AI scan failed");
       setScanStatus("done");
     } catch (e) {
       setScanStatus("error");
