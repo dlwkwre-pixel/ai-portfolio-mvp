@@ -1,7 +1,7 @@
-// Congressional trading data via Financial Modeling Prep (FMP)
-// Senate: /api/v4/senate-trading?symbol=AAPL&apikey=KEY
-// House:  /api/v4/house-disclosure?symbol=AAPL&apikey=KEY
-// Uses FMP_API_KEY (already required for benchmark data)
+// Congressional trading data via Senate/House Stock Watcher public S3 datasets
+// No API key required — data sourced from STOCK Act disclosures
+// Senate: https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json
+// House:  https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
 
 export type CongressTrade = {
   ticker: string;
@@ -10,102 +10,117 @@ export type CongressTrade = {
   chamber: "House" | "Senate" | string;
   state: string;
   transaction: string;
-  amount: string;         // e.g. "$1,001 - $15,000"
-  transactionDate: string; // YYYY-MM-DD
-  reportDate: string;      // YYYY-MM-DD
+  amount: string;           // e.g. "$1,001 - $15,000"
+  transactionDate: string;  // YYYY-MM-DD
+  reportDate: string;       // YYYY-MM-DD
 };
 
-type FMPSenateRow = {
-  firstName?: string;
-  lastName?: string;
-  dateRecieved?: string; // FMP typos "Received"
-  transactionDate?: string;
-  type?: string;
-  amount?: string;
-  symbol?: string;
-};
-
-type FMPHouseRow = {
-  representative?: string;
-  disclosureDate?: string;
-  transactionDate?: string;
-  type?: string;
-  amount?: string;
+type SenateRow = {
   ticker?: string;
+  senator?: string;
+  type?: string;
+  amount?: string;
+  transaction_date?: string;
+  disclosure_date?: string;
+  state?: string;
+};
+
+type HouseRow = {
+  ticker?: string;
+  representative?: string;
+  type?: string;
+  amount?: string;
+  transaction_date?: string;
+  disclosure_date?: string;
   district?: string;
 };
 
-function getKey(): string | null {
-  return process.env.FMP_API_KEY ?? null;
-}
+// Module-level cache: shared across all requests in the same server process
+let _senateCache: { data: SenateRow[]; fetchedAt: number } | null = null;
+let _houseCache:  { data: HouseRow[];  fetchedAt: number } | null = null;
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
-function capitalize(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
-
-function mapSenateRow(row: FMPSenateRow, fallbackTicker: string): CongressTrade {
-  return {
-    ticker:          row.symbol ?? fallbackTicker,
-    representative:  [row.firstName, row.lastName].filter(Boolean).join(" ") || "Unknown",
-    party:           "",
-    chamber:         "Senate",
-    state:           "",
-    transaction:     capitalize(row.type ?? ""),
-    amount:          row.amount ?? "",
-    transactionDate: row.transactionDate ?? "",
-    reportDate:      row.dateRecieved ?? row.transactionDate ?? "",
-  };
-}
-
-function mapHouseRow(row: FMPHouseRow, fallbackTicker: string): CongressTrade {
-  const state = row.district ? row.district.split("-")[0] : "";
-  return {
-    ticker:          row.ticker ?? fallbackTicker,
-    representative:  row.representative ?? "Unknown",
-    party:           "",
-    chamber:         "House",
-    state,
-    transaction:     capitalize(row.type ?? ""),
-    amount:          row.amount ?? "",
-    transactionDate: row.transactionDate ?? "",
-    reportDate:      row.disclosureDate ?? row.transactionDate ?? "",
-  };
-}
-
-export async function getCongressTrades(ticker: string): Promise<CongressTrade[]> {
-  const key = getKey();
-  if (!key) return [];
-
-  const sym = ticker.toUpperCase().replace(/[^A-Z0-9.]/g, "");
-  if (!sym) return [];
-
+async function getSenate(): Promise<SenateRow[]> {
+  const now = Date.now();
+  if (_senateCache && now - _senateCache.fetchedAt < CACHE_TTL) return _senateCache.data;
   try {
-    const [senateRes, houseRes] = await Promise.all([
-      fetch(
-        `https://financialmodelingprep.com/api/v4/senate-trading?symbol=${sym}&apikey=${key}`,
-        { next: { revalidate: 21_600 } }
-      ),
-      fetch(
-        `https://financialmodelingprep.com/api/v4/house-disclosure?symbol=${sym}&apikey=${key}`,
-        { next: { revalidate: 21_600 } }
-      ),
-    ]);
-
-    const senate: FMPSenateRow[] = senateRes.ok ? await senateRes.json() : [];
-    const house: FMPHouseRow[] = houseRes.ok ? await houseRes.json() : [];
-
-    return [
-      ...(Array.isArray(senate) ? senate.map((r) => mapSenateRow(r, sym)) : []),
-      ...(Array.isArray(house) ? house.map((r) => mapHouseRow(r, sym)) : []),
-    ].sort((a, b) =>
-      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+    const res = await fetch(
+      "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json",
+      { next: { revalidate: 21_600 }, signal: AbortSignal.timeout(10_000) }
     );
+    if (!res.ok) return _senateCache?.data ?? [];
+    const data = await res.json() as SenateRow[];
+    _senateCache = { data: Array.isArray(data) ? data : [], fetchedAt: now };
+    return _senateCache.data;
   } catch {
-    return [];
+    return _senateCache?.data ?? [];
   }
 }
 
-// Kept for API compatibility — FMP has no cross-ticker live feed endpoint
+async function getHouse(): Promise<HouseRow[]> {
+  const now = Date.now();
+  if (_houseCache && now - _houseCache.fetchedAt < CACHE_TTL) return _houseCache.data;
+  try {
+    const res = await fetch(
+      "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json",
+      { next: { revalidate: 21_600 }, signal: AbortSignal.timeout(10_000) }
+    );
+    if (!res.ok) return _houseCache?.data ?? [];
+    const data = await res.json() as HouseRow[];
+    _houseCache = { data: Array.isArray(data) ? data : [], fetchedAt: now };
+    return _houseCache.data;
+  } catch {
+    return _houseCache?.data ?? [];
+  }
+}
+
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+}
+
+export async function getCongressTrades(ticker: string): Promise<CongressTrade[]> {
+  const sym = ticker.toUpperCase().replace(/[^A-Z0-9.]/g, "");
+  if (!sym) return [];
+
+  const [senate, house] = await Promise.all([getSenate(), getHouse()]);
+
+  const senateRows = senate
+    .filter((r) => (r.ticker ?? "").toUpperCase() === sym)
+    .map((r): CongressTrade => ({
+      ticker:          sym,
+      representative:  r.senator ?? "Unknown",
+      party:           "",
+      chamber:         "Senate",
+      state:           r.state ?? "",
+      transaction:     capitalize(r.type ?? ""),
+      amount:          r.amount ?? "",
+      transactionDate: r.transaction_date ?? "",
+      reportDate:      r.disclosure_date ?? r.transaction_date ?? "",
+    }));
+
+  const houseRows = house
+    .filter((r) => (r.ticker ?? "").toUpperCase() === sym)
+    .map((r): CongressTrade => {
+      const state = r.district ? r.district.replace(/\d+$/, "").trim() : "";
+      return {
+        ticker:          sym,
+        representative:  r.representative ?? "Unknown",
+        party:           "",
+        chamber:         "House",
+        state,
+        transaction:     capitalize(r.type ?? ""),
+        amount:          r.amount ?? "",
+        transactionDate: r.transaction_date ?? "",
+        reportDate:      r.disclosure_date ?? r.transaction_date ?? "",
+      };
+    });
+
+  return [...senateRows, ...houseRows].sort((a, b) =>
+    new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+  );
+}
+
+// Kept for API compatibility
 export async function getRecentCongressTrades(): Promise<CongressTrade[]> {
   return [];
 }
