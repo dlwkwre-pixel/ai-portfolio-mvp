@@ -47,15 +47,6 @@ const tabs: Tab[] = [
     ),
   },
   {
-    id: "congress",
-    label: "Congress",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1h3a1 1 0 110 2h-.07l.87 8.694A1 1 0 0113.82 16H6.18a1 1 0 01-.996-1.098L6.07 6H6a1 1 0 010-2h3V3a1 1 0 011-1zM8.09 6l-.8 8h5.42l-.8-8H8.09z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
     id: "emails",
     label: "Emails",
     icon: (
