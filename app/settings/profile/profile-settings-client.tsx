@@ -16,28 +16,42 @@ const AVATAR_COLORS = [
   { color: "#6366f1", label: "Indigo" },
 ];
 
+const LEGAL_LINKS = [
+  { href: "/legal/terms", label: "Terms of Service" },
+  { href: "/legal/privacy", label: "Privacy Policy" },
+  { href: "/legal/ai-disclaimer", label: "AI Disclaimer" },
+  { href: "/legal/investment-disclaimer", label: "Investment Disclaimer" },
+  { href: "/legal/financial-planning-disclaimer", label: "Financial Planning Disclaimer" },
+];
+
 type ExistingProfile = {
   username: string;
   display_name: string | null;
   bio: string | null;
   avatar_color: string | null;
+  is_public: boolean;
 };
 
 export default function ProfileSettingsClient({
-  userId, email, existingProfile,
+  userId, email, isAdmin, followersCount, followingCount, existingProfile,
 }: {
   userId: string;
   email: string;
+  isAdmin: boolean;
+  followersCount: number;
+  followingCount: number;
   existingProfile: ExistingProfile | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
 
+  const [editing, setEditing] = useState(!existingProfile);
+
   const [username, setUsername] = useState(existingProfile?.username ?? "");
   const [displayName, setDisplayName] = useState(existingProfile?.display_name ?? "");
   const [bio, setBio] = useState(existingProfile?.bio ?? "");
   const [avatarColor, setAvatarColor] = useState(existingProfile?.avatar_color ?? "#2563eb");
-  const [isPublic, setIsPublic] = useState((existingProfile as any)?.is_public ?? true);
+  const [isPublic, setIsPublic] = useState(existingProfile?.is_public ?? true);
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(existingProfile ? true : null);
   const [saving, setSaving] = useState(false);
@@ -47,7 +61,6 @@ export default function ProfileSettingsClient({
   const isNew = !existingProfile;
   const initials = (displayName || username || email)[0]?.toUpperCase() ?? "?";
 
-  // Debounced username check
   useEffect(() => {
     if (!username || username.length < 3) { setAvailable(null); return; }
     if (username === existingProfile?.username) { setAvailable(true); return; }
@@ -95,206 +108,242 @@ export default function ProfileSettingsClient({
 
     setSuccess(true);
     setSaving(false);
+    setEditing(false);
     router.refresh();
   }
 
   return (
-    <div style={{ maxWidth: "560px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
-      {isNew && (
-        <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", padding: "12px 16px", fontSize: "13px", color: "var(--amber)" }}>
-          Set up your profile to appear in the Community and on public strategy pages.
+    <div style={{ maxWidth: "560px", display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* ── View mode ───────────────────────────────────────────────── */}
+      {!editing && existingProfile && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Profile card */}
+          <div className="bt-card" style={{ display: "flex", alignItems: "flex-start", gap: "20px" }}>
+            <div style={{
+              width: "72px", height: "72px", borderRadius: "50%", background: avatarColor, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "28px", fontWeight: 700, color: "#fff",
+              boxShadow: `0 0 28px ${avatarColor}55`,
+            }}>
+              {initials}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                <span style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {displayName || username}
+                </span>
+                <span style={{
+                  fontSize: "11px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px",
+                  background: isPublic ? "rgba(0,211,149,0.1)" : "rgba(100,116,139,0.12)",
+                  color: isPublic ? "var(--green)" : "var(--text-tertiary)",
+                  border: `1px solid ${isPublic ? "rgba(0,211,149,0.2)" : "rgba(100,116,139,0.18)"}`,
+                }}>
+                  {isPublic ? "Public" : "Private"}
+                </span>
+              </div>
+              <p style={{ fontSize: "13px", color: "var(--text-tertiary)", marginBottom: bio ? "8px" : "0" }}>
+                @{username}
+              </p>
+              {bio && (
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                  {bio}
+                </p>
+              )}
+              <div style={{ display: "flex", gap: "20px", marginTop: "12px" }}>
+                <div>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{followersCount}</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-tertiary)", marginLeft: "4px" }}>followers</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{followingCount}</span>
+                  <span style={{ fontSize: "12px", color: "var(--text-tertiary)", marginLeft: "4px" }}>following</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="bt-btn bt-btn-primary"
+              style={{ flex: 1 }}
+            >
+              Edit Profile
+            </button>
+            <Link href={`/${username}`} className="bt-btn bt-btn-ghost" style={{ flex: 1, textAlign: "center" }}>
+              View public page →
+            </Link>
+          </div>
         </div>
       )}
 
-      {/* Avatar preview */}
-      <div className="bt-card" style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-        <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", fontWeight: 700, color: "#fff", flexShrink: 0, boxShadow: `0 0 24px ${avatarColor}50`, transition: "all 0.2s" }}>
-          {initials}
-        </div>
-        <div>
-          <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary)", marginBottom: "4px" }}>
-            {displayName || username || "Your Name"}
-          </p>
-          <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
-            @{username || "username"}
-          </p>
-        </div>
-      </div>
-
-      {/* Color picker */}
-      <div className="bt-card">
-        <div className="label" style={{ marginBottom: "12px" }}>Avatar Color</div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {AVATAR_COLORS.map(({ color, label }) => (
-            <button
-              key={color}
-              type="button"
-              onClick={() => setAvatarColor(color)}
-              title={label}
-              style={{
-                width: "36px", height: "36px", borderRadius: "50%",
-                background: color, border: `3px solid ${avatarColor === color ? "#fff" : "transparent"}`,
-                cursor: "pointer", transition: "all 0.15s",
-                boxShadow: avatarColor === color ? `0 0 0 2px ${color}` : "none",
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <div className="bt-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Username */}
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
-              Username <span style={{ color: "var(--red)" }}>*</span>
-            </label>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-tertiary)" }}>@</span>
-              <input
-                type="text"
-                value={username}
-                onChange={e => handleUsernameChange(e.target.value)}
-                placeholder="your_username"
-                required minLength={3} maxLength={20}
-                className="bt-input"
-                style={{ paddingLeft: "28px" }}
-              />
-              <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "11px" }}>
-                {checking && <span style={{ color: "var(--text-muted)" }}>checking...</span>}
-                {!checking && username.length >= 3 && available === true && (
-                  <span style={{ color: "var(--green)", display: "flex", alignItems: "center", gap: "3px" }}>
-                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
-                    available
-                  </span>
-                )}
-                {!checking && available === false && <span style={{ color: "var(--red)" }}>taken</span>}
-              </div>
+      {/* ── Edit mode ───────────────────────────────────────────────── */}
+      {editing && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {isNew && (
+            <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", padding: "12px 16px", fontSize: "13px", color: "var(--amber)" }}>
+              Set up your profile to appear in the Community and on public strategy pages.
             </div>
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-              3–20 characters · lowercase, numbers, underscores only · public facing
-            </p>
-          </div>
-
-          {/* Display name */}
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
-              Display Name <span style={{ color: "var(--text-muted)" }}>(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              placeholder="Your full name or nickname"
-              maxLength={50}
-              className="bt-input"
-            />
-          </div>
-
-          {/* Bio */}
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
-              Bio <span style={{ color: "var(--text-muted)" }}>(optional)</span>
-            </label>
-            <textarea
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="e.g. Growth investor focused on small-cap breakouts"
-              maxLength={160}
-              rows={3}
-              className="bt-input"
-              style={{ resize: "none", lineHeight: 1.6 }}
-            />
-            <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", textAlign: "right" }}>
-              {bio.length}/160
-            </p>
-          </div>
-
-          {/* Profile visibility */}
-          <div>
-            <div className="label" style={{ marginBottom: "8px" }}>Profile Visibility</div>
-            <div
-              onClick={() => setIsPublic(!isPublic)}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "12px 14px", borderRadius: "var(--radius-md)", cursor: "pointer",
-                background: isPublic ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)",
-                border: `1px solid ${isPublic ? "rgba(0,211,149,0.2)" : "var(--border)"}`,
-                transition: "var(--transition-base)",
-              }}
-            >
-              <div>
-                <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>
-                  {isPublic ? "Public profile" : "Private profile"}
-                </p>
-                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>
-                  {isPublic ? "Anyone can find you and see your public strategies" : "Only you can see your profile — you won't appear in People search"}
-                </p>
-              </div>
-              {/* Toggle switch */}
-              <div style={{
-                width: "40px", height: "22px", borderRadius: "11px", flexShrink: 0,
-                background: isPublic ? "var(--green)" : "var(--card-border)",
-                position: "relative", transition: "background 0.2s",
-              }}>
-                <div style={{
-                  position: "absolute", top: "3px",
-                  left: isPublic ? "21px" : "3px",
-                  width: "16px", height: "16px", borderRadius: "50%",
-                  background: "#fff", transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                }} />
-              </div>
-            </div>
-          </div>
-
-          {/* Email (read only) */}
-          <div>
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
-              Email <span style={{ color: "var(--text-muted)" }}>(login only — never shown publicly)</span>
-            </label>
-            <input
-              type="email"
-              value={email}
-              disabled
-              className="bt-input"
-              style={{ opacity: 0.5, cursor: "not-allowed" }}
-            />
-          </div>
-        </div>
-
-        {error && (
-          <div style={{ background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: "13px", color: "var(--red)" }}>
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div style={{ background: "var(--green-bg)", border: "1px solid var(--green-border)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: "13px", color: "var(--green)" }}>
-            Profile saved! Your public page is at{" "}
-            <Link href={`/${username}`} style={{ color: "var(--green)", textDecoration: "underline" }}>
-              /@{username}
-            </Link>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            type="submit"
-            disabled={saving || !available || username.length < 3}
-            className="bt-btn bt-btn-primary"
-            style={{ flex: 1 }}
-          >
-            {saving ? "Saving..." : isNew ? "Create Profile" : "Save Changes"}
-          </button>
-          {!isNew && (
-            <Link href={`/${existingProfile.username}`} className="bt-btn bt-btn-ghost">
-              View Profile →
-            </Link>
           )}
+
+          {/* Avatar preview */}
+          <div className="bt-card" style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+            <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: avatarColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", fontWeight: 700, color: "#fff", flexShrink: 0, boxShadow: `0 0 24px ${avatarColor}50`, transition: "all 0.2s" }}>
+              {initials}
+            </div>
+            <div>
+              <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary)", marginBottom: "4px" }}>
+                {displayName || username || "Your Name"}
+              </p>
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>@{username || "username"}</p>
+            </div>
+          </div>
+
+          {/* Color picker */}
+          <div className="bt-card">
+            <div className="label" style={{ marginBottom: "12px" }}>Avatar Color</div>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              {AVATAR_COLORS.map(({ color, label }) => (
+                <button key={color} type="button" onClick={() => setAvatarColor(color)} title={label}
+                  style={{ width: "36px", height: "36px", borderRadius: "50%", background: color, border: `3px solid ${avatarColor === color ? "#fff" : "transparent"}`, cursor: "pointer", transition: "all 0.15s", boxShadow: avatarColor === color ? `0 0 0 2px ${color}` : "none" }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="bt-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {/* Username */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                  Username <span style={{ color: "var(--red)" }}>*</span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-tertiary)" }}>@</span>
+                  <input type="text" value={username} onChange={e => handleUsernameChange(e.target.value)}
+                    placeholder="your_username" required minLength={3} maxLength={20}
+                    className="bt-input" style={{ paddingLeft: "28px" }}
+                  />
+                  <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "11px" }}>
+                    {checking && <span style={{ color: "var(--text-muted)" }}>checking...</span>}
+                    {!checking && username.length >= 3 && available === true && (
+                      <span style={{ color: "var(--green)", display: "flex", alignItems: "center", gap: "3px" }}>
+                        <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
+                        available
+                      </span>
+                    )}
+                    {!checking && available === false && <span style={{ color: "var(--red)" }}>taken</span>}
+                  </div>
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  3–20 characters · lowercase, numbers, underscores only · public facing
+                </p>
+              </div>
+
+              {/* Display name */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                  Display Name <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+                </label>
+                <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                  placeholder="Your full name or nickname" maxLength={50} className="bt-input"
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                  Bio <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+                </label>
+                <textarea value={bio} onChange={e => setBio(e.target.value)}
+                  placeholder="e.g. Growth investor focused on small-cap breakouts"
+                  maxLength={160} rows={3} className="bt-input" style={{ resize: "none", lineHeight: 1.6 }}
+                />
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", textAlign: "right" }}>{bio.length}/160</p>
+              </div>
+
+              {/* Visibility */}
+              <div>
+                <div className="label" style={{ marginBottom: "8px" }}>Profile Visibility</div>
+                <div onClick={() => setIsPublic(!isPublic)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: "var(--radius-md)", cursor: "pointer", background: isPublic ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)", border: `1px solid ${isPublic ? "rgba(0,211,149,0.2)" : "var(--border)"}`, transition: "var(--transition-base)" }}
+                >
+                  <div>
+                    <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{isPublic ? "Public profile" : "Private profile"}</p>
+                    <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{isPublic ? "Anyone can find you and see your public strategies" : "Only you can see your profile"}</p>
+                  </div>
+                  <div style={{ width: "40px", height: "22px", borderRadius: "11px", flexShrink: 0, background: isPublic ? "var(--green)" : "var(--card-border)", position: "relative", transition: "background 0.2s" }}>
+                    <div style={{ position: "absolute", top: "3px", left: isPublic ? "21px" : "3px", width: "16px", height: "16px", borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "6px" }}>
+                  Email <span style={{ color: "var(--text-muted)" }}>(login only — never shown publicly)</span>
+                </label>
+                <input type="email" value={email} disabled className="bt-input" style={{ opacity: 0.5, cursor: "not-allowed" }} />
+              </div>
+            </div>
+
+            {error && (
+              <div style={{ background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: "13px", color: "var(--red)" }}>
+                {error}
+              </div>
+            )}
+            {success && (
+              <div style={{ background: "var(--green-bg)", border: "1px solid var(--green-border)", borderRadius: "var(--radius-md)", padding: "10px 14px", fontSize: "13px", color: "var(--green)" }}>
+                Profile saved!
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="submit" disabled={saving || !available || username.length < 3}
+                className="bt-btn bt-btn-primary" style={{ flex: 1 }}>
+                {saving ? "Saving..." : isNew ? "Create Profile" : "Save Changes"}
+              </button>
+              {!isNew && (
+                <button type="button" onClick={() => setEditing(false)} className="bt-btn bt-btn-ghost">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
         </div>
-      </form>
+      )}
+
+      {/* ── Platform / Legal section ─────────────────────────────────── */}
+      <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Platform</p>
+
+        {LEGAL_LINKS.map((link) => (
+          <Link key={link.href} href={link.href} target="_blank"
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", background: "transparent", border: "1px solid transparent", textDecoration: "none", transition: "all 0.15s", color: "var(--text-secondary)", fontSize: "13px" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+          >
+            <span>{link.label}</span>
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.4 }}><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+          </Link>
+        ))}
+
+        {isAdmin && (
+          <Link href="/admin/compliance"
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.15)", textDecoration: "none", color: "#60a5fa", fontSize: "13px", fontWeight: 500, marginTop: "4px", transition: "all 0.15s" }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+              Compliance Dashboard
+            </span>
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.5 }}><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

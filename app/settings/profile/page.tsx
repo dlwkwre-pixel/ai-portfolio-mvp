@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -17,6 +16,13 @@ export default async function ProfileSettingsPage() {
   const { data: allPortfolios } = await supabase
     .from("portfolios").select("id, name, cash_balance, account_type")
     .eq("user_id", user.id).eq("is_active", true);
+
+  const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+    supabase.from("user_follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
+    supabase.from("user_follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
+  ]);
+
+  const isAdmin = !!(process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL);
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
@@ -39,22 +45,16 @@ export default async function ProfileSettingsPage() {
               Settings
             </h1>
             <div style={{ display: "flex", gap: "4px" }}>
-              <Link href="/settings/profile" style={{
+              <a href="/settings/profile" style={{
                 padding: "5px 12px", borderRadius: "6px", fontSize: "13px", fontWeight: 500,
                 color: "var(--text-primary)", textDecoration: "none",
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border-subtle)",
-              }}>
-                Profile
-              </Link>
-              <Link href="/settings/emails" style={{
+                background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+              }}>Profile</a>
+              <a href="/settings/emails" style={{
                 padding: "5px 12px", borderRadius: "6px", fontSize: "13px", fontWeight: 500,
                 color: "var(--text-secondary)", textDecoration: "none",
-                background: "transparent",
-                transition: "all 0.15s",
-              }}>
-                Emails
-              </Link>
+                background: "transparent", transition: "all 0.15s",
+              }}>Emails</a>
             </div>
           </div>
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
@@ -62,11 +62,15 @@ export default async function ProfileSettingsPage() {
               <ProfileSettingsClient
                 userId={user.id}
                 email={user.email ?? ""}
+                isAdmin={isAdmin}
+                followersCount={followersCount ?? 0}
+                followingCount={followingCount ?? 0}
                 existingProfile={profile ? {
                   username: profile.username,
                   display_name: profile.display_name,
                   bio: profile.bio,
                   avatar_color: profile.avatar_color,
+                  is_public: (profile as Record<string, unknown>).is_public as boolean ?? true,
                 } : null}
               />
               <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "28px" }}>
