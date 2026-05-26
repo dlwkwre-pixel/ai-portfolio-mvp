@@ -166,6 +166,17 @@ export default function Sidebar({
       flexDirection: "column",
       fontFamily: "var(--font-body)",
     }}>
+      <style>{`
+        .sb-nav-link { transition: background 0.13s ease, color 0.13s ease; }
+        .sb-nav-link:hover:not(.sb-nav-link--active) {
+          background: rgba(255,255,255,0.04) !important;
+          color: var(--text-secondary) !important;
+        }
+        .sb-nav-link:hover:not(.sb-nav-link--active) span { opacity: 0.85 !important; }
+        .sb-user-row { transition: background 0.13s ease; border-radius: 8px; }
+        .sb-user-row:hover { background: rgba(255,255,255,0.05) !important; }
+        .sb-signout:hover { background: rgba(255,255,255,0.04) !important; color: var(--text-secondary) !important; }
+      `}</style>
 
       {/* Logo */}
       <div style={{
@@ -242,6 +253,7 @@ export default function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -254,7 +266,6 @@ export default function Sidebar({
                 background: isActive ? "var(--nav-active-bg)" : "transparent",
                 border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
                 textDecoration: "none",
-                transition: "var(--transition-base)",
               }}
             >
               <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
@@ -332,6 +343,7 @@ export default function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -344,7 +356,6 @@ export default function Sidebar({
                 background: isActive ? "var(--nav-active-bg)" : "transparent",
                 border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
                 textDecoration: "none",
-                transition: "var(--transition-base)",
               }}
             >
               <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
@@ -367,16 +378,14 @@ export default function Sidebar({
       }}>
         {/* User row */}
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <Link href="/settings/profile" style={{
+          <Link href="/settings/profile" className="sb-user-row" style={{
             flex: 1,
             minWidth: 0,
             display: "flex",
             alignItems: "center",
             gap: "8px",
             padding: "7px 10px",
-            borderRadius: "8px",
             textDecoration: "none",
-            transition: "var(--transition-fast)",
           }}>
             {/* Avatar */}
             <div style={{
@@ -398,7 +407,7 @@ export default function Sidebar({
               <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {username}
               </div>
-              <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Edit profile</div>
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Profile &amp; settings</div>
             </div>
           </Link>
           <ThemeToggle />
@@ -409,6 +418,7 @@ export default function Sidebar({
           type="button"
           onClick={handleSignOut}
           disabled={signingOut}
+          className="sb-signout"
           style={{
             width: "100%",
             padding: "7px 10px",
@@ -420,11 +430,11 @@ export default function Sidebar({
             cursor: "pointer",
             fontFamily: "var(--font-body)",
             textAlign: "left",
-            transition: "var(--transition-fast)",
             display: "flex",
             alignItems: "center",
             gap: "8px",
             opacity: signingOut ? 0.6 : 1,
+            transition: "background 0.13s ease, color 0.13s ease",
           }}
         >
           <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)" }}>

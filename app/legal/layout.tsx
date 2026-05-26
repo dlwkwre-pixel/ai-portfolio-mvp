@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { createClient } from "@/lib/supabase/server";
 
 const LEGAL_PAGES = [
   { href: "/legal/terms", label: "Terms of Service" },
@@ -9,7 +10,12 @@ const LEGAL_PAGES = [
   { href: "/legal/financial-planning-disclaimer", label: "Financial Planning" },
 ];
 
-export default function LegalLayout({ children }: { children: ReactNode }) {
+export default async function LegalLayout({ children }: { children: ReactNode }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const backHref = user ? "/settings/profile" : "/";
+  const backLabel = user ? "Back to app" : "Back to BuyTune";
+
   return (
     <div style={{ minHeight: "100vh", background: "#07090f", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
@@ -43,10 +49,13 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>
           </span>
         </Link>
-        <div style={{ display: "flex", gap: "2px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "2px", flexWrap: "wrap" }}>
           {LEGAL_PAGES.map((p) => (
             <Link key={p.href} href={p.href} className="legal-nav-link">{p.label}</Link>
           ))}
+          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#60a5fa", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px" }}>
+            {backLabel} →
+          </Link>
         </div>
       </div>
 
@@ -72,7 +81,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
         © 2026 BuyTune. All rights reserved. &nbsp;·&nbsp;
         <Link href="/legal/terms" className="legal-link" style={{ color: "#475569" }}>Terms</Link> &nbsp;·&nbsp;
         <Link href="/legal/privacy" className="legal-link" style={{ color: "#475569" }}>Privacy</Link> &nbsp;·&nbsp;
-        <Link href="/dashboard" style={{ color: "#475569", textDecoration: "none" }}>Back to App</Link>
+        <Link href={backHref} style={{ color: "#475569", textDecoration: "none" }}>{backLabel}</Link>
       </div>
     </div>
   );
