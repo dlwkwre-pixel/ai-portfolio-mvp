@@ -363,7 +363,7 @@ export default async function PortfolioReportPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/");
+  if (!user) redirect(`/login?next=/portfolios/${id}/report`);
 
   const [
     { data: portfolio },
