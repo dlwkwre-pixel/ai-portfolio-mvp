@@ -420,7 +420,7 @@ export default function LandingPage() {
               },
               {
                 title:"Strategy Rules Engine",
-                desc:"Define position size caps, sector allocation limits, and holding criteria. Every AI recommendation is checked against your rules before it surfaces — no generic advice.",
+                desc:"Define position size caps, sector allocation limits, and holding criteria. Every AI analysis is filtered through your rules before it surfaces — no one-size-fits-all output.",
                 bg:"rgba(37,99,235,0.1)",
                 icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#3b82f6"><path fillRule="evenodd" d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zm0 4a1 1 0 000 2h7a1 1 0 100-2H3zm0 4a1 1 0 100 2h4a1 1 0 100-2H3z" clipRule="evenodd"/></svg>,
               },
@@ -764,8 +764,10 @@ export default function LandingPage() {
         </div>
         <span>© 2026 BuyTune. All rights reserved.</span>
         <div style={{display:"flex",gap:"20px"}}>
-          <a href="#">Privacy</a>
-          <a href="#">Terms</a>
+          <a href="/legal/privacy">Privacy</a>
+          <a href="/legal/terms">Terms</a>
+          <a href="/legal/ai-disclaimer">AI Disclaimer</a>
+          <a href="/legal/investment-disclaimer">Investment Disclaimer</a>
         </div>
       </footer>
     </>
