@@ -89,6 +89,8 @@ async function fetchEarnings(tickers: string[], from: string, to: string): Promi
   return results;
 }
 
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -190,7 +192,7 @@ export async function GET(request: Request) {
       if (pref.include_holdings) {
         const { data: rawHoldings } = await adminSupabase
           .from("holdings")
-          .select("ticker, company_name, shares, avg_cost")
+          .select("ticker, company_name, shares, average_cost_basis")
           .eq("portfolio_id", pref.portfolio_id)
           .order("ticker");
         if (rawHoldings && rawHoldings.length > 0) {
@@ -200,7 +202,7 @@ export async function GET(request: Request) {
             const batch = rawHoldings.slice(i, i + BATCH);
             await Promise.all(batch.map(async (h) => {
               const q = await getFinnhubQuote(h.ticker);
-              quotes[h.ticker] = q?.c ?? (Number(h.avg_cost) || 0);
+              quotes[h.ticker] = q?.c ?? (Number(h.average_cost_basis) || 0);
             }));
             if (i + BATCH < rawHoldings.length) await new Promise(r => setTimeout(r, 300));
           }

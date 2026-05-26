@@ -7,6 +7,8 @@ import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 
+export const maxDuration = 60;
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytuneio.vercel.app";
 
 function makeUnsubToken(userId: string, portfolioId: string): string {
@@ -123,7 +125,7 @@ export async function POST(request: Request) {
   if (include_holdings) {
     const { data: rawHoldings } = await adminSupabase
       .from("holdings")
-      .select("ticker, company_name, shares, avg_cost")
+      .select("ticker, company_name, shares, average_cost_basis")
       .eq("portfolio_id", portfolioId)
       .order("ticker");
     if (rawHoldings && rawHoldings.length > 0) {
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
         const batch = rawHoldings.slice(i, i + BATCH);
         await Promise.all(batch.map(async (h) => {
           const q = await getFinnhubQuote(h.ticker);
-          quotes[h.ticker] = q?.c ?? (Number(h.avg_cost) || 0);
+          quotes[h.ticker] = q?.c ?? (Number(h.average_cost_basis) || 0);
         }));
         if (i + BATCH < rawHoldings.length) await new Promise(r => setTimeout(r, 300));
       }
