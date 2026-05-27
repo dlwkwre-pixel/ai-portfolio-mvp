@@ -837,25 +837,37 @@ export default function HomeClient({
   const [showAmortModal, setShowAmortModal] = useState(false);
 
   function exportAmortToCSV() {
-    const header = [
-      `BuyTune Home Planning Export`,
-      `Scenario: ${inputs.name}`,
-      `Generated: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-      `Purchase Price: ${fmt(inputs.purchase_price)} | Rate: ${inputs.mortgage_rate}% | Term: ${inputs.loan_term_years} yrs | Down: ${fmt(inputs.down_payment)}`,
-      ``,
-    ].join("\n");
-    const cols = ["Year", "Loan Balance", "Principal Paid", "Interest Paid", "Total Interest Paid", "Home Value (Est.)", "Equity", "Equity %"];
-    const rows = computed.amortization.map((r) => [
-      r.year,
-      r.balance < 100 ? 0 : Math.round(r.balance),
-      r.year === 0 ? 0 : Math.round(r.annualPrincipal),
-      r.year === 0 ? 0 : Math.round(r.annualInterest),
-      Math.round(r.cumulativeInterest),
-      Math.round(r.homeValue),
-      Math.round(r.equity),
-      `${r.equityPct.toFixed(1)}%`,
-    ].join(",")).join("\n");
-    const csv = header + cols.join(",") + "\n" + rows;
+    const numCols = 9;
+    const pad = ",".repeat(numCols - 1);
+    const q = (s: string) => `"${s}"`;
+    const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const lines: string[] = [
+      q("BuyTune — Home Planning Amortization Schedule") + pad,
+      q(`Scenario: ${inputs.name}`) + pad,
+      q(`Generated: ${dateStr}`) + pad,
+      q(`Purchase Price: $${Math.round(inputs.purchase_price).toLocaleString()}`) + pad,
+      q(`Interest Rate: ${inputs.mortgage_rate}%  |  Term: ${inputs.loan_term_years} years  |  Down Payment: $${Math.round(inputs.down_payment).toLocaleString()}`) + pad,
+      q(`Monthly Payment (P&I): $${computed.amortStats.monthlyPayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}  |  Total Interest: $${Math.round(computed.amortStats.totalInterest).toLocaleString()}`) + pad,
+      pad, // blank row
+      ["Year", "Loan Balance ($)", "Principal Paid ($)", "Interest Paid ($)", "Cumul. Interest ($)", "Est. Home Value ($)", "Equity ($)", "Equity (decimal)", "Note"].join(","),
+    ];
+    for (const r of computed.amortization) {
+      const note = r.year === inputs.hold_years ? "Planned Hold Year" : r.isCrossover ? "Principal > Interest (crossover)" : "";
+      lines.push([
+        r.year,
+        r.balance < 100 ? 0 : Math.round(r.balance),
+        r.year === 0 ? 0 : Math.round(r.annualPrincipal),
+        r.year === 0 ? 0 : Math.round(r.annualInterest),
+        Math.round(r.cumulativeInterest),
+        Math.round(r.homeValue),
+        Math.round(r.equity),
+        (r.equityPct / 100).toFixed(4),
+        note ? q(note) : "",
+      ].join(","));
+    }
+    // UTF-8 BOM so Excel opens with correct encoding and number detection
+    const bom = "﻿";
+    const csv = bom + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2625,38 +2637,65 @@ export default function HomeClient({
         .amort-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(4,13,26,0.88);
-          backdrop-filter: blur(6px);
+          background: rgba(2,8,18,0.92);
+          backdrop-filter: blur(8px);
           z-index: 999;
           display: flex;
           align-items: flex-start;
           justify-content: center;
-          padding: 24px 16px;
+          padding: 32px 16px 40px;
           overflow-y: auto;
         }
         .amort-modal {
-          background: #091525;
-          border: 1px solid rgba(59,130,246,0.2);
-          border-radius: 16px;
+          background: #060f1e;
+          border: 1px solid rgba(59,130,246,0.18);
+          border-radius: 18px;
           width: 100%;
-          max-width: 900px;
-          box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+          max-width: 980px;
+          box-shadow: 0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(59,130,246,0.06) inset;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
         }
         .amort-modal-head {
-          background: linear-gradient(135deg, #0d1f3c 0%, #091525 100%);
-          border-bottom: 1px solid rgba(59,130,246,0.15);
+          background: linear-gradient(160deg, #0a1628 0%, #060f1e 100%);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
           padding: 18px 22px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
+          gap: 16px;
+          flex-wrap: wrap;
         }
-        .amort-modal table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .amort-modal thead th { padding: 9px 12px; text-align: right; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; border-bottom: 1px solid rgba(59,130,246,0.12); background: #091525; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
-        .amort-modal tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
-        .amort-modal tbody tr:hover { background: rgba(59,130,246,0.05) !important; }
-        .amort-modal tbody td { padding: 8px 12px; text-align: right; font-family: var(--font-mono, monospace); }
+        .amort-modal-body { overflow-y: auto; max-height: 58vh; }
+        .amort-modal-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .amort-modal-table thead th {
+          padding: 9px 12px 10px;
+          text-align: right;
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          color: #334155;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: #060f1e;
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          white-space: nowrap;
+        }
+        .amort-modal-table tbody tr {
+          border-bottom: 1px solid rgba(255,255,255,0.03);
+          transition: background 0.1s;
+        }
+        .amort-modal-table tbody tr:hover { background: rgba(59,130,246,0.07) !important; }
+        .amort-modal-table tbody td {
+          padding: 7px 12px;
+          text-align: right;
+          font-family: var(--font-mono, monospace);
+          font-size: 12px;
+          color: #64748b;
+        }
         @media (max-width: 768px) {
           [data-home-grid] { grid-template-columns: 1fr !important; }
         }
@@ -2666,71 +2705,111 @@ export default function HomeClient({
       {showAmortModal && (
         <div className="amort-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowAmortModal(false); }}>
           <div className="amort-modal">
+
+            {/* Header */}
             <div className="amort-modal-head">
-              <div>
-                <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#475569", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>BuyTune · Amortization Schedule</div>
-                <div style={{ fontSize: "15px", fontWeight: 700, color: "#e2e8f0", fontFamily: "var(--font-display)" }}>{inputs.name}</div>
-                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", fontFamily: "var(--font-body)" }}>
-                  {fmt(inputs.purchase_price)} · {inputs.mortgage_rate}% rate · {inputs.loan_term_years} yr term · {fmt(inputs.down_payment)} down
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#60a5fa" strokeWidth="1.6"><path d="M3 3h14v14H3zM3 7h14M7 7v10M11 7v10" strokeLinecap="round"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#3b82f6", fontFamily: "var(--font-mono)", marginBottom: "2px" }}>Amortization Schedule</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "#f1f5f9", fontFamily: "var(--font-display)", letterSpacing: "-0.3px" }}>{inputs.name}</div>
                 </div>
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "28px", marginRight: "12px" }}>
+                {[
+                  { label: "Purchase Price", value: fmt(inputs.purchase_price) },
+                  { label: "Rate / Term", value: `${inputs.mortgage_rate}% · ${inputs.loan_term_years} yr` },
+                  { label: "Down Payment", value: fmt(inputs.down_payment) },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "#94a3b8", marginTop: "1px" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={exportAmortToCSV}
-                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "12px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Export CSV
+                <button onClick={exportAmortToCSV} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(59,130,246,0.28)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Export to Excel
                 </button>
-                <button
-                  onClick={() => setShowAmortModal(false)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#94a3b8", fontSize: "16px", cursor: "pointer", fontFamily: "var(--font-body)", lineHeight: 1 }}
-                >
+                <button onClick={() => setShowAmortModal(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#64748b", fontSize: "18px", cursor: "pointer", transition: "color 0.15s, background 0.15s" }}>
                   ×
                 </button>
               </div>
             </div>
 
-            {/* Summary stats row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1px", background: "rgba(59,130,246,0.12)", borderBottom: "1px solid rgba(59,130,246,0.12)" }}>
+            {/* Stats bar */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
               {[
-                { label: "Monthly Payment (P&I)", value: fmt(computed.amortStats.monthlyPayment) },
-                { label: "Total Interest", value: fmtK(computed.amortStats.totalInterest), muted: true },
-                { label: "Interest Flip", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", blue: true },
-                { label: "50% Equity", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", green: true },
-              ].map(({ label, value, muted, blue, green }) => (
-                <div key={label} style={{ padding: "12px 16px", background: "#091525" }}>
-                  <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: muted ? "oklch(0.68 0.18 25)" : blue ? "#3b82f6" : green ? "#00d395" : "#e2e8f0" }}>{value}</div>
+                { label: "Monthly P&I", value: fmt(computed.amortStats.monthlyPayment), sub: "principal + interest", accent: "#e2e8f0" },
+                { label: "Total Interest Cost", value: fmtK(computed.amortStats.totalInterest), sub: "over full loan term", accent: "oklch(0.68 0.18 25)" },
+                { label: "Crossover Year", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", sub: "principal beats interest", accent: "#3b82f6" },
+                { label: "50% Equity Reached", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", sub: "halfway paid off", accent: "#00d395" },
+              ].map(({ label, value, sub, accent }, i) => (
+                <div key={label} style={{ padding: "14px 18px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined }}>
+                  <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: "10px", color: "#334155", marginTop: "3px", fontFamily: "var(--font-body)" }}>{sub}</div>
                 </div>
               ))}
             </div>
 
-            {/* Full table */}
-            <div style={{ overflowY: "auto", maxHeight: "60vh", padding: "0 0 8px" }}>
-              <table>
+            {/* Table */}
+            <div className="amort-modal-body">
+              <table className="amort-modal-table">
+                <colgroup>
+                  <col style={{ width: "56px" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "9%" }} />
+                </colgroup>
                 <thead>
                   <tr>
-                    {["Yr", "Balance", "Principal Paid", "Interest Paid", "Cumulative Interest", "Est. Home Value", "Equity", "Equity %"].map((h) => (
-                      <th key={h}>{h}</th>
-                    ))}
+                    <th style={{ textAlign: "left", paddingLeft: "20px" }}>Year</th>
+                    <th>Loan Balance</th>
+                    <th>Principal</th>
+                    <th>Interest</th>
+                    <th>Total Interest</th>
+                    <th>Home Value</th>
+                    <th>Equity</th>
+                    <th>Equity %</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {computed.amortization.map((row) => {
+                  {computed.amortization.map((row, idx) => {
                     const isHoldYear = row.year === inputs.hold_years;
                     const isCrossover = row.isCrossover;
+                    const isEven = idx % 2 === 0;
+                    const rowBg = isHoldYear
+                      ? "rgba(59,130,246,0.09)"
+                      : isCrossover
+                      ? "rgba(0,211,149,0.06)"
+                      : isEven ? "rgba(255,255,255,0.01)" : "transparent";
                     return (
-                      <tr key={row.year} style={{ background: isHoldYear ? "color-mix(in oklch, #3b82f6 8%, transparent)" : isCrossover ? "color-mix(in oklch, #00d395 5%, transparent)" : undefined }}>
-                        <td style={{ color: isHoldYear ? "#3b82f6" : "#64748b", textAlign: "left", paddingLeft: "16px", fontWeight: isHoldYear ? 700 : 400 }}>{row.year}{isHoldYear ? " ★" : ""}</td>
-                        <td style={{ color: "#94a3b8" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
-                        <td style={{ color: "#3b82f6" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
-                        <td style={{ color: "oklch(0.70 0.15 25)" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
-                        <td style={{ color: "#64748b" }}>{fmtK(row.cumulativeInterest)}</td>
-                        <td style={{ color: "#94a3b8" }}>{fmtK(row.homeValue)}</td>
+                      <tr key={row.year} style={{ background: rowBg, borderLeft: isHoldYear ? "3px solid #3b82f6" : isCrossover ? "3px solid rgba(0,211,149,0.4)" : "3px solid transparent" }}>
+                        <td style={{ textAlign: "left", paddingLeft: "17px", color: isHoldYear ? "#60a5fa" : "#475569", fontWeight: isHoldYear ? 700 : 400 }}>
+                          {row.year}{isHoldYear ? " ★" : ""}
+                        </td>
+                        <td style={{ color: "#64748b" }}>{row.balance < 100 ? <span style={{ color: "#1e3a5f" }}>Paid off</span> : fmtK(row.balance)}</td>
+                        <td style={{ color: "#3b82f6" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualPrincipal)}</td>
+                        <td style={{ color: "oklch(0.68 0.16 25)" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualInterest)}</td>
+                        <td style={{ color: "#475569" }}>{fmtK(row.cumulativeInterest)}</td>
+                        <td style={{ color: "#64748b" }}>{fmtK(row.homeValue)}</td>
                         <td style={{ color: "#00d395", fontWeight: 600 }}>{fmtK(row.equity)}</td>
-                        <td style={{ fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "#64748b" }}>
-                          {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
+                        <td>
+                          <span style={{
+                            display: "inline-block", padding: "1px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                            background: row.equityPct >= 50 ? "rgba(0,211,149,0.1)" : row.equityPct >= 20 ? "rgba(59,130,246,0.1)" : "rgba(148,163,184,0.06)",
+                            color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#60a5fa" : "#475569",
+                          }}>
+                            {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -2738,10 +2817,19 @@ export default function HomeClient({
                 </tbody>
               </table>
             </div>
-            <div style={{ padding: "10px 16px 14px", borderTop: "1px solid rgba(59,130,246,0.1)" }}>
-              <p style={{ fontSize: "10px", color: "#475569", margin: 0, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-                ★ = planned hold year. Blue rows = principal paid exceeds interest (loan working more for you). Green = 20%+ equity milestones.
-              </p>
+
+            {/* Footer */}
+            <div style={{ padding: "10px 20px 14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+              {[
+                { dot: "#3b82f6", text: "★ = your planned hold year" },
+                { dot: "rgba(0,211,149,0.5)", text: "Green border = crossover (principal > interest)" },
+                { dot: "#00d395", text: "Equity % turns green at 50%+" },
+              ].map(({ dot, text }) => (
+                <div key={text} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: dot, flexShrink: 0 }} />
+                  <span style={{ fontSize: "10px", color: "#334155", fontFamily: "var(--font-body)" }}>{text}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
