@@ -1311,7 +1311,7 @@ export default function HomeClient({
         <div data-home-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
 
           {/* ── LEFT: Inputs ── */}
-          <div data-home-sticky style={{ display: "flex", flexDirection: "column", gap: "14px", position: "sticky", top: "49px", maxHeight: "calc(100vh - 49px)", overflowY: "auto", paddingBottom: "24px", scrollbarWidth: "none" }}>
+          <div data-home-sticky style={{ display: "flex", flexDirection: "column", gap: "14px", paddingBottom: "24px" }}>
 
             {/* Scenario name */}
             <div>
@@ -1523,6 +1523,136 @@ export default function HomeClient({
                   <input type="number" min="1" max="30" value={inputs.hold_years} onChange={num("hold_years")} style={inputS} />
                 </div>
               </div>
+            </div>
+
+            {/* ── SECTION: ANALYSIS ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Analysis</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
+            {/* Financial Resilience (Stress Test) */}
+            {computed.stressTests && (() => {
+              const tests = computed.stressTests;
+              const avgScore = Math.round(tests.reduce((s, t) => s + t.score, 0) / tests.length);
+              const levelColors = {
+                Mild:     { score: tests[0].score, color: tests[0].score >= 7 ? "oklch(0.70 0.18 155)" : tests[0].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+                Moderate: { score: tests[1].score, color: tests[1].score >= 7 ? "oklch(0.70 0.18 155)" : tests[1].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+                Severe:   { score: tests[2].score, color: tests[2].score >= 7 ? "oklch(0.70 0.18 155)" : tests[2].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+              };
+              return (
+                <div style={cardS}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Financial Resilience</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Avg</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: avgScore >= 7 ? "oklch(0.70 0.18 155)" : avgScore >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>{avgScore}/10</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {tests.map((t) => {
+                      const { color } = levelColors[t.level];
+                      const pct10 = (t.score / 10) * 100;
+                      return (
+                        <div key={t.level}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                            <div>
+                              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{t.level} Stress</span>
+                              <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "6px" }}>{t.scenario}</span>
+                            </div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color }}>{t.score}/10</span>
+                          </div>
+                          <div style={{ height: "5px", borderRadius: "2.5px", background: "var(--border-subtle)", overflow: "hidden", marginBottom: "4px" }}>
+                            <div style={{ height: "100%", width: `${pct10}%`, borderRadius: "2.5px", background: color, transition: "width 0.4s ease" }} />
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.4 }}>{t.detail}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
+                    Based on estimated 6-month emergency reserve from savings rate. Add monthly expenses to planning profile for precision.
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* The Case For Each Path */}
+            {(computed.buyingAdvantages.length > 0 || computed.rentingAdvantages.length > 0) && (
+              <div style={cardS}>
+                <p style={sectionHead}>The Case For Each Path</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", marginBottom: "8px" }}>Buying Wins If</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {computed.buyingAdvantages.length > 0 ? computed.buyingAdvantages.slice(0, 4).map((adv, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: "oklch(0.70 0.18 155)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>✓</span>{adv}
+                        </div>
+                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No buying advantages at current inputs</div>}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>Renting Wins If</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {computed.rentingAdvantages.length > 0 ? computed.rentingAdvantages.slice(0, 4).map((adv, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: "var(--text-muted)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>•</span>{adv}
+                        </div>
+                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No renting advantages at current inputs</div>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Link to Financial Plan */}
+            <div style={cardS}>
+              <p style={sectionHead}>Link to Financial Plan</p>
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
+              </p>
+              {applyStatus === "done" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Added to your forecast. View in Planning &gt; Life Events.
+                  </div>
+                  <button type="button" onClick={() => setApplyStatus("idle")} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)", textAlign: "left" }}>
+                    Update with current inputs
+                  </button>
+                </div>
+              ) : applyStatus === "error" ? (
+                <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={applyStatus === "applying" || !computed.lastPoint}
+                  onClick={async () => {
+                    if (!computed.lastPoint) return;
+                    setApplyStatus("applying");
+                    const currentYear = new Date().getFullYear();
+                    const fdDown = new FormData();
+                    fdDown.set("label", `Down payment: ${inputs.name}`);
+                    fdDown.set("event_year", String(currentYear));
+                    fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
+                    fdDown.set("category", "home_purchase");
+                    const fdEquity = new FormData();
+                    fdEquity.set("label", `Home equity sale: ${inputs.name}`);
+                    fdEquity.set("event_year", String(currentYear + inputs.hold_years));
+                    fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
+                    fdEquity.set("category", "home_sale");
+                    const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
+                    if (r1.error || r2.error) { setApplyStatus("error"); return; }
+                    setApplyStatus("done");
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
+                  {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
+                </button>
+              )}
             </div>
 
           </div>
@@ -1907,52 +2037,6 @@ export default function HomeClient({
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
-            {/* Financial Resilience (Stress Test) */}
-            {computed.stressTests && (() => {
-              const tests = computed.stressTests;
-              const avgScore = Math.round(tests.reduce((s, t) => s + t.score, 0) / tests.length);
-              const levelColors = {
-                Mild:     { score: tests[0].score, color: tests[0].score >= 7 ? "oklch(0.70 0.18 155)" : tests[0].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
-                Moderate: { score: tests[1].score, color: tests[1].score >= 7 ? "oklch(0.70 0.18 155)" : tests[1].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
-                Severe:   { score: tests[2].score, color: tests[2].score >= 7 ? "oklch(0.70 0.18 155)" : tests[2].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
-              };
-              return (
-                <div style={cardS}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                    <p style={{ ...sectionHead, margin: 0 }}>Financial Resilience</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Avg</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: avgScore >= 7 ? "oklch(0.70 0.18 155)" : avgScore >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>{avgScore}/10</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {tests.map((t) => {
-                      const { color } = levelColors[t.level];
-                      const pct10 = (t.score / 10) * 100;
-                      return (
-                        <div key={t.level}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
-                            <div>
-                              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{t.level} Stress</span>
-                              <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "6px" }}>{t.scenario}</span>
-                            </div>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color }}>{t.score}/10</span>
-                          </div>
-                          <div style={{ height: "5px", borderRadius: "2.5px", background: "var(--border-subtle)", overflow: "hidden", marginBottom: "4px" }}>
-                            <div style={{ height: "100%", width: `${pct10}%`, borderRadius: "2.5px", background: color, transition: "width 0.4s ease" }} />
-                          </div>
-                          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.4 }}>{t.detail}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
-                    Based on estimated 6-month emergency reserve from savings rate. Add monthly expenses to planning profile for precision.
-                  </p>
-                </div>
-              );
-            })()}
-
             {/* Monthly cost breakdown */}
             <div style={cardS}>
               <p style={sectionHead}>Monthly Cost Breakdown</p>
@@ -2164,35 +2248,6 @@ export default function HomeClient({
               </div>
             )}
 
-            {/* The Case For Each Path */}
-            {(computed.buyingAdvantages.length > 0 || computed.rentingAdvantages.length > 0) && (
-              <div style={cardS}>
-                <p style={sectionHead}>The Case For Each Path</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  <div>
-                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", marginBottom: "8px" }}>Buying Wins If</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {computed.buyingAdvantages.length > 0 ? computed.buyingAdvantages.slice(0, 4).map((adv, i) => (
-                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                          <span style={{ color: "oklch(0.70 0.18 155)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>✓</span>{adv}
-                        </div>
-                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No buying advantages at current inputs</div>}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>Renting Wins If</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {computed.rentingAdvantages.length > 0 ? computed.rentingAdvantages.slice(0, 4).map((adv, i) => (
-                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                          <span style={{ color: "var(--text-muted)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>•</span>{adv}
-                        </div>
-                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No renting advantages at current inputs</div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* ── SECTION: INTELLIGENCE ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
@@ -2397,49 +2452,6 @@ export default function HomeClient({
                 )}
               </div>
             )}
-
-            {/* Add to financial plan */}
-            <div style={cardS}>
-              <p style={sectionHead}>Link to Financial Plan</p>
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
-              </p>
-              {applyStatus === "done" ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
-                  <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Added to your forecast. View in Planning &gt; Life Events.
-                </div>
-              ) : applyStatus === "error" ? (
-                <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={applyStatus === "applying" || !computed.lastPoint}
-                  onClick={async () => {
-                    if (!computed.lastPoint) return;
-                    setApplyStatus("applying");
-                    const currentYear = new Date().getFullYear();
-                    const fdDown = new FormData();
-                    fdDown.set("label", `Down payment: ${inputs.name}`);
-                    fdDown.set("event_year", String(currentYear));
-                    fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
-                    fdDown.set("category", "home_purchase");
-                    const fdEquity = new FormData();
-                    fdEquity.set("label", `Home equity sale: ${inputs.name}`);
-                    fdEquity.set("event_year", String(currentYear + inputs.hold_years));
-                    fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
-                    fdEquity.set("category", "home_sale");
-                    const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
-                    if (r1.error || r2.error) { setApplyStatus("error"); return; }
-                    setApplyStatus("done");
-                  }}
-                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
-                  {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
-                </button>
-              )}
-            </div>
 
           </div>
         </div>
