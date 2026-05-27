@@ -437,13 +437,15 @@ function InfoTooltip({ text }: { text: string }) {
 }
 
 function NetWorthHistoryCard({
-  history, currentNW, currentAssets, currentLiabilities,
+  history, currentNW, currentAssets, currentLiabilities, isPrivate,
 }: {
   history: NetWorthSnapshot[];
   currentNW: number;
   currentAssets: number;
   currentLiabilities: number;
+  isPrivate?: boolean;
 }) {
+  const hide = isPrivate ? "••••••" : null;
   const today = new Date().toISOString().split("T")[0];
   const allPoints: { date: string; net_worth: number }[] = [
     ...history
@@ -472,18 +474,18 @@ function NetWorthHistoryCard({
         <div>
           <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Net Worth</div>
           <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "30px", color: currentNW >= 0 ? "var(--text-primary)" : "var(--red)", lineHeight: 1.1 }}>
-            {fmt(currentNW)}
+            {hide ?? fmt(currentNW)}
           </div>
           {change != null && (
             <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: isUp ? "var(--green)" : "var(--red)", marginTop: "4px" }}>
-              {isUp ? "▲" : "▼"} {isUp ? "+" : ""}{fmt(change)} since {fmtDate(first.date)}
+              {isUp ? "▲" : "▼"} {hide ?? (isUp ? "+" : "") + fmt(change)} {hide ? "" : `since ${fmtDate(first.date)}`}
             </div>
           )}
         </div>
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
           {[
-            { label: "Total Assets", value: fmt(currentAssets), color: "var(--green)" },
-            { label: "Total Liabilities", value: fmt(currentLiabilities), color: currentLiabilities > 0 ? "var(--red)" : "var(--text-secondary)" },
+            { label: "Total Assets",      value: hide ?? fmt(currentAssets),      color: "var(--green)" },
+            { label: "Total Liabilities", value: hide ?? fmt(currentLiabilities), color: currentLiabilities > 0 ? "var(--red)" : "var(--text-secondary)" },
           ].map(({ label, value, color }) => (
             <div key={label}>
               <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{label}</div>
@@ -505,14 +507,14 @@ function NetWorthHistoryCard({
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
             <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis
-              tickFormatter={(v) => "$" + (Math.abs(v) >= 1000000 ? (v / 1000000).toFixed(1) + "M" : Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + "k" : v)}
+              tickFormatter={(v) => isPrivate ? "•••" : "$" + (Math.abs(v) >= 1000000 ? (v / 1000000).toFixed(1) + "M" : Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + "k" : v)}
               tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }}
-              axisLine={false} tickLine={false} width={52}
+              axisLine={false} tickLine={false} width={isPrivate ? 28 : 52}
             />
             <Tooltip
               contentStyle={{ background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
               labelStyle={{ color: "var(--text-secondary)" }}
-              formatter={(value) => [fmt(typeof value === "number" ? value : 0), "Net Worth"]}
+              formatter={(value) => [isPrivate ? "••••••" : fmt(typeof value === "number" ? value : 0), "Net Worth"]}
             />
             <Area type="monotone" dataKey="value" stroke={accentColor} strokeWidth={2} fill="url(#nwHistGrad)" dot={false} />
           </AreaChart>
@@ -3363,6 +3365,7 @@ export default function PlanningClient({
         currentNW={netWorth}
         currentAssets={totalAssets}
         currentLiabilities={totalLiabilities}
+        isPrivate={isPrivate}
       />
 
       {/* Supporting metrics */}
