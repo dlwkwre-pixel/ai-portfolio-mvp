@@ -30,6 +30,7 @@ type AiRecommendation = {
   target_price_2: number | null;
   stop_price: number | null;
   time_horizon: string | null;
+  target_horizon: string | null;
 };
 
 type AiRunResponse = {
@@ -93,6 +94,7 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
     target_price_2: toNullableNumber(raw.target_price_2),
     stop_price: toNullableNumber(raw.stop_price),
     time_horizon: String(raw.time_horizon ?? "").trim() || null,
+    target_horizon: String(raw.target_horizon ?? "").trim() || null,
   };
 }
 
@@ -1038,7 +1040,8 @@ HARD CONSTRAINTS:
 1. CASH LIMIT: $${availableCash.toLocaleString()} available. Combined sizing_dollars of ALL buy/add recommendations must not exceed this. Size multiple buys so they fit together.
 
 2. TARGET PRICES: Use current_price from holdings context for existing positions. For new buy candidates discovered via web_search, always search for the current price before including.
-   - target_price_1 = 12-month price target. BUY/ADD: must be above current price. SELL/TRIM: must be below.
+   - target_price_1 = your price target. BUY/ADD: must be above current price. SELL/TRIM: must be below.
+   - target_horizon = the specific timeframe you expect the target to be reached, as a concise string (e.g. "6–12 months", "12–18 months", "2–3 years"). Do NOT use "short_term"/"long_term" — write an actual time range. Null only when no target price is given.
 
 3. TRIM/SELL QUANTITY: share_quantity must not exceed shares owned. Full sell = total shares. sizing_dollars = share_quantity × current_price.
 
@@ -1070,6 +1073,7 @@ Return this exact JSON shape:
       "target_price_1": number|null,
       "target_price_2": number|null,
       "stop_price": number|null,
+      "target_horizon": "string|null — specific timeframe for target_price_1, e.g. '6–12 months', '18–24 months', '2–3 years'",
       "time_horizon": "short_term|medium_term|long_term|null"
     }
   ]
@@ -1370,6 +1374,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
             target_price_2: item.target_price_2,
             stop_price: item.stop_price,
             time_horizon: item.time_horizon,
+            target_horizon: item.target_horizon,
             recommendation_status: "proposed",
             user_decision: null,
             decision_notes: null,

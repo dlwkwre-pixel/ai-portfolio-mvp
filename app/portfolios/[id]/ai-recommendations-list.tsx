@@ -40,6 +40,7 @@ type RecommendationItem = {
   target_price_2: number | null;
   stop_price: number | null;
   time_horizon: string | null;
+  target_horizon: string | null;
   recommendation_status: string | null;
   created_at: string;
 };
@@ -303,6 +304,9 @@ export default function AIRecommendationsList({
                     <p className="mt-2 text-lg font-semibold text-white">
                       {formatMoney(item.target_price_1)}
                     </p>
+                    {item.target_horizon && (
+                      <p className="mt-1 text-xs text-slate-500">{item.target_horizon}</p>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">

@@ -42,6 +42,7 @@ type RecommendationItem = {
   target_price_2: number | null;
   stop_price: number | null;
   time_horizon: string | null;
+  target_horizon: string | null;
   recommendation_status: string | null;
   created_at: string;
   // Outcome tracking fields (populated on execution)
@@ -891,7 +892,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                             )}
                             {item.target_price_1 != null && (
                               <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
-                                Target {fmt$(item.target_price_1)}
+                                Target {fmt$(item.target_price_1)}{item.target_horizon ? ` · ${item.target_horizon}` : ""}
                               </span>
                             )}
                             {pulse?.rank != null && (
@@ -1099,7 +1100,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                         <div className="mt-3 flex flex-wrap gap-2">
                           {item.target_price_1 && (
                             <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
-                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 1</p>
+                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 1{item.target_horizon ? ` · ${item.target_horizon}` : ""}</p>
                               <p className="text-sm font-semibold text-white">{fmt$(item.target_price_1)}</p>
                             </div>
                           )}
