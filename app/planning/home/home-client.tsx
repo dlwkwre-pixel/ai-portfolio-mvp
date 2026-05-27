@@ -109,6 +109,75 @@ function calcRetirementProb(netWorth: number, annualExpenses: number): number | 
   return 20;
 }
 
+// ── Verdict engine ────────────────────────────────────────────────────────────
+
+type VerdictData = {
+  verdict: "BUY" | "WAIT" | "RENT";
+  confidence: "High" | "Medium" | "Low";
+  reasons: string[];
+};
+
+function calcVerdict(
+  breakEvenYear: number | null,
+  retirBaselineProb: number | null,
+  retirWithHomeProb: number | null,
+  affordabilityRatio: number | null,
+  holdYears: number,
+): VerdictData {
+  const retirDelta = retirBaselineProb != null && retirWithHomeProb != null
+    ? retirWithHomeProb - retirBaselineProb
+    : null;
+  const reasons: string[] = [];
+  const longBreakEven = breakEvenYear != null && breakEvenYear > 10;
+  const noBreakEven = breakEvenYear == null;
+  const retirementDamage = retirDelta != null && retirDelta < -5;
+
+  if (longBreakEven || retirementDamage) {
+    if (longBreakEven) reasons.push(`Break-even is ${breakEvenYear} years out — beyond most hold periods`);
+    if (noBreakEven) reasons.push(`Buying doesn't out-earn renting within the hold window`);
+    if (retirementDamage) reasons.push(`Reduces retirement probability by ${Math.abs(retirDelta!)}pp`);
+    if (affordabilityRatio != null && affordabilityRatio > 1.15)
+      reasons.push(`Monthly cost is ${Math.round(affordabilityRatio * 100 - 100)}% over income guideline`);
+    return {
+      verdict: "RENT",
+      confidence: longBreakEven && retirementDamage ? "High" : "Medium",
+      reasons: reasons.slice(0, 3),
+    };
+  }
+
+  const quickBreakEven = breakEvenYear != null && breakEvenYear <= 5;
+  const retirNeutral = retirDelta == null || retirDelta >= -2;
+  const affordable = affordabilityRatio == null || affordabilityRatio <= 1.0;
+
+  if (quickBreakEven && retirNeutral && affordable) {
+    reasons.push(`Equity outpaces renting in ${breakEvenYear} year${breakEvenYear === 1 ? "" : "s"}`);
+    if (retirDelta != null && retirDelta >= 0)
+      reasons.push(`Retirement outlook ${retirDelta > 0 ? "improves" : "stays on track"}`);
+    else
+      reasons.push(`Break-even clears well within hold period`);
+    if (affordabilityRatio != null && affordabilityRatio <= 0.9)
+      reasons.push(`Within income affordability guidelines`);
+    return {
+      verdict: "BUY",
+      confidence: breakEvenYear! <= 3 && (affordabilityRatio == null || affordabilityRatio <= 0.9) ? "High" : "Medium",
+      reasons: reasons.slice(0, 3),
+    };
+  }
+
+  if (breakEvenYear != null && breakEvenYear <= holdYears)
+    reasons.push(`Break-even in ${breakEvenYear} years — stay ${holdYears - breakEvenYear}+ more years to capture gains`);
+  else if (noBreakEven)
+    reasons.push(`Extend hold period or improve assumptions to find break-even`);
+  if (!affordable)
+    reasons.push(`Monthly cost is tight at ${Math.round((affordabilityRatio! || 1) * 100)}% of income guideline`);
+  if (retirDelta != null && retirDelta < -2 && retirDelta >= -5)
+    reasons.push(`Moderate retirement impact (${retirDelta}pp) — worth monitoring`);
+  if (reasons.length === 0)
+    reasons.push(`Neutral market conditions — timing and assumptions are borderline`);
+
+  return { verdict: "WAIT", confidence: "Medium", reasons: reasons.slice(0, 3) };
+}
+
 // ── Amortization table ────────────────────────────────────────────────────────
 
 type AmorRow = {
@@ -257,6 +326,32 @@ const BASE_DEFAULTS = {
 
 type Inputs = typeof BASE_DEFAULTS;
 
+// ── Market presets ────────────────────────────────────────────────────────────
+
+type MarketPreset = {
+  label: string;
+  purchase_price: number;
+  monthly_rent: number;
+  tax_rate: number;
+  insurance_monthly: number;
+  appreciation: number;
+  rent_growth: number;
+};
+
+const MARKET_PRESETS: Record<string, MarketPreset> = {
+  dfw:         { label: "Dallas-Fort Worth", purchase_price: 380000, monthly_rent: 2100, tax_rate: 1.70, insurance_monthly: 175, appreciation: 3.5, rent_growth: 3.0 },
+  houston:     { label: "Houston",           purchase_price: 320000, monthly_rent: 1800, tax_rate: 1.80, insurance_monthly: 165, appreciation: 3.0, rent_growth: 2.5 },
+  austin:      { label: "Austin",            purchase_price: 480000, monthly_rent: 2400, tax_rate: 1.80, insurance_monthly: 195, appreciation: 4.0, rent_growth: 3.5 },
+  san_antonio: { label: "San Antonio",       purchase_price: 280000, monthly_rent: 1600, tax_rate: 1.75, insurance_monthly: 145, appreciation: 3.0, rent_growth: 2.5 },
+  atlanta:     { label: "Atlanta",           purchase_price: 360000, monthly_rent: 2000, tax_rate: 0.90, insurance_monthly: 160, appreciation: 3.5, rent_growth: 3.0 },
+  phoenix:     { label: "Phoenix",           purchase_price: 420000, monthly_rent: 2100, tax_rate: 0.60, insurance_monthly: 170, appreciation: 4.5, rent_growth: 3.5 },
+  denver:      { label: "Denver",            purchase_price: 560000, monthly_rent: 2400, tax_rate: 0.55, insurance_monthly: 185, appreciation: 3.5, rent_growth: 3.0 },
+  nashville:   { label: "Nashville",         purchase_price: 420000, monthly_rent: 2100, tax_rate: 0.70, insurance_monthly: 170, appreciation: 4.0, rent_growth: 3.5 },
+  charlotte:   { label: "Charlotte",         purchase_price: 360000, monthly_rent: 1900, tax_rate: 0.80, insurance_monthly: 155, appreciation: 4.0, rent_growth: 3.5 },
+  tampa:       { label: "Tampa",             purchase_price: 380000, monthly_rent: 2000, tax_rate: 1.00, insurance_monthly: 250, appreciation: 4.0, rent_growth: 3.0 },
+  national:    { label: "National Average",  purchase_price: 420000, monthly_rent: 2000, tax_rate: 1.10, insurance_monthly: 170, appreciation: 3.5, rent_growth: 3.0 },
+};
+
 // Derive smart defaults from the user's financial profile.
 // Uses the 28% front-end DTI rule to estimate a comfortable purchase price,
 // then backs into a down payment (20%) and property tax/insurance from price.
@@ -361,6 +456,23 @@ export default function HomeClient({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showAmortization, setShowAmortization] = useState(false);
   const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
+  const [selectedPreset, setSelectedPreset] = useState<string>("");
+
+  function applyPreset(key: string) {
+    const preset = MARKET_PRESETS[key];
+    if (!preset) return;
+    setInputs((prev) => ({
+      ...prev,
+      purchase_price: preset.purchase_price,
+      down_payment: Math.round(preset.purchase_price * 0.2),
+      monthly_rent: preset.monthly_rent,
+      property_tax_monthly: Math.round((preset.purchase_price * preset.tax_rate) / 100 / 12),
+      insurance_monthly: preset.insurance_monthly,
+      expected_appreciation: preset.appreciation,
+      rent_growth_rate: preset.rent_growth,
+    }));
+    setFinnCommentary(null);
+  }
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
     setInputs((p) => ({ ...p, [key]: val }));
@@ -431,11 +543,37 @@ export default function HomeClient({
       loan, rate / 100, term, pp, appr / 100,
     );
 
+    const affordabilityRatio = profile?.monthly_income && profile.monthly_income > 0
+      ? totalMonthly / (profile.monthly_income * 0.28)
+      : null;
+
+    const appreciationCreditMonthly = (pp * (appr / 100)) / 12;
+    const equivalentRent = Math.max(0, totalMonthly - firstPrincipal - appreciationCreditMonthly);
+
+    const verdictData = calcVerdict(breakEvenYear, retirBaselineProb, retirWithHomeProb, affordabilityRatio, hold);
+
+    const holdAmortRow = amortization[Math.min(hold, amortization.length - 1)];
+    const remainingBalance = holdAmortRow?.balance ?? 0;
+    const projectedSalePrice = lastPoint?.homeValue ?? 0;
+    const sellTransactionCost = projectedSalePrice * 0.06;
+    const totalMonthlyCashOut = totalMonthly * 12 * hold;
+    const upfrontCashOut = dp + closingCosts;
+    const netSaleProceeds = projectedSalePrice - remainingBalance - sellTransactionCost;
+    const trueNetOwnershipCost = upfrontCashOut + totalMonthlyCashOut - Math.max(0, netSaleProceeds);
+    let rentAlternativeTotalCost = 0;
+    for (let y = 0; y < hold; y++) rentAlternativeTotalCost += rent * Math.pow(1 + rentG / 100, y) * 12;
+    const realOwnershipCost = {
+      totalMonthlyCashOut, upfrontCashOut, sellTransactionCost,
+      projectedSalePrice, remainingBalance, netSaleProceeds,
+      trueNetOwnershipCost, rentAlternativeTotalCost,
+    };
+
     return {
       loan, monthlyPmt, maintMonthly, totalMonthly,
       firstPrincipal, firstInterest, trueEffectiveCost, opportunityCostOnEquity,
       timeline, lastPoint, breakEvenYear, closingCosts,
       retirBaselineProb, retirWithHomeProb, amortization, amortStats,
+      affordabilityRatio, equivalentRent, verdictData, realOwnershipCost,
     };
   }, [inputs, profile]);
 
@@ -659,6 +797,29 @@ export default function HomeClient({
               );
             })()}
 
+            {/* Market presets */}
+            <div style={cardS}>
+              <p style={sectionHead}>Market Preset</p>
+              <select
+                value={selectedPreset}
+                onChange={(e) => {
+                  setSelectedPreset(e.target.value);
+                  applyPreset(e.target.value);
+                }}
+                style={{ ...inputS, fontFamily: "var(--font-body)", color: selectedPreset ? "var(--text-primary)" : "var(--text-muted)" }}
+              >
+                <option value="">Custom</option>
+                {Object.entries(MARKET_PRESETS).map(([key, p]) => (
+                  <option key={key} value={key}>{p.label}</option>
+                ))}
+              </select>
+              {selectedPreset && (
+                <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
+                  Loaded {MARKET_PRESETS[selectedPreset]?.label} median data. Adjust any field to customize.
+                </p>
+              )}
+            </div>
+
             {/* Property */}
             <div style={cardS}>
               <p style={sectionHead}>Property</p>
@@ -755,6 +916,47 @@ export default function HomeClient({
           {/* ── RIGHT: Analysis ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
+            {/* BuyTune Verdict */}
+            {(() => {
+              const v = computed.verdictData;
+              const palette = {
+                BUY:  { text: "oklch(0.70 0.18 155)", bg: "color-mix(in oklch, oklch(0.70 0.18 155) 7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.70 0.18 155) 22%, transparent)" },
+                WAIT: { text: "oklch(0.80 0.14 80)",  bg: "color-mix(in oklch, oklch(0.80 0.14 80)  7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.80 0.14 80)  20%, transparent)" },
+                RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.68 0.18 25)  20%, transparent)" },
+              };
+              const confPalette = {
+                High:   { bg: "rgba(0,211,149,0.10)",   text: "#00d395",         border: "rgba(0,211,149,0.25)" },
+                Medium: { bg: "rgba(245,158,11,0.10)",  text: "#f59e0b",         border: "rgba(245,158,11,0.25)" },
+                Low:    { bg: "rgba(148,163,184,0.10)", text: "var(--text-muted)", border: "rgba(148,163,184,0.2)" },
+              };
+              const c = palette[v.verdict];
+              const cc = confPalette[v.confidence];
+              return (
+                <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "var(--radius-lg)", padding: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>BuyTune Verdict</p>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}` }}>
+                      {v.confidence} Confidence
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "42px", fontWeight: 800, color: c.text, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: "14px" }}>
+                    {v.verdict}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "7px", marginBottom: "10px" }}>
+                    {v.reasons.map((reason, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                        <span style={{ color: c.text, flexShrink: 0, fontWeight: 700, marginTop: "1px", fontSize: "11px" }}>{v.verdict === "RENT" ? "×" : "✓"}</span>
+                        {reason}
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                    Live analysis — updates automatically as you adjust inputs.
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* Monthly cost breakdown */}
             <div style={cardS}>
               <p style={sectionHead}>Monthly Cost Breakdown</p>
@@ -799,6 +1001,46 @@ export default function HomeClient({
               </p>
             </div>
 
+            {/* Equivalent rent threshold */}
+            <div style={cardS}>
+              <p style={sectionHead}>Equivalent Rent Threshold</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
+                <div>
+                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
+                    Renting wins if rent is below
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "26px", fontWeight: 700, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)", lineHeight: 1 }}>
+                    {fmt(computed.equivalentRent)}
+                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 400 }}>/mo</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {[
+                    { label: "Your rent", val: `${fmt(inputs.monthly_rent)}/mo` },
+                    { label: "Threshold", val: `${fmt(computed.equivalentRent)}/mo` },
+                  ].map(({ label, val }) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                      <span style={{ color: "var(--text-tertiary)" }}>{label}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{val}</span>
+                    </div>
+                  ))}
+                  <div style={{ height: "1px", background: "var(--border-subtle)", margin: "2px 0" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-tertiary)" }}>Spread</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }}>
+                      {inputs.monthly_rent < computed.equivalentRent ? "-" : "+"}{fmt(Math.abs(computed.equivalentRent - inputs.monthly_rent))}/mo
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                {inputs.monthly_rent < computed.equivalentRent
+                  ? `Your rent (${fmt(inputs.monthly_rent)}/mo) is below the threshold — renting is the better financial choice at these assumptions.`
+                  : `Your rent (${fmt(inputs.monthly_rent)}/mo) exceeds the threshold — buying may offer a financial advantage.`}
+                {" "}Calculated as total monthly cost minus principal paydown and appreciation credit.
+              </p>
+            </div>
+
             {/* Break-even + upfront costs */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
               <div style={cardS}>
@@ -833,7 +1075,18 @@ export default function HomeClient({
             {/* Equity chart */}
             {computed.timeline.length > 1 && (
               <div style={cardS}>
-                <p style={sectionHead}>Equity vs Invested Portfolio over {inputs.hold_years} Years</p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0", gap: "8px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Net Wealth Outcome over {inputs.hold_years} Years</p>
+                  {computed.lastPoint && (() => {
+                    const buyWins = computed.lastPoint!.homeEquity > computed.lastPoint!.rentPortfolio;
+                    const diff = Math.abs(computed.lastPoint!.homeEquity - computed.lastPoint!.rentPortfolio);
+                    return (
+                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", background: buyWins ? "rgba(59,130,246,0.10)" : "rgba(0,211,149,0.10)", color: buyWins ? "#3b82f6" : "#00d395", border: `1px solid ${buyWins ? "rgba(59,130,246,0.2)" : "rgba(0,211,149,0.2)"}`, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {buyWins ? "Buying" : "Renting"} ahead by {fmtK(diff)}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <div style={{ height: "200px" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -874,6 +1127,48 @@ export default function HomeClient({
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Real ownership cost over hold period */}
+            {computed.lastPoint && (
+              <div style={cardS}>
+                <p style={sectionHead}>True Cost of Ownership over {inputs.hold_years} Years</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                  {[
+                    { label: "Down payment + closing", val: computed.realOwnershipCost.upfrontCashOut, color: "var(--text-primary)" },
+                    { label: `Monthly payments (${inputs.hold_years} yrs)`, val: computed.realOwnershipCost.totalMonthlyCashOut, color: "var(--text-primary)" },
+                    { label: "Selling costs on exit (6%)", val: computed.realOwnershipCost.sellTransactionCost, color: "oklch(0.68 0.18 25)" },
+                    { label: "Less: net sale proceeds", val: -Math.max(0, computed.realOwnershipCost.netSaleProceeds), color: "oklch(0.70 0.18 155)" },
+                  ].map(({ label, val, color }) => (
+                    <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>
+                        {val < 0 ? "-" : ""}{fmtK(Math.abs(val))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "12px" }} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Net cost of owning</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.realOwnershipCost.trueNetOwnershipCost)}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>cash in − sale proceeds</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Rent path total</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: computed.realOwnershipCost.rentAlternativeTotalCost < computed.realOwnershipCost.trueNetOwnershipCost ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" }}>
+                      {fmtK(computed.realOwnershipCost.rentAlternativeTotalCost)}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                      {computed.realOwnershipCost.rentAlternativeTotalCost < computed.realOwnershipCost.trueNetOwnershipCost ? "Renting is cheaper" : "Owning is cheaper"}
+                    </div>
+                  </div>
+                </div>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                  Selling costs estimated at 6% (agent commissions + title). Net cost = total paid out minus proceeds recovered on sale.
+                </p>
               </div>
             )}
 
