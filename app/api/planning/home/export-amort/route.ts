@@ -1,31 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import XLSXStyle from "xlsx-js-style";
 
-// ─── Palette (matches portfolio export) ──────────────────────────────────────
+// ─── Palette — light professional theme ──────────────────────────────────────
 
 const P = {
-  COVER:    "020B18",
-  BASE:     "040D1A",
-  ROW_ALT:  "071828",
-  HDR:      "0A1F38",
-  SECTION:  "0D2540",
-  TOTAL:    "0F2A48",
-  WHITE:    "F1F5F9",
-  MUTED:    "94A3B8",
-  DIM:      "475569",
-  BLUE_LT:  "93C5FD",
+  // backgrounds
+  COVER:    "1E3A5F",   // deep navy — title block only
+  BASE:     "FFFFFF",   // white — main background
+  ROW_ALT:  "F8FAFC",   // near-white alternating row
+  HDR:      "EFF6FF",   // very light blue — column headers
+  SECTION:  "DBEAFE",   // pale blue — section header rows
+  TOTAL:    "F1F5F9",   // light slate — totals / derived rows
+
+  // text
+  WHITE:    "FFFFFF",
+  NAVY:     "1E3A5F",   // headings on light bg
+  TEXT:     "1E293B",   // primary text
+  MUTED:    "64748B",   // secondary / label text
+  DIM:      "94A3B8",   // tertiary / caption text
+  BLUE_LT:  "BFDBFE",   // section labels on dark covers
   BLUE:     "2563EB",
-  GREEN:    "22C55E",
-  RED:      "EF4444",
-  AMBER:    "F59E0B",
-  // editable cell: dark gold tint — visually distinct as "you can change this"
-  EDIT_BG:  "171100",
-  EDIT_TEXT:"FCD34D",
-  EDIT_BDR: "78540B",
+  BLUE_TXT: "1D4ED8",   // blue text on light bg
+
+  // signals
+  GREEN:    "15803D",   // green text
+  RED:      "DC2626",   // red text
+  AMBER:    "B45309",   // amber text
+
+  // editable cells — soft amber tint, unmistakably "edit me"
+  EDIT_BG:  "FFFBEB",
+  EDIT_TEXT:"92400E",
+  EDIT_BDR: "FCD34D",
+
   // row highlights
-  HOLD_BG:  "050E25",
-  CROSS_BG: "040E09",
-  BORDER:   "1E3A5F",
+  HOLD_BG:  "EFF6FF",   // light blue — planned hold year
+  CROSS_BG: "F0FDF4",   // light green — crossover year
+
+  // borders
+  BORDER:   "CBD5E1",   // slate-300
+  BORDER_HDR: "BFDBFE", // blue tint for header borders
 } as const;
 
 // ─── Cell factory ─────────────────────────────────────────────────────────────
@@ -51,7 +64,7 @@ function c(
 ): XLSXStyle.CellObject {
   const {
     bold = false, italic = false, sz = 10,
-    color = P.WHITE, bg = P.BASE,
+    color = P.TEXT, bg = P.BASE,
     align = "left", numFmt,
     bTop = false, bBottom = false, bLeft = false, bRight = false,
     wrap = false,
@@ -94,7 +107,7 @@ function fc(
 
 function colHeader(v: string): XLSXStyle.CellObject {
   return c(v, {
-    bold: true, sz: 9, color: P.BLUE_LT, bg: P.HDR,
+    bold: true, sz: 9, color: P.BLUE_TXT, bg: P.HDR,
     bTop: true, bBottom: true, bLeft: true, bRight: true,
     align: "right",
   });
@@ -102,7 +115,7 @@ function colHeader(v: string): XLSXStyle.CellObject {
 
 function colHeaderLeft(v: string): XLSXStyle.CellObject {
   return c(v, {
-    bold: true, sz: 9, color: P.BLUE_LT, bg: P.HDR,
+    bold: true, sz: 9, color: P.BLUE_TXT, bg: P.HDR,
     bTop: true, bBottom: true, bLeft: true, bRight: true,
     align: "left",
   });
@@ -110,21 +123,21 @@ function colHeaderLeft(v: string): XLSXStyle.CellObject {
 
 function sectionHeader(v: string, cols: number): XLSXStyle.CellObject[] {
   return [
-    c(v, { bold: true, sz: 10, color: P.BLUE_LT, bg: P.SECTION }),
+    c(v, { bold: true, sz: 10, color: P.BLUE_TXT, bg: P.SECTION }),
     ...Array(cols - 1).fill(e(P.SECTION)),
   ];
 }
 
 function money(v: number, bg: string = P.BASE): XLSXStyle.CellObject {
   return c(v, {
-    numFmt: '"$"#,##0', align: "right", bg,
+    numFmt: '"$"#,##0', align: "right", bg, color: P.TEXT,
     bTop: true, bBottom: true, bLeft: true, bRight: true,
   });
 }
 
 function pct(v: number, bg: string = P.BASE): XLSXStyle.CellObject {
   return c(v, {
-    numFmt: "0.0%", align: "right", bg,
+    numFmt: "0.0%", align: "right", bg, color: P.TEXT,
     bTop: true, bBottom: true, bLeft: true, bRight: true,
   });
 }
@@ -142,20 +155,19 @@ function titleBlock(
       [
         c("BUYTUNE", { bold: true, sz: 14, color: P.WHITE, bg: P.COVER }),
         ...Array(fill - 1).fill(e(P.COVER)),
-        c(exportDate, { sz: 9, color: P.DIM, bg: P.COVER, align: "right" }),
+        c(exportDate, { sz: 9, color: P.BLUE_LT, bg: P.COVER, align: "right" }),
       ],
       [
-        c(scenarioName, { bold: true, sz: 12, color: P.BLUE_LT, bg: P.COVER }),
+        c(scenarioName, { bold: true, sz: 13, color: P.WHITE, bg: P.COVER }),
         ...Array(fill).fill(e(P.COVER)),
       ],
       [
-        c("HOME PLANNING — AMORTIZATION SCHEDULE", { sz: 9, color: P.DIM, bg: P.COVER }),
+        c("HOME PLANNING  ·  AMORTIZATION SCHEDULE", { sz: 9, color: P.BLUE_LT, bg: P.COVER }),
         ...Array(fill).fill(e(P.COVER)),
       ],
-      Array(cols).fill(c("", { bg: P.COVER, bBottom: true })),
       Array(cols).fill(e(P.BASE)),
     ],
-    rowHeights: [{ hpt: 32 }, { hpt: 22 }, { hpt: 14 }, { hpt: 4 }, { hpt: 6 }],
+    rowHeights: [{ hpt: 32 }, { hpt: 22 }, { hpt: 14 }, { hpt: 8 }],
   };
 }
 
@@ -271,9 +283,9 @@ export async function POST(req: NextRequest) {
   ];
 
   const assumptionRows: XLSXStyle.CellObject[][] = assumptionData.map(([label, value]) => [
-    c(label, { bg: P.HDR, color: P.MUTED, bTop: true, bBottom: true, bLeft: true, bRight: true }),
+    c(label, { bg: P.HDR, color: P.NAVY, bold: true, sz: 10, bTop: true, bBottom: true, bLeft: true, bRight: true }),
     editOpts(value),
-    c(assumptionDescriptions[label] ?? "", { bg: P.BASE, color: P.DIM, sz: 9, italic: true }),
+    c(assumptionDescriptions[label] ?? "", { bg: P.BASE, color: P.MUTED, sz: 9, italic: true }),
     ...Array(COLS - 3).fill(e()),
   ]);
 
@@ -282,39 +294,39 @@ export async function POST(req: NextRequest) {
 
   const summaryRows: XLSXStyle.CellObject[][] = [
     [
-      c("Loan Amount", { bg: P.HDR, color: P.MUTED, bTop: true, bBottom: true, bLeft: true, bRight: true }),
+      c("Loan Amount", { bg: P.TOTAL, color: P.NAVY, bold: true, sz: 10, bTop: true, bBottom: true, bLeft: true, bRight: true }),
       fc("B10-B11", loanAmt, {
-        bg: P.BASE, color: P.WHITE, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
+        bg: P.TOTAL, color: P.TEXT, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
         bTop: true, bBottom: true, bLeft: true, bRight: true,
       }),
-      c("Purchase price minus down payment", { bg: P.BASE, color: P.DIM, sz: 9, italic: true }),
+      c("Purchase price minus down payment", { bg: P.BASE, color: P.MUTED, sz: 9, italic: true }),
       ...Array(COLS - 3).fill(e()),
     ],
     [
-      c("Monthly Payment (P&I)", { bg: P.HDR, color: P.MUTED, bTop: true, bBottom: true, bLeft: true, bRight: true }),
+      c("Monthly Payment (P&I)", { bg: P.TOTAL, color: P.NAVY, bold: true, sz: 10, bTop: true, bBottom: true, bLeft: true, bRight: true }),
       fc("-PMT(B12/100/12,B13*12,B10-B11)", amortStats.monthlyPayment, {
-        bg: P.BASE, color: P.WHITE, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
+        bg: P.TOTAL, color: P.TEXT, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
         bTop: true, bBottom: true, bLeft: true, bRight: true,
       }),
-      c("Principal + interest only. Does not include tax, insurance, or HOA", { bg: P.BASE, color: P.DIM, sz: 9, italic: true }),
+      c("Principal + interest only. Does not include tax, insurance, or HOA", { bg: P.BASE, color: P.MUTED, sz: 9, italic: true }),
       ...Array(COLS - 3).fill(e()),
     ],
     [
-      c("Total Interest Paid", { bg: P.HDR, color: P.MUTED, bTop: true, bBottom: true, bLeft: true, bRight: true }),
+      c("Total Interest Paid", { bg: P.TOTAL, color: P.NAVY, bold: true, sz: 10, bTop: true, bBottom: true, bLeft: true, bRight: true }),
       fc("-CUMIPMT(B12/100/12,B13*12,B10-B11,1,B13*12,0)", amortStats.totalInterest, {
-        bg: P.BASE, color: P.RED, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
+        bg: P.TOTAL, color: P.RED, bold: true, sz: 11, numFmt: '"$"#,##0', align: "right",
         bTop: true, bBottom: true, bLeft: true, bRight: true,
       }),
-      c("The total extra cost of borrowing over the full loan term", { bg: P.BASE, color: P.DIM, sz: 9, italic: true }),
+      c("The total extra cost of borrowing over the full loan term", { bg: P.BASE, color: P.MUTED, sz: 9, italic: true }),
       ...Array(COLS - 3).fill(e()),
     ],
     [
-      c("Interest as % of Purchase", { bg: P.HDR, color: P.MUTED, bTop: true, bBottom: true, bLeft: true, bRight: true }),
+      c("Interest as % of Purchase", { bg: P.TOTAL, color: P.NAVY, bold: true, sz: 10, bTop: true, bBottom: true, bLeft: true, bRight: true }),
       fc("B22/B10", amortStats.totalInterest / inputs.purchase_price, {
-        bg: P.BASE, color: P.MUTED, sz: 11, numFmt: "0.0%", align: "right",
+        bg: P.TOTAL, color: P.MUTED, sz: 11, numFmt: "0.0%", align: "right",
         bTop: true, bBottom: true, bLeft: true, bRight: true,
       }),
-      c("How much extra you pay relative to the purchase price", { bg: P.BASE, color: P.DIM, sz: 9, italic: true }),
+      c("How much extra you pay relative to the purchase price", { bg: P.BASE, color: P.MUTED, sz: 9, italic: true }),
       ...Array(COLS - 3).fill(e()),
     ],
   ];
@@ -361,13 +373,13 @@ export async function POST(req: NextRequest) {
     const noteFormula = `IF(${A}=$B$15,"★ Planned Hold Year","")`;
 
     // Color coding per column
-    const yearColor  = isHoldYear ? P.BLUE_LT : P.MUTED;
-    const balColor   = P.WHITE;
-    const priColor   = "60A5FA";   // blue
-    const intColor   = "F87171";   // red
-    const cIntColor  = P.DIM;
-    const hvColor    = P.MUTED;
-    const eqColor    = "4ADE80";   // green
+    const yearColor  = isHoldYear ? P.BLUE_TXT : P.MUTED;
+    const balColor   = P.TEXT;
+    const priColor   = "1D4ED8";   // blue-700
+    const intColor   = "DC2626";   // red-600
+    const cIntColor  = P.MUTED;
+    const hvColor    = P.TEXT;
+    const eqColor    = "15803D";   // green-700
     const noteBg     = isHoldYear ? P.HOLD_BG : isCrossover ? P.CROSS_BG : P.BASE;
 
     const b = (extra: CellOpts) => ({
@@ -383,12 +395,12 @@ export async function POST(req: NextRequest) {
       fc(homeValFormula,   row.homeValue,                                  b({ color: hvColor,   numFmt: '"$"#,##0' })),
       fc(equityFormula,    row.equity,                                     b({ color: eqColor, bold: true, numFmt: '"$"#,##0' })),
       fc(equityPctFormula, row.equityPct / 100, b({
-        color: row.equityPct >= 50 ? eqColor : row.equityPct >= 20 ? "60A5FA" : P.DIM,
+        color: row.equityPct >= 50 ? eqColor : row.equityPct >= 20 ? "1D4ED8" : P.MUTED,
         bold: row.equityPct >= 20,
         numFmt: "0.0%",
       })),
       dt(isHoldYear ? "★ Planned Hold Year" : isCrossover ? "↑ Crossover" : "", {
-        color: isHoldYear ? P.BLUE_LT : "4ADE80", sz: 9, italic: true, align: "left", bg: noteBg,
+        color: isHoldYear ? P.BLUE_TXT : "15803D", sz: 9, italic: true, align: "left", bg: noteBg,
       }),
     ];
   });
@@ -397,23 +409,23 @@ export async function POST(req: NextRequest) {
   const legendRows: XLSXStyle.CellObject[][] = [
     Array(COLS).fill(e()),
     [
-      c("LEGEND", { bold: true, sz: 9, color: P.DIM, bg: P.BASE }),
+      c("LEGEND", { bold: true, sz: 9, color: P.MUTED, bg: P.BASE }),
       ...Array(COLS - 1).fill(e()),
     ],
     [
-      c("★ = your planned hold year (blue row)", { sz: 9, color: "93C5FD", italic: true, bg: P.BASE }),
+      c("★ = your planned hold year (blue row)", { sz: 9, color: P.BLUE_TXT, italic: true, bg: P.BASE }),
       ...Array(COLS - 1).fill(e()),
     ],
     [
-      c("↑ Crossover = year principal paid exceeds interest (green row)", { sz: 9, color: "86EFAC", italic: true, bg: P.BASE }),
+      c("↑ Crossover = year principal paid exceeds interest (green row)", { sz: 9, color: "15803D", italic: true, bg: P.BASE }),
       ...Array(COLS - 1).fill(e()),
     ],
     [
-      c("Gold cells in Assumptions section are editable — change them to model different scenarios", { sz: 9, color: P.EDIT_TEXT, italic: true, bg: P.BASE }),
+      c("Amber cells in Assumptions are editable — change them to model different scenarios", { sz: 9, color: P.EDIT_TEXT, italic: true, bg: P.BASE }),
       ...Array(COLS - 1).fill(e()),
     ],
     [
-      c("Balance, Principal, Interest, Home Value, and Equity columns use Excel formulas and will recalculate when you edit the gold cells", { sz: 9, color: P.DIM, italic: true, bg: P.BASE }),
+      c("Balance, Principal, Interest, Home Value, and Equity columns use Excel formulas and will recalculate when you edit the amber cells", { sz: 9, color: P.MUTED, italic: true, bg: P.BASE }),
       ...Array(COLS - 1).fill(e()),
     ],
     Array(COLS).fill(e()),
