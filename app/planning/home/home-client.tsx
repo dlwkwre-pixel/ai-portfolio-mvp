@@ -178,6 +178,72 @@ function calcVerdict(
   return { verdict: "WAIT", confidence: "Medium", reasons: reasons.slice(0, 3) };
 }
 
+// ── Affordability score ───────────────────────────────────────────────────────
+
+type AffordabilityComponent = { label: string; score: number; detail: string };
+type AffordabilityScore = { score: number; rating: string; components: AffordabilityComponent[] };
+
+function calcAffordabilityScore(
+  totalMonthly: number,
+  income: number | null | undefined,
+  purchasePrice: number,
+  downPayment: number,
+  breakEvenYear: number | null,
+  holdYears: number,
+  retirDelta: number | null,
+): AffordabilityScore | null {
+  if (!income || income <= 0) return null;
+  const maxPITI = income * 0.28;
+
+  const housingRatio = totalMonthly / maxPITI;
+  const housingScore = housingRatio <= 0.75 ? 100
+    : housingRatio <= 1.0 ? Math.round(100 - (housingRatio - 0.75) * 240)
+    : housingRatio <= 1.35 ? Math.round(40 - (housingRatio - 1.0) * 114)
+    : 0;
+
+  const downPct = (downPayment / purchasePrice) * 100;
+  const downScore = downPct >= 20 ? 100
+    : downPct >= 15 ? Math.round(70 + (downPct - 15) * 6)
+    : downPct >= 10 ? Math.round(50 + (downPct - 10) * 4)
+    : downPct >= 5 ? Math.round(30 + (downPct - 5) * 4)
+    : Math.max(0, Math.round(downPct * 6));
+
+  const pti = purchasePrice / (income * 12);
+  const ptiScore = pti <= 2.5 ? 100
+    : pti <= 3.5 ? Math.round(100 - (pti - 2.5) * 35)
+    : pti <= 5.5 ? Math.round(65 - (pti - 3.5) * 22.5)
+    : Math.max(0, Math.round(20 - (pti - 5.5) * 10));
+
+  const retirScore = retirDelta == null ? 70
+    : retirDelta >= 0 ? 100
+    : retirDelta >= -3 ? Math.round(100 + retirDelta * 10)
+    : retirDelta >= -8 ? Math.round(70 + (retirDelta + 3) * 8)
+    : Math.max(0, Math.round(30 + (retirDelta + 8) * 3));
+
+  const beFitScore = breakEvenYear == null ? 15
+    : breakEvenYear <= Math.ceil(holdYears / 2) ? 100
+    : breakEvenYear <= holdYears ? 70
+    : breakEvenYear <= holdYears * 1.5 ? 35
+    : 10;
+
+  const score = Math.round(
+    housingScore * 0.25 + downScore * 0.20 + ptiScore * 0.20 + retirScore * 0.20 + beFitScore * 0.15,
+  );
+  const rating = score >= 90 ? "Excellent" : score >= 75 ? "Comfortable" : score >= 60 ? "Stretch" : "High Risk";
+
+  return {
+    score,
+    rating,
+    components: [
+      { label: "Housing Cost Ratio", score: housingScore, detail: `${Math.round(housingRatio * 100)}% of the 28% income guideline` },
+      { label: "Down Payment",       score: downScore,    detail: `${downPct.toFixed(0)}% down (${downPct >= 20 ? "conventional" : downPct >= 10 ? "below conventional" : "low down payment"})` },
+      { label: "Price-to-Income",    score: ptiScore,     detail: `${pti.toFixed(1)}x annual gross income` },
+      { label: "Retirement Impact",  score: retirScore,   detail: retirDelta == null ? "No planning profile" : retirDelta >= 0 ? "Maintained or improved" : `${Math.abs(retirDelta)}pp decline in retirement probability` },
+      { label: "Break-even Fit",     score: beFitScore,   detail: breakEvenYear == null ? "No break-even within window" : `Year ${breakEvenYear} vs ${holdYears}-yr hold` },
+    ],
+  };
+}
+
 // ── Amortization table ────────────────────────────────────────────────────────
 
 type AmorRow = {
@@ -520,6 +586,8 @@ export default function HomeClient({
     // Retirement impact
     let retirBaselineProb: number | null = null;
     let retirWithHomeProb: number | null = null;
+    let retirBaselineAssets: number | null = null;
+    let retirWithHomeAssets: number | null = null;
     if (profile?.current_age && profile?.target_retirement_age && profile?.monthly_income && profile?.monthly_expenses) {
       const yearsToRetire = profile.target_retirement_age - profile.current_age;
       if (yearsToRetire > 0) {
@@ -528,14 +596,16 @@ export default function HomeClient({
           ? annualSavingsBase * ((Math.pow(1 + ir / 100, yearsToRetire) - 1) / (ir / 100))
           : 0;
         retirBaselineProb = calcRetirementProb(baseGrowth, profile.monthly_expenses * 12);
+        retirBaselineAssets = Math.round(baseGrowth);
 
-        // With home: subtract down payment + closing costs, add monthly cost difference as extra expense
         const extraMonthly = totalMonthly - rent;
         const reducedSavings = annualSavingsBase - Math.max(0, extraMonthly) * 12;
         const withHomeGrowth = reducedSavings > 0
           ? reducedSavings * ((Math.pow(1 + ir / 100, yearsToRetire) - 1) / (ir / 100)) - dp - closingCosts
           : -(dp + closingCosts);
-        retirWithHomeProb = calcRetirementProb(Math.max(0, withHomeGrowth + (lastPoint?.homeEquity ?? 0)), profile.monthly_expenses * 12);
+        const withHomeTotal = Math.max(0, withHomeGrowth + (lastPoint?.homeEquity ?? 0));
+        retirWithHomeProb = calcRetirementProb(withHomeTotal, profile.monthly_expenses * 12);
+        retirWithHomeAssets = Math.round(withHomeTotal);
       }
     }
 
@@ -568,12 +638,51 @@ export default function HomeClient({
       trueNetOwnershipCost, rentAlternativeTotalCost,
     };
 
+    const opportunityCost = [10, 20, 30, 40].map((years) => ({
+      years,
+      value: Math.round(dp * Math.pow(1 + ir / 100, years)),
+    }));
+
+    const retirDeltaVal = retirBaselineProb != null && retirWithHomeProb != null
+      ? retirWithHomeProb - retirBaselineProb
+      : null;
+
+    const affordabilityScore = calcAffordabilityScore(
+      totalMonthly, profile?.monthly_income, pp, dp, breakEvenYear, hold, retirDeltaVal,
+    );
+
+    const buyingAdvantages: string[] = [];
+    const rentingAdvantages: string[] = [];
+    if (breakEvenYear != null && breakEvenYear <= hold)
+      buyingAdvantages.push(`Break-even in ${breakEvenYear} year${breakEvenYear === 1 ? "" : "s"} — equity compounds beyond that`);
+    if (rent >= equivalentRent)
+      buyingAdvantages.push(`Rent (${fmt(rent)}) exceeds equivalent ownership cost (${fmt(equivalentRent)})`);
+    if (appr > ir)
+      buyingAdvantages.push(`Appreciation (${appr}%/yr) exceeds investment return assumption (${ir}%/yr)`);
+    if (retirDeltaVal != null && retirDeltaVal >= 0)
+      buyingAdvantages.push("Retirement probability maintained or improved with home equity");
+    if (lastPoint && lastPoint.homeEquity > lastPoint.rentPortfolio)
+      buyingAdvantages.push(`Home equity (${fmtK(lastPoint.homeEquity)}) leads renter portfolio at year ${hold}`);
+
+    if (rent < equivalentRent)
+      rentingAdvantages.push(`Rent (${fmt(rent)}) is below equivalent ownership cost — savings compound freely`);
+    if (lastPoint && lastPoint.rentPortfolio > lastPoint.homeEquity)
+      rentingAdvantages.push(`Renter portfolio (${fmtK(lastPoint.rentPortfolio)}) outpaces equity at year ${hold}`);
+    if (ir > appr)
+      rentingAdvantages.push(`Investment returns (${ir}%/yr) outpace home appreciation (${appr}%/yr)`);
+    if (breakEvenYear == null || breakEvenYear > hold)
+      rentingAdvantages.push(`No break-even within the ${hold}-year hold window`);
+    if (retirDeltaVal != null && retirDeltaVal < -3)
+      rentingAdvantages.push(`Buying reduces retirement probability by ${Math.abs(retirDeltaVal)}pp`);
+
     return {
       loan, monthlyPmt, maintMonthly, totalMonthly,
       firstPrincipal, firstInterest, trueEffectiveCost, opportunityCostOnEquity,
       timeline, lastPoint, breakEvenYear, closingCosts,
-      retirBaselineProb, retirWithHomeProb, amortization, amortStats,
+      retirBaselineProb, retirWithHomeProb, retirBaselineAssets, retirWithHomeAssets,
+      amortization, amortStats,
       affordabilityRatio, equivalentRent, verdictData, realOwnershipCost,
+      opportunityCost, affordabilityScore, buyingAdvantages, rentingAdvantages,
     };
   }, [inputs, profile]);
 
@@ -957,6 +1066,108 @@ export default function HomeClient({
               );
             })()}
 
+            {/* Retirement Impact Centerpiece */}
+            {computed.retirBaselineProb != null && (
+              <div style={cardS}>
+                <p style={sectionHead}>Retirement Impact</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "16px", marginBottom: computed.retirBaselineAssets != null ? "14px" : "0" }}>
+                  <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Without Home</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: "var(--text-secondary)", lineHeight: 1 }}>{computed.retirBaselineProb}%</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>on track</div>
+                  </div>
+                  <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
+                    <path d="M1 6h18M13 1l6 5-6 5" stroke={computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <div style={{
+                    background: computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb
+                      ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, var(--bg-elevated))"
+                      : "color-mix(in oklch, oklch(0.78 0.15 80) 8%, var(--bg-elevated))",
+                    borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>With Home</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, lineHeight: 1, color: computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)" }}>
+                      {computed.retirWithHomeProb ?? "—"}%
+                    </div>
+                    {computed.retirWithHomeProb != null && (
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
+                        {computed.retirWithHomeProb - computed.retirBaselineProb >= 0 ? "+" : ""}{computed.retirWithHomeProb - computed.retirBaselineProb}pp
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null && (() => {
+                  const diff = computed.retirWithHomeAssets - computed.retirBaselineAssets;
+                  return (
+                    <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "10px" }}>Projected Retirement Assets</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                        {[
+                          { label: "Without Home", val: computed.retirBaselineAssets, color: "var(--text-secondary)", prefix: "" },
+                          { label: "With Home",    val: computed.retirWithHomeAssets, color: diff >= 0 ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)", prefix: "" },
+                          { label: "Difference",   val: diff, color: diff >= 0 ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)", prefix: diff >= 0 ? "+" : "" },
+                        ].map(({ label, val, color, prefix }) => (
+                          <div key={label} style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>
+                              {prefix}{fmtK(Math.abs(val))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                  Based on your planning profile. Home equity at year {inputs.hold_years} counted as a retirement asset.
+                </p>
+              </div>
+            )}
+
+            {/* Affordability Score */}
+            {computed.affordabilityScore && (() => {
+              const { score, rating, components } = computed.affordabilityScore;
+              const scoreColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
+              const ratingStyle = {
+                bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
+                border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
+              };
+              return (
+                <div style={cardS}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Affordability Score</p>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}` }}>
+                      {rating}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "12px" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "52px", fontWeight: 800, lineHeight: 1, color: scoreColor }}>{score}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", marginBottom: "16px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${score}%`, borderRadius: "3px", background: scoreColor, transition: "width 0.4s ease" }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {components.map(({ label, score: cs, detail }) => {
+                      const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
+                      return (
+                        <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 72px 28px", alignItems: "center", gap: "10px" }}>
+                          <div>
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{detail}</div>
+                          </div>
+                          <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${cs}%`, borderRadius: "2px", background: cColor }} />
+                          </div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Monthly cost breakdown */}
             <div style={cardS}>
               <p style={sectionHead}>Monthly Cost Breakdown</p>
@@ -1072,6 +1283,26 @@ export default function HomeClient({
               </div>
             </div>
 
+            {/* Opportunity Cost */}
+            <div style={cardS}>
+              <p style={sectionHead}>Opportunity Cost</p>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
+                If the {fmt(inputs.down_payment)} down payment were invested at {inputs.investment_return}%/yr instead of a home:
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+                {computed.opportunityCost.map(({ years, value }) => (
+                  <div key={years} style={{ textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 6px" }}>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{years} yr</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(value)}</div>
+                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{Math.round((value / inputs.down_payment - 1) * 100)}% gain</div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                Capital in a home is illiquid. This is the portfolio value forgone — offset by home equity growth and principal paydown over time.
+              </p>
+            </div>
+
             {/* Equity chart */}
             {computed.timeline.length > 1 && (
               <div style={cardS}>
@@ -1172,58 +1403,85 @@ export default function HomeClient({
               </div>
             )}
 
-            {/* Retirement impact */}
-            {computed.retirBaselineProb != null && computed.retirWithHomeProb != null && (
+            {/* The Case For Each Path */}
+            {(computed.buyingAdvantages.length > 0 || computed.rentingAdvantages.length > 0) && (
               <div style={cardS}>
-                <p style={sectionHead}>Retirement Impact</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "12px" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--text-secondary)" }}>{computed.retirBaselineProb}%</div>
-                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Without home</div>
-                  </div>
-                  <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
-                    <path d="M1 7h22M16 1l6 6-6 6" stroke={computed.retirWithHomeProb >= computed.retirBaselineProb ? "var(--green)" : "var(--amber)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: computed.retirWithHomeProb >= computed.retirBaselineProb ? "var(--green)" : "var(--amber)" }}>
-                      {computed.retirWithHomeProb}%
+                <p style={sectionHead}>The Case For Each Path</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", marginBottom: "8px" }}>Buying Wins If</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {computed.buyingAdvantages.length > 0 ? computed.buyingAdvantages.slice(0, 4).map((adv, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: "oklch(0.70 0.18 155)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>✓</span>{adv}
+                        </div>
+                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No buying advantages at current inputs</div>}
                     </div>
-                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                      With home ({computed.retirWithHomeProb - computed.retirBaselineProb > 0 ? "+" : ""}{computed.retirWithHomeProb - computed.retirBaselineProb}pp)
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px" }}>Renting Wins If</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {computed.rentingAdvantages.length > 0 ? computed.rentingAdvantages.slice(0, 4).map((adv, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: "var(--text-muted)", flexShrink: 0, fontWeight: 700, marginTop: "1px" }}>•</span>{adv}
+                        </div>
+                      )) : <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontStyle: "italic" }}>No renting advantages at current inputs</div>}
                     </div>
                   </div>
                 </div>
-                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                  Estimated retirement on-track probability based on your planning profile. Home equity at year {inputs.hold_years} is counted as a recoverable asset.
-                </p>
               </div>
             )}
 
-            {/* FINN guidance */}
+            {/* FINN Home Advisor */}
             <div style={cardS}>
-              <p style={sectionHead}>FINN Analysis</p>
-              {finnCommentary ? (
-                <>
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{finnCommentary}</p>
-                  <button type="button" onClick={() => setFinnCommentary(null)} style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)" }}>
-                    Refresh
+              <p style={sectionHead}>FINN Home Advisor</p>
+              {/* Auto insight — always visible */}
+              {(() => {
+                const vc = { BUY: "oklch(0.70 0.18 155)", WAIT: "oklch(0.80 0.14 80)", RENT: "oklch(0.68 0.18 25)" }[computed.verdictData.verdict];
+                const label = computed.verdictData.verdict === "BUY" ? "Why this looks favorable:" : computed.verdictData.verdict === "RENT" ? "Why renting wins here:" : "Key factors to weigh:";
+                return (
+                  <div style={{ marginBottom: "14px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: vc, marginBottom: "7px" }}>{label}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {computed.verdictData.reasons.map((r, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: vc, flexShrink: 0 }}>•</span>{r}
+                        </div>
+                      ))}
+                      {computed.breakEvenYear != null && (
+                        <div style={{ display: "flex", gap: "7px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                          <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>•</span>Break-even: Year {computed.breakEvenYear} — {computed.breakEvenYear <= inputs.hold_years ? `within your ${inputs.hold_years}-year window` : `beyond your ${inputs.hold_years}-year window`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* AI deep analysis */}
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+                {finnCommentary ? (
+                  <>
+                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: "0 0 10px" }}>{finnCommentary}</p>
+                    <button type="button" onClick={() => setFinnCommentary(null)} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)" }}>
+                      Refresh AI Analysis
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={fetchFinnCommentary}
+                    disabled={finnLoading}
+                    style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#7c3aed", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
+                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                    </svg>
+                    {finnLoading ? "FINN is thinking…" : "Ask FINN for AI Analysis"}
                   </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={fetchFinnCommentary}
-                  disabled={finnLoading}
-                  style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#7c3aed", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                    <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                    <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
-                  </svg>
-                  {finnLoading ? "FINN is thinking…" : "Get FINN Analysis"}
-                </button>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Amortization schedule */}
