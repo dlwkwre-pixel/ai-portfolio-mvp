@@ -331,6 +331,231 @@ function calcMaxPrice(
   return Math.round((maxMonthly / (piPerDollar + overheadPerDollar)) / 5000) * 5000;
 }
 
+// ── Path ranking ─────────────────────────────────────────────────────────────
+
+type PathScore = {
+  id: string;
+  name: string;
+  score: number;
+  rank: number;
+  isRentPath: boolean;
+  retirAssets: number | null;
+  retirProb: number | null;
+  verdict: "BUY" | "WAIT" | "RENT";
+  scoreBreakdown: { retirement: number; wealth: number; affordability: number; breakeven: number; liquidity: number };
+};
+
+function rankPaths(
+  summaries: ScenarioSummary[],
+  rentBaseline: { retirAssets: number | null; retirProb: number | null; monthlyRent: number },
+  income: number | null | undefined,
+): PathScore[] {
+  const allAssets: number[] = [];
+  for (const ss of summaries) {
+    if (ss.retirWithHomeAssets != null) allAssets.push(ss.retirWithHomeAssets);
+  }
+  if (rentBaseline.retirAssets != null) allAssets.push(rentBaseline.retirAssets);
+  const maxAssets = allAssets.length > 0 ? Math.max(...allAssets) : 0;
+
+  function breakdownFor(
+    retirWithProb: number | null, retirBaseProb: number | null,
+    retirWithAssets: number | null, affordScore: number | null,
+    breakEvenYear: number | null, downPayment: number, isRent: boolean,
+  ): PathScore["scoreBreakdown"] {
+    const delta = retirWithProb != null && retirBaseProb != null ? retirWithProb - retirBaseProb : 0;
+    const retirement = isRent ? 80
+      : delta >= 0 ? 100
+      : delta >= -3 ? Math.round(100 + delta * 8)
+      : delta >= -8 ? Math.round(76 + (delta + 3) * 7)
+      : Math.max(20, Math.round(41 + (delta + 8) * 4));
+    const wealth = maxAssets > 0 && retirWithAssets != null
+      ? Math.max(10, Math.round((retirWithAssets / maxAssets) * 100))
+      : 50;
+    const affordability = isRent
+      ? (income && income > 0
+          ? Math.max(20, Math.min(100, 100 - Math.round(Math.max(0, (rentBaseline.monthlyRent / (income * 0.28)) - 0.5) * 80)))
+          : 70)
+      : (affordScore ?? 70);
+    const breakeven = isRent ? 55
+      : breakEvenYear == null ? 15
+      : breakEvenYear <= 5 ? 100
+      : breakEvenYear <= 10 ? 70
+      : 30;
+    const liquidity = isRent ? 100
+      : income && income > 0
+        ? Math.max(10, Math.min(100, Math.round(100 - (downPayment / (income * 12)) * 100)))
+        : 50;
+    return { retirement, wealth, affordability, breakeven, liquidity };
+  }
+
+  function composite(bd: PathScore["scoreBreakdown"]): number {
+    return Math.round(bd.retirement * 0.30 + bd.wealth * 0.25 + bd.affordability * 0.25 + bd.breakeven * 0.10 + bd.liquidity * 0.10);
+  }
+
+  const paths: Omit<PathScore, "rank">[] = [];
+
+  const rentBd = breakdownFor(
+    rentBaseline.retirProb, rentBaseline.retirProb,
+    rentBaseline.retirAssets, null, null, 0, true,
+  );
+  paths.push({
+    id: "rent", name: "Continue Renting", score: composite(rentBd), isRentPath: true,
+    retirAssets: rentBaseline.retirAssets, retirProb: rentBaseline.retirProb,
+    verdict: "RENT", scoreBreakdown: rentBd,
+  });
+
+  for (const ss of summaries) {
+    const bd = breakdownFor(
+      ss.retirWithHomeProb, ss.retirBaselineProb, ss.retirWithHomeAssets,
+      ss.affordabilityScore?.score ?? null, ss.breakEvenYear,
+      ss.purchasePrice * 0.20, false,
+    );
+    paths.push({
+      id: ss.id, name: ss.name, score: composite(bd), isRentPath: false,
+      retirAssets: ss.retirWithHomeAssets, retirProb: ss.retirWithHomeProb,
+      verdict: ss.verdictData.verdict, scoreBreakdown: bd,
+    });
+  }
+
+  paths.sort((a, b) => b.score - a.score);
+  return paths.map((p, i) => ({ ...p, rank: i + 1 }));
+}
+
+// ── Readiness score ───────────────────────────────────────────────────────────
+
+type ReadinessComponent = { label: string; score: number; detail: string };
+type ReadinessScore = { score: number; rating: string; components: ReadinessComponent[] };
+
+function calcReadinessScore(
+  totalMonthly: number,
+  income: number | null | undefined,
+  expenses: number | null | undefined,
+  downPayment: number,
+  purchasePrice: number,
+  retirBaselineProb: number | null,
+  closingCosts: number,
+): ReadinessScore | null {
+  if (!income || income <= 0) return null;
+
+  const downPct = (downPayment / purchasePrice) * 100;
+  const downScore = downPct >= 20 ? 100
+    : downPct >= 15 ? Math.round(75 + (downPct - 15) * 5)
+    : downPct >= 10 ? Math.round(55 + (downPct - 10) * 4)
+    : downPct >= 5 ? Math.round(30 + (downPct - 5) * 5)
+    : Math.max(0, Math.round(downPct * 6));
+
+  const bufferRatio = (income - totalMonthly) / income;
+  const bufferScore = bufferRatio >= 0.30 ? 100
+    : bufferRatio >= 0.20 ? Math.round(75 + (bufferRatio - 0.20) * 250)
+    : bufferRatio >= 0.10 ? Math.round(50 + (bufferRatio - 0.10) * 250)
+    : bufferRatio >= 0 ? Math.round(bufferRatio * 500)
+    : 0;
+
+  const savingsRate = expenses && expenses > 0 ? Math.max(0, (income - expenses) / income) : null;
+  const savingsScore = savingsRate == null ? 60
+    : savingsRate >= 0.20 ? 100
+    : savingsRate >= 0.10 ? Math.round(70 + (savingsRate - 0.10) * 300)
+    : savingsRate >= 0.05 ? Math.round(50 + (savingsRate - 0.05) * 400)
+    : Math.round(savingsRate * 1000);
+
+  const monthlySavings = expenses ? Math.max(0, income - expenses) : income * 0.10;
+  const monthsToRecover = monthlySavings > 0 ? (downPayment + closingCosts) / monthlySavings : 999;
+  const liquidityScore = Math.max(0, monthsToRecover <= 12 ? 100
+    : monthsToRecover <= 24 ? Math.round(100 - (monthsToRecover - 12) * 5)
+    : monthsToRecover <= 48 ? Math.round(40 - (monthsToRecover - 24) * 1.5)
+    : 0);
+
+  const retirScore = retirBaselineProb == null ? 60
+    : retirBaselineProb >= 82 ? 100
+    : retirBaselineProb >= 70 ? Math.round(70 + (retirBaselineProb - 70) * 2.5)
+    : retirBaselineProb >= 55 ? Math.round(45 + (retirBaselineProb - 55) * 1.67)
+    : Math.max(15, Math.round(retirBaselineProb * 0.8));
+
+  const expenseRatio = expenses ? expenses / income : 0.65;
+  const debtScore = expenseRatio <= 0.50 ? 100
+    : expenseRatio <= 0.65 ? Math.round(100 - (expenseRatio - 0.50) * 400)
+    : expenseRatio <= 0.80 ? Math.round(40 - (expenseRatio - 0.65) * 200)
+    : Math.max(0, Math.round(10 - (expenseRatio - 0.80) * 50));
+
+  const score = Math.round(
+    downScore * 0.20 + bufferScore * 0.20 + savingsScore * 0.18 + liquidityScore * 0.17 + retirScore * 0.15 + debtScore * 0.10,
+  );
+  const rating = score >= 90 ? "Ready" : score >= 75 ? "Mostly Ready" : score >= 60 ? "Needs Preparation" : "Not Recommended";
+
+  return {
+    score, rating,
+    components: [
+      { label: "Down Payment Strength", score: downScore,    detail: `${downPct.toFixed(0)}% down${downPct >= 20 ? " — conventional strength" : downPct >= 10 ? " — below conventional" : " — consider more savings"}` },
+      { label: "Income Buffer",         score: bufferScore,  detail: `${Math.round(bufferRatio * 100)}% of income remains after monthly mortgage costs` },
+      { label: "Savings Rate",          score: savingsScore, detail: savingsRate != null ? `${Math.round(savingsRate * 100)}% of income saved monthly (profile estimate)` : "Add monthly expenses for savings rate analysis" },
+      { label: "Liquidity Recovery",    score: liquidityScore, detail: monthsToRecover < 999 ? `~${Math.round(monthsToRecover)} months to rebuild cash reserves from savings` : "Add monthly expenses for liquidity analysis" },
+      { label: "Retirement Progress",   score: retirScore,   detail: retirBaselineProb != null ? `${retirBaselineProb}% probability of funding retirement (without home)` : "Complete planning profile for retirement analysis" },
+      { label: "Expense Load",          score: debtScore,    detail: expenses ? `${Math.round(expenseRatio * 100)}% expense-to-income ratio` : "Add monthly expenses for expense load analysis" },
+    ],
+  };
+}
+
+// ── Stress tests ──────────────────────────────────────────────────────────────
+
+type StressLevel = { level: "Mild" | "Moderate" | "Severe"; scenario: string; score: number; detail: string };
+
+function calcStressTests(
+  totalMonthly: number,
+  income: number | null | undefined,
+  expenses: number | null | undefined,
+): StressLevel[] | null {
+  if (!income || income <= 0) return null;
+  const f = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+  const expAmt = expenses ?? income * 0.70;
+  const monthlySavings = Math.max(0, income - expAmt);
+  const estimatedReserves = monthlySavings * 6;
+
+  const mildCost = 5000;
+  const mildRecover = monthlySavings > 0 ? Math.ceil(mildCost / monthlySavings) : 99;
+  const mildScore = estimatedReserves >= mildCost * 3 ? 10
+    : estimatedReserves >= mildCost ? 8
+    : mildRecover <= 3 ? 7
+    : mildRecover <= 6 ? 5
+    : monthlySavings > 0 ? 3
+    : 1;
+
+  const modGapPerMonth = totalMonthly - income * 0.5;
+  const mod3Shortfall = modGapPerMonth > 0 ? modGapPerMonth * 3 : 0;
+  const modScore = mod3Shortfall <= 0 ? 10
+    : estimatedReserves >= mod3Shortfall * 2 ? 8
+    : estimatedReserves >= mod3Shortfall ? 6
+    : estimatedReserves >= mod3Shortfall * 0.5 ? 4
+    : 2;
+
+  const sevShortfall = totalMonthly * 6;
+  const sevScore = estimatedReserves >= sevShortfall * 1.5 ? 10
+    : estimatedReserves >= sevShortfall ? 8
+    : estimatedReserves >= sevShortfall * 0.5 ? 5
+    : estimatedReserves >= sevShortfall * 0.25 ? 3
+    : 1;
+
+  return [
+    {
+      level: "Mild", scenario: `${f(mildCost)} unexpected repair`, score: mildScore,
+      detail: mildScore >= 8 ? `Estimated reserves cover ${f(mildCost)} with room to spare`
+        : mildScore >= 5 ? `Recoverable in ~${mildRecover} month${mildRecover === 1 ? "" : "s"} from savings`
+        : "Would strain monthly budget — limited reserves estimated",
+    },
+    {
+      level: "Moderate", scenario: "3 months at 50% income", score: modScore,
+      detail: mod3Shortfall <= 0 ? "Mortgage payments covered even at half income"
+        : modScore >= 6 ? `Estimated reserves absorb ${f(mod3Shortfall)} shortfall`
+        : `${f(mod3Shortfall)} shortfall likely exceeds estimated reserves`,
+    },
+    {
+      level: "Severe", scenario: "6 months unemployment", score: sevScore,
+      detail: sevScore >= 8 ? "Estimated reserves cover 6-month mortgage payments"
+        : sevScore >= 5 ? `Partial coverage — ${f(Math.max(0, sevShortfall - estimatedReserves))} reserve gap`
+        : `Significant exposure — reserves likely cover under 25% of ${f(sevShortfall)} needed`,
+    },
+  ];
+}
+
 // ── Amortization table ────────────────────────────────────────────────────────
 
 type AmorRow = {
@@ -779,6 +1004,15 @@ export default function HomeClient({
         })
       : null;
 
+    const readinessScore = calcReadinessScore(
+      totalMonthly, profile?.monthly_income, profile?.monthly_expenses,
+      dp, pp, retirBaselineProb, closingCosts,
+    );
+
+    const stressTests = calcStressTests(
+      totalMonthly, profile?.monthly_income, profile?.monthly_expenses,
+    );
+
     return {
       loan, monthlyPmt, maintMonthly, totalMonthly,
       firstPrincipal, firstInterest, trueEffectiveCost, opportunityCostOnEquity,
@@ -787,13 +1021,22 @@ export default function HomeClient({
       amortization, amortStats,
       affordabilityRatio, equivalentRent, verdictData, realOwnershipCost,
       opportunityCost, affordabilityScore, buyingAdvantages, rentingAdvantages,
-      homePriceRanges,
+      homePriceRanges, readinessScore, stressTests,
     };
   }, [inputs, profile]);
 
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
+  );
+
+  const rankedPaths = useMemo(
+    () => rankPaths(
+      scenarioSummaries,
+      { retirAssets: computed.retirBaselineAssets, retirProb: computed.retirBaselineProb, monthlyRent: inputs.monthly_rent },
+      profile?.monthly_income,
+    ),
+    [scenarioSummaries, computed.retirBaselineAssets, computed.retirBaselineProb, inputs.monthly_rent, profile?.monthly_income],
   );
 
   // ── Save / Delete ──────────────────────────────────────────────────────────
@@ -968,82 +1211,87 @@ export default function HomeClient({
           </div>
         )}
 
-        {/* Scenario Comparison Dashboard */}
+        {/* Compare Futures — ranked table */}
         {scenarios.length >= 1 && (() => {
           const vColors = {
             BUY:  { text: "oklch(0.70 0.18 155)", bg: "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)", border: "color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" },
             WAIT: { text: "oklch(0.80 0.14 80)",  bg: "color-mix(in oklch, oklch(0.80 0.14 80)  10%, transparent)", border: "color-mix(in oklch, oklch(0.80 0.14 80)  22%, transparent)" },
             RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  10%, transparent)", border: "color-mix(in oklch, oklch(0.68 0.18 25)  22%, transparent)" },
           };
-          const thS: React.CSSProperties = { padding: "6px 12px", textAlign: "right", fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", whiteSpace: "nowrap" as const, fontFamily: "var(--font-body)" };
-          const tdS: React.CSSProperties = { padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", borderTop: "1px solid var(--border-subtle)" };
+          const rankColors = ["oklch(0.80 0.14 80)", "var(--text-secondary)", "var(--text-tertiary)", "var(--text-muted)"];
+          const thS: React.CSSProperties = { padding: "6px 10px", textAlign: "right", fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", whiteSpace: "nowrap" as const, fontFamily: "var(--font-body)" };
+          const tdS: React.CSSProperties = { padding: "8px 10px", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", borderTop: "1px solid var(--border-subtle)" };
+          const hasRetir = computed.retirBaselineAssets != null;
+          const hasProb = computed.retirBaselineProb != null;
+          const winner = rankedPaths[0];
           return (
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
               <div style={{ padding: "12px 16px 8px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>Compare Futures</p>
-                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{scenarios.length} scenario{scenarios.length !== 1 ? "s" : ""} + rent path</span>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Scenario Rankings</p>
+                  {winner && (
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                      Best outcome: <span style={{ color: vColors[winner.verdict].text, fontWeight: 600 }}>{winner.name}</span> (score {winner.score})
+                    </p>
+                  )}
+                </div>
+                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{rankedPaths.length} paths ranked</span>
               </div>
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "580px" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "520px" }}>
                   <thead>
                     <tr>
-                      <th style={{ ...thS, textAlign: "left", paddingLeft: "16px" }}>Scenario</th>
-                      <th style={thS}>Price</th>
-                      <th style={thS}>Monthly</th>
-                      {computed.retirBaselineAssets != null && <th style={thS}>Retire Assets</th>}
-                      {computed.retirBaselineProb != null && <th style={thS}>Retire %</th>}
+                      <th style={{ ...thS, textAlign: "left", paddingLeft: "16px", width: "24px" }}>#</th>
+                      <th style={{ ...thS, textAlign: "left" }}>Path</th>
+                      <th style={thS}>Score</th>
+                      {hasRetir && <th style={thS}>Retire Assets</th>}
+                      {hasProb && <th style={thS}>Retire %</th>}
                       <th style={{ ...thS, paddingRight: "16px" }}>Verdict</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Rent Path baseline row */}
-                    <tr style={{ background: "var(--bg-elevated)" }}>
-                      <td style={{ ...tdS, textAlign: "left", paddingLeft: "16px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontStyle: "italic", fontSize: "11px" }}>
-                        Rent Path (baseline)
-                      </td>
-                      <td style={{ ...tdS, color: "var(--text-muted)" }}>—</td>
-                      <td style={tdS}>{fmt(inputs.monthly_rent)}</td>
-                      {computed.retirBaselineAssets != null && (
-                        <td style={{ ...tdS, fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(computed.retirBaselineAssets)}</td>
-                      )}
-                      {computed.retirBaselineProb != null && (
-                        <td style={{ ...tdS, fontWeight: 600, color: "var(--text-secondary)" }}>{computed.retirBaselineProb}%</td>
-                      )}
-                      <td style={{ ...tdS, paddingRight: "16px" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vColors.RENT.bg, color: vColors.RENT.text, border: `1px solid ${vColors.RENT.border}` }}>RENT</span>
-                      </td>
-                    </tr>
-                    {/* Saved scenarios */}
-                    {scenarioSummaries.map((ss) => {
-                      const isActive = ss.id === activeScenarioId;
-                      const vc = vColors[ss.verdictData.verdict];
+                    {rankedPaths.map((rp) => {
+                      const isActive = !rp.isRentPath && rp.id === activeScenarioId;
+                      const isTop = rp.rank === 1;
+                      const vc = vColors[rp.verdict];
+                      const rankColor = rankColors[Math.min(rp.rank - 1, rankColors.length - 1)];
                       return (
                         <tr
-                          key={ss.id}
-                          style={{ background: isActive ? "color-mix(in oklch, #3b82f6 5%, transparent)" : "transparent", cursor: "pointer" }}
+                          key={rp.id}
+                          style={{
+                            background: isTop
+                              ? "color-mix(in oklch, oklch(0.80 0.14 80) 5%, transparent)"
+                              : isActive ? "color-mix(in oklch, #3b82f6 4%, transparent)" : "transparent",
+                            cursor: rp.isRentPath ? "default" : "pointer",
+                          }}
                           onClick={() => {
-                            const s = scenarios.find((sc) => sc.id === ss.id);
+                            if (rp.isRentPath) return;
+                            const s = scenarios.find((sc) => sc.id === rp.id);
                             if (s) handleLoadScenario(s);
                           }}
                         >
-                          <td style={{ ...tdS, textAlign: "left", paddingLeft: "16px", fontFamily: "var(--font-body)", fontSize: "12px", color: isActive ? "#3b82f6" : "var(--text-primary)", fontWeight: isActive ? 600 : 400 }}>
-                            {ss.name}{isActive ? " ●" : ""}
+                          <td style={{ ...tdS, textAlign: "center", paddingLeft: "16px", fontWeight: 800, color: rankColor, fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                            {rp.rank}
                           </td>
-                          <td style={tdS}>{fmtK(ss.purchasePrice)}</td>
-                          <td style={tdS}>{fmt(ss.totalMonthly)}</td>
-                          {computed.retirBaselineAssets != null && (
-                            <td style={{ ...tdS, fontWeight: 600, color: ss.retirWithHomeAssets != null && computed.retirBaselineAssets != null && ss.retirWithHomeAssets >= computed.retirBaselineAssets ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)" }}>
-                              {ss.retirWithHomeAssets != null ? fmtK(ss.retirWithHomeAssets) : "—"}
+                          <td style={{ ...tdS, textAlign: "left", fontFamily: "var(--font-body)", fontSize: "12px", color: isActive ? "#3b82f6" : isTop ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isTop || isActive ? 600 : 400 }}>
+                            {rp.name}{isActive ? " ●" : ""}
+                          </td>
+                          <td style={{ ...tdS, fontWeight: 700, color: isTop ? "oklch(0.80 0.14 80)" : "var(--text-secondary)" }}>
+                            {rp.score}
+                          </td>
+                          {hasRetir && (
+                            <td style={{ ...tdS, fontWeight: 600, color: rp.retirAssets != null && computed.retirBaselineAssets != null && !rp.isRentPath && rp.retirAssets >= computed.retirBaselineAssets ? "oklch(0.70 0.18 155)" : "var(--text-secondary)" }}>
+                              {rp.retirAssets != null ? fmtK(rp.retirAssets) : "—"}
                             </td>
                           )}
-                          {computed.retirBaselineProb != null && (
-                            <td style={{ ...tdS, fontWeight: 600, color: ss.retirWithHomeProb != null && computed.retirBaselineProb != null && ss.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)" }}>
-                              {ss.retirWithHomeProb != null ? `${ss.retirWithHomeProb}%` : "—"}
+                          {hasProb && (
+                            <td style={{ ...tdS, fontWeight: 600, color: rp.retirProb != null && computed.retirBaselineProb != null && !rp.isRentPath && rp.retirProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "var(--text-secondary)" }}>
+                              {rp.retirProb != null ? `${rp.retirProb}%` : "—"}
                             </td>
                           )}
                           <td style={{ ...tdS, paddingRight: "16px" }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
-                              {ss.verdictData.verdict}
+                            <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
+                              {rp.verdict}
                             </span>
                           </td>
                         </tr>
@@ -1053,7 +1301,7 @@ export default function HomeClient({
                 </table>
               </div>
               <p style={{ fontSize: "9px", color: "var(--text-muted)", padding: "8px 16px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
-                Click any row to load that scenario. ● = active.
+                Score = retirement (30%) + wealth (25%) + affordability (25%) + break-even (10%) + liquidity (10%). Click any scenario row to load it.
               </p>
             </div>
           );
@@ -1282,6 +1530,86 @@ export default function HomeClient({
           {/* ── RIGHT: Analysis ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
+            {/* Best Financial Outcome */}
+            {rankedPaths.length >= 2 && (() => {
+              const top = rankedPaths[0];
+              const second = rankedPaths[1];
+              const scoreDiff = top.score - second.score;
+              const confidence = Math.min(96, Math.max(52, 52 + scoreDiff * 2.2));
+              const retirAdvantage = top.retirAssets != null && second.retirAssets != null
+                ? top.retirAssets - second.retirAssets : null;
+              const vColors = {
+                BUY:  "oklch(0.70 0.18 155)",
+                WAIT: "oklch(0.80 0.14 80)",
+                RENT: "oklch(0.68 0.18 25)",
+              };
+              const topColor = vColors[top.verdict];
+
+              // Generate reasons from breakdown
+              const reasons: string[] = [];
+              const bd = top.scoreBreakdown;
+              const bd2 = second.scoreBreakdown;
+              if (bd.retirement >= 80 && bd.retirement > bd2.retirement) reasons.push("Strongest retirement outcome");
+              if (bd.wealth > bd2.wealth) reasons.push("Highest projected wealth at retirement");
+              if (bd.affordability >= 80) reasons.push("Fits within income affordability guidelines");
+              if (bd.liquidity > bd2.liquidity + 10) reasons.push("Best capital liquidity preservation");
+              if (bd.breakeven > bd2.breakeven) reasons.push("Fastest equity break-even path");
+              if (top.isRentPath) reasons.push("No capital locked — investment returns compound freely");
+              if (reasons.length === 0) reasons.push("Best composite score across all financial dimensions");
+
+              return (
+                <div style={{
+                  background: `color-mix(in oklch, ${topColor} 6%, var(--card-bg))`,
+                  border: `1px solid color-mix(in oklch, ${topColor} 25%, transparent)`,
+                  borderRadius: "var(--radius-lg)", padding: "16px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Best Financial Outcome</p>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: "rgba(245,158,11,0.10)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.22)" }}>
+                      AI Engine
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "start", gap: "16px", marginBottom: "14px" }}>
+                    <div>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Recommended Path</div>
+                      <div style={{ fontFamily: "var(--font-display)", fontSize: "24px", fontWeight: 800, color: topColor, letterSpacing: "-0.8px", lineHeight: 1.1 }}>
+                        {top.name}
+                      </div>
+                      {retirAdvantage != null && Math.abs(retirAdvantage) > 1000 && (
+                        <div style={{ marginTop: "6px" }}>
+                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "2px" }}>Expected Advantage</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: topColor }}>
+                            {retirAdvantage > 0 ? "+" : ""}{fmtK(retirAdvantage)}
+                          </div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>vs {second.name}</div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px" }}>Confidence</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color: topColor, lineHeight: 1 }}>{Math.round(confidence)}%</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>score lead: +{scoreDiff}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px" }}>
+                    {reasons.slice(0, 4).map((r, i) => (
+                      <div key={i} style={{ display: "flex", gap: "7px", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
+                        <span style={{ color: topColor, flexShrink: 0, fontWeight: 700 }}>✓</span>{r}
+                      </div>
+                    ))}
+                  </div>
+                  {second && (
+                    <div style={{ borderTop: `1px solid color-mix(in oklch, ${topColor} 15%, transparent)`, paddingTop: "10px" }}>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                        Alternative: <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{second.name}</span>
+                        {" "}(score {second.score}{retirAdvantage != null && Math.abs(retirAdvantage) > 1000 ? `, ${fmtK(Math.abs(retirAdvantage))} ${retirAdvantage >= 0 ? "less" : "more"} in retirement assets` : ""})
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* BuyTune Verdict */}
             {(() => {
               const v = computed.verdictData;
@@ -1421,6 +1749,99 @@ export default function HomeClient({
                       );
                     })}
                   </div>
+                </div>
+              );
+            })()}
+
+            {/* Home Readiness Score */}
+            {computed.readinessScore && (() => {
+              const { score, rating, components } = computed.readinessScore;
+              const rColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
+              const rBadge = {
+                bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
+                border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
+              };
+              return (
+                <div style={cardS}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Home Readiness Score</p>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}` }}>
+                      {rating}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "12px" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "52px", fontWeight: 800, lineHeight: 1, color: rColor }}>{score}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", marginBottom: "16px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${score}%`, borderRadius: "3px", background: rColor, transition: "width 0.4s ease" }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {components.map(({ label, score: cs, detail }) => {
+                      const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
+                      return (
+                        <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 72px 28px", alignItems: "center", gap: "10px" }}>
+                          <div>
+                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{detail}</div>
+                          </div>
+                          <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${cs}%`, borderRadius: "2px", background: cColor }} />
+                          </div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
+                    Readiness = financial preparedness. Affordability Score = monthly cost fit. Both matter.
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* Financial Resilience (Stress Test) */}
+            {computed.stressTests && (() => {
+              const tests = computed.stressTests;
+              const avgScore = Math.round(tests.reduce((s, t) => s + t.score, 0) / tests.length);
+              const levelColors = {
+                Mild:     { score: tests[0].score, color: tests[0].score >= 7 ? "oklch(0.70 0.18 155)" : tests[0].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+                Moderate: { score: tests[1].score, color: tests[1].score >= 7 ? "oklch(0.70 0.18 155)" : tests[1].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+                Severe:   { score: tests[2].score, color: tests[2].score >= 7 ? "oklch(0.70 0.18 155)" : tests[2].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
+              };
+              return (
+                <div style={cardS}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Financial Resilience</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Avg</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: avgScore >= 7 ? "oklch(0.70 0.18 155)" : avgScore >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>{avgScore}/10</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {tests.map((t) => {
+                      const { color } = levelColors[t.level];
+                      const pct10 = (t.score / 10) * 100;
+                      return (
+                        <div key={t.level}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                            <div>
+                              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{t.level} Stress</span>
+                              <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "6px" }}>{t.scenario}</span>
+                            </div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color }}>{t.score}/10</span>
+                          </div>
+                          <div style={{ height: "5px", borderRadius: "2.5px", background: "var(--border-subtle)", overflow: "hidden", marginBottom: "4px" }}>
+                            <div style={{ height: "100%", width: `${pct10}%`, borderRadius: "2.5px", background: color, transition: "width 0.4s ease" }} />
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.4 }}>{t.detail}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
+                    Based on estimated 6-month emergency reserve from savings rate. Add monthly expenses to planning profile for precision.
+                  </p>
                 </div>
               );
             })()}
@@ -1751,6 +2172,45 @@ export default function HomeClient({
             {/* FINN Home Advisor */}
             <div style={cardS}>
               <p style={sectionHead}>FINN Home Advisor</p>
+              {/* What Would FINN Do? — rule-based recommendation */}
+              {rankedPaths.length >= 2 && (() => {
+                const top = rankedPaths[0];
+                const second = rankedPaths[1];
+                const scoreDiff = top.score - second.score;
+                const confidence = Math.min(96, Math.max(52, 52 + scoreDiff * 2.2));
+                const vColors = { BUY: "oklch(0.70 0.18 155)", WAIT: "oklch(0.80 0.14 80)", RENT: "oklch(0.68 0.18 25)" };
+                const topColor = vColors[top.verdict];
+                const bd = top.scoreBreakdown;
+                const reasons: string[] = [];
+                if (bd.retirement >= 80) reasons.push("retirement preservation");
+                if (bd.affordability >= 75) reasons.push("affordability fit");
+                if (bd.liquidity >= 80) reasons.push("liquidity preservation");
+                if (bd.wealth >= 80) reasons.push("long-term wealth creation");
+                if (bd.breakeven >= 80) reasons.push("equity break-even speed");
+                const retirAdv = top.retirAssets != null && second.retirAssets != null ? top.retirAssets - second.retirAssets : null;
+                return (
+                  <div style={{ marginBottom: "14px", padding: "12px", borderRadius: "var(--radius-md)", background: `color-mix(in oklch, ${topColor} 5%, var(--bg-elevated))`, border: `1px solid color-mix(in oklch, ${topColor} 18%, transparent)` }}>
+                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: topColor, marginBottom: "7px" }}>What Would FINN Do?</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "6px" }}>
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>{top.name}</span>
+                      <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: topColor, fontWeight: 700 }}>{Math.round(confidence)}% confidence</span>
+                    </div>
+                    {reasons.length > 0 && (
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "6px" }}>
+                        Best balance of {reasons.slice(0, 3).join(", ")}.
+                      </div>
+                    )}
+                    {second && (
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", lineHeight: 1.4, borderTop: `1px solid color-mix(in oklch, ${topColor} 12%, transparent)`, paddingTop: "7px" }}>
+                        Alt: <span style={{ color: "var(--text-secondary)" }}>{second.name}</span>
+                        {retirAdv != null && Math.abs(retirAdv) > 5000
+                          ? ` — ${fmtK(Math.abs(retirAdv))} ${retirAdv > 0 ? "less" : "more"} in projected retirement assets`
+                          : ` (score ${second.score})`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Auto insight — always visible */}
               {(() => {
                 const vc = { BUY: "oklch(0.70 0.18 155)", WAIT: "oklch(0.80 0.14 80)", RENT: "oklch(0.68 0.18 25)" }[computed.verdictData.verdict];
