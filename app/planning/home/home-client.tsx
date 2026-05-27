@@ -834,6 +834,38 @@ export default function HomeClient({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
   const [selectedPreset, setSelectedPreset] = useState<string>("");
+  const [showAmortModal, setShowAmortModal] = useState(false);
+
+  function exportAmortToCSV() {
+    const header = [
+      `BuyTune Home Planning Export`,
+      `Scenario: ${inputs.name}`,
+      `Generated: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+      `Purchase Price: ${fmt(inputs.purchase_price)} | Rate: ${inputs.mortgage_rate}% | Term: ${inputs.loan_term_years} yrs | Down: ${fmt(inputs.down_payment)}`,
+      ``,
+    ].join("\n");
+    const cols = ["Year", "Loan Balance", "Principal Paid", "Interest Paid", "Total Interest Paid", "Home Value (Est.)", "Equity", "Equity %"];
+    const rows = computed.amortization.map((r) => [
+      r.year,
+      r.balance < 100 ? 0 : Math.round(r.balance),
+      r.year === 0 ? 0 : Math.round(r.annualPrincipal),
+      r.year === 0 ? 0 : Math.round(r.annualInterest),
+      Math.round(r.cumulativeInterest),
+      Math.round(r.homeValue),
+      Math.round(r.equity),
+      `${r.equityPct.toFixed(1)}%`,
+    ].join(",")).join("\n");
+    const csv = header + cols.join(",") + "\n" + rows;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `BuyTune_${inputs.name.replace(/\s+/g, "_")}_Amortization.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   function applyPreset(key: string) {
     const preset = MARKET_PRESETS[key];
@@ -1691,7 +1723,7 @@ export default function HomeClient({
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>
                         {label}
-                        <span className="info-tip" title={tip}>i</span>
+                        <span className="has-tip" data-tip={tip}>i</span>
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
                       {sub && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
@@ -1716,10 +1748,28 @@ export default function HomeClient({
                   </div>
                 )}
 
+                {/* Table controls */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", marginBottom: "8px" }}>
+                  <button
+                    onClick={exportAmortToCSV}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => setShowAmortModal(true)}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3h5M3 3v5M3 3l6 6M17 17h-5M17 17v-5M17 17l-6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Full Table
+                  </button>
+                </div>
+
                 {/* Table */}
                 <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "340px" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                    <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
+                    <thead style={{ position: "sticky", top: 0, background: "#091525", zIndex: 1 }}>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                         {["Yr", "Balance", "Principal Paid", "Interest Paid", "Total Interest", "Home Value", "Equity", "Equity %"].map((h) => (
                           <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
@@ -1952,7 +2002,7 @@ export default function HomeClient({
               <div data-card style={cardS}>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
                   <p style={{ ...sectionHead, margin: 0 }}>Break-Even vs Renting</p>
-                  <span className="info-tip" title="The year when buying a home becomes financially better than renting + investing your down payment. Before this point, the renter would have more wealth.">i</span>
+                  <span className="has-tip" data-tip="The year when buying a home becomes financially better than renting + investing your down payment. Before this point, the renter would have more wealth.">i</span>
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
                   {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
@@ -1966,7 +2016,7 @@ export default function HomeClient({
               <div data-card style={cardS}>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
                   <p style={{ ...sectionHead, margin: 0 }}>Upfront Cash Needed</p>
-                  <span className="info-tip" title="The total money you need on closing day before you get the keys. This includes your down payment plus closing costs (lender fees, title, escrow, etc.).">i</span>
+                  <span className="has-tip" data-tip="The total money you need on closing day before you get the keys. This includes your down payment plus closing costs (lender fees, title, escrow, etc.).">i</span>
                 </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
                   {fmt(inputs.down_payment + computed.closingCosts)}
@@ -2150,33 +2200,49 @@ export default function HomeClient({
             </div>
 
             {/* Monthly cost breakdown */}
-            <div data-card style={cardS}>
-              <p style={sectionHead}>Monthly Cost Breakdown</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {[
-                  ["Principal & Interest", computed.monthlyPmt, false],
-                  ["Property Tax", inputs.property_tax_monthly, false],
-                  ["Insurance", inputs.insurance_monthly, false],
-                  ...(inputs.hoa_monthly > 0 ? [["HOA", inputs.hoa_monthly, false]] : []),
-                  ["Maintenance (est.)", computed.maintMonthly, false],
-                ].map(([lbl, val]) => (
-                  <div key={String(lbl)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                    <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{String(lbl)}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-primary)" }}>{fmt(Number(val))}</span>
+            {(() => {
+              const costItems: { label: string; value: number; color: string; dotColor: string }[] = [
+                { label: "Principal & Interest", value: computed.monthlyPmt, color: "rgba(59,130,246,0.15)", dotColor: "#3b82f6" },
+                { label: "Property Tax", value: inputs.property_tax_monthly, color: "rgba(168,85,247,0.12)", dotColor: "#a855f7" },
+                { label: "Insurance", value: inputs.insurance_monthly, color: "rgba(245,158,11,0.12)", dotColor: "#f59e0b" },
+                ...(inputs.hoa_monthly > 0 ? [{ label: "HOA", value: inputs.hoa_monthly, color: "rgba(20,184,166,0.12)", dotColor: "#14b8a6" }] : []),
+                { label: "Maintenance (est.)", value: computed.maintMonthly, color: "rgba(148,163,184,0.08)", dotColor: "#94a3b8" },
+              ];
+              const total = costItems.reduce((s, i) => s + i.value, 0);
+              return (
+                <div data-card style={cardS}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Monthly Cost Breakdown</p>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>{fmt(total)}</span>
                   </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 0" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Total Monthly</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{fmt(computed.totalMonthly)}</span>
+                  {/* Stacked proportion bar */}
+                  <div style={{ display: "flex", height: "6px", borderRadius: "4px", overflow: "hidden", marginBottom: "14px", gap: "1px" }}>
+                    {costItems.map(({ label, value, dotColor }) => (
+                      <div key={label} style={{ flex: value, background: dotColor, opacity: 0.8 }} />
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    {costItems.map(({ label, value, color, dotColor }) => {
+                      const pctOfTotal = total > 0 ? (value / total) * 100 : 0;
+                      return (
+                        <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 10px", borderRadius: "var(--radius-sm, 6px)", background: color }}>
+                          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+                          <span style={{ flex: 1, fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{label}</span>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", width: "34px", textAlign: "right" }}>{pctOfTotal.toFixed(0)}%</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", width: "60px", textAlign: "right" }}>{fmt(value)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Effective cost vs rent */}
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
                 <p style={{ ...sectionHead, margin: 0 }}>True Ownership Cost vs Rent</p>
-                <span className="info-tip" title="Your 'true' monthly cost is lower than the gross payment because each month you're building equity (principal paydown) — that money stays yours. This compares the real cost of owning vs. just renting.">i</span>
+                <span className="has-tip" data-tip="Your 'true' monthly cost is lower than the gross payment because each month you're building equity (principal paydown) — that money stays yours. This compares the real cost of owning vs. just renting.">i</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
                 {[
@@ -2200,7 +2266,7 @@ export default function HomeClient({
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
                 <p style={{ ...sectionHead, margin: 0 }}>Equivalent Rent Threshold</p>
-                <span className="info-tip" title="If your actual rent is below this number, renting is the smarter financial move. Above it, buying starts to look better. This accounts for equity buildup and appreciation.">i</span>
+                <span className="has-tip" data-tip="If your actual rent is below this number, renting is the smarter financial move. Above it, buying starts to look better. This accounts for equity buildup and appreciation.">i</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
                 <div>
@@ -2243,7 +2309,7 @@ export default function HomeClient({
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
                 <p style={{ ...sectionHead, margin: 0 }}>Opportunity Cost</p>
-                <span className="info-tip" title="Money tied up in a home can't be invested elsewhere. This shows what your down payment could grow to in the stock market — the financial cost of choosing to buy rather than invest.">i</span>
+                <span className="has-tip" data-tip="Money tied up in a home can't be invested elsewhere. This shows what your down payment could grow to in the stock market — the financial cost of choosing to buy rather than invest.">i</span>
               </div>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
                 If the {fmt(inputs.down_payment)} down payment were invested at {inputs.investment_return}%/yr instead of a home:
@@ -2275,7 +2341,7 @@ export default function HomeClient({
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0", gap: "8px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                     <p style={{ ...sectionHead, margin: 0 }}>Net Wealth Outcome over {inputs.hold_years} Years</p>
-                    <span className="info-tip" title="Buying path = home equity after selling. Renting path = what your down payment would be worth if invested instead. This shows which path leaves you wealthier.">i</span>
+                    <span className="has-tip" data-tip="Buying path = home equity after selling. Renting path = what your down payment would be worth if invested instead. This shows which path leaves you wealthier.">i</span>
                   </div>
                   {computed.lastPoint && (() => {
                     const buyWins = computed.lastPoint!.homeEquity > computed.lastPoint!.rentPortfolio;
@@ -2474,7 +2540,7 @@ export default function HomeClient({
         </div>
       </div>
 
-      {/* Responsive + hover effects */}
+      {/* Styles: hover glow, custom tooltips, modal */}
       <style>{`
         [data-card] {
           transition: box-shadow 0.2s ease, border-color 0.2s ease;
@@ -2493,35 +2559,193 @@ export default function HomeClient({
           border-color: rgba(59,130,246,0.25) !important;
         }
         abbr[title] {
-          text-decoration: underline dotted rgba(148,163,184,0.5);
+          text-decoration: underline dotted rgba(148,163,184,0.4);
           cursor: help;
         }
-        .info-tip {
+        /* Custom tooltip icon */
+        .has-tip {
+          position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 13px;
-          height: 13px;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
-          background: rgba(148,163,184,0.1);
-          border: 1px solid rgba(148,163,184,0.2);
-          color: rgba(148,163,184,0.6);
-          font-size: 8px;
-          font-weight: 700;
+          background: rgba(59,130,246,0.10);
+          border: 1px solid rgba(59,130,246,0.22);
+          color: #60a5fa;
+          font-size: 9px;
+          font-weight: 800;
+          font-style: italic;
           cursor: help;
           vertical-align: middle;
-          margin-left: 4px;
+          margin-left: 5px;
           flex-shrink: 0;
+          transition: background 0.15s, border-color 0.15s;
+          font-family: Georgia, serif;
         }
-        .info-tip:hover {
-          background: rgba(59,130,246,0.12);
-          border-color: rgba(59,130,246,0.3);
-          color: #60a5fa;
+        .has-tip:hover {
+          background: rgba(59,130,246,0.20);
+          border-color: rgba(59,130,246,0.45);
         }
+        .has-tip::after {
+          content: attr(data-tip);
+          position: absolute;
+          bottom: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%);
+          min-width: 230px;
+          max-width: 280px;
+          padding: 10px 13px;
+          border-radius: 10px;
+          background: #0d1f3c;
+          border: 1px solid rgba(59,130,246,0.25);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+          color: #94a3b8;
+          font-size: 11.5px;
+          line-height: 1.55;
+          font-family: var(--font-body, sans-serif);
+          font-weight: 400;
+          font-style: normal;
+          text-transform: none;
+          letter-spacing: 0;
+          z-index: 200;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.18s ease, visibility 0.18s ease;
+          white-space: normal;
+          text-align: left;
+        }
+        .has-tip:hover::after {
+          opacity: 1;
+          visibility: visible;
+        }
+        /* Amort modal */
+        .amort-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(4,13,26,0.88);
+          backdrop-filter: blur(6px);
+          z-index: 999;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 24px 16px;
+          overflow-y: auto;
+        }
+        .amort-modal {
+          background: #091525;
+          border: 1px solid rgba(59,130,246,0.2);
+          border-radius: 16px;
+          width: 100%;
+          max-width: 900px;
+          box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+          overflow: hidden;
+        }
+        .amort-modal-head {
+          background: linear-gradient(135deg, #0d1f3c 0%, #091525 100%);
+          border-bottom: 1px solid rgba(59,130,246,0.15);
+          padding: 18px 22px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .amort-modal table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .amort-modal thead th { padding: 9px 12px; text-align: right; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; border-bottom: 1px solid rgba(59,130,246,0.12); background: #091525; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+        .amort-modal tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
+        .amort-modal tbody tr:hover { background: rgba(59,130,246,0.05) !important; }
+        .amort-modal tbody td { padding: 8px 12px; text-align: right; font-family: var(--font-mono, monospace); }
         @media (max-width: 768px) {
           [data-home-grid] { grid-template-columns: 1fr !important; }
         }
       `}</style>
+
+      {/* ── Full-screen amortization modal ── */}
+      {showAmortModal && (
+        <div className="amort-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowAmortModal(false); }}>
+          <div className="amort-modal">
+            <div className="amort-modal-head">
+              <div>
+                <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#475569", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>BuyTune · Amortization Schedule</div>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "#e2e8f0", fontFamily: "var(--font-display)" }}>{inputs.name}</div>
+                <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", fontFamily: "var(--font-body)" }}>
+                  {fmt(inputs.purchase_price)} · {inputs.mortgage_rate}% rate · {inputs.loan_term_years} yr term · {fmt(inputs.down_payment)} down
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={exportAmortToCSV}
+                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "12px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Export CSV
+                </button>
+                <button
+                  onClick={() => setShowAmortModal(false)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#94a3b8", fontSize: "16px", cursor: "pointer", fontFamily: "var(--font-body)", lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Summary stats row */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1px", background: "rgba(59,130,246,0.12)", borderBottom: "1px solid rgba(59,130,246,0.12)" }}>
+              {[
+                { label: "Monthly Payment (P&I)", value: fmt(computed.amortStats.monthlyPayment) },
+                { label: "Total Interest", value: fmtK(computed.amortStats.totalInterest), muted: true },
+                { label: "Interest Flip", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", blue: true },
+                { label: "50% Equity", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", green: true },
+              ].map(({ label, value, muted, blue, green }) => (
+                <div key={label} style={{ padding: "12px 16px", background: "#091525" }}>
+                  <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: muted ? "oklch(0.68 0.18 25)" : blue ? "#3b82f6" : green ? "#00d395" : "#e2e8f0" }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Full table */}
+            <div style={{ overflowY: "auto", maxHeight: "60vh", padding: "0 0 8px" }}>
+              <table>
+                <thead>
+                  <tr>
+                    {["Yr", "Balance", "Principal Paid", "Interest Paid", "Cumulative Interest", "Est. Home Value", "Equity", "Equity %"].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {computed.amortization.map((row) => {
+                    const isHoldYear = row.year === inputs.hold_years;
+                    const isCrossover = row.isCrossover;
+                    return (
+                      <tr key={row.year} style={{ background: isHoldYear ? "color-mix(in oklch, #3b82f6 8%, transparent)" : isCrossover ? "color-mix(in oklch, #00d395 5%, transparent)" : undefined }}>
+                        <td style={{ color: isHoldYear ? "#3b82f6" : "#64748b", textAlign: "left", paddingLeft: "16px", fontWeight: isHoldYear ? 700 : 400 }}>{row.year}{isHoldYear ? " ★" : ""}</td>
+                        <td style={{ color: "#94a3b8" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
+                        <td style={{ color: "#3b82f6" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
+                        <td style={{ color: "oklch(0.70 0.15 25)" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
+                        <td style={{ color: "#64748b" }}>{fmtK(row.cumulativeInterest)}</td>
+                        <td style={{ color: "#94a3b8" }}>{fmtK(row.homeValue)}</td>
+                        <td style={{ color: "#00d395", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                        <td style={{ fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "#64748b" }}>
+                          {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: "10px 16px 14px", borderTop: "1px solid rgba(59,130,246,0.1)" }}>
+              <p style={{ fontSize: "10px", color: "#475569", margin: 0, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                ★ = planned hold year. Blue rows = principal paid exceeds interest (loan working more for you). Green = 20%+ equity milestones.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
