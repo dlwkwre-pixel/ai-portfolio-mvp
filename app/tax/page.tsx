@@ -4,6 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import TaxClient from "./tax-client";
+import PageIntro from "@/app/components/page-intro";
 
 export const metadata = { title: "Tax Center — BuyTune" };
 
@@ -298,6 +299,11 @@ export default async function TaxPage({
             </div>
           </div>
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            <PageIntro
+              pageKey="tax"
+              title="Tax Center"
+              description="Estimate your capital gains liability, track cost basis across portfolios, and plan around your tax situation."
+            />
             <TaxClient data={taxData} />
           </div>
         </div>

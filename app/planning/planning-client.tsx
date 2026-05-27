@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
+import PageIntro from "@/app/components/page-intro";
 import XLSXStyle from "xlsx-js-style";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -3317,6 +3318,12 @@ export default function PlanningClient({
     <div style={{ padding: "24px", maxWidth: "900px" }}>
 
       {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
+
+      <PageIntro
+        pageKey="planning"
+        title="Financial Planning"
+        description="Map your assets, debts, and income to track net worth, model retirement, and get a financial health score."
+      />
 
       {/* Page header */}
       <div style={{ marginBottom: "24px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>

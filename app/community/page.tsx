@@ -4,6 +4,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import CommunityClient from "./community-client";
 import CommunityHeader from "./community-header";
+import PageIntro from "@/app/components/page-intro";
 
 const PAGE_SIZE = 50; // load 50; trending strips are separate top-4 queries
 
@@ -329,6 +330,11 @@ export default async function CommunityPage({
           </div>
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            <PageIntro
+              pageKey="community"
+              title="Community"
+              description="Discover what other investors are building. Follow strategies, explore public portfolios, and share your own."
+            />
             <CommunityClient
               strategies={strategyRows}
               currentUserId={user.id}
