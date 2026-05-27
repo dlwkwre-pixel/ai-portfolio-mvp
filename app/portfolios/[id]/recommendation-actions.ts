@@ -964,7 +964,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_transactions: transactions ?? [],
     recent_cash_ledger: cashLedger ?? [],
     recent_snapshots: snapshots ?? [],
-    recent_recommendation_runs: recentRuns ?? [],
     recent_recommendation_items: recentRecommendationItems,
     market_context: prunedMarketContext,
     reddit_sentiment: redditSentiment,
@@ -1020,12 +1019,6 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(7) POSITION THESIS MEMORY: The position_thesis_memory context contains the original thesis, portfolio role, entry conviction, and thesis status for executed positions. Use this as institutional memory. Ask: does this position still fulfill the reason we bought it? Thesis status: intact = proceed on security merit; strengthening = lean toward adding; weakening = reduce or watch; broken = exit regardless of price action. CRITICAL: macro alone does not change thesis status — it affects sizing only. Short-term volatility does not break a long-term structural thesis. Never trim a core holding solely because it appreciated — trim when the original thesis deteriorated, crowding risk materialized, or better capital allocation exists. Reference thesis continuity explicitly in rationale.",
     "(8) CATALYST INTELLIGENCE: The position_catalyst_context provides catalyst type, key catalysts, thesis dependencies, and invalidation signals. Assess catalyst health for each position using Finnhub data, news, and Reddit sentiment. Lead with catalyst status: 'The [X] thesis depends on [dependency] and is currently [intact/strengthening/weakening]. Key risk: [signal].' Keep to 1-2 sentences. Catalyst awareness must be strategy-sensitive. Macro influences catalyst urgency and sizing — not automatic invalidation.",
 
-    // ── Participation Bias
-    "PARTICIPATION BIAS: Markets rise over long periods. Excessive defensiveness has compounding opportunity cost. The default posture for a constructive environment is intelligent, selective participation. In constructive or mixed environments, there should almost always be something worth expressing. Inactivity requires a strong, explicit security-specific or macro justification — not vague caution.",
-
-    // ── Opportunity Cost as Portfolio Risk
-    "OPPORTUNITY COST AS RISK: Treat missed asymmetric opportunities the same way you treat downside risk — as a real cost to the portfolio's long-term compounding. A decision to hold cash while a high-conviction opportunity exists must be as explicitly justified as a decision to buy. The bias is toward intelligent deployment, not toward inactivity.",
-
     // ── HOLD Discipline
     "HOLD DISCIPLINE: HOLD is a valid and important action — but it must earn its place. HOLD is correct when: the thesis is fully intact and position is appropriately sized, there is no better marginal use of capital, or you are awaiting a specific catalyst or entry point. HOLD is WRONG when it results from: generalized macro nervousness, fear of being wrong, vague caution, or default inactivity. 'Macro is mixed' is NOT a valid HOLD reason. A fundamentally attractive security with intact thesis should receive a sized recommendation — potentially smaller due to macro overlay, but not HOLD. When in doubt: if you'd recommend buying this security for a new portfolio at current prices, HOLD is the wrong answer.",
 
@@ -1047,7 +1040,7 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
 ${minPositionPct != null ? `- min_position_pct: ${minPositionPct}%` : ""}\n`
     : "";
 
-  const userPrompt = `You are a capital allocator, not an analyst. Analyze this portfolio and return a strict JSON object. Central question for every holding and every dollar of cash: where is the best marginal dollar deployed right now? Use the three-layer evaluation process: security fundamentals first, then strategy fit, then macro overlay for sizing.
+  const userPrompt = `Analyze this portfolio and return a strict JSON object.
 ${strategyConstraintsBlock}
 HARD CONSTRAINTS:
 
@@ -1080,9 +1073,9 @@ Return this exact JSON shape:
       "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",
       "ticker": "string",
       "company_name": "string|null",
-      "thesis": "string — [SECURITY] fundamental assessment + [SIZING] guidance",
-      "rationale": "string|null — [STRATEGY FIT] + [PORTFOLIO] impact",
-      "risks": "string|null — [MACRO IMPACT] + [DOWNSIDE] risks",
+      "thesis": "string",
+      "rationale": "string|null",
+      "risks": "string|null",
       "conviction": "Low|Moderate|High|Very High|null",
       "confidence_score": number|null,
       "priority_rank": number|null,
@@ -1095,9 +1088,8 @@ Return this exact JSON shape:
       "base_return_pct": number|null,
       "bear_return_pct": number|null,
       "bull_return_pct": number|null,
-      "catalysts": ["string","..."],
+      "catalysts": ["string"],
       "target_change_reason": "string|null",
-      "target_price_1": number|null,
       "target_price_2": number|null,
       "stop_price": number|null,
       "target_horizon": "string|null",
@@ -1108,14 +1100,11 @@ Return this exact JSON shape:
 
 Execution rules:
 - Cover EVERY existing holding. No exceptions.
-- HOLD: only with security-specific justification (stretched valuation, no catalyst, awaiting earnings, already overweight, trend weakening). Never for macro reasons alone. If you would recommend buying this position for a new portfolio at current prices, HOLD is the wrong answer — use ADD.
-- CONSTRUCTION: use portfolio_construction.overweight_flags to identify the only positions that warrant concentration-based trim recommendations. If intentional_concentration is true, do NOT recommend trimming for diversification — only trim if a position appears in overweight_flags.
-- TIME HORIZON: label each recommendation's time_horizon accurately. Never recommend trimming a structural long-term position on a short-term catalyst miss.
-- OPPORTUNITY DISCOVERY (ENGINE 2): Run this engine FIRST, before evaluating existing holdings. Use web_search to actively find external candidates — search for thematic leaders, momentum setups, analyst upgrades, and sector outperformers aligned with the portfolio's strategy. Exploration breadth is determined by portfolio conditions (idle cash, concentration, strategy aggressiveness, environment) — NOT by holding count. A concentrated portfolio with significant cash demands active external scanning. Surface genuine candidates where conviction is earned; never cap exploration by holding count. The "buy" action_type (NEW positions) should appear regularly when cash is available and environment is constructive.
-- New buy candidates: each new name must win the marginal dollar competition against (a) adding to an existing high-conviction holding or (b) holding cash as an explicitly justified choice. In constructive or mixed environments, present the best 2-5 genuine candidates with earned conviction — let the quality filter, not a hard count, determine how many clear winners emerge. Do not default to holding all cash.
-- OPPORTUNITY COST: treating cash as "adequately deployed by holding" is a bias error. Evaluate the risk of NOT entering an asymmetric setup with the same rigor as downside risk. Unused cash earns nothing while opportunities compound.
-- scale_in: use for positions with strong thesis but better entry possible (average down or stagger buys). rotate: use when exiting one name to fund another in the same sector/theme. Trim/sell/hold: only tickers in existing holdings.
-- Apply sizing_modifier from macro overlay to scale new position sizes. Apply speculative_penalty to reduce conviction on low-quality names only.
+- HOLD requires security-specific justification. Never for macro alone. If you'd buy this for a new portfolio today, use ADD not HOLD.
+- CONSTRUCTION: only trim positions in portfolio_construction.overweight_flags. If intentional_concentration is true, never trim for diversification.
+- TIME HORIZON: label time_horizon accurately. Never trim a structural position on a short-term miss.
+- scale_in: strong thesis, better entry possible. rotate: exit one to fund another in same theme. Trim/sell/hold: only existing holdings.
+- Apply sizing_modifier from macro overlay. Apply speculative_penalty to low-quality names only.
 - Return JSON only, no markdown fences.
 
 Portfolio context:
