@@ -1311,7 +1311,7 @@ export default function HomeClient({
         <div data-home-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 380px) 1fr", gap: "20px", alignItems: "start" }}>
 
           {/* ── LEFT: Inputs ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div data-home-sticky style={{ display: "flex", flexDirection: "column", gap: "14px", position: "sticky", top: "49px", maxHeight: "calc(100vh - 49px)", overflowY: "auto", paddingBottom: "24px", scrollbarWidth: "none" }}>
 
             {/* Scenario name */}
             <div>
@@ -1530,7 +1530,50 @@ export default function HomeClient({
           {/* ── RIGHT: Analysis ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
-            {/* Best Financial Outcome */}
+            {/* ── BuyTune Verdict — hero ── */}
+            {(() => {
+              const v = computed.verdictData;
+              const palette = {
+                BUY:  { text: "oklch(0.70 0.18 155)", bg: "color-mix(in oklch, oklch(0.70 0.18 155) 8%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" },
+                WAIT: { text: "oklch(0.80 0.14 80)",  bg: "color-mix(in oklch, oklch(0.80 0.14 80)  8%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.80 0.14 80)  22%, transparent)" },
+                RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  8%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.68 0.18 25)  22%, transparent)" },
+              };
+              const confPalette = {
+                High:   { bg: "rgba(0,211,149,0.10)",   text: "#00d395",           border: "rgba(0,211,149,0.25)" },
+                Medium: { bg: "rgba(245,158,11,0.10)",  text: "#f59e0b",           border: "rgba(245,158,11,0.25)" },
+                Low:    { bg: "rgba(148,163,184,0.10)", text: "var(--text-muted)", border: "rgba(148,163,184,0.2)" },
+              };
+              const c = palette[v.verdict];
+              const cc = confPalette[v.confidence];
+              return (
+                <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "var(--radius-lg)", padding: "20px 20px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>BuyTune Verdict</span>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}`, fontFamily: "var(--font-body)" }}>
+                      {v.confidence} Confidence
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "56px", fontWeight: 800, color: c.text, letterSpacing: "-2px", lineHeight: 1, marginBottom: "16px" }}>
+                    {v.verdict}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "7px", marginBottom: "12px" }}>
+                    {v.reasons.map((reason, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                        <span style={{ color: c.text, flexShrink: 0, fontWeight: 700, marginTop: "1px", fontSize: "11px" }}>{v.verdict === "RENT" ? "×" : "✓"}</span>
+                        {reason}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ borderTop: `1px solid color-mix(in oklch, ${c.text} 12%, transparent)`, paddingTop: "8px" }}>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                      Live analysis — updates automatically as you adjust inputs.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Best Financial Outcome ── */}
             {rankedPaths.length >= 2 && (() => {
               const top = rankedPaths[0];
               const second = rankedPaths[1];
@@ -1610,46 +1653,101 @@ export default function HomeClient({
               );
             })()}
 
-            {/* BuyTune Verdict */}
-            {(() => {
-              const v = computed.verdictData;
-              const palette = {
-                BUY:  { text: "oklch(0.70 0.18 155)", bg: "color-mix(in oklch, oklch(0.70 0.18 155) 7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.70 0.18 155) 22%, transparent)" },
-                WAIT: { text: "oklch(0.80 0.14 80)",  bg: "color-mix(in oklch, oklch(0.80 0.14 80)  7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.80 0.14 80)  20%, transparent)" },
-                RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  7%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.68 0.18 25)  20%, transparent)" },
-              };
-              const confPalette = {
-                High:   { bg: "rgba(0,211,149,0.10)",   text: "#00d395",         border: "rgba(0,211,149,0.25)" },
-                Medium: { bg: "rgba(245,158,11,0.10)",  text: "#f59e0b",         border: "rgba(245,158,11,0.25)" },
-                Low:    { bg: "rgba(148,163,184,0.10)", text: "var(--text-muted)", border: "rgba(148,163,184,0.2)" },
-              };
-              const c = palette[v.verdict];
-              const cc = confPalette[v.confidence];
-              return (
-                <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "var(--radius-lg)", padding: "16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                    <p style={{ ...sectionHead, margin: 0 }}>BuyTune Verdict</p>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}` }}>
-                      {v.confidence} Confidence
-                    </span>
+            {/* ── SECTION: BREAKEVEN & TIMELINE ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Breakeven &amp; Timeline</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
+            {/* Rent Breakeven Timeline — moved up */}
+            {computed.timeline.length > 1 && (
+              <div style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#00d395" }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
+                    </div>
                   </div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "42px", fontWeight: 800, color: c.text, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: "14px" }}>
-                    {v.verdict}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "7px", marginBottom: "10px" }}>
-                    {v.reasons.map((reason, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.4 }}>
-                        <span style={{ color: c.text, flexShrink: 0, fontWeight: 700, marginTop: "1px", fontSize: "11px" }}>{v.verdict === "RENT" ? "×" : "✓"}</span>
-                        {reason}
-                      </div>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                    Live analysis — updates automatically as you adjust inputs.
-                  </p>
                 </div>
-              );
-            })()}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {computed.timeline.slice(1).map((pt) => {
+                    const buyingWins = pt.homeEquity > pt.rentPortfolio;
+                    const isBreakEven = computed.breakEvenYear === pt.year;
+                    const diff = Math.abs(pt.homeEquity - pt.rentPortfolio);
+                    return (
+                      <div
+                        key={pt.year}
+                        title={`Year ${pt.year}: ${buyingWins ? "Buying" : "Renting"} ahead by ${fmtK(diff)}`}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          width: "32px", height: "28px", borderRadius: "6px",
+                          fontSize: "9px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
+                          background: isBreakEven
+                            ? "rgba(255,255,255,0.12)"
+                            : buyingWins ? "rgba(59,130,246,0.16)" : "rgba(0,211,149,0.13)",
+                          color: isBreakEven ? "var(--text-primary)" : buyingWins ? "#60a5fa" : "#00d395",
+                          border: isBreakEven
+                            ? "1px solid rgba(255,255,255,0.28)"
+                            : buyingWins ? "1px solid rgba(59,130,246,0.25)" : "1px solid rgba(0,211,149,0.22)",
+                        }}
+                      >
+                        {pt.year}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
+                  {computed.breakEvenYear != null
+                    ? `Buying overtakes renting at Year ${computed.breakEvenYear} and stays ahead. Hover any year for the equity differential.`
+                    : `Renting outpaces buying throughout the ${inputs.hold_years}-year hold at current assumptions.`}
+                </p>
+              </div>
+            )}
+
+            {/* Break-Even Year + Upfront Costs — 2-col */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div style={cardS}>
+                <p style={sectionHead}>Break-Even vs Renting</p>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
+                  {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
+                  {computed.breakEvenYear != null
+                    ? `Buying beats the rented + invested path after ${computed.breakEvenYear} ${computed.breakEvenYear === 1 ? "year" : "years"}.`
+                    : `Buying doesn't out-earn the rented + invested path within ${inputs.hold_years} years at these rates.`}
+                </p>
+              </div>
+              <div style={cardS}>
+                <p style={sectionHead}>Upfront Cash Needed</p>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {fmt(inputs.down_payment + computed.closingCosts)}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-tertiary)" }}>Down payment</span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(inputs.down_payment)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-tertiary)" }}>Closing costs ({inputs.closing_cost_pct}%)</span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.closingCosts)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION: RETIREMENT & HEALTH ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Retirement &amp; Health</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
 
             {/* Retirement Impact Centerpiece */}
             {computed.retirBaselineProb != null && (
@@ -1709,96 +1807,105 @@ export default function HomeClient({
               </div>
             )}
 
-            {/* Affordability Score */}
-            {computed.affordabilityScore && (() => {
-              const { score, rating, components } = computed.affordabilityScore;
-              const scoreColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
-              const ratingStyle = {
-                bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
-                border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
-              };
-              return (
-                <div style={cardS}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
-                    <p style={{ ...sectionHead, margin: 0 }}>Affordability Score</p>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}` }}>
-                      {rating}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "12px" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "52px", fontWeight: 800, lineHeight: 1, color: scoreColor }}>{score}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
-                  </div>
-                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", marginBottom: "16px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${score}%`, borderRadius: "3px", background: scoreColor, transition: "width 0.4s ease" }} />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {components.map(({ label, score: cs, detail }) => {
-                      const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
-                      return (
-                        <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 72px 28px", alignItems: "center", gap: "10px" }}>
-                          <div>
-                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</div>
-                            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{detail}</div>
-                          </div>
-                          <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${cs}%`, borderRadius: "2px", background: cColor }} />
-                          </div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Affordability + Readiness — side by side */}
+            {(computed.affordabilityScore || computed.readinessScore) && (
+              <div style={{ display: "grid", gridTemplateColumns: computed.affordabilityScore && computed.readinessScore ? "1fr 1fr" : "1fr", gap: "14px", alignItems: "start" }}>
+                {computed.affordabilityScore && (() => {
+                  const { score, rating, components } = computed.affordabilityScore;
+                  const scoreColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
+                  const ratingStyle = {
+                    bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
+                    border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
+                  };
+                  return (
+                    <div style={cardS}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                        <p style={{ ...sectionHead, margin: 0 }}>Affordability</p>
+                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}`, fontFamily: "var(--font-body)" }}>
+                          {rating}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "2px", marginBottom: "10px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "44px", fontWeight: 800, lineHeight: 1, color: scoreColor }}>{score}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
+                      </div>
+                      <div style={{ height: "5px", borderRadius: "2.5px", background: "var(--border-subtle)", marginBottom: "12px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${score}%`, borderRadius: "2.5px", background: scoreColor, transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {components.map(({ label, score: cs, detail }) => {
+                          const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
+                          return (
+                            <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 48px 22px", alignItems: "center", gap: "7px" }}>
+                              <div>
+                                <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{label}</div>
+                                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
+                              </div>
+                              <div style={{ height: "3px", borderRadius: "1.5px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${cs}%`, borderRadius: "1.5px", background: cColor }} />
+                              </div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {computed.readinessScore && (() => {
+                  const { score, rating, components } = computed.readinessScore;
+                  const rColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
+                  const rBadge = {
+                    bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
+                    border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
+                  };
+                  return (
+                    <div style={cardS}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                        <p style={{ ...sectionHead, margin: 0 }}>Readiness</p>
+                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}`, fontFamily: "var(--font-body)" }}>
+                          {rating}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "2px", marginBottom: "10px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "44px", fontWeight: 800, lineHeight: 1, color: rColor }}>{score}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
+                      </div>
+                      <div style={{ height: "5px", borderRadius: "2.5px", background: "var(--border-subtle)", marginBottom: "12px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${score}%`, borderRadius: "2.5px", background: rColor, transition: "width 0.4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {components.map(({ label, score: cs, detail }) => {
+                          const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
+                          return (
+                            <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 48px 22px", alignItems: "center", gap: "7px" }}>
+                              <div>
+                                <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{label}</div>
+                                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
+                              </div>
+                              <div style={{ height: "3px", borderRadius: "1.5px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${cs}%`, borderRadius: "1.5px", background: cColor }} />
+                              </div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                        Readiness = financial preparedness. Affordability = monthly cost fit.
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
-            {/* Home Readiness Score */}
-            {computed.readinessScore && (() => {
-              const { score, rating, components } = computed.readinessScore;
-              const rColor = score >= 90 ? "oklch(0.70 0.18 155)" : score >= 75 ? "oklch(0.80 0.14 80)" : score >= 60 ? "oklch(0.72 0.18 55)" : "oklch(0.68 0.18 25)";
-              const rBadge = {
-                bg: score >= 90 ? "rgba(0,211,149,0.10)" : score >= 75 ? "rgba(245,158,11,0.10)" : score >= 60 ? "rgba(249,115,22,0.10)" : "rgba(239,68,68,0.10)",
-                border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
-              };
-              return (
-                <div style={cardS}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
-                    <p style={{ ...sectionHead, margin: 0 }}>Home Readiness Score</p>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}` }}>
-                      {rating}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", marginBottom: "12px" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "52px", fontWeight: 800, lineHeight: 1, color: rColor }}>{score}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", color: "var(--text-muted)", fontWeight: 400 }}>/100</span>
-                  </div>
-                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", marginBottom: "16px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${score}%`, borderRadius: "3px", background: rColor, transition: "width 0.4s ease" }} />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {components.map(({ label, score: cs, detail }) => {
-                      const cColor = cs >= 80 ? "oklch(0.70 0.18 155)" : cs >= 55 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
-                      return (
-                        <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 72px 28px", alignItems: "center", gap: "10px" }}>
-                          <div>
-                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</div>
-                            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{detail}</div>
-                          </div>
-                          <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${cs}%`, borderRadius: "2px", background: cColor }} />
-                          </div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: cColor, textAlign: "right" }}>{cs}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
-                    Readiness = financial preparedness. Affordability Score = monthly cost fit. Both matter.
-                  </p>
-                </div>
-              );
-            })()}
+            {/* ── SECTION: COST ANALYSIS ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Cost Analysis</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
 
             {/* Financial Resilience (Stress Test) */}
             {computed.stressTests && (() => {
@@ -1930,96 +2037,6 @@ export default function HomeClient({
               </p>
             </div>
 
-            {/* Break-even + upfront costs */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-              <div style={cardS}>
-                <p style={sectionHead}>Break-Even vs Renting</p>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
-                  {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
-                </div>
-                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
-                  {computed.breakEvenYear != null
-                    ? `Buying beats the rented + invested path after ${computed.breakEvenYear} ${computed.breakEvenYear === 1 ? "year" : "years"}.`
-                    : `Buying doesn't out-earn the rented + invested path within ${inputs.hold_years} years at these rates.`}
-                </p>
-              </div>
-              <div style={cardS}>
-                <p style={sectionHead}>Upfront Cash Needed</p>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {fmt(inputs.down_payment + computed.closingCosts)}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                    <span style={{ color: "var(--text-tertiary)" }}>Down payment</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(inputs.down_payment)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                    <span style={{ color: "var(--text-tertiary)" }}>Closing costs ({inputs.closing_cost_pct}%)</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.closingCosts)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Rent Breakeven Timeline */}
-            {computed.timeline.length > 1 && (
-              <div style={cardS}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#00d395" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                  {computed.timeline.slice(1).map((pt) => {
-                    const buyingWins = pt.homeEquity > pt.rentPortfolio;
-                    const isBreakEven = computed.breakEvenYear === pt.year;
-                    const diff = Math.abs(pt.homeEquity - pt.rentPortfolio);
-                    return (
-                      <div
-                        key={pt.year}
-                        title={`Year ${pt.year}: ${buyingWins ? "Buying" : "Renting"} ahead by ${fmtK(diff)}`}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          width: "30px", height: "26px", borderRadius: "5px",
-                          fontSize: "9px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
-                          background: isBreakEven
-                            ? "rgba(255,255,255,0.12)"
-                            : buyingWins
-                              ? "rgba(59,130,246,0.18)"
-                              : "rgba(0,211,149,0.15)",
-                          color: isBreakEven
-                            ? "var(--text-primary)"
-                            : buyingWins
-                              ? "#60a5fa"
-                              : "#00d395",
-                          border: isBreakEven
-                            ? "1px solid rgba(255,255,255,0.25)"
-                            : buyingWins
-                              ? "1px solid rgba(59,130,246,0.22)"
-                              : "1px solid rgba(0,211,149,0.2)",
-                        }}
-                      >
-                        {pt.year}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
-                  {computed.breakEvenYear != null
-                    ? `Buying overtakes renting at Year ${computed.breakEvenYear} and stays ahead. Hover any year for the equity differential.`
-                    : `Renting outpaces buying throughout the ${inputs.hold_years}-year hold at current assumptions.`}
-                </p>
-              </div>
-            )}
-
             {/* Opportunity Cost */}
             <div style={cardS}>
               <p style={sectionHead}>Opportunity Cost</p>
@@ -2038,6 +2055,13 @@ export default function HomeClient({
               <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
                 Capital in a home is illiquid. This is the portfolio value forgone — offset by home equity growth and principal paydown over time.
               </p>
+            </div>
+
+            {/* ── SECTION: PROJECTION ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Projection</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
             {/* Equity chart */}
@@ -2169,6 +2193,13 @@ export default function HomeClient({
               </div>
             )}
 
+            {/* ── SECTION: INTELLIGENCE ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Intelligence</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
             {/* FINN Home Advisor */}
             <div style={cardS}>
               <p style={sectionHead}>FINN Home Advisor</p>
@@ -2258,6 +2289,13 @@ export default function HomeClient({
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* ── SECTION: DEEP DIVE ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Deep Dive</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
             {/* Amortization schedule */}
@@ -2411,6 +2449,7 @@ export default function HomeClient({
       <style>{`
         @media (max-width: 768px) {
           [data-home-grid] { grid-template-columns: 1fr !important; }
+          [data-home-sticky] { position: static !important; max-height: none !important; overflow-y: visible !important; }
         }
       `}</style>
     </div>
