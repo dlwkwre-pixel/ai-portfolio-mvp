@@ -832,7 +832,6 @@ export default function HomeClient({
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [showAmortization, setShowAmortization] = useState(false);
   const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
   const [selectedPreset, setSelectedPreset] = useState<string>("");
 
@@ -1348,7 +1347,7 @@ export default function HomeClient({
                         : `${Math.round(ratio * 100)}% of income — within 28% guideline`}
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
-                      Based on {fmt(profile.monthly_income!)}/mo income · 28% rule suggests max {fmt(Math.round(maxPITI))}/mo PITI
+                      Based on {fmt(profile.monthly_income!)}/mo income · <abbr title="The 28% rule: lenders recommend your total housing payment (Principal, Interest, Taxes & Insurance) stay below 28% of gross monthly income.">28% rule</abbr> suggests max {fmt(Math.round(maxPITI))}/mo
                     </div>
                   </div>
                 </div>
@@ -1357,7 +1356,7 @@ export default function HomeClient({
 
             {/* What Can I Afford? */}
             {computed.homePriceRanges && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <p style={{ ...sectionHead, marginBottom: "4px" }}>What Can I Afford?</p>
                 <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "0 0 12px", lineHeight: 1.5 }}>
                   Based on {fmt(profile!.monthly_income!)}/mo income at {inputs.mortgage_rate}% for {inputs.loan_term_years} yrs.
@@ -1368,16 +1367,32 @@ export default function HomeClient({
                     return (
                       <div
                         key={range.label}
+                        onClick={() => {
+                          if (isActive) return;
+                          setInputs((prev) => ({
+                            ...prev,
+                            purchase_price: range.price,
+                            down_payment: range.downPayment,
+                            property_tax_monthly: Math.round((range.price * 0.012) / 12 / 10) * 10,
+                            insurance_monthly: Math.max(75, Math.round((range.price * 0.004) / 12 / 10) * 10),
+                          }));
+                          setFinnCommentary(null);
+                        }}
                         style={{
                           display: "grid", gridTemplateColumns: "100px 1fr auto", alignItems: "center", gap: "10px",
                           padding: "10px 12px", borderRadius: "var(--radius-md)",
-                          background: isActive ? "color-mix(in oklch, #3b82f6 8%, var(--bg-elevated))" : "var(--bg-elevated)",
-                          border: isActive ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
+                          background: isActive ? "color-mix(in oklch, #3b82f6 10%, var(--bg-elevated))" : "var(--bg-elevated)",
+                          border: isActive ? "1px solid rgba(59,130,246,0.35)" : "1px solid transparent",
+                          cursor: isActive ? "default" : "pointer",
+                          transition: "background 0.15s ease, border-color 0.15s ease",
                         }}
+                        className="afford-row"
                       >
                         <div>
                           <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{range.label}</div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px", lineHeight: 1.4 }}>{Math.round(range.dtiRatio * 100)}% DTI</div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px", lineHeight: 1.4 }}>
+                            <span title="Debt-to-Income ratio: what % of your gross monthly income goes to debt payments. Conservative = 28%, Moderate = 33%, Aggressive = 40%.">{Math.round(range.dtiRatio * 100)}% DTI</span>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(range.price)}</div>
@@ -1385,22 +1400,15 @@ export default function HomeClient({
                             {fmtK(range.downPayment)} down · {fmt(range.monthlyEst)}/mo est.
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setInputs((prev) => ({
-                              ...prev,
-                              purchase_price: range.price,
-                              down_payment: range.downPayment,
-                              property_tax_monthly: Math.round((range.price * 0.012) / 12 / 10) * 10,
-                              insurance_monthly: Math.max(75, Math.round((range.price * 0.004) / 12 / 10) * 10),
-                            }));
-                            setFinnCommentary(null);
-                          }}
-                          style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "6px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-secondary)", cursor: "pointer", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}
-                        >
-                          Apply
-                        </button>
+                        {isActive ? (
+                          <span style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "6px", background: "rgba(59,130,246,0.14)", color: "#60a5fa", fontFamily: "var(--font-body)", whiteSpace: "nowrap", fontWeight: 700, letterSpacing: "0.02em" }}>
+                            ✓ Active
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "6px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>
+                            Apply
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -1412,7 +1420,7 @@ export default function HomeClient({
             )}
 
             {/* Market presets */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Market Preset</p>
               <select
                 value={selectedPreset}
@@ -1435,7 +1443,7 @@ export default function HomeClient({
             </div>
 
             {/* Property */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Property</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div>
@@ -1454,7 +1462,7 @@ export default function HomeClient({
             </div>
 
             {/* Financing */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Financing</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
@@ -1471,7 +1479,7 @@ export default function HomeClient({
             </div>
 
             {/* Monthly costs */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Monthly Costs</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 {([
@@ -1492,7 +1500,7 @@ export default function HomeClient({
             </div>
 
             {/* Comparison */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Rent Alternative</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
@@ -1507,7 +1515,7 @@ export default function HomeClient({
             </div>
 
             {/* Long-term assumptions */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Assumptions</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
@@ -1542,7 +1550,7 @@ export default function HomeClient({
                 Severe:   { score: tests[2].score, color: tests[2].score >= 7 ? "oklch(0.70 0.18 155)" : tests[2].score >= 5 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" },
               };
               return (
-                <div style={cardS}>
+                <div data-card style={cardS}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                     <p style={{ ...sectionHead, margin: 0 }}>Financial Resilience</p>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -1580,7 +1588,7 @@ export default function HomeClient({
 
             {/* The Case For Each Path */}
             {(computed.buyingAdvantages.length > 0 || computed.rentingAdvantages.length > 0) && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <p style={sectionHead}>The Case For Each Path</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                   <div>
@@ -1608,7 +1616,7 @@ export default function HomeClient({
             )}
 
             {/* Link to Financial Plan */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Link to Financial Plan</p>
               <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
                 Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
@@ -1655,6 +1663,104 @@ export default function HomeClient({
               )}
             </div>
 
+            {/* ── SECTION: LOAN BREAKDOWN ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Loan Breakdown</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
+            {/* Amortization — always open */}
+            {computed.amortization.length > 1 && (
+              <div data-card style={cardS}>
+                <div style={{ marginBottom: "12px" }}>
+                  <p style={{ ...sectionHead, margin: "0 0 4px" }}>How Your Loan Pays Down</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: 0, lineHeight: 1.5 }}>
+                    Each payment splits between principal (building equity you keep) and interest (cost of borrowing). Early on, most goes to interest — it shifts over time.
+                  </p>
+                </div>
+
+                {/* Summary stats */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", marginBottom: "14px" }}>
+                  {[
+                    { label: "Monthly Payment (P&I)", value: fmt(computed.amortStats.monthlyPayment), color: "var(--text-primary)", sub: "principal + interest only", tip: "Does not include property tax, insurance, or HOA — just the loan payment." },
+                    { label: "Total Interest Paid", value: fmtK(computed.amortStats.totalInterest), color: "oklch(0.68 0.18 25)", sub: "over full loan term", tip: "The extra cost of borrowing over the life of the loan, on top of the home price." },
+                    { label: "Interest → Principal Flip", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#3b82f6", sub: "more equity built than interest", tip: "The year your payment starts building more equity than it costs in interest. Before this year, the bank earns more than you do." },
+                    { label: "50% Paid Off", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "#00d395", sub: "home half owned", tip: "The year your remaining loan balance drops to 50% of the original amount." },
+                  ].map(({ label, value, color, sub, tip }) => (
+                    <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>
+                        {label}
+                        <span className="info-tip" title={tip}>i</span>
+                      </div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
+                      {sub && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Equity milestones */}
+                {(computed.amortStats.equity20Year != null || computed.amortStats.equity50Year != null || computed.amortStats.equity80Year != null) && (
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
+                    {[
+                      { label: "20% equity", year: computed.amortStats.equity20Year, note: "can drop PMI" },
+                      { label: "50% equity", year: computed.amortStats.equity50Year, note: "halfway" },
+                      { label: "80% equity", year: computed.amortStats.equity80Year, note: "strong position" },
+                    ].filter(m => m.year != null).map(({ label, year, note }) => (
+                      <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+                        <span style={{ color: "#00d395", fontWeight: 600 }}>Year {year}</span>
+                        <span style={{ color: "var(--text-tertiary)" }}>· {label}</span>
+                        <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>({note})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Table */}
+                <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "340px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
+                    <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
+                      <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        {["Yr", "Balance", "Principal Paid", "Interest Paid", "Total Interest", "Home Value", "Equity", "Equity %"].map((h) => (
+                          <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {computed.amortization.map((row) => {
+                        const isHoldYear = row.year === inputs.hold_years;
+                        const isCrossover = row.isCrossover;
+                        const rowBg = isHoldYear
+                          ? "color-mix(in oklch, #3b82f6 8%, transparent)"
+                          : isCrossover ? "color-mix(in oklch, #00d395 5%, transparent)" : "transparent";
+                        return (
+                          <tr key={row.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: rowBg }}>
+                            <td style={{ padding: "5px 8px", color: isHoldYear ? "#3b82f6" : "var(--text-tertiary)", textAlign: "right", fontWeight: isHoldYear ? 700 : 400 }}>
+                              {row.year}{isHoldYear ? " ★" : ""}
+                            </td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
+                            <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
+                            <td style={{ padding: "5px 8px", color: "oklch(0.70 0.15 25)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
+                            <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                            <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "var(--text-tertiary)" }}>
+                              {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                  ★ = your planned hold year (blue). Green rows = when principal paid exceeds interest — the loan starts working more for you than for the bank.
+                </p>
+              </div>
+            )}
+
           </div>
 
           {/* ── RIGHT: Analysis ── */}
@@ -1679,7 +1785,7 @@ export default function HomeClient({
                 <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "var(--radius-lg)", padding: "20px 20px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                     <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>BuyTune Verdict</span>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}`, fontFamily: "var(--font-body)" }}>
+                    <span title="How strongly the data supports this verdict. High = clear signal. Medium = worth watching. Low = inputs produce a mixed picture." style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}`, fontFamily: "var(--font-body)", cursor: "help" }}>
                       {v.confidence} Confidence
                     </span>
                   </div>
@@ -1792,7 +1898,7 @@ export default function HomeClient({
 
             {/* Rent Breakeven Timeline — moved up */}
             {computed.timeline.length > 1 && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
                   <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1843,8 +1949,11 @@ export default function HomeClient({
 
             {/* Break-Even Year + Upfront Costs — 2-col */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-              <div style={cardS}>
-                <p style={sectionHead}>Break-Even vs Renting</p>
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Break-Even vs Renting</p>
+                  <span className="info-tip" title="The year when buying a home becomes financially better than renting + investing your down payment. Before this point, the renter would have more wealth.">i</span>
+                </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
                   {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
                 </div>
@@ -1854,8 +1963,11 @@ export default function HomeClient({
                     : `Buying doesn't out-earn the rented + invested path within ${inputs.hold_years} years at these rates.`}
                 </p>
               </div>
-              <div style={cardS}>
-                <p style={sectionHead}>Upfront Cash Needed</p>
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Upfront Cash Needed</p>
+                  <span className="info-tip" title="The total money you need on closing day before you get the keys. This includes your down payment plus closing costs (lender fees, title, escrow, etc.).">i</span>
+                </div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
                   {fmt(inputs.down_payment + computed.closingCosts)}
                 </div>
@@ -1881,7 +1993,7 @@ export default function HomeClient({
 
             {/* Retirement Impact Centerpiece */}
             {computed.retirBaselineProb != null && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <p style={sectionHead}>Retirement Impact</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "16px", marginBottom: computed.retirBaselineAssets != null ? "14px" : "0" }}>
                   <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
@@ -1948,7 +2060,7 @@ export default function HomeClient({
                     border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
                   };
                   return (
-                    <div style={cardS}>
+                    <div data-card style={cardS}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                         <p style={{ ...sectionHead, margin: 0 }}>Affordability</p>
                         <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}`, fontFamily: "var(--font-body)" }}>
@@ -1990,7 +2102,7 @@ export default function HomeClient({
                     border: score >= 90 ? "rgba(0,211,149,0.25)" : score >= 75 ? "rgba(245,158,11,0.25)" : score >= 60 ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)",
                   };
                   return (
-                    <div style={cardS}>
+                    <div data-card style={cardS}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                         <p style={{ ...sectionHead, margin: 0 }}>Readiness</p>
                         <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}`, fontFamily: "var(--font-body)" }}>
@@ -2038,7 +2150,7 @@ export default function HomeClient({
             </div>
 
             {/* Monthly cost breakdown */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>Monthly Cost Breakdown</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {[
@@ -2061,8 +2173,11 @@ export default function HomeClient({
             </div>
 
             {/* Effective cost vs rent */}
-            <div style={cardS}>
-              <p style={sectionHead}>True Ownership Cost vs Rent</p>
+            <div data-card style={cardS}>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>True Ownership Cost vs Rent</p>
+                <span className="info-tip" title="Your 'true' monthly cost is lower than the gross payment because each month you're building equity (principal paydown) — that money stays yours. This compares the real cost of owning vs. just renting.">i</span>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
                 {[
                   { label: "Gross Monthly", value: fmt(computed.totalMonthly), sub: "all in" },
@@ -2082,8 +2197,11 @@ export default function HomeClient({
             </div>
 
             {/* Equivalent rent threshold */}
-            <div style={cardS}>
-              <p style={sectionHead}>Equivalent Rent Threshold</p>
+            <div data-card style={cardS}>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Equivalent Rent Threshold</p>
+                <span className="info-tip" title="If your actual rent is below this number, renting is the smarter financial move. Above it, buying starts to look better. This accounts for equity buildup and appreciation.">i</span>
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
                 <div>
                   <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
@@ -2122,8 +2240,11 @@ export default function HomeClient({
             </div>
 
             {/* Opportunity Cost */}
-            <div style={cardS}>
-              <p style={sectionHead}>Opportunity Cost</p>
+            <div data-card style={cardS}>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Opportunity Cost</p>
+                <span className="info-tip" title="Money tied up in a home can't be invested elsewhere. This shows what your down payment could grow to in the stock market — the financial cost of choosing to buy rather than invest.">i</span>
+              </div>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
                 If the {fmt(inputs.down_payment)} down payment were invested at {inputs.investment_return}%/yr instead of a home:
               </p>
@@ -2150,9 +2271,12 @@ export default function HomeClient({
 
             {/* Equity chart */}
             {computed.timeline.length > 1 && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0", gap: "8px" }}>
-                  <p style={{ ...sectionHead, margin: 0 }}>Net Wealth Outcome over {inputs.hold_years} Years</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Net Wealth Outcome over {inputs.hold_years} Years</p>
+                    <span className="info-tip" title="Buying path = home equity after selling. Renting path = what your down payment would be worth if invested instead. This shows which path leaves you wealthier.">i</span>
+                  </div>
                   {computed.lastPoint && (() => {
                     const buyWins = computed.lastPoint!.homeEquity > computed.lastPoint!.rentPortfolio;
                     const diff = Math.abs(computed.lastPoint!.homeEquity - computed.lastPoint!.rentPortfolio);
@@ -2208,7 +2332,7 @@ export default function HomeClient({
 
             {/* Real ownership cost over hold period */}
             {computed.lastPoint && (
-              <div style={cardS}>
+              <div data-card style={cardS}>
                 <p style={sectionHead}>True Cost of Ownership over {inputs.hold_years} Years</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
                   {[
@@ -2256,7 +2380,7 @@ export default function HomeClient({
             </div>
 
             {/* FINN Home Advisor */}
-            <div style={cardS}>
+            <div data-card style={cardS}>
               <p style={sectionHead}>FINN Home Advisor</p>
               {/* What Would FINN Do? — rule-based recommendation */}
               {rankedPaths.length >= 2 && (() => {
@@ -2346,122 +2470,56 @@ export default function HomeClient({
               </div>
             </div>
 
-            {/* ── SECTION: DEEP DIVE ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
-              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Deep Dive</span>
-              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
-            </div>
-
-            {/* Amortization schedule */}
-            {computed.amortization.length > 1 && (
-              <div style={cardS}>
-                <button
-                  type="button"
-                  onClick={() => setShowAmortization((v) => !v)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, gap: "8px" }}
-                >
-                  <p style={{ ...sectionHead, margin: 0 }}>Amortization Schedule — Full {inputs.loan_term_years}-Year Term</p>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" style={{ transform: showAmortization ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }}>
-                    <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-
-                {showAmortization && (
-                  <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "14px" }}>
-
-                    {/* Summary stats */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" }}>
-                      {[
-                        { label: "Monthly P&I", value: fmt(computed.amortStats.monthlyPayment), color: "var(--text-primary)" },
-                        { label: "Total Interest Paid", value: fmtK(computed.amortStats.totalInterest), color: "var(--red)" },
-                        { label: "Principal/Interest Crossover", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#3b82f6", sub: "more principal than interest paid" },
-                        { label: "50% Equity Milestone", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "#00d395", sub: "home half-owned" },
-                      ].map(({ label, value, color, sub }) => (
-                        <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
-                          {sub && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Equity milestones strip */}
-                    {(computed.amortStats.equity20Year != null || computed.amortStats.equity50Year != null || computed.amortStats.equity80Year != null) && (
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        {[
-                          { label: "20% equity", year: computed.amortStats.equity20Year, note: "drop PMI" },
-                          { label: "50% equity", year: computed.amortStats.equity50Year, note: "halfway there" },
-                          { label: "80% equity", year: computed.amortStats.equity80Year, note: "strong position" },
-                        ].filter(m => m.year != null).map(({ label, year, note }) => (
-                          <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
-                            <span style={{ color: "#00d395", fontWeight: 600 }}>Year {year}</span>
-                            <span style={{ color: "var(--text-tertiary)" }}>· {label}</span>
-                            <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>({note})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Table */}
-                    <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "420px" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                        <thead style={{ position: "sticky", top: 0, background: "var(--card-bg)", zIndex: 1 }}>
-                          <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                            {["Yr", "Balance", "Annual Principal", "Annual Interest", "Cum. Interest", "Home Value", "Equity", "Equity %"].map((h) => (
-                              <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
-                                {h}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {computed.amortization.map((row) => {
-                            const isHoldYear = row.year === inputs.hold_years;
-                            const isCrossover = row.isCrossover;
-                            const rowBg = isHoldYear
-                              ? "color-mix(in oklch, #3b82f6 8%, transparent)"
-                              : isCrossover
-                                ? "color-mix(in oklch, #00d395 5%, transparent)"
-                                : "transparent";
-                            return (
-                              <tr key={row.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: rowBg }}>
-                                <td style={{ padding: "5px 8px", color: isHoldYear ? "#3b82f6" : "var(--text-tertiary)", textAlign: "right", fontWeight: isHoldYear ? 700 : 400 }}>
-                                  {row.year}{isHoldYear ? " ★" : ""}
-                                </td>
-                                <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
-                                <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
-                                <td style={{ padding: "5px 8px", color: "oklch(0.70 0.15 25)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
-                                <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
-                                <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
-                                <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
-                                <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "var(--text-tertiary)" }}>
-                                  {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-                      ★ = your planned hold year (blue). Green tint = crossover year (principal paid exceeds interest). Equity % uses projected home value with {inputs.expected_appreciation}%/yr appreciation.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
           </div>
         </div>
       </div>
 
-      {/* Responsive: stack on mobile */}
+      {/* Responsive + hover effects */}
       <style>{`
+        [data-card] {
+          transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        [data-card]:hover {
+          box-shadow: 0 0 0 1px rgba(59,130,246,0.14), 0 6px 28px rgba(59,130,246,0.07);
+          border-color: rgba(59,130,246,0.18) !important;
+        }
+        .afford-row:not([style*="cursor: default"]):hover {
+          background: color-mix(in oklch, #3b82f6 6%, var(--bg-elevated)) !important;
+          border-color: rgba(59,130,246,0.22) !important;
+        }
+        .afford-row:not([style*="cursor: default"]):hover span:last-child {
+          background: rgba(59,130,246,0.1) !important;
+          color: #93c5fd !important;
+          border-color: rgba(59,130,246,0.25) !important;
+        }
+        abbr[title] {
+          text-decoration: underline dotted rgba(148,163,184,0.5);
+          cursor: help;
+        }
+        .info-tip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 13px;
+          height: 13px;
+          border-radius: 50%;
+          background: rgba(148,163,184,0.1);
+          border: 1px solid rgba(148,163,184,0.2);
+          color: rgba(148,163,184,0.6);
+          font-size: 8px;
+          font-weight: 700;
+          cursor: help;
+          vertical-align: middle;
+          margin-left: 4px;
+          flex-shrink: 0;
+        }
+        .info-tip:hover {
+          background: rgba(59,130,246,0.12);
+          border-color: rgba(59,130,246,0.3);
+          color: #60a5fa;
+        }
         @media (max-width: 768px) {
           [data-home-grid] { grid-template-columns: 1fr !important; }
-          [data-home-sticky] { position: static !important; max-height: none !important; overflow-y: visible !important; }
         }
       `}</style>
     </div>
