@@ -16,14 +16,6 @@ const AVATAR_COLORS = [
   { color: "#6366f1", label: "Indigo" },
 ];
 
-const LEGAL_LINKS = [
-  { href: "/legal/terms", label: "Terms of Service" },
-  { href: "/legal/privacy", label: "Privacy Policy" },
-  { href: "/legal/ai-disclaimer", label: "AI Disclaimer" },
-  { href: "/legal/investment-disclaimer", label: "Investment Disclaimer" },
-  { href: "/legal/financial-planning-disclaimer", label: "Financial Planning Disclaimer" },
-];
-
 type ExistingProfile = {
   username: string;
   display_name: string | null;
@@ -33,11 +25,10 @@ type ExistingProfile = {
 };
 
 export default function ProfileSettingsClient({
-  userId, email, isAdmin, followersCount, followingCount, existingProfile,
+  userId, email, followersCount, followingCount, existingProfile,
 }: {
   userId: string;
   email: string;
-  isAdmin: boolean;
   followersCount: number;
   followingCount: number;
   existingProfile: ExistingProfile | null;
@@ -317,33 +308,6 @@ export default function ProfileSettingsClient({
         </div>
       )}
 
-      {/* ── Platform / Legal section ─────────────────────────────────── */}
-      <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Platform</p>
-
-        {LEGAL_LINKS.map((link) => (
-          <Link key={link.href} href={link.href} target="_blank"
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", background: "transparent", border: "1px solid transparent", textDecoration: "none", transition: "all 0.15s", color: "var(--text-secondary)", fontSize: "13px" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-          >
-            <span>{link.label}</span>
-            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.4 }}><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-          </Link>
-        ))}
-
-        {isAdmin && (
-          <Link href="/admin/compliance"
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.15)", textDecoration: "none", color: "#60a5fa", fontSize: "13px", fontWeight: 500, marginTop: "4px", transition: "all 0.15s" }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-              Compliance Dashboard
-            </span>
-            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ opacity: 0.5 }}><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
-          </Link>
-        )}
-      </div>
     </div>
   );
 }
