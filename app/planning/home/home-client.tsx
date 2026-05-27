@@ -836,47 +836,30 @@ export default function HomeClient({
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [showAmortModal, setShowAmortModal] = useState(false);
 
-  function exportAmortToCSV() {
-    const numCols = 9;
-    const pad = ",".repeat(numCols - 1);
-    const q = (s: string) => `"${s}"`;
-    const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-    const lines: string[] = [
-      q("BuyTune — Home Planning Amortization Schedule") + pad,
-      q(`Scenario: ${inputs.name}`) + pad,
-      q(`Generated: ${dateStr}`) + pad,
-      q(`Purchase Price: $${Math.round(inputs.purchase_price).toLocaleString()}`) + pad,
-      q(`Interest Rate: ${inputs.mortgage_rate}%  |  Term: ${inputs.loan_term_years} years  |  Down Payment: $${Math.round(inputs.down_payment).toLocaleString()}`) + pad,
-      q(`Monthly Payment (P&I): $${computed.amortStats.monthlyPayment.toLocaleString(undefined, { maximumFractionDigits: 0 })}  |  Total Interest: $${Math.round(computed.amortStats.totalInterest).toLocaleString()}`) + pad,
-      pad, // blank row
-      ["Year", "Loan Balance ($)", "Principal Paid ($)", "Interest Paid ($)", "Cumul. Interest ($)", "Est. Home Value ($)", "Equity ($)", "Equity (decimal)", "Note"].join(","),
-    ];
-    for (const r of computed.amortization) {
-      const note = r.year === inputs.hold_years ? "Planned Hold Year" : r.isCrossover ? "Principal > Interest (crossover)" : "";
-      lines.push([
-        r.year,
-        r.balance < 100 ? 0 : Math.round(r.balance),
-        r.year === 0 ? 0 : Math.round(r.annualPrincipal),
-        r.year === 0 ? 0 : Math.round(r.annualInterest),
-        Math.round(r.cumulativeInterest),
-        Math.round(r.homeValue),
-        Math.round(r.equity),
-        (r.equityPct / 100).toFixed(4),
-        note ? q(note) : "",
-      ].join(","));
+  async function exportAmortToCSV() {
+    try {
+      const res = await fetch("/api/planning/home/export-amort", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          inputs,
+          amortization: computed.amortization,
+          amortStats: computed.amortStats,
+        }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BuyTune_${inputs.name.replace(/\s+/g, "_")}_Amortization.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail — no toast available here
     }
-    // UTF-8 BOM so Excel opens with correct encoding and number detection
-    const bom = "﻿";
-    const csv = bom + lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `BuyTune_${inputs.name.replace(/\s+/g, "_")}_Amortization.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   function applyPreset(key: string) {
@@ -1767,7 +1750,7 @@ export default function HomeClient({
                     style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Export CSV
+                    Export .xlsx
                   </button>
                   <button
                     onClick={() => setShowAmortModal(true)}
