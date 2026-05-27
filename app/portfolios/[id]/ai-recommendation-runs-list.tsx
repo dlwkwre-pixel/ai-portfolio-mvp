@@ -41,6 +41,13 @@ type RecommendationItem = {
   target_price_1: number | null;
   target_price_2: number | null;
   stop_price: number | null;
+  bear_price: number | null;
+  bull_price: number | null;
+  base_return_pct: number | null;
+  bear_return_pct: number | null;
+  bull_return_pct: number | null;
+  catalysts: string[] | null;
+  target_change_reason: string | null;
   time_horizon: string | null;
   target_horizon: string | null;
   recommendation_status: string | null;
@@ -890,11 +897,26 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                                 {fmt$(item.sizing_dollars)}
                               </span>
                             )}
-                            {item.target_price_1 != null && (
-                              <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
-                                Target {fmt$(item.target_price_1)}{item.target_horizon ? ` · ${item.target_horizon}` : ""}
-                              </span>
-                            )}
+                            {(item.base_return_pct != null || item.target_price_1 != null) && (() => {
+                              const base = item.base_return_pct;
+                              const bear = item.bear_return_pct;
+                              const bull = item.bull_return_pct;
+                              const hasCases = bear != null && bull != null;
+                              const fmtPct = (n: number) => (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
+                              return (
+                                <span className="rounded-md border border-emerald-500/15 bg-emerald-500/8 px-1.5 py-0.5 text-xs font-medium tabular-nums text-emerald-400">
+                                  {base != null ? fmtPct(base) : fmt$(item.target_price_1)}
+                                  {hasCases && (
+                                    <span className="ml-1 text-slate-500">
+                                      {fmtPct(bear!)}
+                                      <span className="mx-0.5 text-slate-600">→</span>
+                                      {fmtPct(bull!)}
+                                    </span>
+                                  )}
+                                  {item.target_horizon && <span className="ml-1 text-emerald-600">· {item.target_horizon}</span>}
+                                </span>
+                              );
+                            })()}
                             {pulse?.rank != null && (
                               <span className="hidden sm:inline rounded-md border border-white/8 bg-white/3 px-1.5 py-0.5 text-xs tabular-nums text-slate-500">
                                 Reddit #{pulse.rank}
@@ -1096,14 +1118,48 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                         ) : null)}
                       </div>
 
-                      {(item.target_price_1 ?? item.target_price_2 ?? item.stop_price) != null && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.target_price_1 && (
-                            <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
-                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 1{item.target_horizon ? ` · ${item.target_horizon}` : ""}</p>
-                              <p className="text-sm font-semibold text-white">{fmt$(item.target_price_1)}</p>
-                            </div>
-                          )}
+                      {/* Bear / Base / Bull */}
+                      {(item.bear_price != null || item.target_price_1 != null || item.bull_price != null) && (() => {
+                        const fmtPct = (n: number | null) => n != null ? ((n >= 0 ? "+" : "") + n.toFixed(1) + "%") : null;
+                        return (
+                          <div className="mt-3 grid grid-cols-3 gap-2">
+                            {[
+                              { label: "Bear Case", price: item.bear_price, pct: item.bear_return_pct, border: "border-red-500/12", bg: "bg-red-500/5", labelColor: "text-red-400", pctColor: "text-red-400" },
+                              { label: `Base Case${item.target_horizon ? ` · ${item.target_horizon}` : ""}`, price: item.target_price_1, pct: item.base_return_pct, border: "border-emerald-500/15", bg: "bg-emerald-500/5", labelColor: "text-emerald-400", pctColor: "text-emerald-400" },
+                              { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, border: "border-blue-500/12", bg: "bg-blue-500/5", labelColor: "text-blue-400", pctColor: "text-blue-400" },
+                            ].map(c => c.price != null || c.pct != null ? (
+                              <div key={c.label} className={`rounded-xl border ${c.border} ${c.bg} px-3 py-2.5`}>
+                                <p className={`text-[9px] uppercase tracking-widest ${c.labelColor} truncate`}>{c.label}</p>
+                                {c.pct != null && <p className={`mt-0.5 text-base font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
+                                {c.price != null && <p className="text-xs tabular-nums text-slate-400">{fmt$(c.price)}</p>}
+                              </div>
+                            ) : null)}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Target change reason */}
+                      {item.target_change_reason && (
+                        <div className="mt-2 rounded-xl border border-amber-500/12 bg-amber-500/5 px-3 py-2">
+                          <p className="text-[9px] uppercase tracking-widest text-amber-500 mb-1">Target Updated</p>
+                          <p className="text-xs leading-5 text-slate-300">{item.target_change_reason}</p>
+                        </div>
+                      )}
+
+                      {/* Catalysts */}
+                      {item.catalysts && item.catalysts.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {item.catalysts.map((c, i) => (
+                            <span key={i} className="rounded-full border border-white/8 bg-white/3 px-2 py-0.5 text-[10px] text-slate-400">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Legacy stop/target2 fallback */}
+                      {(item.stop_price != null || item.target_price_2 != null) && (
+                        <div className="mt-2 flex flex-wrap gap-2">
                           {item.target_price_2 && (
                             <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
                               <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 2</p>

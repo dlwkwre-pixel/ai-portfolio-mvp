@@ -39,6 +39,13 @@ type RecommendationItem = {
   target_price_1: number | null;
   target_price_2: number | null;
   stop_price: number | null;
+  bear_price: number | null;
+  bull_price: number | null;
+  base_return_pct: number | null;
+  bear_return_pct: number | null;
+  bull_return_pct: number | null;
+  catalysts: string[] | null;
+  target_change_reason: string | null;
   time_horizon: string | null;
   target_horizon: string | null;
   recommendation_status: string | null;
@@ -298,31 +305,55 @@ export default function AIRecommendationsList({
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                    <p className="text-sm text-slate-400">Target 1</p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {formatMoney(item.target_price_1)}
-                    </p>
-                    {item.target_horizon && (
-                      <p className="mt-1 text-xs text-slate-500">{item.target_horizon}</p>
-                    )}
-                  </div>
+                {/* Bear / Base / Bull */}
+                {(item.bear_price != null || item.target_price_1 != null || item.bull_price != null) && (() => {
+                  const fmtPct = (n: number | null) => n != null ? ((n >= 0 ? "+" : "") + n.toFixed(1) + "%") : null;
+                  return (
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      {[
+                        { label: "Bear Case", price: item.bear_price, pct: item.bear_return_pct, border: "border-red-900/60", bg: "bg-red-950/40", pctColor: "text-red-400", labelColor: "text-red-400" },
+                        { label: `Base Case${item.target_horizon ? ` · ${item.target_horizon}` : ""}`, price: item.target_price_1, pct: item.base_return_pct, border: "border-emerald-900/60", bg: "bg-emerald-950/40", pctColor: "text-emerald-400", labelColor: "text-emerald-400" },
+                        { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, border: "border-blue-900/60", bg: "bg-blue-950/40", pctColor: "text-blue-400", labelColor: "text-blue-400" },
+                      ].map(c => (
+                        <div key={c.label} className={`rounded-2xl border ${c.border} ${c.bg} p-4`}>
+                          <p className={`text-xs font-medium ${c.labelColor}`}>{c.label}</p>
+                          {c.pct != null && <p className={`mt-2 text-2xl font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
+                          {c.price != null && <p className="mt-1 text-sm tabular-nums text-slate-400">{formatMoney(c.price)}</p>}
+                          {c.pct == null && c.price == null && <p className="mt-2 text-lg font-semibold text-slate-600">—</p>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                    <p className="text-sm text-slate-400">Target 2</p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {formatMoney(item.target_price_2)}
-                    </p>
+                {/* Target change reason */}
+                {item.target_change_reason && (
+                  <div className="mt-4 rounded-2xl border border-amber-900/50 bg-amber-950/30 p-4">
+                    <p className="text-xs font-semibold text-amber-500 mb-1">Target Updated</p>
+                    <p className="text-sm leading-6 text-slate-300">{item.target_change_reason}</p>
                   </div>
+                )}
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-                    <p className="text-sm text-slate-400">Stop Price</p>
-                    <p className="mt-2 text-lg font-semibold text-white">
-                      {formatMoney(item.stop_price)}
-                    </p>
+                {/* Catalysts */}
+                {item.catalysts && item.catalysts.length > 0 && (
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                    <p className="text-sm font-medium text-slate-400 mb-2">Key Catalysts</p>
+                    <div className="flex flex-wrap gap-2">
+                      {item.catalysts.map((c, i) => (
+                        <span key={i} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
+                          {c}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {item.stop_price != null && (
+                  <div className="mt-4 rounded-2xl border border-red-900/50 bg-red-950/30 p-4 inline-flex flex-col">
+                    <p className="text-xs font-medium text-red-400">Stop Price</p>
+                    <p className="mt-2 text-lg font-semibold tabular-nums text-white">{formatMoney(item.stop_price)}</p>
+                  </div>
+                )}
 
                 <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
                   <p className="text-sm font-medium text-slate-400">Risks</p>

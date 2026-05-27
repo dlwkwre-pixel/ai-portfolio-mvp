@@ -29,6 +29,13 @@ type AiRecommendation = {
   target_price_1: number | null;
   target_price_2: number | null;
   stop_price: number | null;
+  bear_price: number | null;
+  bull_price: number | null;
+  base_return_pct: number | null;
+  bear_return_pct: number | null;
+  bull_return_pct: number | null;
+  catalysts: string[] | null;
+  target_change_reason: string | null;
   time_horizon: string | null;
   target_horizon: string | null;
 };
@@ -90,9 +97,16 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
     sizing_pct: toNullableNumber(raw.sizing_pct),
     sizing_dollars: toNullableNumber(raw.sizing_dollars),
     share_quantity: toNullableNumber(raw.share_quantity),
-    target_price_1: toNullableNumber(raw.target_price_1),
+    target_price_1: toNullableNumber(raw.base_price ?? raw.target_price_1),
     target_price_2: toNullableNumber(raw.target_price_2),
     stop_price: toNullableNumber(raw.stop_price),
+    bear_price: toNullableNumber(raw.bear_price),
+    bull_price: toNullableNumber(raw.bull_price),
+    base_return_pct: toNullableNumber(raw.base_return_pct),
+    bear_return_pct: toNullableNumber(raw.bear_return_pct),
+    bull_return_pct: toNullableNumber(raw.bull_return_pct),
+    catalysts: Array.isArray(raw.catalysts) ? (raw.catalysts as unknown[]).map(c => String(c)).filter(Boolean) : null,
+    target_change_reason: String(raw.target_change_reason ?? "").trim() || null,
     time_horizon: String(raw.time_horizon ?? "").trim() || null,
     target_horizon: String(raw.target_horizon ?? "").trim() || null,
   };
@@ -770,11 +784,11 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
   if (recentRunIds.length > 0) {
     const { data: items, error: itemsError } = await supabase
       .from("recommendation_items")
-      .select("action_type, ticker, conviction, recommendation_status")
+      .select("action_type, ticker, conviction, recommendation_status, target_price_1, base_return_pct, bear_return_pct, bull_return_pct, time_horizon, target_horizon")
       .eq("portfolio_id", portfolioId)
       .in("recommendation_run_id", recentRunIds.slice(0, 1))
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(15);
 
     if (itemsError) throw new Error(itemsError.message);
     recentRecommendationItems = items ?? [];
@@ -1039,9 +1053,14 @@ HARD CONSTRAINTS:
 
 1. CASH LIMIT: $${availableCash.toLocaleString()} available. Combined sizing_dollars of ALL buy/add recommendations must not exceed this. Size multiple buys so they fit together.
 
-2. TARGET PRICES: Use current_price from holdings context for existing positions. For new buy candidates discovered via web_search, always search for the current price before including.
-   - target_price_1 = your price target. BUY/ADD: must be above current price. SELL/TRIM: must be below.
-   - target_horizon = the specific timeframe you expect the target to be reached, as a concise string (e.g. "6–12 months", "12–18 months", "2–3 years"). Do NOT use "short_term"/"long_term" — write an actual time range. Null only when no target price is given.
+2. PROBABILISTIC TARGETS: Use current_price from holdings context (or search for it on new names). Provide three scenarios:
+   - base_price = most likely outcome (BUY/ADD: above current price; SELL/TRIM: below). Also sets target_price_1.
+   - bear_price = downside scenario if key risks materialize.
+   - bull_price = upside scenario if catalysts outperform.
+   - base_return_pct / bear_return_pct / bull_return_pct = signed % return from current price to each scenario (e.g. -12.5, +18.0, +48.0).
+   - target_horizon = specific timeframe for the base case (e.g. "6-12 months", "1-2 earnings cycles", "2-3 years"). Write an actual range, not "short_term".
+   - catalysts = array of 2-4 concise strings naming key drivers (e.g. "AI infrastructure demand", "earnings revisions", "margin expansion").
+   - target_change_reason = if recent_recommendation_items shows prior targets for this ticker and your new base_return_pct differs by more than 3 pct points, explain the change in 1-3 sentences (earnings revision, macro shift, new catalyst, etc.). Otherwise null.
 
 3. TRIM/SELL QUANTITY: share_quantity must not exceed shares owned. Full sell = total shares. sizing_dollars = share_quantity × current_price.
 
@@ -1070,10 +1089,18 @@ Return this exact JSON shape:
       "sizing_pct": number|null,
       "sizing_dollars": number|null,
       "share_quantity": number|null,
+      "base_price": number|null,
+      "bear_price": number|null,
+      "bull_price": number|null,
+      "base_return_pct": number|null,
+      "bear_return_pct": number|null,
+      "bull_return_pct": number|null,
+      "catalysts": ["string","..."],
+      "target_change_reason": "string|null",
       "target_price_1": number|null,
       "target_price_2": number|null,
       "stop_price": number|null,
-      "target_horizon": "string|null — specific timeframe for target_price_1, e.g. '6–12 months', '18–24 months', '2–3 years'",
+      "target_horizon": "string|null",
       "time_horizon": "short_term|medium_term|long_term|null"
     }
   ]
@@ -1373,6 +1400,13 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
             target_price_1: item.target_price_1,
             target_price_2: item.target_price_2,
             stop_price: item.stop_price,
+            bear_price: item.bear_price,
+            bull_price: item.bull_price,
+            base_return_pct: item.base_return_pct,
+            bear_return_pct: item.bear_return_pct,
+            bull_return_pct: item.bull_return_pct,
+            catalysts: item.catalysts,
+            target_change_reason: item.target_change_reason,
             time_horizon: item.time_horizon,
             target_horizon: item.target_horizon,
             recommendation_status: "proposed",
