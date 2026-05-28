@@ -25,8 +25,25 @@ function pct(n: number) { return n.toFixed(1) + "%"; }
 // ── Math ──────────────────────────────────────────────────────────────────────
 
 type PhaseBar = { age: number; annualCost: number; phase: "Infant" | "Child" | "Teen"; fill: string };
-
 type VerdictType = "READY" | "WAIT" | "HIGH_STRAIN" | "LOW_IMPACT";
+
+type ComparisonRow = {
+  label: string;
+  numKids: number;
+  delayYears: number;
+  monthlyCost: number;
+  retirAssets: number;
+  retirProbability: number;
+  verdict: VerdictType;
+};
+
+type CostSpike = {
+  age: number;
+  label: string;
+  monthlyCost: number;
+  yearsAway: number;
+  estimated: boolean;
+};
 
 type ComputedFamily = {
   currentMonthlyImpact: number;
@@ -44,11 +61,14 @@ type ComputedFamily = {
   // P2
   readinessScore: number | null;
   readinessComponents: { label: string; score: number; max: number }[];
-  // P3
+  // P3 Affordability
+  affordabilityScore: number | null;
+  affordabilityComponents: { label: string; score: number; max: number; note: string }[];
+  // Timing simulator
   timingRows: { label: string; delayYears: number; retirAssets: number }[];
   timingBestDelayLabel: string | null;
   timingBestGain: number;
-  // P4
+  // Ecosystem impact
   retirProbBefore: number | null;
   retirProbAfter: number | null;
   homeAffordBefore: number | null;
@@ -56,6 +76,18 @@ type ComputedFamily = {
   fiYearsBefore: number | null;
   fiYearsAfter: number | null;
   emergencyMonths: number | null;
+  // P4 flip thresholds
+  incomeFlipAmount: number | null;
+  childCostFlipReduction: number | null;
+  nwFlipAmount: number | null;
+  // P6 benchmark
+  annualCostVsAvg: { yours: number; national: number; label: string } | null;
+  // P7 auto narrative
+  autoNarrative: string | null;
+  // P8 cost spikes
+  costSpikes: CostSpike[];
+  // P9 comparison
+  comparisonRows: ComparisonRow[];
 };
 
 const PHASE_COLORS: Record<"Infant" | "Child" | "Teen", string> = {
@@ -107,6 +139,21 @@ function computeTimingNW(
   return fvCalc(nwAfterChild, Math.max(0, savingsBefore), remainingYears * 12, r);
 }
 
+function computeVerdictType(
+  income: number, expenses: number, childCost: number,
+  nw: number, r: number, n: number,
+): VerdictType {
+  const savBefore = income - expenses;
+  const savAfter = income - expenses - childCost;
+  const probB = retirProb(fvCalc(nw, Math.max(0, savBefore), n, r), expenses);
+  const probA = retirProb(fvCalc(nw, Math.max(0, savAfter), n, r), expenses);
+  const drop = probB - probA;
+  if (savAfter < 0) return "HIGH_STRAIN";
+  if (drop > 15 || (savAfter >= 0 && savAfter < childCost * 0.5)) return "WAIT";
+  if (income > 0 && childCost < income * 0.05 && drop < 5) return "LOW_IMPACT";
+  return "READY";
+}
+
 function computeFamily(
   childCurrentAge: number,
   monthlyInfant: number,
@@ -117,6 +164,7 @@ function computeFamily(
   profile: FinancialProfile | null,
   currentNetWorth: number,
   liquidAssets: number,
+  numChildren: number,
 ): ComputedFamily {
   function costAtAge(age: number) {
     if (age < 3) return monthlyInfant;
@@ -125,15 +173,41 @@ function computeFamily(
     return 0;
   }
 
-  const currentMonthlyImpact = costAtAge(childCurrentAge);
-  let totalCostToAge18 = 0;
-  for (let age = childCurrentAge; age < 18; age++) totalCostToAge18 += costAtAge(age) * 12;
+  const baseMonthlyImpact = costAtAge(childCurrentAge);
+  const currentMonthlyImpact = baseMonthlyImpact * numChildren;
+  let baseTotalCost = 0;
+  for (let age = childCurrentAge; age < 18; age++) baseTotalCost += costAtAge(age) * 12;
+  const totalCostToAge18 = baseTotalCost * numChildren;
   const remainingYears = Math.max(0, 18 - childCurrentAge);
 
   const chartData: PhaseBar[] = [];
   for (let age = childCurrentAge; age < 18; age++) {
     const phase: "Infant" | "Child" | "Teen" = age < 3 ? "Infant" : age <= 12 ? "Child" : "Teen";
-    chartData.push({ age, annualCost: costAtAge(age) * 12, phase, fill: PHASE_COLORS[phase] });
+    chartData.push({ age, annualCost: costAtAge(age) * 12 * numChildren, phase, fill: PHASE_COLORS[phase] });
+  }
+
+  // P6: National benchmark (USDA ~$16,500/yr per child)
+  const NATIONAL_ANNUAL = 16500;
+  const yourAnnual = baseMonthlyImpact * 12;
+  const annualCostVsAvg = baseMonthlyImpact > 0 ? {
+    yours: yourAnnual,
+    national: NATIONAL_ANNUAL,
+    label: yourAnnual < NATIONAL_ANNUAL * 0.85 ? "Below Average" : yourAnnual <= NATIONAL_ANNUAL * 1.15 ? "Average" : "Above Average",
+  } : null;
+
+  // P8: Cost spikes
+  const costSpikes: CostSpike[] = [];
+  if (childCurrentAge <= 2 && monthlyInfant >= 500) {
+    costSpikes.push({ age: 0, label: "Daycare", monthlyCost: monthlyInfant * numChildren, yearsAway: 0, estimated: false });
+  }
+  if (childCurrentAge < 13 && monthlyTeen - monthlyChild >= 200) {
+    costSpikes.push({ age: 13, label: "Teen phase increase", monthlyCost: (monthlyTeen - monthlyChild) * numChildren, yearsAway: 13 - childCurrentAge, estimated: false });
+  }
+  if (childCurrentAge < 16) {
+    costSpikes.push({ age: 16, label: "Vehicle & insurance", monthlyCost: 350 * numChildren, yearsAway: 16 - childCurrentAge, estimated: true });
+  }
+  if (childCurrentAge < 18) {
+    costSpikes.push({ age: 18, label: "College", monthlyCost: 2500 * numChildren, yearsAway: 18 - childCurrentAge, estimated: true });
   }
 
   const noProfile: ComputedFamily = {
@@ -142,10 +216,13 @@ function computeFamily(
     projectedNWBefore: null, projectedNWAfter: null,
     verdict: null, verdictConfidence: "Low", verdictReasons: ["Add profile data for analysis"],
     readinessScore: null, readinessComponents: [],
+    affordabilityScore: null, affordabilityComponents: [],
     timingRows: [], timingBestDelayLabel: null, timingBestGain: 0,
     retirProbBefore: null, retirProbAfter: null,
     homeAffordBefore: null, homeAffordAfter: null,
     fiYearsBefore: null, fiYearsAfter: null, emergencyMonths: null,
+    incomeFlipAmount: null, childCostFlipReduction: null, nwFlipAmount: null,
+    annualCostVsAvg, autoNarrative: null, costSpikes, comparisonRows: [],
   };
 
   if (
@@ -166,14 +243,17 @@ function computeFamily(
   const projectedNWBefore = fvCalc(currentNetWorth, Math.max(0, savingsBefore), n, r);
   const projectedNWAfter = fvCalc(currentNetWorth, Math.max(0, savingsAfter), n, r);
 
-  // P1: Verdict
   const probBefore = retirProb(projectedNWBefore, baseExpenses);
   const probAfter = retirProb(projectedNWAfter, baseExpenses);
   const retirDrop = probBefore - probAfter;
   const isStrained = savingsAfter < 0;
   const isTight = savingsAfter >= 0 && savingsAfter < currentMonthlyImpact * 0.5;
   const isLowImpact = monthlyIncome > 0 && currentMonthlyImpact < monthlyIncome * 0.05 && retirDrop < 5;
+  const efMonthsBase = baseExpenses > 0 ? liquidAssets / baseExpenses : 0;
+  const totalExpWithChild = baseExpenses + currentMonthlyImpact;
+  const efMonthsWithChild = totalExpWithChild > 0 ? liquidAssets / totalExpWithChild : 0;
 
+  // P1: Verdict (specific reasons with actual numbers)
   let verdict: VerdictType;
   let verdictConfidence: string;
   let verdictReasons: string[];
@@ -181,69 +261,67 @@ function computeFamily(
   if (isStrained) {
     verdict = "HIGH_STRAIN";
     verdictConfidence = "Strong";
+    const deficit = Math.abs(savingsAfter);
     verdictReasons = [
-      "Child costs exceed available monthly cash flow",
-      savingsAfter < -currentMonthlyImpact * 0.5
-        ? "Household would run a monthly deficit"
-        : "Emergency fund would erode over time",
+      `Child costs create a ${fmt(deficit)}/mo cash flow deficit`,
+      efMonthsWithChild > 0
+        ? `Emergency fund covers ~${efMonthsWithChild.toFixed(1)} months at new spending level`
+        : "Emergency fund would erode quickly without surplus",
       retirDrop > 5
         ? `Retirement probability drops ${retirDrop}pp to ${probAfter}%`
-        : "Retirement timeline is at risk",
+        : `Retirement probability: ${probBefore}% → ${probAfter}%`,
     ];
   } else if (retirDrop > 15 || isTight) {
     verdict = "WAIT";
     verdictConfidence = retirDrop > 15 ? "Strong" : "Good";
     verdictReasons = [
       retirDrop > 15
-        ? `Retirement probability drops ${retirDrop}pp — waiting reduces this impact`
-        : "Cash flow buffer is thin for unexpected child expenses",
-      "Each year of waiting adds to your financial cushion",
-      "Emergency fund coverage improves with more savings time",
+        ? `Retirement probability drops ${retirDrop}pp: ${probBefore}% → ${probAfter}% (target: 80%+)`
+        : `Cash flow buffer of ${fmt(savingsAfter)}/mo is under 50% of child cost`,
+      isTight
+        ? `${fmt(savingsAfter)}/mo leaves little room for unexpected expenses`
+        : "Waiting builds retirement assets and reduces the probability gap",
+      efMonthsBase >= 6
+        ? `Emergency fund covers ${efMonthsBase.toFixed(1)} months currently`
+        : `Emergency fund: ${efMonthsBase.toFixed(1)} months — below 6-month target`,
     ];
   } else if (isLowImpact) {
     verdict = "LOW_IMPACT";
     verdictConfidence = "Good";
+    const costPct = (currentMonthlyImpact / monthlyIncome * 100).toFixed(1);
     verdictReasons = [
-      "Child costs are a small fraction of household income",
-      "Retirement plan stays largely intact",
-      retirDrop < 2
-        ? "Minimal retirement probability impact"
-        : `Retirement probability changes by ${retirDrop}pp`,
+      `Child costs are ${costPct}% of household income — well within comfortable range`,
+      `Retirement probability: ${probBefore}% → ${probAfter}% (${retirDrop < 2 ? "minimal change" : `${retirDrop}pp change`})`,
+      efMonthsWithChild >= 6
+        ? `Emergency fund covers ${efMonthsWithChild.toFixed(1)} months including child costs`
+        : `Emergency fund: ${efMonthsWithChild.toFixed(1)} months with child costs — consider building further`,
     ];
   } else {
     verdict = "READY";
     verdictConfidence = retirDrop < 5 ? "Strong" : "Good";
     verdictReasons = [
-      retirDrop < 5
-        ? "Retirement plan stays on track"
-        : `Retirement probability changes by ${retirDrop}pp — manageable`,
+      `Retirement probability: ${probBefore}% → ${probAfter}% (${retirDrop < 5 ? "on track, minimal impact" : `${retirDrop}pp — manageable`})`,
       savingsAfter > 0
-        ? `Monthly buffer of ${fmt(savingsAfter)} after child costs`
+        ? `Monthly buffer of ${fmt(savingsAfter)}/mo after all child costs`
         : "Cash flow is tight but positive",
-      probAfter >= 80
-        ? "Strong retirement probability maintained"
-        : "Monitor retirement savings closely",
+      efMonthsWithChild >= 6
+        ? `Emergency fund covers ${efMonthsWithChild.toFixed(1)} months including child costs`
+        : efMonthsBase >= 6
+        ? `Emergency fund: ${efMonthsBase.toFixed(1)} months (${efMonthsWithChild.toFixed(1)}mo with child costs)`
+        : `Emergency fund: ${efMonthsBase.toFixed(1)} months — work toward 6 months`,
     ];
   }
 
-  // P2: Readiness score (5 components, 20 pts each)
-  const efMonths = baseExpenses > 0 ? liquidAssets / baseExpenses : 0;
-  const efScore = Math.min(20, (efMonths / 6) * 20);
-
+  // P2: Readiness score
+  const efScore = Math.min(20, (efMonthsBase / 6) * 20);
   const cfRatio = monthlyIncome > 0 ? Math.max(0, savingsAfter) / monthlyIncome : 0;
   const cfScore = Math.min(20, cfRatio * 100);
-
   const targetNW = baseExpenses * 12 * 25;
   const retirScore = targetNW > 0 ? Math.min(20, (projectedNWAfter / targetNW) * 20) : 10;
-
   const coverScore = currentMonthlyImpact > 0 && savingsAfter > 0
-    ? Math.min(20, (savingsAfter / currentMonthlyImpact) * 10)
-    : 0;
-
+    ? Math.min(20, (savingsAfter / currentMonthlyImpact) * 10) : 0;
   const bufferScore = savingsBefore > 0
-    ? Math.min(20, (Math.max(0, savingsAfter) / savingsBefore) * 20)
-    : 0;
-
+    ? Math.min(20, (Math.max(0, savingsAfter) / savingsBefore) * 20) : 0;
   const readinessComponents = [
     { label: "Emergency Fund Strength", score: Math.round(efScore), max: 20 },
     { label: "Monthly Cash Flow", score: Math.round(cfScore), max: 20 },
@@ -253,7 +331,25 @@ function computeFamily(
   ];
   const readinessScore = readinessComponents.reduce((s, c) => s + c.score, 0);
 
-  // P3: Timing simulator
+  // P3: Affordability Score (distinct from Readiness)
+  const costToIncomeRatio = monthlyIncome > 0 ? currentMonthlyImpact / monthlyIncome : 1;
+  const aff1 = costToIncomeRatio <= 0.05 ? 20 : costToIncomeRatio <= 0.10 ? 16 : costToIncomeRatio <= 0.15 ? 12 : costToIncomeRatio <= 0.20 ? 8 : costToIncomeRatio <= 0.25 ? 4 : 0;
+  const surplusRatio = monthlyIncome > 0 ? savingsAfter / monthlyIncome : -1;
+  const aff2 = surplusRatio >= 0.25 ? 20 : surplusRatio >= 0.15 ? 16 : surplusRatio >= 0.10 ? 12 : surplusRatio >= 0.05 ? 8 : surplusRatio >= 0 ? 4 : 0;
+  const aff3 = efMonthsWithChild >= 6 ? 20 : efMonthsWithChild >= 4 ? 15 : efMonthsWithChild >= 3 ? 10 : efMonthsWithChild >= 2 ? 5 : 0;
+  const costToNWRatio = currentNetWorth > 0 ? totalCostToAge18 / currentNetWorth : 10;
+  const aff4 = costToNWRatio <= 0.3 ? 20 : costToNWRatio <= 0.5 ? 16 : costToNWRatio <= 0.8 ? 12 : costToNWRatio <= 1.2 ? 8 : costToNWRatio <= 2.0 ? 4 : 0;
+  const aff5 = probAfter >= 90 ? 20 : probAfter >= 80 ? 16 : probAfter >= 70 ? 12 : probAfter >= 60 ? 8 : probAfter >= 50 ? 4 : 0;
+  const affordabilityComponents = [
+    { label: "Cost-to-Income", score: Math.round(aff1), max: 20, note: `${(costToIncomeRatio * 100).toFixed(1)}% of income` },
+    { label: "Monthly Surplus", score: Math.round(aff2), max: 20, note: `${fmt(savingsAfter)}/mo after all costs` },
+    { label: "Emergency Coverage", score: Math.round(aff3), max: 20, note: `${efMonthsWithChild.toFixed(1)}mo with child costs` },
+    { label: "18-Year Cost vs NW", score: Math.round(aff4), max: 20, note: `${fmtK(totalCostToAge18)} vs ${fmtK(currentNetWorth)} NW` },
+    { label: "Retirement Continuity", score: Math.round(aff5), max: 20, note: `${probAfter}% retirement prob` },
+  ];
+  const affordabilityScore = affordabilityComponents.reduce((s, c) => s + c.score, 0);
+
+  // Timing simulator
   const timingOptions = [
     { label: "Now", delayYears: 0 },
     { label: "1 Year", delayYears: 1 },
@@ -262,8 +358,7 @@ function computeFamily(
     { label: "5 Years", delayYears: 5 },
   ];
   const timingRows = timingOptions.map(({ label, delayYears }) => ({
-    label,
-    delayYears,
+    label, delayYears,
     retirAssets: Math.max(0, computeTimingNW(delayYears, currentNetWorth, savingsBefore, savingsAfter, yearsToRetirement, r)),
   }));
   const nowAssets = timingRows[0].retirAssets;
@@ -271,18 +366,101 @@ function computeFamily(
   const timingBestGain = bestTiming.retirAssets - nowAssets;
   const timingBestDelayLabel = timingBestGain > 10_000 ? bestTiming.label : null;
 
-  // P4: Ecosystem impact
-  const homeAffordBefore = monthlyIncome > 0
-    ? Math.max(0, (monthlyIncome - baseExpenses) * 0.28) / MORTGAGE_FACTOR
-    : null;
-  const homeAffordAfter = monthlyIncome > 0
-    ? Math.max(0, (monthlyIncome - baseExpenses - currentMonthlyImpact) * 0.28) / MORTGAGE_FACTOR
-    : null;
-
+  // Ecosystem impact
+  const homeAffordBefore = monthlyIncome > 0 ? Math.max(0, (monthlyIncome - baseExpenses) * 0.28) / MORTGAGE_FACTOR : null;
+  const homeAffordAfter = monthlyIncome > 0 ? Math.max(0, (monthlyIncome - baseExpenses - currentMonthlyImpact) * 0.28) / MORTGAGE_FACTOR : null;
   const fiTarget = baseExpenses * 12 * 25;
   const fiYearsBefore = yearsToFI(currentNetWorth, Math.max(0, savingsBefore), fiTarget, r);
   const fiYearsAfter = yearsToFI(currentNetWorth, Math.max(0, savingsAfter), fiTarget, r);
   const emergencyMonths = baseExpenses > 0 ? liquidAssets / baseExpenses : null;
+
+  // P4: Binary search — what would flip the verdict to READY?
+  let incomeFlipAmount: number | null = null;
+  let childCostFlipReduction: number | null = null;
+  let nwFlipAmount: number | null = null;
+
+  if (verdict !== "READY" && verdict !== "LOW_IMPACT") {
+    // Min income increase
+    if (monthlyIncome > 0) {
+      let lo = 0, hi = 20000;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const v2 = computeVerdictType(monthlyIncome + mid, baseExpenses, currentMonthlyImpact, currentNetWorth, r, n);
+        if (v2 === "READY" || v2 === "LOW_IMPACT") hi = mid; else lo = mid;
+      }
+      incomeFlipAmount = hi < 19000 ? Math.ceil(hi / 50) * 50 : null;
+    }
+    // Max child cost reduction
+    if (currentMonthlyImpact > 0) {
+      let lo = 0, hi = currentMonthlyImpact;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const v2 = computeVerdictType(monthlyIncome, baseExpenses, currentMonthlyImpact - mid, currentNetWorth, r, n);
+        if (v2 === "READY" || v2 === "LOW_IMPACT") hi = mid; else lo = mid;
+      }
+      childCostFlipReduction = hi < currentMonthlyImpact * 0.99 ? Math.ceil(hi / 50) * 50 : null;
+    }
+    // Min NW increase (only meaningful for WAIT where retirDrop drives the verdict)
+    if (verdict === "WAIT") {
+      let lo = currentNetWorth, hi = currentNetWorth + 3_000_000;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const v2 = computeVerdictType(monthlyIncome, baseExpenses, currentMonthlyImpact, mid, r, n);
+        if (v2 === "READY" || v2 === "LOW_IMPACT") hi = mid; else lo = mid;
+      }
+      nwFlipAmount = hi < currentNetWorth + 2_900_000 ? Math.ceil((hi - currentNetWorth) / 5000) * 5000 : null;
+    }
+  }
+
+  // P7: Auto FINN Narrative (rule-based, always computed)
+  let autoNarrative: string | null = null;
+  {
+    const timingNote = timingBestDelayLabel && timingBestGain > 10_000
+      ? ` Waiting ${timingBestDelayLabel.toLowerCase()} would add ${fmtK(timingBestGain)} in retirement assets.`
+      : "";
+    const efNote = efMonthsWithChild >= 6
+      ? ` Emergency fund covers ${efMonthsWithChild.toFixed(1)} months at the new spending level.`
+      : ` Emergency fund covers ${efMonthsWithChild.toFixed(1)} months with child costs — ${efMonthsWithChild < 3 ? "prioritize building this before proceeding" : "consider strengthening before proceeding"}.`;
+
+    if (verdict === "READY") {
+      autoNarrative = `Your financial profile supports having a child now. Retirement probability stays at ${probAfter}% and you maintain a ${fmt(savingsAfter)}/mo buffer after all costs.${efNote}${timingNote}`;
+    } else if (verdict === "HIGH_STRAIN") {
+      const deficit = Math.abs(savingsAfter);
+      const fix = incomeFlipAmount
+        ? ` Increasing income by ${fmt(incomeFlipAmount)}/mo${childCostFlipReduction ? ` or reducing child costs by ${fmt(childCostFlipReduction)}/mo` : ""} would flip the verdict.`
+        : "";
+      autoNarrative = `Child costs would exceed available cash flow by ${fmt(deficit)}/mo, creating an ongoing deficit.${fix}${efNote}`;
+    } else if (verdict === "WAIT") {
+      const dropNote = retirDrop > 15
+        ? `a ${retirDrop}pp retirement probability drop (${probBefore}% → ${probAfter}%)`
+        : `a thin cash flow buffer of ${fmt(savingsAfter)}/mo`;
+      const fix = incomeFlipAmount
+        ? ` To proceed now: ${fmt(incomeFlipAmount)}/mo additional income${nwFlipAmount ? ` or ${fmtK(nwFlipAmount)} more in net worth` : ""} would change this.`
+        : "";
+      autoNarrative = `Waiting is recommended due to ${dropNote}.${fix}${timingNote}`;
+    } else if (verdict === "LOW_IMPACT") {
+      const costPct = (currentMonthlyImpact / monthlyIncome * 100).toFixed(1);
+      autoNarrative = `Child costs are ${costPct}% of your income — a low burden by any measure. Retirement probability shifts only from ${probBefore}% to ${probAfter}%. Your financial plan absorbs this comfortably.${efNote}`;
+    }
+  }
+
+  // P9: Comparison rows
+  function makeRow(label: string, delay: number, kids: number): ComparisonRow {
+    const kidCost = baseMonthlyImpact * kids;
+    const savA = monthlyIncome - baseExpenses - kidCost;
+    const ra = Math.max(0, computeTimingNW(delay, currentNetWorth, savingsBefore, savA, yearsToRetirement, r));
+    const prob = retirProb(ra, baseExpenses);
+    const v = computeVerdictType(monthlyIncome, baseExpenses, kidCost, currentNetWorth, r, n);
+    return { label, numKids: kids, delayYears: delay, monthlyCost: kidCost, retirAssets: ra, retirProbability: prob, verdict: v };
+  }
+
+  const comparisonRows: ComparisonRow[] = [
+    makeRow("Child Now", 0, 1),
+    makeRow("Child in 2 Years", 2, 1),
+    makeRow("Child in 5 Years", 5, 1),
+    makeRow("Two Children", 0, 2),
+    makeRow("Three Children", 0, 3),
+  ];
 
   return {
     currentMonthlyImpact, totalCostToAge18, remainingYears, chartData,
@@ -290,11 +468,13 @@ function computeFamily(
     projectedNWBefore, projectedNWAfter,
     verdict, verdictConfidence, verdictReasons,
     readinessScore, readinessComponents,
+    affordabilityScore, affordabilityComponents,
     timingRows, timingBestDelayLabel, timingBestGain,
     retirProbBefore: probBefore, retirProbAfter: probAfter,
     homeAffordBefore, homeAffordAfter,
-    fiYearsBefore, fiYearsAfter,
-    emergencyMonths,
+    fiYearsBefore, fiYearsAfter, emergencyMonths,
+    incomeFlipAmount, childCostFlipReduction, nwFlipAmount,
+    annualCostVsAvg, autoNarrative, costSpikes, comparisonRows,
   };
 }
 
@@ -355,6 +535,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(
     initialScenarios.length > 0 ? initialScenarios[0].id : null,
   );
+  const [numChildren, setNumChildren] = useState<1 | 2 | 3 | 4>(1);
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -387,9 +568,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
       profile,
       currentNetWorth,
       liquidAssets,
+      numChildren,
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, activeScenario, editingId, profile, currentNetWorth, liquidAssets]);
+  }, [form, activeScenario, editingId, profile, currentNetWorth, liquidAssets, numChildren]);
 
   function set(field: keyof FormState, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -434,7 +616,6 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
       };
       const result = await saveFamilyScenario(payload, editingId ?? undefined);
       if (result.error) { setSaveStatus(result.error); return; }
-
       const newScenario: FamilyScenario = {
         id: result.id!,
         user_id: "",
@@ -471,9 +652,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   async function handleGetCommentary() {
     const v = getFormValues();
     const yearsToRetirement = profile?.current_age != null && profile?.target_retirement_age != null
-      ? profile.target_retirement_age - profile.current_age
-      : null;
-
+      ? profile.target_retirement_age - profile.current_age : null;
     const payload: FamilyFinnRequest = {
       scenario_name: v.name || "Family Scenario",
       child_name: v.child_name || null,
@@ -491,7 +670,6 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
       projected_nw_before: computed.projectedNWBefore,
       projected_nw_after: computed.projectedNWAfter,
     };
-
     setLoadingCommentary(true);
     setCommentary(null);
     try {
@@ -511,11 +689,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
   const v = getFormValues();
   const costImpactPct = v.monthly_expenses_now > 0
-    ? (computed.currentMonthlyImpact / v.monthly_expenses_now * 100).toFixed(0)
-    : "0";
+    ? (computed.currentMonthlyImpact / v.monthly_expenses_now * 100).toFixed(0) : "0";
   const retirementImpact = computed.projectedNWBefore != null && computed.projectedNWAfter != null
-    ? computed.projectedNWBefore - computed.projectedNWAfter
-    : null;
+    ? computed.projectedNWBefore - computed.projectedNWAfter : null;
 
   const cardS: React.CSSProperties = {
     background: "var(--card-bg, var(--bg-card))",
@@ -531,11 +707,11 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
     border: "1px solid var(--border)", borderRadius: 8,
     padding: "7px 10px", color: "var(--text-primary)", fontSize: 13,
   };
-
   const meta = computed.verdict ? verdictMeta[computed.verdict] : null;
 
   return (
     <div style={{ flex: 1, overflowY: "auto", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+
       {/* Header */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -548,81 +724,54 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       </div>
 
-      {/* ── P1: Verdict card ─────────────────────────────────────────────────── */}
+      {/* P1: Verdict card */}
       {meta && computed.verdict && (
         <div style={{ padding: "16px 24px 0" }}>
-          <div style={{
-            ...cardS,
-            background: meta.bg,
-            borderColor: meta.border,
-          }}>
+          <div style={{ ...cardS, background: meta.bg, borderColor: meta.border }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <span style={{
-                    fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 900,
-                    letterSpacing: "0.04em", color: meta.color,
-                  }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 900, letterSpacing: "0.04em", color: meta.color }}>
                     {computed.verdict === "WAIT" && computed.timingBestDelayLabel
                       ? `WAIT ${computed.timingBestDelayLabel.toUpperCase()}`
                       : meta.label}
                   </span>
-                  <span style={{
-                    fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
-                    letterSpacing: "0.08em", padding: "2px 7px",
-                    borderRadius: "var(--radius-sm, 4px)",
-                    border: `1px solid ${meta.border}`,
-                    color: meta.color,
-                  }}>
+                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "var(--radius-sm, 4px)", border: `1px solid ${meta.border}`, color: meta.color }}>
                     {computed.verdictConfidence} Conviction
                   </span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {computed.verdictReasons.map((r, i) => (
+                  {computed.verdictReasons.map((reason, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "7px" }}>
                       <span style={{ color: meta.color, fontSize: "12px", marginTop: "1px", flexShrink: 0 }}>
                         {computed.verdict === "HIGH_STRAIN" ? "✕" : "✓"}
                       </span>
-                      <span style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{r}</span>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{reason}</span>
                     </div>
                   ))}
                 </div>
               </div>
-
               {computed.readinessScore != null && (
                 <div style={{ textAlign: "center", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "36px", fontWeight: 900, color: meta.color, lineHeight: 1 }}>
-                    {computed.readinessScore}
-                  </div>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: "3px" }}>
-                    Readiness Score
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: meta.color, marginTop: "2px" }}>
-                    / 100
-                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "36px", fontWeight: 900, color: meta.color, lineHeight: 1 }}>{computed.readinessScore}</div>
+                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: "3px" }}>Readiness</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: meta.color, marginTop: "2px" }}>/ 100</div>
                 </div>
               )}
             </div>
-
-            {/* Quick stats row */}
+            {/* Stats row */}
             {computed.retirProbBefore != null && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${meta.border}` }}>
                 {[
                   {
-                    label: "Retirement Prob",
+                    label: "Retirement Probability",
                     value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`,
-                    sub: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 0
-                      ? `-${computed.retirProbBefore - (computed.retirProbAfter ?? 0)}pp`
-                      : "No change",
-                    color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10
-                      ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5
-                      ? "var(--amber)" : "var(--green)",
+                    sub: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 0 ? `-${computed.retirProbBefore - (computed.retirProbAfter ?? 0)}pp` : "No change",
+                    color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5 ? "var(--amber)" : "var(--green)",
                   },
                   {
                     label: "Monthly Cash Flow",
-                    value: computed.monthlySavingsAfter != null
-                      ? (computed.monthlySavingsAfter >= 0 ? "+" : "") + fmt(computed.monthlySavingsAfter) + "/mo"
-                      : "—",
+                    value: computed.monthlySavingsAfter != null ? (computed.monthlySavingsAfter >= 0 ? "+" : "") + fmt(computed.monthlySavingsAfter) + "/mo" : "—",
                     sub: "after child costs",
                     color: (computed.monthlySavingsAfter ?? 0) >= 0 ? "var(--green)" : "var(--red)",
                   },
@@ -636,7 +785,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <div key={label}>
                     <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
-                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{sub}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "1px" }}>{sub}</div>
                   </div>
                 ))}
               </div>
@@ -645,11 +794,69 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       )}
 
-      {/* ── Grid: left inputs + right analysis ─────────────────────────────── */}
+      {/* P6: National Benchmark + P8: Cost Spikes */}
+      {(computed.annualCostVsAvg || computed.costSpikes.length > 0) && (
+        <div style={{ padding: "10px 24px 0", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {computed.annualCostVsAvg && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
+              <span style={{ color: "var(--text-muted)" }}>vs National Avg</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: computed.annualCostVsAvg.label === "Above Average" ? "var(--amber)" : computed.annualCostVsAvg.label === "Below Average" ? "var(--green)" : "var(--text-primary)" }}>
+                {fmtK(computed.annualCostVsAvg.yours)}/yr
+              </span>
+              <span style={{ color: "var(--text-tertiary, var(--text-muted))", fontSize: "10px" }}>
+                ({computed.annualCostVsAvg.label}, nat. avg {fmtK(computed.annualCostVsAvg.national)}/yr)
+              </span>
+            </div>
+          )}
+          {computed.costSpikes.map((spike) => (
+            <div key={spike.age} style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 12px", background: "color-mix(in oklch, oklch(0.60 0.14 80) 6%, var(--card-bg, var(--bg-card)))", border: "1px solid color-mix(in oklch, oklch(0.60 0.14 80) 20%, transparent)", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
+              <span style={{ fontSize: "10px", color: "oklch(0.78 0.15 80)" }}>▲</span>
+              <span style={{ color: "var(--text-secondary)" }}>{spike.label}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "oklch(0.78 0.15 80)" }}>
+                {spike.yearsAway === 0 ? "Active" : `Age ${spike.age}`}
+              </span>
+              <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>+{fmt(spike.monthlyCost)}/mo{spike.estimated ? " est." : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Grid: left + right */}
       <div data-family-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: "20px", padding: "16px 24px 8px", alignItems: "start" }}>
 
-        {/* ── Left: inputs ──────────────────────────────────────────────────── */}
+        {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+          {/* Number of children selector */}
+          <div style={cardS}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+              Number of Children
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {([1, 2, 3, 4] as const).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setNumChildren(n)}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                    background: numChildren === n ? "var(--accent)" : "var(--bg-elevated, var(--bg-base))",
+                    color: numChildren === n ? "#fff" : "var(--text-secondary)",
+                    border: numChildren === n ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {n === 4 ? "4+" : n}
+                </button>
+              ))}
+            </div>
+            {numChildren > 1 && (
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+                Costs scaled to {numChildren} children — costs per-phase are multiplied.
+              </div>
+            )}
+          </div>
+
+          {/* Saved scenarios */}
           {scenarios.length > 0 && (
             <div style={cardS}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
@@ -672,56 +879,35 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     )}
                   </div>
                   <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); startEdit(s); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "2px 6px" }}
-                    >Edit</button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
-                      disabled={deleting}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 12, padding: "2px 6px" }}
-                    >Del</button>
+                    <button onClick={(e) => { e.stopPropagation(); startEdit(s); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "2px 6px" }}>Edit</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 12, padding: "2px 6px" }}>Del</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
+          {/* New / Edit form */}
           <div style={cardS}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
               {editingId ? "Edit Scenario" : "New Scenario"}
             </div>
-
             {[
               { label: "Scenario Name", field: "name" as const, type: "text" },
               { label: "Child Name (optional)", field: "child_name" as const, type: "text" },
             ].map(({ label, field, type }) => (
               <div key={field} style={{ marginBottom: 10 }}>
                 <label style={labelS}>{label}</label>
-                <input
-                  type={type}
-                  value={form[field] as string}
-                  onChange={(e) => set(field, e.target.value)}
-                  style={inputS}
-                />
+                <input type={type} value={form[field] as string} onChange={(e) => set(field, e.target.value)} style={inputS} />
               </div>
             ))}
-
             <div style={{ marginBottom: 10 }}>
               <label style={labelS}>Child Current Age</label>
-              <input
-                type="number"
-                value={form.child_current_age}
-                min={0} max={17} step={1}
-                onChange={(e) => set("child_current_age", Number(e.target.value))}
-                style={{ ...inputS, fontFamily: "var(--font-mono)" }}
-              />
+              <input type="number" value={form.child_current_age} min={0} max={17} step={1} onChange={(e) => set("child_current_age", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
             </div>
-
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 8px" }}>
               Monthly Costs by Phase
             </div>
-
             {[
               { label: "Infant (Ages 0–2) $/mo", field: "monthly_infant_cost" as const, color: PHASE_COLORS.Infant },
               { label: "Child (Ages 3–12) $/mo", field: "monthly_child_cost" as const, color: PHASE_COLORS.Child },
@@ -732,69 +918,110 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</label>
                   <span style={{ fontSize: 11, color, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(form[field] as number)}</span>
                 </div>
-                <input
-                  type="range" min={0} max={5000} step={50}
-                  value={form[field] as number}
-                  onChange={(e) => set(field, Number(e.target.value))}
-                  style={{ width: "100%", accentColor: "var(--accent)" }}
-                />
+                <input type="range" min={0} max={5000} step={50} value={form[field] as number} onChange={(e) => set(field, Number(e.target.value))} style={{ width: "100%", accentColor: "var(--accent)" }} />
               </div>
             ))}
-
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 8px" }}>
               Household Context
             </div>
-
             <div style={{ marginBottom: 10 }}>
               <label style={labelS}>Monthly Household Expenses ($)</label>
-              <input
-                type="number" value={form.monthly_expenses_now} min={0} step={100}
-                onChange={(e) => set("monthly_expenses_now", Number(e.target.value))}
-                style={{ ...inputS, fontFamily: "var(--font-mono)" }}
-              />
+              <input type="number" value={form.monthly_expenses_now} min={0} step={100} onChange={(e) => set("monthly_expenses_now", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
             </div>
-
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Investment Return</label>
-                <span style={{ fontSize: 11, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                  {pct(form.investment_return * 100)}
-                </span>
+                <span style={{ fontSize: 11, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{pct(form.investment_return * 100)}</span>
               </div>
-              <input
-                type="range" min={0.03} max={0.12} step={0.005}
-                value={form.investment_return}
-                onChange={(e) => set("investment_return", Number(e.target.value))}
-                style={{ width: "100%", marginTop: 4, accentColor: "var(--accent)" }}
-              />
+              <input type="range" min={0.03} max={0.12} step={0.005} value={form.investment_return} onChange={(e) => set("investment_return", Number(e.target.value))} style={{ width: "100%", marginTop: 4, accentColor: "var(--accent)" }} />
             </div>
-
             {saveStatus && (
-              <div style={{ fontSize: 12, color: saveStatus === "Saved." ? "var(--green, #22c55e)" : "var(--red, #ef4444)", marginBottom: 8 }}>
-                {saveStatus}
-              </div>
+              <div style={{ fontSize: 12, color: saveStatus === "Saved." ? "var(--green, #22c55e)" : "var(--red, #ef4444)", marginBottom: 8 }}>{saveStatus}</div>
             )}
-
             <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{ flex: 1, padding: "9px 0", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}
-              >
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: "9px 0", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
                 {saving ? "Saving…" : editingId ? "Update" : "Save Scenario"}
               </button>
               {editingId && (
-                <button
-                  onClick={cancelEdit}
-                  style={{ padding: "9px 14px", background: "var(--bg-elevated, var(--bg-hover))", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
-                >Cancel</button>
+                <button onClick={cancelEdit} style={{ padding: "9px 14px", background: "var(--bg-elevated, var(--bg-hover))", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Cancel</button>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── Right: analysis ───────────────────────────────────────────────── */}
+        {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+
+          {/* P7: Auto FINN Narrative */}
+          {computed.autoNarrative && meta && (
+            <div style={{ ...cardS, borderColor: meta.border, background: `color-mix(in oklch, ${meta.color} 4%, var(--card-bg, var(--bg-card)))` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: 10 }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="8" stroke={meta.color} strokeWidth="1.5" />
+                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke={meta.color} strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="15.5" r="0.75" fill={meta.color} />
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 600, color: meta.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>FINN Assessment</span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+                {computed.autoNarrative}
+              </p>
+            </div>
+          )}
+
+          {/* P4: What Would Change The Verdict? */}
+          {computed.verdict && computed.verdict !== "READY" && computed.verdict !== "LOW_IMPACT" && (computed.incomeFlipAmount || computed.childCostFlipReduction || computed.nwFlipAmount) && (
+            <div style={cardS}>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>What Would Change The Verdict?</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {computed.incomeFlipAmount != null && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ fontSize: 18, color: "var(--text-muted)" }}>↑</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Increase monthly income by</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>salary, side income, or partner income</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.incomeFlipAmount)}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>/mo → READY</div>
+                    </div>
+                  </div>
+                )}
+                {computed.childCostFlipReduction != null && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ fontSize: 18, color: "var(--text-muted)" }}>↓</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Reduce child costs by</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>daycare, school choice, shared costs</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.childCostFlipReduction)}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>/mo → READY</div>
+                    </div>
+                  </div>
+                )}
+                {computed.nwFlipAmount != null && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <span style={{ fontSize: 18, color: "var(--text-muted)" }}>◎</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Build net worth by</div>
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>lowers retirement probability gap</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>{fmtK(computed.nwFlipAmount)}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-muted)" }}>savings → READY</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* P2: Readiness Score */}
           {computed.readinessScore != null && meta && (
@@ -811,9 +1038,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <div key={label}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
                       <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: score >= max * 0.7 ? "var(--green)" : score >= max * 0.4 ? "var(--amber)" : "var(--red)" }}>
-                        {score}/{max}
-                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: score >= max * 0.7 ? "var(--green)" : score >= max * 0.4 ? "var(--amber)" : "var(--red)" }}>{score}/{max}</span>
                     </div>
                     <div style={{ height: "4px", background: "var(--bg-elevated, var(--border-subtle))", borderRadius: "2px", overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${(score / max) * 100}%`, background: score >= max * 0.7 ? "oklch(0.72 0.18 145)" : score >= max * 0.4 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)", borderRadius: "2px" }} />
@@ -824,7 +1049,36 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* P3: Timing Simulator */}
+          {/* P3: Affordability Score */}
+          {computed.affordabilityScore != null && meta && (
+            <div style={cardS}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Family Affordability Score</p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 900, color: meta.color }}>{computed.affordabilityScore}</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>/ 100</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {computed.affordabilityComponents.map(({ label, score, max, note }) => (
+                  <div key={label}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "6px" }}>{note}</span>
+                      </div>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: score >= max * 0.7 ? "var(--green)" : score >= max * 0.4 ? "var(--amber)" : "var(--red)" }}>{score}/{max}</span>
+                    </div>
+                    <div style={{ height: "4px", background: "var(--bg-elevated, var(--border-subtle))", borderRadius: "2px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(score / max) * 100}%`, background: score >= max * 0.7 ? "oklch(0.72 0.18 145)" : score >= max * 0.4 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)", borderRadius: "2px" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timing Simulator */}
           {computed.timingRows.length > 0 && (
             <div style={cardS}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>When Are You Planning to Have a Child?</p>
@@ -834,16 +1088,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   const gain = retirAssets - computed.timingRows[0].retirAssets;
                   const isBest = !isNow && gain === computed.timingBestGain && computed.timingBestGain > 10_000;
                   return (
-                    <div key={label} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "10px 12px", borderRadius: "var(--radius-md, 8px)",
-                      background: isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--bg-elevated, transparent))" : "var(--bg-elevated, var(--bg-card))",
-                      border: `1px solid ${isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" : "var(--card-border, var(--border))"}`,
-                    }}>
+                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--bg-elevated, transparent))" : "var(--bg-elevated, var(--bg-card))", border: `1px solid ${isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" : "var(--card-border, var(--border))"}` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        {isBest && (
-                          <span style={{ fontSize: "9px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>
-                        )}
+                        {isBest && <span style={{ fontSize: "9px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>}
                         <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: isNow ? 600 : 400 }}>{label}</span>
                       </div>
                       <div style={{ textAlign: "right" }}>
@@ -866,7 +1113,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* P4: Impact Across BuyTune */}
+          {/* Ecosystem Impact */}
           {computed.retirProbBefore != null && (
             <div style={cardS}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>Impact Across Your Financial Plan</p>
@@ -877,63 +1124,41 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`,
                     sub: "on track for retirement",
                     icon: "◎",
-                    delta: computed.retirProbBefore - (computed.retirProbAfter ?? 0),
                     color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5 ? "var(--amber)" : "var(--green)",
                   },
                   {
                     label: "Home Affordability",
-                    value: computed.homeAffordBefore != null && computed.homeAffordAfter != null
-                      ? `${fmtK(computed.homeAffordBefore)} → ${fmtK(computed.homeAffordAfter)}`
-                      : "—",
-                    sub: "max home purchase (28% DTI)",
+                    value: computed.homeAffordBefore != null && computed.homeAffordAfter != null ? `${fmtK(computed.homeAffordBefore)} → ${fmtK(computed.homeAffordAfter)}` : "—",
+                    sub: "max home (28% DTI)",
                     icon: "⌂",
-                    delta: computed.homeAffordBefore != null && computed.homeAffordAfter != null
-                      ? computed.homeAffordBefore - computed.homeAffordAfter
-                      : 0,
-                    color: computed.homeAffordBefore != null && computed.homeAffordAfter != null && computed.homeAffordBefore - computed.homeAffordAfter > 50_000
-                      ? "var(--amber)" : "var(--green)",
+                    color: computed.homeAffordBefore != null && computed.homeAffordAfter != null && computed.homeAffordBefore - computed.homeAffordAfter > 50_000 ? "var(--amber)" : "var(--green)",
                   },
                   {
                     label: "Monthly Savings",
-                    value: computed.monthlySavingsAfter != null
-                      ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))}/mo → ${fmt(Math.max(0, computed.monthlySavingsAfter))}/mo`
-                      : "—",
+                    value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))}/mo → ${fmt(Math.max(0, computed.monthlySavingsAfter))}/mo` : "—",
                     sub: "household savings rate",
                     icon: "$",
-                    delta: (computed.monthlySavingsBefore ?? 0) - (computed.monthlySavingsAfter ?? 0),
                     color: (computed.monthlySavingsAfter ?? 0) >= 0 ? "var(--text-secondary)" : "var(--red)",
                   },
                   {
                     label: "Emergency Fund",
                     value: computed.emergencyMonths != null ? `${computed.emergencyMonths.toFixed(1)} months` : "—",
-                    sub: computed.emergencyMonths != null
-                      ? computed.emergencyMonths >= 6 ? "Adequate coverage" : computed.emergencyMonths >= 3 ? "Thin coverage" : "Low coverage"
-                      : "current coverage",
+                    sub: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "Adequate" : computed.emergencyMonths >= 3 ? "Thin" : "Low" : "current",
                     icon: "⛨",
-                    delta: 0,
-                    color: computed.emergencyMonths != null
-                      ? computed.emergencyMonths >= 6 ? "var(--green)" : computed.emergencyMonths >= 3 ? "var(--amber)" : "var(--red)"
-                      : "var(--text-muted)",
+                    color: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "var(--green)" : computed.emergencyMonths >= 3 ? "var(--amber)" : "var(--red)" : "var(--text-muted)",
                   },
                   {
                     label: "Financial Independence",
-                    value: computed.fiYearsBefore != null && computed.fiYearsAfter != null
-                      ? computed.fiYearsAfter - computed.fiYearsBefore > 0
-                        ? `+${computed.fiYearsAfter - computed.fiYearsBefore} years later`
-                        : "Same timeline"
-                      : computed.fiYearsAfter === null ? "Extended" : "—",
-                    sub: "to reach FI (25x expenses)",
+                    value: computed.fiYearsBefore != null && computed.fiYearsAfter != null ? computed.fiYearsAfter - computed.fiYearsBefore > 0 ? `+${computed.fiYearsAfter - computed.fiYearsBefore} years later` : "Same timeline" : computed.fiYearsAfter === null ? "Extended" : "—",
+                    sub: "to FI (25x expenses)",
                     icon: "→",
-                    delta: 0,
-                    color: computed.fiYearsAfter != null && computed.fiYearsBefore != null && computed.fiYearsAfter - computed.fiYearsBefore > 5
-                      ? "var(--amber)" : "var(--text-secondary)",
+                    color: computed.fiYearsAfter != null && computed.fiYearsBefore != null && computed.fiYearsAfter - computed.fiYearsBefore > 5 ? "var(--amber)" : "var(--text-secondary)",
                   },
                   {
                     label: "Retirement Assets",
                     value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—",
                     sub: "vs no child costs",
                     icon: "▲",
-                    delta: 0,
                     color: (retirementImpact ?? 0) > 1_000_000 ? "var(--red)" : (retirementImpact ?? 0) > 300_000 ? "var(--amber)" : "var(--text-secondary)",
                   },
                 ].map(({ label, value, sub, icon, color }) => (
@@ -953,24 +1178,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           {/* Summary tiles */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
             {[
-              {
-                label: "Current Monthly Impact",
-                value: fmt(computed.currentMonthlyImpact),
-                sub: `${costImpactPct}% of household expenses`,
-                color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)",
-              },
-              {
-                label: "Total Cost to Age 18",
-                value: fmtK(computed.totalCostToAge18),
-                sub: `${computed.remainingYears} years remaining`,
-                color: "var(--text-primary)",
-              },
-              {
-                label: "Retirement NW Impact",
-                value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—",
-                sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast",
-                color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)",
-              },
+              { label: "Current Monthly Impact", value: fmt(computed.currentMonthlyImpact), sub: `${costImpactPct}% of household expenses`, color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)" },
+              { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
+              { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
             ].map(({ label, value, sub, color }) => (
               <div key={label} style={{ ...cardS, padding: "14px 16px" }}>
                 <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
@@ -997,11 +1207,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="age" tickFormatter={(val) => `${val}`} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} label={{ value: "Child Age", position: "insideBottom", offset: -2, fill: "var(--text-secondary)", fontSize: 11 }} />
                   <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} width={56} />
-                  <Tooltip
-                    formatter={(val) => typeof val === "number" ? [fmt(val), "Annual Cost"] : [String(val ?? ""), "Annual Cost"]}
-                    labelFormatter={(label) => `Age ${label}`}
-                    contentStyle={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  />
+                  <Tooltip formatter={(val) => typeof val === "number" ? [fmt(val), "Annual Cost"] : [String(val ?? ""), "Annual Cost"]} labelFormatter={(label) => `Age ${label}`} contentStyle={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
                   <Bar dataKey="annualCost" radius={[4, 4, 0, 0]}>
                     {computed.chartData.map((entry, index) => (
                       <Cell key={index} fill={entry.fill} />
@@ -1016,11 +1222,31 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* P5: Retirement impact rework */}
-          {computed.projectedNWBefore != null && computed.projectedNWAfter != null && (
+          {/* P5: Retirement Impact (probability dominant) */}
+          {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
             <div style={cardS}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Retirement Impact</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+              {/* Probability row — visually dominant */}
+              <div style={{ padding: "14px 16px", borderRadius: 10, background: "var(--bg-elevated, var(--bg-base))", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Retirement Probability</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary, var(--text-muted))", lineHeight: 1.4 }}>
+                    {(computed.retirProbAfter ?? 0) >= 80
+                      ? "Above 80% — your retirement plan stays on track"
+                      : (computed.retirProbAfter ?? 0) >= 60
+                      ? "60–80% — manageable, monitor savings rate"
+                      : "Below 60% — review retirement contributions"}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 900, color: (computed.retirProbAfter ?? 0) >= 80 ? "var(--green)" : (computed.retirProbAfter ?? 0) >= 60 ? "var(--amber)" : "var(--red)", lineHeight: 1 }}>
+                    {computed.retirProbAfter}%
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>was {computed.retirProbBefore}%</div>
+                </div>
+              </div>
+              {/* Asset comparison */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   { label: "Without Child", value: fmtK(computed.projectedNWBefore), color: "#94a3b8" },
                   { label: "With Child", value: fmtK(Math.max(0, computed.projectedNWAfter)), color: "#3b82f6" },
@@ -1032,32 +1258,15 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "10px 12px", background: "var(--bg-elevated, var(--bg-base))", borderRadius: 8 }}>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2 }}>{label}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color, fontFamily: "var(--font-mono)" }}>{value}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color, fontFamily: "var(--font-mono)" }}>{value}</div>
                     <div style={{ fontSize: 10, color: "var(--text-tertiary, var(--text-muted))", marginTop: 2 }}>at retirement</div>
                   </div>
                 ))}
               </div>
-              {computed.retirProbBefore != null && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))" }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Retirement Probability</div>
-                    <div style={{ fontSize: 10, color: "var(--text-tertiary, var(--text-muted))", marginTop: 1 }}>
-                      {(computed.projectedNWAfter ?? 0) >= (computed.projectedNWBefore ?? 0) * 0.9
-                        ? "Still On Track"
-                        : computed.retirProbAfter != null && computed.retirProbAfter >= 80
-                        ? "Manageable Impact"
-                        : "Review Retirement Plan"}
-                    </div>
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 700, color: "var(--text-primary)" }}>
-                    {computed.retirProbBefore}% → {computed.retirProbAfter}%
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* FINN Commentary */}
+          {/* FINN Deep Analysis */}
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
@@ -1066,18 +1275,12 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                 </svg>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>FINN Analysis</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>FINN Deep Analysis</div>
               </div>
               <button
                 onClick={handleGetCommentary}
                 disabled={loadingCommentary}
-                style={{
-                  padding: "7px 14px", background: "rgba(109,40,217,0.08)",
-                  color: "#7c3aed", border: "1px solid rgba(109,40,217,0.22)",
-                  borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  cursor: loadingCommentary ? "not-allowed" : "pointer",
-                  opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)",
-                }}
+                style={{ padding: "7px 14px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.22)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)" }}
               >
                 {loadingCommentary ? "Analyzing…" : "Get FINN Guidance"}
               </button>
@@ -1086,12 +1289,55 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{commentary}</p>
             ) : (
               <p style={{ fontSize: 12, color: "var(--text-tertiary, var(--text-secondary))", margin: 0 }}>
-                Get FINN guidance on child cost planning, retirement impact, and timing.
+                Get deeper AI-powered guidance on child cost planning, retirement impact, and optimal timing.
               </p>
             )}
           </div>
         </div>
       </div>
+
+      {/* P9: Scenario Comparison Table */}
+      {computed.comparisonRows.length > 0 && (
+        <div style={{ padding: "0 24px 24px" }}>
+          <div style={cardS}>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Scenario Comparison</p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {["Scenario", "Monthly Cost", "Retire Assets", "Ret. Prob.", "Verdict"].map((h) => (
+                      <th key={h} style={{ textAlign: "left", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", fontWeight: 600, padding: "0 12px 10px 0", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {computed.comparisonRows.map((row, i) => {
+                    const vm = verdictMeta[row.verdict];
+                    const isHighlight = row.verdict === "READY" || row.verdict === "LOW_IMPACT";
+                    return (
+                      <tr key={i} style={{ borderTop: "1px solid var(--border-subtle, var(--border))" }}>
+                        <td style={{ padding: "10px 12px 10px 0", color: "var(--text-primary)", fontWeight: 500 }}>{row.label}</td>
+                        <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(row.monthlyCost)}/mo</td>
+                        <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(row.retirAssets)}</td>
+                        <td style={{ padding: "10px 12px 10px 0" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 800, color: row.retirProbability >= 80 ? "var(--green)" : row.retirProbability >= 60 ? "var(--amber)" : "var(--red)" }}>
+                            {row.retirProbability}%
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 0" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", padding: "3px 8px", borderRadius: 4, background: isHighlight ? `color-mix(in oklch, ${vm.color} 12%, transparent)` : `color-mix(in oklch, ${vm.color} 8%, transparent)`, color: vm.color, border: `1px solid color-mix(in oklch, ${vm.color} 25%, transparent)`, whiteSpace: "nowrap" }}>
+                            {vm.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 768px) {
