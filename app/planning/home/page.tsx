@@ -5,6 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import HomeClient from "./home-client";
 import type { HomeScenario } from "./home-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
+import { ageFromDob } from "@/app/planning/planning-actions";
 
 export default async function HomePlanningPage() {
   const supabase = await createClient();
@@ -45,7 +46,8 @@ export default async function HomePlanningPage() {
     ? {
         id: profileData.id,
         user_id: profileData.user_id,
-        current_age: profileData.current_age ?? null,
+        date_of_birth: profileData.date_of_birth ?? null,
+        current_age: ageFromDob(profileData.date_of_birth ?? null),
         target_retirement_age: profileData.target_retirement_age ?? null,
         risk_tolerance: profileData.risk_tolerance ?? "moderate",
         monthly_income: profileData.monthly_income ? Number(profileData.monthly_income) : null,

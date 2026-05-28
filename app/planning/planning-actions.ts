@@ -5,9 +5,20 @@ import { createClient } from "@/lib/supabase/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export function ageFromDob(dob: string | null): number | null {
+  if (!dob) return null;
+  const today = new Date();
+  const birth = new Date(dob);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
 export type FinancialProfile = {
   id: string;
   user_id: string;
+  date_of_birth: string | null;
   current_age: number | null;
   target_retirement_age: number | null;
   risk_tolerance: string | null;
@@ -55,7 +66,7 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
-  const current_age = formData.get("current_age") ? Number(formData.get("current_age")) : null;
+  const date_of_birth = formData.get("date_of_birth") ? String(formData.get("date_of_birth")) : null;
   const target_retirement_age = formData.get("target_retirement_age") ? Number(formData.get("target_retirement_age")) : null;
   const risk_tolerance = String(formData.get("risk_tolerance") || "moderate");
   const monthly_income = formData.get("monthly_income") ? Number(formData.get("monthly_income")) : null;
@@ -67,7 +78,7 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const { error } = await supabase.from("financial_profiles").upsert(
     {
       user_id: user.id,
-      current_age,
+      date_of_birth,
       target_retirement_age,
       risk_tolerance,
       monthly_income,

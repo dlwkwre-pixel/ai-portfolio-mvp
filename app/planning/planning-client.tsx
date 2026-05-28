@@ -955,8 +955,8 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "22px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Current Age</label>
-                    <input name="current_age" type="number" min="1" max="100" required placeholder="32" style={fieldStyle} />
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
+                    <input name="date_of_birth" type="date" required max={new Date().toISOString().split("T")[0]} style={fieldStyle} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Retire At</label>
@@ -3480,8 +3480,11 @@ export default function PlanningClient({
             {editingProfile ? (
               <form onSubmit={handleProfileSubmit}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
+                    <input name="date_of_birth" type="date" max={new Date().toISOString().split("T")[0]} defaultValue={profile?.date_of_birth ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                  </div>
                   {[
-                    { name: "current_age", label: "Current Age", type: "number", default: profile?.current_age ?? "" },
                     { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
                     { name: "monthly_income", label: "Monthly Net Income ($)", type: "number", default: profile?.monthly_income ?? "" },
                     { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
@@ -3526,7 +3529,7 @@ export default function PlanningClient({
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
                   {[
-                    { label: "Age", value: profile.current_age ? String(profile.current_age) : "—" },
+                    { label: "Age", value: profile.current_age ? `${profile.current_age}` : "—" },
                     { label: "Retirement Target", value: profile.target_retirement_age ? String(profile.target_retirement_age) : "—" },
                     { label: "Years Left", value: yearsToRetire != null ? `${yearsToRetire} yrs` : "—" },
                     { label: "Risk Tolerance", value: profile.risk_tolerance ?? "—" },
