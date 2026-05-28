@@ -361,29 +361,23 @@ export default function CareerClient({
     );
 
     // Verdict
-    const highRisk = gapDeficit > inputs.monthly_expenses * 3
+    const verdictHighRisk = gapDeficit > inputs.monthly_expenses * 3
       || (runwayMonths < 2 && inputs.gap_months > 6);
 
-    type VerdictType = "SWITCH" | "WAIT" | "STAY" | "HIGH_RISK";
+    type VerdictType = "SWITCH" | "WAIT" | "STAY";
     let verdict: VerdictType;
-    let verdictConfidence: "High" | "Medium" | "Low";
+    let verdictConfidence: string;
     let verdictConditions: string[];
 
-    if (highRisk) {
-      verdict = "HIGH_RISK";
-      verdictConfidence = "Medium";
-      verdictConditions = [
-        `Build savings to ${inputs.gap_months + 3}+ months of expenses`,
-        "Reduce one-time transition costs if possible",
-        "Consider overlapping income sources during transition",
-      ];
-    } else if (breakEvenYear != null && breakEvenYear <= 7 && lifetimeDelta > 0) {
+    if (breakEvenYear != null && breakEvenYear <= 7 && lifetimeDelta > 0) {
       verdict = "SWITCH";
-      verdictConfidence = breakEvenYear <= 5 && lifetimeDelta > lifetimeCurrent * 0.15 ? "High" : "Medium";
+      verdictConfidence = breakEvenYear <= 3 && lifetimeDelta > lifetimeCurrent * 0.20 ? "Strong Case"
+        : breakEvenYear <= 5 && lifetimeDelta > lifetimeCurrent * 0.10 ? "Good Case"
+        : "Possible";
       verdictConditions = [];
     } else if (breakEvenYear != null && breakEvenYear <= 15 && lifetimeDelta > 0) {
       verdict = "WAIT";
-      verdictConfidence = breakEvenYear <= 10 ? "Medium" : "Low";
+      verdictConfidence = breakEvenYear <= 10 ? "Low Conviction" : "Weak Edge";
       verdictConditions = [
         `Stay in the new field ${inputs.projection_years}+ years`,
         `Income growth of ${pct(inputs.new_growth_rate)} annually is achieved`,
@@ -391,7 +385,7 @@ export default function CareerClient({
       ];
     } else {
       verdict = "STAY";
-      verdictConfidence = lifetimeDelta < -lifetimeCurrent * 0.10 ? "High" : "Medium";
+      verdictConfidence = lifetimeDelta < -lifetimeCurrent * 0.10 ? "Clear Case" : "Uncertain";
       verdictConditions = [];
     }
 
@@ -401,17 +395,45 @@ export default function CareerClient({
     else if (gapDeficit > 0 || (inputs.gap_months > 0 && runwayMonths < 4)) transitionRiskLevel = "MODERATE";
     else transitionRiskLevel = "LOW";
 
-    // Rule-based FINN narrative
+    // P6: Rule-based FINN narrative — opinionated first-person
     let finnNarrative: string;
-    if (verdict === "HIGH_RISK") {
-      finnNarrative = `The math on this switch can work out long-term, but the transition itself is the real problem. With ${runwayMonths.toFixed(1)} months of runway and a projected cash shortfall of ${fmt(gapDeficit)}, this transition carries real financial risk. Before moving, build savings to at least ${inputs.gap_months + 3} months of expenses. The switch may be right — but the timing isn't.`;
+    if (verdictHighRisk) {
+      finnNarrative = `I'd hold off. The transition math could work eventually, but right now the cash situation is the real problem. With ${runwayMonths.toFixed(1)} months of runway against a projected shortfall of ${fmt(gapDeficit)}, you're betting your financial stability on everything going right. Build savings to at least ${inputs.gap_months + 3} months of expenses first, then revisit.`;
     } else if (verdict === "SWITCH") {
-      finnNarrative = `The numbers make a clear case. Breaking even at Year ${breakEvenYear} and generating ${fmtK(lifetimeDelta)} more in lifetime earnings${retirDeltaPp > 0 ? `, with a +${retirDeltaPp}pp retirement improvement,` : ""} puts this firmly in switch territory. The main execution risk is whether the projected ${pct(inputs.new_growth_rate)} annual growth materializes — that assumption carries most of the long-term value.`;
+      finnNarrative = verdictConfidence === "Strong Case"
+        ? `I would switch. Break-even at Year ${breakEvenYear} and ${fmtK(lifetimeDelta)} in lifetime earnings${retirDeltaPp > 0 ? `, with a +${retirDeltaPp}pp retirement improvement` : ""} — this is a clear financial win. The main risk is whether the projected ${pct(inputs.new_growth_rate)} annual growth materializes; that assumption carries most of the long-term value.`
+        : `I'd lean toward switching. The numbers are positive but not overwhelming: break-even at Year ${breakEvenYear}, ${fmtK(lifetimeDelta)} lifetime advantage. If you're confident the ${pct(inputs.new_growth_rate)} growth rate is achievable, the financial case holds. Career satisfaction could easily tip the balance.`;
     } else if (verdict === "WAIT") {
-      finnNarrative = `This switch pays off eventually, but not for a long time. The current path stays ahead for ${(breakEvenYear ?? inputs.projection_years) - 1} years, and the new path only starts winning in Year ${breakEvenYear}. If staying in the new field for ${inputs.projection_years}+ years is realistic, the ${fmtK(lifetimeDelta)} lifetime advantage justifies it. If not, the current path likely wins on financial terms.`;
+      finnNarrative = `I would not switch for financial reasons alone. The new career produces only ${fmtK(lifetimeDelta)} more over ${inputs.projection_years} years and requires ${(breakEvenYear ?? inputs.projection_years) - 1} years to recover the earnings deficit. This move should be driven primarily by career satisfaction, lifestyle, or long-term interest rather than expected financial gain.`;
     } else {
-      finnNarrative = `Financially, staying on the current path appears superior over this ${inputs.projection_years}-year window. The new career generates ${fmtK(Math.abs(lifetimeDelta))} less in total earnings${breakEvenYear == null ? " and never closes the gap" : `, and only breaks even at Year ${breakEvenYear}, leaving little margin`}. Unless lifestyle factors strongly favor the switch, the numbers support staying.`;
+      finnNarrative = `I would stay on the current path. Financially, switching generates ${fmtK(Math.abs(lifetimeDelta))} less in total earnings over ${inputs.projection_years} years${breakEvenYear == null ? " and never closes the gap" : `, breaking even only at Year ${breakEvenYear}`}. Unless lifestyle or career factors strongly favor the switch, the math makes a case for staying.`;
     }
+
+    // P2: Score weakness drivers
+    const scoreWeaknesses: string[] = [];
+    if (paybackScore < 50) {
+      scoreWeaknesses.push(breakEvenYear != null ? `Break-even takes ${breakEvenYear} year${breakEvenYear === 1 ? "" : "s"} — long payback` : "New career never breaks even in the projection window");
+    }
+    if (financialReturnScore < 60 && lifetimeDelta < 0) scoreWeaknesses.push(`Lifetime earnings gap: ${fmtK(Math.abs(lifetimeDelta))} below current path`);
+    if (financialReturnScore >= 50 && financialReturnScore < 65 && lifetimeDelta > 0) scoreWeaknesses.push(`Lifetime advantage of ${fmtK(lifetimeDelta)} is modest relative to the commitment`);
+    if (transitionRiskScore < 60 && inputs.gap_months > 0) scoreWeaknesses.push(`${inputs.gap_months} months without income during transition`);
+    if (transitionRiskScore < 60 && gapDeficit > 0) scoreWeaknesses.push(`Savings cover only ${runwayMonths.toFixed(1)} of ${inputs.gap_months} months needed`);
+    if (retirementScore < 50) scoreWeaknesses.push("Retirement outcome improves only marginally");
+    if (incomeStabilityScore < 50) scoreWeaknesses.push(`New career starts ${fmt(Math.abs(inputs.new_monthly_income - inputs.current_monthly_income))}/mo lower with slower growth`);
+
+    // P5: Was It Worth It?
+    const annualEquivalent = inputs.projection_years > 0 ? Math.round(lifetimeDelta / inputs.projection_years) : 0;
+    const monthlyEquivalent = Math.round(annualEquivalent / 12);
+
+    // P3: Dynamic scenario distribution
+    const posCount = [lifetimeDelta > 0, scenarioBest.lifetimeDelta > 0, scenarioWorst.lifetimeDelta > 0].filter(Boolean).length;
+    const scenarioDistribution = posCount === 3
+      ? { improved: 75, brokeEven: 18, worseOff: 7 }
+      : posCount === 2
+      ? { improved: 55, brokeEven: 22, worseOff: 23 }
+      : posCount === 1
+      ? { improved: 28, brokeEven: 25, worseOff: 47 }
+      : { improved: 8, brokeEven: 17, worseOff: 75 };
 
     // Ecosystem impact
     type EcosystemImpact = {
@@ -530,14 +552,16 @@ export default function CareerClient({
       scenarioBest, scenarioWorst,
       financialReturnScore, paybackScore, transitionRiskScore, retirementScore, incomeStabilityScore,
       overallRoiScore,
-      verdict, verdictConfidence, verdictConditions,
+      verdict, verdictConfidence, verdictConditions, verdictHighRisk,
       transitionRiskLevel,
       finnNarrative,
       ecosystemImpact,
       milestones,
-      benchmarkPercentile,
+      benchmarkPercentile, scenarioDistribution,
       sensitivityItems,
       minSalaryForSwitch, minGrowthForSwitch, maxGapForSwitch,
+      scoreWeaknesses,
+      annualEquivalent, monthlyEquivalent,
     };
   }, [inputs, profile, currentNetWorth]);
 
@@ -695,7 +719,7 @@ export default function CareerClient({
 
   // ── Verdict styling ────────────────────────────────────────────────────────
 
-  const { verdict, verdictConfidence, verdictConditions } = computed;
+  const { verdict, verdictConfidence, verdictConditions, verdictHighRisk } = computed;
 
   const verdictMeta = {
     SWITCH: {
@@ -711,18 +735,12 @@ export default function CareerClient({
       border: "color-mix(in oklch, oklch(0.65 0.15 80) 28%, transparent)",
     },
     STAY: {
-      label: "STAY CURRENT PATH",
+      label: "STAY",
       color: "oklch(0.68 0.10 240)",
       bg: "color-mix(in oklch, oklch(0.50 0.10 240) 12%, transparent)",
       border: "color-mix(in oklch, oklch(0.50 0.10 240) 28%, transparent)",
     },
-    HIGH_RISK: {
-      label: "HIGH RISK",
-      color: "oklch(0.70 0.18 25)",
-      bg: "color-mix(in oklch, oklch(0.55 0.18 25) 12%, transparent)",
-      border: "color-mix(in oklch, oklch(0.55 0.18 25) 30%, transparent)",
-    },
-  }[verdict];
+  }[computed.verdict];
 
   const incomeDeltaYear1 = inputs.new_monthly_income - inputs.current_monthly_income;
   const isPayCut = incomeDeltaYear1 < 0;
@@ -733,7 +751,7 @@ export default function CareerClient({
     <div style={{ flex: 1, overflowY: "auto", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
 
       {/* Header */}
-      <div style={{
+      <div data-print-hide style={{
         padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10, gap: "12px",
@@ -746,23 +764,38 @@ export default function CareerClient({
           <span style={{ color: "var(--border)" }}>/</span>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Career Change</span>
         </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saveStatus === "saving"}
-          style={{
-            padding: "6px 14px", borderRadius: "var(--radius-md)",
-            background: saveStatus === "saved" ? "var(--green)" : "var(--accent)",
-            color: "#fff", border: "none", fontSize: "12px", fontWeight: 600,
-            fontFamily: "var(--font-body)", cursor: "pointer", opacity: saveStatus === "saving" ? 0.6 : 1,
-          }}
-        >
-          {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Error" : "Save"}
-        </button>
+        <div style={{ display: "flex", gap: "8px" }} data-print-hide>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              padding: "6px 12px", borderRadius: "var(--radius-md)",
+              background: "transparent", color: "var(--text-muted)",
+              border: "1px solid var(--border)", fontSize: "12px", fontWeight: 600,
+              fontFamily: "var(--font-body)", cursor: "pointer",
+            }}
+            title="Export as PDF"
+          >
+            PDF
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveStatus === "saving"}
+            style={{
+              padding: "6px 14px", borderRadius: "var(--radius-md)",
+              background: saveStatus === "saved" ? "var(--green)" : "var(--accent)",
+              color: "#fff", border: "none", fontSize: "12px", fontWeight: 600,
+              fontFamily: "var(--font-body)", cursor: "pointer", opacity: saveStatus === "saving" ? 0.6 : 1,
+            }}
+          >
+            {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : saveStatus === "error" ? "Error" : "Save"}
+          </button>
+        </div>
       </div>
 
       {/* Scenario tabs */}
-      <div style={{ padding: "0 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "4px", overflowX: "auto" }}>
+      <div data-print-hide style={{ padding: "0 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "4px", overflowX: "auto" }}>
         {scenarios.map((s) => (
           <div key={s.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
             <button
@@ -855,12 +888,33 @@ export default function CareerClient({
                 </div>
               )}
 
-              {/* WAIT conditions */}
-              {(verdict === "WAIT" || verdict === "HIGH_RISK") && verdictConditions.length > 0 && (
-                <div style={{ marginTop: "10px" }}>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>
-                    {verdict === "WAIT" ? "Switch becomes worthwhile if:" : "Before you make the move:"}
+              {/* Transition risk warning (replaces HIGH_RISK verdict) */}
+              {verdictHighRisk && (
+                <div style={{
+                  marginTop: "10px", padding: "10px 12px", borderRadius: "var(--radius-md)",
+                  background: "color-mix(in oklch, oklch(0.55 0.18 25) 12%, transparent)",
+                  border: "1px solid color-mix(in oklch, oklch(0.55 0.18 25) 28%, transparent)",
+                }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "oklch(0.70 0.18 25)", marginBottom: "5px" }}>
+                    Timing Risk
                   </div>
+                  {[
+                    `Build savings to ${inputs.gap_months + 3}+ months of expenses`,
+                    "Reduce one-time transition costs if possible",
+                    "Consider overlapping income sources during transition",
+                  ].map((c, i) => (
+                    <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginTop: "3px" }}>
+                      <span style={{ color: "oklch(0.70 0.18 25)", fontSize: "11px", marginTop: "1px" }}>!</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.4 }}>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* WAIT conditions */}
+              {verdict === "WAIT" && verdictConditions.length > 0 && (
+                <div style={{ marginTop: "10px" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "5px" }}>Switch becomes worthwhile if:</div>
                   {verdictConditions.map((c, i) => (
                     <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginTop: "3px" }}>
                       <span style={{ color: verdictMeta.color, fontSize: "11px", marginTop: "1px" }}>✓</span>
@@ -1265,16 +1319,32 @@ export default function CareerClient({
                 </div>
               ))}
             </div>
+            {computed.scoreWeaknesses.length > 0 && (
+              <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
+                  What&apos;s holding it back
+                </div>
+                {computed.scoreWeaknesses.map((w, i) => (
+                  <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginBottom: "5px" }}>
+                    <span style={{ color: "oklch(0.70 0.18 25)", fontSize: "10px", flexShrink: 0, marginTop: "2px" }}>↓</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* P4: Benchmarking Engine */}
+          {/* Modeled Outcomes (P3: renamed + dynamic + disclaimer) */}
           <div style={cardS}>
-            <p style={sectionHead}>People Like You</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "14px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
+              <p style={{ ...sectionHead, margin: 0 }}>Modeled Outcomes</p>
+              <span style={{ fontSize: "9px", color: "var(--text-muted)", fontStyle: "italic" }}>scenario modeling</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "12px" }}>
               {[
-                { pct: "63%", label: "Improved", color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 10%, transparent)" },
-                { pct: "22%", label: "Broke Even", color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 10%, transparent)" },
-                { pct: "15%", label: "Worse Off", color: "oklch(0.70 0.18 25)", bg: "color-mix(in oklch, oklch(0.55 0.18 25) 10%, transparent)" },
+                { pct: `${computed.scenarioDistribution.improved}%`, label: "Favorable", color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 10%, transparent)" },
+                { pct: `${computed.scenarioDistribution.brokeEven}%`, label: "Broke Even", color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 10%, transparent)" },
+                { pct: `${computed.scenarioDistribution.worseOff}%`, label: "Unfavorable", color: "oklch(0.70 0.18 25)", bg: "color-mix(in oklch, oklch(0.55 0.18 25) 10%, transparent)" },
               ].map(({ pct: p, label, color, bg }) => (
                 <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: bg, textAlign: "center" }}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color }}>{p}</div>
@@ -1282,20 +1352,20 @@ export default function CareerClient({
                 </div>
               ))}
             </div>
-            <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Your projected outcome</span>
+            <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Your scenario</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(computed.overallRoiScore) }}>
                   Top {100 - computed.benchmarkPercentile}%
                 </span>
               </div>
-              <div style={{ marginTop: "8px", height: "6px", background: "var(--border-subtle)", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{ height: "5px", background: "var(--border-subtle)", borderRadius: "3px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${computed.benchmarkPercentile}%`, background: scoreColor(computed.overallRoiScore), borderRadius: "3px" }} />
               </div>
-              <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px" }}>
-                Based on career ROI score of {computed.overallRoiScore}. Comparable transitions to similar fields.
-              </div>
             </div>
+            <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "8px 0 0", lineHeight: 1.5, fontStyle: "italic" }}>
+              Based on BuyTune scenario modeling across best, expected, and worst cases — not historical labor-market data.
+            </p>
           </div>
 
           {/* P5: Best / Expected / Worst Case */}
@@ -1348,6 +1418,49 @@ export default function CareerClient({
             <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
               Best: +2pp growth, half the income gap, 70% of transition cost. Worst: -2pp growth, 1.5x gap, 140% of transition cost.
             </p>
+          </div>
+
+          {/* P5: Was It Worth It? */}
+          <div style={cardS}>
+            <p style={sectionHead}>Was It Worth It?</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "14px" }}>
+              {[
+                {
+                  label: "Break-even",
+                  value: computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "Never",
+                  color: computed.breakEvenYear != null && computed.breakEvenYear <= 7 ? "var(--green)" : computed.breakEvenYear != null ? "var(--amber)" : "var(--red)",
+                  sub: "years to recover",
+                },
+                {
+                  label: "Lifetime Gain",
+                  value: (computed.lifetimeDelta >= 0 ? "+" : "") + fmtK(computed.lifetimeDelta),
+                  color: computed.lifetimeDelta >= 0 ? "var(--green)" : "var(--red)",
+                  sub: `over ${inputs.projection_years} years`,
+                },
+                {
+                  label: "Per Year",
+                  value: (computed.annualEquivalent >= 0 ? "+" : "") + fmtK(computed.annualEquivalent),
+                  color: computed.annualEquivalent >= 0 ? "var(--green)" : "var(--red)",
+                  sub: "equivalent reward/yr",
+                },
+              ].map(({ label, value, color, sub }) => (
+                <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", textAlign: "center" }}>
+                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color }}>{value}</div>
+                  <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{
+              padding: "12px 14px", borderRadius: "var(--radius-md)",
+              background: "var(--bg-elevated)", border: "1px solid var(--card-border)",
+            }}>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+                {computed.breakEvenYear != null
+                  ? `You accept ${computed.breakEvenYear} years of lower cumulative earnings in exchange for ${fmtK(computed.lifetimeDelta)} in total lifetime gain. That works out to ${computed.annualEquivalent >= 0 ? "+" : ""}${fmt(Math.abs(computed.monthlyEquivalent))}/month averaged over ${inputs.projection_years} years.`
+                  : `The new career does not recover the earnings deficit within ${inputs.projection_years} years. The total lifetime impact is ${fmtK(computed.lifetimeDelta)}, averaging ${fmt(Math.abs(computed.monthlyEquivalent))}/month.`}
+              </p>
+            </div>
           </div>
 
           {/* P3: Regret Risk Analysis */}
@@ -1522,31 +1635,51 @@ export default function CareerClient({
             </div>
           )}
 
-          {/* Retirement Impact */}
+          {/* Retirement Impact (P4: assets primary) */}
           {computed.retirCurrentProb != null && computed.retirNewProb != null && (
             <div style={cardS}>
               <p style={sectionHead}>Retirement Impact</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "12px" }}>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--text-secondary)" }}>{computed.retirCurrentProb}%</div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>Staying</div>
-                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px", fontFamily: "var(--font-mono)" }}>{fmtK(computed.nwCurrentPath)}</div>
-                </div>
-                <svg width="24" height="14" viewBox="0 0 24 14" fill="none">
-                  <path d="M1 7h22M16 1l6 6-6 6" stroke={computed.retirNewProb >= computed.retirCurrentProb ? "var(--green)" : "var(--amber)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: computed.retirNewProb >= computed.retirCurrentProb ? "var(--green)" : "var(--amber)" }}>
-                    {computed.retirNewProb}%
+              {/* Assets — primary */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+                {[
+                  { label: "Current Career", value: computed.nwCurrentPath, color: "#94a3b8" },
+                  { label: "New Career", value: computed.nwNewPath, color: "#3b82f6" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)" }}>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color }}>{fmtK(value)}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>at retirement</div>
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                    New path ({computed.retirDeltaPp > 0 ? "+" : ""}{computed.retirDeltaPp}pp)
-                  </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px", fontFamily: "var(--font-mono)" }}>{fmtK(computed.nwNewPath)}</div>
-                </div>
+                ))}
               </div>
-              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                Projected net worth at retirement age {profile?.target_retirement_age}. Based on annual savings differences compounded at {pct(inputs.investment_return)}.
+              {/* Difference */}
+              <div style={{
+                padding: "10px 14px", borderRadius: "var(--radius-md)",
+                background: computed.nwNewPath >= computed.nwCurrentPath
+                  ? "color-mix(in oklch, oklch(0.55 0.15 145) 10%, transparent)"
+                  : "color-mix(in oklch, oklch(0.55 0.18 25) 8%, transparent)",
+                border: `1px solid ${computed.nwNewPath >= computed.nwCurrentPath ? "color-mix(in oklch, oklch(0.55 0.15 145) 22%, transparent)" : "color-mix(in oklch, oklch(0.55 0.18 25) 22%, transparent)"}`,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Retirement assets difference</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 800, color: computed.nwNewPath >= computed.nwCurrentPath ? "var(--green)" : "var(--red)" }}>
+                  {(computed.nwNewPath >= computed.nwCurrentPath ? "+" : "") + fmtK(computed.nwNewPath - computed.nwCurrentPath)}
+                </span>
+              </div>
+              {/* Probability — secondary */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
+                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Retirement probability</span>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {computed.retirCurrentProb}% → {computed.retirNewProb}%
+                  {computed.retirDeltaPp !== 0 && (
+                    <span style={{ color: computed.retirDeltaPp > 0 ? "var(--green)" : "var(--red)", marginLeft: "4px" }}>
+                      ({computed.retirDeltaPp > 0 ? "+" : ""}{computed.retirDeltaPp}pp)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
+                Projected at retirement age {profile?.target_retirement_age}, compounded at {pct(inputs.investment_return)}/yr.
               </p>
             </div>
           )}
@@ -1737,6 +1870,32 @@ export default function CareerClient({
       <style>{`
         @media (max-width: 768px) {
           [data-career-grid] { grid-template-columns: 1fr !important; }
+        }
+        @media print {
+          :root {
+            --bg-base: #ffffff;
+            --bg-elevated: #f4f6f8;
+            --card-bg: #ffffff;
+            --card-border: #e2e6ea;
+            --border-subtle: #e2e6ea;
+            --border: #d1d5db;
+            --text-primary: #111827;
+            --text-secondary: #374151;
+            --text-tertiary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent: #2563eb;
+            --green: #16a34a;
+            --red: #dc2626;
+            --amber: #d97706;
+            --radius-lg: 8px;
+            --radius-md: 6px;
+            --radius-sm: 4px;
+            --radius-xl: 10px;
+          }
+          [data-print-hide] { display: none !important; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          [data-career-grid] { grid-template-columns: minmax(260px, 320px) 1fr !important; }
+          @page { margin: 16mm; }
         }
       `}</style>
     </div>
