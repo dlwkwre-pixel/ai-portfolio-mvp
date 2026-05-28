@@ -1089,7 +1089,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
 
             {computed.timingRows.length > 0 && (
-              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+              <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>When Are You Planning to Have a Child?</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {computed.timingRows.map(({ label, delayYears, retirAssets }, ti) => {
@@ -1156,7 +1156,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
             { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
           ].map(({ label, value, sub, color }, ti) => (
-            <div key={label} style={{ ...cardS, padding: "14px 16px", animation: `bt-fade-up 0.35s ease-out ${ti * 0.07}s both` }}>
+            <div key={label} className="bt-summary-tile" style={{ ...cardS, padding: "14px 16px", animation: `bt-fade-up 0.35s ease-out ${ti * 0.07}s both` }}>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: "var(--font-mono)", animation: "bt-pop 0.4s ease-out 0.2s both" }}>{value}</div>
               <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{sub}</div>
@@ -1166,7 +1166,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
         {/* Row 3: Chart */}
         {computed.chartData.length > 0 ? (
-          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.1s both" }}>
+          <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.1s both" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Annual Child Costs by Age</div>
             <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
               {(["Infant", "Child", "Teen"] as const).map((p) => (
@@ -1204,7 +1204,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         )}
 
         {/* Row 4: Retirement Impact + FINN side by side */}
-        <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+        <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
 
           {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
             <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
@@ -1239,7 +1239,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
+          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -1252,6 +1252,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               <button
                 onClick={handleGetCommentary}
                 disabled={loadingCommentary}
+                className="bt-finn-btn"
                 style={{ padding: "7px 14px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.22)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)" }}
               >
                 {loadingCommentary ? "Analyzing…" : "Get FINN Guidance"}
@@ -1269,7 +1270,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
         {/* Row 5: Scenario Comparison Table */}
         {computed.comparisonRows.length > 0 && (
-          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
+          <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Scenario Comparison</p>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -1335,14 +1336,20 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           from { opacity: 0; transform: translateX(-5px); }
           to   { opacity: 1; transform: translateX(0); }
         }
-        .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease; }
-        .bt-timing-row:hover { transform: translateX(3px); }
-        .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease; }
-        .bt-flip-row:hover { transform: translateX(3px); background: var(--bg-hover, oklch(0.18 0.01 240)) !important; }
-        .bt-eco-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-        .bt-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 14px oklch(0.06 0 0 / 0.4); }
+        .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+        .bt-timing-row:hover { transform: translateX(4px); background: oklch(0.19 0.03 265 / 0.5) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 265 / 0.25), 0 0 8px oklch(0.55 0.15 265 / 0.08); }
+        .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+        .bt-flip-row:hover { transform: translateX(4px); background: oklch(0.18 0.05 145 / 0.35) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3), 0 0 10px oklch(0.65 0.18 145 / 0.1); }
+        .bt-eco-tile { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+        .bt-eco-tile:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px oklch(0.55 0.15 265 / 0.35), 0 6px 22px oklch(0.45 0.15 265 / 0.22); }
         .bt-comp-row { transition: background 0.14s ease; }
-        .bt-comp-row:hover td { background: color-mix(in oklch, var(--accent, oklch(0.55 0.15 265)) 5%, transparent) !important; }
+        .bt-comp-row:hover td { background: color-mix(in oklch, oklch(0.55 0.15 265) 9%, transparent) !important; }
+        .bt-card { transition: box-shadow 0.22s ease; }
+        .bt-card:hover { box-shadow: 0 0 0 1px oklch(0.50 0.12 265 / 0.35), 0 6px 28px oklch(0.45 0.12 265 / 0.14) !important; }
+        .bt-summary-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .bt-summary-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.55 0.15 265 / 0.3), 0 6px 20px oklch(0.45 0.12 265 / 0.16) !important; }
+        .bt-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
+        .bt-finn-btn:not(:disabled):hover { background: rgba(124,58,237,0.22) !important; border-color: rgba(124,58,237,0.55) !important; box-shadow: 0 0 14px oklch(0.50 0.28 290 / 0.45) !important; }
         @media (max-width: 900px) {
           [data-family-fw] { grid-template-columns: 1fr !important; }
         }
