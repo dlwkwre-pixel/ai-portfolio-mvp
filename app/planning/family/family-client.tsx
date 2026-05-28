@@ -828,30 +828,41 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
           {/* Number of children selector */}
-          <div style={cardS}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-              Number of Children
+          <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "oklch(0.55 0.15 265 / 0.06)", pointerEvents: "none" }} />
+            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+              Planning For
             </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              {([1, 2, 3, 4] as const).map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setNumChildren(n)}
-                  style={{
-                    flex: 1, padding: "8px 0", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer",
-                    background: numChildren === n ? "var(--accent)" : "var(--bg-elevated, var(--bg-base))",
-                    color: numChildren === n ? "#fff" : "var(--text-secondary)",
-                    border: numChildren === n ? "1px solid var(--accent)" : "1px solid var(--border)",
-                    fontFamily: "var(--font-mono)",
-                  }}
-                >
-                  {n === 4 ? "4+" : n}
-                </button>
-              ))}
+            <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+              {([1, 2, 3, 4] as const).map((n) => {
+                const active = numChildren === n;
+                const icons = ["👶", "👶👶", "👶👶👶", "👨‍👩‍👧‍👦"];
+                const label = n === 4 ? "4+" : String(n);
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setNumChildren(n)}
+                    className="bt-child-btn"
+                    style={{
+                      flex: 1, padding: "10px 0 8px", borderRadius: 10, cursor: "pointer",
+                      background: active ? "oklch(0.55 0.15 265 / 0.18)" : "oklch(0.14 0.01 240)",
+                      border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid oklch(0.22 0.02 240)",
+                      boxShadow: active ? "0 0 14px oklch(0.55 0.15 265 / 0.25), inset 0 1px 0 oklch(0.75 0.1 265 / 0.1)" : "none",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      transition: "all 0.18s ease",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    <span style={{ fontSize: n === 3 ? 12 : n === 4 ? 11 : 14, lineHeight: 1 }}>{icons[n - 1]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: active ? "oklch(0.85 0.12 265)" : "var(--text-secondary)", fontFamily: "var(--font-mono)", transition: "color 0.18s ease" }}>{label}</span>
+                    <span style={{ fontSize: 9, color: active ? "oklch(0.65 0.1 265)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", transition: "color 0.18s ease" }}>{n === 1 ? "child" : n === 4 ? "or more" : "children"}</span>
+                  </button>
+                );
+              })}
             </div>
             {numChildren > 1 && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
-                Costs scaled to {numChildren} children — costs per-phase are multiplied.
+              <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", marginTop: 10, padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
+                All costs scaled to {numChildren} {numChildren === 4 ? "or more" : ""} children
               </div>
             )}
           </div>
@@ -1239,32 +1250,67 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                  <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column", background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", overflow: "hidden", position: "relative" }}>
+            {/* ambient glow orb */}
+            <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.12) 0%, transparent 70%)", pointerEvents: "none", animation: "bt-orb-pulse 4s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", bottom: -30, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 265 / 0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+            {/* header */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 16, position: "relative" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "oklch(0.50 0.25 290 / 0.15)", border: "1px solid oklch(0.50 0.25 290 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="8" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" />
+                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="15.5" r="0.75" fill="oklch(0.72 0.2 290)" />
                 </svg>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>FINN Deep Analysis</div>
               </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.01em" }}>FINN Deep Analysis</div>
+                <div style={{ fontSize: 10, color: "oklch(0.60 0.12 290)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Family Advisor</div>
+              </div>
+            </div>
+
+            {/* content area */}
+            <div style={{ flex: 1, position: "relative" }}>
+              {commentary ? (
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both" }}>{commentary}</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14, padding: "16px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, animation: "bt-orb-pulse 3s ease-in-out infinite" }}>🤖</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Ready to analyze your plan</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, maxWidth: 260 }}>Get personalized guidance on timing, child costs, and retirement impact for your specific situation.</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                    {["Cost timing", "Retirement risk", "Optimal delay"].map((tag) => (
+                      <span key={tag} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "oklch(0.50 0.2 290 / 0.1)", border: "1px solid oklch(0.50 0.2 290 / 0.2)", color: "oklch(0.65 0.12 290)" }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* footer button */}
+            <div style={{ marginTop: 14, position: "relative" }}>
               <button
                 onClick={handleGetCommentary}
                 disabled={loadingCommentary}
                 className="bt-finn-btn"
-                style={{ padding: "7px 14px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.22)", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)" }}
+                style={{ width: "100%", padding: "10px 16px", background: loadingCommentary ? "oklch(0.50 0.2 290 / 0.08)" : "oklch(0.50 0.2 290 / 0.14)", color: "oklch(0.78 0.18 290)", border: `1px solid oklch(0.50 0.2 290 / ${loadingCommentary ? "0.15" : "0.35"})`, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)", letterSpacing: "0.02em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
               >
-                {loadingCommentary ? "Analyzing…" : "Get FINN Guidance"}
+                {loadingCommentary ? (
+                  <>
+                    <span style={{ width: 12, height: 12, border: "2px solid oklch(0.60 0.15 290)", borderTopColor: "transparent", borderRadius: "50%", animation: "bt-spin 0.7s linear infinite", display: "inline-block" }} />
+                    Analyzing…
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>
+                    Get FINN Guidance
+                  </>
+                )}
               </button>
             </div>
-            {commentary ? (
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{commentary}</p>
-            ) : (
-              <p style={{ fontSize: 12, color: "var(--text-tertiary, var(--text-secondary))", margin: 0 }}>
-                Get deeper AI-powered guidance on child cost planning, retirement impact, and optimal timing.
-              </p>
-            )}
           </div>
         </div>
 
@@ -1336,6 +1382,13 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           from { opacity: 0; transform: translateX(-5px); }
           to   { opacity: 1; transform: translateX(0); }
         }
+        @keyframes bt-orb-pulse {
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+        @keyframes bt-spin {
+          to { transform: rotate(360deg); }
+        }
         .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
         .bt-timing-row:hover { transform: translateX(4px); background: oklch(0.19 0.03 265 / 0.5) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 265 / 0.25), 0 0 8px oklch(0.55 0.15 265 / 0.08); }
         .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
@@ -1349,7 +1402,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         .bt-summary-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
         .bt-summary-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.55 0.15 265 / 0.3), 0 6px 20px oklch(0.45 0.12 265 / 0.16) !important; }
         .bt-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
-        .bt-finn-btn:not(:disabled):hover { background: rgba(124,58,237,0.22) !important; border-color: rgba(124,58,237,0.55) !important; box-shadow: 0 0 14px oklch(0.50 0.28 290 / 0.45) !important; }
+        .bt-finn-btn:not(:disabled):hover { background: oklch(0.50 0.2 290 / 0.24) !important; border-color: oklch(0.50 0.2 290 / 0.6) !important; box-shadow: 0 0 18px oklch(0.50 0.25 290 / 0.45) !important; }
+        .bt-child-btn:hover { box-shadow: 0 0 10px oklch(0.55 0.15 265 / 0.2) !important; }
         @media (max-width: 900px) {
           [data-family-fw] { grid-template-columns: 1fr !important; }
         }
