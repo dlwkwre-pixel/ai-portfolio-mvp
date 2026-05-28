@@ -11,7 +11,13 @@ import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
 import type { FamilyScenario } from "./family/family-actions";
 
-export default async function PlanningPage() {
+export default async function PlanningPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[]>>;
+}) {
+  const params = await searchParams;
+  const initialTab = (params.tab as string) ?? "overview";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -214,6 +220,7 @@ export default async function PlanningPage() {
           familyScenarios={typedFamilyScenarios}
           expenseActuals={typedExpenseActuals}
           estateProfile={typedEstateProfile}
+          initialTab={initialTab}
         />
       </div>
     </div>

@@ -2298,6 +2298,7 @@ type Props = {
   familyScenarios: FamilyScenario[];
   expenseActuals: ExpenseActual[];
   estateProfile: EstateProfile | null;
+  initialTab?: string;
 };
 
 type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "budget" | "estate" | "finn";
@@ -2306,9 +2307,9 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  expenseActuals, estateProfile,
+  expenseActuals, estateProfile, initialTab,
 }: Props) {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
   useEffect(() => {
     try { if (localStorage.getItem("bt-privacy-mode") === "true") setIsPrivateRaw(true); } catch {}
@@ -4332,6 +4333,84 @@ export default function PlanningClient({
             )}
           </div>
 
+          {/* ── Family Planning section ── */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Family Planning</div>
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model child costs by phase and retirement impact</div>
+              </div>
+              <Link
+                href="/planning/family"
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "6px 12px", borderRadius: "var(--radius-md)",
+                  background: "var(--accent)", color: "#fff",
+                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
+                  textDecoration: "none", flexShrink: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                Open Planner
+              </Link>
+            </div>
+
+            {familyScenarios.length === 0 ? (
+              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No family scenarios yet</div>
+                <Link href="/planning/family" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                  Model your first child cost scenario
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {familyScenarios.map((s) => {
+                  const age = s.child_current_age;
+                  const monthly = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+                  return (
+                    <Link
+                      key={s.id}
+                      href="/planning/family"
+                      style={{
+                        display: "flex", alignItems: "center", gap: "12px",
+                        padding: "12px 14px", borderRadius: "var(--radius-md)",
+                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
+                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
+                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
+                          <circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/>
+                          <path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/>
+                          <path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
+                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {fmt(monthly)}/mo
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>current phase</div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* ── Career Planning section ── */}
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -4482,84 +4561,6 @@ export default function PlanningClient({
                           {coverage}%
                         </div>
                         <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>coverage</div>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── Family Planning section ── */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <div>
-                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Family Planning</div>
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model child costs by phase and retirement impact</div>
-              </div>
-              <Link
-                href="/planning/family"
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "6px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--accent)", color: "#fff",
-                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                Open Planner
-              </Link>
-            </div>
-
-            {familyScenarios.length === 0 ? (
-              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No family scenarios yet</div>
-                <Link href="/planning/family" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
-                  Model your first child cost scenario
-                </Link>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {familyScenarios.map((s) => {
-                  const age = s.child_current_age;
-                  const monthly = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
-                  return (
-                    <Link
-                      key={s.id}
-                      href="/planning/family"
-                      style={{
-                        display: "flex", alignItems: "center", gap: "12px",
-                        padding: "12px 14px", borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      <div style={{
-                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                          <circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/>
-                          <path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/>
-                          <path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/>
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
-                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                          {fmt(monthly)}/mo
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>current phase</div>
                       </div>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
                         <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>

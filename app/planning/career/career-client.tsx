@@ -756,7 +756,7 @@ export default function CareerClient({
         background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10, gap: "12px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Link href="/planning" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
+          <Link href="/planning?tab=events" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Planning
           </Link>
@@ -959,7 +959,7 @@ export default function CareerClient({
               {forecastStatus === "done" && (
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "right", lineHeight: 1.4 }}>
                   Events created in{" "}
-                  <a href="/planning" style={{ color: "var(--accent)", textDecoration: "none" }}>Planning</a>
+                  <a href="/planning?tab=events" style={{ color: "var(--accent)", textDecoration: "none" }}>Planning</a>
                 </div>
               )}
             </div>

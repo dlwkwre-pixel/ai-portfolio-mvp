@@ -41,7 +41,7 @@ export default async function FamilyPlanningPage() {
       .maybeSingle(),
     supabase
       .from("balance_sheet_items")
-      .select("value, is_liability")
+      .select("value, is_liability, category")
       .eq("user_id", user.id),
   ]);
 
@@ -70,6 +70,11 @@ export default async function FamilyPlanningPage() {
   const totalAssets = (balanceItems ?? []).filter((i) => !i.is_liability).reduce((s, i) => s + Number(i.value), 0) + portfolioCash;
   const totalLiabilities = (balanceItems ?? []).filter((i) => i.is_liability).reduce((s, i) => s + Number(i.value), 0);
   const currentNetWorth = totalAssets - totalLiabilities;
+  const LIQUID_CATS = new Set(["cash", "savings", "checking", "emergency_fund", "money_market"]);
+  const balanceLiquid = (balanceItems ?? [])
+    .filter((i) => !i.is_liability && LIQUID_CATS.has(((i as { category?: string }).category ?? "").toLowerCase()))
+    .reduce((s, i) => s + Number(i.value), 0);
+  const liquidAssets = portfolioCash + balanceLiquid;
 
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
@@ -90,6 +95,7 @@ export default async function FamilyPlanningPage() {
           profile={profile}
           defaultInvestmentReturn={investmentReturn}
           currentNetWorth={currentNetWorth}
+          liquidAssets={liquidAssets}
         />
       </div>
     </div>

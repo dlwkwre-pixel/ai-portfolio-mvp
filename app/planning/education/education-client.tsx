@@ -313,7 +313,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <a href="/planning" style={{ color: "var(--text-secondary)", fontSize: 13, textDecoration: "none" }}>Planning</a>
+          <a href="/planning?tab=events" style={{ color: "var(--text-secondary)", fontSize: 13, textDecoration: "none" }}>Planning</a>
           <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>/</span>
           <span style={{ color: "var(--text-primary)", fontSize: 13 }}>Education / 529</span>
         </div>
