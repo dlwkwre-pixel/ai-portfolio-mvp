@@ -166,8 +166,9 @@ function titleBlock(
         ...Array(fill).fill(e(P.COVER)),
       ],
       Array(cols).fill(e(P.BASE)),
+      Array(cols).fill(e(P.BASE)),
     ],
-    rowHeights: [{ hpt: 32 }, { hpt: 22 }, { hpt: 14 }, { hpt: 8 }],
+    rowHeights: [{ hpt: 32 }, { hpt: 22 }, { hpt: 14 }, { hpt: 4 }, { hpt: 6 }],
   };
 }
 
