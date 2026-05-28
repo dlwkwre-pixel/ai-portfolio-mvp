@@ -258,7 +258,6 @@ export default function CareerClient({
     travelFlexibility: 5,
     advancement: 5,
   });
-  const [showLifestyle, setShowLifestyle] = useState(false);
   const [forecastStatus, setForecastStatus] = useState<"idle" | "adding" | "done" | "error">("idle");
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
@@ -1102,23 +1101,10 @@ export default function CareerClient({
             </div>
           </div>
 
-          {/* Lifestyle factors (P7) */}
+          {/* Lifestyle factors */}
           <div style={cardS}>
-            <button
-              type="button"
-              onClick={() => setShowLifestyle((p) => !p)}
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)" }}
-            >
-              <p style={{ ...sectionHead, margin: 0 }}>Lifestyle Factors</p>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{showLifestyle ? "▲" : "▼"}</span>
-            </button>
-            {!showLifestyle && (
-              <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px" }}>
-                Rate the new career on 6 lifestyle dimensions to get a combined career score.
-              </p>
-            )}
-            {showLifestyle && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+            <p style={sectionHead}>Lifestyle Factors</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
                 {LIFESTYLE_FACTORS.map(({ key, label }) => (
                   <div key={key}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
@@ -1151,7 +1137,6 @@ export default function CareerClient({
                   ))}
                 </div>
               </div>
-            )}
           </div>
         </div>
 
@@ -1367,6 +1352,11 @@ export default function CareerClient({
               Based on BuyTune scenario modeling across best, expected, and worst cases — not historical labor-market data.
             </p>
           </div>
+
+        </div>
+      </div>
+
+      <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
           {/* P5: Best / Expected / Worst Case */}
           <div style={cardS}>
@@ -1864,7 +1854,6 @@ export default function CareerClient({
             )}
           </div>
 
-        </div>
       </div>
 
       <style>{`
