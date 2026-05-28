@@ -44,6 +44,12 @@ type RecommendationItem = {
   base_return_pct: number | null;
   bear_return_pct: number | null;
   bull_return_pct: number | null;
+  probability_bear: number | null;
+  probability_base: number | null;
+  probability_bull: number | null;
+  expected_value: number | null;
+  expected_return_pct: number | null;
+  low_conviction_flag: boolean | null;
   catalysts: string[] | null;
   target_change_reason: string | null;
   time_horizon: string | null;
@@ -308,20 +314,70 @@ export default function AIRecommendationsList({
                 {/* Bear / Base / Bull */}
                 {(item.bear_price != null || item.target_price_1 != null || item.bull_price != null) && (() => {
                   const fmtPct = (n: number | null) => n != null ? ((n >= 0 ? "+" : "") + n.toFixed(1) + "%") : null;
+                  const hasProbabilities = item.probability_bear != null || item.probability_base != null || item.probability_bull != null;
+                  const scenarios = [
+                    { label: "Bear Case", price: item.bear_price, pct: item.bear_return_pct, prob: item.probability_bear, border: "border-red-900/60", bg: "bg-red-950/40", pctColor: "text-red-400", labelColor: "text-red-400", probBg: "bg-red-900/40", probText: "text-red-300" },
+                    { label: `Base Case${item.target_horizon ? ` · ${item.target_horizon}` : ""}`, price: item.target_price_1, pct: item.base_return_pct, prob: item.probability_base, border: "border-emerald-900/60", bg: "bg-emerald-950/40", pctColor: "text-emerald-400", labelColor: "text-emerald-400", probBg: "bg-emerald-900/40", probText: "text-emerald-300" },
+                    { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, prob: item.probability_bull, border: "border-blue-900/60", bg: "bg-blue-950/40", pctColor: "text-blue-400", labelColor: "text-blue-400", probBg: "bg-blue-900/40", probText: "text-blue-300" },
+                  ];
                   return (
-                    <div className="mt-4 grid gap-4 md:grid-cols-3">
-                      {[
-                        { label: "Bear Case", price: item.bear_price, pct: item.bear_return_pct, border: "border-red-900/60", bg: "bg-red-950/40", pctColor: "text-red-400", labelColor: "text-red-400" },
-                        { label: `Base Case${item.target_horizon ? ` · ${item.target_horizon}` : ""}`, price: item.target_price_1, pct: item.base_return_pct, border: "border-emerald-900/60", bg: "bg-emerald-950/40", pctColor: "text-emerald-400", labelColor: "text-emerald-400" },
-                        { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, border: "border-blue-900/60", bg: "bg-blue-950/40", pctColor: "text-blue-400", labelColor: "text-blue-400" },
-                      ].map(c => (
-                        <div key={c.label} className={`rounded-2xl border ${c.border} ${c.bg} p-4`}>
-                          <p className={`text-xs font-medium ${c.labelColor}`}>{c.label}</p>
-                          {c.pct != null && <p className={`mt-2 text-2xl font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
-                          {c.price != null && <p className="mt-1 text-sm tabular-nums text-slate-400">{formatMoney(c.price)}</p>}
-                          {c.pct == null && c.price == null && <p className="mt-2 text-lg font-semibold text-slate-600">—</p>}
+                    <div className="mt-4">
+                      {item.low_conviction_flag && (
+                        <div className="mb-3 flex items-center gap-2 rounded-xl border border-amber-800/50 bg-amber-950/30 px-3 py-2">
+                          <span className="text-amber-400 text-xs">⚠</span>
+                          <p className="text-xs text-amber-400 font-medium">Low conviction — base target within 5% of current price</p>
                         </div>
-                      ))}
+                      )}
+                      <div className="grid gap-4 md:grid-cols-3">
+                        {scenarios.map(c => (
+                          <div key={c.label} className={`rounded-2xl border ${c.border} ${c.bg} p-4`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-xs font-medium ${c.labelColor}`}>{c.label}</p>
+                              {hasProbabilities && c.prob != null && (
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${c.probBg} ${c.probText}`}>{c.prob}%</span>
+                              )}
+                            </div>
+                            {c.pct != null && <p className={`mt-2 text-2xl font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
+                            {c.price != null && <p className="mt-1 text-sm tabular-nums text-slate-400">{formatMoney(c.price)}</p>}
+                            {c.pct == null && c.price == null && <p className="mt-2 text-lg font-semibold text-slate-600">—</p>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Market-Implied View */}
+                      {item.expected_return_pct != null && (
+                        <div className="mt-3 rounded-2xl border border-slate-700 bg-slate-900/70 p-4">
+                          <p className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wide">Market-Implied View</p>
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div>
+                              <p className="text-xs text-slate-500">Expected Return</p>
+                              <p className={`mt-1 text-xl font-bold tabular-nums ${item.expected_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {(item.expected_return_pct >= 0 ? "+" : "") + item.expected_return_pct.toFixed(1)}%
+                              </p>
+                            </div>
+                            {item.expected_value != null && (
+                              <div>
+                                <p className="text-xs text-slate-500">Expected Value</p>
+                                <p className="mt-1 text-xl font-bold tabular-nums text-white">{formatMoney(item.expected_value)}</p>
+                              </div>
+                            )}
+                            {item.target_price_1 != null && (
+                              <div>
+                                <p className="text-xs text-slate-500">Base Target</p>
+                                <p className="mt-1 text-xl font-bold tabular-nums text-white">{formatMoney(item.target_price_1)}</p>
+                              </div>
+                            )}
+                            {item.base_return_pct != null && (
+                              <div>
+                                <p className="text-xs text-slate-500">Base Upside</p>
+                                <p className={`mt-1 text-xl font-bold tabular-nums ${item.base_return_pct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                  {(item.base_return_pct >= 0 ? "+" : "") + item.base_return_pct.toFixed(1)}%
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

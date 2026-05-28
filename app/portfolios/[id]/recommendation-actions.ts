@@ -38,6 +38,12 @@ type AiRecommendation = {
   target_change_reason: string | null;
   time_horizon: string | null;
   target_horizon: string | null;
+  probability_bear: number | null;
+  probability_base: number | null;
+  probability_bull: number | null;
+  expected_value: number | null;
+  expected_return_pct: number | null;
+  low_conviction_flag: boolean | null;
 };
 
 type AiRunResponse = {
@@ -84,6 +90,30 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
   const ticker = String(raw.ticker ?? "").trim().toUpperCase();
   const thesis = String(raw.thesis ?? "").trim();
   if (!actionType || !ticker || !thesis) return null;
+
+  const bearPrice = toNullableNumber(raw.bear_price);
+  const basePrice = toNullableNumber(raw.base_price ?? raw.target_price_1);
+  const bullPrice = toNullableNumber(raw.bull_price);
+  const bearReturn = toNullableNumber(raw.bear_return_pct);
+  const baseReturn = toNullableNumber(raw.base_return_pct);
+  const bullReturn = toNullableNumber(raw.bull_return_pct);
+
+  const probBear = toNullableNumber(raw.probability_bear);
+  const probBase = toNullableNumber(raw.probability_base);
+  const probBull = toNullableNumber(raw.probability_bull);
+
+  const hasProbs = probBear != null && probBase != null && probBull != null;
+  const hasPrices = bearPrice != null && basePrice != null && bullPrice != null;
+  const hasReturns = bearReturn != null && baseReturn != null && bullReturn != null;
+
+  const expectedValue = hasProbs && hasPrices
+    ? (probBear * bearPrice + probBase * basePrice + probBull * bullPrice) / 100
+    : null;
+
+  const expectedReturnPct = hasProbs && hasReturns
+    ? (probBear * bearReturn + probBase * baseReturn + probBull * bullReturn) / 100
+    : null;
+
   return {
     action_type: actionType,
     ticker,
@@ -97,18 +127,24 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
     sizing_pct: toNullableNumber(raw.sizing_pct),
     sizing_dollars: toNullableNumber(raw.sizing_dollars),
     share_quantity: toNullableNumber(raw.share_quantity),
-    target_price_1: toNullableNumber(raw.base_price ?? raw.target_price_1),
+    target_price_1: basePrice,
     target_price_2: toNullableNumber(raw.target_price_2),
     stop_price: toNullableNumber(raw.stop_price),
-    bear_price: toNullableNumber(raw.bear_price),
-    bull_price: toNullableNumber(raw.bull_price),
-    base_return_pct: toNullableNumber(raw.base_return_pct),
-    bear_return_pct: toNullableNumber(raw.bear_return_pct),
-    bull_return_pct: toNullableNumber(raw.bull_return_pct),
+    bear_price: bearPrice,
+    bull_price: bullPrice,
+    base_return_pct: baseReturn,
+    bear_return_pct: bearReturn,
+    bull_return_pct: bullReturn,
     catalysts: Array.isArray(raw.catalysts) ? (raw.catalysts as unknown[]).map(c => String(c)).filter(Boolean) : null,
     target_change_reason: String(raw.target_change_reason ?? "").trim() || null,
     time_horizon: String(raw.time_horizon ?? "").trim() || null,
     target_horizon: String(raw.target_horizon ?? "").trim() || null,
+    probability_bear: probBear,
+    probability_base: probBase,
+    probability_bull: probBull,
+    expected_value: expectedValue,
+    expected_return_pct: expectedReturnPct,
+    low_conviction_flag: null, // set post-run in anchoring detection pass
   };
 }
 
@@ -991,6 +1027,23 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
   const strategyVersion = ctx?.strategy?.strategy_version ?? null;
   const maxPositionPct: number | null = strategyVersion?.max_position_pct ?? null;
   const minPositionPct: number | null = strategyVersion?.min_position_pct ?? null;
+  const strategyRiskLevel: string = (
+    ctx?.strategy?.strategy?.risk_level ??
+    strategyVersion?.risk_level ??
+    "moderate"
+  ).toString().toLowerCase();
+
+  const hurdleRateBlock = (() => {
+    if (strategyRiskLevel.includes("conservative")) {
+      return "HURDLE RATE: This is a CONSERVATIVE strategy. Minimum expected return threshold = 8-10% annualized. Only recommend BUY/ADD when probability-weighted expected return clearly clears 8% annualized. Below that threshold, HOLD or WAIT for better entry.";
+    } else if (strategyRiskLevel.includes("aggressive") && strategyRiskLevel.includes("very")) {
+      return "HURDLE RATE: This is a VERY AGGRESSIVE strategy. Minimum expected return threshold = 20%+ annualized. Seek high-conviction asymmetric opportunities. Good opportunities in aggressive portfolios should target 25-40%+ upside in base case.";
+    } else if (strategyRiskLevel.includes("aggressive")) {
+      return "HURDLE RATE: This is an AGGRESSIVE strategy. Minimum expected return threshold = 15-20% annualized. Seek securities where base case delivers 18-25%+ upside. Do NOT recommend BUY/ADD for 8-12% expected returns — that's a conservative profile opportunity.";
+    } else {
+      return "HURDLE RATE: This is a MODERATE strategy. Minimum expected return threshold = 10-15% annualized. Recommend BUY/ADD when probability-weighted expected return clears 12% annualized. Avoid low-single-digit expected returns — they are not worth the risk.";
+    }
+  })();
 
   const systemPrompt = [
     // ── Role: Capital Allocator
@@ -1028,6 +1081,15 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     // ── Data Discipline + Discovery Search
     "DATA AND DISCOVERY SEARCHES: Current prices, Finnhub data, and Reddit sentiment are pre-loaded for existing holdings. DO NOT use training-data memory for stock prices. Use web_search PROACTIVELY — the majority of your searches should be DISCOVERY searches, not price lookups. Discovery search protocol: (1) Run 2-4 searches to find external candidates relevant to this portfolio's strategy theme and current environment — e.g., '[strategy theme] best stocks 2025', '[sector] momentum leaders today', 'top [style] stocks outperforming now', 'analyst upgrades [theme] sector'. (2) Then run 1-2 targeted searches to get current prices for specific candidates you identified. (3) Use x_search for recent sentiment on high-conviction new names. Total budget: 5-7 searches per run, with discovery searches taking clear priority over price lookups for existing holdings.",
 
+    // ── Anti-Anchoring Mandate
+    "PRICE ANCHORING ALERT: The most common failure mode in price target generation is anchoring — setting bear/base/bull targets that cluster tightly around the current price, producing near-zero expected returns and defaulting to HOLD for every position. THIS IS WRONG. Your targets must reflect where fundamentals and catalysts point over the stated horizon, NOT where the stock trades today. Before submitting any recommendation, self-check: if |base_price - current_price| < 5% of current_price, you are anchoring. Your base case must have a genuine directional view. A flat base case is an analyst hiding behind consensus. Anchoring means you have no view — if you have no view, say so in the thesis, but still assign a real probability-weighted outcome.",
+
+    // ── Scenario Probability Mandate
+    "SCENARIO PROBABILITIES: Every recommendation must include probability_bear, probability_base, probability_bull. These three values must sum to exactly 100. Assign based on your genuine conviction about the distribution of outcomes — not a default 25/50/25 split. Examples of realistic distributions: high conviction bull thesis = 15/35/50; high uncertainty = 35/30/35; deteriorating thesis = 40/40/20. The probabilities signal your directional conviction. A 25/50/25 default is a red flag that you have no view.",
+
+    // ── Hurdle Rate Awareness
+    hurdleRateBlock,
+
     // ── Hard constraints
     "CASH IS A HARD CONSTRAINT — combined sizing_dollars of ALL buy/add recommendations must not exceed available cash.",
     "For trim/sell, always specify share_quantity not exceeding shares owned.",
@@ -1047,10 +1109,11 @@ HARD CONSTRAINTS:
 1. CASH LIMIT: $${availableCash.toLocaleString()} available. Combined sizing_dollars of ALL buy/add recommendations must not exceed this. Size multiple buys so they fit together.
 
 2. PROBABILISTIC TARGETS: Use current_price from holdings context (or search for it on new names). Provide three scenarios:
-   - base_price = most likely outcome (BUY/ADD: above current price; SELL/TRIM: below). Also sets target_price_1.
+   - base_price = most likely outcome (BUY/ADD: above current price; SELL/TRIM: below). Also sets target_price_1. MUST be directional — not near current price.
    - bear_price = downside scenario if key risks materialize.
    - bull_price = upside scenario if catalysts outperform.
    - base_return_pct / bear_return_pct / bull_return_pct = signed % return from current price to each scenario (e.g. -12.5, +18.0, +48.0).
+   - probability_bear / probability_base / probability_bull = integer probabilities 0-100 summing to exactly 100. Reflect genuine conviction. Default 25/50/25 is unacceptable — assign based on asymmetry, catalyst quality, fundamental strength.
    - target_horizon = specific timeframe for the base case (e.g. "6-12 months", "1-2 earnings cycles", "2-3 years"). Write an actual range, not "short_term".
    - catalysts = array of 2-4 concise strings naming key drivers (e.g. "AI infrastructure demand", "earnings revisions", "margin expansion").
    - target_change_reason = if recent_recommendation_items shows prior targets for this ticker and your new base_return_pct differs by more than 3 pct points, explain the change in 1-3 sentences (earnings revision, macro shift, new catalyst, etc.). Otherwise null.
@@ -1088,6 +1151,9 @@ Return this exact JSON shape:
       "base_return_pct": number|null,
       "bear_return_pct": number|null,
       "bull_return_pct": number|null,
+      "probability_bear": number|null,
+      "probability_base": number|null,
+      "probability_bull": number|null,
       "catalysts": ["string"],
       "target_change_reason": "string|null",
       "target_price_2": number|null,
@@ -1100,7 +1166,8 @@ Return this exact JSON shape:
 
 Execution rules:
 - Cover EVERY existing holding. No exceptions.
-- HOLD requires security-specific justification. Never for macro alone. If you'd buy this for a new portfolio today, use ADD not HOLD.
+- HOLD FRESH CAPITAL TEST: Before assigning HOLD, answer: "If I had fresh capital today, would I buy this at current prices?" If YES → use ADD. If NO with no exit signal → justify HOLD explicitly. HOLD is only valid when: (a) position is fully sized and thesis intact with no better alternative, OR (b) awaiting a specific upcoming catalyst for a better entry. Generic market caution is never a valid HOLD reason.
+- PROBABILITY CHECK: probability_bear + probability_base + probability_bull must equal 100 for every recommendation. No exceptions. Never submit 25/50/25 as a default — assign conviction-weighted probabilities.
 - CONSTRUCTION: only trim positions in portfolio_construction.overweight_flags. If intentional_concentration is true, never trim for diversification.
 - TIME HORIZON: label time_horizon accurately. Never trim a structural position on a short-term miss.
 - scale_in: strong thesis, better entry possible. rotate: exit one to fund another in same theme. Trim/sell/hold: only existing holdings.
@@ -1136,11 +1203,37 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
       : "AI portfolio review completed.";
 
   const recommendationsRaw = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
-  const recommendations = recommendationsRaw
+  const normalized = recommendationsRaw
     .map((item) => item && typeof item === "object" ? normalizeRecommendation(item as Record<string, unknown>) : null)
     .filter((item): item is AiRecommendation => Boolean(item));
 
-  return { summary, recommendations };
+  // Anchoring detection: flag individual recs where |base_price - current_price| < 5%
+  const holdingsMap = new Map<string, number>();
+  const holdings = ctx?.current_valuation?.holdings ?? [];
+  for (const h of holdings) {
+    if (h.ticker && h.current_price != null) {
+      holdingsMap.set(String(h.ticker).toUpperCase(), Number(h.current_price));
+    }
+  }
+
+  const recommendations = normalized.map((rec) => {
+    if (rec.target_price_1 == null) return rec;
+    const currentPrice = holdingsMap.get(rec.ticker ?? "");
+    if (currentPrice == null || currentPrice === 0) return rec;
+    const pctDiff = Math.abs(rec.target_price_1 - currentPrice) / currentPrice;
+    return { ...rec, low_conviction_flag: pctDiff < 0.05 };
+  });
+
+  // Run-level anchoring flag: >60% of recs have base within 5% of current price
+  const flaggedCount = recommendations.filter((r) => r.low_conviction_flag).length;
+  const anchoringRate = recommendations.length > 0 ? flaggedCount / recommendations.length : 0;
+  const runAnchoringFlag = anchoringRate > 0.6;
+
+  const finalSummary = runAnchoringFlag
+    ? `[Low Conviction Forecast Set: ${Math.round(anchoringRate * 100)}% of base targets within 5% of current price — model may be anchoring to consensus] ${summary}`
+    : summary;
+
+  return { summary: finalSummary, recommendations };
 }
 
 // --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
@@ -1394,6 +1487,12 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
             base_return_pct: item.base_return_pct,
             bear_return_pct: item.bear_return_pct,
             bull_return_pct: item.bull_return_pct,
+            probability_bear: item.probability_bear,
+            probability_base: item.probability_base,
+            probability_bull: item.probability_bull,
+            expected_value: item.expected_value,
+            expected_return_pct: item.expected_return_pct,
+            low_conviction_flag: item.low_conviction_flag ?? false,
             catalysts: item.catalysts,
             target_change_reason: item.target_change_reason,
             time_horizon: item.time_horizon,
