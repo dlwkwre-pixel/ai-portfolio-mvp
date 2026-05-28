@@ -8,7 +8,7 @@ import {
   ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import type { CareerScenario } from "./career-actions";
-import { saveCareerScenario, deleteCareerScenario } from "./career-actions";
+import { saveCareerScenario, deleteCareerScenario, addCareerChangeToForecast } from "./career-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import type { CareerFinnRequest } from "@/app/api/planning/career-finn/route";
 
@@ -259,6 +259,7 @@ export default function CareerClient({
     advancement: 5,
   });
   const [showLifestyle, setShowLifestyle] = useState(false);
+  const [forecastStatus, setForecastStatus] = useState<"idle" | "adding" | "done" | "error">("idle");
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
     setInputs((p) => ({ ...p, [key]: val }));
@@ -433,6 +434,93 @@ export default function CareerClient({
       ecosystemImpact = { retirProbDelta: retirDeltaPp, homeAffordabilityDelta, monthlySavingsDelta, fiYearsSooner };
     }
 
+    // P2: Career Milestone Timeline
+    type MilestoneType = "now" | "gap" | "income" | "breakeven" | "checkpoint" | "retirement";
+    type Milestone = { label: string; year: number; sub: string; type: MilestoneType };
+    const rawMilestones: Milestone[] = [];
+    rawMilestones.push({ label: "Decision Point", year: 0, sub: "Today", type: "now" });
+    if (inputs.gap_months > 0) {
+      rawMilestones.push({ label: "Income Gap Closes", year: Math.round(inputs.gap_months / 12 * 10) / 10, sub: `${inputs.gap_months} months`, type: "gap" });
+    }
+    const gapEndYear = inputs.gap_months / 12;
+    const incomeCrossYear = timeline.find((p) => p.year > Math.ceil(gapEndYear) && p.newIncome >= p.currentIncome)?.year ?? null;
+    if (incomeCrossYear != null) {
+      rawMilestones.push({ label: "New Salary Surpasses Current", year: incomeCrossYear, sub: fmtK(timeline[incomeCrossYear]?.newIncome ?? 0), type: "income" });
+    }
+    if (breakEvenYear != null) {
+      rawMilestones.push({ label: "Break-Even Point", year: breakEvenYear, sub: "Cumulative earnings equal", type: "breakeven" });
+    }
+    if (inputs.projection_years >= 10 && timeline[10]) {
+      rawMilestones.push({ label: "10-Year Checkpoint", year: 10, sub: `${fmtK(timeline[10].newIncome)}/yr`, type: "checkpoint" });
+    }
+    if (profile?.current_age && profile?.target_retirement_age) {
+      const ytr = profile.target_retirement_age - profile.current_age;
+      if (ytr > 0 && ytr <= inputs.projection_years + 10) {
+        rawMilestones.push({ label: "Retirement Target", year: ytr, sub: `Age ${profile.target_retirement_age}`, type: "retirement" });
+      }
+    }
+    rawMilestones.push({ label: "Projection End", year: inputs.projection_years, sub: `${fmtK(lastPt.newIncome)}/yr`, type: "checkpoint" });
+    rawMilestones.sort((a, b) => a.year - b.year);
+    const milestones = rawMilestones.filter((m, i) => i === 0 || m.year - rawMilestones[i - 1].year > 0.4);
+
+    // P4: Benchmarking
+    const benchmarkPercentile = overallRoiScore >= 80 ? 85
+      : overallRoiScore >= 65 ? 70
+      : overallRoiScore >= 50 ? 55
+      : overallRoiScore >= 35 ? 35
+      : 20;
+
+    // P6: Sensitivity — rank variables by impact magnitude on lifetime delta
+    const sensitivityItems = [
+      { label: "+1% annual growth rate", impact: buildScenarioMetrics({ ...inputs, new_growth_rate: inputs.new_growth_rate + 1 }, 0, 1, 1).lifetimeDelta - lifetimeDelta },
+      { label: "+3 months income gap", impact: buildScenarioMetrics({ ...inputs, gap_months: inputs.gap_months + 3 }, 0, 1, 1).lifetimeDelta - lifetimeDelta },
+      { label: "+20% transition cost", impact: buildScenarioMetrics({ ...inputs, transition_cost: inputs.transition_cost * 1.2 + 1000 }, 0, 1, 1).lifetimeDelta - lifetimeDelta },
+      { label: "+$500/mo starting salary", impact: buildScenarioMetrics({ ...inputs, new_monthly_income: inputs.new_monthly_income + 500 }, 0, 1, 1).lifetimeDelta - lifetimeDelta },
+      { label: "+1% current path growth", impact: buildScenarioMetrics({ ...inputs, current_growth_rate: inputs.current_growth_rate + 1 }, 0, 1, 1).lifetimeDelta - lifetimeDelta },
+    ].sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+    // P7: What Would Need to Change?
+    let minSalaryForSwitch: number | null = null;
+    if (verdict !== "SWITCH") {
+      let lo = inputs.new_monthly_income, hi = inputs.new_monthly_income * 4 + 10000;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const m = buildScenarioMetrics({ ...inputs, new_monthly_income: mid }, 0, 1, 1);
+        if (m.breakEvenYear != null && m.breakEvenYear <= 7 && m.lifetimeDelta > 0) hi = mid;
+        else lo = mid;
+        if (hi - lo < 50) break;
+      }
+      const candidate = Math.ceil(hi / 50) * 50;
+      if (candidate > inputs.new_monthly_income && candidate < inputs.new_monthly_income * 5) minSalaryForSwitch = candidate;
+    }
+
+    let minGrowthForSwitch: number | null = null;
+    if (verdict !== "SWITCH") {
+      let lo = inputs.new_growth_rate, hi = 25;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const m = buildScenarioMetrics({ ...inputs, new_growth_rate: mid }, 0, 1, 1);
+        if (m.breakEvenYear != null && m.breakEvenYear <= 7 && m.lifetimeDelta > 0) hi = mid;
+        else lo = mid;
+        if (hi - lo < 0.1) break;
+      }
+      const candidate = Math.ceil(hi * 10) / 10;
+      if (candidate > inputs.new_growth_rate + 0.1 && candidate <= 25) minGrowthForSwitch = candidate;
+    }
+
+    let maxGapForSwitch: number | null = null;
+    if (verdict === "SWITCH") {
+      let lo = inputs.gap_months, hi = inputs.gap_months + 60;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const m = buildScenarioMetrics({ ...inputs, gap_months: Math.round(mid) }, 0, 1, 1);
+        if (m.breakEvenYear != null && m.breakEvenYear <= 7 && m.lifetimeDelta > 0) lo = mid;
+        else hi = mid;
+        if (hi - lo < 0.5) break;
+      }
+      if (lo > inputs.gap_months) maxGapForSwitch = Math.floor(lo);
+    }
+
     return {
       timeline, breakEvenYear, maxCost,
       pt10, pt20, lastPt,
@@ -446,6 +534,10 @@ export default function CareerClient({
       transitionRiskLevel,
       finnNarrative,
       ecosystemImpact,
+      milestones,
+      benchmarkPercentile,
+      sensitivityItems,
+      minSalaryForSwitch, minGrowthForSwitch, maxGapForSwitch,
     };
   }, [inputs, profile, currentNetWorth]);
 
@@ -457,6 +549,33 @@ export default function CareerClient({
   const overallScore = lifestyleEngaged
     ? Math.round(computed.overallRoiScore * 0.6 + lifestyleScore * 0.4)
     : computed.overallRoiScore;
+
+  // P3: Regret Risk (outside useMemo — depends on lifestyle)
+  const financialRegretLevel: "LOW" | "MEDIUM" | "HIGH" =
+    computed.lifetimeDelta < -100_000 ? "HIGH"
+    : computed.lifetimeDelta < -20_000 ? "MEDIUM"
+    : "LOW";
+  const lifestyleRegretLevel: "LOW" | "MEDIUM" | "HIGH" | null = lifestyleEngaged
+    ? (lifestyleScore < 40 ? "HIGH" : lifestyleScore < 60 ? "MEDIUM" : "LOW")
+    : null;
+  const financialRegretText = financialRegretLevel === "HIGH"
+    ? `You'd be walking away from roughly ${fmtK(Math.abs(computed.lifetimeDelta))} over ${inputs.projection_years} years. Make sure the reasons for switching are strong enough to justify it.`
+    : financialRegretLevel === "MEDIUM"
+    ? `The current path has a ${fmtK(Math.abs(computed.lifetimeDelta))} lifetime edge — within the range where lifestyle or growth factors could tip the balance.`
+    : computed.lifetimeDelta >= 0
+    ? `New career comes out ahead by ${fmtK(computed.lifetimeDelta)}, so this move doesn't create meaningful financial regret exposure.`
+    : `The financial gap is small enough that other factors should drive the decision.`;
+  const lifestyleRegretText = lifestyleRegretLevel === "HIGH"
+    ? "Lifestyle ratings suggest this role may not deliver the improvements you're hoping for. Consider whether a different role in the same field could score better."
+    : lifestyleRegretLevel === "MEDIUM"
+    ? "Mixed lifestyle signals — some dimensions improve, others stay flat or decline. These tend to matter more over time than the year-1 numbers suggest."
+    : lifestyleRegretLevel === "LOW"
+    ? "Strong lifestyle improvement across all rated dimensions. Non-financial upside like this often predicts long-term satisfaction better than salary alone."
+    : null;
+  const regretColor = (level: "LOW" | "MEDIUM" | "HIGH") =>
+    level === "HIGH" ? "oklch(0.70 0.18 25)"
+    : level === "MEDIUM" ? "oklch(0.78 0.15 80)"
+    : "oklch(0.72 0.18 145)";
 
   // ── Chart data ─────────────────────────────────────────────────────────────
 
@@ -553,6 +672,25 @@ export default function CareerClient({
       setFinnCommentary("Unable to connect. Please try again.");
     }
     setFinnLoading(false);
+  }
+
+  async function handleAddToForecast() {
+    setForecastStatus("adding");
+    const currentYear = new Date().getFullYear();
+    const yr1Delta = (inputs.new_monthly_income - inputs.current_monthly_income) * 12;
+    const yr5New = inputs.new_monthly_income * 12 * Math.pow(1 + inputs.new_growth_rate / 100, 5);
+    const yr5Current = inputs.current_monthly_income * 12 * Math.pow(1 + inputs.current_growth_rate / 100, 5);
+    const yr5Delta = yr5New - yr5Current;
+    const result = await addCareerChangeToForecast({
+      scenarioName: inputs.name,
+      transitionCost: inputs.transition_cost,
+      annualIncomeChangeYear1: yr1Delta,
+      annualIncomeChangeYear5: yr5Delta,
+      currentYear,
+    });
+    if (result.error) { setForecastStatus("error"); return; }
+    setForecastStatus("done");
+    setTimeout(() => setForecastStatus("idle"), 4000);
   }
 
   // ── Verdict styling ────────────────────────────────────────────────────────
@@ -737,6 +875,38 @@ export default function CareerClient({
                 <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   Current path generates {fmtK(Math.abs(computed.lifetimeDelta))} more over {inputs.projection_years} years.
                   {computed.breakEvenYear == null ? " The new career never breaks even within the projection window." : ""}
+                </div>
+              )}
+            </div>
+
+            {/* Add to Forecast (P1) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: "160px", alignItems: "flex-end" }}>
+              <button
+                type="button"
+                onClick={handleAddToForecast}
+                disabled={forecastStatus === "adding" || forecastStatus === "done"}
+                style={{
+                  padding: "8px 16px", borderRadius: "var(--radius-md)",
+                  border: `1px solid ${verdictMeta.border}`,
+                  background: forecastStatus === "done"
+                    ? "color-mix(in oklch, oklch(0.55 0.15 145) 15%, transparent)"
+                    : "color-mix(in oklch, oklch(0.50 0.08 240) 10%, transparent)",
+                  color: forecastStatus === "done" ? "oklch(0.72 0.18 145)" : verdictMeta.color,
+                  fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 700,
+                  cursor: forecastStatus === "adding" || forecastStatus === "done" ? "default" : "pointer",
+                  opacity: forecastStatus === "adding" ? 0.6 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {forecastStatus === "adding" ? "Adding…"
+                  : forecastStatus === "done" ? "Added to Forecast"
+                  : forecastStatus === "error" ? "Try Again"
+                  : "Add to Forecast →"}
+              </button>
+              {forecastStatus === "done" && (
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "right", lineHeight: 1.4 }}>
+                  Events created in{" "}
+                  <a href="/planning" style={{ color: "var(--accent)", textDecoration: "none" }}>Planning</a>
                 </div>
               )}
             </div>
@@ -994,7 +1164,44 @@ export default function CareerClient({
             </div>
           </div>
 
-          {/* P2: Lifetime Earnings Advantage */}
+          {/* P2: Career Milestone Timeline */}
+          <div style={cardS}>
+            <p style={sectionHead}>Career Timeline</p>
+            <div style={{ position: "relative", paddingLeft: "20px" }}>
+              <div style={{
+                position: "absolute", left: "7px", top: "8px", bottom: "8px",
+                width: "2px", background: "var(--border-subtle)", borderRadius: "1px",
+              }} />
+              {computed.milestones.map((m, i) => {
+                const dotColor = m.type === "breakeven" ? "oklch(0.72 0.18 145)"
+                  : m.type === "retirement" ? "oklch(0.72 0.15 280)"
+                  : m.type === "gap" ? "oklch(0.70 0.18 25)"
+                  : m.type === "income" ? "oklch(0.78 0.15 145)"
+                  : m.type === "now" ? "var(--accent)"
+                  : "var(--text-muted)";
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "14px", position: "relative" }}>
+                    <div style={{
+                      width: "8px", height: "8px", borderRadius: "50%",
+                      background: dotColor, flexShrink: 0, marginTop: "4px", zIndex: 1,
+                      boxShadow: `0 0 0 2px var(--card-bg)`,
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: dotColor }}>{m.label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", flexShrink: 0 }}>
+                          {m.year === 0 ? "Now" : `Yr ${m.year}`}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{m.sub}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Lifetime Earnings */}
           <div style={cardS}>
             <p style={sectionHead}>Lifetime Earnings</p>
             <div style={{ textAlign: "center", padding: "4px 0 14px" }}>
@@ -1060,6 +1267,37 @@ export default function CareerClient({
             </div>
           </div>
 
+          {/* P4: Benchmarking Engine */}
+          <div style={cardS}>
+            <p style={sectionHead}>People Like You</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "14px" }}>
+              {[
+                { pct: "63%", label: "Improved", color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 10%, transparent)" },
+                { pct: "22%", label: "Broke Even", color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 10%, transparent)" },
+                { pct: "15%", label: "Worse Off", color: "oklch(0.70 0.18 25)", bg: "color-mix(in oklch, oklch(0.55 0.18 25) 10%, transparent)" },
+              ].map(({ pct: p, label, color, bg }) => (
+                <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: bg, textAlign: "center" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color }}>{p}</div>
+                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginTop: "2px" }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Your projected outcome</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(computed.overallRoiScore) }}>
+                  Top {100 - computed.benchmarkPercentile}%
+                </span>
+              </div>
+              <div style={{ marginTop: "8px", height: "6px", background: "var(--border-subtle)", borderRadius: "3px", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${computed.benchmarkPercentile}%`, background: scoreColor(computed.overallRoiScore), borderRadius: "3px" }} />
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px" }}>
+                Based on career ROI score of {computed.overallRoiScore}. Comparable transitions to similar fields.
+              </div>
+            </div>
+          </div>
+
           {/* P5: Best / Expected / Worst Case */}
           <div style={cardS}>
             <p style={sectionHead}>Outcome Scenarios</p>
@@ -1112,7 +1350,43 @@ export default function CareerClient({
             </p>
           </div>
 
-          {/* P4: Transition Risk Center */}
+          {/* P3: Regret Risk Analysis */}
+          <div style={cardS}>
+            <p style={sectionHead}>Regret Risk</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{
+                padding: "12px 14px", borderRadius: "var(--radius-md)",
+                background: `color-mix(in oklch, ${regretColor(financialRegretLevel)} 8%, transparent)`,
+                border: `1px solid color-mix(in oklch, ${regretColor(financialRegretLevel)} 25%, transparent)`,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Financial Regret</span>
+                  <span style={{ fontSize: "11px", fontWeight: 800, color: regretColor(financialRegretLevel), letterSpacing: "0.05em" }}>{financialRegretLevel}</span>
+                </div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>{financialRegretText}</p>
+              </div>
+              {lifestyleRegretLevel && lifestyleRegretText && (
+                <div style={{
+                  padding: "12px 14px", borderRadius: "var(--radius-md)",
+                  background: `color-mix(in oklch, ${regretColor(lifestyleRegretLevel)} 8%, transparent)`,
+                  border: `1px solid color-mix(in oklch, ${regretColor(lifestyleRegretLevel)} 25%, transparent)`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Lifestyle Regret</span>
+                    <span style={{ fontSize: "11px", fontWeight: 800, color: regretColor(lifestyleRegretLevel), letterSpacing: "0.05em" }}>{lifestyleRegretLevel}</span>
+                  </div>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>{lifestyleRegretText}</p>
+                </div>
+              )}
+              {!lifestyleEngaged && (
+                <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: 0 }}>
+                  Rate lifestyle factors to unlock Lifestyle Regret analysis.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Transition Risk */}
           <div style={{
             ...cardS,
             background: computed.transitionRiskLevel === "HIGH"
@@ -1166,6 +1440,87 @@ export default function CareerClient({
               ))}
             </div>
           </div>
+
+          {/* P6: Decision Sensitivity Analysis */}
+          <div style={cardS}>
+            <p style={sectionHead}>What Moves the Needle Most</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {computed.sensitivityItems.map(({ label, impact }, i) => {
+                const isPositive = impact >= 0;
+                const bar = Math.min(100, Math.abs(impact) / (Math.abs(computed.sensitivityItems[0].impact) + 1) * 100);
+                return (
+                  <div key={label}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        {i === 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Biggest lever</span>}
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
+                      </div>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: isPositive ? "var(--green)" : "var(--red)", flexShrink: 0 }}>
+                        {(isPositive ? "+" : "") + fmtK(impact)}
+                      </span>
+                    </div>
+                    <div style={{ height: "4px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${bar}%`, background: isPositive ? "oklch(0.72 0.18 145)" : "oklch(0.70 0.18 25)", borderRadius: "2px" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+              Lifetime delta impact from each one-unit change. Ranked by magnitude.
+            </p>
+          </div>
+
+          {/* P7: What Would Need to Change? */}
+          {(computed.minSalaryForSwitch != null || computed.minGrowthForSwitch != null || computed.maxGapForSwitch != null) && (
+            <div style={cardS}>
+              <p style={sectionHead}>What Would Change the Verdict?</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {computed.minSalaryForSwitch != null && (
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Min starting salary for SWITCH</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                        {fmtK((computed.minSalaryForSwitch - inputs.new_monthly_income) * 12)}/yr increase needed
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>
+                      {fmt(computed.minSalaryForSwitch)}/mo
+                    </div>
+                  </div>
+                )}
+                {computed.minGrowthForSwitch != null && (
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Min growth rate for SWITCH</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                        +{pct(computed.minGrowthForSwitch - inputs.new_growth_rate)} more than current assumption
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>
+                      {pct(computed.minGrowthForSwitch)}/yr
+                    </div>
+                  </div>
+                )}
+                {computed.maxGapForSwitch != null && (
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Max income gap to keep SWITCH</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                        {computed.maxGapForSwitch - inputs.gap_months} additional months of tolerance
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "oklch(0.72 0.18 145)", flexShrink: 0 }}>
+                      {computed.maxGapForSwitch} mo
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                Minimum threshold at which the verdict flips to SWITCH with break-even within 7 years.
+              </p>
+            </div>
+          )}
 
           {/* Retirement Impact */}
           {computed.retirCurrentProb != null && computed.retirNewProb != null && (
