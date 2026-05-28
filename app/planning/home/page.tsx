@@ -5,7 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import HomeClient from "./home-client";
 import type { HomeScenario } from "./home-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
-import { ageFromDob } from "@/app/planning/planning-actions";
+import { ageFromDob } from "@/app/planning/planning-utils";
 
 export default async function HomePlanningPage() {
   const supabase = await createClient();

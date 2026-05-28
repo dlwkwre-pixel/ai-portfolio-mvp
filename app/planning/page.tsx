@@ -5,7 +5,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary } from "./planning-actions";
-import { ageFromDob } from "./planning-actions";
+import { ageFromDob } from "./planning-utils";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";

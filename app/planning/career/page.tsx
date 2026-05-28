@@ -5,7 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import CareerClient from "./career-client";
 import type { CareerScenario } from "./career-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
-import { ageFromDob } from "@/app/planning/planning-actions";
+import { ageFromDob } from "@/app/planning/planning-utils";
 
 export default async function CareerPlanningPage() {
   const supabase = await createClient();
