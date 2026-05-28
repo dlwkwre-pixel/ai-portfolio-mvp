@@ -1078,183 +1078,156 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* Timing Simulator */}
-          {computed.timingRows.length > 0 && (
-            <div style={cardS}>
-              <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>When Are You Planning to Have a Child?</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {computed.timingRows.map(({ label, delayYears, retirAssets }) => {
-                  const isNow = delayYears === 0;
-                  const gain = retirAssets - computed.timingRows[0].retirAssets;
-                  const isBest = !isNow && gain === computed.timingBestGain && computed.timingBestGain > 10_000;
-                  return (
-                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--bg-elevated, transparent))" : "var(--bg-elevated, var(--bg-card))", border: `1px solid ${isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" : "var(--card-border, var(--border))"}` }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        {isBest && <span style={{ fontSize: "9px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>}
-                        <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: isNow ? 600 : 400 }}>{label}</span>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(retirAssets)}</div>
-                        {!isNow && (
-                          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: gain >= 0 ? "var(--green)" : "var(--red)", marginTop: "1px" }}>
-                            {gain >= 0 ? "+" : ""}{fmtK(gain)} vs now
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {computed.timingBestDelayLabel && computed.timingBestGain > 10_000 && (
-                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.6, padding: "9px 12px", background: "color-mix(in oklch, oklch(0.55 0.15 145) 6%, transparent)", borderRadius: "var(--radius-md, 8px)", border: "1px solid color-mix(in oklch, oklch(0.55 0.15 145) 20%, transparent)" }}>
-                  Waiting {computed.timingBestDelayLabel.toLowerCase()} increases projected retirement assets by {fmtK(computed.timingBestGain)}.
-                </p>
-              )}
-            </div>
-          )}
+        </div>
+      </div>
 
-          {/* Ecosystem Impact */}
-          {computed.retirProbBefore != null && (
-            <div style={cardS}>
-              <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>Impact Across Your Financial Plan</p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-                {[
-                  {
-                    label: "Retirement Probability",
-                    value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`,
-                    sub: "on track for retirement",
-                    icon: "◎",
-                    color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5 ? "var(--amber)" : "var(--green)",
-                  },
-                  {
-                    label: "Home Affordability",
-                    value: computed.homeAffordBefore != null && computed.homeAffordAfter != null ? `${fmtK(computed.homeAffordBefore)} → ${fmtK(computed.homeAffordAfter)}` : "—",
-                    sub: "max home (28% DTI)",
-                    icon: "⌂",
-                    color: computed.homeAffordBefore != null && computed.homeAffordAfter != null && computed.homeAffordBefore - computed.homeAffordAfter > 50_000 ? "var(--amber)" : "var(--green)",
-                  },
-                  {
-                    label: "Monthly Savings",
-                    value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))}/mo → ${fmt(Math.max(0, computed.monthlySavingsAfter))}/mo` : "—",
-                    sub: "household savings rate",
-                    icon: "$",
-                    color: (computed.monthlySavingsAfter ?? 0) >= 0 ? "var(--text-secondary)" : "var(--red)",
-                  },
-                  {
-                    label: "Emergency Fund",
-                    value: computed.emergencyMonths != null ? `${computed.emergencyMonths.toFixed(1)} months` : "—",
-                    sub: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "Adequate" : computed.emergencyMonths >= 3 ? "Thin" : "Low" : "current",
-                    icon: "⛨",
-                    color: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "var(--green)" : computed.emergencyMonths >= 3 ? "var(--amber)" : "var(--red)" : "var(--text-muted)",
-                  },
-                  {
-                    label: "Financial Independence",
-                    value: computed.fiYearsBefore != null && computed.fiYearsAfter != null ? computed.fiYearsAfter - computed.fiYearsBefore > 0 ? `+${computed.fiYearsAfter - computed.fiYearsBefore} years later` : "Same timeline" : computed.fiYearsAfter === null ? "Extended" : "—",
-                    sub: "to FI (25x expenses)",
-                    icon: "→",
-                    color: computed.fiYearsAfter != null && computed.fiYearsBefore != null && computed.fiYearsAfter - computed.fiYearsBefore > 5 ? "var(--amber)" : "var(--text-secondary)",
-                  },
-                  {
-                    label: "Retirement Assets",
-                    value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—",
-                    sub: "vs no child costs",
-                    icon: "▲",
-                    color: (retirementImpact ?? 0) > 1_000_000 ? "var(--red)" : (retirementImpact ?? 0) > 300_000 ? "var(--amber)" : "var(--text-secondary)",
-                  },
-                ].map(({ label, value, sub, icon, color }) => (
-                  <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "4px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{icon}</span>
-                      <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
-                    </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "2px" }}>{sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* ── Full-width analysis below the grid ──────────────────────────────── */}
+      <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
-          {/* Summary tiles */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-            {[
-              { label: "Current Monthly Impact", value: fmt(computed.currentMonthlyImpact), sub: `${costImpactPct}% of household expenses`, color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)" },
-              { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
-              { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
-            ].map(({ label, value, sub, color }) => (
-              <div key={label} style={{ ...cardS, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: "var(--font-mono)" }}>{value}</div>
-                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{sub}</div>
+        {/* Row 1: Timing Simulator + Ecosystem Impact */}
+        {(computed.timingRows.length > 0 || computed.retirProbBefore != null) && (
+          <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+
+            {computed.timingRows.length > 0 && (
+              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>When Are You Planning to Have a Child?</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {computed.timingRows.map(({ label, delayYears, retirAssets }, ti) => {
+                    const isNow = delayYears === 0;
+                    const gain = retirAssets - computed.timingRows[0].retirAssets;
+                    const isBest = !isNow && gain === computed.timingBestGain && computed.timingBestGain > 10_000;
+                    return (
+                      <div key={label} className="bt-timing-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--bg-elevated, transparent))" : "var(--bg-elevated, var(--bg-card))", border: `1px solid ${isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" : "var(--card-border, var(--border))"}`, animation: `bt-fade-up 0.3s ease-out ${0.05 + ti * 0.06}s both` }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {isBest && <span style={{ fontSize: "9px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>}
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: isNow ? 600 : 400 }}>{label}</span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(retirAssets)}</div>
+                          {!isNow && (
+                            <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: gain >= 0 ? "var(--green)" : "var(--red)", marginTop: "1px" }}>
+                              {gain >= 0 ? "+" : ""}{fmtK(gain)} vs now
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {computed.timingBestDelayLabel && computed.timingBestGain > 10_000 && (
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.6, padding: "9px 12px", background: "color-mix(in oklch, oklch(0.55 0.15 145) 6%, transparent)", borderRadius: "var(--radius-md, 8px)", border: "1px solid color-mix(in oklch, oklch(0.55 0.15 145) 20%, transparent)" }}>
+                    Waiting {computed.timingBestDelayLabel.toLowerCase()} increases projected retirement assets by {fmtK(computed.timingBestGain)}.
+                  </p>
+                )}
               </div>
-            ))}
+            )}
+
+            {computed.retirProbBefore != null && (
+              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>Impact Across Your Financial Plan</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                  {[
+                    { label: "Retirement Probability", value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`, sub: "on track for retirement", icon: "◎", color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5 ? "var(--amber)" : "var(--green)" },
+                    { label: "Home Affordability", value: computed.homeAffordBefore != null && computed.homeAffordAfter != null ? `${fmtK(computed.homeAffordBefore)} → ${fmtK(computed.homeAffordAfter)}` : "—", sub: "max home (28% DTI)", icon: "⌂", color: computed.homeAffordBefore != null && computed.homeAffordAfter != null && computed.homeAffordBefore - computed.homeAffordAfter > 50_000 ? "var(--amber)" : "var(--green)" },
+                    { label: "Monthly Savings", value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))}/mo → ${fmt(Math.max(0, computed.monthlySavingsAfter))}/mo` : "—", sub: "household savings rate", icon: "$", color: (computed.monthlySavingsAfter ?? 0) >= 0 ? "var(--text-secondary)" : "var(--red)" },
+                    { label: "Emergency Fund", value: computed.emergencyMonths != null ? `${computed.emergencyMonths.toFixed(1)} months` : "—", sub: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "Adequate" : computed.emergencyMonths >= 3 ? "Thin" : "Low" : "current", icon: "⛨", color: computed.emergencyMonths != null ? computed.emergencyMonths >= 6 ? "var(--green)" : computed.emergencyMonths >= 3 ? "var(--amber)" : "var(--red)" : "var(--text-muted)" },
+                    { label: "Financial Independence", value: computed.fiYearsBefore != null && computed.fiYearsAfter != null ? computed.fiYearsAfter - computed.fiYearsBefore > 0 ? `+${computed.fiYearsAfter - computed.fiYearsBefore} years later` : "Same timeline" : computed.fiYearsAfter === null ? "Extended" : "—", sub: "to FI (25x expenses)", icon: "→", color: computed.fiYearsAfter != null && computed.fiYearsBefore != null && computed.fiYearsAfter - computed.fiYearsBefore > 5 ? "var(--amber)" : "var(--text-secondary)" },
+                    { label: "Retirement Assets", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: "vs no child costs", icon: "▲", color: (retirementImpact ?? 0) > 1_000_000 ? "var(--red)" : (retirementImpact ?? 0) > 300_000 ? "var(--amber)" : "var(--text-secondary)" },
+                  ].map(({ label, value, sub, icon, color }, ei) => (
+                    <div key={label} className="bt-eco-tile" style={{ padding: "12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))", animation: `bt-fade-up 0.28s ease-out ${0.05 + ei * 0.04}s both` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{icon}</span>
+                        <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
+                      </div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "2px" }}>{sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        )}
 
-          {/* Chart */}
-          {computed.chartData.length > 0 ? (
-            <div style={cardS}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Annual Child Costs by Age</div>
-              <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-                {(["Infant", "Child", "Teen"] as const).map((p) => (
-                  <div key={p} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-secondary)" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[p] }} />
-                    {p}
-                  </div>
-                ))}
-              </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={computed.chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="age" tickFormatter={(val) => `${val}`} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} label={{ value: "Child Age", position: "insideBottom", offset: -2, fill: "var(--text-secondary)", fontSize: 11 }} />
-                  <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} width={56} />
-                  <Tooltip formatter={(val) => typeof val === "number" ? [fmt(val), "Annual Cost"] : [String(val ?? ""), "Annual Cost"]} labelFormatter={(label) => `Age ${label}`} contentStyle={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="annualCost" radius={[4, 4, 0, 0]}>
-                    {computed.chartData.map((entry, index) => (
-                      <Cell key={index} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Row 2: Summary tiles */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { label: "Current Monthly Impact", value: fmt(computed.currentMonthlyImpact), sub: `${costImpactPct}% of household expenses`, color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)" },
+            { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
+            { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
+          ].map(({ label, value, sub, color }, ti) => (
+            <div key={label} style={{ ...cardS, padding: "14px 16px", animation: `bt-fade-up 0.35s ease-out ${ti * 0.07}s both` }}>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: "var(--font-mono)", animation: "bt-pop 0.4s ease-out 0.2s both" }}>{value}</div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{sub}</div>
             </div>
-          ) : (
-            <div style={{ ...cardS, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-              Child is 18+ — cost modeling phase complete.
-            </div>
-          )}
+          ))}
+        </div>
 
-          {/* P5: Retirement Impact (probability dominant) */}
+        {/* Row 3: Chart */}
+        {computed.chartData.length > 0 ? (
+          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.1s both" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Annual Child Costs by Age</div>
+            <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+              {(["Infant", "Child", "Teen"] as const).map((p) => (
+                <div key={p} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-secondary)" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: PHASE_COLORS[p] }} />
+                  {p}
+                </div>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={computed.chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="age" tickFormatter={(val) => `${val}`} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} label={{ value: "Child Age", position: "insideBottom", offset: -2, fill: "var(--text-secondary)", fontSize: 11 }} />
+                <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} width={56} />
+                <Tooltip
+                  formatter={(val) => typeof val === "number" ? [fmt(val), "Annual Cost"] : [String(val ?? ""), "Annual Cost"]}
+                  labelFormatter={(label) => `Age ${label}`}
+                  contentStyle={{ background: "oklch(0.13 0.01 240)", border: "1px solid oklch(0.24 0.02 240)", borderRadius: 8, fontSize: 12, color: "oklch(0.92 0.01 240)" }}
+                  labelStyle={{ color: "oklch(0.92 0.01 240)", fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: "oklch(0.72 0.04 240)" }}
+                  cursor={{ fill: "oklch(0.20 0.01 240 / 0.7)" }}
+                />
+                <Bar dataKey="annualCost" radius={[4, 4, 0, 0]}>
+                  {computed.chartData.map((entry, index) => (
+                    <Cell key={index} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div style={{ ...cardS, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+            Child is 18+ — cost modeling phase complete.
+          </div>
+        )}
+
+        {/* Row 4: Retirement Impact + FINN side by side */}
+        <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
+
           {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
-            <div style={cardS}>
+            <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Retirement Impact</div>
-              {/* Probability row — visually dominant */}
               <div style={{ padding: "14px 16px", borderRadius: 10, background: "var(--bg-elevated, var(--bg-base))", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>Retirement Probability</div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary, var(--text-muted))", lineHeight: 1.4 }}>
-                    {(computed.retirProbAfter ?? 0) >= 80
-                      ? "Above 80% — your retirement plan stays on track"
-                      : (computed.retirProbAfter ?? 0) >= 60
-                      ? "60–80% — manageable, monitor savings rate"
-                      : "Below 60% — review retirement contributions"}
+                    {(computed.retirProbAfter ?? 0) >= 80 ? "Above 80% — retirement plan on track" : (computed.retirProbAfter ?? 0) >= 60 ? "60–80% — manageable, monitor closely" : "Below 60% — review contributions"}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 900, color: (computed.retirProbAfter ?? 0) >= 80 ? "var(--green)" : (computed.retirProbAfter ?? 0) >= 60 ? "var(--amber)" : "var(--red)", lineHeight: 1 }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 900, color: (computed.retirProbAfter ?? 0) >= 80 ? "var(--green)" : (computed.retirProbAfter ?? 0) >= 60 ? "var(--amber)" : "var(--red)", lineHeight: 1, animation: "bt-pop 0.5s ease-out 0.15s both" }}>
                     {computed.retirProbAfter}%
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 3 }}>was {computed.retirProbBefore}%</div>
                 </div>
               </div>
-              {/* Asset comparison */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   { label: "Without Child", value: fmtK(computed.projectedNWBefore), color: "#94a3b8" },
                   { label: "With Child", value: fmtK(Math.max(0, computed.projectedNWAfter)), color: "#3b82f6" },
-                  {
-                    label: "Difference",
-                    value: (computed.projectedNWAfter - computed.projectedNWBefore >= 0 ? "+" : "") + fmtK(computed.projectedNWAfter - computed.projectedNWBefore),
-                    color: computed.projectedNWAfter >= computed.projectedNWBefore ? "var(--green)" : "var(--red)",
-                  },
+                  { label: "Difference", value: (computed.projectedNWAfter - computed.projectedNWBefore >= 0 ? "+" : "") + fmtK(computed.projectedNWAfter - computed.projectedNWBefore), color: computed.projectedNWAfter >= computed.projectedNWBefore ? "var(--green)" : "var(--red)" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "10px 12px", background: "var(--bg-elevated, var(--bg-base))", borderRadius: 8 }}>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 2 }}>{label}</div>
@@ -1266,8 +1239,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* FINN Deep Analysis */}
-          <div style={cardS}>
+          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -1294,12 +1266,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             )}
           </div>
         </div>
-      </div>
 
-      {/* P9: Scenario Comparison Table */}
-      {computed.comparisonRows.length > 0 && (
-        <div style={{ padding: "0 24px 24px" }}>
-          <div style={cardS}>
+        {/* Row 5: Scenario Comparison Table */}
+        {computed.comparisonRows.length > 0 && (
+          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Scenario Comparison</p>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -1315,7 +1285,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     const vm = verdictMeta[row.verdict];
                     const isHighlight = row.verdict === "READY" || row.verdict === "LOW_IMPACT";
                     return (
-                      <tr key={i} style={{ borderTop: "1px solid var(--border-subtle, var(--border))" }}>
+                      <tr key={i} className="bt-comp-row" style={{ borderTop: "1px solid var(--border-subtle, var(--border))", animation: `bt-row-in 0.3s ease-out ${0.05 + i * 0.05}s both` }}>
                         <td style={{ padding: "10px 12px 10px 0", color: "var(--text-primary)", fontWeight: 500 }}>{row.label}</td>
                         <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(row.monthlyCost)}/mo</td>
                         <td style={{ padding: "10px 12px 10px 0", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(row.retirAssets)}</td>
@@ -1336,10 +1306,46 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
 
       <style>{`
+        @keyframes bt-fade-up {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bt-scale-x {
+          from { transform: scaleX(0); }
+          to   { transform: scaleX(1); }
+        }
+        @keyframes bt-slide-right {
+          from { opacity: 0; transform: translateX(-8px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes bt-pop {
+          from { opacity: 0; transform: scale(0.82); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes bt-chip-in {
+          from { opacity: 0; transform: translateY(-4px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes bt-row-in {
+          from { opacity: 0; transform: translateX(-5px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease; }
+        .bt-timing-row:hover { transform: translateX(3px); }
+        .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease; }
+        .bt-flip-row:hover { transform: translateX(3px); background: var(--bg-hover, oklch(0.18 0.01 240)) !important; }
+        .bt-eco-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .bt-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 14px oklch(0.06 0 0 / 0.4); }
+        .bt-comp-row { transition: background 0.14s ease; }
+        .bt-comp-row:hover td { background: color-mix(in oklch, var(--accent, oklch(0.55 0.15 265)) 5%, transparent) !important; }
+        @media (max-width: 900px) {
+          [data-family-fw] { grid-template-columns: 1fr !important; }
+        }
         @media (max-width: 768px) {
           [data-family-grid] { grid-template-columns: 1fr !important; }
         }
