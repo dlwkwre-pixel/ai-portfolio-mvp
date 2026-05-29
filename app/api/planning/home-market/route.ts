@@ -25,14 +25,17 @@ async function fetchCensusData(zip: string): Promise<{
 }> {
   const apiKey = process.env.CENSUS_API_KEY;
   const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : "";
-  // Note: colon in "zip code tabulation area:XXXXX" must stay literal — do not encode it
-  const url = `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip%20code%20tabulation%20area:${zip}${keyParam}`;
+  // Census requires literal colon in geography param (not %3A), spaces as + or %20 both work.
+  // Use + (form encoding) which Census examples show.
+  const url = `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip+code+tabulation+area:${zip}${keyParam}`;
 
   try {
     const res = await fetch(url, { next: { revalidate: 86400 } }); // 24h cache — ACS is annual
     if (!res.ok) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
 
-    const rows = await res.json() as CensusRow[];
+    const body = await res.text();
+    let rows: CensusRow[];
+    try { rows = JSON.parse(body) as CensusRow[]; } catch { return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null }; }
     if (!rows || rows.length < 2) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
 
     const [homeValueStr, rentStr, incomeStr, taxStr] = rows[1];
@@ -137,6 +140,7 @@ export type HomeMarketData = {
   fredAvailable: boolean;
   hudAvailable: boolean;
   dataVintage: string;
+  _debug: { censusKeyPresent: boolean; fredKeyPresent: boolean; censusRejected: boolean };
 };
 
 export async function GET(req: NextRequest) {
@@ -225,6 +229,11 @@ export async function GET(req: NextRequest) {
     fredAvailable: !!mortgageRate,
     hudAvailable: !!hudData.twoBed,
     dataVintage: "2022 ACS 5-yr",
+    _debug: {
+      censusKeyPresent: !!process.env.CENSUS_API_KEY,
+      fredKeyPresent: !!process.env.FRED_API_KEY,
+      censusRejected: censusResult.status === "rejected",
+    },
   };
 
   return NextResponse.json(result);
