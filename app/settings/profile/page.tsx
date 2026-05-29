@@ -34,7 +34,8 @@ export default async function ProfileSettingsPage() {
   ]);
 
   // Retroactively award any badges earned before tracking was implemented
-  void checkAndAwardBadges(user.id).catch(() => {});
+  // Must await so BadgesSection reads up-to-date rows on this same page load
+  await checkAndAwardBadges(user.id).catch(() => {});
 
   // Email digest prefs
   const portfolioIds = (allPortfolios ?? []).map((p) => p.id);
