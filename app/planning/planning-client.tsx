@@ -570,6 +570,97 @@ function computeFinnInsight(p: {
   return "Your financial foundation is solid. The highest-leverage moves now are increasing your savings rate and modeling the major life decisions that will shape the next decade.";
 }
 
+// ── Balance Sheet helpers ─────────────────────────────────────────────────────
+
+type AssetBucket = { label: string; value: number; color: string };
+
+function computeAssetBuckets(assets: BalanceSheetItem[], portfolioValue: number): AssetBucket[] {
+  const defs: { label: string; cats: string[]; color: string }[] = [
+    { label: "Cash",        cats: ["cash"],                                                    color: "oklch(0.72 0.19 145)" },
+    { label: "Portfolio",   cats: [],                                                          color: "oklch(0.65 0.18 260)" },
+    { label: "Retirement",  cats: ["retirement"],                                              color: "oklch(0.72 0.16 220)" },
+    { label: "Real Estate", cats: ["real_estate"],                                             color: "oklch(0.65 0.14 200)" },
+    { label: "Other",       cats: ["vehicle", "personal_property", "business", "other_asset"], color: "oklch(0.58 0.06 260)" },
+  ];
+  return defs.flatMap((d) => {
+    const v = d.label === "Portfolio"
+      ? portfolioValue
+      : assets.filter((a) => d.cats.includes(a.category)).reduce((s, a) => s + a.value, 0);
+    return v > 0 ? [{ label: d.label, value: v, color: d.color }] : [];
+  });
+}
+
+function computeBalanceFinnInsight(p: {
+  liquidAssets: number; totalAssets: number; totalLiabilities: number;
+  netWorth: number; portfolioTotalValue: number;
+  effectiveExpenses: number; assets: BalanceSheetItem[];
+}): string {
+  if (p.totalAssets === 0) return "Add assets and liabilities below to unlock balance sheet intelligence.";
+  const debtRatio = p.totalAssets > 0 ? (p.totalLiabilities / p.totalAssets) * 100 : 0;
+  const emergencyMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 0;
+  const cashPct = p.totalAssets > 0 ? (p.liquidAssets / p.totalAssets) * 100 : 0;
+  const portfolioPct = p.netWorth > 0 ? (p.portfolioTotalValue / p.netWorth) * 100 : 0;
+  const hasRetirement = p.assets.some((a) => a.category === "retirement");
+  if (debtRatio > 50) return `Liabilities represent ${debtRatio.toFixed(0)}% of total assets. Debt reduction is the highest-leverage balance sheet move — every dollar eliminated compounds forward as investable capital.`;
+  if (p.effectiveExpenses > 0 && emergencyMonths < 1) return "Liquid cash covers less than 1 month of expenses. A single financial shock would force selling investments at a bad time. Building to 3 months is the top balance sheet priority.";
+  if (!hasRetirement && p.totalAssets > 10000) return "No retirement account on your balance sheet. Add any 401k, IRA, or Roth IRA balances — FINN needs these for an accurate long-term picture.";
+  if (p.totalAssets > 50000 && cashPct > 30) return `Cash is ${cashPct.toFixed(0)}% of your assets. Moving excess above 6 months of expenses into investments would compound more effectively over time.`;
+  if (p.netWorth > 30000 && portfolioPct < 15) return `Investment portfolio represents ${portfolioPct.toFixed(0)}% of net worth. Gradually increasing this allocation is one of the highest-leverage moves for long-term wealth.`;
+  if (emergencyMonths >= 3 && debtRatio < 20 && p.netWorth > 0) return "Strong balance sheet — adequate reserves and low debt. Primary focus now is growing investment and retirement assets.";
+  return "Build out your balance sheet with all assets and liabilities for the most complete picture.";
+}
+
+// ── Cash Flow helpers ─────────────────────────────────────────────────────────
+
+function computeCashFlowHealth(p: {
+  savingsRate: number; monthlyExpenses: number;
+  effectiveIncome: number; cashFlowItems: CashFlowItem[];
+}): { total: number; factors: { name: string; score: number; max: number; direction: "strength" | "neutral" | "weakness" }[] } {
+  const dir = (s: number, hi: number): "strength" | "neutral" | "weakness" =>
+    s >= hi * 0.75 ? "strength" : s >= hi * 0.4 ? "neutral" : "weakness";
+  const srScore = Math.min(30, (Math.max(0, p.savingsRate) / 20) * 30);
+  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const hPct = p.monthlyExpenses > 0 ? housing / p.monthlyExpenses : 0;
+  const housingScore = hPct <= 0 ? 12 : Math.min(25, Math.max(0, (0.5 - hPct) / 0.5 * 25 + 12));
+  const catMax = p.monthlyExpenses > 0
+    ? Math.max(0, ...EXPENSE_CATEGORIES.map((c) =>
+        p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === c.label)
+          .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0) / p.monthlyExpenses))
+    : 0;
+  const concScore = Math.min(25, Math.max(0, (1 - catMax) * 25));
+  const incomeCount = p.cashFlowItems.filter((i) => i.type === "income").length;
+  const divScore = incomeCount >= 3 ? 20 : incomeCount === 2 ? 16 : incomeCount === 1 ? 10 : p.effectiveIncome > 0 ? 5 : 0;
+  return {
+    total: Math.round(srScore + housingScore + concScore + divScore),
+    factors: [
+      { name: "Savings Rate",   score: Math.round(srScore),      max: 30, direction: dir(srScore, 30)      },
+      { name: "Housing Burden", score: Math.round(housingScore), max: 25, direction: dir(housingScore, 25) },
+      { name: "Expense Mix",    score: Math.round(concScore),    max: 25, direction: dir(concScore, 25)    },
+      { name: "Income Streams", score: Math.round(divScore),     max: 20, direction: dir(divScore, 20)     },
+    ],
+  };
+}
+
+function computeCashFlowFinnInsight(p: {
+  savingsRate: number; monthlySavings: number; monthlyExpenses: number;
+  effectiveIncome: number; cashFlowItems: CashFlowItem[]; localReturn: number;
+}): string {
+  if (p.effectiveIncome === 0) return "Add income and expense items to unlock cash flow analysis and personalized insights.";
+  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const hPct = p.monthlyExpenses > 0 ? (housing / p.monthlyExpenses) * 100 : 0;
+  if (p.savingsRate < 0) return `Expenses exceed income by ${fmt(Math.abs(p.monthlySavings))}/month. This deficit is compounding in reverse — closing it is the most urgent financial action.`;
+  if (hPct > 40) return `Housing consumes ${hPct.toFixed(0)}% of monthly expenses — above the 30% guideline. This single category is likely the primary constraint on your savings rate.`;
+  if (p.savingsRate < 10) {
+    const gap = Math.round(p.effectiveIncome * 0.10 - p.monthlySavings);
+    return `Savings rate is ${p.savingsRate.toFixed(1)}%. Redirecting ${fmt(gap)}/month more reaches the 10% threshold — a meaningful inflection point for long-term wealth.`;
+  }
+  const r = p.localReturn;
+  const fv = r > 0
+    ? Math.round(p.monthlySavings * 12 * (Math.pow(1 + r, 10) - 1) / r)
+    : Math.round(p.monthlySavings * 120);
+  return `Saving ${fmt(p.monthlySavings)}/month at a ${p.savingsRate.toFixed(1)}% rate — that compounds to approximately ${fmt(fv)} over 10 years at your current return assumption.`;
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function CountUp({
@@ -3495,6 +3586,27 @@ export default function PlanningClient({
   }), [savingsRate, monthlySavings, effectiveExpenses, liquidAssets, netWorth, totalLiabilities, totalAssets,
        retirementProb, retirementPoint?.baseline, yearsToRetire, localAssumptions.return_rate]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const assetBuckets = useMemo(() => computeAssetBuckets(assets, portfolioTotalValue),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [assets, portfolioTotalValue]);
+
+  const balanceFinnInsight = useMemo(() => computeBalanceFinnInsight({
+    liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets]);
+
+  const cashFlowHealth = useMemo(() => computeCashFlowHealth({
+    savingsRate, monthlyExpenses, effectiveIncome, cashFlowItems,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [savingsRate, monthlyExpenses, effectiveIncome, cashFlowItems]);
+
+  const cashFlowFinnInsight = useMemo(() => computeCashFlowFinnInsight({
+    savingsRate, monthlySavings, monthlyExpenses, effectiveIncome, cashFlowItems,
+    localReturn: localAssumptions.return_rate / 100,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [savingsRate, monthlySavings, monthlyExpenses, effectiveIncome, cashFlowItems, localAssumptions.return_rate]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -4314,7 +4426,84 @@ export default function PlanningClient({
 
       {/* ── Tab: Balance Sheet ── */}
       {tab === "balance" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <style>{`
+            @keyframes bs-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes bs-bar-grow { from { transform: scaleX(0); } }
+            .bs-section { animation: bs-fade-up 0.35s ease-out both; }
+            .bs-bar-seg { animation: bs-bar-grow 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+          `}</style>
+
+          {/* Asset Allocation Intelligence */}
+          <div className="bs-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "0ms" }}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Asset Allocation</div>
+            <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Where your wealth is held</div>
+
+            {assetBuckets.length > 0 ? (() => {
+              const total = assetBuckets.reduce((s, b) => s + b.value, 0);
+              const emergencyMonths = effectiveExpenses > 0 ? liquidAssets / effectiveExpenses : 0;
+              const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+              const sentences: string[] = [];
+              if (portfolioTotalValue > 0 && totalAssets > 0) sentences.push(`Investment portfolio: ${((portfolioTotalValue / totalAssets) * 100).toFixed(0)}% of total assets.`);
+              if (effectiveExpenses > 0) {
+                if (emergencyMonths >= 6) sentences.push(`Cash exceeds 6-month reserve by ${pHide(fmt(liquidAssets - effectiveExpenses * 6))}.`);
+                else sentences.push(`Cash covers ${isPrivate ? "••" : emergencyMonths.toFixed(1)} months of expenses${emergencyMonths < 3 ? " — target is 3 months." : "."}`);
+              }
+              if (totalLiabilities > 0) sentences.push(`Liabilities are ${debtRatio.toFixed(0)}% of total assets${debtRatio < 20 ? " — healthy." : debtRatio < 40 ? "." : " — elevated."}`);
+              return (
+                <>
+                  {/* Stacked bar */}
+                  <div style={{ height: "10px", borderRadius: "5px", overflow: "hidden", display: "flex", marginBottom: "12px" }}>
+                    {assetBuckets.map((b) => (
+                      <div key={b.label} className="bs-bar-seg"
+                        style={{ flex: `0 0 ${(b.value / total) * 100}%`, background: b.color }}
+                        title={`${b.label}: ${fmt(b.value)}`}
+                      />
+                    ))}
+                  </div>
+                  {/* Legend */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginBottom: sentences.length > 0 ? "14px" : 0 }}>
+                    {assetBuckets.map((b) => (
+                      <div key={b.label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: b.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{b.label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)" }}>{pHide(fmt(b.value))}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>({((b.value / total) * 100).toFixed(0)}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Composition sentences */}
+                  {sentences.length > 0 && (
+                    <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {sentences.map((s, i) => (
+                        <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
+                          <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "var(--text-muted)", flexShrink: 0, marginTop: "6px" }} />
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{s}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
+                Add assets below to see your allocation breakdown.
+              </p>
+            )}
+          </div>
+
+          {/* FINN Balance Insight */}
+          <div className="bs-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 18px", animationDelay: "40ms" }}>
+            <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
+              <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="11" height="11" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: 700, color: "oklch(0.65 0.18 260)", marginBottom: "5px" }}>FINN Balance Insight</div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{balanceFinnInsight}</p>
+              </div>
+            </div>
+          </div>
 
           {/* Portfolio integration notice */}
           <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
@@ -4365,7 +4554,95 @@ export default function PlanningClient({
 
       {/* ── Tab: Cash Flow ── */}
       {tab === "cashflow" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <style>{`
+            @keyframes cf-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes cf-bar-grow { from { transform: scaleX(0); } }
+            .cf-section { animation: cf-fade-up 0.35s ease-out both; }
+            .cf-bar-seg { animation: cf-bar-grow 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+          `}</style>
+
+          {/* Cash Flow Health + KPIs */}
+          {(effectiveIncome > 0 || monthlyExpenses > 0) && (
+            <div className="cf-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "0ms" }}>
+              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
+                {/* Health ring */}
+                <div style={{ flexShrink: 0, position: "relative", width: "52px", height: "52px" }}>
+                  <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                    <circle cx="26" cy="26" r="22" stroke="var(--border)" strokeWidth="4" />
+                    <circle cx="26" cy="26" r="22"
+                      stroke={cashFlowHealth.total >= 75 ? "oklch(0.72 0.19 145)" : cashFlowHealth.total >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)"}
+                      strokeWidth="4" strokeLinecap="round" strokeDasharray="138"
+                      strokeDashoffset={138 - (cashFlowHealth.total / 100) * 138}
+                      transform="rotate(-90 26 26)"
+                      style={{ animation: "cmd-ring-draw 1.2s cubic-bezier(0.22,1,0.36,1) forwards" }}
+                    />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                    {cashFlowHealth.total}
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>Cash Flow Health Score</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "6px" }}>
+                    {cashFlowHealth.factors.map((f) => {
+                      const fColor = f.direction === "strength" ? "oklch(0.72 0.19 145)" : f.direction === "neutral" ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)";
+                      return (
+                        <div key={f.name}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                            <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: fColor, flexShrink: 0 }}>{f.score}/{f.max}</span>
+                          </div>
+                          <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
+                            <div className="cf-bar-seg" style={{ height: "100%", borderRadius: "2px", background: fColor, transform: `scaleX(${f.score / f.max})` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* KPI row */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "12px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
+                {([
+                  { label: "Monthly Income",   to: effectiveIncome,              color: "var(--green)",   prefix: "$" },
+                  { label: "Monthly Expenses",  to: monthlyExpenses,              color: "var(--red)",     prefix: "$" },
+                  { label: "Monthly Savings",   to: Math.abs(monthlySavings),     color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", prefix: monthlySavings < 0 ? "-$" : "$" },
+                ] as { label: string; to: number; color: string; prefix: string }[]).map(({ label, to, color, prefix }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color, lineHeight: 1 }}>
+                      <CountUp to={to} prefix={prefix} isPrivate={isPrivate} duration={900} />
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings Rate</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
+                    {effectiveIncome > 0
+                      ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={850} isPrivate={isPrivate} />
+                      : <span style={{ fontSize: "14px" }}>—</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FINN Cash Flow Insight */}
+          {(effectiveIncome > 0 || monthlyExpenses > 0) && (
+            <div className="cf-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 18px", animationDelay: "40ms" }}>
+              <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
+                <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="11" height="11" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: 700, color: "oklch(0.65 0.18 260)", marginBottom: "5px" }}>FINN Cash Flow Insight</div>
+                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{cashFlowFinnInsight}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
             <strong style={{ color: "var(--text-primary)" }}>Set up once, review periodically.</strong> Add all recurring income and expenses here — salary, rent, subscriptions, utilities, loan payments. Update when something changes (new job, moved, cancelled a subscription).
@@ -4467,20 +4744,6 @@ export default function PlanningClient({
             }
           }} />
 
-          {/* Summary */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
-            {[
-              { label: "Monthly Income", value: fmt(monthlyIncome), color: "var(--green)" },
-              { label: "Monthly Expenses", value: fmt(monthlyExpenses), color: "var(--red)" },
-              { label: "Monthly Savings", value: fmt(Math.abs(monthlySavings)), color: monthlySavings >= 0 ? "var(--green)" : "var(--red)" },
-              { label: "Savings Rate", value: fmtPct(savingsRate), color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : "var(--red)" },
-            ].map(({ label, value, color }) => (
-              <div key={label}>
-                <div style={sectionHeadStyle}>{label}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 600, color }}>{value}</div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
