@@ -661,6 +661,43 @@ function computeCashFlowFinnInsight(p: {
   return `Saving ${fmt(p.monthlySavings)}/month at a ${p.savingsRate.toFixed(1)}% rate — that compounds to approximately ${fmt(fv)} over 10 years at your current return assumption.`;
 }
 
+// ── Forecast drivers ──────────────────────────────────────────────────────────
+
+type ForecastDriver = { label: string; impact: number | null; type: "modeled" | "unmodeled" };
+
+function computeForecastDrivers(p: {
+  netWorth: number; effectiveIncome: number; effectiveExpenses: number;
+  forecastYears: number; localReturn: number; localInflation: number; localSalaryGrowth: number;
+  futureEvents: FutureEvent[]; currentYear: number;
+  baselineAtRetirement: number | null;
+  hasHomeScenario: boolean; hasCareerScenario: boolean;
+}): ForecastDriver[] {
+  if (p.baselineAtRetirement == null || p.forecastYears <= 0 || p.effectiveIncome === 0) return [];
+  const base = p.baselineAtRetirement;
+  const last = (bands: ForecastPoint[]) => bands.length > 0 ? bands[bands.length - 1].baseline : 0;
+
+  const laterBands = buildForecastBands(p.netWorth, p.effectiveIncome, p.effectiveExpenses,
+    p.forecastYears + 3, p.localReturn, p.localInflation, p.localSalaryGrowth, p.futureEvents, p.currentYear);
+  const returnBands = buildForecastBands(p.netWorth, p.effectiveIncome, p.effectiveExpenses,
+    p.forecastYears, p.localReturn + 0.01, p.localInflation, p.localSalaryGrowth, p.futureEvents, p.currentYear);
+  const savingsBands = buildForecastBands(p.netWorth, p.effectiveIncome + 500, p.effectiveExpenses,
+    p.forecastYears, p.localReturn, p.localInflation, p.localSalaryGrowth, p.futureEvents, p.currentYear);
+
+  const drivers: ForecastDriver[] = [
+    { label: "Retire 3 years later", impact: last(laterBands) - base, type: "modeled" },
+    { label: "+1% investment return", impact: last(returnBands) - base, type: "modeled" },
+    { label: "+$500/month savings", impact: last(savingsBands) - base, type: "modeled" },
+    { label: "Home purchase", impact: null, type: p.hasHomeScenario ? "modeled" : "unmodeled" },
+    { label: "Career change", impact: null, type: p.hasCareerScenario ? "modeled" : "unmodeled" },
+  ];
+  return drivers.sort((a, b) => {
+    if (a.impact !== null && b.impact !== null) return Math.abs(b.impact) - Math.abs(a.impact);
+    if (a.impact !== null) return -1;
+    if (b.impact !== null) return 1;
+    return 0;
+  });
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function CountUp({
@@ -2105,8 +2142,120 @@ function EstatePlanningTab({
     textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "5px",
   };
 
+  const DOC_WEIGHTS: Record<string, number> = {
+    doc_will: 20, doc_living_trust: 15, doc_durable_poa: 20,
+    doc_healthcare_directive: 20, doc_beneficiary_desig: 15, doc_digital_assets: 10,
+  };
+  const estateScore = DOCS.reduce((sum, doc) => {
+    const status = estateProfile?.[doc.key] ?? "none";
+    return status !== "none" ? sum + (DOC_WEIGHTS[doc.key] ?? 0) : sum;
+  }, 0);
+
+  const PRIORITY_ORDER: (keyof typeof DOC_WEIGHTS)[] = [
+    "doc_will", "doc_durable_poa", "doc_healthcare_directive",
+    "doc_beneficiary_desig", "doc_living_trust", "doc_digital_assets",
+  ];
+  const firstMissing = PRIORITY_ORDER.find((k) => (estateProfile?.[k as keyof EstateProfile] ?? "none") === "none");
+  const firstMissingLabel = firstMissing ? DOCS.find((d) => d.key === firstMissing)?.label ?? "" : null;
+
+  const estateFinnInsight = (() => {
+    if (!estateProfile) return "Add your estate documents to track readiness and receive personalized guidance.";
+    const will = estateProfile.doc_will ?? "none";
+    const poa = estateProfile.doc_durable_poa ?? "none";
+    const hcd = estateProfile.doc_healthcare_directive ?? "none";
+    const ben = estateProfile.doc_beneficiary_desig ?? "none";
+    if (will === "none") return "A Last Will & Testament is missing. Without it, state intestacy laws determine how your assets are distributed — not you.";
+    if (poa === "none") return "A Durable Power of Attorney is not on file. Without it, no one can legally manage your finances if you are incapacitated.";
+    if (hcd === "none") return "A Healthcare Directive is missing. This document ensures your medical wishes are followed when you cannot speak for yourself.";
+    if (ben === "none") return "Beneficiary designations override your will on retirement accounts and life insurance. Ensure all financial accounts are designated.";
+    if (estateScore >= 80) return "Your estate plan is well-organized. Review it after major life events — marriage, divorce, new children, or significant asset changes.";
+    return `Your estate plan covers ${docComplete} of ${DOCS.length} key documents. Complete the remaining items to achieve full readiness.`;
+  })();
+
+  const ringCirc = 200;
+  const eRingOffset = ringCirc - (estateScore / 100) * ringCirc;
+  const eScoreColor = estateScore >= 75 ? "var(--green)" : estateScore >= 45 ? "var(--amber)" : "var(--red)";
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* Estate Readiness Score */}
+      <div style={{
+        background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+        borderRadius: "var(--radius-lg)", padding: "20px 24px",
+        display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap",
+      }}>
+        <style>{`
+          @keyframes er-ring-draw { from { stroke-dashoffset: ${ringCirc}; } }
+          .er-ring-fill { animation: er-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        `}</style>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
+          <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform: "rotate(-90deg)" }}>
+            <circle cx="36" cy="36" r="31.85" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+            <circle
+              className="er-ring-fill"
+              cx="36" cy="36" r="31.85" fill="none"
+              stroke={eScoreColor} strokeWidth="6" strokeLinecap="round"
+              strokeDasharray={ringCirc}
+              strokeDashoffset={eRingOffset}
+            />
+          </svg>
+          <div>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Estate Readiness</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: eScoreColor, lineHeight: 1 }}>{estateScore}</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
+              {estateScore >= 80 ? "Well covered" : estateScore >= 50 ? "Gaps remain" : "Needs attention"}
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {DOCS.map((doc) => {
+            const status = estateProfile?.[doc.key] ?? "none";
+            const done = status !== "none";
+            const wt = DOC_WEIGHTS[doc.key] ?? 0;
+            return (
+              <div key={doc.key} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ width: "7px", height: "7px", borderRadius: "50%", flexShrink: 0, background: done ? "var(--green)" : "rgba(255,255,255,0.1)" }} />
+                <span style={{ flex: 1, fontSize: "12px", color: done ? "var(--text-secondary)" : "var(--text-muted)", fontFamily: "var(--font-body)" }}>{doc.label}</span>
+                <span style={{ fontSize: "10px", color: done ? eScoreColor : "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: done ? 600 : 400 }}>{done ? `+${wt}` : `${wt} pts`}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FINN Estate Insight */}
+      <div style={{
+        padding: "14px 18px", borderRadius: "var(--radius-lg)",
+        background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--card-bg))",
+        border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 22%, transparent)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>FINN</span>
+        </div>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{estateFinnInsight}</p>
+      </div>
+
+      {/* Recommended Next Step */}
+      {firstMissingLabel && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "14px", padding: "14px 18px",
+          borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.07)",
+          border: "1px solid rgba(37,99,235,0.2)",
+        }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3v14M3 10l7 7 7-7" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#60a5fa", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Recommended Next Step</div>
+            <div style={{ fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Start your {firstMissingLabel}</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>Click Edit below to update your document status</div>
+          </div>
+        </div>
+      )}
 
       {/* Legal disclaimer */}
       <div style={{
@@ -3607,6 +3756,20 @@ export default function PlanningClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [savingsRate, monthlySavings, monthlyExpenses, effectiveIncome, cashFlowItems, localAssumptions.return_rate]);
 
+  const biggestDrivers = useMemo(() => computeForecastDrivers({
+    netWorth, effectiveIncome, effectiveExpenses, forecastYears,
+    localReturn: localAssumptions.return_rate / 100,
+    localInflation: localAssumptions.inflation_rate / 100,
+    localSalaryGrowth: localAssumptions.salary_growth_rate / 100,
+    futureEvents, currentYear,
+    baselineAtRetirement: retirementPoint?.baseline ?? null,
+    hasHomeScenario: homeScenarios.length > 0,
+    hasCareerScenario: careerScenarios.length > 0,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [netWorth, effectiveIncome, effectiveExpenses, forecastYears, localAssumptions.return_rate,
+    localAssumptions.inflation_rate, localAssumptions.salary_growth_rate,
+    retirementPoint?.baseline, homeScenarios.length, careerScenarios.length]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -3889,7 +4052,7 @@ export default function PlanningClient({
     { id: "budget", label: "Budget Tracker" },
     { id: "forecast", label: "Forecast" },
     { id: "events", label: "Life Events" },
-    { id: "estate", label: "Estate & Will" },
+    { id: "estate", label: "Estate Readiness" },
     { id: "finn", label: "Ask FINN" },
   ];
 
@@ -4760,6 +4923,71 @@ export default function PlanningClient({
       {tab === "forecast" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
+          {/* Confidence Narrative */}
+          {retirementPoint && profile?.current_age != null && (
+            <div style={{
+              background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--card-bg))",
+              border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 22%, transparent)",
+              borderRadius: "var(--radius-lg)", padding: "14px 18px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
+                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>FINN</span>
+              </div>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>
+                {(() => {
+                  const proj = retirementPoint.baseline;
+                  const retAge = activeRetirementAge ?? 65;
+                  const prob = retirementProb ?? 0;
+                  const topDriver = biggestDrivers[0];
+                  let text = pHide(fmt(proj)) + ` projected by age ${retAge} on the baseline scenario.`;
+                  if (retirementTarget != null) {
+                    text += proj >= retirementTarget
+                      ? ` This meets your ${pHide(fmt(retirementTarget))} target.`
+                      : ` Your target is ${pHide(fmt(retirementTarget))} — a ${pHide(fmt(retirementTarget - proj))} gap on the current path.`;
+                  }
+                  if (topDriver?.impact != null && topDriver.impact > 0) {
+                    text += ` The highest-leverage action is ${topDriver.label.toLowerCase()}, which adds approximately ${pHide(fmt(topDriver.impact))} to your projected outcome.`;
+                  } else if (prob >= 75) {
+                    text += ` Your ${prob}% on-track probability is strong — maintain your current trajectory.`;
+                  } else if (prob < 55) {
+                    text += ` At ${prob}%, the probability of reaching your target is below the 65% threshold — consider increasing savings rate or adjusting retirement age.`;
+                  }
+                  return text;
+                })()}
+              </p>
+            </div>
+          )}
+
+          {/* What-If quick buttons */}
+          {profile?.current_age != null && (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>What-If</span>
+              {[
+                { label: "Retire 5yr Earlier", action: () => { if (profile?.current_age != null) setScenarioRetirementAge(Math.max(profile.current_age + 1, (activeRetirementAge ?? 65) - 5)); } },
+                { label: "Retire 5yr Later",   action: () => { setScenarioRetirementAge(Math.min(85, (activeRetirementAge ?? 65) + 5)); } },
+                { label: "Market Crash −6%",   action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.max(0.5, p.return_rate - 6) })) },
+                { label: "Bull Market +4%",    action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.min(20, p.return_rate + 4) })) },
+                { label: "Reset",              action: () => { setScenarioRetirementAge(profile?.target_retirement_age ?? null); setLocalAssumptions({ return_rate: assumptions?.return_rate ?? 7, inflation_rate: assumptions?.inflation_rate ?? 3, salary_growth_rate: assumptions?.salary_growth_rate ?? 2 }); } },
+              ].map(({ label, action }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={action}
+                  style={{
+                    padding: "5px 11px", borderRadius: "20px", fontSize: "11px",
+                    fontFamily: "var(--font-body)", fontWeight: 500, cursor: "pointer",
+                    background: "var(--card-bg)", border: "1px solid var(--border)",
+                    color: label === "Reset" ? "var(--text-muted)" : "var(--text-secondary)",
+                    transition: "border-color 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.65 0.18 270 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = label === "Reset" ? "var(--text-muted)" : "var(--text-secondary)"; }}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+
           {/* Scenario + chart mode controls */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
             {profile?.current_age != null && (
@@ -5036,9 +5264,50 @@ export default function PlanningClient({
           {/* Summary at retirement */}
           {retirementPoint && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-              <MetricCard label={`Baseline at ${activeRetirementAge ?? "Retirement"}`} value={fmt(retirementPoint.baseline)} color="var(--violet)" />
-              <MetricCard label="Optimistic scenario" value={fmt(retirementPoint.optimistic)} color="var(--green)" />
-              <MetricCard label="Pessimistic scenario" value={fmt(retirementPoint.pessimistic)} color="var(--amber)" />
+              <MetricCard label={`Baseline at ${activeRetirementAge ?? "Retirement"}`} value={pHide(fmt(retirementPoint.baseline))} color="var(--violet)" />
+              <MetricCard label="Optimistic scenario" value={pHide(fmt(retirementPoint.optimistic))} color="var(--green)" />
+              <MetricCard label="Pessimistic scenario" value={pHide(fmt(retirementPoint.pessimistic))} color="var(--amber)" />
+            </div>
+          )}
+
+          {/* Biggest Drivers */}
+          {biggestDrivers.length > 0 && (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
+              <div style={{ ...sectionHeadStyle, marginBottom: "14px" }}>Biggest Drivers</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {biggestDrivers.map((driver, i) => {
+                  const hasImpact = driver.impact !== null;
+                  const positive = hasImpact && driver.impact! > 0;
+                  const impactColor = positive ? "var(--green)" : "var(--red)";
+                  return (
+                    <div key={driver.label} style={{
+                      display: "flex", alignItems: "center", gap: "12px",
+                      padding: "10px 12px", borderRadius: "var(--radius-md)",
+                      background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)",
+                    }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", width: "16px", flexShrink: 0, textAlign: "right" }}>{i + 1}</span>
+                      <span style={{ flex: 1, fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{driver.label}</span>
+                      {hasImpact ? (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: impactColor, flexShrink: 0 }}>
+                          {positive ? "+" : ""}{pHide(fmt(driver.impact!))}
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px",
+                          background: driver.type === "modeled" ? "rgba(0,211,149,0.1)" : "rgba(255,255,255,0.05)",
+                          color: driver.type === "modeled" ? "var(--green)" : "var(--text-muted)",
+                          fontFamily: "var(--font-body)", flexShrink: 0,
+                        }}>
+                          {driver.type === "modeled" ? "Modeled" : "Not modeled"}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "12px 0 0", lineHeight: 1.5 }}>
+                Impact amounts show the change to projected net worth at retirement vs. your baseline scenario.
+              </p>
             </div>
           )}
 
