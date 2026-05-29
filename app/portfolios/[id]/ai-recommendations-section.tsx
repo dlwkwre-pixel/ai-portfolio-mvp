@@ -11,7 +11,7 @@ export default async function AIRecommendationsSection({
 }: AIRecommendationsSectionProps) {
   const supabase = await createClient();
 
-  const [{ data: runs, error: runsError }, { count: trackedCount }] = await Promise.all([
+  const [{ data: runs, error: runsError }, { count: trackedCount }, { data: activeAssignmentRaw }] = await Promise.all([
     supabase
       .from("recommendation_runs")
       .select("*")
@@ -23,7 +23,41 @@ export default async function AIRecommendationsSection({
       .select("id", { count: "exact", head: true })
       .eq("portfolio_id", portfolioId)
       .not("executed_price", "is", null),
+    supabase
+      .from("portfolio_strategy_assignments")
+      .select(`strategy_id, strategies (id, name, style), strategy_versions (id, version_number, prompt_text, max_position_pct, cash_min_pct, cash_max_pct)`)
+      .eq("portfolio_id", portfolioId)
+      .eq("is_active", true)
+      .is("ended_at", null)
+      .order("assigned_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  // Always use latest strategy version
+  let latestStrategyVersion = (activeAssignmentRaw as any)?.strategy_versions ?? null;
+  const assignedStrategyId = (activeAssignmentRaw as any)?.strategy_id ?? null;
+  if (assignedStrategyId) {
+    const { data: latestVersion } = await supabase
+      .from("strategy_versions")
+      .select("id, version_number, prompt_text, max_position_pct, cash_min_pct, cash_max_pct")
+      .eq("strategy_id", assignedStrategyId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestVersion) latestStrategyVersion = latestVersion;
+  }
+
+  const currentStrategy = activeAssignmentRaw ? {
+    id: assignedStrategyId as string | null,
+    name: ((activeAssignmentRaw as any)?.strategies?.name ?? null) as string | null,
+    style: ((activeAssignmentRaw as any)?.strategies?.style ?? null) as string | null,
+    promptText: (latestStrategyVersion?.prompt_text ?? null) as string | null,
+    versionNumber: (latestStrategyVersion?.version_number ?? null) as number | null,
+    maxPositionPct: (latestStrategyVersion?.max_position_pct ?? null) as number | null,
+    cashMinPct: (latestStrategyVersion?.cash_min_pct ?? null) as number | null,
+    cashMaxPct: (latestStrategyVersion?.cash_max_pct ?? null) as number | null,
+  } : null;
 
   if (runsError) {
     throw new Error(runsError.message);
@@ -89,6 +123,7 @@ export default async function AIRecommendationsSection({
           pendingRunCount={pendingRunCount}
           latestRunCreatedAt={latestRun?.created_at ?? null}
           cooldownEndsAt={cooldownEndsAt}
+          currentStrategy={currentStrategy}
         />
 
         <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">

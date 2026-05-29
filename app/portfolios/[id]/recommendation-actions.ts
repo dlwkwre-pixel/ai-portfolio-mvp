@@ -1024,9 +1024,13 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
 
   const ctx = context as any;
   const availableCash = ctx?.portfolio?.cash_balance ?? ctx?.current_valuation?.cash_balance ?? 0;
+  const totalPortfolioValue: number = ctx?.current_valuation?.total_portfolio_value ?? availableCash;
   const strategyVersion = ctx?.strategy?.strategy_version ?? null;
   const maxPositionPct: number | null = strategyVersion?.max_position_pct ?? null;
   const minPositionPct: number | null = strategyVersion?.min_position_pct ?? null;
+  const cashMinPct: number | null = strategyVersion?.cash_min_pct ?? null;
+  const cashMaxPct: number | null = strategyVersion?.cash_max_pct ?? null;
+  const currentCashPct = totalPortfolioValue > 0 ? (availableCash / totalPortfolioValue) * 100 : 0;
   const strategyRiskLevel: string = (
     ctx?.strategy?.strategy?.risk_level ??
     strategyVersion?.risk_level ??
@@ -1091,15 +1095,30 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     hurdleRateBlock,
 
     // ── Hard constraints
-    "CASH IS A HARD CONSTRAINT — combined sizing_dollars of ALL buy/add recommendations must not exceed available cash.",
+    `CASH DEPLOYMENT MANDATE: Available cash = $${Math.round(availableCash).toLocaleString()} (${currentCashPct.toFixed(1)}% of portfolio).${cashMaxPct != null ? ` Strategy cash_max_pct = ${cashMaxPct}%. If cash exceeds this limit, BUY/ADD recommendations are MANDATORY — not optional. Deploy capital to bring cash within the target range.` : " Deploy idle cash where strong asymmetric opportunities exist."}`,
+    "TRIM/SELL PROCEEDS RULE: If you recommend a trim or sell, you MUST also recommend where the proceeds are deployed (a BUY/ADD/scale_in) UNLESS the portfolio's cash position is already AT or ABOVE cash_max_pct. Never generate a trim/sell without a corresponding redeployment — selling without buying creates uninvested drag, which violates the capital allocation mandate.",
+    "COMBINED BUY SIZING: The sum of all buy/add sizing_dollars must not exceed available cash.",
     "For trim/sell, always specify share_quantity not exceeding shares owned.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
 
-  const strategyConstraintsBlock = maxPositionPct != null
-    ? `\nSTRATEGY POSITION LIMITS (from latest strategy version — must be respected):
-- max_position_pct: ${maxPositionPct}% — do NOT recommend trimming or selling a holding solely because it is near this limit; only flag if it is materially above (>5% over the limit, i.e. above ${(maxPositionPct + 5).toFixed(0)}%)
-${minPositionPct != null ? `- min_position_pct: ${minPositionPct}%` : ""}\n`
+  const cashConstraintLines: string[] = [];
+  if (cashMaxPct != null) {
+    const overageAmt = totalPortfolioValue > 0 ? Math.max(0, availableCash - (totalPortfolioValue * cashMaxPct / 100)) : 0;
+    cashConstraintLines.push(`- cash_max_pct: ${cashMaxPct}% — current cash is ${currentCashPct.toFixed(1)}% ($${Math.round(availableCash).toLocaleString()}) of $${Math.round(totalPortfolioValue).toLocaleString()} portfolio.`);
+    if (currentCashPct > cashMaxPct + 0.5 && overageAmt > 10) {
+      cashConstraintLines.push(`  !! CASH OVERAGE: Cash (${currentCashPct.toFixed(1)}%) EXCEEDS the strategy's ${cashMaxPct}% maximum by $${Math.round(overageAmt).toLocaleString()}. You MUST include BUY/ADD recommendations totaling at least $${Math.round(overageAmt).toLocaleString()} to bring cash within the strategy target. Leaving cash idle above this limit is a strategy violation — not a conservative choice.`);
+    }
+  }
+  if (cashMinPct != null) {
+    cashConstraintLines.push(`- cash_min_pct: ${cashMinPct}% — do NOT deploy cash below this floor ($${Math.round(totalPortfolioValue * cashMinPct / 100).toLocaleString()} minimum cash balance).`);
+  }
+
+  const strategyConstraintsBlock = (maxPositionPct != null || cashConstraintLines.length > 0)
+    ? `\nSTRATEGY CONSTRAINTS (from latest strategy version — must be respected):
+${maxPositionPct != null ? `- max_position_pct: ${maxPositionPct}% — do NOT recommend trimming or selling a holding solely because it is near this limit; only flag if it is materially above (>5% over the limit, i.e. above ${(maxPositionPct + 5).toFixed(0)}%)` : ""}
+${minPositionPct != null ? `- min_position_pct: ${minPositionPct}%` : ""}
+${cashConstraintLines.join("\n")}\n`
     : "";
 
   const userPrompt = `Analyze this portfolio and return a strict JSON object.
@@ -1318,7 +1337,11 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
   if (!portfolioId) throw new Error("Portfolio ID is required.");
 
-  const contextNote = String(formData.get("context_note") || "").trim().slice(0, 500);
+  const isSecondaryRun = formData.get("is_secondary_run") === "true";
+  const feedbackNote = String(formData.get("feedback_note") || "").trim().slice(0, 500);
+  const contextNote = isSecondaryRun && feedbackNote
+    ? `SECONDARY RUN — User feedback on prior analysis: "${feedbackNote}". Address the user's concerns directly while still following all portfolio management principles. Be more specific and decisive in recommendations than the prior run.`
+    : String(formData.get("context_note") || "").trim().slice(0, 500);
 
   // Auto-archive stale proposals (>30 days) at run time, not on every tab view
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -1363,7 +1386,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
       const hasBypass = strategyChanged || (newTx ?? 0) > 0 || (newCash ?? 0) > 0;
 
-      if (!hasBypass) {
+      if (!hasBypass && !isSecondaryRun) {
         const nextRunAt = new Date(new Date(lastCompletedRun.created_at).getTime() + COOLDOWN_MS);
         const mins = Math.ceil((nextRunAt.getTime() - Date.now()) / 60000);
         const wait = mins >= 60 ? `${Math.ceil(mins / 60)}h` : `${mins}m`;
