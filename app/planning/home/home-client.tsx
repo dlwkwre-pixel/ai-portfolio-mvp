@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { HomeScenario } from "./home-actions";
 import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
-import type { FinancialProfile } from "@/app/planning/planning-actions";
-import { addFutureEvent } from "@/app/planning/planning-actions";
+import type { FinancialProfile, FutureEvent } from "@/app/planning/planning-actions";
+import { addFutureEvent, deleteFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
 
 // ── Math engines ──────────────────────────────────────────────────────────────
@@ -965,10 +965,12 @@ export default function HomeClient({
   scenarios,
   profile,
   defaultInvestmentReturn,
+  homeEvents,
 }: {
   scenarios: HomeScenario[];
   profile: FinancialProfile | null;
   defaultInvestmentReturn: number;
+  homeEvents: FutureEvent[];
 }) {
   const router = useRouter();
   const smartDefaults = buildDefaults(profile, defaultInvestmentReturn);
@@ -988,6 +990,7 @@ export default function HomeClient({
   const [applyStatus, setApplyStatus] = useState<"idle" | "applying" | "done" | "error">("idle");
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [showAmortModal, setShowAmortModal] = useState(false);
+  const [localHomeEvents, setLocalHomeEvents] = useState<FutureEvent[]>(homeEvents);
 
   async function exportAmortToCSV() {
     try {
@@ -1831,52 +1834,162 @@ export default function HomeClient({
             )}
 
             {/* Link to Financial Plan */}
-            <div data-card style={cardS}>
-              <p style={sectionHead}>Link to Financial Plan</p>
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
-              </p>
-              {applyStatus === "done" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
-                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M4 10l5 5L16 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Added to your forecast. View in Planning &gt; Life Events.
+            {(() => {
+              const scenarioDownLabel = `Down payment: ${inputs.name}`;
+              const scenarioSaleLabel = `Home equity sale: ${inputs.name}`;
+              const linkedEvents = localHomeEvents.filter(
+                (e) => e.label === scenarioDownLabel || e.label === scenarioSaleLabel,
+              );
+              const otherEvents = localHomeEvents.filter(
+                (e) => e.label !== scenarioDownLabel && e.label !== scenarioSaleLabel,
+              );
+
+              async function addScenarioEvents() {
+                if (!computed.lastPoint) return;
+                setApplyStatus("applying");
+                const currentYear = new Date().getFullYear();
+                const fdDown = new FormData();
+                fdDown.set("label", scenarioDownLabel);
+                fdDown.set("event_year", String(currentYear));
+                fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
+                fdDown.set("category", "home_purchase");
+                const fdEquity = new FormData();
+                fdEquity.set("label", scenarioSaleLabel);
+                fdEquity.set("event_year", String(currentYear + inputs.hold_years));
+                fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
+                fdEquity.set("category", "home_sale");
+                const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
+                if (r1.error || r2.error) { setApplyStatus("error"); return; }
+                // Optimistically add to local state (use temp IDs until router refresh)
+                const now = Date.now();
+                setLocalHomeEvents((prev) => [
+                  ...prev,
+                  { id: `tmp-${now}-1`, user_id: "", label: scenarioDownLabel, event_year: currentYear, amount_impact: -(inputs.down_payment + computed.closingCosts), category: "home_purchase", sort_order: 0 },
+                  { id: `tmp-${now}-2`, user_id: "", label: scenarioSaleLabel, event_year: currentYear + inputs.hold_years, amount_impact: Math.round(computed.lastPoint.homeEquity), category: "home_sale", sort_order: 1 },
+                ]);
+                setApplyStatus("done");
+              }
+
+              async function removeEvent(id: string) {
+                const result = await deleteFutureEvent(id);
+                if (!result.error) setLocalHomeEvents((prev) => prev.filter((e) => e.id !== id));
+              }
+
+              async function handleUpdateEvents() {
+                setApplyStatus("applying");
+                // Delete existing linked events then re-add
+                await Promise.all(linkedEvents.map((e) => deleteFutureEvent(e.id)));
+                setLocalHomeEvents((prev) => prev.filter((e) => e.label !== scenarioDownLabel && e.label !== scenarioSaleLabel));
+                await addScenarioEvents();
+              }
+
+              const fmtImpact = (n: number) => {
+                const abs = Math.abs(n);
+                const sign = n < 0 ? "-" : "+";
+                if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+                if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`;
+                return `${sign}$${abs.toFixed(0)}`;
+              };
+
+              return (
+                <div data-card style={cardS}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Link to Financial Plan</p>
+                    {linkedEvents.length > 0 && (
+                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "10px", background: "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)", color: "oklch(0.70 0.18 155)", border: "1px solid color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" }}>
+                        Linked
+                      </span>
+                    )}
                   </div>
-                  <button type="button" onClick={() => setApplyStatus("idle")} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)", textAlign: "left" }}>
-                    Update with current inputs
-                  </button>
+
+                  {linkedEvents.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {/* Linked events list */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {linkedEvents.map((ev) => (
+                          <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
+                            <div style={{ width: "6px", height: "6px", borderRadius: "50%", flexShrink: 0, background: ev.amount_impact < 0 ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "11px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</div>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Year {ev.event_year}</div>
+                            </div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: ev.amount_impact < 0 ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)", flexShrink: 0 }}>
+                              {fmtImpact(ev.amount_impact)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeEvent(ev.id)}
+                              title="Remove event"
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", borderRadius: "4px", flexShrink: 0, lineHeight: 1, transition: "color 0.15s" }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Update button */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <button
+                          type="button"
+                          disabled={applyStatus === "applying" || !computed.lastPoint}
+                          onClick={handleUpdateEvents}
+                          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
+                        >
+                          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          {applyStatus === "applying" ? "Updating…" : "Update with current inputs"}
+                        </button>
+                        {applyStatus === "error" && <span style={{ fontSize: "10px", color: "var(--red)" }}>Failed — try again</span>}
+                      </div>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                        Events appear on the Life Events tab in Planning. Click "Update" if you changed the price, rate, or hold period.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+                        Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
+                      </p>
+                      {applyStatus === "error" ? (
+                        <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={applyStatus === "applying" || !computed.lastPoint}
+                          onClick={addScenarioEvents}
+                          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1, width: "fit-content" }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
+                          {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Other scenarios' events */}
+                  {otherEvents.length > 0 && (
+                    <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>Other linked scenarios</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                        {otherEvents.map((ev) => (
+                          <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)" }}>
+                            <div style={{ flex: 1, minWidth: 0, fontSize: "10px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.label}</div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", flexShrink: 0 }}>{fmtImpact(ev.amount_impact)}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeEvent(ev.id)}
+                              title="Remove"
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px", flexShrink: 0, lineHeight: 1 }}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : applyStatus === "error" ? (
-                <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={applyStatus === "applying" || !computed.lastPoint}
-                  onClick={async () => {
-                    if (!computed.lastPoint) return;
-                    setApplyStatus("applying");
-                    const currentYear = new Date().getFullYear();
-                    const fdDown = new FormData();
-                    fdDown.set("label", `Down payment: ${inputs.name}`);
-                    fdDown.set("event_year", String(currentYear));
-                    fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
-                    fdDown.set("category", "home_purchase");
-                    const fdEquity = new FormData();
-                    fdEquity.set("label", `Home equity sale: ${inputs.name}`);
-                    fdEquity.set("event_year", String(currentYear + inputs.hold_years));
-                    fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
-                    fdEquity.set("category", "home_sale");
-                    const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
-                    if (r1.error || r2.error) { setApplyStatus("error"); return; }
-                    setApplyStatus("done");
-                  }}
-                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
-                  {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
-                </button>
-              )}
-            </div>
+              );
+            })()}
 
             {/* ── SECTION: LOAN BREAKDOWN ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>

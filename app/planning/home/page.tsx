@@ -4,7 +4,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import HomeClient from "./home-client";
 import type { HomeScenario } from "./home-actions";
-import type { FinancialProfile } from "@/app/planning/planning-actions";
+import type { FinancialProfile, FutureEvent } from "@/app/planning/planning-actions";
 import { ageFromDob } from "@/app/planning/planning-utils";
 
 export default async function HomePlanningPage() {
@@ -17,6 +17,7 @@ export default async function HomePlanningPage() {
     { data: profileData },
     { data: portfolios },
     { data: assumptionsData },
+    { data: homeEventsData },
   ] = await Promise.all([
     supabase
       .from("home_planning_scenarios")
@@ -38,6 +39,12 @@ export default async function HomePlanningPage() {
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("planning_future_events")
+      .select("id, user_id, label, event_year, amount_impact, category, sort_order")
+      .eq("user_id", user.id)
+      .in("category", ["home_purchase", "home_sale"])
+      .order("event_year"),
   ]);
 
   const scenarios: HomeScenario[] = (scenariosData ?? []) as HomeScenario[];
@@ -60,6 +67,7 @@ export default async function HomePlanningPage() {
     : null;
 
   const investmentReturn = assumptionsData ? Number(assumptionsData.return_rate) : 0.07;
+  const homeEvents: FutureEvent[] = (homeEventsData ?? []) as FutureEvent[];
 
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
@@ -79,6 +87,7 @@ export default async function HomePlanningPage() {
           scenarios={scenarios}
           profile={profile}
           defaultInvestmentReturn={investmentReturn}
+          homeEvents={homeEvents}
         />
       </div>
     </div>
