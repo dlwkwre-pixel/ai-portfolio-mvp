@@ -393,7 +393,212 @@ function getFactorExplainer(
   }
 }
 
+// ── Command Center helpers ─────────────────────────────────────────────────────
+
+type SystemSection = {
+  id: string; label: string; tabKey: string;
+  complete: number; total: number; pct: number;
+  status: "complete" | "partial" | "empty"; cta: string;
+};
+
+function computeSystemHealth(p: {
+  profile: FinancialProfile | null;
+  assets: BalanceSheetItem[];
+  liabilities: BalanceSheetItem[];
+  cashFlowItems: CashFlowItem[];
+  homeScenarios: HomeScenario[];
+  familyScenarios: FamilyScenario[];
+  careerScenarios: CareerScenario[];
+  educationScenarios: EducationScenario[];
+  estateProfile: EstateProfile | null;
+}): SystemSection[] {
+  const prof = [
+    p.profile?.date_of_birth != null,
+    p.profile?.target_retirement_age != null,
+    p.cashFlowItems.some((i) => i.type === "income") || (p.profile?.monthly_income ?? 0) > 0,
+    p.cashFlowItems.some((i) => i.type === "expense") || (p.profile?.monthly_expenses ?? 0) > 0,
+  ].filter(Boolean).length;
+  const bal = [p.assets.length > 0, p.liabilities.length > 0].filter(Boolean).length;
+  const cf = [
+    p.cashFlowItems.some((i) => i.type === "income"),
+    p.cashFlowItems.some((i) => i.type === "expense"),
+  ].filter(Boolean).length;
+  const life = [
+    p.homeScenarios.length > 0, p.familyScenarios.length > 0,
+    p.careerScenarios.length > 0, p.educationScenarios.length > 0,
+  ].filter(Boolean).length;
+  const ep = p.estateProfile;
+  const est = ep ? [ep.doc_will, ep.doc_living_trust, ep.doc_durable_poa, ep.doc_healthcare_directive, ep.doc_beneficiary_desig, ep.doc_digital_assets].filter((d) => d !== "none").length : 0;
+  const s = (c: number, t: number): "complete" | "partial" | "empty" => c === 0 ? "empty" : c >= t ? "complete" : "partial";
+  return [
+    { id: "profile",  label: "Profile",          tabKey: "overview", complete: prof, total: 4, pct: Math.round(prof / 4 * 100),  status: s(prof, 4),  cta: "Set up profile"  },
+    { id: "balance",  label: "Balance Sheet",     tabKey: "balance",  complete: bal,  total: 2, pct: Math.round(bal / 2 * 100),   status: s(bal, 2),   cta: "Add assets"      },
+    { id: "cashflow", label: "Cash Flow",         tabKey: "cashflow", complete: cf,   total: 2, pct: Math.round(cf / 2 * 100),    status: s(cf, 2),    cta: "Set up"          },
+    { id: "life",     label: "Life Planning",     tabKey: "events",   complete: life, total: 4, pct: Math.round(life / 4 * 100),  status: s(life, 4),  cta: "Model decisions" },
+    { id: "estate",   label: "Estate Readiness",  tabKey: "estate",   complete: est,  total: 6, pct: Math.round(est / 6 * 100),   status: s(est, 6),   cta: "Track docs"      },
+  ];
+}
+
+type CommandPriority = {
+  id: string; rank: number; title: string; why: string;
+  impact: string; tabKey: string; ctaLabel: string; urgent: boolean;
+};
+
+function computeCommandPriorities(p: {
+  profile: FinancialProfile | null;
+  savingsRate: number; monthlySavings: number;
+  effectiveIncome: number; effectiveExpenses: number;
+  liquidAssets: number; netWorth: number;
+  totalAssets: number; totalLiabilities: number;
+  retirementProb: number | null; yearsToRetire: number | null;
+  cashFlowItems: CashFlowItem[];
+  homeScenarios: HomeScenario[];
+  familyScenarios: FamilyScenario[];
+  careerScenarios: CareerScenario[];
+  educationScenarios: EducationScenario[];
+  estateProfile: EstateProfile | null;
+  localReturn: number;
+}): CommandPriority[] {
+  const items: CommandPriority[] = [];
+  let r = 1;
+  const hasProfile = p.profile?.current_age != null;
+  const hasIncome = p.effectiveIncome > 0;
+
+  if (!hasProfile) {
+    items.push({ id: "setup-profile", rank: r++, urgent: true, tabKey: "overview", ctaLabel: "Set up profile",
+      title: "Complete your financial profile",
+      why: "Age, income, and retirement target unlock health score, forecast, and all AI-driven guidance.",
+      impact: "Unlocks all 5 planning modules",
+    });
+  }
+  if (p.cashFlowItems.length === 0 && hasIncome) {
+    items.push({ id: "setup-cashflow", rank: r++, urgent: true, tabKey: "cashflow", ctaLabel: "Set up cash flow",
+      title: "Add income & expense line items",
+      why: "Savings rate, budget tracking, and spending insights are blind without detailed cash flow data.",
+      impact: "Enables real-time savings rate tracking",
+    });
+  }
+  if (hasIncome && p.savingsRate >= 0 && p.savingsRate < 20) {
+    const gap = Math.max(50, p.effectiveIncome * 0.20 - p.monthlySavings);
+    const ytr = p.yearsToRetire ?? 25;
+    const compounded = p.localReturn > 0
+      ? Math.round(gap * 12 * ((Math.pow(1 + p.localReturn, ytr) - 1) / p.localReturn))
+      : Math.round(gap * 12 * ytr);
+    items.push({ id: "savings-rate", rank: r++, urgent: p.savingsRate < 5, tabKey: "cashflow", ctaLabel: "Review cash flow",
+      title: `Raise savings rate to 20% (+${fmt(gap)}/mo)`,
+      why: `At ${p.savingsRate.toFixed(1)}%, compounding is limited. The gap to 20% represents ${ytr} years of missed growth.`,
+      impact: `+${fmt(compounded)} projected at retirement`,
+    });
+  }
+  const emergencyTarget = p.effectiveExpenses * 3;
+  const emergencyMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 0;
+  if (p.effectiveExpenses > 0 && emergencyMonths < 3) {
+    const gap = Math.max(0, emergencyTarget - p.liquidAssets);
+    items.push({ id: "emergency-fund", rank: r++, urgent: emergencyMonths < 1, tabKey: "balance", ctaLabel: "View balance sheet",
+      title: `Build ${fmt(gap)} emergency fund`,
+      why: `${emergencyMonths.toFixed(1)} months of expenses covered. Under 3 months forces investment liquidation in a crisis.`,
+      impact: "+25 Financial Health Score points",
+    });
+  }
+  if (p.homeScenarios.length === 0) {
+    items.push({ id: "model-home", rank: r++, urgent: false, tabKey: "events", ctaLabel: "Open Home Planner",
+      title: "Model a home purchase",
+      why: "A home is the largest financial decision most people make. Modeling reveals the true lifetime cost vs. renting.",
+      impact: "Reveals exact retirement impact",
+    });
+  }
+  if (p.retirementProb != null && p.retirementProb < 65 && hasProfile) {
+    items.push({ id: "retirement-gap", rank: r++, urgent: p.retirementProb < 40, tabKey: "forecast", ctaLabel: "Open forecast",
+      title: "Close retirement probability gap",
+      why: `At ${Math.round(p.retirementProb)}%, you are likely to fall short of 25× annual expenses. The Forecast tab shows the highest-leverage levers.`,
+      impact: `${Math.round(p.retirementProb)}% → target 80%+`,
+    });
+  }
+  const ep = p.estateProfile;
+  const estDone = ep ? [ep.doc_will, ep.doc_living_trust, ep.doc_durable_poa, ep.doc_healthcare_directive, ep.doc_beneficiary_desig, ep.doc_digital_assets].filter((d) => d !== "none").length : 0;
+  if (estDone < 2) {
+    items.push({ id: "estate", rank: r++, urgent: false, tabKey: "estate", ctaLabel: "Review estate",
+      title: "Complete estate readiness",
+      why: "Without a will and power of attorney, key decisions may be left to courts. Most people delay until it is too late.",
+      impact: "Protects your family in any scenario",
+    });
+  }
+  if (p.careerScenarios.length === 0) {
+    items.push({ id: "model-career", rank: r++, urgent: false, tabKey: "events", ctaLabel: "Open Career Planner",
+      title: "Model a career change",
+      why: "A career move can be the single largest income multiplier available. Compare lifetime trajectories before deciding.",
+      impact: "Reveals lifetime income differential",
+    });
+  }
+
+  return items.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || a.rank - b.rank).slice(0, 4);
+}
+
+function computeFinnInsight(p: {
+  savingsRate: number; monthlySavings: number;
+  effectiveExpenses: number; liquidAssets: number;
+  netWorth: number; totalLiabilities: number; totalAssets: number;
+  retirementProb: number | null; projectedNWAtRetirement: number | null;
+  yearsToRetire: number | null; profile: FinancialProfile | null;
+  localReturn: number;
+}): string {
+  if (p.profile?.current_age == null) {
+    return "Complete your profile to unlock personalized financial analysis and AI-driven priority recommendations.";
+  }
+  const emergencyMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 0;
+  if (emergencyMonths < 1 && p.effectiveExpenses > 0) {
+    return "Your emergency fund covers less than 1 month of expenses. A financial shock right now would likely force you to liquidate investments — this is the highest-priority gap to close.";
+  }
+  if (p.savingsRate >= 0 && p.savingsRate < 5) {
+    return `At a ${p.savingsRate.toFixed(1)}% savings rate, compound growth is nearly flat. Reaching 20% would fundamentally change your retirement trajectory and unlock significant long-term wealth.`;
+  }
+  if (p.netWorth < 0) {
+    return `Your liabilities exceed your assets by ${fmt(Math.abs(p.netWorth))}. Debt reduction is the single highest-leverage move — every dollar of principal eliminated compounds forward as investable capital.`;
+  }
+  if (p.retirementProb != null && p.retirementProb < 50) {
+    const ytr = p.yearsToRetire;
+    return `Your retirement probability is ${Math.round(p.retirementProb)}%.${ytr != null ? ` With ${ytr} years remaining, small changes now create disproportionately large outcomes.` : " Small changes now create disproportionately large outcomes."}`;
+  }
+  if (p.projectedNWAtRetirement != null && p.projectedNWAtRetirement > 0 && p.netWorth > 0) {
+    const multiple = (p.projectedNWAtRetirement / p.netWorth).toFixed(1);
+    return `You are on track to retire with approximately ${fmt(Math.round(p.projectedNWAtRetirement))} — ${multiple}× your current net worth. Maintaining your savings rate is the key variable.`;
+  }
+  const debtRatio = p.totalAssets > 0 ? (p.totalLiabilities / p.totalAssets) * 100 : 0;
+  if (debtRatio > 40) {
+    return `Liabilities represent ${debtRatio.toFixed(0)}% of your total assets. Reducing this below 20% would unlock a full 25-point boost to your Financial Health Score.`;
+  }
+  return "Your financial foundation is solid. The highest-leverage moves now are increasing your savings rate and modeling the major life decisions that will shape the next decade.";
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
+
+function CountUp({
+  to, prefix = "", suffix = "", decimals = 0, duration = 1000, isPrivate = false,
+}: { to: number; prefix?: string; suffix?: string; decimals?: number; duration?: number; isPrivate?: boolean }) {
+  const [val, setVal] = useState(0);
+  const startRef = useRef<number | null>(null);
+  const rafRef = useRef<number>(0);
+  useEffect(() => {
+    startRef.current = null;
+    setVal(0);
+    const animate = (ts: number) => {
+      if (startRef.current === null) startRef.current = ts;
+      const progress = Math.min((ts - startRef.current) / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 4);
+      setVal(to * ease);
+      if (progress < 1) { rafRef.current = requestAnimationFrame(animate); }
+      else setVal(to);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [to, duration]);
+  if (isPrivate) return <>{"••••••"}</>;
+  const n = Number(val.toFixed(decimals));
+  const formatted = decimals > 0
+    ? n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+    : Math.round(val).toLocaleString("en-US");
+  return <>{prefix}{formatted}{suffix}</>;
+}
 
 function InfoTooltip({ text }: { text: string }) {
   const [visible, setVisible] = useState(false);
@@ -3262,6 +3467,34 @@ export default function PlanningClient({
        // eslint-disable-next-line react-hooks/exhaustive-deps
        futureEvents, currentYear]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const commandPriorities = useMemo(() => computeCommandPriorities({
+    profile, savingsRate, monthlySavings, effectiveIncome, effectiveExpenses,
+    liquidAssets, netWorth, totalAssets, totalLiabilities, retirementProb, yearsToRetire,
+    cashFlowItems, homeScenarios, familyScenarios, careerScenarios, educationScenarios, estateProfile,
+    localReturn: localAssumptions.return_rate / 100,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [savingsRate, monthlySavings, effectiveIncome, effectiveExpenses, liquidAssets, netWorth,
+       totalAssets, totalLiabilities, retirementProb, yearsToRetire,
+       homeScenarios, familyScenarios, careerScenarios, educationScenarios,
+       localAssumptions.return_rate]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const systemHealth = useMemo(() => computeSystemHealth({
+    profile, assets, liabilities, cashFlowItems,
+    homeScenarios, familyScenarios, careerScenarios, educationScenarios, estateProfile,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [profile, assets, liabilities, cashFlowItems,
+       homeScenarios, familyScenarios, careerScenarios, educationScenarios, estateProfile]);
+
+  const finnInsight = useMemo(() => computeFinnInsight({
+    savingsRate, monthlySavings, effectiveExpenses, liquidAssets, netWorth, totalLiabilities, totalAssets,
+    retirementProb, projectedNWAtRetirement: retirementPoint?.baseline ?? null, yearsToRetire, profile,
+    localReturn: localAssumptions.return_rate / 100,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [savingsRate, monthlySavings, effectiveExpenses, liquidAssets, netWorth, totalLiabilities, totalAssets,
+       retirementProb, retirementPoint?.baseline, yearsToRetire, localAssumptions.return_rate]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -3721,11 +3954,271 @@ export default function PlanningClient({
       {/* ── Tab: Overview ── */}
       {tab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <style>{`
+            @keyframes cmd-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes cmd-bar-in { from { transform: scaleX(0); } }
+            @keyframes cmd-ring-draw { from { stroke-dashoffset: 138; } }
+            .cmd-section { animation: cmd-fade-up 0.35s ease-out both; }
+            .cmd-kpi-tile { transition: background 0.15s, border-color 0.15s; }
+            .cmd-kpi-tile:hover { background: var(--bg-elevated) !important; }
+            .cmd-health-bar { animation: cmd-bar-in 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+            .cmd-cta-btn { transition: background 0.15s, border-color 0.15s, color 0.15s; }
+            .cmd-cta-btn:hover { background: rgba(37,99,235,0.1) !important; border-color: rgba(37,99,235,0.3) !important; color: var(--text-primary) !important; }
+            @media (min-width: 640px) {
+              .cmd-kpi-grid { grid-template-columns: repeat(5,1fr) !important; }
+              .cmd-kpi-health { grid-column: auto !important; }
+              .cmd-body-cols { display: grid !important; grid-template-columns: 3fr 2fr !important; }
+            }
+          `}</style>
 
-          {/* Profile card */}
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
+          {/* ── Section 1: KPI Strip ── */}
+          <div className="cmd-section" style={{ animationDelay: "0ms" }}>
+            <div className="cmd-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "8px" }}>
+
+              <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Net Worth</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
+                  <CountUp to={Math.abs(netWorth)} prefix={netWorth < 0 ? "-$" : "$"} isPrivate={isPrivate} duration={1100} />
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-body)" }}>{pHide(fmt(totalAssets))} assets</div>
+              </div>
+
+              <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Monthly Savings</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
+                  <CountUp to={Math.abs(monthlySavings)} prefix={monthlySavings < 0 ? "-$" : "$"} isPrivate={isPrivate} duration={1000} />
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-body)" }}>
+                  {effectiveIncome > 0 ? `of ${pHide(fmt(effectiveIncome))}/mo` : "Add cash flow items"}
+                </div>
+              </div>
+
+              <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Savings Rate</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
+                  {effectiveIncome > 0
+                    ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={900} isPrivate={isPrivate} />
+                    : <span style={{ fontSize: "15px" }}>—</span>}
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-body)" }}>
+                  {savingsRate >= 20 ? "Target met" : savingsRate > 0 ? "Target: 20%" : "Add income & expenses"}
+                </div>
+              </div>
+
+              <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Retirement Probability</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, lineHeight: 1, color: retirementProb != null ? (retirementProb >= 75 ? "var(--green)" : retirementProb >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-muted)" }}>
+                  {retirementProb != null
+                    ? <CountUp to={retirementProb} suffix="%" duration={1000} isPrivate={isPrivate} />
+                    : <span style={{ fontSize: "15px" }}>—</span>}
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-body)" }}>
+                  {retirementProb != null ? (retirementProb >= 75 ? "On track" : retirementProb >= 50 ? "Watch closely" : "Needs attention") : "Set retirement age"}
+                </div>
+              </div>
+
+              {/* Health Score — full-width on mobile, single col on desktop */}
+              <div className="cmd-kpi-tile cmd-kpi-health" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px", gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={{ flexShrink: 0, position: "relative", width: "52px", height: "52px" }}>
+                  <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                    <circle cx="26" cy="26" r="22" stroke="var(--border)" strokeWidth="4" />
+                    <circle cx="26" cy="26" r="22"
+                      stroke={healthData.total >= 75 ? "oklch(0.72 0.19 145)" : healthData.total >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)"}
+                      strokeWidth="4" strokeLinecap="round" strokeDasharray="138"
+                      strokeDashoffset={138 - (healthData.total / 100) * 138}
+                      transform="rotate(-90 26 26)"
+                      style={{ animation: "cmd-ring-draw 1.2s cubic-bezier(0.22,1,0.36,1) forwards" }}
+                    />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                    {isPrivate ? "•" : healthData.total}
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginBottom: "8px" }}>
+                    <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Financial Health Score</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>/100</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px" }}>
+                    {healthData.factors.map((f) => (
+                      <div key={f.name}>
+                        <div style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {f.name.split(" ")[0]}
+                        </div>
+                        <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
+                          <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", transform: `scaleX(${f.score / f.max})`, animationDelay: "200ms", background: f.direction === "strength" ? "oklch(0.72 0.19 145)" : f.direction === "neutral" ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 2: Priorities + System Health ── */}
+          <div className="cmd-section cmd-body-cols" style={{ display: "flex", flexDirection: "column", gap: "14px", animationDelay: "60ms" }}>
+
+            {/* What Matters Most */}
+            <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>What Matters Most</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>AI-ranked priorities by financial impact</div>
+                </div>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0 }}>
+                  {commandPriorities.length} items
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {commandPriorities.length === 0 ? (
+                  <div style={{ padding: "16px 0", textAlign: "center", color: "var(--text-tertiary)", fontSize: "13px", fontFamily: "var(--font-body)" }}>
+                    Your financial position looks strong across all key areas.
+                  </div>
+                ) : commandPriorities.map((pri, i) => (
+                  <div key={pri.id} style={{ display: "flex", gap: "12px", padding: "12px 14px", borderRadius: "var(--radius-md)", background: pri.urgent ? "rgba(239,68,68,0.04)" : i === 0 ? "rgba(37,99,235,0.04)" : "var(--card-bg)", border: `1px solid ${pri.urgent ? "rgba(239,68,68,0.14)" : i === 0 ? "rgba(37,99,235,0.12)" : "var(--border-subtle)"}` }}>
+                    <div style={{ flexShrink: 0, minWidth: "18px", display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", paddingTop: "1px" }}>
+                      {pri.urgent && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--red)" }} />}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: pri.urgent ? "var(--red)" : "var(--text-muted)", fontWeight: 700, letterSpacing: "0.06em" }}>#{i + 1}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{pri.title}</div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{pri.why}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "var(--radius-md)", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 500, background: "rgba(0,211,149,0.06)", border: "1px solid rgba(0,211,149,0.14)" }}>
+                          <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M5 9V1M1 5l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          {pri.impact}
+                        </div>
+                        <button type="button" className="cmd-cta-btn" onClick={() => setTab(pri.tabKey as Tab)}
+                          style={{ padding: "3px 10px", borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", cursor: "pointer" }}>
+                          {pri.ctaLabel}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Financial System Health */}
+            <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Financial System Health</div>
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Completion across all planning modules</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {systemHealth.map((sec) => {
+                  const sColor = sec.status === "complete" ? "oklch(0.72 0.19 145)" : sec.status === "partial" ? "oklch(0.75 0.18 70)" : "var(--text-muted)";
+                  return (
+                    <div key={sec.id}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "5px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: sColor, flexShrink: 0 }} />
+                          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{sec.label}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: sColor, fontWeight: 600 }}>{sec.pct}%</span>
+                          {sec.status !== "complete" && (
+                            <button type="button" onClick={() => setTab(sec.tabKey as Tab)}
+                              style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-tertiary)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                              {sec.cta} →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
+                        <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: sColor, transform: `scaleX(${sec.pct / 100})`, animationDelay: "250ms" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 3: FINN Insight ── */}
+          <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "16px 20px", animationDelay: "100ms" }}>
+            <div style={{ display: "flex", gap: "13px", alignItems: "flex-start" }}>
+              <div style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
+                  <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>FINN's Biggest Insight</div>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: "0 0 10px" }}>
+                  {finnInsight}
+                </p>
+                <button type="button" onClick={() => setTab("finn")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", color: "oklch(0.65 0.18 260)", cursor: "pointer" }}>
+                  Ask FINN a question
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 4: Future Milestones ── */}
+          {(() => {
+            const nowYear = new Date().getFullYear();
+            const mList: { label: string; year: number; icon: string; color: string }[] = [];
+            if (profile?.current_age != null && profile?.target_retirement_age != null) {
+              mList.push({ label: `Retire at ${profile.target_retirement_age}`, year: nowYear + Math.max(0, profile.target_retirement_age - profile.current_age), icon: "→", color: "oklch(0.65 0.18 260)" });
+            }
+            futureEvents.filter((e) => e.event_year >= nowYear).forEach((e) => {
+              mList.push({ label: e.label, year: e.event_year, icon: e.amount_impact >= 0 ? "+" : "−", color: e.amount_impact >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" });
+            });
+            if (homeScenarios.length > 0) mList.push({ label: `Home: ${homeScenarios[0].name}`, year: nowYear + 2, icon: "H", color: "oklch(0.65 0.14 200)" });
+            if (familyScenarios.length > 0) mList.push({ label: `Family: ${familyScenarios[0].child_name ?? "child"}`, year: nowYear + 1, icon: "F", color: "oklch(0.72 0.15 340)" });
+            const sorted = mList.sort((a, b) => a.year - b.year).slice(0, 6);
+            return (
+              <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "120ms" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Future Milestones</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Key events on your financial timeline</div>
+                  </div>
+                  <button type="button" onClick={() => setTab("events")} style={{ fontSize: "11px", fontFamily: "var(--font-body)", background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer" }}>
+                    View all →
+                  </button>
+                </div>
+                {sorted.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {[
+                      { label: "Set retirement target", tabKey: "overview", hint: "Profile → Retirement Age" },
+                      { label: "Model a home purchase", tabKey: "events", hint: "Life Planning → Home" },
+                      { label: "Add future financial events", tabKey: "events", hint: "Life Planning → Timeline" },
+                    ].map((pl) => (
+                      <button key={pl.label} type="button" onClick={() => setTab(pl.tabKey as Tab)}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md)", background: "transparent", border: "1px dashed var(--border)", cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{pl.label}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{pl.hint} →</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {sorted.map((m, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: i < sorted.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
+                        <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: `color-mix(in oklch, ${m.color} 15%, transparent)`, border: `1px solid color-mix(in oklch, ${m.color} 30%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 700, color: m.color }}>
+                          {m.icon}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0, fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.label}</div>
+                        <div style={{ flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: m.color }}>{m.year}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Section 5: Profile Settings ── */}
+          <div className="cmd-section" style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px", animationDelay: "140ms" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <span style={sectionHeadStyle}>Your Profile</span>
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Profile Settings</div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Age, income, retirement target, and risk tolerance</div>
+              </div>
               {!editingProfile && (
                 <button type="button" onClick={() => setEditingProfile(true)} style={btnSecondaryStyle}>Edit</button>
               )}
@@ -3816,105 +4309,6 @@ export default function PlanningClient({
             )}
           </div>
 
-          {/* Quick summary */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px" }}>
-              <div style={sectionHeadStyle}>Assets Breakdown</div>
-              {assets.length === 0 && portfolioTotalValue === 0 ? (
-                <p style={{ color: "var(--text-tertiary)", fontSize: "12px", fontFamily: "var(--font-body)" }}>No assets added yet.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {portfolioTotalValue > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
-                      <span>Portfolio (all accounts)</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{pHide(fmt(portfolioTotalValue))}</span>
-                    </div>
-                  )}
-                  {assets.map((a) => (
-                    <div key={a.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
-                      <span>{a.label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)" }}>{pHide(fmt(a.value))}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px" }}>
-              <div style={sectionHeadStyle}>Liabilities</div>
-              {liabilities.length === 0 ? (
-                <p style={{ color: "var(--text-tertiary)", fontSize: "12px", fontFamily: "var(--font-body)" }}>No liabilities added.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {liabilities.map((l) => (
-                    <div key={l.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>
-                      <span>{l.label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--red)" }}>{pHide(fmt(l.value))}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Opportunities */}
-          {recommendations.length > 0 && (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                <div>
-                  <div style={sectionHeadStyle}>Opportunities</div>
-                  <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0", lineHeight: 1.4 }}>
-                    Highest-leverage changes, ranked by forecast impact
-                  </p>
-                </div>
-                <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", fontWeight: 500, flexShrink: 0 }}>
-                  {recommendations.length} identified
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {recommendations.map((rec, i) => (
-                  <div key={rec.id} style={{
-                    display: "flex", gap: "14px", alignItems: "flex-start", padding: "14px",
-                    borderRadius: "var(--radius-md)",
-                    background: i === 0 ? "rgba(37,99,235,0.05)" : "var(--bg-surface)",
-                    border: `1px solid ${i === 0 ? "rgba(37,99,235,0.15)" : "var(--border-subtle)"}`,
-                  }}>
-                    <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", paddingTop: "1px" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", fontWeight: 700, letterSpacing: "0.05em" }}>#{i + 1}</span>
-                      <span style={{ fontSize: "18px", lineHeight: 1 }}>{rec.icon}</span>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
-                        {rec.headline}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>
-                        {rec.detail}
-                      </div>
-                      <div style={{
-                        display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px",
-                        borderRadius: "var(--radius-md)", fontSize: "11px",
-                        fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 500,
-                        background: "rgba(0,211,149,0.07)", border: "1px solid rgba(0,211,149,0.16)",
-                      }}>
-                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden>
-                          <path d="M5 9V1M1 5l4-4 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {rec.impact}
-                      </div>
-                    </div>
-                    <div style={{
-                      flexShrink: 0, padding: "3px 9px", borderRadius: "20px", fontSize: "10px",
-                      fontWeight: 600, fontFamily: "var(--font-body)", whiteSpace: "nowrap",
-                      background: rec.effort === "Low" ? "rgba(0,211,149,0.1)" : rec.effort === "Medium" ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.08)",
-                      color: rec.effort === "Low" ? "var(--green)" : rec.effort === "Medium" ? "var(--amber)" : "var(--red)",
-                      border: `1px solid ${rec.effort === "Low" ? "rgba(0,211,149,0.2)" : rec.effort === "Medium" ? "rgba(245,158,11,0.2)" : "rgba(239,68,68,0.18)"}`,
-                    }}>
-                      {rec.effort} effort
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
