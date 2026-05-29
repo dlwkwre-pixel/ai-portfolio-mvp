@@ -42,7 +42,7 @@ function retirProb(nw: number, annualExpenses: number): number {
   return 20;
 }
 
-// ── Presets (P5) ─────────────────────────────────────────────────────────────
+// ── Presets ───────────────────────────────────────────────────────────────────
 
 type Preset = { label: string; annualCost: number; inflation: number; years: number };
 const PRESETS: Record<string, Preset> = {
@@ -50,10 +50,12 @@ const PRESETS: Record<string, Preset> = {
   "public-oos":      { label: "Public Out-of-State",  annualCost: 45000, inflation: 0.05, years: 4 },
   "private":         { label: "Private University",   annualCost: 60000, inflation: 0.05, years: 4 },
   "community":       { label: "Community + Transfer", annualCost: 18000, inflation: 0.03, years: 2 },
+  "trade":           { label: "Trade / Vocational",   annualCost: 12000, inflation: 0.03, years: 2 },
+  "military":        { label: "Military Path",        annualCost: 0,     inflation: 0,    years: 4 },
   "custom":          { label: "Custom",               annualCost: 35000, inflation: 0.05, years: 4 },
 };
 
-// ── Verdict (P1) ──────────────────────────────────────────────────────────────
+// ── Verdict ───────────────────────────────────────────────────────────────────
 
 type VerdictType = "FULLY_FUNDED" | "ON_TRACK" | "PARTIALLY_FUNDED" | "UNDERFUNDED";
 
@@ -64,14 +66,13 @@ function computeVerdictType(coveragePct: number): VerdictType {
   return "UNDERFUNDED";
 }
 
-const VERDICT_META: Record<VerdictType, { label: string; color: string; bg: string }> = {
-  FULLY_FUNDED:     { label: "Fully Funded",     color: "oklch(0.72 0.18 145)", bg: "oklch(0.72 0.18 145 / 0.10)" },
-  ON_TRACK:         { label: "On Track",         color: "oklch(0.65 0.15 250)", bg: "oklch(0.65 0.15 250 / 0.10)" },
-  PARTIALLY_FUNDED: { label: "Partially Funded", color: "oklch(0.78 0.15 80)",  bg: "oklch(0.78 0.15 80  / 0.10)" },
-  UNDERFUNDED:      { label: "Underfunded",      color: "oklch(0.70 0.18 25)",  bg: "oklch(0.70 0.18 25  / 0.10)" },
-};
-
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+type FamilyChild = { id: string; name: string; age: number };
+type NeedleLever = { label: string; improvementK: number; description: string };
+type CompRow = { label: string; coveragePct: number; gap: number; monthlyNeeded: number; verdictTag: string; verdictColor: string };
+type AltPath = { key: string; label: string; totalCost: number; gap: number; surplus: number; coveragePct: number };
+type BenchmarkItem = { label: string; projCost: number; isCurrent: boolean };
 
 type Computed529 = {
   yearsUntilCollege: number;
@@ -102,6 +103,26 @@ type Computed529 = {
   flipReturn: number | null;
   opportunityCostRetirement: number | null;
   autoNarrative: string;
+  // P1 Optimizer
+  optimalRetirMonthly: number | null;
+  optimalCollegeMonthly: number | null;
+  optimalRetirProb: number | null;
+  optimalCollegeCoverage: number | null;
+  optimalPlanScore: number | null;
+  // P3 Smarter Verdict
+  contextVerdictLabel: string;
+  contextVerdictSubtitle: string;
+  contextVerdictBullets: { positive: boolean; text: string }[];
+  contextVerdictColor: string;
+  contextVerdictBg: string;
+  // P4 Needle Levers
+  needleLevers: NeedleLever[];
+  // P5 Comparison
+  comparisonRows: CompRow[];
+  // P6 Alt Paths
+  altPaths: AltPath[];
+  // P7 Benchmarks
+  benchmarkContext: BenchmarkItem[];
 };
 
 type FormState = {
@@ -136,6 +157,7 @@ function computeAll(
   f: FormState,
   numChildren: number,
   scholarshipPct: number,
+  preset: string,
   profile: FinancialProfile | null,
   currentNetWorth: number,
 ): Computed529 {
@@ -166,7 +188,6 @@ function computeAll(
     ? 0
     : mr > 0 ? (remainder * mr) / (Math.pow(1 + mr, mo) - 1) : remainder / mo;
 
-  // P8: chart — 529 balance (blue) vs inflating college cost (orange)
   const chartData = Array.from({ length: yearsUntilCollege + 1 }, (_, i) => {
     const months = i * 12;
     const balance = months === 0
@@ -180,7 +201,6 @@ function computeAll(
   const verdictType = computeVerdictType(coveragePct);
   const pctStr = Math.round(Math.min(coveragePct, 100));
 
-  // P1: Verdict reasons
   const verdictReasons: string[] = [
     `Current contributions cover ${pctStr}% of projected ${numChildren > 1 ? `${numChildren}-child ` : ""}college costs`,
   ];
@@ -194,13 +214,11 @@ function computeAll(
     ? Math.min(95, Math.round(90 + (coveragePct - 100) / 20))
     : Math.round(40 + coveragePct * 0.45);
 
-  // P1: Suggested monthly (to reach ON_TRACK 80%)
   const rem80 = effectiveTotalCost * 0.80 - pvGrowth;
   const suggestedMonthly = rem80 <= 0 || mo === 0
     ? monthly
     : Math.max(0, mr > 0 ? (rem80 * mr) / (Math.pow(1 + mr, mo) - 1) : rem80 / mo);
 
-  // P3: Funding targets (50/75/100/125%)
   const fundingTargets = [50, 75, 100, 125].map((pct) => {
     const tCost = effectiveTotalCost * (pct / 100);
     const rem = tCost - pvGrowth;
@@ -208,7 +226,7 @@ function computeAll(
     return { pct, monthly: Math.max(0, m) };
   });
 
-  // P4: Ecosystem (retirement impact)
+  // Ecosystem (retirement impact)
   let retirAssetsBefore: number | null = null;
   let retirAssetsAfter: number | null = null;
   let retirProbBefore: number | null = null;
@@ -231,22 +249,22 @@ function computeAll(
     retirImpactScore = drop < 3 ? 15 : drop < 7 ? 11 : drop < 12 ? 7 : 3;
   }
 
-  // P2: Readiness score
-  const rS_prog   = Math.round(Math.min(coveragePct, 100) * 0.30);
-  const rS_time   = yearsUntilCollege >= 10 ? 20 : yearsUntilCollege >= 7 ? 17 : yearsUntilCollege >= 5 ? 14 : yearsUntilCollege >= 3 ? 9 : yearsUntilCollege >= 1 ? 5 : 2;
+  // Readiness score
+  const rS_prog    = Math.round(Math.min(coveragePct, 100) * 0.30);
+  const rS_time    = yearsUntilCollege >= 10 ? 20 : yearsUntilCollege >= 7 ? 17 : yearsUntilCollege >= 5 ? 14 : yearsUntilCollege >= 3 ? 9 : yearsUntilCollege >= 1 ? 5 : 2;
   const rS_contrib = monthlyNeeded > 0 ? Math.min(20, Math.round((monthly / monthlyNeeded) * 20)) : 20;
-  const gapRatio  = effectiveTotalCost > 0 ? fundingGap / effectiveTotalCost : 0;
-  const rS_gap    = gapRatio < 0.05 ? 15 : gapRatio < 0.2 ? 11 : gapRatio < 0.4 ? 7 : gapRatio < 0.7 ? 3 : 0;
+  const gapRatio   = effectiveTotalCost > 0 ? fundingGap / effectiveTotalCost : 0;
+  const rS_gap     = gapRatio < 0.05 ? 15 : gapRatio < 0.2 ? 11 : gapRatio < 0.4 ? 7 : gapRatio < 0.7 ? 3 : 0;
   const readinessComponents = [
-    { label: "Funding Progress",      score: rS_prog,         max: 30 },
-    { label: "Time Until Enrollment", score: rS_time,         max: 20 },
-    { label: "Contribution Adequacy", score: rS_contrib,      max: 20 },
-    { label: "Funding Gap",           score: rS_gap,          max: 15 },
+    { label: "Funding Progress",      score: rS_prog,          max: 30 },
+    { label: "Time Until Enrollment", score: rS_time,          max: 20 },
+    { label: "Contribution Adequacy", score: rS_contrib,       max: 20 },
+    { label: "Funding Gap",           score: rS_gap,           max: 15 },
     { label: "Retirement Impact",     score: retirImpactScore, max: 15 },
   ];
   const readinessScore = readinessComponents.reduce((s, c) => s + c.score, 0);
 
-  // P9: What would change the verdict
+  // Flip thresholds
   let flipContribution: number | null = null;
   let flipCostReduction: number | null = null;
   let flipReturn: number | null = null;
@@ -257,11 +275,9 @@ function computeAll(
       const diff = needed80 - monthly;
       if (diff > 0) flipContribution = Math.ceil(diff / 10) * 10;
     }
-
     const maxCostFor80 = effectiveTotalCost > 0 ? fv529 / 0.80 : 0;
     const costRed = effectiveTotalCost - maxCostFor80;
     if (costRed > 500) flipCostReduction = Math.ceil(costRed / 1000) * 1000;
-
     if (yearsUntilCollege > 0 && effectiveTotalCost > 0) {
       const mr_max = 0.20 / 12;
       const fv_max = bal529 * Math.pow(1 + mr_max, mo) + (mr_max > 0 ? monthly * ((Math.pow(1 + mr_max, mo) - 1) / mr_max) : monthly * mo);
@@ -279,13 +295,13 @@ function computeAll(
     }
   }
 
-  // P10: Opportunity cost
+  // Opportunity cost
   let opportunityCostRetirement: number | null = null;
   if (monthly > 0 && profile?.current_age && profile?.target_retirement_age) {
     opportunityCostRetirement = fvCalc(0, monthly, Math.max(0, profile.target_retirement_age - profile.current_age), ret);
   }
 
-  // P11: Auto narrative
+  // Auto narrative
   const childStr = numChildren > 1 ? `${numChildren} children` : "college";
   let autoNarrative = "Enter your scenario details to get a personalized funding analysis.";
   if (effectiveTotalCost > 0) {
@@ -300,6 +316,198 @@ function computeAll(
     }
   }
 
+  // ── P1: Retirement vs College Optimizer ──────────────────────────────────────
+  let optimalRetirMonthly: number | null = null;
+  let optimalCollegeMonthly: number | null = null;
+  let optimalRetirProb: number | null = null;
+  let optimalCollegeCoverage: number | null = null;
+  let optimalPlanScore: number | null = null;
+
+  if (profile?.monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age && effectiveTotalCost > 0) {
+    const yToRetir = Math.max(0, profile.target_retirement_age - profile.current_age);
+    const totalBudget = Math.max(0, profile.monthly_income - profile.monthly_expenses);
+    const annualExp = profile.monthly_expenses * 12;
+    const step = Math.max(10, Math.round(totalBudget / 80) * 10);
+
+    let bestScore = -1;
+    let bestRetirMo = 0;
+    let bestCollegeMo = 0;
+
+    for (let rMo = 0; rMo <= totalBudget; rMo += step) {
+      const cMo = totalBudget - rMo;
+      const rAssets = fvCalc(currentNetWorth, rMo, yToRetir, ret);
+      const rP = retirProb(rAssets, annualExp);
+      const fvC = fvCalc(bal529, cMo, yearsUntilCollege, ret);
+      const cov = effectiveTotalCost > 0 ? Math.min(100, (fvC / effectiveTotalCost) * 100) : 100;
+      const score = rP * 0.5 + cov * 0.5;
+      if (score > bestScore) { bestScore = score; bestRetirMo = rMo; bestCollegeMo = cMo; }
+    }
+
+    const fineStart = Math.max(0, bestRetirMo - step);
+    const fineEnd = Math.min(totalBudget, bestRetirMo + step);
+    for (let rMo = fineStart; rMo <= fineEnd; rMo += 10) {
+      const cMo = totalBudget - rMo;
+      const rAssets = fvCalc(currentNetWorth, rMo, yToRetir, ret);
+      const rP = retirProb(rAssets, annualExp);
+      const fvC = fvCalc(bal529, cMo, yearsUntilCollege, ret);
+      const cov = effectiveTotalCost > 0 ? Math.min(100, (fvC / effectiveTotalCost) * 100) : 100;
+      const score = rP * 0.5 + cov * 0.5;
+      if (score > bestScore) { bestScore = score; bestRetirMo = rMo; bestCollegeMo = cMo; }
+    }
+
+    const optRetirAssets = fvCalc(currentNetWorth, bestRetirMo, yToRetir, ret);
+    const optFv = fvCalc(bal529, bestCollegeMo, yearsUntilCollege, ret);
+    optimalRetirMonthly   = Math.round(bestRetirMo / 10) * 10;
+    optimalCollegeMonthly = Math.round(bestCollegeMo / 10) * 10;
+    optimalRetirProb      = retirProb(optRetirAssets, annualExp);
+    optimalCollegeCoverage = Math.round(effectiveTotalCost > 0 ? Math.min(100, (optFv / effectiveTotalCost) * 100) : 100);
+    optimalPlanScore      = Math.round(bestScore);
+  }
+
+  // ── P3: Smarter Verdict ───────────────────────────────────────────────────────
+  const retirDrop = retirProbBefore != null && retirProbAfter != null ? retirProbBefore - retirProbAfter : 0;
+  const hasRetirData = retirProbBefore != null;
+  let contextVerdictLabel: string;
+  let contextVerdictSubtitle: string;
+  let contextVerdictBullets: { positive: boolean; text: string }[];
+  let contextVerdictColor: string;
+  let contextVerdictBg: string;
+
+  if (coveragePct >= 100 && (!hasRetirData || retirDrop <= 3)) {
+    contextVerdictLabel    = "STRONG POSITION";
+    contextVerdictSubtitle = `${Math.round(Math.min(coveragePct, 100))}% Coverage`;
+    contextVerdictColor    = "oklch(0.72 0.18 145)";
+    contextVerdictBg       = "oklch(0.72 0.18 145 / 0.08)";
+    contextVerdictBullets  = [
+      { positive: true,  text: "College fully funded at current pace" },
+      { positive: true,  text: hasRetirData ? "Retirement remains on track" : "Contribution path is sustainable" },
+      { positive: true,  text: "No immediate action required" },
+    ];
+  } else if (coveragePct >= 100 && hasRetirData && retirDrop > 8) {
+    contextVerdictLabel    = "OVERFUNDING RISK";
+    contextVerdictSubtitle = "College Fully Funded";
+    contextVerdictColor    = "oklch(0.78 0.15 80)";
+    contextVerdictBg       = "oklch(0.78 0.15 80 / 0.08)";
+    contextVerdictBullets  = [
+      { positive: false, text: "Retirement probability declining with current split" },
+      { positive: false, text: "Capital may be better deployed to retirement" },
+      { positive: true,  text: "College gap is fully covered" },
+    ];
+  } else if (coveragePct >= 75 && (!hasRetirData || retirDrop <= 5)) {
+    contextVerdictLabel    = "GOOD POSITION";
+    contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
+    contextVerdictColor    = "oklch(0.65 0.15 250)";
+    contextVerdictBg       = "oklch(0.65 0.15 250 / 0.08)";
+    contextVerdictBullets  = [
+      { positive: true,  text: hasRetirData ? "Retirement remains healthy" : "Contribution pace is solid" },
+      { positive: true,  text: "Funding gap is manageable" },
+      { positive: true,  text: "Current contribution path sufficient" },
+    ];
+  } else if (coveragePct >= 40) {
+    contextVerdictLabel    = "REVIEW NEEDED";
+    contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
+    contextVerdictColor    = "oklch(0.78 0.15 80)";
+    contextVerdictBg       = "oklch(0.78 0.15 80 / 0.08)";
+    contextVerdictBullets  = [
+      { positive: false, text: `${fmtK(fundingGap)} funding gap requires attention` },
+      { positive: false, text: yearsUntilCollege < 5 ? "Enrollment approaching — urgency is high" : "Contributions need to increase" },
+      { positive: true,  text: hasRetirData && retirDrop <= 5 ? "Retirement trajectory not at risk yet" : "Time remains to course-correct" },
+    ];
+  } else {
+    contextVerdictLabel    = "ACTION REQUIRED";
+    contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
+    contextVerdictColor    = "oklch(0.70 0.18 25)";
+    contextVerdictBg       = "oklch(0.70 0.18 25 / 0.08)";
+    contextVerdictBullets  = [
+      { positive: false, text: `Current pace leaves a ${fmtK(fundingGap)} shortfall` },
+      { positive: false, text: "Significant contribution increase needed" },
+      { positive: false, text: yearsUntilCollege < 3 ? "Enrollment is imminent" : "Early action compounds most effectively" },
+    ];
+  }
+
+  // ── P4: What Moves the Needle Most ───────────────────────────────────────────
+  const needleLevers: NeedleLever[] = [];
+
+  if (scholarshipPct < 50 && effectiveTotalCost > 0) {
+    const schCost50 = Math.max(0, totalCollegeCost * numChildren * (1 - 0.50));
+    const improvement = Math.max(0, effectiveTotalCost - schCost50);
+    if (improvement > 1000) needleLevers.push({ label: "50% Scholarship", improvementK: improvement, description: "Merit or need-based aid" });
+  }
+
+  if (preset !== "public-in-state" && effectiveTotalCost > 0) {
+    const pubFutAnn = 28000 * Math.pow(1 + 0.04, yearsUntilCollege);
+    const pubEffective = Math.max(0, pubFutAnn * 4 * numChildren * (1 - scholarshipPct / 100));
+    const improvement = Math.max(0, effectiveTotalCost - pubEffective);
+    if (improvement > 1000) needleLevers.push({ label: "Public vs Private School", improvementK: improvement, description: "Switch to public in-state" });
+  }
+
+  if (monthly >= 0 && effectiveTotalCost > 0 && mo > 0) {
+    const fv200 = fvCalc(bal529, monthly + 200, yearsUntilCollege, ret);
+    const improvement = Math.max(0, fv200 - fv529);
+    if (improvement > 500) needleLevers.push({ label: "Increase by $200/mo", improvementK: improvement, description: "Additional monthly savings" });
+  }
+
+  if (yearsUntilCollege > 0 && childAge < 17 && effectiveTotalCost > 0) {
+    const fvDelay = fvCalc(bal529, monthly, yearsUntilCollege + 1, ret);
+    const targetDelay = costToday * Math.pow(1 + inflation, yearsUntilCollege + 1) * yrs * numChildren * (1 - scholarshipPct / 100);
+    const gapDelay = Math.max(0, targetDelay - fvDelay);
+    const improvement = Math.max(0, fundingGap - gapDelay);
+    if (improvement > 500) needleLevers.push({ label: "Delay Enrollment 1 Year", improvementK: improvement, description: "Extra year of compound growth" });
+  }
+
+  needleLevers.sort((a, b) => b.improvementK - a.improvementK);
+
+  // ── P5: Scenario Comparison ───────────────────────────────────────────────────
+  function buildCompRow(label: string, annCost: number, inf: number, yrsC: number, nC: number, schP: number): CompRow {
+    const futAnn = annCost * Math.pow(1 + inf, yearsUntilCollege);
+    const effective = Math.max(0, futAnn * yrsC * nC * (1 - schP / 100));
+    const fv = mo === 0 ? bal529 : bal529 * Math.pow(1 + mr, mo) + (mr > 0 ? monthly * ((Math.pow(1 + mr, mo) - 1) / mr) : monthly * mo);
+    const cov = effective > 0 ? Math.min(999, (fv / effective) * 100) : 100;
+    const gap = Math.max(0, effective - fv);
+    const pvG = bal529 * (mo > 0 ? Math.pow(1 + mr, mo) : 1);
+    const rem = effective - pvG;
+    const needed = rem <= 0 || mo === 0 ? 0 : mr > 0 ? (rem * mr) / (Math.pow(1 + mr, mo) - 1) : rem / mo;
+    const tag = cov >= 100 ? "On Track" : cov >= 80 ? "Strong" : cov >= 40 ? "Partial" : "Review";
+    const color = cov >= 100 ? "oklch(0.72 0.18 145)" : cov >= 80 ? "oklch(0.65 0.15 250)" : cov >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
+    return { label, coveragePct: Math.round(Math.min(cov, 100)), gap, monthlyNeeded: Math.max(0, needed), verdictTag: tag, verdictColor: color };
+  }
+
+  const comparisonRows: CompRow[] = [
+    buildCompRow("Current Scenario",     costToday, inflation, yrs, numChildren, scholarshipPct),
+    buildCompRow("Public In-State",      28000, 0.04, 4, numChildren, scholarshipPct),
+    buildCompRow("Private University",   60000, 0.05, 4, numChildren, scholarshipPct),
+    buildCompRow("50% Scholarship",      costToday, inflation, yrs, numChildren, 50),
+    buildCompRow("Two Children",         costToday, inflation, yrs, 2, scholarshipPct),
+  ];
+
+  // ── P6: Alternative Education Paths ──────────────────────────────────────────
+  const altPaths: AltPath[] = Object.entries(PRESETS)
+    .filter(([key]) => key !== "custom")
+    .map(([key, p]) => {
+      const futAnn = p.annualCost * Math.pow(1 + p.inflation, yearsUntilCollege);
+      const totalC = futAnn * p.years;
+      const effective = Math.max(0, totalC * numChildren * (1 - scholarshipPct / 100));
+      const fvPath = mo === 0 ? bal529 : bal529 * Math.pow(1 + mr, mo) + (mr > 0 ? monthly * ((Math.pow(1 + mr, mo) - 1) / mr) : monthly * mo);
+      const gap = Math.max(0, effective - fvPath);
+      const surplus = Math.max(0, fvPath - effective);
+      const cov = effective > 0 ? Math.min(999, (fvPath / effective) * 100) : 100;
+      return { key, label: p.label, totalCost: Math.round(effective), gap: Math.round(gap), surplus: Math.round(surplus), coveragePct: Math.round(Math.min(cov, 100)) };
+    });
+
+  // ── P7: Benchmarks ────────────────────────────────────────────────────────────
+  const BENCHMARK_BASES = [
+    { label: "Community College", annualBase: 18000, inflation: 0.03, years: 2 },
+    { label: "Public In-State",   annualBase: 28000, inflation: 0.04, years: 4 },
+    { label: "Public OOS",        annualBase: 45000, inflation: 0.05, years: 4 },
+    { label: "Private Univ.",     annualBase: 60000, inflation: 0.05, years: 4 },
+    { label: "Elite Private",     annualBase: 90000, inflation: 0.055, years: 4 },
+  ];
+  const benchmarkContext: BenchmarkItem[] = BENCHMARK_BASES.map((b) => ({
+    label: b.label,
+    projCost: Math.round(b.annualBase * Math.pow(1 + b.inflation, yearsUntilCollege) * b.years),
+    isCurrent: Math.abs(costToday - b.annualBase) < 5000 && yrs === b.years,
+  }));
+
   return {
     yearsUntilCollege, futureAnnualCost, totalCollegeCost, effectiveTotalCost,
     scholarshipSavings, fv529, coveragePct, monthlyNeeded, fundingGap, chartData,
@@ -309,6 +517,9 @@ function computeAll(
     monthlySavingsBefore, monthlySavingsAfter,
     flipContribution, flipCostReduction, flipReturn,
     opportunityCostRetirement, autoNarrative,
+    optimalRetirMonthly, optimalCollegeMonthly, optimalRetirProb, optimalCollegeCoverage, optimalPlanScore,
+    contextVerdictLabel, contextVerdictSubtitle, contextVerdictBullets, contextVerdictColor, contextVerdictBg,
+    needleLevers, comparisonRows, altPaths, benchmarkContext,
   };
 }
 
@@ -328,23 +539,24 @@ type Props = {
   profile: FinancialProfile | null;
   defaultInvestmentReturn: number;
   currentNetWorth: number;
+  familyChildren: FamilyChild[];
 };
 
-export default function EducationClient({ scenarios: initialScenarios, profile, defaultInvestmentReturn, currentNetWorth }: Props) {
-  const [scenarios, setScenarios]           = useState<EducationScenario[]>(initialScenarios);
-  const [editingId, setEditingId]           = useState<string | null>(null);
-  const [form, setForm]                     = useState<FormState>(() => defaultForm(profile, defaultInvestmentReturn));
-  const [saving, startSaving]               = useTransition();
-  const [deleting, startDeleting]           = useTransition();
-  const [saveStatus, setSaveStatus]         = useState<string | null>(null);
-  const [commentary, setCommentary]         = useState<string | null>(null);
+export default function EducationClient({ scenarios: initialScenarios, profile, defaultInvestmentReturn, currentNetWorth, familyChildren }: Props) {
+  const [scenarios, setScenarios]               = useState<EducationScenario[]>(initialScenarios);
+  const [editingId, setEditingId]               = useState<string | null>(null);
+  const [form, setForm]                         = useState<FormState>(() => defaultForm(profile, defaultInvestmentReturn));
+  const [saving, startSaving]                   = useTransition();
+  const [deleting, startDeleting]               = useTransition();
+  const [saveStatus, setSaveStatus]             = useState<string | null>(null);
+  const [commentary, setCommentary]             = useState<string | null>(null);
   const [loadingCommentary, setLoadingCommentary] = useState(false);
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(
     initialScenarios.length > 0 ? initialScenarios[0].id : null,
   );
-  const [numChildren, setNumChildren]       = useState<number>(1);
-  const [scholarshipPct, setScholarshipPct] = useState<number>(0);
-  const [preset, setPreset]                 = useState<string>("custom");
+  const [numChildren, setNumChildren]           = useState<number>(1);
+  const [scholarshipPct, setScholarshipPct]     = useState<number>(0);
+  const [preset, setPreset]                     = useState<string>("custom");
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -365,8 +577,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   }, [form, activeScenario, editingId]);
 
   const computed = useMemo(() =>
-    computeAll(src, numChildren, scholarshipPct, profile, currentNetWorth),
-    [src, numChildren, scholarshipPct, profile, currentNetWorth],
+    computeAll(src, numChildren, scholarshipPct, preset, profile, currentNetWorth),
+    [src, numChildren, scholarshipPct, preset, profile, currentNetWorth],
   );
 
   function set(field: keyof FormState, value: string | number) {
@@ -388,6 +600,13 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         years_in_college: p.years,
       }));
     }
+    setCommentary(null);
+  }
+
+  function importFamilyChild(child: FamilyChild) {
+    setForm((prev) => ({ ...prev, child_name: child.name, child_current_age: child.age }));
+    setPreset("custom");
+    setSaveStatus(null);
     setCommentary(null);
   }
 
@@ -499,8 +718,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
     }
   }
 
-  const vm = VERDICT_META[computed.verdictType];
-
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "24px 24px 0", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
 
@@ -523,7 +740,32 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-          {/* P5: College presets */}
+          {/* P2: Family Planning import */}
+          {familyChildren.length > 0 && (
+            <div style={{ ...cardS, padding: "12px 14px", background: "linear-gradient(135deg, oklch(0.13 0.03 265) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.15 265 / 0.25)", animation: "edu-fade-up 0.35s ease-out both" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1a3 3 0 1 1 0 6A3 3 0 0 1 8 1zm-5 9a5 5 0 0 1 10 0v1H3v-1z" fill="oklch(0.65 0.15 265)"/>
+                </svg>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.15 265)", textTransform: "uppercase", letterSpacing: "0.1em" }}>From Family Planning</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {familyChildren.map((child) => (
+                  <button
+                    key={child.id}
+                    onClick={() => importFamilyChild(child)}
+                    style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}
+                    className="edu-family-chip"
+                  >
+                    {child.name}, age {child.age}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "7px 0 0" }}>Click to auto-fill from Family Planning</p>
+            </div>
+          )}
+
+          {/* College type presets */}
           <div style={{ ...cardS, padding: "14px 16px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>College Type</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
@@ -548,7 +790,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           </div>
 
-          {/* P7: Multi-child */}
+          {/* Multi-child */}
           <div style={{ ...cardS, padding: "14px 16px", background: "linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.01 240) 100%)", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: -15, right: -15, width: 60, height: 60, borderRadius: "50%", background: "oklch(0.55 0.15 250 / 0.07)", pointerEvents: "none" }} />
             <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Number of Children</div>
@@ -577,7 +819,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           </div>
 
-          {/* P6: Scholarship */}
+          {/* Scholarship */}
           <div style={{ ...cardS, padding: "14px 16px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Scholarship Assumption</div>
             <div style={{ display: "flex", gap: 5 }}>
@@ -699,45 +941,44 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         {/* Right column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* P1: Verdict card */}
-          <div style={{ ...cardS, background: vm.bg, border: `1px solid ${vm.color}40`, animation: "edu-fade-up 0.4s ease-out both" }}>
+          {/* P3: Smarter Verdict */}
+          <div style={{ ...cardS, background: computed.contextVerdictBg, border: `1px solid ${computed.contextVerdictColor}40`, animation: "edu-fade-up 0.4s ease-out both" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: vm.color, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>BuyTune Education Verdict</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: vm.color, letterSpacing: "-0.01em", lineHeight: 1 }}>{vm.label}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: computed.contextVerdictColor, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 5 }}>BuyTune Education Verdict</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: computed.contextVerdictColor, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{computed.contextVerdictLabel}</div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{computed.contextVerdictSubtitle}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Confidence</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: vm.color, fontFamily: "var(--font-mono)" }}>{computed.confidencePct}%</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{computed.confidencePct}%</div>
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
               {[
-                { label: "Funded",              value: `${Math.round(Math.min(computed.coveragePct, 100))}%` },
-                { label: computed.coveragePct >= 100 ? "Surplus" : "Funding Gap", value: fmtK(computed.coveragePct >= 100 ? computed.fv529 - computed.effectiveTotalCost : computed.fundingGap) },
-                { label: "Suggested / mo",      value: computed.verdictType === "FULLY_FUNDED" ? "On Track" : fmt(computed.suggestedMonthly) },
+                { label: "Funded",         value: `${Math.round(Math.min(computed.coveragePct, 100))}%` },
+                { label: computed.coveragePct >= 100 ? "Surplus" : "Gap", value: fmtK(computed.coveragePct >= 100 ? computed.fv529 - computed.effectiveTotalCost : computed.fundingGap) },
+                { label: "Suggested /mo",  value: computed.verdictType === "FULLY_FUNDED" ? "On Track" : fmt(computed.suggestedMonthly) },
               ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "10px 12px", background: "var(--bg-card)", borderRadius: 8, border: `1px solid ${vm.color}20` }}>
+                <div key={label} style={{ padding: "10px 12px", background: "var(--bg-card)", borderRadius: 8, border: `1px solid ${computed.contextVerdictColor}20` }}>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: vm.color, fontFamily: "var(--font-mono)" }}>{value}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{value}</div>
                 </div>
               ))}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {computed.verdictReasons.map((reason, i) => (
+              {computed.contextVerdictBullets.map(({ positive, text }, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--text-secondary)", animation: `edu-fade-up 0.3s ease-out ${0.1 + i * 0.06}s both` }}>
-                  <span style={{ color: computed.verdictType === "FULLY_FUNDED" || computed.verdictType === "ON_TRACK" ? vm.color : i === 0 ? vm.color : "var(--text-muted)", flexShrink: 0 }}>
-                    {computed.verdictType === "FULLY_FUNDED" ? "✓" : i === 2 ? "⚠" : "✓"}
-                  </span>
-                  <span>{reason}</span>
+                  <span style={{ color: positive ? computed.contextVerdictColor : "oklch(0.70 0.18 25)", flexShrink: 0, fontSize: 13 }}>{positive ? "✓" : "⚠"}</span>
+                  <span>{text}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* P2: Readiness score */}
+          {/* Readiness score */}
           <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Education Readiness Score</p>
@@ -753,7 +994,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 <div key={label} style={{ animation: `edu-fade-up 0.28s ease-out ${0.1 + i * 0.05}s both` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                     <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: score >= max * 0.7 ? "var(--green)" : score >= max * 0.4 ? "var(--amber)" : "var(--red)" }}>{score}/{max}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: score >= max * 0.7 ? "oklch(0.72 0.18 145)" : score >= max * 0.4 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)" }}>{score}/{max}</span>
                   </div>
                   <div style={{ height: 4, background: "var(--bg-elevated, var(--border-subtle))", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${(score / max) * 100}%`, background: score >= max * 0.7 ? "oklch(0.72 0.18 145)" : score >= max * 0.4 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)", borderRadius: 2, transformOrigin: "left", animation: `edu-scale-x 0.5s ease-out ${0.2 + i * 0.06}s both` }} />
@@ -766,52 +1007,42 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         </div>
       </div>
 
-      {/* ── Full-width below the grid ─────────────────────────────────────────── */}
+      {/* ── Full-width below grid ───────────────────────────────────────────── */}
       <div style={{ padding: "16px 0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* Row 1: P3 Funding Targets + P4 Ecosystem */}
+        {/* Row 1: Funding Targets + Ecosystem */}
         <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-
-          {/* P3: Funding targets */}
           <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>What Should I Save?</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {computed.fundingTargets.map(({ pct, monthly }, i) => {
-                const isSelected = Math.abs(src.monthly_contribution - monthly) < 50 && pct !== 125;
-                const isCurrent  = pct === 100;
+                const isCurrent = pct === 100;
                 return (
                   <div key={pct} className="edu-target-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: isCurrent ? "oklch(0.45 0.18 250 / 0.08)" : "var(--bg-elevated, var(--bg-base))", border: isCurrent ? "1px solid oklch(0.45 0.18 250 / 0.3)" : "1px solid var(--border)", animation: `edu-fade-up 0.3s ease-out ${0.05 + i * 0.06}s both`, cursor: "pointer" }} onClick={() => set("monthly_contribution", Math.round(monthly / 10) * 10)}>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-primary)" }}>{pct}% Coverage</div>
                       <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmtK(computed.effectiveTotalCost * pct / 100)} of {fmtK(computed.effectiveTotalCost)} target</div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-primary)" }}>{fmt(monthly)}/mo</div>
-                      {isSelected && <div style={{ fontSize: 10, color: "var(--text-muted)" }}>current pace</div>}
-                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-primary)" }}>{fmt(monthly)}/mo</div>
                   </div>
                 );
               })}
             </div>
-            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "10px 0 0" }}>Click a row to apply that contribution to the calculator.</p>
+            <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "10px 0 0" }}>Click a row to apply that contribution.</p>
           </div>
 
-          {/* P4: Ecosystem impact */}
           {computed.retirProbBefore != null ? (
             <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Impact Across Your Financial Plan</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
                 {[
-                  { label: "Retirement Probability", value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`, icon: "◎", color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 8 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 3 ? "var(--amber)" : "var(--green)" },
-                  { label: "Retirement Assets", value: computed.retirAssetsAfter != null ? `${fmtK(computed.retirAssetsAfter)}` : "—", icon: "▲", color: (computed.retirAssetsBefore ?? 0) - (computed.retirAssetsAfter ?? 0) > 500000 ? "var(--amber)" : "var(--text-secondary)" },
-                  { label: "Monthly Savings", value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))} → ${fmt(Math.max(0, computed.monthlySavingsAfter))}` : "—", icon: "$", color: (computed.monthlySavingsAfter ?? 0) < 0 ? "var(--red)" : "var(--text-secondary)" },
-                  { label: "529 at Enrollment", value: fmtK(computed.fv529), icon: "🎓", color: computed.coveragePct >= 100 ? "var(--green)" : computed.coveragePct >= 80 ? "var(--amber)" : "var(--red)" },
-                ].map(({ label, value, icon, color }, ei) => (
+                  { label: "Retirement Probability", value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`, color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 8 ? "oklch(0.70 0.18 25)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 3 ? "oklch(0.78 0.15 80)" : "oklch(0.72 0.18 145)" },
+                  { label: "Retirement Assets",       value: computed.retirAssetsAfter != null ? fmtK(computed.retirAssetsAfter) : "—", color: "var(--text-secondary)" },
+                  { label: "Monthly Savings",         value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))} → ${fmt(Math.max(0, computed.monthlySavingsAfter))}` : "—", color: (computed.monthlySavingsAfter ?? 0) < 0 ? "oklch(0.70 0.18 25)" : "var(--text-secondary)" },
+                  { label: "529 at Enrollment",       value: fmtK(computed.fv529), color: computed.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : computed.coveragePct >= 80 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)" },
+                ].map(({ label, value, color }, ei) => (
                   <div key={label} className="edu-eco-tile" style={{ padding: "12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)", animation: `edu-fade-up 0.28s ease-out ${0.05 + ei * 0.04}s both` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{icon}</span>
-                      <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
-                    </div>
+                    <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color }}>{value}</div>
                   </div>
                 ))}
@@ -822,8 +1053,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>Impact Across Your Financial Plan</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
                 {[
-                  { label: "529 at Enrollment", value: fmtK(computed.fv529), color: computed.coveragePct >= 100 ? "var(--green)" : computed.coveragePct >= 80 ? "var(--amber)" : "var(--red)" },
-                  { label: "Funding Gap",        value: computed.fundingGap > 0 ? fmtK(computed.fundingGap) : "None", color: computed.fundingGap === 0 ? "var(--green)" : "var(--red)" },
+                  { label: "529 at Enrollment", value: fmtK(computed.fv529),   color: computed.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : "oklch(0.70 0.18 25)" },
+                  { label: "Funding Gap",        value: computed.fundingGap > 0 ? fmtK(computed.fundingGap) : "None", color: computed.fundingGap === 0 ? "oklch(0.72 0.18 145)" : "oklch(0.70 0.18 25)" },
                   { label: "Future Annual Cost", value: fmt(computed.futureAnnualCost), color: "var(--text-primary)" },
                   { label: "Total Cost",         value: fmtK(computed.effectiveTotalCost), color: "var(--text-primary)" },
                 ].map(({ label, value, color }) => (
@@ -838,7 +1069,66 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           )}
         </div>
 
-        {/* Row 2: P8 Chart */}
+        {/* Row 2: P1 Optimizer + P7 Benchmarks */}
+        {computed.optimalPlanScore != null && (
+          <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+
+            {/* P1: Optimizer */}
+            <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.03 255) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.18 250 / 0.2)", animation: "edu-fade-up 0.4s ease-out both" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "oklch(0.65 0.15 250)", boxShadow: "0 0 8px oklch(0.65 0.15 250 / 0.6)" }} />
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Retirement vs College Optimizer</p>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Optimal monthly split to maximize your combined plan score:</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 250 / 0.10)", border: "1px solid oklch(0.45 0.18 250 / 0.25)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 250)", marginBottom: 5 }}>Retirement</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.15 250)" }}>{fmt(computed.optimalRetirMonthly!)}/mo</div>
+                </div>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 145 / 0.10)", border: "1px solid oklch(0.45 0.18 145 / 0.25)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 145)", marginBottom: 5 }}>529</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.optimalCollegeMonthly!)}/mo</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[
+                  { label: "Retire Prob", value: `${computed.optimalRetirProb}%` },
+                  { label: "College Cov", value: `${computed.optimalCollegeCoverage}%` },
+                  { label: "Plan Score",  value: `${computed.optimalPlanScore}` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ flex: 1, textAlign: "center", padding: "8px 4px", borderRadius: 7, background: "oklch(0.14 0.01 240)", border: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* P7: Benchmarks */}
+            <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Compared to National Averages</p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Projected total cost at enrollment ({computed.yearsUntilCollege}yr horizon)</p>
+              {(() => {
+                const maxCost = Math.max(...computed.benchmarkContext.map((b) => b.projCost));
+                return computed.benchmarkContext.map((b, i) => (
+                  <div key={b.label} style={{ marginBottom: 10, animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-secondary)", fontWeight: b.isCurrent ? 700 : 400 }}>
+                        {b.label}{b.isCurrent ? " ← You" : ""}
+                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-muted)" }}>{fmtK(b.projCost)}</span>
+                    </div>
+                    <div style={{ height: 5, background: "var(--bg-elevated, var(--border))", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(b.projCost / maxCost) * 100}%`, background: b.isCurrent ? "oklch(0.55 0.18 250)" : "oklch(0.35 0.06 240)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Chart */}
         {computed.yearsUntilCollege > 0 ? (
           <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.1s both" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
@@ -846,10 +1136,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{computed.yearsUntilCollege} years to enrollment</div>
             </div>
             <div style={{ display: "flex", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
-              {[
-                { label: "529 Balance", color: "#3b82f6" },
-                { label: "College Cost Target", color: "#f97316" },
-              ].map(({ label, color }) => (
+              {[{ label: "529 Balance", color: "#3b82f6" }, { label: "College Cost Target", color: "#f97316" }].map(({ label, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-secondary)" }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
                   {label}
@@ -879,74 +1166,123 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           </div>
         )}
 
-        {/* Row 3: P9 What Would Change + P10 Opportunity Cost */}
-        {(computed.flipContribution != null || computed.flipCostReduction != null || computed.flipReturn != null || computed.opportunityCostRetirement != null) && (
+        {/* Row 4: P4 Needle Levers + Opportunity Cost */}
+        {(computed.needleLevers.length > 0 || computed.opportunityCostRetirement != null) && (
           <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
 
-            {/* P9: What would change the verdict */}
-            {(computed.flipContribution != null || computed.flipCostReduction != null || computed.flipReturn != null) && (
+            {computed.needleLevers.length > 0 && (
               <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>What Would Change the Verdict?</p>
-                <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 12px" }}>To reach ON TRACK (80% funded):</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>What Moves the Needle Most</p>
+                <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Ranked by dollar improvement to your funding gap:</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {computed.flipContribution != null && (
-                    <div className="edu-flip-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)" }}>
+                  {computed.needleLevers.map(({ label, improvementK, description }, i) => (
+                    <div key={label} className="edu-flip-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)", animation: `edu-fade-up 0.28s ease-out ${0.05 + i * 0.06}s both` }}>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Increase contributions by</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>additional monthly savings</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>{label}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{description}</div>
                       </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>+{fmt(computed.flipContribution)}/mo</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 15, fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>+{fmtK(improvementK)}</div>
                     </div>
-                  )}
-                  {computed.flipCostReduction != null && (
-                    <div className="edu-flip-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)" }}>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Reduce expected costs by</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>scholarships, in-state, community college</div>
-                      </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>{fmtK(computed.flipCostReduction)}</div>
-                    </div>
-                  )}
-                  {computed.flipReturn != null && (
-                    <div className="edu-flip-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)" }}>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)" }}>Earn higher annual return</div>
-                        <div style={{ fontSize: 10, color: "var(--text-muted)" }}>growth-oriented 529 allocation</div>
-                      </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.72 0.18 145)" }}>+{computed.flipReturn}%/yr</div>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* P10: Opportunity cost */}
             {computed.opportunityCostRetirement != null && (
               <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Opportunity Cost Analysis</p>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>If {fmt(src.monthly_contribution)}/mo were invested for retirement instead:</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                   <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 25 / 0.08)", border: "1px solid oklch(0.45 0.18 25 / 0.2)" }}>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If Directed to Retirement</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If Retirement</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 25)" }}>+{fmtK(computed.opportunityCostRetirement)}</div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>retirement assets at {profile?.target_retirement_age ?? "65"}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at age {profile?.target_retirement_age ?? 65}</div>
                   </div>
                   <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 250 / 0.08)", border: "1px solid oklch(0.45 0.18 250 / 0.2)" }}>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If Directed to 529</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If 529</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 250)" }}>{Math.round(Math.min(computed.coveragePct, 100))}% funded</div>
-                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>college coverage at enrollment</div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at enrollment</div>
                   </div>
                 </div>
-                <p style={{ fontSize: 10, color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>This is a financial tradeoff analysis, not a recommendation.</p>
+                <p style={{ fontSize: 10, color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>Tradeoff analysis, not a recommendation.</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Row 4: P11 Auto FINN narrative + FINN deep */}
+        {/* Row 5: P5 Scenario Comparison */}
+        <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Scenario Comparison Center</p>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>How does your plan compare across common education strategies?</p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["Scenario", "Coverage", "Gap", "Monthly Needed", "Status"].map((h) => (
+                    <th key={h} style={{ textAlign: h === "Scenario" ? "left" : "right", padding: "6px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {computed.comparisonRows.map((row, i) => (
+                  <tr key={row.label} className="edu-comp-row" style={{ animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both` }}>
+                    <td style={{ padding: "10px 10px", color: i === 0 ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: i === 0 ? 600 : 400, borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>
+                      {i === 0 && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: row.verdictColor, marginRight: 6, verticalAlign: "middle" }} />}
+                      {row.label}
+                    </td>
+                    <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: row.verdictColor, borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{row.coveragePct}%</td>
+                    <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", color: row.gap === 0 ? "oklch(0.72 0.18 145)" : "var(--text-secondary)", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{row.gap === 0 ? "None" : fmtK(row.gap)}</td>
+                    <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{fmt(row.monthlyNeeded)}/mo</td>
+                    <td style={{ padding: "10px 10px", textAlign: "right", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>
+                      <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: `${row.verdictColor}18`, border: `1px solid ${row.verdictColor}35`, color: row.verdictColor, fontWeight: 700 }}>{row.verdictTag}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Row 6: P6 Alt Paths */}
+        <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Alternative Education Paths</p>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Same 529 balance and contributions applied to each path</p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  {["Path", "Total Cost", "Coverage", "Gap", "Surplus"].map((h) => (
+                    <th key={h} style={{ textAlign: h === "Path" ? "left" : "right", padding: "6px 10px", fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {computed.altPaths.map((path, i) => {
+                  const color = path.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : path.coveragePct >= 80 ? "oklch(0.65 0.15 250)" : path.coveragePct >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
+                  const isCurrentPreset = path.key === preset;
+                  return (
+                    <tr key={path.key} className="edu-comp-row" style={{ animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both`, cursor: "pointer" }} onClick={() => applyPreset(path.key)}>
+                      <td style={{ padding: "10px 10px", color: isCurrentPreset ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isCurrentPreset ? 600 : 400, borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>
+                        {isCurrentPreset && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: color, marginRight: 6, verticalAlign: "middle" }} />}
+                        {path.label}
+                      </td>
+                      <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{path.totalCost === 0 ? "Free" : fmtK(path.totalCost)}</td>
+                      <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color, borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{path.totalCost === 0 ? "100%" : `${path.coveragePct}%`}</td>
+                      <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", color: path.gap === 0 ? "oklch(0.72 0.18 145)" : "var(--text-secondary)", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{path.gap === 0 ? "None" : fmtK(path.gap)}</td>
+                      <td style={{ padding: "10px 10px", textAlign: "right", fontFamily: "var(--font-mono)", color: path.surplus > 0 ? "oklch(0.72 0.18 145)" : "var(--text-muted)", borderBottom: "1px solid oklch(0.20 0.01 240 / 0.5)" }}>{path.surplus > 0 ? `+${fmtK(path.surplus)}` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "10px 0 0" }}>Click a row to apply that path to your calculator.</p>
+        </div>
+
+        {/* Row 7: FINN cards */}
         <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch" }}>
 
-          {/* P11: Auto FINN narrative */}
+          {/* Auto FINN narrative */}
           <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: "oklch(0.45 0.18 250 / 0.15)", border: "1px solid oklch(0.45 0.18 250 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1039,6 +1375,9 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         .edu-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.45 0.18 250 / 0.3), 0 4px 14px oklch(0.45 0.18 250 / 0.15); }
         .edu-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
         .edu-finn-btn:not(:disabled):hover { background: oklch(0.50 0.2 290 / 0.24) !important; border-color: oklch(0.50 0.2 290 / 0.6) !important; box-shadow: 0 0 18px oklch(0.50 0.25 290 / 0.45) !important; }
+        .edu-comp-row { transition: background 0.14s ease; }
+        .edu-comp-row:hover { background: oklch(0.16 0.02 250 / 0.4); }
+        .edu-family-chip:hover { background: oklch(0.50 0.18 265 / 0.2) !important; border-color: oklch(0.50 0.18 265 / 0.5) !important; }
         @media (max-width: 900px) {
           [data-edu-fw] { grid-template-columns: 1fr !important; }
         }

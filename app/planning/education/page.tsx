@@ -18,6 +18,7 @@ export default async function EducationPlanningPage() {
     { data: portfolios },
     { data: assumptionsData },
     { data: balanceItems },
+    { data: familyScenariosData },
   ] = await Promise.all([
     supabase
       .from("education_scenarios")
@@ -43,6 +44,11 @@ export default async function EducationPlanningPage() {
       .from("balance_sheet_items")
       .select("value, is_liability, category")
       .eq("user_id", user.id),
+    supabase
+      .from("family_scenarios")
+      .select("id, child_name, child_current_age")
+      .eq("user_id", user.id)
+      .not("child_name", "is", null),
   ]);
 
   const scenarios: EducationScenario[] = (scenariosData ?? []) as EducationScenario[];
@@ -71,6 +77,12 @@ export default async function EducationPlanningPage() {
   const totalLiabilities = (balanceItems ?? []).filter((i) => i.is_liability).reduce((s, i) => s + Number(i.value), 0);
   const currentNetWorth = totalAssets - totalLiabilities;
 
+  const familyChildren = (familyScenariosData ?? []).map((s) => ({
+    id: s.id as string,
+    name: s.child_name as string,
+    age: Number(s.child_current_age),
+  }));
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -90,6 +102,7 @@ export default async function EducationPlanningPage() {
           profile={profile}
           defaultInvestmentReturn={investmentReturn}
           currentNetWorth={currentNetWorth}
+          familyChildren={familyChildren}
         />
       </div>
     </div>
