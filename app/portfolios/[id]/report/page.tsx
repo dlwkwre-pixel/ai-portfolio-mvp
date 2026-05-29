@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getPortfolioPerformanceSummary } from "@/lib/portfolio/performance";
@@ -374,7 +374,7 @@ export default async function PortfolioReportPage({
     { data: cashLedger },
     { data: profile },
   ] = await Promise.all([
-    supabase.from("portfolios").select("*").eq("id", id).eq("user_id", user.id).single(),
+    supabase.from("portfolios").select("*").eq("id", id).eq("user_id", user.id).maybeSingle(),
     supabase.from("holdings").select("*").eq("portfolio_id", id).order("ticker"),
     supabase
       .from("portfolio_transactions")
@@ -412,7 +412,7 @@ export default async function PortfolioReportPage({
       .maybeSingle(),
   ]);
 
-  if (!portfolio) notFound();
+  if (!portfolio) redirect("/portfolios");
 
   const cashBalance = Number(portfolio.cash_balance ?? 0);
 

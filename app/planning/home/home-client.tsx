@@ -2830,6 +2830,199 @@ export default function HomeClient({
 
           </div>
         </div>
+
+        {/* ── Scenario Comparison Center ── */}
+        {scenarioSummaries.length >= 2 && (() => {
+          const cols = scenarioSummaries.slice(0, 4);
+          const vColors = {
+            BUY:  { text: "oklch(0.70 0.18 155)", bg: "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)", border: "color-mix(in oklch, oklch(0.70 0.18 155) 22%, transparent)" },
+            WAIT: { text: "oklch(0.80 0.14 80)",  bg: "color-mix(in oklch, oklch(0.80 0.14 80)  10%, transparent)", border: "color-mix(in oklch, oklch(0.80 0.14 80)  20%, transparent)" },
+            RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  10%, transparent)", border: "color-mix(in oklch, oklch(0.68 0.18 25)  20%, transparent)" },
+          };
+          // Find best per metric
+          const minCost    = Math.min(...cols.map((c) => c.totalMonthly));
+          const minBreak   = Math.min(...cols.map((c) => c.breakEvenYear ?? 9999));
+          const maxRetir   = Math.max(...cols.map((c) => c.retirWithHomeAssets ?? -Infinity));
+          const maxAff     = Math.max(...cols.map((c) => c.affordabilityScore?.score ?? -1));
+          const hasCost    = cols.some((c) => c.totalMonthly > 0);
+          const hasBreak   = cols.some((c) => c.breakEvenYear != null);
+          const hasRetir   = cols.some((c) => c.retirWithHomeAssets != null);
+          const hasAff     = cols.some((c) => c.affordabilityScore != null);
+
+          const rowLabel = (text: string) => (
+            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", padding: "9px 14px", whiteSpace: "nowrap" as const, borderBottom: "1px solid var(--border-subtle)" }}>
+              {text}
+            </div>
+          );
+          const cell = (content: React.ReactNode, isBest = false) => (
+            <div style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", textAlign: "center" as const, background: isBest ? "color-mix(in oklch, oklch(0.80 0.14 80) 5%, transparent)" : "transparent" }}>
+              {content}
+            </div>
+          );
+
+          return (
+            <div style={{ marginTop: "6px" }}>
+              {/* Section header */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Scenario Comparison Center</span>
+                <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+              </div>
+
+              <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+                {/* Header row */}
+                <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                  {/* Top-left empty */}
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-elevated)" }} />
+                  {cols.map((s) => {
+                    const vc = vColors[s.verdictData.verdict];
+                    const isActive = s.id === activeScenarioId;
+                    return (
+                      <div
+                        key={s.id}
+                        style={{
+                          padding: "10px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)",
+                          background: isActive ? "color-mix(in oklch, #3b82f6 8%, var(--bg-elevated))" : "var(--bg-elevated)",
+                          textAlign: "center",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { const sc = scenarios.find((sc) => sc.id === s.id); if (sc) handleLoadScenario(sc); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%" }}
+                        >
+                          <div style={{ fontSize: "11px", fontWeight: 700, color: isActive ? "#60a5fa" : "var(--text-primary)", fontFamily: "var(--font-display)", letterSpacing: "-0.2px", marginBottom: "4px" }}>{s.name}</div>
+                          <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
+                            {s.verdictData.verdict}
+                          </span>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px" }}>{s.verdictData.confidence} confidence</div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Price row */}
+                <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                  {rowLabel("Purchase Price")}
+                  {cols.map((s) => (
+                    <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(s.purchasePrice)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Monthly cost row */}
+                {hasCost && (
+                  <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                    {rowLabel("Monthly Cost")}
+                    {cols.map((s) => {
+                      const isBest = s.totalMonthly === minCost;
+                      return (
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, oklch(0.80 0.14 80) 5%, transparent)" : "transparent" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: isBest ? "oklch(0.80 0.14 80)" : "var(--text-secondary)" }}>{fmt(Math.round(s.totalMonthly))}/mo</span>
+                          {isBest && <div style={{ fontSize: "8px", color: "oklch(0.80 0.14 80)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Lowest</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Break-even row */}
+                {hasBreak && (
+                  <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                    {rowLabel("Break-Even Year")}
+                    {cols.map((s) => {
+                      const isBest = s.breakEvenYear != null && s.breakEvenYear === minBreak;
+                      return (
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, #3b82f6 5%, transparent)" : "transparent" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.breakEvenYear == null ? "var(--text-muted)" : isBest ? "#60a5fa" : "var(--text-secondary)" }}>
+                            {s.breakEvenYear != null ? `Yr ${s.breakEvenYear}` : "None"}
+                          </span>
+                          {isBest && <div style={{ fontSize: "8px", color: "#60a5fa", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Fastest</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Retirement assets row */}
+                {hasRetir && (
+                  <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                    {rowLabel("Retirement Assets")}
+                    {cols.map((s) => {
+                      const isBest = s.retirWithHomeAssets != null && s.retirWithHomeAssets === maxRetir;
+                      return (
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, oklch(0.70 0.18 155) 5%, transparent)" : "transparent" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.retirWithHomeAssets == null ? "var(--text-muted)" : isBest ? "oklch(0.70 0.18 155)" : "var(--text-secondary)" }}>
+                            {s.retirWithHomeAssets != null ? fmtK(s.retirWithHomeAssets) : "—"}
+                          </span>
+                          {isBest && s.retirWithHomeAssets != null && <div style={{ fontSize: "8px", color: "oklch(0.70 0.18 155)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Highest</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Retirement probability delta */}
+                {computed.retirBaselineProb != null && cols.some((c) => c.retirWithHomeProb != null) && (
+                  <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                    {rowLabel("Retirement Impact")}
+                    {cols.map((s) => {
+                      const delta = s.retirWithHomeProb != null && s.retirBaselineProb != null
+                        ? s.retirWithHomeProb - s.retirBaselineProb
+                        : null;
+                      const positive = delta != null && delta >= 0;
+                      const neutral = delta != null && delta >= -3 && delta < 0;
+                      return (
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: delta == null ? "var(--text-muted)" : positive ? "oklch(0.70 0.18 155)" : neutral ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>
+                            {delta != null ? `${delta >= 0 ? "+" : ""}${delta}pp` : "—"}
+                          </span>
+                          {delta != null && (
+                            <div style={{ fontSize: "8px", color: "var(--text-muted)", marginTop: "2px" }}>
+                              {positive ? "Improves" : neutral ? "Neutral" : "Reduces"} probability
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Affordability score */}
+                {hasAff && (
+                  <div style={{ display: "grid", gridTemplateColumns: `168px repeat(${cols.length}, 1fr)` }}>
+                    {rowLabel("Affordability Score")}
+                    {cols.map((s) => {
+                      const aff = s.affordabilityScore;
+                      const isBest = aff != null && aff.score === maxAff;
+                      const scoreColor = !aff ? "var(--text-muted)"
+                        : aff.score >= 90 ? "oklch(0.70 0.18 155)"
+                        : aff.score >= 75 ? "#60a5fa"
+                        : aff.score >= 60 ? "oklch(0.80 0.14 80)"
+                        : "oklch(0.68 0.18 25)";
+                      return (
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "none", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, oklch(0.70 0.18 155) 4%, transparent)" : "transparent" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor }}>
+                            {aff ? aff.score : "—"}
+                          </span>
+                          {aff && <div style={{ fontSize: "9px", color: scoreColor, marginTop: "2px", opacity: 0.8 }}>{aff.rating}</div>}
+                          {isBest && aff && <div style={{ fontSize: "8px", color: scoreColor, marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Best</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p style={{ fontSize: "9px", color: "var(--text-muted)", padding: "7px 14px 9px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
+                  Highlighted cells indicate the best-performing scenario for each metric. Click a scenario name to load it.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
 
       {/* Styles: hover glow, custom tooltips, modal */}
