@@ -991,6 +991,12 @@ export default function HomeClient({
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [showAmortModal, setShowAmortModal] = useState(false);
   const [localHomeEvents, setLocalHomeEvents] = useState<FutureEvent[]>(homeEvents);
+  // ZIP lookup state
+  const [dataMode, setDataMode] = useState<"preset" | "zip">("preset");
+  const [zipInput, setZipInput] = useState("");
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipError, setZipError] = useState<string | null>(null);
+  const [zipData, setZipData] = useState<import("@/app/api/planning/home-market/route").HomeMarketData | null>(null);
 
   async function exportAmortToCSV() {
     try {
@@ -1032,6 +1038,38 @@ export default function HomeClient({
       rent_growth_rate: preset.rent_growth,
     }));
     setFinnCommentary(null);
+  }
+
+  async function handleZipLookup() {
+    if (!/^\d{5}$/.test(zipInput)) { setZipError("Enter a 5-digit ZIP code."); return; }
+    setZipLoading(true);
+    setZipError(null);
+    setZipData(null);
+    try {
+      const res = await fetch(`/api/planning/home-market?zip=${zipInput}`);
+      const data = await res.json() as import("@/app/api/planning/home-market/route").HomeMarketData & { error?: string };
+      if (!res.ok || data.error) { setZipError(data.error ?? "Lookup failed. Try again."); return; }
+      if (!data.censusAvailable) { setZipError("No Census data found for this ZIP. Try a nearby ZIP or use Metro Preset."); return; }
+      setZipData(data);
+      // Apply to inputs
+      setInputs((prev) => ({
+        ...prev,
+        purchase_price: data.medianHomeValue ?? prev.purchase_price,
+        down_payment: data.medianHomeValue ? Math.round(data.medianHomeValue * 0.2) : prev.down_payment,
+        monthly_rent: data.medianRent ?? prev.monthly_rent,
+        property_tax_monthly: data.monthlyPropertyTax ?? prev.property_tax_monthly,
+        insurance_monthly: data.medianHomeValue
+          ? Math.max(75, Math.round((data.medianHomeValue * 0.004) / 12 / 10) * 10)
+          : prev.insurance_monthly,
+        mortgage_rate: data.mortgageRate ?? prev.mortgage_rate,
+      }));
+      setSelectedPreset("");
+      setFinnCommentary(null);
+    } catch {
+      setZipError("Network error. Check connection and try again.");
+    } finally {
+      setZipLoading(false);
+    }
   }
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
@@ -1602,26 +1640,145 @@ export default function HomeClient({
               </div>
             )}
 
-            {/* Market presets */}
+            {/* Location Data — Metro Preset or ZIP Lookup */}
             <div data-card style={cardS}>
-              <p style={sectionHead}>Market Preset</p>
-              <select
-                value={selectedPreset}
-                onChange={(e) => {
-                  setSelectedPreset(e.target.value);
-                  applyPreset(e.target.value);
-                }}
-                style={{ ...inputS, fontFamily: "var(--font-body)", color: selectedPreset ? "var(--text-primary)" : "var(--text-muted)" }}
-              >
-                <option value="">Custom</option>
-                {Object.entries(MARKET_PRESETS).map(([key, p]) => (
-                  <option key={key} value={key}>{p.label}</option>
-                ))}
-              </select>
-              {selectedPreset && (
-                <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
-                  Loaded {MARKET_PRESETS[selectedPreset]?.label} median data. Adjust any field to customize.
-                </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Location Data</p>
+                <div style={{ display: "flex", borderRadius: "6px", overflow: "hidden", border: "1px solid var(--card-border)" }}>
+                  {(["preset", "zip"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setDataMode(mode); setZipError(null); }}
+                      style={{
+                        padding: "3px 10px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-body)",
+                        border: "none", cursor: "pointer", transition: "background 0.15s, color 0.15s",
+                        background: dataMode === mode ? "var(--brand-blue)" : "transparent",
+                        color: dataMode === mode ? "#fff" : "var(--text-muted)",
+                      }}
+                    >
+                      {mode === "preset" ? "Metro" : "ZIP"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {dataMode === "preset" ? (
+                <>
+                  <select
+                    value={selectedPreset}
+                    onChange={(e) => { setSelectedPreset(e.target.value); applyPreset(e.target.value); setZipData(null); }}
+                    style={{ ...inputS, fontFamily: "var(--font-body)", color: selectedPreset ? "var(--text-primary)" : "var(--text-muted)" }}
+                  >
+                    <option value="">Custom (no preset)</option>
+                    {Object.entries(MARKET_PRESETS).map(([key, p]) => (
+                      <option key={key} value={key}>{p.label}</option>
+                    ))}
+                  </select>
+                  {selectedPreset && (
+                    <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
+                      Loaded {MARKET_PRESETS[selectedPreset]?.label} median data. Adjust any field to customize.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={5}
+                      placeholder="e.g. 75201"
+                      value={zipInput}
+                      onChange={(e) => { setZipInput(e.target.value.replace(/\D/g, "").slice(0, 5)); setZipError(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleZipLookup(); }}
+                      style={{ ...inputS, flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleZipLookup}
+                      disabled={zipLoading || zipInput.length !== 5}
+                      style={{
+                        padding: "0 14px", borderRadius: "var(--radius-md)", border: "none",
+                        background: zipInput.length === 5 ? "var(--brand-blue)" : "var(--bg-elevated)",
+                        color: zipInput.length === 5 ? "#fff" : "var(--text-muted)",
+                        fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: zipInput.length === 5 ? "pointer" : "not-allowed",
+                        opacity: zipLoading ? 0.6 : 1, transition: "background 0.15s",
+                        whiteSpace: "nowrap" as const,
+                      }}
+                    >
+                      {zipLoading ? "…" : "Look Up"}
+                    </button>
+                  </div>
+
+                  {zipError && (
+                    <p style={{ fontSize: "11px", color: "var(--red)", margin: 0, lineHeight: 1.4 }}>{zipError}</p>
+                  )}
+
+                  {zipData && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {/* Source badges */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                        {zipData.censusAvailable && (
+                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                            Census {zipData.dataVintage}
+                          </span>
+                        )}
+                        {zipData.fredAvailable && (
+                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                            FRED live rate
+                          </span>
+                        )}
+                        {zipData.hudAvailable && (
+                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(100,116,139,0.12)", color: "var(--text-muted)", border: "1px solid rgba(100,116,139,0.2)", fontWeight: 600 }}>
+                            HUD FMR {zipData.rentSource === "hud_fmr" ? "(rent fallback)" : "(backup available)"}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Key data points */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                        {[
+                          { label: "Median Home Value", value: zipData.medianHomeValue ? `$${(zipData.medianHomeValue / 1000).toFixed(0)}K` : "—" },
+                          { label: `Median Rent${zipData.rentSource === "hud_fmr" ? " (HUD 2BR)" : ""}`, value: zipData.medianRent ? `$${zipData.medianRent.toLocaleString()}/mo` : "—" },
+                          { label: "30-yr Rate (live)", value: zipData.mortgageRate ? `${zipData.mortgageRate}%` : "—" },
+                          { label: "Effective Tax Rate", value: zipData.effectiveTaxRatePct ? `${zipData.effectiveTaxRatePct}%/yr` : "—" },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", padding: "6px 8px" }}>
+                            <div style={{ fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Buy vs rent signal */}
+                      {zipData.buyRentSignal && (
+                        <div style={{
+                          padding: "6px 10px", borderRadius: "var(--radius-md)", fontSize: "11px",
+                          background: zipData.buyRentSignal === "strongly_buy" || zipData.buyRentSignal === "lean_buy"
+                            ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)"
+                            : zipData.buyRentSignal === "strongly_rent" || zipData.buyRentSignal === "lean_rent"
+                            ? "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)"
+                            : "color-mix(in oklch, oklch(0.80 0.14 80) 8%, transparent)",
+                          color: zipData.buyRentSignal === "strongly_buy" || zipData.buyRentSignal === "lean_buy"
+                            ? "oklch(0.75 0.15 155)"
+                            : zipData.buyRentSignal === "strongly_rent" || zipData.buyRentSignal === "lean_rent"
+                            ? "oklch(0.75 0.12 25)"
+                            : "oklch(0.80 0.14 80)",
+                          border: "1px solid currentColor",
+                          opacity: 0.9,
+                        }}>
+                          ZIP {zipData.zip} price-to-rent {zipData.priceToRentRatio}x —{" "}
+                          {{ strongly_buy: "strongly favors buying", lean_buy: "leans toward buying", neutral: "neutral market", lean_rent: "leans toward renting", strongly_rent: "strongly favors renting" }[zipData.buyRentSignal]}
+                        </div>
+                      )}
+
+                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                        Applied to inputs above. Adjust any field to customize. Appreciation rate kept from prior inputs.
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
