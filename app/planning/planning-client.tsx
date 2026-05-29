@@ -2493,6 +2493,146 @@ export default function PlanningClient({
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
     : null;
 
+  // ── Life Plan hub computation ──────────────────────────────────────────────
+  const lifePlan = useMemo(() => {
+    // P3: Planner Health
+    const plannerHealth: Record<string, "strong" | "review" | "alert" | "not-started"> = {
+      home: homeScenarios.length === 0 ? "not-started" : (() => {
+        const anyReasonable = homeScenarios.some((s) => {
+          const loan = s.purchase_price - s.down_payment;
+          const r = s.mortgage_rate / 12;
+          const n = s.loan_term_years * 12;
+          const pmt = loan > 0 && r > 0 ? loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : loan / (n || 1);
+          const total = pmt + s.property_tax_monthly + s.insurance_monthly + s.hoa_monthly + (s.purchase_price * s.maintenance_pct) / 12;
+          return (total - s.monthly_rent) < 800;
+        });
+        return anyReasonable ? "strong" : "review";
+      })(),
+      family: familyScenarios.length === 0 ? "not-started" : "review",
+      career: careerScenarios.length === 0 ? "not-started" : (
+        careerScenarios.some((s) => s.new_monthly_income >= s.current_monthly_income) ? "strong" : "review"
+      ),
+      education: educationScenarios.length === 0 ? "not-started" : (() => {
+        const coverages = educationScenarios.map((s) => {
+          const yu = Math.max(0, 18 - s.child_current_age);
+          const cost = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yu) * s.years_in_college;
+          const r = Number(s.investment_return) / 12;
+          const n = yu * 12;
+          const bal = Number(s.current_529_balance);
+          const pmt = Number(s.monthly_contribution);
+          const fv = n === 0 ? bal : bal * Math.pow(1 + r, n) + (r > 0 ? pmt * ((Math.pow(1 + r, n) - 1) / r) : pmt * n);
+          return cost > 0 ? (fv / cost) * 100 : 100;
+        });
+        const min = Math.min(...coverages);
+        return min >= 80 ? "strong" : min >= 50 ? "review" : "alert";
+      })(),
+    };
+
+    // P1: Future Readiness Score
+    const retirScore = retirementProb != null ? retirementProb : 50;
+    const plannerEngagement = ([homeScenarios, familyScenarios, careerScenarios, educationScenarios].filter((a) => a.length > 0).length / 4) * 100;
+    const futureReadinessScore = Math.round(retirScore * 0.5 + healthData.total * 0.3 + plannerEngagement * 0.2);
+
+    // P2: Timeline items
+    type TItem = { year: number; label: string; type: "retirement" | "home" | "family" | "career" | "education" | "event"; detail: string; };
+    const timelineItems: TItem[] = [];
+    if (profile?.current_age != null && activeRetirementAge != null) {
+      timelineItems.push({
+        year: currentYear + (activeRetirementAge - profile.current_age),
+        label: "Target Retirement",
+        type: "retirement",
+        detail: retirementProb != null ? `${Math.round(retirementProb)}% probability` : `Age ${activeRetirementAge}`,
+      });
+    }
+    for (const s of educationScenarios) {
+      const yu = Math.max(0, 18 - s.child_current_age);
+      timelineItems.push({ year: currentYear + yu, label: s.child_name ? `${s.child_name} starts college` : "College start", type: "education", detail: s.name });
+    }
+    for (const s of careerScenarios) {
+      timelineItems.push({ year: currentYear + 1, label: s.name, type: "career", detail: `$${Math.round(s.new_monthly_income * 12).toLocaleString()}/yr` });
+    }
+    for (const ev of futureEvents) {
+      timelineItems.push({ year: ev.event_year, label: ev.label, type: "event", detail: (ev.amount_impact >= 0 ? "+" : "") + fmt(ev.amount_impact) });
+    }
+    timelineItems.sort((a, b) => a.year - b.year);
+
+    // P4: Next Action
+    type NextAction = { title: string; description: string; href: string; priority: "high" | "medium"; };
+    let nextAction: NextAction | null = null;
+    if (educationScenarios.length > 0) {
+      const worstCov = Math.min(...educationScenarios.map((s) => {
+        const yu = Math.max(0, 18 - s.child_current_age);
+        const cost = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yu) * s.years_in_college;
+        const r = Number(s.investment_return) / 12;
+        const n = yu * 12;
+        const bal = Number(s.current_529_balance);
+        const pmt = Number(s.monthly_contribution);
+        const fv = n === 0 ? bal : bal * Math.pow(1 + r, n) + (r > 0 ? pmt * ((Math.pow(1 + r, n) - 1) / r) : pmt * n);
+        return cost > 0 ? (fv / cost) * 100 : 100;
+      }));
+      if (worstCov < 60) {
+        nextAction = { title: "Increase 529 contributions", description: `Your education scenario is at ${Math.round(worstCov)}% coverage. Boosting contributions now has the highest compounding impact.`, href: "/planning/education", priority: "high" };
+      }
+    }
+    if (!nextAction && retirementProb != null && retirementProb < 70) {
+      nextAction = { title: "Review retirement trajectory", description: `Retirement probability is ${Math.round(retirementProb)}%. Adjusting your savings rate or target age can close the gap.`, href: "/planning?tab=overview", priority: "high" };
+    }
+    if (!nextAction && homeScenarios.length === 0) {
+      nextAction = { title: "Model a home scenario", description: "You have no rent vs. buy scenarios. Housing is often the largest financial decision — understanding the numbers pays dividends.", href: "/planning/home", priority: "medium" };
+    }
+    if (!nextAction && savingsRate < 15 && effectiveIncome > 0) {
+      nextAction = { title: "Boost your savings rate", description: `Current savings rate is ${savingsRate.toFixed(1)}%. Targeting 15-20% is the single biggest lever for long-term security.`, href: "/planning?tab=cashflow", priority: "medium" };
+    }
+
+    // P5: Cross-planner insights
+    type Insight = { text: string; type: "positive" | "warning" | "info"; };
+    const insights: Insight[] = [];
+    if (familyScenarios.length > 0 && educationScenarios.length > 0) {
+      insights.push({ text: "Child costs and 529 contributions overlap during peak earning years — coordinate timing to avoid cash flow strain.", type: "info" });
+    }
+    if (retirementProb != null && retirementProb >= 80 && educationScenarios.length > 0) {
+      insights.push({ text: "Retirement is well-funded. Surplus capacity can be redirected to 529 contributions without delaying retirement.", type: "positive" });
+    }
+    if (careerScenarios.some((s) => s.new_monthly_income < s.current_monthly_income)) {
+      insights.push({ text: "A career scenario involves a pay cut. Ensure your emergency fund covers at least 6 months before transitioning.", type: "warning" });
+    }
+    if (homeScenarios.length > 0) {
+      const totalDP = homeScenarios.reduce((sum, s) => sum + s.down_payment, 0);
+      if (liquidAssets > 0 && totalDP > liquidAssets * 0.5) {
+        insights.push({ text: "Home down payment scenarios would consume more than half your liquid assets. Retain an emergency buffer.", type: "warning" });
+      }
+    }
+    if (insights.length === 0) {
+      insights.push({ text: "Add scenarios across planners to unlock cross-planner insights about how your decisions interact.", type: "info" });
+    }
+
+    // P6: Impact ranking
+    type ImpactItem = { label: string; annualImpact: number; source: string; };
+    const impactItems: ImpactItem[] = [];
+    for (const ev of futureEvents) {
+      impactItems.push({ label: ev.label, annualImpact: ev.amount_impact, source: "event" });
+    }
+    for (const s of familyScenarios) {
+      const age = s.child_current_age;
+      const monthly = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+      impactItems.push({ label: `${s.child_name ?? s.name} (child costs)`, annualImpact: -(monthly * 12), source: "family" });
+    }
+    impactItems.sort((a, b) => Math.abs(b.annualImpact) - Math.abs(a.annualImpact));
+
+    return {
+      plannerHealth,
+      futureReadinessScore,
+      timelineItems: timelineItems.slice(0, 12),
+      nextAction,
+      insights,
+      impactItems: impactItems.slice(0, 8),
+      projectedNWAtRetirement: retirementPoint?.baseline ?? null,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeScenarios, familyScenarios, careerScenarios, educationScenarios, futureEvents,
+      retirementProb, retirementPoint, healthData.total, profile?.current_age,
+      activeRetirementAge, currentYear, savingsRate, effectiveIncome, liquidAssets]);
+
   // Combine historical + deterministic forecast for chart
   const historyForChart = netWorthHistory.map((s) => ({
     label: s.snapshot_date,
@@ -4235,352 +4375,195 @@ export default function PlanningClient({
         </div>
       )}
 
-      {/* ── Tab: Life Events ── */}
+      {/* ── Tab: My Life Plan ── */}
       {tab === "events" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
-          {/* ── Home Planning section ── */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <div>
-                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Home Planning</div>
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Rent vs. buy scenarios with break-even analysis</div>
+          {/* P1: Life Plan Summary Header */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "center",
+            padding: "20px 24px", borderRadius: "var(--radius-lg)",
+            background: "color-mix(in oklch, var(--accent) 8%, var(--bg-card))",
+            border: "1px solid color-mix(in oklch, var(--accent) 20%, var(--border))",
+          }}>
+            <div>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>My Life Plan</div>
+              <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "22px", color: "var(--text-primary)", lineHeight: 1.2 }}>
+                {lifePlan.futureReadinessScore >= 75 ? "Your plan is in good shape" : lifePlan.futureReadinessScore >= 50 ? "A few gaps worth closing" : "Your plan needs attention"}
               </div>
-              <Link
-                href="/planning/home"
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "6px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--accent)", color: "#fff",
-                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                Open Planner
-              </Link>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "6px" }}>
+                {lifePlan.projectedNWAtRetirement != null
+                  ? `Projected ${fmt(Math.round(lifePlan.projectedNWAtRetirement))} at retirement · `
+                  : ""}
+                {retirementProb != null ? `${Math.round(retirementProb)}% retirement probability` : "Set a retirement age to unlock projections"}
+              </div>
             </div>
-
-            {homeScenarios.length === 0 ? (
+            <div style={{ textAlign: "center", flexShrink: 0 }}>
               <div style={{
-                padding: "20px", borderRadius: "var(--radius-lg)",
-                border: "1px dashed var(--border)", textAlign: "center",
+                width: "64px", height: "64px", borderRadius: "50%",
+                background: `conic-gradient(from 0deg, ${lifePlan.futureReadinessScore >= 75 ? "var(--green)" : lifePlan.futureReadinessScore >= 50 ? "#f59e0b" : "var(--red)"} ${lifePlan.futureReadinessScore * 3.6}deg, color-mix(in oklch, var(--border) 60%, transparent) 0deg)`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative",
               }}>
-                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>
-                  No home scenarios yet
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bg-card)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{lifePlan.futureReadinessScore}</span>
                 </div>
-                <Link
-                  href="/planning/home"
-                  style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}
-                >
-                  Build your first rent vs. buy scenario
-                </Link>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {homeScenarios.map((s) => {
-                  const loan = s.purchase_price - s.down_payment;
-                  const r = s.mortgage_rate / 12;
-                  const n = s.loan_term_years * 12;
-                  const monthlyPmt = loan > 0 && r > 0
-                    ? loan * (r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
-                    : loan / n;
-                  const maintMonthly = (s.purchase_price * s.maintenance_pct) / 12;
-                  const totalMonthly = monthlyPmt + s.property_tax_monthly + s.insurance_monthly + s.hoa_monthly + maintMonthly;
-                  const delta = totalMonthly - s.monthly_rent;
-
-                  return (
-                    <Link
-                      key={s.id}
-                      href="/planning/home"
-                      style={{
-                        display: "flex", alignItems: "center", gap: "12px",
-                        padding: "12px 14px", borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border-subtle)",
-                        background: "var(--bg-card)", textDecoration: "none",
-                        transition: "border-color 0.15s",
-                      }}
-                    >
-                      <div style={{
-                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                          <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
-                          <path d="M7 18V12h6v6" />
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
-                          {fmt(s.purchase_price)} · {s.hold_years}yr hold
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(Math.round(totalMonthly))}/mo</div>
-                        <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: delta >= 0 ? "var(--red)" : "var(--green)", marginTop: "1px" }}>
-                          {delta >= 0 ? "+" : ""}{fmt(Math.round(delta))} vs rent
-                        </div>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>readiness</div>
+            </div>
           </div>
 
-          {/* ── Family Planning section ── */}
+          {/* P3: Planner Health Grid */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <div>
-                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Family Planning</div>
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model child costs by phase and retirement impact</div>
-              </div>
-              <Link
-                href="/planning/family"
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "6px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--accent)", color: "#fff",
-                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                Open Planner
-              </Link>
+            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Planner Status</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+              {(
+                [
+                  { key: "home", label: "Home Planning", sub: "Rent vs. buy", href: "/planning/home", icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18V12h6v6"/></svg> },
+                  { key: "family", label: "Family Planning", sub: "Child cost model", href: "/planning/family", icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/><path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/><path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/></svg> },
+                  { key: "career", label: "Career Planning", sub: "Income trajectory", href: "/planning/career", icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10L10 4l7 6M5 8v8h10V8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+                  { key: "education", label: "Education / 529", sub: "College savings", href: "/planning/education", icon: <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L2 7l8 5 8-5-8-5z"/><path d="M2 7v6M18 7v6M6 9.5v4a4 4 0 008 0v-4" strokeLinecap="round"/></svg> },
+                ] as const
+              ).map(({ key, label, sub, href, icon }) => {
+                const status = lifePlan.plannerHealth[key];
+                const dotColor = status === "strong" ? "var(--green)" : status === "alert" ? "var(--red)" : status === "review" ? "#f59e0b" : "var(--text-tertiary)";
+                const statusLabel = status === "strong" ? "On track" : status === "alert" ? "Needs attention" : status === "review" ? "Review" : "Not started";
+                return (
+                  <Link key={key} href={href} style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none", transition: "border-color 0.15s" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--accent) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)" }}>
+                        {icon}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: dotColor }} />
+                        <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: dotColor, fontWeight: 500 }}>{statusLabel}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>{label}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>{sub}</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* P4 + P5: Next Action + Cross-Planner Insights */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+
+            {/* P4: Recommended Next Action */}
+            <div style={{ padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Recommended Action</div>
+              {lifePlan.nextAction ? (
+                <>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: lifePlan.nextAction.priority === "high" ? "var(--red)" : "#f59e0b", flexShrink: 0 }} />
+                      <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>{lifePlan.nextAction.title}</span>
+                    </div>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>{lifePlan.nextAction.description}</p>
+                  </div>
+                  <Link href={lifePlan.nextAction.href} style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "5px", padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--accent)", color: "#fff", fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, textDecoration: "none" }}>
+                    Go to planner
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </Link>
+                </>
+              ) : (
+                <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>Everything looks good. Keep saving consistently.</p>
+              )}
             </div>
 
-            {familyScenarios.length === 0 ? (
-              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No family scenarios yet</div>
-                <Link href="/planning/family" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
-                  Model your first child cost scenario
-                </Link>
-              </div>
-            ) : (
+            {/* P5: Cross-Planner Insights */}
+            <div style={{ padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cross-Plan Insights</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {familyScenarios.map((s) => {
-                  const age = s.child_current_age;
-                  const monthly = age < 3 ? Number(s.monthly_infant_cost) : age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+                {lifePlan.insights.map((ins, i) => (
+                  <div key={i} style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                    <div style={{
+                      width: "4px", borderRadius: "2px", flexShrink: 0, marginTop: "4px", alignSelf: "stretch",
+                      background: ins.type === "positive" ? "var(--green)" : ins.type === "warning" ? "#f59e0b" : "var(--accent)",
+                    }} />
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>{ins.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* P2: Life Timeline */}
+          {lifePlan.timelineItems.length > 0 && (
+            <div>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Life Timeline</div>
+              <div style={{ display: "flex", overflowX: "auto", gap: "0", paddingBottom: "4px" }}>
+                {lifePlan.timelineItems.map((item, i) => {
+                  const typeColor: Record<string, string> = {
+                    retirement: "var(--green)",
+                    education: "var(--accent)",
+                    career: "#f59e0b",
+                    family: "oklch(0.72 0.15 340)",
+                    event: "var(--text-tertiary)",
+                    home: "oklch(0.65 0.14 200)",
+                  };
+                  const color = typeColor[item.type] ?? "var(--text-tertiary)";
                   return (
-                    <Link
-                      key={s.id}
-                      href="/planning/family"
-                      style={{
-                        display: "flex", alignItems: "center", gap: "12px",
-                        padding: "12px 14px", borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      <div style={{
-                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                          <circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/>
-                          <path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/>
-                          <path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/>
-                        </svg>
+                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: "100px" }}>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginBottom: "6px" }}>{item.year}</div>
+                      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                        {i > 0 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
+                        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: color, flexShrink: 0, border: `2px solid ${color}` }} />
+                        {i < lifePlan.timelineItems.length - 1 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
-                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age}
-                        </div>
+                      <div style={{ marginTop: "6px", textAlign: "center", padding: "0 4px" }}>
+                        <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.3 }}>{item.label}</div>
+                        <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginTop: "2px" }}>{item.detail}</div>
                       </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                          {fmt(monthly)}/mo
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>current phase</div>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* ── Career Planning section ── */}
-          <div>
+          {/* P6: Event Impact Ranking */}
+          {lifePlan.impactItems.length > 0 && (
+            <div>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Biggest Financial Impacts</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {lifePlan.impactItems.map((item, i) => {
+                  const isPositive = item.annualImpact >= 0;
+                  const maxAbs = Math.abs(lifePlan.impactItems[0]?.annualImpact ?? 1);
+                  const barWidth = maxAbs > 0 ? Math.round((Math.abs(item.annualImpact) / maxAbs) * 100) : 0;
+                  return (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
+                      <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", width: "14px", textAlign: "right" }}>{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-primary)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
+                        <div style={{ marginTop: "4px", height: "3px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                          <div style={{ width: `${barWidth}%`, height: "100%", borderRadius: "2px", background: isPositive ? "var(--green)" : "var(--red)", transition: "width 0.4s ease" }} />
+                        </div>
+                      </div>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: isPositive ? "var(--green)" : "var(--red)", flexShrink: 0 }}>
+                        {isPositive ? "+" : ""}{fmt(item.annualImpact)}/yr
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Other Events */}
+          <div style={{ paddingTop: "8px", borderTop: "1px solid var(--border-subtle)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
               <div>
-                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Career Change</div>
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Model income trajectory, transition costs, and break-even timing</div>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>One-Time Events</div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Windfalls, major expenses, and other events that affect your forecast</div>
               </div>
-              <Link
-                href="/planning/career"
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "6px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--accent)", color: "#fff",
-                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                Open Planner
-              </Link>
-            </div>
-
-            {careerScenarios.length === 0 ? (
-              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No career scenarios yet</div>
-                <Link href="/planning/career" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
-                  Model your first career change
-                </Link>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {careerScenarios.map((s) => {
-                  const incomeDelta = s.new_monthly_income - s.current_monthly_income;
-                  const isPayCut = incomeDelta < 0;
-                  return (
-                    <Link
-                      key={s.id}
-                      href="/planning/career"
-                      style={{
-                        display: "flex", alignItems: "center", gap: "12px",
-                        padding: "12px 14px", borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
-                        textDecoration: "none", transition: "border-color 0.15s",
-                      }}
-                    >
-                      <div style={{
-                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                          <path d="M3 10L10 4l7 6M5 8v8h10V8" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
-                          ${Math.round(s.current_monthly_income).toLocaleString()}/mo → ${Math.round(s.new_monthly_income).toLocaleString()}/mo
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: isPayCut ? "var(--red)" : "var(--green)" }}>
-                          {isPayCut ? "" : "+"}{fmt(incomeDelta)}/mo
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
-                          yr 1 delta
-                        </div>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── Education / 529 section ── */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-              <div>
-                <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Education / 529</div>
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>Project 529 growth vs college cost, track funding gaps</div>
-              </div>
-              <Link
-                href="/planning/education"
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "6px 12px", borderRadius: "var(--radius-md)",
-                  background: "var(--accent)", color: "#fff",
-                  fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500,
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                Open Planner
-              </Link>
-            </div>
-
-            {educationScenarios.length === 0 ? (
-              <div style={{ padding: "20px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", textAlign: "center" }}>
-                <div style={{ fontSize: "13px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>No education scenarios yet</div>
-                <Link href="/planning/education" style={{ fontSize: "12px", color: "var(--accent)", fontFamily: "var(--font-body)", textDecoration: "none" }}>
-                  Plan your first college savings scenario
-                </Link>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {educationScenarios.map((s) => {
-                  const yearsUntil = Math.max(0, 18 - s.child_current_age);
-                  const futureAnnual = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yearsUntil);
-                  const totalCost = futureAnnual * s.years_in_college;
-                  const r = Number(s.investment_return) / 12;
-                  const n = yearsUntil * 12;
-                  const bal = Number(s.current_529_balance);
-                  const pmt = Number(s.monthly_contribution);
-                  const fv = n === 0 ? bal : bal * Math.pow(1 + r, n) + (r > 0 ? pmt * ((Math.pow(1 + r, n) - 1) / r) : pmt * n);
-                  const coverage = totalCost > 0 ? Math.round((fv / totalCost) * 100) : 100;
-                  return (
-                    <Link
-                      key={s.id}
-                      href="/planning/education"
-                      style={{
-                        display: "flex", alignItems: "center", gap: "12px",
-                        padding: "12px 14px", borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border-subtle)", background: "var(--bg-card)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      <div style={{
-                        width: "32px", height: "32px", borderRadius: "var(--radius-md)",
-                        background: "color-mix(in oklch, var(--accent) 12%, transparent)",
-                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="var(--accent)" strokeWidth="1.5">
-                          <path d="M2 10l8-7 8 7v9H6v-5h4v5h6v-9" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "var(--font-body)", fontWeight: 500, fontSize: "13px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
-                          {s.child_name ? `${s.child_name} · ` : ""}Age {s.child_current_age} · {yearsUntil} yrs to college
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: coverage >= 100 ? "var(--green)" : coverage >= 60 ? "#f59e0b" : "var(--red)" }}>
-                          {coverage}%
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "1px" }}>coverage</div>
-                      </div>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-                        <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── Other Events section ── */}
-          <div>
-            <div style={{ marginBottom: "12px" }}>
-              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Other Events</div>
-              <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>One-time financial events that affect your forecast: inheritance, tuition, major expenses, and more.</div>
             </div>
 
             {futureEvents.length === 0 && !addingEvent ? (
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>No events added yet. Events appear as spikes or dips in your forecast chart.</p>
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>No events yet. Events appear as spikes or dips in your forecast chart.</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column" }}>
                 {futureEvents.map((ev) => (
