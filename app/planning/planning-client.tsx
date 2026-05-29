@@ -2746,7 +2746,7 @@ type Props = {
   initialTab?: string;
 };
 
-type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "budget" | "estate" | "finn";
+type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "estate" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
@@ -4049,7 +4049,6 @@ export default function PlanningClient({
     { id: "overview", label: "Overview" },
     { id: "balance", label: "Balance Sheet" },
     { id: "cashflow", label: "Cash Flow" },
-    { id: "budget", label: "Budget Tracker" },
     { id: "forecast", label: "Forecast" },
     { id: "events", label: "Life Events" },
     { id: "estate", label: "Estate Readiness" },
@@ -4712,6 +4711,17 @@ export default function PlanningClient({
             <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Net Worth</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)" }}>{pHide(fmt(netWorth))}</span>
           </div>
+
+          {/* Net Worth History */}
+          {(netWorthHistory.length > 0 || netWorth !== 0) && (
+            <NetWorthHistoryCard
+              history={netWorthHistory}
+              currentNW={netWorth}
+              currentAssets={totalAssets}
+              currentLiabilities={totalLiabilities}
+              isPrivate={isPrivate}
+            />
+          )}
         </div>
       )}
 
@@ -4907,16 +4917,16 @@ export default function PlanningClient({
             }
           }} />
 
-        </div>
-      )}
+          {/* Budget vs. Actuals (merged from Budget Tracker) */}
+          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px" }}>
+            <div style={{ marginBottom: "16px" }}>
+              <div style={sectionHeadStyle}>Budget vs. Actuals</div>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "4px 0 0" }}>Log actual monthly spending and compare against your cash flow budget.</p>
+            </div>
+            <BudgetTrackerTab cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
+          </div>
 
-      {/* ── Tab: Budget Tracker ── */}
-      {tab === "budget" && (
-        <BudgetTrackerTab
-          cashFlowItems={cashFlowItems}
-          expenseActuals={expenseActuals}
-          isPrivate={isPrivate}
-        />
+        </div>
       )}
 
       {/* ── Tab: Forecast ── */}
@@ -5534,6 +5544,25 @@ export default function PlanningClient({
             </div>
           </div>
 
+          {/* FINN Life Plan Insight */}
+          <div className="hub-section" style={{
+            animationDelay: "0.06s", padding: "14px 18px", borderRadius: "var(--radius-lg)",
+            background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--bg-card))",
+            border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 22%, transparent)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>FINN</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>
+              {lifePlan.nextAction
+                ? lifePlan.nextAction.description
+                : lifePlan.futureReadinessScore >= 75
+                  ? `Your life plan is well-structured across ${[homeScenarios, familyScenarios, careerScenarios, educationScenarios].filter(a => a.length > 0).length} planners. Continue modeling to improve downstream forecast accuracy.`
+                  : "Add scenarios to the planners below to see how your major life decisions interact — and how each one affects your retirement outcome."}
+            </p>
+          </div>
+
           {/* P2: Largest Future Decisions */}
           {lifePlan.biggestDecisions.length > 0 && (
             <div className="hub-section" style={{ animationDelay: "0.08s" }}>
@@ -5971,7 +6000,23 @@ export default function PlanningClient({
 
       {/* ── Tab: Ask FINN ── */}
       {tab === "finn" && (
-        <div style={{ display: "flex", flexDirection: "column", height: "560px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+
+          {/* Today's Biggest Insight */}
+          <div style={{
+            padding: "14px 18px", borderRadius: "var(--radius-lg)",
+            background: "color-mix(in oklch, oklch(0.55 0.18 270) 7%, var(--card-bg))",
+            border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 24%, transparent)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>Today&apos;s Biggest Insight</span>
+            </div>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{finnInsight}</p>
+          </div>
+
+          {/* Chat panel */}
+          <div style={{ display: "flex", flexDirection: "column", height: "520px" }}>
 
           {/* FINN header */}
           <div style={{
@@ -6100,32 +6145,37 @@ export default function PlanningClient({
             )}
           </div>
 
-          {/* Suggested prompts — visible after FINN's intro before user has sent anything */}
+          {/* Suggested prompts — visible after FINN’s intro before user has sent anything */}
           {finnChatMessages.length === 1 && !finnChatLoading && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingBottom: "12px" }}>
-              {[
-                "How much more should I save each month?",
-                "What if I retire 5 years earlier?",
-                "Stress test: what if markets drop 30%?",
-                "Where am I most at risk?",
-                "What’s my emergency fund gap?",
-                "What should I optimize first?",
-              ].map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => { void sendFinnChatMessage(prompt); }}
-                  disabled={finnChatLoading}
-                  style={{
-                    padding: "6px 12px", borderRadius: "20px",
-                    border: "1px solid var(--violet-border)", background: "var(--violet-bg)",
-                    color: "var(--violet)", fontSize: "11px",
-                    fontFamily: "var(--font-body)", cursor: "pointer",
-                  }}
-                >
-                  {prompt}
-                </button>
-              ))}
+              {(() => {
+                const prompts: string[] = [];
+                if (retirementProb != null && retirementProb < 70) prompts.push(`My retirement probability is ${retirementProb}% — what’s the fastest way to improve it?`);
+                if (savingsRate > 0 && savingsRate < 15 && effectiveIncome > 0) prompts.push(`How much more should I save to reach a 15% savings rate?`);
+                if (homeScenarios.length === 0) prompts.push("What would buying a home mean for my retirement?");
+                if (homeScenarios.length > 0) prompts.push("How does my home purchase scenario affect my long-term net worth?");
+                if (careerScenarios.some((s) => s.new_monthly_income < s.current_monthly_income)) prompts.push("How should I prepare financially for my career change?");
+                if (familyScenarios.length > 0) prompts.push("How do my child cost scenarios affect my savings rate?");
+                if (netWorthHistory.length >= 2) prompts.push("Am I building wealth fast enough for my timeline?");
+                prompts.push("Where am I most financially at risk right now?");
+                prompts.push("What should I optimize first?");
+                return prompts.slice(0, 6).map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => { void sendFinnChatMessage(prompt); }}
+                    disabled={finnChatLoading}
+                    style={{
+                      padding: "6px 12px", borderRadius: "20px",
+                      border: "1px solid var(--violet-border)", background: "var(--violet-bg)",
+                      color: "var(--violet)", fontSize: "11px",
+                      fontFamily: "var(--font-body)", cursor: "pointer",
+                    }}
+                  >
+                    {prompt}
+                  </button>
+                ));
+              })()}
             </div>
           )}
 
@@ -6180,6 +6230,7 @@ export default function PlanningClient({
               50% { opacity: 0; }
             }
           `}</style>
+          </div>{/* end inner chat div */}
         </div>
       )}
     </div>
