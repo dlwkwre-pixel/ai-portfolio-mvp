@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Census ACS 5-year estimates
+// Census ACS 5-year estimates — ZCTA-available variables only
 // B25077_001E = Median home value (owner-occupied)
 // B25064_001E = Median gross rent
 // B19013_001E = Median household income
-// B25103_001E = Median real estate taxes paid (annual $)
-const CENSUS_VARS = "B25077_001E,B25064_001E,B19013_001E,B25103_001E";
+// B25103_001E is NOT available at ZCTA level — omitted to avoid Census rejecting entire request
+const CENSUS_VARS = "B25077_001E,B25064_001E,B19013_001E";
 const CENSUS_BASE = "https://api.census.gov/data/2022/acs/acs5";
 
 // FRED series for 30-year fixed mortgage rate
@@ -15,13 +15,12 @@ const FRED_BASE = "https://api.stlouisfed.org/fred/series/observations";
 // HUD Fair Market Rents by ZIP (2-bedroom used as rent proxy)
 const HUD_FMR_BASE = "https://www.huduser.gov/hudapi/public/fmr/zip";
 
-type CensusRow = [string, string, string, string, string];
+type CensusRow = [string, string, string, string]; // [homeValue, rent, income, zcta]
 
 async function fetchCensusData(zip: string): Promise<{
   medianHomeValue: number | null;
   medianRent: number | null;
   medianHouseholdIncome: number | null;
-  annualPropertyTax: number | null;
 }> {
   const apiKey = process.env.CENSUS_API_KEY;
   // Census requires literal colon in geography param. Spaces as + (form encoding).
@@ -39,19 +38,18 @@ async function fetchCensusData(zip: string): Promise<{
     // Try with key first; fall back to keyless if key is inactive or rejected
     let rows = apiKey ? await tryCensus(buildUrl(true)) : null;
     if (!rows || rows.length < 2) rows = await tryCensus(buildUrl(false));
-    if (!rows || rows.length < 2) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
+    if (!rows || rows.length < 2) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
 
-    const [homeValueStr, rentStr, incomeStr, taxStr] = rows[1];
+    const [homeValueStr, rentStr, incomeStr] = rows[1];
     const parse = (v: string) => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? null : n; };
 
     return {
       medianHomeValue: parse(homeValueStr),
       medianRent: parse(rentStr),
       medianHouseholdIncome: parse(incomeStr),
-      annualPropertyTax: parse(taxStr),
     };
   } catch {
-    return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
+    return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
   }
 }
 
@@ -160,11 +158,11 @@ export async function GET(req: NextRequest) {
 
   const censusData = censusResult.status === "fulfilled"
     ? censusResult.value
-    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
+    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
   const mortgageRate = rateResult.status === "fulfilled" ? rateResult.value : null;
   const hudData = hudResult.status === "fulfilled" ? hudResult.value : { twoBed: null, countyName: null };
 
-  const { medianHomeValue, medianHouseholdIncome, annualPropertyTax } = censusData;
+  const { medianHomeValue, medianHouseholdIncome } = censusData;
 
   // Rent: prefer Census median, fall back to HUD 2BR FMR
   const medianRent = censusData.medianRent ?? hudData.twoBed ?? null;
@@ -172,11 +170,11 @@ export async function GET(req: NextRequest) {
     ? "census"
     : hudData.twoBed ? "hud_fmr" : null;
 
-  // Property tax
+  // Property tax: Census B25103 not available at ZCTA level.
+  // Estimate from national effective rate of 1.1% — users can adjust in the input fields.
+  const annualPropertyTax = medianHomeValue ? Math.round(medianHomeValue * 0.011) : null;
   const monthlyPropertyTax = annualPropertyTax ? Math.round(annualPropertyTax / 12) : null;
-  const effectiveTaxRatePct = annualPropertyTax && medianHomeValue && medianHomeValue > 0
-    ? Math.round((annualPropertyTax / medianHomeValue) * 10000) / 100  // 2 decimal places
-    : null;
+  const effectiveTaxRatePct = 1.1; // national average estimate; user-adjustable
 
   // Price-to-rent ratio
   let priceToRentRatio: number | null = null;
