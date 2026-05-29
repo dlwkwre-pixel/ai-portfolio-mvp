@@ -17,6 +17,7 @@ export default async function EducationPlanningPage() {
     { data: profileData },
     { data: portfolios },
     { data: assumptionsData },
+    { data: balanceItems },
   ] = await Promise.all([
     supabase
       .from("education_scenarios")
@@ -38,6 +39,10 @@ export default async function EducationPlanningPage() {
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("balance_sheet_items")
+      .select("value, is_liability, category")
+      .eq("user_id", user.id),
   ]);
 
   const scenarios: EducationScenario[] = (scenariosData ?? []) as EducationScenario[];
@@ -61,6 +66,11 @@ export default async function EducationPlanningPage() {
 
   const investmentReturn = assumptionsData ? Number(assumptionsData.return_rate) : 0.07;
 
+  const portfolioCash = (portfolios ?? []).reduce((s, p) => s + Number(p.cash_balance ?? 0), 0);
+  const totalAssets = (balanceItems ?? []).filter((i) => !i.is_liability).reduce((s, i) => s + Number(i.value), 0) + portfolioCash;
+  const totalLiabilities = (balanceItems ?? []).filter((i) => i.is_liability).reduce((s, i) => s + Number(i.value), 0);
+  const currentNetWorth = totalAssets - totalLiabilities;
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -79,6 +89,7 @@ export default async function EducationPlanningPage() {
           scenarios={scenarios}
           profile={profile}
           defaultInvestmentReturn={investmentReturn}
+          currentNetWorth={currentNetWorth}
         />
       </div>
     </div>
