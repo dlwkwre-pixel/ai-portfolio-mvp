@@ -24,18 +24,21 @@ async function fetchCensusData(zip: string): Promise<{
   annualPropertyTax: number | null;
 }> {
   const apiKey = process.env.CENSUS_API_KEY;
-  const keyParam = apiKey ? `&key=${encodeURIComponent(apiKey)}` : "";
-  // Census requires literal colon in geography param (not %3A), spaces as + or %20 both work.
-  // Use + (form encoding) which Census examples show.
-  const url = `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip+code+tabulation+area:${zip}${keyParam}`;
+  // Census requires literal colon in geography param. Spaces as + (form encoding).
+  const buildUrl = (withKey: boolean) =>
+    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip+code+tabulation+area:${zip}${withKey && apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
+
+  async function tryCensus(url: string) {
+    const res = await fetch(url, { next: { revalidate: 86400 } });
+    if (!res.ok) return null;
+    const body = await res.text();
+    try { return JSON.parse(body) as CensusRow[]; } catch { return null; }
+  }
 
   try {
-    const res = await fetch(url, { next: { revalidate: 86400 } }); // 24h cache — ACS is annual
-    if (!res.ok) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
-
-    const body = await res.text();
-    let rows: CensusRow[];
-    try { rows = JSON.parse(body) as CensusRow[]; } catch { return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null }; }
+    // Try with key first; fall back to keyless if key is inactive or rejected
+    let rows = apiKey ? await tryCensus(buildUrl(true)) : null;
+    if (!rows || rows.length < 2) rows = await tryCensus(buildUrl(false));
     if (!rows || rows.length < 2) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, annualPropertyTax: null };
 
     const [homeValueStr, rentStr, incomeStr, taxStr] = rows[1];
