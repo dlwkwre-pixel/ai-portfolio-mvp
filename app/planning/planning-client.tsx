@@ -2681,7 +2681,7 @@ export default function PlanningClient({
       }
     }
 
-    // Impact ranking — include career annual delta
+    // Annual impact ranking
     type ImpactItem = { label: string; annualImpact: number; source: string; };
     const impactItems: ImpactItem[] = [];
     for (const ev of futureEvents) {
@@ -2698,16 +2698,42 @@ export default function PlanningClient({
     }
     impactItems.sort((a, b) => Math.abs(b.annualImpact) - Math.abs(a.annualImpact));
 
+    // P2: Largest future decisions (lifetime impact, ranked)
+    type BigDecision = { label: string; impact: number; href: string; positive: boolean; detail: string; };
+    const biggestDecisions: BigDecision[] = [];
+    if (careerMetrics) biggestDecisions.push({ label: "Career Change", impact: careerMetrics.lifetimeGain, href: "/planning/career", positive: careerMetrics.isPositive, detail: careerMetrics.name });
+    if (homeMetrics) biggestDecisions.push({ label: "Home Purchase", impact: homeMetrics.retirImpact, href: "/planning/home", positive: false, detail: `${homeMetrics.monthlyDelta >= 0 ? "+" : ""}${Math.round(homeMetrics.monthlyDelta).toLocaleString()}/mo vs rent` });
+    if (familyMetrics && familyMetrics.lifetimeCost > 0) biggestDecisions.push({ label: "Child Costs", impact: -familyMetrics.lifetimeCost, href: "/planning/family", positive: false, detail: `${familyMetrics.count} ${familyMetrics.count === 1 ? "child" : "children"} modeled` });
+    if (educationMetrics && educationMetrics.gap > 0) biggestDecisions.push({ label: "Education Gap", impact: -educationMetrics.gap, href: "/planning/education", positive: false, detail: `${educationMetrics.coverage}% funded` });
+    biggestDecisions.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+    // P3: Score component breakdown
+    const scoreBreakdown = {
+      retirementPts: Math.round(retirScore * 0.5),
+      healthPts: Math.round(healthData.total * 0.3),
+      planningPts: Math.round((nonEmptyCount / 4) * 20),
+      retirBase: Math.round(retirScore),
+      healthBase: healthData.total,
+      plannerCount: nonEmptyCount,
+    };
+
+    // P4: Timeline split — near-term vs retirement milestone
+    const retirementMilestone = timelineItems.find(t => t.type === "retirement");
+    const nearTermItems = timelineItems.filter(t => t.year <= currentYear + 12 && t.type !== "retirement");
+
     return {
       plannerHealth,
       futureReadinessScore,
       scoreDeductions: scoreDeductions.slice(0, 4),
       scoreActions: scoreActions.slice(0, 4),
+      scoreBreakdown,
       homeMetrics,
       careerMetrics,
       educationMetrics,
       familyMetrics,
-      timelineItems: timelineItems.slice(0, 12),
+      biggestDecisions,
+      nearTermItems,
+      retirementMilestone: retirementMilestone ?? null,
       nextAction,
       insights,
       hasRealInsights: insights.length > 0,
@@ -4464,206 +4490,170 @@ export default function PlanningClient({
 
       {/* ── Tab: My Life Plan ── */}
       {tab === "events" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
 
-          {/* P1: Life Plan Summary — score with explanation */}
-          <div style={{
-            borderRadius: "var(--radius-lg)",
-            background: "color-mix(in oklch, var(--accent) 8%, var(--bg-card))",
-            border: "1px solid color-mix(in oklch, var(--accent) 20%, var(--border))",
+          <style>{`
+            @keyframes hub-ring-draw { from { stroke-dashoffset: 226; } }
+            @keyframes hub-bar-scale { from { transform: scaleX(0); } }
+            @keyframes hub-fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            .hub-card { transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+            .hub-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px oklch(0 0 0 / 0.3); }
+            .hub-card-home:hover { border-color: oklch(0.65 0.14 200 / 0.45) !important; }
+            .hub-card-family:hover { border-color: oklch(0.72 0.15 340 / 0.45) !important; }
+            .hub-card-career:hover { border-color: oklch(0.75 0.16 55 / 0.45) !important; }
+            .hub-card-edu:hover { border-color: oklch(0.65 0.18 260 / 0.45) !important; }
+            .hub-ring-fill { animation: hub-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+            .hub-bar-fill { animation: hub-bar-scale 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: left; }
+            .hub-section { animation: hub-fade-up 0.4s ease-out both; }
+            @media (max-width: 640px) {
+              .hub-exec-header { grid-template-columns: 1fr !important; }
+              .hub-exec-center { border-left: none !important; border-right: none !important; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+              .hub-decisions-grid { grid-template-columns: 1fr !important; }
+            }
+          `}</style>
+
+          {/* P9: Executive Summary */}
+          <div className="hub-section hub-exec-header" style={{
+            borderRadius: "var(--radius-xl)",
+            background: "color-mix(in oklch, var(--accent) 5%, var(--bg-card))",
+            border: "1px solid color-mix(in oklch, var(--accent) 18%, var(--border))",
             overflow: "hidden",
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
           }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "20px", alignItems: "center", padding: "20px 24px" }}>
+            {/* Left: title + score breakdown */}
+            <div style={{ padding: "24px 20px 24px 28px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "14px" }}>
               <div>
-                <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>My Life Plan</div>
-                <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "20px", color: "var(--text-primary)", lineHeight: 1.2 }}>
+                <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "5px" }}>My Life Plan</div>
+                <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "21px", color: "var(--text-primary)", lineHeight: 1.2 }}>
                   {lifePlan.futureReadinessScore >= 75 ? "Your plan is in good shape" : lifePlan.futureReadinessScore >= 50 ? "A few gaps worth closing" : "Your plan needs attention"}
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "5px" }}>
-                  {lifePlan.projectedNWAtRetirement != null ? `${fmt(Math.round(lifePlan.projectedNWAtRetirement))} projected at retirement · ` : ""}
-                  {retirementProb != null ? `${Math.round(retirementProb)}% retirement probability` : "Add your age to unlock projections"}
-                </div>
               </div>
-              <div style={{ textAlign: "center", flexShrink: 0 }}>
-                <div style={{
-                  width: "68px", height: "68px", borderRadius: "50%",
-                  background: `conic-gradient(from 0deg, ${lifePlan.futureReadinessScore >= 75 ? "var(--green)" : lifePlan.futureReadinessScore >= 50 ? "#f59e0b" : "var(--red)"} ${lifePlan.futureReadinessScore * 3.6}deg, color-mix(in oklch, var(--border) 60%, transparent) 0deg)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "color-mix(in oklch, var(--accent) 8%, var(--bg-card))", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0" }}>
-                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "15px", color: "var(--text-primary)", lineHeight: 1 }}>{lifePlan.futureReadinessScore}</span>
-                    <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.2 }}>/100</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                {[
+                  { label: "Retirement", pts: lifePlan.scoreBreakdown.retirementPts, max: 50 },
+                  { label: "Health", pts: lifePlan.scoreBreakdown.healthPts, max: 30 },
+                  { label: "Planning", pts: lifePlan.scoreBreakdown.planningPts, max: 20 },
+                ].map((row) => (
+                  <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", width: "66px", flexShrink: 0 }}>{row.label}</span>
+                    <div style={{ flex: 1, height: "4px", background: "var(--border-subtle)", borderRadius: "2px", overflow: "hidden" }}>
+                      <div className="hub-bar-fill" style={{ height: "100%", borderRadius: "2px", background: "var(--accent)", transform: `scaleX(${row.max > 0 ? row.pts / row.max : 0})` }} />
+                    </div>
+                    <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", width: "36px", textAlign: "right", flexShrink: 0 }}>{row.pts}/{row.max}</span>
                   </div>
+                ))}
+              </div>
+              {lifePlan.scoreDeductions.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {lifePlan.scoreDeductions.map((d, i) => (
+                    <span key={i} style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", background: "color-mix(in oklch, var(--red) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--red) 18%, transparent)", padding: "2px 7px", borderRadius: "20px" }}>
+                      {d.label} ({d.points > 0 ? "-" : ""}{Math.abs(d.points)})
+                    </span>
+                  ))}
                 </div>
-                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>readiness</div>
+              )}
+            </div>
+
+            {/* Center: animated ring */}
+            <div className="hub-exec-center" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "28px 20px", borderLeft: "1px solid color-mix(in oklch, var(--border) 60%, transparent)", borderRight: "1px solid color-mix(in oklch, var(--border) 60%, transparent)" }}>
+              <div style={{ position: "relative", width: "100px", height: "100px", flexShrink: 0 }}>
+                <svg width="100" height="100" viewBox="0 0 88 88" style={{ display: "block" }}>
+                  <circle cx="44" cy="44" r="36" fill="none" stroke="var(--border-subtle)" strokeWidth="6" />
+                  <circle
+                    cx="44" cy="44" r="36" fill="none"
+                    stroke={lifePlan.futureReadinessScore >= 75 ? "var(--green)" : lifePlan.futureReadinessScore >= 50 ? "oklch(0.78 0.17 70)" : "var(--red)"}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray="226"
+                    strokeDashoffset={226 - (lifePlan.futureReadinessScore / 100) * 226}
+                    transform="rotate(-90 44 44)"
+                    className="hub-ring-fill"
+                  />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "22px", color: "var(--text-primary)", lineHeight: 1 }}>{lifePlan.futureReadinessScore}</span>
+                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>/100</span>
+                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>readiness</span>
+                </div>
               </div>
             </div>
-            {/* Score breakdown strip */}
-            {(lifePlan.scoreDeductions.length > 0 || lifePlan.scoreActions.length > 0) && (
-              <div style={{ borderTop: "1px solid color-mix(in oklch, var(--accent) 15%, var(--border))", padding: "12px 24px", display: "flex", flexWrap: "wrap", gap: "20px" }}>
-                {lifePlan.scoreDeductions.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                    <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginRight: "2px" }}>Gaps:</span>
-                    {lifePlan.scoreDeductions.map((d, i) => (
-                      <span key={i} style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", background: "color-mix(in oklch, var(--red) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--red) 20%, transparent)", padding: "2px 7px", borderRadius: "20px" }}>
-                        {d.label} ({d.points})
-                      </span>
-                    ))}
+
+            {/* Right: key stats */}
+            <div style={{ padding: "24px 28px 24px 20px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "16px" }}>
+              {lifePlan.projectedNWAtRetirement != null && (
+                <div>
+                  <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "3px" }}>Projected at Retirement</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "17px", color: "var(--green)", lineHeight: 1 }}>{fmt(Math.round(lifePlan.projectedNWAtRetirement))}</div>
+                </div>
+              )}
+              {retirementProb != null && (
+                <div>
+                  <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "3px" }}>Retirement Probability</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "17px", color: retirementProb >= 80 ? "var(--green)" : retirementProb >= 60 ? "oklch(0.78 0.17 70)" : "var(--red)", lineHeight: 1 }}>{Math.round(retirementProb)}%</div>
+                </div>
+              )}
+              {lifePlan.biggestDecisions[0] && (
+                <div>
+                  <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "3px" }}>Largest Decision</div>
+                  <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)", lineHeight: 1.2 }}>{lifePlan.biggestDecisions[0].label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: lifePlan.biggestDecisions[0].positive ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+                    {lifePlan.biggestDecisions[0].positive ? "+" : ""}{fmt(Math.abs(lifePlan.biggestDecisions[0].impact))} lifetime
                   </div>
-                )}
-                {lifePlan.scoreActions.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                    <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginRight: "2px" }}>To reach 90+:</span>
-                    {lifePlan.scoreActions.map((a, i) => (
-                      <span key={i} style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-secondary)" }}>{i > 0 ? " · " : ""}{a}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+              {lifePlan.projectedNWAtRetirement == null && retirementProb == null && !lifePlan.biggestDecisions[0] && (
+                <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>Add your age in Profile settings to unlock retirement projections.</p>
+              )}
+            </div>
           </div>
 
-          {/* P2: Rich Planner Cards */}
-          <div>
-            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Planner Status</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-
-              {/* Home card */}
-              <Link href="/planning/home" style={{ display: "flex", flexDirection: "column", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--accent) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18V12h6v6"/></svg>
-                    </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>Home Planning</span>
-                  </div>
-                  {(() => { const st = lifePlan.plannerHealth.home; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "#f59e0b" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c, fontWeight: 500 }}>{l}</span>; })()}
-                </div>
-                {lifePlan.homeMetrics ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div>
-                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>vs. Renting</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: lifePlan.homeMetrics.monthlyDelta >= 0 ? "var(--red)" : "var(--green)" }}>
-                        {lifePlan.homeMetrics.monthlyDelta >= 0 ? "+" : ""}{fmt(lifePlan.homeMetrics.monthlyDelta)}/mo
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Retirement Impact</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--red)" }}>
-                        {fmt(lifePlan.homeMetrics.retirImpact)}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.4 }}>Housing is your largest potential decision. Model rent vs. buy to see the numbers.</p>
-                )}
-                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)" }}>
-                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </Link>
-
-              {/* Family card */}
-              <Link href="/planning/family" style={{ display: "flex", flexDirection: "column", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--accent) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/><path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/><path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/></svg>
-                    </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>Family Planning</span>
-                  </div>
-                  {(() => { const st = lifePlan.plannerHealth.family; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "#f59e0b" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c, fontWeight: 500 }}>{l}</span>; })()}
-                </div>
-                {lifePlan.familyMetrics ? (
-                  <div>
-                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Remaining Lifetime Cost</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--red)" }}>
-                      {fmt(lifePlan.familyMetrics.lifetimeCost)}
-                    </div>
-                    {lifePlan.familyMetrics.count > 1 && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>{lifePlan.familyMetrics.count} children modeled</div>}
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.4 }}>Model child costs by phase and see the retirement impact before it arrives.</p>
-                )}
-                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)" }}>
-                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </Link>
-
-              {/* Career card */}
-              <Link href="/planning/career" style={{ display: "flex", flexDirection: "column", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--accent) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10L10 4l7 6M5 8v8h10V8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>Career Planning</span>
-                  </div>
-                  {(() => { const st = lifePlan.plannerHealth.career; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "#f59e0b" : "var(--text-tertiary)"; const l = st === "strong" ? "Opportunity" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c, fontWeight: 500 }}>{l}</span>; })()}
-                </div>
-                {lifePlan.careerMetrics ? (
-                  <div>
-                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Lifetime Income Impact</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: lifePlan.careerMetrics.isPositive ? "var(--green)" : "var(--red)" }}>
-                      {lifePlan.careerMetrics.isPositive ? "+" : ""}{fmt(lifePlan.careerMetrics.lifetimeGain)}
-                    </div>
-                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lifePlan.careerMetrics.name}</div>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.4 }}>Model a career change to see the lifetime income impact and break-even timeline.</p>
-                )}
-                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)" }}>
-                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </Link>
-
-              {/* Education card */}
-              <Link href="/planning/education" style={{ display: "flex", flexDirection: "column", padding: "14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--accent) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--accent)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L2 7l8 5 8-5-8-5z"/><path d="M2 7v6M18 7v6M6 9.5v4a4 4 0 008 0v-4" strokeLinecap="round"/></svg>
-                    </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>Education / 529</span>
-                  </div>
-                  {(() => { const st = lifePlan.plannerHealth.education; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "#f59e0b" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "Underfunded" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c, fontWeight: 500 }}>{l}</span>; })()}
-                </div>
-                {lifePlan.educationMetrics ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div>
-                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Coverage</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: lifePlan.educationMetrics.coverage >= 80 ? "var(--green)" : lifePlan.educationMetrics.coverage >= 50 ? "#f59e0b" : "var(--red)" }}>
-                        {lifePlan.educationMetrics.coverage}%
-                      </div>
-                    </div>
-                    {lifePlan.educationMetrics.gap > 0 && (
-                      <div>
-                        <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Funding Gap</div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--red)" }}>
-                          {fmt(lifePlan.educationMetrics.gap)}
+          {/* P2: Largest Future Decisions */}
+          {lifePlan.biggestDecisions.length > 0 && (
+            <div className="hub-section" style={{ animationDelay: "0.08s" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Largest Future Decisions</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {lifePlan.biggestDecisions.map((d, i) => {
+                  const maxAbs = Math.abs(lifePlan.biggestDecisions[0]?.impact ?? 1);
+                  const barScale = maxAbs > 0 ? Math.abs(d.impact) / maxAbs : 0;
+                  return (
+                    <Link key={i} href={d.href} style={{ textDecoration: "none" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)", width: "16px", textAlign: "right", flexShrink: 0 }}>{i + 1}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "5px" }}>
+                            <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>{d.label}</span>
+                            <span style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)" }}>{d.detail}</span>
+                          </div>
+                          <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                            <div className="hub-bar-fill" style={{ height: "100%", borderRadius: "2px", background: d.positive ? "var(--green)" : "var(--red)", transform: `scaleX(${barScale})` }} />
+                          </div>
                         </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: d.positive ? "var(--green)" : "var(--red)" }}>
+                            {d.positive ? "+" : ""}{fmt(Math.abs(d.impact))}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>lifetime</div>
+                        </div>
+                        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="var(--text-tertiary)" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.4 }}>Project 529 growth vs. college costs and find your funding gap before it's too late.</p>
-                )}
-                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)" }}>
-                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </Link>
-
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* P3: FINN Recommends Hero */}
-          {lifePlan.nextAction && (
-            <div style={{
-              padding: "22px 24px",
+          {/* FINN Recommends */}
+          {lifePlan.nextAction ? (
+            <div className="hub-section" style={{
+              animationDelay: "0.12s",
+              padding: "22px 28px",
               borderRadius: "var(--radius-lg)",
               background: lifePlan.nextAction.priority === "high"
-                ? "color-mix(in oklch, var(--red) 6%, var(--bg-card))"
-                : "color-mix(in oklch, var(--accent) 6%, var(--bg-card))",
-              border: `1px solid ${lifePlan.nextAction.priority === "high" ? "color-mix(in oklch, var(--red) 22%, var(--border))" : "color-mix(in oklch, var(--accent) 22%, var(--border))"}`,
+                ? "color-mix(in oklch, var(--red) 5%, var(--bg-card))"
+                : "color-mix(in oklch, var(--accent) 5%, var(--bg-card))",
+              border: `1px solid ${lifePlan.nextAction.priority === "high" ? "color-mix(in oklch, var(--red) 20%, var(--border))" : "color-mix(in oklch, var(--accent) 20%, var(--border))"}`,
             }}>
               <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: lifePlan.nextAction.priority === "high" ? "var(--red)" : "var(--accent)", marginBottom: "10px" }}>
                 FINN Recommends
@@ -4671,7 +4661,7 @@ export default function PlanningClient({
               <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "18px", color: "var(--text-primary)", marginBottom: "8px", lineHeight: 1.25 }}>
                 {lifePlan.nextAction.title}
               </div>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 16px", lineHeight: 1.55, maxWidth: "480px" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 16px", lineHeight: 1.55, maxWidth: "520px" }}>
                 {lifePlan.nextAction.description}
               </p>
               <Link href={lifePlan.nextAction.href} style={{
@@ -4685,30 +4675,187 @@ export default function PlanningClient({
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </Link>
             </div>
-          )}
-          {!lifePlan.nextAction && (
-            <div style={{ padding: "16px 20px", borderRadius: "var(--radius-lg)", border: "1px solid color-mix(in oklch, var(--green) 25%, var(--border))", background: "color-mix(in oklch, var(--green) 6%, var(--bg-card))" }}>
+          ) : (
+            <div className="hub-section" style={{ animationDelay: "0.12s", padding: "16px 20px", borderRadius: "var(--radius-lg)", border: "1px solid color-mix(in oklch, var(--green) 22%, var(--border))", background: "color-mix(in oklch, var(--green) 5%, var(--bg-card))" }}>
               <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--green)", marginBottom: "6px" }}>FINN Recommends</div>
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>Your plan looks strong. Keep saving consistently and revisit your assumptions annually.</p>
             </div>
           )}
 
-          {/* P6: Impact Ranking — moved above insights */}
+          {/* P5+P1: Major Life Decisions */}
+          <div className="hub-section" style={{ animationDelay: "0.16s" }}>
+            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Major Life Decisions</div>
+            <div className="hub-decisions-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
+
+              {/* Home */}
+              <Link href="/planning/home" className="hub-card hub-card-home" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.65 0.14 200) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.65 0.14 200)", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18V12h6v6"/></svg>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Home Planning</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--red)", background: "color-mix(in oklch, var(--red) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>HIGH</span>
+                    {(() => { const st = lifePlan.plannerHealth.home; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>; })()}
+                  </div>
+                </div>
+                {lifePlan.homeMetrics ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                    <div>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>vs. Renting</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: lifePlan.homeMetrics.monthlyDelta >= 0 ? "var(--red)" : "var(--green)" }}>
+                        {lifePlan.homeMetrics.monthlyDelta >= 0 ? "+" : ""}{fmt(lifePlan.homeMetrics.monthlyDelta)}/mo
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Retirement Impact</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: "var(--red)" }}>
+                        {fmt(lifePlan.homeMetrics.retirImpact)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: "10px" }}>
+                    <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 5px", lineHeight: 1.5 }}>Buying vs. renting reshapes your retirement by $200K–$500K.</p>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Typical impact: $200K–$500K on retirement</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+              {/* Family */}
+              <Link href="/planning/family" className="hub-card hub-card-family" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.15 340) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.15 340)", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7" cy="6" r="3"/><circle cx="13" cy="6" r="3"/><path d="M1 18c0-3.31 2.69-6 6-6s6 2.69 6 6" strokeLinecap="round"/><path d="M13 12a5 5 0 0 1 4 4.9" strokeLinecap="round"/></svg>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Family Planning</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--red)", background: "color-mix(in oklch, var(--red) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>HIGH</span>
+                    {(() => { const st = lifePlan.plannerHealth.family; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>; })()}
+                  </div>
+                </div>
+                {lifePlan.familyMetrics ? (
+                  <div style={{ marginBottom: "10px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Remaining Lifetime Cost</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: "var(--red)" }}>
+                      {fmt(lifePlan.familyMetrics.lifetimeCost)}
+                    </div>
+                    {lifePlan.familyMetrics.count > 1 && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>{lifePlan.familyMetrics.count} children modeled</div>}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: "10px" }}>
+                    <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 5px", lineHeight: 1.5 }}>Model child costs by phase to see the retirement trade-off.</p>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Typical cost: $200K–$400K per child to age 18</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+              {/* Career */}
+              <Link href="/planning/career" className="hub-card hub-card-career" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.75 0.16 55) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.75 0.16 55)", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 10L10 4l7 6M5 8v8h10V8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Career Planning</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.75 0.16 55)", background: "color-mix(in oklch, oklch(0.75 0.16 55) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>MEDIUM</span>
+                    {(() => { const st = lifePlan.plannerHealth.career; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)"; const l = st === "strong" ? "Opportunity" : st === "alert" ? "At risk" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>; })()}
+                  </div>
+                </div>
+                {lifePlan.careerMetrics ? (
+                  <div style={{ marginBottom: "10px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Lifetime Income Impact</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: lifePlan.careerMetrics.isPositive ? "var(--green)" : "var(--red)" }}>
+                      {lifePlan.careerMetrics.isPositive ? "+" : ""}{fmt(lifePlan.careerMetrics.lifetimeGain)}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lifePlan.careerMetrics.name}</div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: "10px" }}>
+                    <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 5px", lineHeight: 1.5 }}>A career move can add $500K–$1M in lifetime income.</p>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Typical gain: $500K–$1M over a career change</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+              {/* Education */}
+              <Link href="/planning/education" className="hub-card hub-card-edu" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.65 0.18 260) 15%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.65 0.18 260)", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2L2 7l8 5 8-5-8-5z"/><path d="M2 7v6M18 7v6M6 9.5v4a4 4 0 008 0v-4" strokeLinecap="round"/></svg>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Education / 529</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: lifePlan.educationMetrics && lifePlan.educationMetrics.gap > 0 ? "var(--red)" : "oklch(0.65 0.18 260)", background: lifePlan.educationMetrics && lifePlan.educationMetrics.gap > 0 ? "color-mix(in oklch, var(--red) 12%, transparent)" : "color-mix(in oklch, oklch(0.65 0.18 260) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>
+                      {lifePlan.educationMetrics && lifePlan.educationMetrics.gap > 0 ? "HIGH" : "MEDIUM"}
+                    </span>
+                    {(() => { const st = lifePlan.plannerHealth.education; const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)"; const l = st === "strong" ? "On track" : st === "alert" ? "Underfunded" : st === "review" ? "Review" : "Not started"; return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>; })()}
+                  </div>
+                </div>
+                {lifePlan.educationMetrics ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                    <div>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Coverage</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: lifePlan.educationMetrics.coverage >= 80 ? "var(--green)" : lifePlan.educationMetrics.coverage >= 50 ? "oklch(0.78 0.17 70)" : "var(--red)" }}>
+                        {lifePlan.educationMetrics.coverage}%
+                      </div>
+                    </div>
+                    {lifePlan.educationMetrics.gap > 0 && (
+                      <div>
+                        <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Funding Gap</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: "var(--red)" }}>
+                          {fmt(lifePlan.educationMetrics.gap)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: "10px" }}>
+                    <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 5px", lineHeight: 1.5 }}>Project 529 growth against college costs before it is too late.</p>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Typical gap: $50K–$150K unfunded per child</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open Planner <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+            </div>
+          </div>
+
+          {/* Annual Impact Ranking */}
           {lifePlan.impactItems.length > 0 && (
-            <div>
-              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>Biggest Financial Impacts</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div className="hub-section" style={{ animationDelay: "0.2s" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Annual Financial Impacts</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                 {lifePlan.impactItems.map((item, i) => {
                   const isPositive = item.annualImpact >= 0;
                   const maxAbs = Math.abs(lifePlan.impactItems[0]?.annualImpact ?? 1);
-                  const barWidth = maxAbs > 0 ? Math.round((Math.abs(item.annualImpact) / maxAbs) * 100) : 0;
+                  const barScale = maxAbs > 0 ? Math.abs(item.annualImpact) / maxAbs : 0;
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
                       <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", width: "14px", textAlign: "right", flexShrink: 0 }}>{i + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-primary)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
-                        <div style={{ marginTop: "4px", height: "3px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                          <div style={{ width: `${barWidth}%`, height: "100%", borderRadius: "2px", background: isPositive ? "var(--green)" : "var(--red)", transition: "width 0.4s ease" }} />
+                        <div style={{ fontSize: "12px", fontFamily: "var(--font-body)", color: "var(--text-primary)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "4px" }}>{item.label}</div>
+                        <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                          <div className="hub-bar-fill" style={{ height: "100%", borderRadius: "2px", background: isPositive ? "var(--green)" : "var(--red)", transform: `scaleX(${barScale})` }} />
                         </div>
                       </div>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: isPositive ? "var(--green)" : "var(--red)", flexShrink: 0 }}>
@@ -4721,79 +4868,98 @@ export default function PlanningClient({
             </div>
           )}
 
-          {/* P4: Cross-Plan Insights — improved empty state */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div style={{ padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", display: "flex", flexDirection: "column", gap: "10px", gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cross-Plan Insights</div>
-              {lifePlan.hasRealInsights ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {lifePlan.insights.map((ins, i) => (
-                    <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                      <div style={{ width: "4px", borderRadius: "2px", flexShrink: 0, marginTop: "4px", alignSelf: "stretch", background: ins.type === "positive" ? "var(--green)" : ins.type === "warning" ? "#f59e0b" : "var(--accent)" }} />
-                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.55 }}>{ins.text}</p>
+          {/* Cross-Plan Insights */}
+          <div className="hub-section" style={{ animationDelay: "0.24s", padding: "18px 20px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)" }}>
+            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Cross-Plan Insights</div>
+            {lifePlan.hasRealInsights ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {lifePlan.insights.map((ins, i) => (
+                  <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                    <div style={{ width: "3px", borderRadius: "2px", flexShrink: 0, alignSelf: "stretch", background: ins.type === "positive" ? "var(--green)" : ins.type === "warning" ? "oklch(0.78 0.17 70)" : "var(--accent)" }} />
+                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.55 }}>{ins.text}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.55 }}>
+                  Build scenarios in at least two planners to see how your major life decisions interact.
+                </p>
+                <div>
+                  <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px" }}>What you could learn:</div>
+                  {[
+                    "How a home purchase reshapes emergency fund and retirement",
+                    "Whether child costs and 529 contributions overlap at peak",
+                    "The cascade effect of a career change on all other goals",
+                  ].map((t, i) => (
+                    <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginBottom: "6px" }}>
+                      <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "var(--accent)", marginTop: "7px", flexShrink: 0 }} />
+                      <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{t}</span>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  <div>
-                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                      Build scenarios across at least two planners to see how your major life decisions interact.
-                    </p>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>Potential future insights:</div>
-                    {[
-                      "A home purchase affects retirement savings and emergency fund",
-                      "Child costs overlap with peak 529 contribution years",
-                      "A career change affects all downstream financial goals",
-                    ].map((t, i) => (
-                      <div key={i} style={{ display: "flex", gap: "6px", alignItems: "flex-start", marginBottom: "5px" }}>
-                        <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "var(--accent)", marginTop: "6px", flexShrink: 0 }} />
-                        <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.4 }}>{t}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Near-Term Timeline */}
+          <div className="hub-section" style={{ animationDelay: "0.28s" }}>
+            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Near-Term Milestones</div>
+            {lifePlan.nearTermItems.length > 0 ? (
+              <div style={{ display: "flex", overflowX: "auto", paddingBottom: "6px" }}>
+                {lifePlan.nearTermItems.map((item, i) => {
+                  const typeColor: Record<string, string> = {
+                    education: "var(--accent)",
+                    career: "oklch(0.75 0.16 55)",
+                    family: "oklch(0.72 0.15 340)",
+                    event: "var(--text-secondary)",
+                    home: "oklch(0.65 0.14 200)",
+                    placeholder: "var(--border)",
+                  };
+                  const color = typeColor[item.type] ?? "var(--text-tertiary)";
+                  const isPlaceholder = item.isPlaceholder === true;
+                  return (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: "110px" }}>
+                      <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isPlaceholder ? "var(--border)" : "var(--text-tertiary)", marginBottom: "6px" }}>{item.year}</div>
+                      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                        {i > 0 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
+                        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: isPlaceholder ? "transparent" : color, flexShrink: 0, border: `2px ${isPlaceholder ? "dashed" : "solid"} ${color}` }} />
+                        {i < lifePlan.nearTermItems.length - 1 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                      <div style={{ marginTop: "6px", textAlign: "center", padding: "0 4px" }}>
+                        <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, color: isPlaceholder ? "var(--text-tertiary)" : "var(--text-primary)", lineHeight: 1.3, fontStyle: isPlaceholder ? "italic" : "normal" }}>{item.label}</div>
+                        <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginTop: "2px" }}>{item.detail}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>Add scenarios to any planner to see upcoming milestones here.</p>
+            )}
           </div>
 
-          {/* P5: Life Timeline — with placeholders */}
-          <div>
-            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Life Timeline</div>
-            <div style={{ display: "flex", overflowX: "auto", paddingBottom: "4px" }}>
-              {lifePlan.timelineItems.map((item, i) => {
-                const typeColor: Record<string, string> = {
-                  retirement: "var(--green)",
-                  education: "var(--accent)",
-                  career: "#f59e0b",
-                  family: "oklch(0.72 0.15 340)",
-                  event: "var(--text-secondary)",
-                  home: "oklch(0.65 0.14 200)",
-                  placeholder: "var(--border)",
-                };
-                const color = typeColor[item.type] ?? "var(--text-tertiary)";
-                const isPlaceholder = item.isPlaceholder === true;
-                return (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: "108px" }}>
-                    <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isPlaceholder ? "var(--border)" : "var(--text-tertiary)", marginBottom: "6px" }}>{item.year}</div>
-                    <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                      {i > 0 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
-                      <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: isPlaceholder ? "transparent" : color, flexShrink: 0, border: `2px ${isPlaceholder ? "dashed" : "solid"} ${color}` }} />
-                      {i < lifePlan.timelineItems.length - 1 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
-                    </div>
-                    <div style={{ marginTop: "6px", textAlign: "center", padding: "0 4px" }}>
-                      <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, color: isPlaceholder ? "var(--text-tertiary)" : "var(--text-primary)", lineHeight: 1.3, fontStyle: isPlaceholder ? "italic" : "normal" }}>{item.label}</div>
-                      <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginTop: "2px" }}>{item.detail}</div>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Retirement Milestone */}
+          {lifePlan.retirementMilestone && (
+            <div className="hub-section" style={{ animationDelay: "0.32s", padding: "18px 22px", borderRadius: "var(--radius-lg)", border: "1px solid color-mix(in oklch, var(--green) 24%, var(--border))", background: "color-mix(in oklch, var(--green) 4%, var(--bg-card))", display: "flex", alignItems: "center", gap: "20px" }}>
+              <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "color-mix(in oklch, var(--green) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--green)" strokeWidth="1.5"><path d="M3 10a7 7 0 1014 0A7 7 0 003 10z"/><path d="M10 6v4l3 3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--green)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Retirement Milestone</div>
+                <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "15px", color: "var(--text-primary)", lineHeight: 1.25 }}>{lifePlan.retirementMilestone.label}</div>
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "3px" }}>{lifePlan.retirementMilestone.detail}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "22px", color: "var(--green)" }}>{lifePlan.retirementMilestone.year}</div>
+                {lifePlan.projectedNWAtRetirement != null && (
+                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>{fmt(Math.round(lifePlan.projectedNWAtRetirement))} projected</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Other Events */}
+          {/* One-Time Events */}
           <div style={{ paddingTop: "8px", borderTop: "1px solid var(--border-subtle)" }}>
             <div style={{ marginBottom: "12px" }}>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>One-Time Events</div>
