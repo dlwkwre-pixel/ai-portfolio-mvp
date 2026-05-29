@@ -735,7 +735,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       </div>
 
       {/* ── 2-col grid ─────────────────────────────────────────────────────── */}
-      <div data-edu-grid style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "start" }}>
+      <div data-edu-grid style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "stretch" }}>
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -979,7 +979,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           </div>
 
           {/* Readiness score */}
-          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
+          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both", flex: 1 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Education Readiness Score</p>
               <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
