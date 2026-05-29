@@ -4,6 +4,27 @@ Delete a section once the work ships.
 
 ---
 
+## Planning OS — Master Vision
+
+Full product vision and page-by-page spec for transforming Planning into a Financial Operating System.
+
+See: [docs/roadmap/planning-os.md](planning-os.md)
+
+North star: every Planning page answers "What should I do next?" and feels like a financial advisor, not a calculator.
+
+---
+
+## Email Aliases (infra, not code)
+
+Set up three forwarding aliases on buytune.io that forward to your real inbox:
+- `legal@buytune.io`
+- `privacy@buytune.io`
+- `support@buytune.io`
+
+Use email forwarding in your domain registrar (Cloudflare Email Routing, Namecheap, etc.) — no separate inbox needed. Required before legal pages go live publicly.
+
+---
+
 ## Email Digest (next up)
 
 Weekly summary email, no paid AI tokens. Resend free tier. Template-based HTML.
@@ -32,28 +53,8 @@ Weekly summary email, no paid AI tokens. Resend free tier. Template-based HTML.
 
 ---
 
-## Onboarding Flow + Page Intros
-
-Defer until user has tested /planning and /tax and confirmed design direction.
-
-When ready:
-- Tutorial overlay for first-time dashboard visit (check `profiles.onboarding_complete`)
-- Page intro banners on /planning, /tax, and any future major routes
-- "What is this?" inline helpers on Monte Carlo, health score, FINN DNA radar
-- Guided first-run: connect portfolio → run AI analysis → explore strategies
-
----
-
 ## Deferred: Push Notifications
 
 Skip until BuyTune is a native iOS/Android app and the $99 Apple developer fee makes sense.
 
 Candidates for when it ships: earnings alerts day-before, portfolio down >3% intraday, new FINN recommendation.
-
----
-
-## OG Image / iMessage Preview (ongoing bug)
-
-All known fixes are applied (see `app/share/portfolio/[id]/opengraph-image.tsx` comments). Still unconfirmed working.
-
-Next debug step: use https://www.opengraph.xyz/ to test a live share URL. Check Vercel function logs for the OG image route on the relevant deployment. The `NEXT_PUBLIC_SITE_URL` env var must be set to `https://buytune.io` in Vercel settings.
