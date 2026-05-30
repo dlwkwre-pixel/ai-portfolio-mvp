@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition, useRef } from "react";
+import { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -997,6 +997,13 @@ export default function HomeClient({
   const [zipLoading, setZipLoading] = useState(false);
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipData, setZipData] = useState<import("@/app/api/planning/home-market/route").HomeMarketData | null>(null);
+  const [avgMortgageRate, setAvgMortgageRate] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/planning/mortgage-rate")
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.rate === "number") setAvgMortgageRate(d.rate); })
+      .catch(() => {});
+  }, []);
 
   async function exportAmortToCSV() {
     try {
@@ -1837,10 +1844,18 @@ export default function HomeClient({
                       );
                     })}
                   </div>
+                  {inputs.purchase_price > 0 && (inputs.down_payment / inputs.purchase_price) < 0.2 && (
+                    <div style={{ fontSize: "10px", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", marginTop: "5px" }}>
+                      Below 20% typically requires PMI (~0.5–1.5%/yr), adding to your monthly cost.
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={labelS}>Closing Costs (%)</label>
                   <input type="number" min="0" max="10" step="0.1" value={inputs.closing_cost_pct} onChange={num("closing_cost_pct")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Typically 2–5% of the purchase price. Covers title, escrow, lender fees, and prepaid taxes.
+                  </div>
                 </div>
               </div>
             </div>
@@ -1850,14 +1865,33 @@ export default function HomeClient({
               <p style={sectionHead}>Financing</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={labelS}>Rate (%)</label>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                    <label style={{ ...labelS, marginBottom: 0 }}>Rate (%)</label>
+                    {avgMortgageRate !== null && (
+                      <button
+                        type="button"
+                        onClick={() => set("mortgage_rate", avgMortgageRate)}
+                        title="Use current national average"
+                        style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer", whiteSpace: "nowrap" }}
+                      >
+                        avg {avgMortgageRate.toFixed(2)}%
+                      </button>
+                    )}
+                  </div>
                   <input type="number" min="0" max="20" step="0.05" value={inputs.mortgage_rate} onChange={num("mortgage_rate")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Your actual rate depends on credit score, down payment, and lender.{" "}
+                    <a href="https://www.consumerfinance.gov/owning-a-home/explore-rates/" target="_blank" rel="noopener noreferrer" style={{ color: "oklch(0.65 0.18 260)", textDecoration: "none" }}>Explore rates →</a>
+                  </div>
                 </div>
                 <div>
                   <label style={labelS}>Term (years)</label>
                   <select value={inputs.loan_term_years} onChange={(e) => set("loan_term_years", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-body)" }}>
                     {[10, 15, 20, 25, 30, 50].map((t) => <option key={t} value={t}>{t} yr</option>)}
                   </select>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    30yr = lower payment. 15yr = less interest paid overall. Most buyers choose 30yr for flexibility.
+                  </div>
                 </div>
               </div>
             </div>
@@ -1866,19 +1900,33 @@ export default function HomeClient({
             <div data-card style={cardS}>
               <p style={sectionHead}>Monthly Costs</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                {([
-                  ["Property Tax / mo", "property_tax_monthly"],
-                  ["Insurance / mo", "insurance_monthly"],
-                  ["HOA / mo", "hoa_monthly"],
-                ] as [string, keyof Inputs][]).map(([lbl, key]) => (
-                  <div key={key}>
-                    <label style={labelS}>{lbl}</label>
-                    <input type="number" min="0" value={inputs[key] as number} onChange={num(key)} style={inputS} />
+                <div>
+                  <label style={labelS}>Property Tax / mo</label>
+                  <input type="number" min="0" value={inputs.property_tax_monthly} onChange={num("property_tax_monthly")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Check the county assessor site. Typically 0.5–2% of home value per year.
                   </div>
-                ))}
+                </div>
+                <div>
+                  <label style={labelS}>Insurance / mo</label>
+                  <input type="number" min="0" value={inputs.insurance_monthly} onChange={num("insurance_monthly")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Homeowners insurance averages $100–200/mo. Higher in coastal or flood-prone areas.
+                  </div>
+                </div>
+                <div>
+                  <label style={labelS}>HOA / mo</label>
+                  <input type="number" min="0" value={inputs.hoa_monthly} onChange={num("hoa_monthly")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Check the listing or HOA docs. Leave at 0 if no HOA.
+                  </div>
+                </div>
                 <div>
                   <label style={labelS}>Maintenance (% / yr)</label>
                   <input type="number" min="0" max="5" step="0.1" value={inputs.maintenance_pct} onChange={num("maintenance_pct")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Rule of thumb: 1–2% of home value per year for repairs and upkeep.
+                  </div>
                 </div>
               </div>
             </div>
@@ -1890,10 +1938,16 @@ export default function HomeClient({
                 <div>
                   <label style={labelS}>Current Rent / mo</label>
                   <input type="number" min="0" value={inputs.monthly_rent} onChange={num("monthly_rent")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Your current monthly rent. Used to compare the true cost of renting vs. buying.
+                  </div>
                 </div>
                 <div>
                   <label style={labelS}>Rent Growth (%/yr)</label>
                   <input type="number" min="0" max="10" step="0.1" value={inputs.rent_growth_rate} onChange={num("rent_growth_rate")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    US rents have grown ~3–4%/yr historically. Higher in fast-growing cities.
+                  </div>
                 </div>
               </div>
             </div>
@@ -1905,14 +1959,23 @@ export default function HomeClient({
                 <div>
                   <label style={labelS}>Appreciation (%/yr)</label>
                   <input type="number" min="0" max="20" step="0.1" value={inputs.expected_appreciation} onChange={num("expected_appreciation")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    US homes averaged ~3–4%/yr since 1980. Hot markets can exceed 5–6%. Be conservative.
+                  </div>
                 </div>
                 <div>
                   <label style={labelS}>Inv. Return (%/yr)</label>
                   <input type="number" min="0" max="20" step="0.1" value={inputs.investment_return} onChange={num("investment_return")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    What your down payment would earn if invested instead. S&P 500 ~7% real return long-term.
+                  </div>
                 </div>
                 <div>
                   <label style={labelS}>Hold Period (years)</label>
                   <input type="number" min="1" max="30" value={inputs.hold_years} onChange={num("hold_years")} style={inputS} />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    Buying typically beats renting after 5–7 years when you factor in transaction costs.
+                  </div>
                 </div>
               </div>
             </div>
