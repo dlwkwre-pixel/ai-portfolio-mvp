@@ -998,6 +998,7 @@ export default function HomeClient({
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipData, setZipData] = useState<import("@/app/api/planning/home-market/route").HomeMarketData | null>(null);
   const [avgMortgageRate, setAvgMortgageRate] = useState<number | null>(null);
+  const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => new Date().getFullYear() + 1);
   useEffect(() => {
     fetch("/api/planning/mortgage-rate")
       .then((r) => r.json())
@@ -2111,25 +2112,23 @@ export default function HomeClient({
               async function addScenarioEvents() {
                 if (!computed.lastPoint) return;
                 setApplyStatus("applying");
-                const currentYear = new Date().getFullYear();
                 const fdDown = new FormData();
                 fdDown.set("label", scenarioDownLabel);
-                fdDown.set("event_year", String(currentYear));
+                fdDown.set("event_year", String(targetPurchaseYear));
                 fdDown.set("amount_impact", String(-(inputs.down_payment + computed.closingCosts)));
                 fdDown.set("category", "home_purchase");
                 const fdEquity = new FormData();
                 fdEquity.set("label", scenarioSaleLabel);
-                fdEquity.set("event_year", String(currentYear + inputs.hold_years));
+                fdEquity.set("event_year", String(targetPurchaseYear + inputs.hold_years));
                 fdEquity.set("amount_impact", String(Math.round(computed.lastPoint.homeEquity)));
                 fdEquity.set("category", "home_sale");
                 const [r1, r2] = await Promise.all([addFutureEvent(fdDown), addFutureEvent(fdEquity)]);
                 if (r1.error || r2.error) { setApplyStatus("error"); return; }
-                // Optimistically add to local state (use temp IDs until router refresh)
                 const now = Date.now();
                 setLocalHomeEvents((prev) => [
                   ...prev,
-                  { id: `tmp-${now}-1`, user_id: "", label: scenarioDownLabel, event_year: currentYear, amount_impact: -(inputs.down_payment + computed.closingCosts), category: "home_purchase", sort_order: 0 },
-                  { id: `tmp-${now}-2`, user_id: "", label: scenarioSaleLabel, event_year: currentYear + inputs.hold_years, amount_impact: Math.round(computed.lastPoint.homeEquity), category: "home_sale", sort_order: 1 },
+                  { id: `tmp-${now}-1`, user_id: "", label: scenarioDownLabel, event_year: targetPurchaseYear, amount_impact: -(inputs.down_payment + computed.closingCosts), category: "home_purchase", sort_order: 0 },
+                  { id: `tmp-${now}-2`, user_id: "", label: scenarioSaleLabel, event_year: targetPurchaseYear + inputs.hold_years, amount_impact: Math.round(computed.lastPoint.homeEquity), category: "home_sale", sort_order: 1 },
                 ]);
                 setApplyStatus("done");
               }
@@ -2211,8 +2210,19 @@ export default function HomeClient({
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-                        Add this scenario as milestone events in your forecast: a down payment outlay today and the projected equity realization in year {inputs.hold_years}.
+                        This is a future goal — it does not affect your current balance sheet or cash flow. Set a target year and add it to your forecast timeline.
                       </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Target purchase year</label>
+                        <input
+                          type="number"
+                          min={new Date().getFullYear()}
+                          max={new Date().getFullYear() + 30}
+                          value={targetPurchaseYear}
+                          onChange={(e) => setTargetPurchaseYear(Math.max(new Date().getFullYear(), Number(e.target.value)))}
+                          style={{ width: "72px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, padding: "4px 8px", textAlign: "center" }}
+                        />
+                      </div>
                       {applyStatus === "error" ? (
                         <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
                       ) : (
@@ -2223,7 +2233,7 @@ export default function HomeClient({
                           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1, width: "fit-content" }}
                         >
                           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3v14M3 10h14" strokeLinecap="round"/></svg>
-                          {applyStatus === "applying" ? "Adding…" : "Add to Forecast"}
+                          {applyStatus === "applying" ? "Adding…" : `Add to Forecast (${targetPurchaseYear})`}
                         </button>
                       )}
                     </div>
