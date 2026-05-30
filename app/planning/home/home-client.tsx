@@ -998,7 +998,11 @@ export default function HomeClient({
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipData, setZipData] = useState<import("@/app/api/planning/home-market/route").HomeMarketData | null>(null);
   const [avgMortgageRate, setAvgMortgageRate] = useState<number | null>(null);
-  const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => new Date().getFullYear() + 1);
+  const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => {
+    // Seed from an existing linked home_purchase event so "Update" doesn't silently reset the year
+    const existing = homeEvents.find((e) => e.category === "home_purchase");
+    return existing ? existing.event_year : new Date().getFullYear() + 1;
+  });
   useEffect(() => {
     fetch("/api/planning/mortgage-rate")
       .then((r) => r.json())
@@ -2213,7 +2217,7 @@ export default function HomeClient({
                           style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", opacity: applyStatus === "applying" ? 0.6 : 1 }}
                         >
                           <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          {applyStatus === "applying" ? "Updating…" : "Update with current inputs"}
+                          {applyStatus === "applying" ? "Updating…" : `Update (${targetPurchaseYear})`}
                         </button>
                         {applyStatus === "error" && <span style={{ fontSize: "10px", color: "var(--red)" }}>Failed — try again</span>}
                       </div>
