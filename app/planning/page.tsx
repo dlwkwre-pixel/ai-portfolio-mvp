@@ -188,6 +188,7 @@ export default async function PlanningPage({
     period_month: r.period_month,
     actual_amount: Number(r.actual_amount),
     notes: r.notes ?? null,
+    breakdown: Array.isArray(r.breakdown) ? r.breakdown : null,
     created_at: r.created_at,
   }));
 

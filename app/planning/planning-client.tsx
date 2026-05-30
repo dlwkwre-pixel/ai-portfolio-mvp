@@ -1140,6 +1140,10 @@ const EXPENSE_CATEGORIES: { label: string; keywords: string[]; emoji: string }[]
 
 function getCategoryForExpense(label: string): string {
   const lower = label.toLowerCase();
+  // Exact category label match first — handles category-level budget items ("Food & Dining", etc.)
+  const exact = EXPENSE_CATEGORIES.find((c) => c.label.toLowerCase() === lower);
+  if (exact) return exact.label;
+  // Keyword scan
   for (const cat of EXPENSE_CATEGORIES.slice(0, -1)) {
     if (cat.keywords.some((k) => lower.includes(k))) return cat.label;
   }
@@ -1478,18 +1482,174 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Import grouping helpers ────────────────────────────────────────────────────
+
+type BudgetGroupRow = {
+  id: string;              // unique key: category or "sub:<normLabel>"
+  label: string;           // display label (editable)
+  category: string;        // bucket name
+  amount: number;          // editable monthly total
+  merchants: { label: string; amount: number }[];
+  isSubscription: boolean;
+  selected: boolean;
+  existingId: string | null;      // matching existing budget item id
+  existingAmount: number | null;
+  existingLabel: string | null;
+};
+
+type ActualsGroupRow = {
+  id: string;
+  label: string;
+  category: string;
+  totalAmount: number;
+  merchants: { label: string; amount: number }[];
+  matchedItemId: string | null;
+  isSubscription: boolean;
+  expanded: boolean;
+};
+
+function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): BudgetGroupRow[] {
+  const catMap = new Map<string, { amount: number; merchants: { label: string; amount: number }[] }>();
+  const subMap = new Map<string, { amount: number; origLabel: string }>();
+
+  for (const item of items) {
+    if (item.type === "income") continue;
+    const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
+    const cat = item.category ?? getCategoryForExpense(item.label);
+    if (cat === "Subscriptions") {
+      const norm = normLabel(item.label);
+      const prev = subMap.get(norm);
+      subMap.set(norm, { amount: (prev?.amount ?? 0) + monthly, origLabel: prev?.origLabel ?? item.label });
+    } else {
+      const g = catMap.get(cat) ?? { amount: 0, merchants: [] };
+      g.amount += monthly;
+      g.merchants.push({ label: item.label, amount: monthly });
+      catMap.set(cat, g);
+    }
+  }
+
+  function findExisting(cat: string, label?: string): CashFlowItem | undefined {
+    if (label) {
+      const n = normLabel(label);
+      const byLabel = existingItems.find((i) => normLabel(i.label) === n);
+      if (byLabel) return byLabel;
+    }
+    return existingItems.find((i) => getCategoryForExpense(i.label) === cat);
+  }
+
+  const catRows: BudgetGroupRow[] = Array.from(catMap.entries()).map(([cat, { amount, merchants }]) => {
+    const ex = findExisting(cat);
+    return {
+      id: cat,
+      label: cat,
+      category: cat,
+      amount: Math.round(amount),
+      merchants,
+      isSubscription: false,
+      selected: !ex,
+      existingId: ex?.id ?? null,
+      existingAmount: ex ? toMonthly(ex.amount, ex.frequency) : null,
+      existingLabel: ex?.label ?? null,
+    };
+  });
+
+  const subRows: BudgetGroupRow[] = Array.from(subMap.entries()).map(([norm, { amount, origLabel }]) => {
+    const ex = existingItems.find((i) => normLabel(i.label) === norm);
+    return {
+      id: `sub:${norm}`,
+      label: origLabel,
+      category: "Subscriptions",
+      amount: Math.round(amount * 100) / 100,
+      merchants: [],
+      isSubscription: true,
+      selected: !ex,
+      existingId: ex?.id ?? null,
+      existingAmount: ex ? toMonthly(ex.amount, ex.frequency) : null,
+      existingLabel: ex?.label ?? null,
+    };
+  });
+
+  return [...catRows, ...subRows].sort((a, b) => {
+    if (a.isSubscription !== b.isSubscription) return a.isSubscription ? 1 : -1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+function groupForActuals(items: ImportedItem[], expenseItems: CashFlowItem[]): ActualsGroupRow[] {
+  const catMap = new Map<string, { amount: number; merchants: { label: string; amount: number }[] }>();
+  const subMap = new Map<string, { amount: number; origLabel: string }>();
+
+  for (const item of items) {
+    if (item.type === "income") continue;
+    const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
+    const cat = item.category ?? getCategoryForExpense(item.label);
+    if (cat === "Subscriptions") {
+      const norm = normLabel(item.label);
+      const prev = subMap.get(norm);
+      subMap.set(norm, { amount: (prev?.amount ?? 0) + monthly, origLabel: prev?.origLabel ?? item.label });
+    } else {
+      const g = catMap.get(cat) ?? { amount: 0, merchants: [] };
+      g.amount += monthly;
+      g.merchants.push({ label: item.label, amount: monthly });
+      catMap.set(cat, g);
+    }
+  }
+
+  function findBudgetItem(cat: string, label?: string): string | null {
+    if (label) {
+      const n = normLabel(label);
+      const byLabel = expenseItems.find((i) => normLabel(i.label) === n);
+      if (byLabel) return byLabel.id;
+    }
+    const exact = expenseItems.find((i) => i.label === cat);
+    if (exact) return exact.id;
+    const catMatch = expenseItems.find((i) => getCategoryForExpense(i.label) === cat);
+    return catMatch?.id ?? null;
+  }
+
+  const catRows: ActualsGroupRow[] = Array.from(catMap.entries()).map(([cat, { amount, merchants }]) => ({
+    id: cat,
+    label: cat,
+    category: cat,
+    totalAmount: Math.round(amount * 100) / 100,
+    merchants,
+    matchedItemId: findBudgetItem(cat),
+    isSubscription: false,
+    expanded: false,
+  }));
+
+  const subRows: ActualsGroupRow[] = Array.from(subMap.entries()).map(([norm, { amount, origLabel }]) => ({
+    id: `sub:${norm}`,
+    label: origLabel,
+    category: "Subscriptions",
+    totalAmount: Math.round(amount * 100) / 100,
+    merchants: [],
+    matchedItemId: findBudgetItem("Subscriptions", origLabel),
+    isSubscription: true,
+    expanded: false,
+  }));
+
+  return [...catRows, ...subRows].sort((a, b) => {
+    if (a.isSubscription !== b.isSubscription) return a.isSubscription ? 1 : -1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 // ── AI Import Panel ───────────────────────────────────────────────────────────
 
 type AiImportPanelProps = {
-  onAdd: (items: ImportedItem[]) => Promise<void>;
+  existingItems: CashFlowItem[];
+  onAdd: (rows: BudgetGroupRow[]) => Promise<void>;
 };
 
-function AiImportPanel({ onAdd }: AiImportPanelProps) {
+function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"paste" | "review" | "done">("paste");
   const [rawText, setRawText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<(ImportedItem & { selected: boolean })[] | null>(null);
+  const [allParsed, setAllParsed] = useState<ImportedItem[]>([]);
+  const [preview, setPreview] = useState<BudgetGroupRow[]>([]);
   const [adding, setAdding] = useState(false);
   const [addedCount, setAddedCount] = useState<number | null>(null);
 
@@ -1497,24 +1657,23 @@ function AiImportPanel({ onAdd }: AiImportPanelProps) {
     if (!rawText.trim()) return;
     setParsing(true);
     setParseError(null);
-    setPreview(null);
-    setAddedCount(null);
     try {
       const res = await fetch("/api/planning/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: rawText }),
+        body: JSON.stringify({ text: rawText, mode: "statement" }),
       });
       const data = await res.json() as { items?: ImportedItem[]; error?: string };
-      if (!res.ok || data.error) {
-        setParseError(data.error ?? "Something went wrong.");
-        return;
-      }
+      if (!res.ok || data.error) { setParseError(data.error ?? "Something went wrong."); return; }
       if (!data.items || data.items.length === 0) {
-        setParseError("No income or expense items could be detected. Try a more detailed description or paste a CSV.");
+        setParseError("No expense items detected. Try pasting more of your statement.");
         return;
       }
-      setPreview(data.items.map((item) => ({ ...item, selected: true })));
+      const merged = [...allParsed, ...data.items];
+      setAllParsed(merged);
+      setPreview(groupForBudget(merged, existingItems));
+      setRawText("");
+      setStep("review");
     } catch {
       setParseError("Network error — please try again.");
     } finally {
@@ -1523,33 +1682,32 @@ function AiImportPanel({ onAdd }: AiImportPanelProps) {
   }
 
   async function handleAdd() {
-    if (!preview) return;
-    const selected = preview.filter((i) => i.selected);
+    const selected = preview.filter((r) => r.selected);
     if (selected.length === 0) return;
     setAdding(true);
     try {
       await onAdd(selected);
       setAddedCount(selected.length);
-      setPreview(null);
-      setRawText("");
+      setStep("done");
     } finally {
       setAdding(false);
     }
   }
 
-  function toggleItem(idx: number) {
-    setPreview((prev) => prev ? prev.map((item, i) => i === idx ? { ...item, selected: !item.selected } : item) : prev);
+  function reset() {
+    setOpen(false); setStep("paste"); setRawText(""); setAllParsed([]);
+    setPreview([]); setParseError(null); setAddedCount(null);
   }
 
-  function updateItem(idx: number, field: keyof ImportedItem, value: string | number) {
-    setPreview((prev) => prev ? prev.map((item, i) => i === idx ? { ...item, [field]: value } : item) : prev);
+  function updateRow(idx: number, patch: Partial<BudgetGroupRow>) {
+    setPreview((prev) => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
   }
 
   if (!open) {
     return (
       <button
         type="button"
-        onClick={() => { setOpen(true); setAddedCount(null); }}
+        onClick={() => { setOpen(true); setStep("paste"); setAddedCount(null); }}
         style={{
           display: "flex", alignItems: "center", gap: "6px",
           padding: "7px 14px", borderRadius: "var(--radius-md)",
@@ -1561,151 +1719,155 @@ function AiImportPanel({ onAdd }: AiImportPanelProps) {
         onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = "var(--text-secondary)"; b.style.borderColor = "var(--text-tertiary)"; }}
         onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = "var(--text-tertiary)"; b.style.borderColor = "var(--border-subtle)"; }}
       >
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
           <path d="M8 2v8M5 7l3 3 3-3M2 11v1.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        Import with AI — paste a bank statement or describe your finances
+        Build budget from last month&apos;s statement
       </button>
     );
   }
 
-  const selectedCount = preview ? preview.filter((i) => i.selected).length : 0;
+  const selectedCount = preview.filter((r) => r.selected).length;
+  const existingCount = preview.filter((r) => r.existingId).length;
 
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>AI Financial Import</span>
-          <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "8px" }}>Powered by FINN</span>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Budget Setup from Statement</span>
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
+            {step === "paste"
+              ? "FINN groups spending by category and estimates monthly targets. Existing budget items won't be touched."
+              : `${allParsed.length} transactions analyzed across ${allParsed.length > 0 ? "your statement(s)" : "0 statements"}.`}
+          </p>
         </div>
-        <button type="button" onClick={() => { setOpen(false); setPreview(null); setParseError(null); setAddedCount(null); }}
-          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "16px", lineHeight: 1 }}>
+        <button type="button" onClick={reset}
+          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>
           ×
         </button>
       </div>
 
-      {addedCount != null ? (
+      {/* Done state */}
+      {step === "done" && (
         <div style={{ textAlign: "center", padding: "12px 0" }}>
-          <div style={{ fontSize: "22px", marginBottom: "6px" }}>✓</div>
+          <div style={{ fontSize: "20px", marginBottom: "6px", color: "var(--green)" }}>✓</div>
           <p style={{ fontSize: "13px", color: "var(--green)", fontFamily: "var(--font-body)", margin: 0, fontWeight: 600 }}>
-            {addedCount} item{addedCount !== 1 ? "s" : ""} added to Cash Flow
+            {addedCount} budget item{addedCount !== 1 ? "s" : ""} added
           </p>
-          <button type="button" onClick={() => { setAddedCount(null); setOpen(false); }}
+          <button type="button" onClick={reset}
             style={{ marginTop: "10px", fontSize: "11px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)" }}>
             Done
           </button>
         </div>
-      ) : preview ? (
-        <>
-          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            FINN detected {preview.length} item{preview.length !== 1 ? "s" : ""}. Review and edit before adding.
-          </p>
+      )}
 
-          {/* Preview table */}
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "460px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  <th style={{ padding: "5px 6px", width: "28px" }} />
-                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Label</th>
-                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Type</th>
-                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "right", textTransform: "uppercase", letterSpacing: "0.06em" }}>Amount</th>
-                  <th style={{ padding: "5px 6px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontWeight: 600, textAlign: "left", textTransform: "uppercase", letterSpacing: "0.06em" }}>Frequency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.map((item, idx) => (
-                  <tr key={idx} style={{ borderBottom: "1px solid var(--border-subtle)", opacity: item.selected ? 1 : 0.4 }}>
-                    <td style={{ padding: "5px 6px" }}>
-                      <input type="checkbox" checked={item.selected} onChange={() => toggleItem(idx)}
-                        style={{ accentColor: "var(--brand-blue)", cursor: "pointer" }} />
-                    </td>
-                    <td style={{ padding: "5px 6px" }}>
-                      <input
-                        value={item.label}
-                        onChange={(e) => updateItem(idx, "label", e.target.value)}
-                        style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "2px 4px", width: "140px", outline: "none" }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
-                      />
-                    </td>
-                    <td style={{ padding: "5px 6px" }}>
-                      <select value={item.type} onChange={(e) => updateItem(idx, "type", e.target.value)}
-                        style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "4px", color: item.type === "income" ? "var(--green)" : "var(--red)", fontFamily: "var(--font-body)", fontSize: "11px", padding: "2px 4px" }}>
-                        <option value="income">Income</option>
-                        <option value="expense">Expense</option>
-                      </select>
-                    </td>
-                    <td style={{ padding: "5px 6px", textAlign: "right" }}>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={item.amount}
-                        onChange={(e) => updateItem(idx, "amount", Number(e.target.value))}
-                        style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 4px", width: "80px", textAlign: "right", outline: "none" }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
-                      />
-                    </td>
-                    <td style={{ padding: "5px 6px" }}>
-                      <select value={item.frequency} onChange={(e) => updateItem(idx, "frequency", e.target.value)}
-                        style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "4px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", padding: "2px 4px" }}>
-                        <option value="monthly">Monthly</option>
-                        <option value="annual">Annual</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Review step */}
+      {step === "review" && (
+        <>
+          {existingCount > 0 && (
+            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>
+              {existingCount} categor{existingCount !== 1 ? "ies" : "y"} already in your budget — pre-deselected. Re-check to add alongside or update manually.
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+            {/* Header row */}
+            <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", padding: "4px 6px", borderBottom: "1px solid var(--border-subtle)" }}>
+              {["", "Category / Item", "Monthly ($)"].map((h, i) => (
+                <span key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: i === 2 ? "right" : "left" }}>{h}</span>
+              ))}
+            </div>
+
+            {preview.map((row, idx) => (
+              <div key={row.id} style={{
+                borderBottom: "1px solid var(--border-subtle)",
+                opacity: row.selected ? 1 : 0.45,
+                background: row.existingId ? "rgba(99,102,241,0.03)" : "transparent",
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", alignItems: "center", padding: "7px 6px", gap: "8px" }}>
+                  <input type="checkbox" checked={row.selected} onChange={() => updateRow(idx, { selected: !row.selected })}
+                    style={{ accentColor: "var(--brand-blue)", cursor: "pointer" }} />
+                  <div style={{ minWidth: 0 }}>
+                    <input
+                      value={row.label}
+                      onChange={(e) => updateRow(idx, { label: e.target.value })}
+                      style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, padding: "2px 4px", width: "100%", outline: "none", boxSizing: "border-box" }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                    />
+                    {row.isSubscription ? (
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Subscription</span>
+                    ) : row.merchants.length > 0 ? (
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                        {row.merchants.slice(0, 3).map((m) => m.label).join(", ")}{row.merchants.length > 3 ? ` +${row.merchants.length - 3} more` : ""}
+                      </span>
+                    ) : null}
+                    {row.existingId && (
+                      <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)", marginLeft: "4px" }}>
+                        · exists: {row.existingLabel} ${row.existingAmount?.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="number" min={0} step={0.01}
+                    value={row.amount}
+                    onChange={(e) => updateRow(idx, { amount: Number(e.target.value) })}
+                    style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 4px", width: "100%", textAlign: "right", outline: "none", boxSizing: "border-box" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" onClick={handleAdd} disabled={adding || selectedCount === 0}
               style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: selectedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: selectedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: selectedCount === 0 ? "default" : "pointer" }}>
-              {adding ? "Adding…" : `Add ${selectedCount} Item${selectedCount !== 1 ? "s" : ""}`}
+              {adding ? "Adding…" : `Add ${selectedCount} to Budget`}
             </button>
-            <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
+            <button type="button" onClick={() => setStep("paste")}
               style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
-              Back
+              + Add Another Statement
             </button>
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
               {selectedCount} of {preview.length} selected
             </span>
           </div>
         </>
-      ) : (
+      )}
+
+      {/* Paste step */}
+      {step === "paste" && (
         <>
-          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Paste a bank statement, CSV rows, or describe your income and expenses in plain text. FINN will extract the items for you to review.
-          </p>
+          {allParsed.length > 0 && (
+            <div style={{ padding: "6px 10px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "#22c55e", fontFamily: "var(--font-body)" }}>
+              {allParsed.length} transactions already loaded — paste another statement to add to the mix.
+            </div>
+          )}
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={`Examples:\n• Salary $85,000/year, rent $1,800/mo, groceries $400/mo, Netflix $18/mo\n• Or paste raw CSV rows from your bank`}
+            placeholder={"Paste a credit card or bank statement — CSV export, copied transactions, or plain text. FINN groups charges by category automatically."}
             rows={6}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-md)", color: "var(--text-primary)",
-              fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px",
-              resize: "vertical", outline: "none", lineHeight: 1.6,
-            }}
+            style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px", resize: "vertical", outline: "none", lineHeight: 1.6 }}
             onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
             onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
           />
-          {parseError && (
-            <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>
-          )}
+          {parseError && <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>}
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
               style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)", color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: !rawText.trim() || parsing ? "default" : "pointer" }}>
-              {parsing ? "Parsing…" : "Parse with FINN"}
+              {parsing ? "Analyzing…" : "Analyze with FINN"}
             </button>
+            {allParsed.length > 0 && (
+              <button type="button" onClick={() => setStep("review")}
+                style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+                Back to Review
+              </button>
+            )}
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
               {rawText.length > 0 ? `${rawText.length} chars` : "Max 8,000 characters"}
             </span>
@@ -2504,19 +2666,8 @@ function StatementImportPanel({
   const [rawText, setRawText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<(ImportedItem & { matchedItemId: string | null })[] | null>(null);
+  const [preview, setPreview] = useState<ActualsGroupRow[] | null>(null);
   const [logging, setLogging] = useState(false);
-
-  function findBestMatch(label: string): string | null {
-    const l = normLabel(label);
-    const exact = expenseItems.find((i) => normLabel(i.label) === l);
-    if (exact) return exact.id;
-    const partial = expenseItems.find((i) => {
-      const il = normLabel(i.label);
-      return l.includes(il) || il.includes(l);
-    });
-    return partial?.id ?? null;
-  }
 
   async function handleParse() {
     if (!rawText.trim()) return;
@@ -2535,7 +2686,7 @@ function StatementImportPanel({
         setParseError("No transactions found. Try pasting more of your statement.");
         return;
       }
-      setPreview(data.items.map((item) => ({ ...item, matchedItemId: findBestMatch(item.label) })));
+      setPreview(groupForActuals(data.items, expenseItems));
     } catch {
       setParseError("Network error — please try again.");
     } finally {
@@ -2544,24 +2695,29 @@ function StatementImportPanel({
   }
 
   function setMatch(idx: number, id: string | null) {
-    setPreview((prev) => prev
-      ? prev.map((item, i) => i === idx ? { ...item, matchedItemId: id } : item)
-      : prev);
+    setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, matchedItemId: id } : r) : prev);
+  }
+
+  function toggleExpand(idx: number) {
+    setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, expanded: !r.expanded } : r) : prev);
   }
 
   async function handleLog() {
     if (!preview) return;
-    const toLog = preview.filter((i) => i.matchedItemId !== null);
+    const toLog = preview.filter((r) => r.matchedItemId !== null);
     if (toLog.length === 0) return;
     setLogging(true);
     try {
-      for (const item of toLog) {
+      for (const row of toLog) {
         const fd = new FormData();
-        fd.set("cash_flow_item_id", item.matchedItemId!);
-        fd.set("label", item.label);
+        fd.set("cash_flow_item_id", row.matchedItemId!);
+        fd.set("label", row.label);
         fd.set("period_year", String(selYear));
         fd.set("period_month", String(selMonth));
-        fd.set("actual_amount", String(item.amount));
+        fd.set("actual_amount", String(row.totalAmount));
+        if (row.merchants.length > 0) {
+          fd.set("breakdown", JSON.stringify(row.merchants));
+        }
         await logExpenseActual(fd);
       }
       onDone(toLog.length);
@@ -2570,22 +2726,18 @@ function StatementImportPanel({
     }
   }
 
-  const matchedCount = preview ? preview.filter((i) => i.matchedItemId !== null).length : 0;
+  const matchedCount = preview ? preview.filter((r) => r.matchedItemId !== null).length : 0;
   const totalCount = preview ? preview.length : 0;
 
   return (
-    <div style={{
-      background: "var(--card-bg)", border: "1px solid var(--card-border)",
-      borderRadius: "var(--radius-lg)", padding: "16px 20px",
-      display: "flex", flexDirection: "column", gap: "14px",
-    }}>
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
-            Import Statement as Actuals
+            Log Monthly Actuals
           </span>
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
-            Logging for {MONTH_NAMES[selMonth - 1]} {selYear}. Transactions are matched to your budget items automatically.
+            Logging for {MONTH_NAMES[selMonth - 1]} {selYear}. Charges are grouped by category and matched to your budget.
           </p>
         </div>
         <button type="button" onClick={onClose}
@@ -2597,67 +2749,83 @@ function StatementImportPanel({
       {expenseItems.length === 0 ? (
         <div style={{ padding: "16px", textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)" }}>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            Add expense items to your budget in the Cash Flow section first, then come back here to log actuals.
+            Set up budget items in the Cash Flow section first, then log actuals here.
           </p>
         </div>
       ) : preview ? (
         <>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-            {totalCount} items parsed — <strong>{matchedCount} matched</strong> to your budget. Adjust the &quot;Budget Item&quot; column as needed, then click Log Actuals.
+            {totalCount} categor{totalCount !== 1 ? "ies" : "y"} parsed — <strong>{matchedCount} matched</strong> to your budget. Adjust the &ldquo;Budget Item&rdquo; column, then log actuals.
           </p>
+
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 90px 24px", padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", gap: "8px" }}>
+            {["Category / Item", "Budget Item", "Total", ""].map((h, i) => (
+              <span key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: i === 2 ? "right" : "left" }}>{h}</span>
+            ))}
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 160px 90px",
-              padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)",
-            }}>
-              {["Merchant", "Budget Item", "Actual"].map((h) => (
-                <span key={h} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
-              ))}
-            </div>
-            {preview.map((item, idx) => (
-              <div key={idx} style={{
-                display: "grid", gridTemplateColumns: "1fr 160px 90px",
-                alignItems: "center", gap: "8px", padding: "7px 8px",
-                borderBottom: "1px solid var(--border-subtle)",
-                background: item.matchedItemId ? "transparent" : "rgba(239,68,68,0.04)",
-              }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.label}
-                  </p>
-                  {item.category && (
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{item.category}</span>
-                  )}
+            {preview.map((row, idx) => (
+              <div key={row.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 160px 90px 24px",
+                  alignItems: "center", gap: "8px", padding: "7px 8px",
+                  background: row.matchedItemId ? "transparent" : "rgba(239,68,68,0.04)",
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, fontWeight: 500 }}>{row.label}</p>
+                    {row.isSubscription
+                      ? <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Subscription</span>
+                      : row.merchants.length > 0
+                        ? <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{row.merchants.length} merchant{row.merchants.length !== 1 ? "s" : ""}</span>
+                        : null}
+                  </div>
+                  <select
+                    value={row.matchedItemId ?? ""}
+                    onChange={(e) => setMatch(idx, e.target.value || null)}
+                    style={{
+                      background: "var(--bg-elevated)", border: `1px solid ${row.matchedItemId ? "var(--border-subtle)" : "rgba(239,68,68,0.3)"}`,
+                      borderRadius: "6px", color: row.matchedItemId ? "var(--text-primary)" : "var(--text-muted)",
+                      fontFamily: "var(--font-body)", fontSize: "11px", padding: "3px 6px", width: "100%",
+                    }}
+                  >
+                    <option value="">— Skip —</option>
+                    {expenseItems.map((bi) => (
+                      <option key={bi.id} value={bi.id}>{bi.label}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
+                    ${row.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  {row.merchants.length > 0 ? (
+                    <button type="button" onClick={() => toggleExpand(idx)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "12px", padding: "0", lineHeight: 1, textAlign: "center" }}
+                      title={row.expanded ? "Collapse" : "Show merchants"}>
+                      {row.expanded ? "▲" : "▼"}
+                    </button>
+                  ) : <span />}
                 </div>
-                <select
-                  value={item.matchedItemId ?? ""}
-                  onChange={(e) => setMatch(idx, e.target.value || null)}
-                  style={{
-                    background: "var(--bg-elevated)", border: `1px solid ${item.matchedItemId ? "var(--border-subtle)" : "rgba(239,68,68,0.3)"}`,
-                    borderRadius: "6px", color: item.matchedItemId ? "var(--text-primary)" : "var(--text-muted)",
-                    fontFamily: "var(--font-body)", fontSize: "11px", padding: "3px 6px", width: "100%",
-                  }}
-                >
-                  <option value="">— Skip —</option>
-                  {expenseItems.map((bi) => (
-                    <option key={bi.id} value={bi.id}>{bi.label}</option>
-                  ))}
-                </select>
-                <span style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
-                  ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+                {/* Merchant drill-down */}
+                {row.expanded && row.merchants.length > 0 && (
+                  <div style={{ padding: "4px 8px 8px 16px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {row.merchants.map((m, mi) => (
+                      <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>↳ {m.label}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                          ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button type="button" onClick={handleLog} disabled={logging || matchedCount === 0}
-              style={{
-                padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none",
-                background: matchedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)",
-                color: matchedCount === 0 ? "var(--text-tertiary)" : "#fff",
-                fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600,
-                cursor: matchedCount === 0 ? "default" : "pointer",
-              }}>
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: matchedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: matchedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: matchedCount === 0 ? "default" : "pointer" }}>
               {logging ? "Logging…" : `Log ${matchedCount} Actual${matchedCount !== 1 ? "s" : ""}`}
             </button>
             <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
@@ -2666,7 +2834,7 @@ function StatementImportPanel({
             </button>
             {totalCount - matchedCount > 0 && (
               <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
-                {totalCount - matchedCount} item{totalCount - matchedCount !== 1 ? "s" : ""} will be skipped
+                {totalCount - matchedCount} will be skipped
               </span>
             )}
           </div>
@@ -2676,30 +2844,16 @@ function StatementImportPanel({
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={"Paste your credit card or bank statement here — CSV export, copied transaction table, or plain text. FINN groups charges by merchant automatically."}
+            placeholder={"Paste your credit card or bank statement — CSV export, copied transactions, or plain text. FINN groups charges by category automatically."}
             rows={6}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-md)", color: "var(--text-primary)",
-              fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px",
-              resize: "vertical", outline: "none", lineHeight: 1.6,
-            }}
+            style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px", resize: "vertical", outline: "none", lineHeight: 1.6 }}
             onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
             onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
           />
-          {parseError && (
-            <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>
-          )}
+          {parseError && <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>}
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
-              style={{
-                padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none",
-                background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)",
-                color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff",
-                fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600,
-                cursor: !rawText.trim() || parsing ? "default" : "pointer",
-              }}>
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)", color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: !rawText.trim() || parsing ? "default" : "pointer" }}>
               {parsing ? "Parsing…" : "Parse Statement"}
             </button>
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
@@ -2729,6 +2883,7 @@ function BudgetTrackerTab({
   const [pending, startTransition] = useTransition();
   const [showStatementImport, setShowStatementImport] = useState(false);
   const [statementSuccess, setStatementSuccess] = useState<number | null>(null);
+  const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
 
   const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
 
@@ -2813,7 +2968,7 @@ function BudgetTrackerTab({
           <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
-          Import Statement
+          Log Actuals from Statement
         </button>
       </div>
 
@@ -2992,6 +3147,35 @@ function BudgetTrackerTab({
                     <span style={{ position: "absolute", bottom: "-14px", fontSize: "9px", color: "var(--text-muted)" }}>F</span>
                   </div>
                 </div>
+              )}
+
+              {/* Breakdown toggle */}
+              {actual?.breakdown && actual.breakdown.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedBreakdown((prev) => {
+                      const next = new Set(prev);
+                      next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                      return next;
+                    })}
+                    style={{ marginTop: "6px", background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", padding: "0", display: "flex", alignItems: "center", gap: "4px" }}
+                  >
+                    {expandedBreakdown.has(item.id) ? "▲" : "▼"} {actual.breakdown.length} merchant{actual.breakdown.length !== 1 ? "s" : ""}
+                  </button>
+                  {expandedBreakdown.has(item.id) && (
+                    <div style={{ marginTop: "4px", paddingLeft: "8px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                      {actual.breakdown.map((m, mi) => (
+                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>↳ {m.label}</span>
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                            ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
@@ -5183,17 +5367,20 @@ export default function PlanningClient({
             <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
           </div>
 
-          {/* AI Import */}
-          <AiImportPanel onAdd={async (items) => {
-            for (const item of items) {
-              const fd = new FormData();
-              fd.set("label", item.label);
-              fd.set("amount", String(item.amount));
-              fd.set("frequency", item.frequency);
-              fd.set("type", item.type);
-              await addCashFlowItem(fd);
-            }
-          }} />
+          {/* AI Import — builds budget from statement, grouped by category */}
+          <AiImportPanel
+            existingItems={cashFlowItems.filter((i) => i.type === "expense")}
+            onAdd={async (rows) => {
+              for (const row of rows) {
+                const fd = new FormData();
+                fd.set("label", row.label);
+                fd.set("amount", String(row.amount));
+                fd.set("frequency", "monthly");
+                fd.set("type", "expense");
+                await addCashFlowItem(fd);
+              }
+            }}
+          />
 
           {/* Budget vs. Actuals (merged from Budget Tracker) */}
           <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px" }}>

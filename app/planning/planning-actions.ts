@@ -335,6 +335,8 @@ export async function deleteFutureEvent(id: string): Promise<{ error?: string }>
 
 // ── Expense Actuals ───────────────────────────────────────────────────────────
 
+export type ActualBreakdownItem = { label: string; amount: number };
+
 export type ExpenseActual = {
   id: string;
   user_id: string;
@@ -344,6 +346,7 @@ export type ExpenseActual = {
   period_month: number;
   actual_amount: number;
   notes: string | null;
+  breakdown: ActualBreakdownItem[] | null;
   created_at: string;
 };
 
@@ -360,9 +363,14 @@ export async function logExpenseActual(formData: FormData): Promise<{ error?: st
   const period_month = Number(formData.get("period_month") || new Date().getMonth() + 1);
   const actual_amount = Number(formData.get("actual_amount") || 0);
   const notes = String(formData.get("notes") || "").trim() || null;
+  let breakdown: ActualBreakdownItem[] | null = null;
+  const breakdownRaw = formData.get("breakdown");
+  if (breakdownRaw) {
+    try { breakdown = JSON.parse(String(breakdownRaw)); } catch { /* ignore malformed */ }
+  }
 
   const { error } = await supabase.from("expense_actuals").upsert(
-    { user_id: user.id, cash_flow_item_id, label, period_year, period_month, actual_amount, notes, updated_at: new Date().toISOString() },
+    { user_id: user.id, cash_flow_item_id, label, period_year, period_month, actual_amount, notes, breakdown, updated_at: new Date().toISOString() },
     { onConflict: "user_id,cash_flow_item_id,period_year,period_month" }
   );
 
