@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 import PortfolioChartClient from "./portfolio-chart-client";
-import ResetPerformanceButton from "./reset-performance-button";
 
 type PortfolioChartSectionProps = {
   portfolioId: string;
@@ -81,26 +80,22 @@ export default async function PortfolioChartSection({
   });
 
   return (
-    <div>
-      <PortfolioChartClient
-        snapshots={(snapshots ?? []).map((s) => ({
-          date: s.snapshot_date,
-          total_value: Number(s.total_value),
-        }))}
-        chartData={comparison.chartData}
-        benchmarkSymbol={comparison.benchmarkSymbol}
-        portfolioReturnPct={comparison.portfolioReturnPct}
-        portfolioTwrPct={comparison.portfolioTwrPct}
-        benchmarkReturnPct={comparison.benchmarkReturnPct}
-        excessReturnPct={comparison.excessReturnPct}
-        excessTwrPct={comparison.excessTwrPct}
-        startDateLabel={comparison.startDateLabel}
-        endDateLabel={comparison.endDateLabel}
-        hasEnoughSnapshots={comparison.hasEnoughSnapshots}
-      />
-      <div className="mt-1 flex justify-end px-1">
-        <ResetPerformanceButton portfolioId={portfolioId} />
-      </div>
-    </div>
+    <PortfolioChartClient
+      portfolioId={portfolioId}
+      snapshots={(snapshots ?? []).map((s) => ({
+        date: s.snapshot_date,
+        total_value: Number(s.total_value),
+      }))}
+      chartData={comparison.chartData}
+      benchmarkSymbol={comparison.benchmarkSymbol}
+      portfolioReturnPct={comparison.portfolioReturnPct}
+      portfolioTwrPct={comparison.portfolioTwrPct}
+      benchmarkReturnPct={comparison.benchmarkReturnPct}
+      excessReturnPct={comparison.excessReturnPct}
+      excessTwrPct={comparison.excessTwrPct}
+      startDateLabel={comparison.startDateLabel}
+      endDateLabel={comparison.endDateLabel}
+      hasEnoughSnapshots={comparison.hasEnoughSnapshots}
+    />
   );
 }

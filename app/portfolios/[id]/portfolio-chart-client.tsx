@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { usePortfolioPrivacy } from "./portfolio-privacy-context";
+import ResetPerformanceButton from "./reset-performance-button";
 import {
   CartesianGrid, Line, LineChart, ReferenceLine,
   ResponsiveContainer, Tooltip, XAxis, YAxis, Area, AreaChart,
@@ -26,6 +27,7 @@ type StatItem = {
 };
 
 type PortfolioChartClientProps = {
+  portfolioId: string;
   snapshots: Snapshot[];
   chartData: ChartDataPoint[];
   benchmarkSymbol: string;
@@ -91,6 +93,7 @@ const tooltipStyle = {
 };
 
 export default function PortfolioChartClient({
+  portfolioId,
   snapshots,
   chartData,
   benchmarkSymbol,
@@ -347,22 +350,27 @@ export default function PortfolioChartClient({
         </div>
       )}
 
-      {/* Legend */}
-      {(chartMode === "return" || chartMode === "twr") && hasEnoughSnapshots && (
-        <div className="mt-3 flex gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <span className={`h-2 w-4 rounded ${chartMode === "twr" ? "bg-violet-400" : "bg-sky-400"}`} />
-            {chartMode === "twr" ? "Inv. Return (TWR)" : "Total Return"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-4 rounded bg-slate-500" />
-            {benchmarkSymbol}
-          </span>
-          {startDateLabel && endDateLabel && (
-            <span className="ml-auto text-slate-600">{startDateLabel} → {endDateLabel}</span>
-          )}
-        </div>
-      )}
+      {/* Legend + Reset */}
+      <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+        {(chartMode === "return" || chartMode === "twr") && hasEnoughSnapshots && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className={`h-2 w-4 rounded ${chartMode === "twr" ? "bg-violet-400" : "bg-sky-400"}`} />
+              {chartMode === "twr" ? "Inv. Return (TWR)" : "Total Return"}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-4 rounded bg-slate-500" />
+              {benchmarkSymbol}
+            </span>
+            {startDateLabel && endDateLabel && (
+              <span className="text-slate-600">{startDateLabel} → {endDateLabel}</span>
+            )}
+          </>
+        )}
+        <span className="ml-auto">
+          <ResetPerformanceButton portfolioId={portfolioId} />
+        </span>
+      </div>
     </div>
   );
 }
