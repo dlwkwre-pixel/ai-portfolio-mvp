@@ -11,7 +11,7 @@ export const revalidate = 14400; // 4-hour server-side cache
 export async function GET() {
   try {
     // Fetch macro + market data in parallel
-    const [macroSignals, spyQuote, spyMetrics, qqqQuote, xlkQuote, xluQuote, breadth] =
+    const [macroSignals, spyQuote, spyMetrics, qqqQuote, xlkQuote, xluQuote, xlvQuote, xleQuote, xlfQuote, xliQuote, breadth] =
       await Promise.allSettled([
         getFredMacroSignals(),
         getFinnhubQuote("SPY"),
@@ -19,6 +19,10 @@ export async function GET() {
         getFinnhubQuote("QQQ"),
         getFinnhubQuote("XLK"),
         getFinnhubQuote("XLU"),
+        getFinnhubQuote("XLV"),
+        getFinnhubQuote("XLE"),
+        getFinnhubQuote("XLF"),
+        getFinnhubQuote("XLI"),
         getFmpMarketBreadth(),
       ]);
 
@@ -35,7 +39,19 @@ export async function GET() {
     const qqq = qqqQuote.status === "fulfilled" ? qqqQuote.value : null;
     const xlk = xlkQuote.status === "fulfilled" ? xlkQuote.value : null;
     const xlu = xluQuote.status === "fulfilled" ? xluQuote.value : null;
+    const xlv = xlvQuote.status === "fulfilled" ? xlvQuote.value : null;
+    const xle = xleQuote.status === "fulfilled" ? xleQuote.value : null;
+    const xlf = xlfQuote.status === "fulfilled" ? xlfQuote.value : null;
+    const xli = xliQuote.status === "fulfilled" ? xliQuote.value : null;
     const breadthData = breadth.status === "fulfilled" ? breadth.value : null;
+
+    // Sector ETF breadth fallback: count sectors with positive daily % change
+    const sectorBreadthFallback = (() => {
+      const dps = [xlk?.dp, xlu?.dp, xlv?.dp, xle?.dp, xlf?.dp, xli?.dp].filter((v): v is number => typeof v === "number");
+      if (dps.length < 3) return null;
+      const advancing = dps.filter((v) => v > 0).length;
+      return { ratio: advancing / dps.length, advancing, declining: dps.length - advancing, unchanged: 0 };
+    })();
 
     // Implied vol proxy from SPY daily % move
     const spyDailyMove = spy?.dp !== undefined ? Math.abs(spy.dp) : null;
@@ -60,7 +76,7 @@ export async function GET() {
       qqqVsSpyRatio,
       techVsDefensiveRatio,
       impliedVolProxy,
-      marketBreadthRatio: breadthData?.ratio ?? null,
+      marketBreadthRatio: breadthData?.ratio ?? sectorBreadthFallback?.ratio ?? null,
     };
 
     const regime = computeRegime(macro, market);

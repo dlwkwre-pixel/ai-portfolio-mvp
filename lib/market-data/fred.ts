@@ -32,10 +32,11 @@ async function fetchFredSeries(seriesId: string, count = 3): Promise<FredObserva
   url.searchParams.set("observation_start", "2020-01-01");
 
   try {
-    const res = await fetch(url.toString(), {
-      next: { revalidate: 14400 }, // 4-hour cache
-    });
-    if (!res.ok) return [];
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) {
+      console.error(`[fred] ${seriesId} → HTTP ${res.status}`);
+      return [];
+    }
     const data: FredSeriesResponse = await res.json();
     return (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "");
   } catch {
@@ -84,12 +85,12 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
 
   const [yieldCurveObs, yield10yObs, fedFundsObs, cpiObs, unemploymentObs, creditObs] =
     await Promise.all([
-      fetchFredSeries("T10Y2Y", 3),
+      fetchFredSeries("T10Y2Y", 5),       // daily — fetch more in case of "." gaps
       fetchFredSeries("DGS10", 2),
       fetchFredSeries("FEDFUNDS", 3),
-      fetchFredSeries("CPIAUCSL", 14), // need 13 months for YoY
+      fetchFredSeries("CPIAUCSL", 16),    // 16 for YoY + prev with "." buffer
       fetchFredSeries("UNRATE", 3),
-      fetchFredSeries("BAMLH0A0HYM2", 2),
+      fetchFredSeries("BAMLH0A0HYM2OAS", 3), // OAS suffix — correct FRED series ID
     ]);
 
   // Compute CPI YoY %
@@ -110,6 +111,10 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
     }
   }
 
+  // BAMLH0A0HYM2OAS is in percent (e.g. 3.5 = 350bps) — convert to basis points for scoring
+  const creditPct = latestValue(creditObs);
+  const creditSpread = creditPct !== null ? Math.round(creditPct * 100) : null;
+
   return {
     yieldCurveSpread: latestValue(yieldCurveObs),
     yield10y: latestValue(yield10yObs),
@@ -119,7 +124,7 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
     cpiPrev,
     unemployment: latestValue(unemploymentObs),
     unemploymentPrev: previousValue(unemploymentObs),
-    creditSpread: latestValue(creditObs),
+    creditSpread,
     fredAvailable: true,
   };
 }

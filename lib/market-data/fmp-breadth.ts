@@ -27,9 +27,7 @@ export async function getFmpMarketBreadth(): Promise<MarketBreadthData | null> {
   url.searchParams.set("apikey", apiKey);
 
   try {
-    const res = await fetch(url.toString(), {
-      next: { revalidate: 3600 },
-    });
+    const res = await fetch(url.toString(), { cache: "no-store" });
     if (!res.ok) return null;
 
     const data = await res.json();
