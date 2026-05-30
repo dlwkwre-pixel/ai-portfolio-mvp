@@ -5139,6 +5139,116 @@ export default function PlanningClient({
             </div>
           </div>
 
+          {/* ── Section: Home Purchase Goal ── */}
+          {homeScenarios.length > 0 && (() => {
+            const hs = homeScenarios[0];
+            const loanAmt = hs.purchase_price - hs.down_payment;
+            const monthlyRate = hs.mortgage_rate / 100 / 12;
+            const totalMonths = hs.loan_term_years * 12;
+            const mortgagePmt =
+              monthlyRate > 0 && totalMonths > 0
+                ? loanAmt * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1)
+                : totalMonths > 0 ? loanAmt / totalMonths : 0;
+            const totalMonthlyCost = mortgagePmt + hs.property_tax_monthly + hs.insurance_monthly + hs.hoa_monthly;
+            const monthlyCostDelta = totalMonthlyCost - hs.monthly_rent;
+            const dpSaved = Math.min(liquidAssets, hs.down_payment);
+            const dpRemaining = Math.max(0, hs.down_payment - liquidAssets);
+            const dpProgress = hs.down_payment > 0 ? Math.min(1, liquidAssets / hs.down_payment) : 0;
+            const monthsToGoal = monthlySavings > 0 && dpRemaining > 0 ? Math.ceil(dpRemaining / monthlySavings) : null;
+            const isReady = dpRemaining <= 0;
+            const newSavingsRate = effectiveIncome > 0 ? ((monthlySavings - monthlyCostDelta) / effectiveIncome) * 100 : null;
+            return (
+              <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "90ms" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+                        <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" fill="rgba(99,102,241,0.15)" strokeLinejoin="round"/>
+                        <path d="M7 18v-6h6v6" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "1px" }}>Home Purchase Goal</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{hs.name}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.05em", background: isReady ? "rgba(0,211,149,0.08)" : "rgba(99,102,241,0.1)", color: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", border: `1px solid ${isReady ? "rgba(0,211,149,0.2)" : "rgba(99,102,241,0.2)"}` }}>
+                      {isReady ? "READY" : "GOAL"}
+                    </span>
+                    <a href="/planning/home" style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textDecoration: "none" }}>
+                      View →
+                    </a>
+                  </div>
+                </div>
+
+                {/* Down payment progress bar */}
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Down payment savings</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: isReady ? "oklch(0.72 0.19 145)" : "var(--text-primary)" }}>
+                      {pHide(`${fmt(dpSaved)} / ${fmt(hs.down_payment)}`)}
+                    </span>
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "3px", background: "var(--border)", overflow: "hidden" }}>
+                    <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "3px", background: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", transform: `scaleX(${dpProgress})`, animationDelay: "300ms" }} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "5px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                      {pHide(`${(dpProgress * 100).toFixed(0)}% saved`)}
+                    </span>
+                    <span style={{ fontSize: "11px", color: isReady ? "oklch(0.72 0.19 145)" : "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                      {isReady
+                        ? "Ready to buy"
+                        : monthsToGoal !== null
+                          ? `${monthsToGoal} mo at current pace`
+                          : monthlySavings <= 0
+                            ? "Increase savings to project"
+                            : "Add cash flow to project"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3-column metrics */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "8px" }}>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Target Price</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {pHide(fmt(hs.purchase_price))}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                      {pHide(`${((hs.down_payment / hs.purchase_price) * 100).toFixed(0)}% down`)}
+                    </div>
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Cost</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {pHide(fmt(Math.round(totalMonthlyCost)))}
+                    </div>
+                    <div style={{ fontSize: "10px", color: monthlyCostDelta > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                      {pHide(`${monthlyCostDelta >= 0 ? "+" : ""}${fmt(Math.round(monthlyCostDelta))} vs rent`)}
+                    </div>
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings After</div>
+                    {newSavingsRate !== null ? (
+                      <>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: newSavingsRate >= 15 ? "oklch(0.72 0.19 145)" : newSavingsRate >= 5 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)" }}>
+                          {pHide(`${Math.max(0, newSavingsRate).toFixed(0)}%`)}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
+                          {pHide(`vs ${savingsRate.toFixed(0)}% now`)}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-muted)" }}>—</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Section 4: Future Milestones ── */}
           {(() => {
             const nowYear = new Date().getFullYear();
