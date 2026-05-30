@@ -5474,7 +5474,7 @@ export default function PlanningClient({
                   <div key={row.label} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", width: "66px", flexShrink: 0 }}>{row.label}</span>
                     <div style={{ flex: 1, height: "4px", background: "var(--border-subtle)", borderRadius: "2px", overflow: "hidden" }}>
-                      <div className="hub-bar-fill" style={{ height: "100%", borderRadius: "2px", background: "var(--accent)", transform: `scaleX(${row.max > 0 ? row.pts / row.max : 0})` }} />
+                      <div className="hub-bar-fill" style={{ width: "100%", height: "100%", borderRadius: "2px", background: (() => { const pct = row.max > 0 ? row.pts / row.max : 0; return pct >= 0.7 ? "#22c55e" : pct >= 0.4 ? "#3b82f6" : "#f59e0b"; })(), transform: `scaleX(${row.max > 0 ? row.pts / row.max : 0})`, transformOrigin: "0 50%" }} />
                     </div>
                     <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", width: "36px", textAlign: "right", flexShrink: 0 }}>{row.pts}/{row.max}</span>
                   </div>
