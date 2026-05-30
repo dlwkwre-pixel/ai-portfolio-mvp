@@ -1124,17 +1124,17 @@ const sectionHeadStyle: React.CSSProperties = {
 // ── Cash flow categories ───────────────────────────────────────────────────────
 
 const EXPENSE_CATEGORIES: { label: string; keywords: string[]; emoji: string }[] = [
-  { label: "Housing",        keywords: ["rent", "mortgage", "hoa", "property tax", "home insurance", "maintenance", "repair", "condo", "lease", "landlord"],                                        emoji: "🏠" },
-  { label: "Transportation", keywords: ["car", "gas", "fuel", "auto insurance", "parking", "uber", "lyft", "transit", "bus", "subway", "toll", "vehicle", "train", "metro"],                       emoji: "🚗" },
-  { label: "Food & Dining",  keywords: ["grocery", "groceries", "food", "restaurant", "dining", "coffee", "lunch", "dinner", "breakfast", "meal", "delivery", "doordash", "instacart", "takeout"], emoji: "🍽️" },
-  { label: "Healthcare",     keywords: ["health", "medical", "doctor", "dental", "vision", "pharmacy", "prescription", "therapy", "counseling"],                                                   emoji: "🏥" },
-  { label: "Fitness",        keywords: ["gym", "fitness", "yoga", "workout", "pilates", "peloton", "crossfit", "exercise"],                                                                        emoji: "💪" },
-  { label: "Insurance",      keywords: ["life insurance", "disability", "renters insurance", "term life", "umbrella policy"],                                                                      emoji: "🛡️" },
-  { label: "Utilities",      keywords: ["electric", "electricity", "gas bill", "water", "internet", "phone", "cell", "utility", "heating", "cooling", "cable", "sewage"],                         emoji: "⚡" },
-  { label: "Entertainment",  keywords: ["streaming", "spotify", "netflix", "hulu", "disney", "games", "gaming", "movies", "books", "hobby", "concert", "theater"],                                emoji: "🎬" },
-  { label: "Travel",         keywords: ["travel", "vacation", "hotel", "flight", "airbnb", "trip", "cruise"],                                                                                     emoji: "✈️" },
-  { label: "Subscriptions",  keywords: ["subscription", "membership", "amazon prime", "premium", "software", "saas", "monthly service"],                                                          emoji: "📱" },
-  { label: "Childcare",      keywords: ["childcare", "daycare", "school", "tuition", "babysitter", "nanny", "kids", "children", "after school"],                                                   emoji: "👶" },
+  { label: "Housing",        keywords: ["rent", "mortgage", "hoa", "property tax", "home insurance", "maintenance", "repair", "condo", "lease", "landlord", "apartment", "storage"],              emoji: "🏠" },
+  { label: "Transportation", keywords: ["car", "gas", "fuel", "auto insurance", "parking", "uber", "lyft", "transit", "bus", "subway", "toll", "vehicle", "train", "metro", "tesla", "zipcar", "enterprise", "hertz", "avis", "getaround"],                                                                   emoji: "🚗" },
+  { label: "Food & Dining",  keywords: ["grocery", "groceries", "food", "restaurant", "dining", "coffee", "lunch", "dinner", "breakfast", "meal", "delivery", "doordash", "instacart", "takeout", "waffle", "donut", "taco", "burger", "pizza", "sushi", "steak", "grill", "grille", "tavern", "kitchen", "diner", "bistro", "cafe", "bakery", "bbq", "barbecue", "seafood", "noodle", "ramen", "poke", "chipotle", "mcdonald", "wendy", "chick-fil-a", "chick fil", "subway", "panera", "starbucks", "dunkin", "popeyes", "domino", "papa john", "five guys", "shake shack", "in-n-out", "whataburger", "dairy queen", "sonic drive", "jack in the box", "cook out", "cookout", "silver skillet", "spaghetti", "western", "waffle house", "heb", "curbside", "whole foods", "trader joe", "aldi", "kroger", "publix", "safeway", "wegmans", "target grocery", "walmart grocery", "leaf", "grain", "bean", "bottle", "dark horse", "queen donut", "total wine", "specs", "wine", "spirits", "lunchdrop", "grubhub", "uber eats", "postmates", "seamless", "gopuff"], emoji: "🍽️" },
+  { label: "Healthcare",     keywords: ["health", "medical", "doctor", "dental", "vision", "pharmacy", "prescription", "therapy", "counseling", "cvs", "walgreen", "rite aid", "urgent care", "hospital", "clinic", "lab", "quest diagnostics"],                                                               emoji: "🏥" },
+  { label: "Fitness",        keywords: ["gym", "fitness", "yoga", "workout", "pilates", "peloton", "crossfit", "exercise", "planet fitness", "anytime fitness", "la fitness", "24 hour fitness", "orange theory", "equinox", "barry's", "soul cycle", "classpass"],                                             emoji: "💪" },
+  { label: "Insurance",      keywords: ["life insurance", "disability", "renters insurance", "term life", "umbrella policy", "insurance premium", "geico", "state farm", "allstate", "progressive", "lemonade"],                                                                                                 emoji: "🛡️" },
+  { label: "Utilities",      keywords: ["electric", "electricity", "gas bill", "water", "internet", "phone", "cell", "utility", "heating", "cooling", "cable", "sewage", "at&t", "verizon", "t-mobile", "comcast", "xfinity", "spectrum", "cox", "clean sky", "reliant", "txu", "pge", "con ed", "duke energy"], emoji: "⚡" },
+  { label: "Entertainment",  keywords: ["streaming", "spotify", "netflix", "hulu", "disney", "games", "gaming", "movies", "books", "hobby", "concert", "theater", "apple tv", "hbo", "paramount", "peacock", "crunchyroll", "twitch", "youtube premium", "xbox", "playstation", "steam", "ticketmaster", "stubhub", "amc", "regal", "cinemark"],                                                                   emoji: "🎬" },
+  { label: "Travel",         keywords: ["travel", "vacation", "hotel", "flight", "airbnb", "trip", "cruise", "delta", "united", "southwest", "american airlines", "marriott", "hilton", "hyatt", "expedia", "booking", "vrbo", "kayak", "priceline"],                                                          emoji: "✈️" },
+  { label: "Subscriptions",  keywords: ["subscription", "membership", "amazon prime", "premium", "software", "saas", "monthly service", "claude", "chatgpt", "openai", "anthropic", "google one", "icloud", "microsoft 365", "adobe", "notion", "figma", "dropbox", "lastpass", "1password", "nordvpn", "expressvpn"],                                                                                           emoji: "📱" },
+  { label: "Childcare",      keywords: ["childcare", "daycare", "school", "tuition", "babysitter", "nanny", "kids", "children", "after school", "preschool", "montessori"],                       emoji: "👶" },
   { label: "Other",          keywords: [],                                                                                                                                                         emoji: "📦" },
 ];
 
@@ -2484,6 +2484,234 @@ function EstatePlanningTab({
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+function normLabel(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function StatementImportPanel({
+  expenseItems,
+  selYear,
+  selMonth,
+  onClose,
+  onDone,
+}: {
+  expenseItems: CashFlowItem[];
+  selYear: number;
+  selMonth: number;
+  onClose: () => void;
+  onDone: (count: number) => void;
+}) {
+  const [rawText, setRawText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<(ImportedItem & { matchedItemId: string | null })[] | null>(null);
+  const [logging, setLogging] = useState(false);
+
+  function findBestMatch(label: string): string | null {
+    const l = normLabel(label);
+    const exact = expenseItems.find((i) => normLabel(i.label) === l);
+    if (exact) return exact.id;
+    const partial = expenseItems.find((i) => {
+      const il = normLabel(i.label);
+      return l.includes(il) || il.includes(l);
+    });
+    return partial?.id ?? null;
+  }
+
+  async function handleParse() {
+    if (!rawText.trim()) return;
+    setParsing(true);
+    setParseError(null);
+    setPreview(null);
+    try {
+      const res = await fetch("/api/planning/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText, mode: "statement" }),
+      });
+      const data = await res.json() as { items?: ImportedItem[]; error?: string };
+      if (!res.ok || data.error) { setParseError(data.error ?? "Something went wrong."); return; }
+      if (!data.items || data.items.length === 0) {
+        setParseError("No transactions found. Try pasting more of your statement.");
+        return;
+      }
+      setPreview(data.items.map((item) => ({ ...item, matchedItemId: findBestMatch(item.label) })));
+    } catch {
+      setParseError("Network error — please try again.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function setMatch(idx: number, id: string | null) {
+    setPreview((prev) => prev
+      ? prev.map((item, i) => i === idx ? { ...item, matchedItemId: id } : item)
+      : prev);
+  }
+
+  async function handleLog() {
+    if (!preview) return;
+    const toLog = preview.filter((i) => i.matchedItemId !== null);
+    if (toLog.length === 0) return;
+    setLogging(true);
+    try {
+      for (const item of toLog) {
+        const fd = new FormData();
+        fd.set("cash_flow_item_id", item.matchedItemId!);
+        fd.set("label", item.label);
+        fd.set("period_year", String(selYear));
+        fd.set("period_month", String(selMonth));
+        fd.set("actual_amount", String(item.amount));
+        await logExpenseActual(fd);
+      }
+      onDone(toLog.length);
+    } finally {
+      setLogging(false);
+    }
+  }
+
+  const matchedCount = preview ? preview.filter((i) => i.matchedItemId !== null).length : 0;
+  const totalCount = preview ? preview.length : 0;
+
+  return (
+    <div style={{
+      background: "var(--card-bg)", border: "1px solid var(--card-border)",
+      borderRadius: "var(--radius-lg)", padding: "16px 20px",
+      display: "flex", flexDirection: "column", gap: "14px",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+            Import Statement as Actuals
+          </span>
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
+            Logging for {MONTH_NAMES[selMonth - 1]} {selYear}. Transactions are matched to your budget items automatically.
+          </p>
+        </div>
+        <button type="button" onClick={onClose}
+          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "18px", lineHeight: 1 }}>
+          ×
+        </button>
+      </div>
+
+      {expenseItems.length === 0 ? (
+        <div style={{ padding: "16px", textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)" }}>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Add expense items to your budget in the Cash Flow section first, then come back here to log actuals.
+          </p>
+        </div>
+      ) : preview ? (
+        <>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            {totalCount} items parsed — <strong>{matchedCount} matched</strong> to your budget. Adjust the &quot;Budget Item&quot; column as needed, then click Log Actuals.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+            <div style={{
+              display: "grid", gridTemplateColumns: "1fr 160px 90px",
+              padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)",
+            }}>
+              {["Merchant", "Budget Item", "Actual"].map((h) => (
+                <span key={h} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
+              ))}
+            </div>
+            {preview.map((item, idx) => (
+              <div key={idx} style={{
+                display: "grid", gridTemplateColumns: "1fr 160px 90px",
+                alignItems: "center", gap: "8px", padding: "7px 8px",
+                borderBottom: "1px solid var(--border-subtle)",
+                background: item.matchedItemId ? "transparent" : "rgba(239,68,68,0.04)",
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {item.label}
+                  </p>
+                  {item.category && (
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{item.category}</span>
+                  )}
+                </div>
+                <select
+                  value={item.matchedItemId ?? ""}
+                  onChange={(e) => setMatch(idx, e.target.value || null)}
+                  style={{
+                    background: "var(--bg-elevated)", border: `1px solid ${item.matchedItemId ? "var(--border-subtle)" : "rgba(239,68,68,0.3)"}`,
+                    borderRadius: "6px", color: item.matchedItemId ? "var(--text-primary)" : "var(--text-muted)",
+                    fontFamily: "var(--font-body)", fontSize: "11px", padding: "3px 6px", width: "100%",
+                  }}
+                >
+                  <option value="">— Skip —</option>
+                  {expenseItems.map((bi) => (
+                    <option key={bi.id} value={bi.id}>{bi.label}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
+                  ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleLog} disabled={logging || matchedCount === 0}
+              style={{
+                padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none",
+                background: matchedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)",
+                color: matchedCount === 0 ? "var(--text-tertiary)" : "#fff",
+                fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600,
+                cursor: matchedCount === 0 ? "default" : "pointer",
+              }}>
+              {logging ? "Logging…" : `Log ${matchedCount} Actual${matchedCount !== 1 ? "s" : ""}`}
+            </button>
+            <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
+              style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+              Back
+            </button>
+            {totalCount - matchedCount > 0 && (
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
+                {totalCount - matchedCount} item{totalCount - matchedCount !== 1 ? "s" : ""} will be skipped
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <textarea
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            placeholder={"Paste your credit card or bank statement here — CSV export, copied transaction table, or plain text. FINN groups charges by merchant automatically."}
+            rows={6}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-md)", color: "var(--text-primary)",
+              fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px",
+              resize: "vertical", outline: "none", lineHeight: 1.6,
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+          />
+          {parseError && (
+            <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>
+          )}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
+              style={{
+                padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none",
+                background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)",
+                color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff",
+                fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600,
+                cursor: !rawText.trim() || parsing ? "default" : "pointer",
+              }}>
+              {parsing ? "Parsing…" : "Parse Statement"}
+            </button>
+            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+              {rawText.length > 0 ? `${rawText.length} chars` : "Max 8,000 characters"}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function BudgetTrackerTab({
   cashFlowItems,
   expenseActuals,
@@ -2499,6 +2727,8 @@ function BudgetTrackerTab({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
+  const [showStatementImport, setShowStatementImport] = useState(false);
+  const [statementSuccess, setStatementSuccess] = useState<number | null>(null);
 
   const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
 
@@ -2549,7 +2779,7 @@ function BudgetTrackerTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Period selector */}
+      {/* Period selector + Import Statement button */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontWeight: 500 }}>Period:</span>
         <select
@@ -2568,7 +2798,55 @@ function BudgetTrackerTab({
         >
           {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
+        <button
+          type="button"
+          onClick={() => { setShowStatementImport((p) => !p); setStatementSuccess(null); }}
+          style={{
+            marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px",
+            padding: "5px 12px", borderRadius: "8px",
+            border: "1px solid var(--card-border)", background: showStatementImport ? "var(--nav-active-bg)" : "var(--card-bg)",
+            color: showStatementImport ? "var(--nav-active-text)" : "var(--text-secondary)",
+            fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, cursor: "pointer",
+            transition: "var(--transition-fast)",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+          Import Statement
+        </button>
       </div>
+
+      {/* Statement import panel */}
+      {showStatementImport && (
+        <StatementImportPanel
+          expenseItems={expenseItems}
+          selYear={selYear}
+          selMonth={selMonth}
+          onClose={() => setShowStatementImport(false)}
+          onDone={(count) => {
+            setShowStatementImport(false);
+            setStatementSuccess(count);
+          }}
+        />
+      )}
+
+      {/* Import success message */}
+      {statementSuccess !== null && !showStatementImport && (
+        <div style={{
+          padding: "10px 14px", borderRadius: "var(--radius-md)",
+          background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span style={{ fontSize: "12px", color: "#22c55e", fontFamily: "var(--font-body)" }}>
+            {statementSuccess} actual{statementSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.
+          </span>
+          <button type="button" onClick={() => setStatementSuccess(null)}
+            style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}>
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Summary bar */}
       <div style={{
