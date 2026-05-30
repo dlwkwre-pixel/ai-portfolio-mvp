@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import PageIntro from "@/app/components/page-intro";
 import XLSXStyle from "xlsx-js-style";
 import {
@@ -1643,6 +1644,7 @@ type AiImportPanelProps = {
 };
 
 function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"paste" | "review" | "done">("paste");
   const [rawText, setRawText] = useState("");
@@ -1689,6 +1691,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
       await onAdd(selected);
       setAddedCount(selected.length);
       setStep("done");
+      router.refresh();
     } finally {
       setAdding(false);
     }
