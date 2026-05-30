@@ -1791,8 +1791,52 @@ export default function HomeClient({
                   <input type="number" min="0" value={inputs.purchase_price} onChange={num("purchase_price")} style={inputS} />
                 </div>
                 <div>
-                  <label style={labelS}>Down Payment — {downPct}% ({fmt(inputs.down_payment)})</label>
-                  <input type="number" min="0" max={inputs.purchase_price} value={inputs.down_payment} onChange={num("down_payment")} style={inputS} />
+                  <label style={labelS}>Down Payment</label>
+                  {/* Linked % and $ inputs — editing either updates the other */}
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <div style={{ position: "relative", flex: "0 0 80px" }}>
+                      <input
+                        type="number" min="0" max="100" step="0.5"
+                        value={inputs.purchase_price > 0 ? +((inputs.down_payment / inputs.purchase_price) * 100).toFixed(2) : 0}
+                        onChange={(e) => {
+                          const pct = Math.max(0, Math.min(100, Number(e.target.value)));
+                          set("down_payment", Math.round(inputs.purchase_price * pct / 100));
+                        }}
+                        style={{ ...inputS, paddingRight: "22px" }}
+                      />
+                      <span style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", fontSize: "11px", color: "var(--text-muted)", pointerEvents: "none", fontFamily: "var(--font-mono)" }}>%</span>
+                    </div>
+                    <span style={{ color: "var(--text-tertiary)", fontSize: "12px", flexShrink: 0 }}>=</span>
+                    <input
+                      type="number" min="0" max={inputs.purchase_price} step="1000"
+                      value={inputs.down_payment}
+                      onChange={num("down_payment")}
+                      style={{ ...inputS, flex: 1 }}
+                    />
+                  </div>
+                  {/* Quick-select preset chips */}
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "6px" }}>
+                    {[3.5, 5, 10, 15, 20, 25].map((pct) => {
+                      const isActive = inputs.purchase_price > 0 && Math.abs((inputs.down_payment / inputs.purchase_price) * 100 - pct) < 0.5;
+                      return (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => set("down_payment", Math.round(inputs.purchase_price * pct / 100))}
+                          style={{
+                            padding: "2px 8px", borderRadius: "5px", fontSize: "10px",
+                            fontFamily: "var(--font-mono)", cursor: "pointer",
+                            background: isActive ? "rgba(99,102,241,0.15)" : "var(--bg-elevated)",
+                            color: isActive ? "oklch(0.65 0.18 260)" : "var(--text-muted)",
+                            border: `1px solid ${isActive ? "rgba(99,102,241,0.4)" : "var(--border-subtle)"}`,
+                            fontWeight: isActive ? 600 : 400,
+                          }}
+                        >
+                          {pct}%
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label style={labelS}>Closing Costs (%)</label>

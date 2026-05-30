@@ -17,29 +17,42 @@ type FredSeriesResponse = {
   observations: FredObservation[];
 };
 
-// Fetch the latest N observations for a FRED series
-async function fetchFredSeries(seriesId: string, count = 3): Promise<FredObservation[]> {
+// Fetch the latest N observations for a FRED series.
+// We request 2× the needed count to absorb "." gaps (weekends, holidays, publication lags)
+// that FRED returns before filtering. No observation_start filter — desc+limit is enough.
+async function fetchFredSeries(seriesId: string, count = 5): Promise<FredObservation[]> {
   const apiKey = getApiKey();
   if (!apiKey) return [];
+
+  // Fetch 2× the requested count so "." gaps don't leave us short after filtering
+  const fetchCount = Math.max(count * 2, 20);
 
   const url = new URL(`${FRED_BASE}/series/observations`);
   url.searchParams.set("series_id", seriesId);
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("file_type", "json");
   url.searchParams.set("sort_order", "desc");
-  url.searchParams.set("limit", String(count));
-  // Exclude missing/future values
-  url.searchParams.set("observation_start", "2020-01-01");
+  url.searchParams.set("limit", String(fetchCount));
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { cache: "no-store", signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) {
       console.error(`[fred] ${seriesId} → HTTP ${res.status}`);
       return [];
     }
     const data: FredSeriesResponse = await res.json();
-    return (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "");
-  } catch {
+    // Filter "." (unreleased) and empty values, then return only the N most recent valid ones
+    const valid = (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "" && o.value !== "ND");
+    return valid.slice(0, count);
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof Error && err.name === "AbortError") {
+      console.error(`[fred] ${seriesId} → timeout`);
+    }
     return [];
   }
 }
@@ -85,12 +98,12 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
 
   const [yieldCurveObs, yield10yObs, fedFundsObs, cpiObs, unemploymentObs, creditObs] =
     await Promise.all([
-      fetchFredSeries("T10Y2Y", 5),       // daily — fetch more in case of "." gaps
-      fetchFredSeries("DGS10", 2),
+      fetchFredSeries("T10Y2Y", 3),           // daily — fetchFredSeries fetches 2× internally
+      fetchFredSeries("DGS10", 3),
       fetchFredSeries("FEDFUNDS", 3),
-      fetchFredSeries("CPIAUCSL", 16),    // 16 for YoY + prev with "." buffer
+      fetchFredSeries("CPIAUCSL", 14),         // 14 valid obs needed for YoY + prev
       fetchFredSeries("UNRATE", 3),
-      fetchFredSeries("BAMLH0A0HYM2OAS", 3), // OAS suffix — correct FRED series ID
+      fetchFredSeries("BAMLH0A0HYM2OAS", 3),  // daily — 2× fetch handles weekend gaps
     ]);
 
   // Compute CPI YoY %

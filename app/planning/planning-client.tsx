@@ -2645,6 +2645,249 @@ function EstatePlanningTab({
   );
 }
 
+// ── Cash Flow Health Card ─────────────────────────────────────────────────────
+
+function CashFlowHealthCard({
+  cashFlowHealth, savingsRate, effectiveIncome, monthlyExpenses, monthlySavings, cashFlowItems, isPrivate,
+}: {
+  cashFlowHealth: { total: number; factors: { name: string; score: number; max: number; direction: "strength" | "neutral" | "weakness" }[] };
+  savingsRate: number; effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
+  cashFlowItems: CashFlowItem[]; isPrivate: boolean;
+}) {
+  const [activeFactor, setActiveFactor] = useState<string | null>(null);
+
+  const pHide = (v: string) => isPrivate ? "••••" : v;
+
+  const housing = cashFlowItems
+    .filter(i => i.type === "expense" && getCategoryForExpense(i.label) === "Housing")
+    .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const housingPct = monthlyExpenses > 0 ? (housing / monthlyExpenses) * 100 : 0;
+  const incomeCount = cashFlowItems.filter(i => i.type === "income").length;
+  const catBreakdown = EXPENSE_CATEGORIES
+    .map(c => ({
+      name: c.label,
+      amount: cashFlowItems.filter(i => i.type === "expense" && getCategoryForExpense(i.label) === c.label)
+        .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0),
+    }))
+    .filter(c => c.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  const topCat = catBreakdown[0];
+  const topCatPct = topCat && monthlyExpenses > 0 ? (topCat.amount / monthlyExpenses) * 100 : 0;
+
+  function getFactorDetails(name: string) {
+    const f = cashFlowHealth.factors.find(x => x.name === name);
+    if (!f) return null;
+    switch (name) {
+      case "Savings Rate": {
+        const gap = 20 - Math.max(0, savingsRate);
+        const monthlyGap = effectiveIncome > 0 ? Math.round(effectiveIncome * (gap / 100)) : 0;
+        return {
+          icon: "💰",
+          what: "% of monthly income saved after expenses. The most direct driver of long-term wealth accumulation.",
+          formula: effectiveIncome > 0
+            ? `(${pHide(fmt(effectiveIncome))} income − ${pHide(fmt(monthlyExpenses))} expenses) ÷ income = ${savingsRate.toFixed(1)}%`
+            : "Add income and expenses to calculate",
+          scoring: "Linear: 20%+ savings rate earns the full 30 pts. Each 1% is worth 1.5 pts.",
+          improve: savingsRate >= 20
+            ? "You're at the top tier. As income grows, keep expenses flat to hold this rate."
+            : gap > 0
+            ? `Save ${pHide(fmt(monthlyGap))} more/month to reach 20%. Entertainment, dining, and subscriptions move fastest.`
+            : "Expenses exceed income. Closing this deficit is the top priority.",
+        };
+      }
+      case "Housing Burden":
+        return {
+          icon: "🏠",
+          what: "Housing costs as a share of total monthly expenses. High burden compresses every other category.",
+          formula: monthlyExpenses > 0
+            ? `${pHide("$" + Math.round(housing).toLocaleString())} housing ÷ ${pHide(fmt(monthlyExpenses))} expenses = ${housingPct.toFixed(0)}%`
+            : "No expense data",
+          scoring: "≤30% of expenses = near-full 25 pts. ≥50% = 0 pts. Linear in between.",
+          improve: housingPct <= 30
+            ? "Housing is well-controlled. Keep it below 30% as income grows."
+            : housingPct <= 40
+            ? `At ${housingPct.toFixed(0)}%, you're above the 30% target. Grow income or consider whether rent vs. buy math has shifted.`
+            : `Housing at ${housingPct.toFixed(0)}% is the dominant constraint. Income growth is the most realistic lever here.`,
+        };
+      case "Expense Mix":
+        return {
+          icon: "📊",
+          what: "Whether spending is spread across categories or concentrated in one. Concentration creates fragility.",
+          formula: topCat
+            ? `Largest category: ${topCat.name} at ${topCatPct.toFixed(0)}% of expenses`
+            : "No expense data",
+          scoring: "The more evenly expenses are spread, the higher the score. Max 25 pts at full diversification.",
+          improve: topCatPct <= 25
+            ? "Good diversification. This follows naturally from keeping Housing in check."
+            : `${topCat?.name ?? "One category"} is at ${topCatPct.toFixed(0)}%. If it's Housing, fixing Housing Burden automatically raises this score too.`,
+        };
+      case "Income Streams":
+        return {
+          icon: "📈",
+          what: "Number of distinct income sources logged. Multiple streams reduce dependency on any single source.",
+          formula: `${incomeCount} income source${incomeCount !== 1 ? "s" : ""} logged`,
+          scoring: "1 source = 10 pts. 2 sources = 16 pts. 3+ sources = full 20 pts.",
+          improve: incomeCount >= 3
+            ? "3+ streams earns full marks. Passive sources (dividends, rental) are the most resilient."
+            : incomeCount === 2
+            ? "One more source earns full 20/20. Freelance, dividends, or rental income all count."
+            : "Add a second income source for +6 pts. Even a small side stream counts.",
+        };
+      default:
+        return null;
+    }
+  }
+
+  const circ = Math.PI * 2 * 25; // r=25
+  const ringColor = cashFlowHealth.total >= 75 ? "oklch(0.72 0.19 145)"
+    : cashFlowHealth.total >= 50 ? "oklch(0.75 0.18 70)"
+    : "oklch(0.65 0.18 25)";
+
+  return (
+    <div className="cf-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "0ms" }}>
+      <style>{`
+        @keyframes cfh-ring { from { stroke-dashoffset: ${circ.toFixed(1)}; } }
+        .cfh-arc { animation: cfh-ring 1.4s cubic-bezier(0.22,1,0.36,1) forwards; }
+        @keyframes cfh-bar { from { transform: scaleX(0); } }
+        .cfh-bar { animation: cfh-bar 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+        .cfh-row:hover { background: rgba(255,255,255,0.03); }
+      `}</style>
+
+      <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
+        {/* Animated ring */}
+        <div style={{ flexShrink: 0, position: "relative", width: "62px", height: "62px" }}>
+          <svg width="62" height="62" viewBox="0 0 62 62" fill="none">
+            <circle cx="31" cy="31" r="25" stroke="var(--border)" strokeWidth="5" />
+            <circle cx="31" cy="31" r="25"
+              stroke={ringColor} strokeWidth="5" strokeLinecap="round"
+              strokeDasharray={circ.toFixed(1)}
+              strokeDashoffset={(circ - (cashFlowHealth.total / 100) * circ).toFixed(1)}
+              transform="rotate(-90 31 31)"
+              className="cfh-arc"
+            />
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: ringColor }}>
+            <CountUp to={cashFlowHealth.total} duration={1400} isPrivate={false} />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Cash Flow Health Score</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/ 100</span>
+          </div>
+          <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 12px", lineHeight: 1.5 }}>
+            {cashFlowHealth.total >= 75 ? "Strong fundamentals. Click a factor below to see what's driving it."
+              : cashFlowHealth.total >= 50 ? "Solid baseline. Click any factor to see where to improve."
+              : "Core cash flow needs attention. Click a factor below for specific steps."}
+          </p>
+
+          {/* Factor bars — clickable, staggered */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "6px" }}>
+            {cashFlowHealth.factors.map((f, i) => {
+              const fColor = f.direction === "strength" ? "oklch(0.72 0.19 145)"
+                : f.direction === "neutral" ? "oklch(0.75 0.18 70)"
+                : "oklch(0.65 0.18 25)";
+              const isActive = activeFactor === f.name;
+              const details = getFactorDetails(f.name);
+              return (
+                <div key={f.name}>
+                  <button
+                    type="button"
+                    className="cfh-row"
+                    onClick={() => setActiveFactor(isActive ? null : f.name)}
+                    style={{
+                      width: "100%", background: isActive ? "rgba(255,255,255,0.04)" : "none",
+                      border: `1px solid ${isActive ? fColor + "44" : "transparent"}`,
+                      borderRadius: "6px", padding: "6px 7px 8px",
+                      cursor: "pointer", textAlign: "left", transition: "background 0.15s, border-color 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", alignItems: "center" }}>
+                      <span style={{ fontSize: "9px", color: isActive ? "var(--text-secondary)" : "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        {details?.icon} {f.name}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: fColor }}>{f.score}/{f.max}</span>
+                        <svg width="7" height="7" viewBox="0 0 20 20" fill={fColor}
+                          style={{ transition: "transform 0.2s", transform: isActive ? "rotate(180deg)" : "none", flexShrink: 0 }}>
+                          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={{ height: "4px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
+                      <div className="cfh-bar" style={{
+                        height: "100%", borderRadius: "2px", background: fColor,
+                        transform: `scaleX(${f.score / f.max})`,
+                        animationDelay: `${i * 110}ms`,
+                      }} />
+                    </div>
+                  </button>
+
+                  {/* Detail panel */}
+                  {isActive && details && (
+                    <div style={{
+                      margin: "2px 0 4px", padding: "12px 13px",
+                      background: "var(--bg-elevated)", borderRadius: "var(--radius-md)",
+                      border: `1px solid ${fColor}33`,
+                    }}>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "0 0 8px", lineHeight: 1.6 }}>{details.what}</p>
+                      {details.formula && (
+                        <div style={{ padding: "5px 8px", background: "var(--bg-base)", borderRadius: "4px", marginBottom: "8px", overflow: "hidden" }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", wordBreak: "break-word" }}>{details.formula}</span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "8px", lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>Scoring: </span>{details.scoring}
+                      </div>
+                      <div style={{
+                        padding: "8px 10px",
+                        background: f.direction === "strength" ? "rgba(0,211,149,0.06)" : f.direction === "neutral" ? "rgba(245,158,11,0.06)" : "rgba(239,68,68,0.06)",
+                        borderRadius: "6px", border: `1px solid ${fColor}22`,
+                      }}>
+                        <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
+                          <span style={{ fontWeight: 600, color: fColor }}>
+                            {f.direction === "strength" ? "✓ Strength — " : f.direction === "neutral" ? "→ Opportunity — " : "⚠ Improve — "}
+                          </span>
+                          {details.improve}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "12px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
+        {([
+          { label: "Monthly Income",   to: effectiveIncome,          color: "var(--green)",   prefix: "$" },
+          { label: "Monthly Expenses",  to: monthlyExpenses,          color: "var(--red)",     prefix: "$" },
+          { label: "Monthly Savings",   to: Math.abs(monthlySavings), color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", prefix: monthlySavings < 0 ? "-$" : "$" },
+        ] as { label: string; to: number; color: string; prefix: string }[]).map(({ label, to, color, prefix }) => (
+          <div key={label}>
+            <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color, lineHeight: 1 }}>
+              <CountUp to={to} prefix={prefix} isPrivate={isPrivate} duration={900} />
+            </div>
+          </div>
+        ))}
+        <div>
+          <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings Rate</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
+            {effectiveIncome > 0
+              ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={850} isPrivate={isPrivate} />
+              : <span style={{ fontSize: "14px" }}>—</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Budget Tracker ────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -5202,69 +5445,15 @@ export default function PlanningClient({
 
           {/* Cash Flow Health + KPIs */}
           {(effectiveIncome > 0 || monthlyExpenses > 0) && (
-            <div className="cf-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "0ms" }}>
-              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
-                {/* Health ring */}
-                <div style={{ flexShrink: 0, position: "relative", width: "52px", height: "52px" }}>
-                  <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-                    <circle cx="26" cy="26" r="22" stroke="var(--border)" strokeWidth="4" />
-                    <circle cx="26" cy="26" r="22"
-                      stroke={cashFlowHealth.total >= 75 ? "oklch(0.72 0.19 145)" : cashFlowHealth.total >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)"}
-                      strokeWidth="4" strokeLinecap="round" strokeDasharray="138"
-                      strokeDashoffset={138 - (cashFlowHealth.total / 100) * 138}
-                      transform="rotate(-90 26 26)"
-                      style={{ animation: "cmd-ring-draw 1.2s cubic-bezier(0.22,1,0.36,1) forwards" }}
-                    />
-                  </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                    {cashFlowHealth.total}
-                  </div>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>Cash Flow Health Score</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "6px" }}>
-                    {cashFlowHealth.factors.map((f) => {
-                      const fColor = f.direction === "strength" ? "oklch(0.72 0.19 145)" : f.direction === "neutral" ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)";
-                      return (
-                        <div key={f.name}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                            <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: fColor, flexShrink: 0 }}>{f.score}/{f.max}</span>
-                          </div>
-                          <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
-                            <div className="cf-bar-seg" style={{ height: "100%", borderRadius: "2px", background: fColor, transform: `scaleX(${f.score / f.max})` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* KPI row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "12px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
-                {([
-                  { label: "Monthly Income",   to: effectiveIncome,              color: "var(--green)",   prefix: "$" },
-                  { label: "Monthly Expenses",  to: monthlyExpenses,              color: "var(--red)",     prefix: "$" },
-                  { label: "Monthly Savings",   to: Math.abs(monthlySavings),     color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", prefix: monthlySavings < 0 ? "-$" : "$" },
-                ] as { label: string; to: number; color: string; prefix: string }[]).map(({ label, to, color, prefix }) => (
-                  <div key={label}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color, lineHeight: 1 }}>
-                      <CountUp to={to} prefix={prefix} isPrivate={isPrivate} duration={900} />
-                    </div>
-                  </div>
-                ))}
-                <div>
-                  <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings Rate</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
-                    {effectiveIncome > 0
-                      ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={850} isPrivate={isPrivate} />
-                      : <span style={{ fontSize: "14px" }}>—</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CashFlowHealthCard
+              cashFlowHealth={cashFlowHealth}
+              savingsRate={savingsRate}
+              effectiveIncome={effectiveIncome}
+              monthlyExpenses={monthlyExpenses}
+              monthlySavings={monthlySavings}
+              cashFlowItems={cashFlowItems}
+              isPrivate={isPrivate}
+            />
           )}
 
           {/* FINN Cash Flow Insight */}
