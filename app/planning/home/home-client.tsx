@@ -1978,6 +1978,20 @@ export default function HomeClient({
                     Buying typically beats renting after 5–7 years when you factor in transaction costs.
                   </div>
                 </div>
+                <div>
+                  <label style={labelS}>Target Purchase Year</label>
+                  <input
+                    type="number"
+                    min={new Date().getFullYear()}
+                    max={new Date().getFullYear() + 30}
+                    value={targetPurchaseYear}
+                    onChange={(e) => setTargetPurchaseYear(Math.max(new Date().getFullYear(), Number(e.target.value)))}
+                    style={inputS}
+                  />
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                    When you plan to buy. This is a goal — it won't affect your current finances until you add it to the forecast.
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2210,19 +2224,8 @@ export default function HomeClient({
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-                        This is a future goal — it does not affect your current balance sheet or cash flow. Set a target year and add it to your forecast timeline.
+                        This is a future goal — it won't affect your current finances. Adds two events to your forecast: a down payment outlay in {targetPurchaseYear} and projected equity in {targetPurchaseYear + inputs.hold_years}.
                       </p>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <label style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Target purchase year</label>
-                        <input
-                          type="number"
-                          min={new Date().getFullYear()}
-                          max={new Date().getFullYear() + 30}
-                          value={targetPurchaseYear}
-                          onChange={(e) => setTargetPurchaseYear(Math.max(new Date().getFullYear(), Number(e.target.value)))}
-                          style={{ width: "72px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, padding: "4px 8px", textAlign: "center" }}
-                        />
-                      </div>
                       {applyStatus === "error" ? (
                         <div style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)" }}>Failed to add events. Try again.</div>
                       ) : (
