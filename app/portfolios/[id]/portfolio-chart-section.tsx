@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 import PortfolioChartClient from "./portfolio-chart-client";
+import ResetPerformanceButton from "./reset-performance-button";
 
 type PortfolioChartSectionProps = {
   portfolioId: string;
@@ -42,13 +43,17 @@ export default async function PortfolioChartSection({
       cashBalance,
     });
 
-    await supabase.from("portfolio_snapshots").insert({
-      portfolio_id: portfolioId,
-      total_value: valuation.total_portfolio_value,
-      cash_balance: cashBalance,
-      snapshot_date: new Date().toISOString(),
-      notes: "Auto snapshot",
-    }).then(() => {});
+    // Skip snapshot if valuation is zero or invalid (e.g. all Finnhub prices missing)
+    const snapshotValue = valuation.total_portfolio_value;
+    if (snapshotValue > 0 && Number.isFinite(snapshotValue)) {
+      await supabase.from("portfolio_snapshots").insert({
+        portfolio_id: portfolioId,
+        total_value: snapshotValue,
+        cash_balance: cashBalance,
+        snapshot_date: new Date().toISOString(),
+        notes: "Auto snapshot",
+      }).then(() => {});
+    }
   }
 
   // Fetch snapshots and cash flows in parallel
@@ -76,21 +81,26 @@ export default async function PortfolioChartSection({
   });
 
   return (
-    <PortfolioChartClient
-      snapshots={(snapshots ?? []).map((s) => ({
-        date: s.snapshot_date,
-        total_value: Number(s.total_value),
-      }))}
-      chartData={comparison.chartData}
-      benchmarkSymbol={comparison.benchmarkSymbol}
-      portfolioReturnPct={comparison.portfolioReturnPct}
-      portfolioTwrPct={comparison.portfolioTwrPct}
-      benchmarkReturnPct={comparison.benchmarkReturnPct}
-      excessReturnPct={comparison.excessReturnPct}
-      excessTwrPct={comparison.excessTwrPct}
-      startDateLabel={comparison.startDateLabel}
-      endDateLabel={comparison.endDateLabel}
-      hasEnoughSnapshots={comparison.hasEnoughSnapshots}
-    />
+    <div>
+      <PortfolioChartClient
+        snapshots={(snapshots ?? []).map((s) => ({
+          date: s.snapshot_date,
+          total_value: Number(s.total_value),
+        }))}
+        chartData={comparison.chartData}
+        benchmarkSymbol={comparison.benchmarkSymbol}
+        portfolioReturnPct={comparison.portfolioReturnPct}
+        portfolioTwrPct={comparison.portfolioTwrPct}
+        benchmarkReturnPct={comparison.benchmarkReturnPct}
+        excessReturnPct={comparison.excessReturnPct}
+        excessTwrPct={comparison.excessTwrPct}
+        startDateLabel={comparison.startDateLabel}
+        endDateLabel={comparison.endDateLabel}
+        hasEnoughSnapshots={comparison.hasEnoughSnapshots}
+      />
+      <div className="mt-1 flex justify-end px-1">
+        <ResetPerformanceButton portfolioId={portfolioId} />
+      </div>
+    </div>
   );
 }

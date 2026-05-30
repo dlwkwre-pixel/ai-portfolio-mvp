@@ -1552,14 +1552,17 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
     if (updateRunError) throw new Error(updateRunError.message);
 
-    // Free snapshot — valuation was already computed in buildPortfolioAiContext above
-    await supabase.from("portfolio_snapshots").insert({
-      portfolio_id: portfolioId,
-      total_value: (context as any).current_valuation.total_portfolio_value,
-      cash_balance: (context as any).portfolio.cash_balance,
-      snapshot_date: new Date().toISOString(),
-      notes: "Auto snapshot — AI analysis",
-    });
+    // Free snapshot — skip if valuation is zero/invalid (all prices missing)
+    const aiSnapValue: number = (context as any).current_valuation.total_portfolio_value ?? 0;
+    if (aiSnapValue > 0 && Number.isFinite(aiSnapValue)) {
+      await supabase.from("portfolio_snapshots").insert({
+        portfolio_id: portfolioId,
+        total_value: aiSnapValue,
+        cash_balance: (context as any).portfolio.cash_balance,
+        snapshot_date: new Date().toISOString(),
+        notes: "Auto snapshot — AI analysis",
+      });
+    }
 
     // Save factor intelligence snapshot for future evolution/drift detection (non-fatal)
     try {

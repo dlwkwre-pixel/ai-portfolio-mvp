@@ -37,6 +37,56 @@ function toDateKey(dateString: string): string {
   return new Date(dateString).toISOString().slice(0, 10);
 }
 
+/**
+ * Remove an outlier first snapshot that would corrupt TWR.
+ *
+ * If the earliest snapshot's value is 5× or more than the median of the
+ * next 1–4 snapshots, and there is no large cash flow in the ledger that
+ * explains the gap, it was almost certainly captured while the user was
+ * still setting up their portfolio (wrong shares / cost basis / cash).
+ * Dropping it makes the chart start from the first "sane" data point.
+ */
+function sanitizeSnapshots(
+  snapshots: { snapshot_date: string; total_value: number }[],
+  cashFlows: CashFlowRow[]
+): { snapshot_date: string; total_value: number }[] {
+  if (snapshots.length < 2) return snapshots;
+
+  const first = snapshots[0];
+  // Build comparison set from the next 1-4 snapshots
+  const peers = snapshots.slice(1, Math.min(5, snapshots.length));
+  const peerValues = peers.map((s) => s.total_value).filter((v) => v > 0);
+  if (peerValues.length === 0) return snapshots;
+
+  const sorted = [...peerValues].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  if (median <= 0) return snapshots;
+
+  const ratio = first.total_value / median;
+
+  // Only flag extreme outliers (≥5× or ≤1/5× the subsequent median)
+  if (ratio < 5 && ratio > 0.2) return snapshots;
+
+  // Check whether a large cash flow explains the gap
+  const firstDate = toDateKey(first.snapshot_date);
+  const secondDate = toDateKey(snapshots[1].snapshot_date);
+  let windowFlow = 0;
+  for (const cf of cashFlows) {
+    const d = toDateKey(cf.effective_at);
+    if (d >= firstDate && d <= secondDate) {
+      const amt = Number(cf.amount ?? 0);
+      windowFlow += (cf.direction || "").toUpperCase() === "OUT" ? -amt : amt;
+    }
+  }
+
+  // If cash flows explain most of the gap, keep the snapshot
+  const gap = Math.abs(first.total_value - median);
+  if (Math.abs(windowFlow) >= gap * 0.7) return snapshots;
+
+  // Drop the outlier first snapshot
+  return snapshots.slice(1);
+}
+
 function toDisplayDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString();
 }
@@ -118,13 +168,15 @@ export async function getBenchmarkComparison(args: {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
   const cashFlows = args.cashFlows ?? [];
 
-  const snapshots = [...args.snapshots]
+  const rawSnapshots = [...args.snapshots]
     .map((s) => ({
       snapshot_date: s.snapshot_date,
       total_value: Number(s.total_value),
     }))
     .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0)
     .sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
+
+  const snapshots = sanitizeSnapshots(rawSnapshots, cashFlows);
 
   if (snapshots.length < 2) {
     return {

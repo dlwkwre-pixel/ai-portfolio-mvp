@@ -79,6 +79,12 @@ export async function GET(request: Request) {
 
       const totalValue = valuation.total_portfolio_value;
 
+      // Skip snapshot if valuation is zero or invalid (all Finnhub prices missing)
+      if (!totalValue || totalValue <= 0 || !Number.isFinite(totalValue)) {
+        console.warn(`Skipping snapshot for portfolio ${portfolio.id}: totalValue=${totalValue}`);
+        continue;
+      }
+
       const { error: insertError } = await supabase
         .from("portfolio_snapshots")
         .insert({

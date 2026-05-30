@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateTicker, validateLength, validateEnum, validateDate } from "@/lib/validation";
+import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 
 const ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "other"] as const;
 const CASH_REASONS = ["deposit", "withdrawal", "dividend", "adjustment_in", "adjustment_out", "fee"] as const;
@@ -381,4 +382,48 @@ export async function importHoldingsCSV(
 
   revalidatePath(`/portfolios/${portfolioId}`);
   return { imported, updated, errors };
+}
+
+export async function resetPerformanceHistory(portfolioId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios")
+    .select("id, cash_balance")
+    .eq("id", portfolioId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  // Delete all existing snapshots for this portfolio
+  await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
+
+  // Get current holdings for a fresh baseline snapshot
+  const { data: holdings } = await supabase
+    .from("holdings")
+    .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
+    .eq("portfolio_id", portfolioId);
+
+  const valuation = await getPortfolioValuation({
+    holdings: (holdings ?? []).map((h) => ({
+      id: h.id, ticker: h.ticker, company_name: h.company_name,
+      asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+    })),
+    cashBalance: Number(portfolio.cash_balance ?? 0),
+  });
+
+  const freshValue = valuation.total_portfolio_value;
+  if (freshValue > 0 && Number.isFinite(freshValue)) {
+    await supabase.from("portfolio_snapshots").insert({
+      portfolio_id: portfolioId,
+      total_value: freshValue,
+      cash_balance: Number(portfolio.cash_balance ?? 0),
+      snapshot_date: new Date().toISOString(),
+      notes: "Baseline reset by user",
+    });
+  }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
 }
