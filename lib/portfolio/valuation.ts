@@ -1,5 +1,7 @@
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 type HoldingRow = {
   id: string;
   ticker: string;
@@ -36,17 +38,30 @@ export async function getPortfolioValuation(args: {
 }): Promise<PortfolioValuation> {
   const { holdings, cashBalance } = args;
 
-  const quoteResults = await Promise.all(
-    holdings.map(async (holding) => {
-      try {
-        const quote = await getFinnhubQuote(holding.ticker);
-        return { holdingId: holding.id, quote };
-      } catch (error) {
-        console.error(`Quote fetch failed for ${holding.ticker}:`, error);
-        return { holdingId: holding.id, quote: null };
-      }
-    })
-  );
+  // Batch Finnhub calls to avoid hitting the free-tier rate limit (60 req/min).
+  // Promise.all on large portfolios fires everything at once and gets 429s back.
+  const BATCH_SIZE = 5;
+  const BATCH_DELAY_MS = 300;
+  const quoteResults: { holdingId: string; quote: Awaited<ReturnType<typeof getFinnhubQuote>> }[] = [];
+
+  for (let i = 0; i < holdings.length; i += BATCH_SIZE) {
+    const batch = holdings.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (holding) => {
+        try {
+          const quote = await getFinnhubQuote(holding.ticker);
+          return { holdingId: holding.id, quote };
+        } catch (error) {
+          console.error(`Quote fetch failed for ${holding.ticker}:`, error);
+          return { holdingId: holding.id, quote: null };
+        }
+      })
+    );
+    quoteResults.push(...batchResults);
+    if (i + BATCH_SIZE < holdings.length) {
+      await sleep(BATCH_DELAY_MS);
+    }
+  }
 
   const quoteMap = new Map<string, Awaited<(typeof quoteResults)[number]>["quote"]>();
   for (const result of quoteResults) {
