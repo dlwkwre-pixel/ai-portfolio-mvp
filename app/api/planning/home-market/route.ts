@@ -23,15 +23,21 @@ async function fetchCensusData(zip: string): Promise<{
   medianHouseholdIncome: number | null;
 }> {
   const apiKey = process.env.CENSUS_API_KEY;
-  // Census requires literal colon in geography param. Spaces as + (form encoding).
+  // Census geography param uses %20 for spaces (not +) in for= parameter
   const buildUrl = (withKey: boolean) =>
-    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip+code+tabulation+area:${zip}${withKey && apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
+    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip%20code%20tabulation%20area:${zip}${withKey && apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
 
   async function tryCensus(url: string) {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[census] HTTP ${res.status} for ZIP ${zip}: ${await res.text().catch(() => "")}`);
+      return null;
+    }
     const body = await res.text();
-    try { return JSON.parse(body) as CensusRow[]; } catch { return null; }
+    try { return JSON.parse(body) as CensusRow[]; } catch (e) {
+      console.error(`[census] JSON parse error for ZIP ${zip}:`, e, "body:", body.slice(0, 200));
+      return null;
+    }
   }
 
   try {

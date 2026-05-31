@@ -34,7 +34,7 @@ async function fetchFredSeries(seriesId: string, count = 5, buffer = 50): Promis
   const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const res = await fetch(url.toString(), { cache: "no-store", signal: controller.signal });
+    const res = await fetch(url.toString(), { next: { revalidate: 14400 }, signal: controller.signal });
     clearTimeout(timeout);
     if (!res.ok) {
       console.error(`[fred] ${seriesId} → HTTP ${res.status}`);
