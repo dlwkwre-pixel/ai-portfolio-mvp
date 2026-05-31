@@ -812,6 +812,15 @@ const fmtK = (n: number) => {
 };
 const pct = (n: number) => n.toFixed(2) + "%";
 
+function calcGoalProb(cashSurplus: number, totalNeeded: number, futureDTI: number | null, emergencyMonths: number | null): number {
+  let p = 100;
+  if (cashSurplus < 0 && totalNeeded > 0) p -= Math.min(35, Math.round((-cashSurplus / totalNeeded) * 35));
+  if (futureDTI !== null && futureDTI > 43) p -= 25;
+  else if (futureDTI !== null && futureDTI > 36) p -= 10;
+  if (emergencyMonths !== null && emergencyMonths < 3) p -= Math.min(15, Math.round((3 - Math.max(0, emergencyMonths)) * 5));
+  return Math.max(10, Math.min(97, p));
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const inputS: React.CSSProperties = {
@@ -1377,42 +1386,215 @@ export default function HomeClient({
       : emergencyMonths >= 1 ? "thin"
       : "depleted";
 
-    // Probability score
-    let prob = 100;
-    if (cashSurplus < 0 && totalNeeded > 0) prob -= Math.min(35, Math.round((-cashSurplus / totalNeeded) * 35));
-    if (futureDTI !== null && futureDTI > 43) prob -= 25;
-    else if (futureDTI !== null && futureDTI > 36) prob -= 10;
-    if (emergencyMonths !== null && emergencyMonths < 3) prob -= Math.min(15, Math.round((3 - Math.max(0, emergencyMonths)) * 5));
-    prob = Math.max(10, Math.min(97, prob));
+    const prob = calcGoalProb(cashSurplus, totalNeeded, futureDTI, emergencyMonths);
 
     const onTrack = cashSurplus >= 0 && (futureDTI === null || futureDTI <= 43) && (emergencyMonths === null || emergencyMonths >= 1);
 
-    // Action items
-    const actions: string[] = [];
-    if (cashSurplus < 0) {
-      if (yearsUntilPurchase > 0 && monthlySavings > 0) {
-        const extraMonthly = Math.ceil(-cashSurplus / (yearsUntilPurchase * 12) / 50) * 50;
-        if (extraMonthly > 0) actions.push(`Save ${fmt(extraMonthly)}/mo more toward your down payment.`);
+    // Earliest year when projected savings cover down payment + closing costs
+    let dpReadyYear: number | null = null;
+    if (hasProfile) {
+      for (let t = 0; t <= 20; t++) {
+        let cash: number;
+        if (t === 0) {
+          cash = liquidAssets;
+        } else if (r > 0) {
+          const tf = Math.pow(1 + r, t);
+          cash = liquidAssets * tf + (annualSavings > 0 ? annualSavings * (tf - 1) / r : 0);
+        } else {
+          cash = liquidAssets + annualSavings * t;
+        }
+        if (cash >= totalNeeded) { dpReadyYear = currentYear + t; break; }
       }
-      if (yearsUntilPurchase > 0) {
-        const extraYears = Math.min(5, Math.ceil(-cashSurplus / Math.max(1, annualSavings)));
-        if (extraYears >= 1) actions.push(`Delay purchase ${extraYears} year${extraYears > 1 ? "s" : ""} to ${targetPurchaseYear + extraYears}.`);
-      }
-      const priceReduction = Math.round((-cashSurplus / Math.max(0.01, inputs.down_payment / Math.max(1, inputs.purchase_price))) / 5000) * 5000;
-      if (priceReduction > 0) actions.push(`Reduce target price by ${fmtK(priceReduction)}.`);
     }
-    if (futureDTI !== null && futureDTI > 43 && actions.length < 3) {
-      actions.push("Housing payment is high vs. projected income — consider a longer term or lower price.");
+
+    // Readiness sub-scores (0–100 for each dimension)
+    const dpReadiness = totalNeeded > 0
+      ? Math.min(100, Math.max(0, Math.round((projectedCash / totalNeeded) * 100)))
+      : 100;
+    const dtiReadiness = futureDTI === null ? null
+      : Math.max(0, Math.min(100, Math.round((55 - futureDTI) / (55 - 28) * 100)));
+    const efReadiness = emergencyMonths === null ? null
+      : Math.max(0, Math.min(100, Math.round((Math.min(emergencyMonths, 6) / 6) * 100)));
+    const overallReadiness = Math.round(
+      dpReadiness * 0.40 + (dtiReadiness ?? 100) * 0.35 + (efReadiness ?? 100) * 0.25,
+    );
+
+    // Risks and strengths
+    const risks: string[] = [];
+    const strengths: string[] = [];
+    if (cashSurplus < 0) {
+      risks.push(`Down payment projected ${fmtK(-cashSurplus)} short by ${targetPurchaseYear}.`);
+    } else {
+      strengths.push(`Down payment covered with ${fmtK(cashSurplus)} to spare.`);
+    }
+    if (futureDTI !== null) {
+      if (futureDTI > 43) risks.push(`Future DTI of ${futureDTI.toFixed(0)}% exceeds the 43% lender limit.`);
+      else if (futureDTI > 36) risks.push(`Future DTI of ${futureDTI.toFixed(0)}% is in the caution zone (ideal: below 36%).`);
+      else strengths.push(`Future housing DTI of ${futureDTI.toFixed(0)}% is within a healthy range.`);
+    }
+    if (emergencyMonths !== null) {
+      if (emergencyMonths < 1) risks.push(`Purchase depletes emergency fund — only ${Math.max(0, emergencyMonths).toFixed(1)} months remaining.`);
+      else if (emergencyMonths < 3) risks.push(`Only ${emergencyMonths.toFixed(1)} months of expenses remain after purchase (3-month minimum recommended).`);
+      else strengths.push(`Emergency fund stays at ${emergencyMonths.toFixed(1)} months after purchase.`);
     }
 
     return {
-      hasProfile, yearsUntilPurchase,
+      hasProfile, yearsUntilPurchase, monthlySavings, annualSavings,
       projectedAnnualIncome, projectedMonthlyIncome, projectedCash,
       totalNeeded, cashSurplus, remainingCash,
       emergencyMonths, futureDTI, dtiStatus, emergencyStatus,
-      prob, onTrack, actions,
+      dpReadiness, dtiReadiness, efReadiness, overallReadiness,
+      risks, strengths,
+      prob, onTrack, dpReadyYear,
     };
   }, [inputs, profile, targetPurchaseYear, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
+
+  // ── Path to Success ────────────────────────────────────────────────────────
+
+  const pathMetrics = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+    const base = goalMetrics.prob;
+    const r = inputs.investment_return / 100;
+    const n = goalMetrics.yearsUntilPurchase;
+    const monthlyExpenses = profile?.monthly_expenses ?? 0;
+    const monthlyIncome = profile?.monthly_income ?? 0;
+    const currentYear = new Date().getFullYear();
+
+    // Option A: Save more per month — minimum to close cash gap
+    let optionASaveDelta: number;
+    let optionACashSurplus: number;
+    if (goalMetrics.cashSurplus < 0 && n > 0) {
+      const needed = -goalMetrics.cashSurplus;
+      const gf = r > 0 ? Math.pow(1 + r, n) : 1;
+      const addlAnnual = r > 0 && gf > 1 ? needed * r / (gf - 1) : needed / n;
+      optionASaveDelta = Math.ceil(addlAnnual / 12 / 25) * 25;
+      optionACashSurplus = 0;
+    } else {
+      optionASaveDelta = 200;
+      optionACashSurplus = goalMetrics.cashSurplus + 200 * 12 * n;
+    }
+    const optionAEmergency = monthlyExpenses > 0 ? (optionACashSurplus) / monthlyExpenses : goalMetrics.emergencyMonths;
+    const optionAProb = Math.max(base, calcGoalProb(optionACashSurplus, goalMetrics.totalNeeded, goalMetrics.futureDTI, optionAEmergency));
+
+    // Option B: Delay purchase by 1 year
+    const newN = n + 1;
+    const newGf = r > 0 ? Math.pow(1 + r, newN) : 1;
+    const newProjCash = r > 0
+      ? liquidAssets * newGf + (goalMetrics.annualSavings > 0 ? goalMetrics.annualSavings * (newGf - 1) / r : 0)
+      : liquidAssets + goalMetrics.annualSavings * newN;
+    const newCashSurplusB = Math.max(-goalMetrics.totalNeeded, newProjCash) - goalMetrics.totalNeeded;
+    const newRemB = newProjCash - goalMetrics.totalNeeded;
+    const newEmB = monthlyExpenses > 0 ? newRemB / monthlyExpenses : null;
+    const newIncomeB = monthlyIncome * 12 * Math.pow(1 + salaryGrowthRate, newN);
+    const newDTIB = newIncomeB > 0 ? (computed.totalMonthly / (newIncomeB / 12)) * 100 : goalMetrics.futureDTI;
+    const optionBProb = Math.max(base, calcGoalProb(newCashSurplusB, goalMetrics.totalNeeded, newDTIB, newEmB));
+
+    // Option C: Reduce purchase price by 5% (rounded to nearest $5K)
+    const priceCut = Math.max(5000, Math.round(inputs.purchase_price * 0.05 / 5000) * 5000);
+    const newPrice = inputs.purchase_price - priceCut;
+    const dpRatio = inputs.purchase_price > 0 ? inputs.down_payment / inputs.purchase_price : 0.20;
+    const newDP = Math.round(newPrice * dpRatio);
+    const newClosing = newPrice * (inputs.closing_cost_pct / 100);
+    const newTotalNeeded = newDP + newClosing;
+    const newSurplusC = goalMetrics.projectedCash - newTotalNeeded;
+    const newRemC = goalMetrics.projectedCash - newTotalNeeded;
+    const newEmC = monthlyExpenses > 0 ? newRemC / monthlyExpenses : null;
+    const newLoan = newPrice - newDP;
+    const newMPmt = calcMortgagePayment(newLoan, inputs.mortgage_rate / 100, inputs.loan_term_years);
+    const newTotalMonthly = newMPmt + inputs.property_tax_monthly + inputs.insurance_monthly + inputs.hoa_monthly;
+    const newDTIC = goalMetrics.projectedMonthlyIncome > 0 ? (newTotalMonthly / goalMetrics.projectedMonthlyIncome) * 100 : goalMetrics.futureDTI;
+    const optionCProb = Math.max(base, calcGoalProb(newSurplusC, newTotalNeeded, newDTIC, newEmC));
+
+    return {
+      options: [
+        {
+          letter: "A",
+          label: `Save ${fmt(optionASaveDelta)}/mo more`,
+          detail: goalMetrics.cashSurplus < 0 ? `Closes ${fmtK(-goalMetrics.cashSurplus)} cash gap by ${currentYear + n}` : "Builds additional cash buffer",
+          probBefore: base,
+          probAfter: optionAProb,
+        },
+        {
+          letter: "B",
+          label: `Delay purchase 1 year`,
+          detail: `Projects ${fmtK(newProjCash)} saved by ${currentYear + newN}`,
+          probBefore: base,
+          probAfter: optionBProb,
+        },
+        {
+          letter: "C",
+          label: `Reduce price by ${fmtK(priceCut)}`,
+          detail: `Target ${fmtK(newPrice)} · saves ${fmtK(goalMetrics.totalNeeded - newTotalNeeded)} upfront`,
+          probBefore: base,
+          probAfter: optionCProb,
+        },
+      ],
+    };
+  }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
+
+  // ── Stress Tests ────────────────────────────────────────────────────────────
+
+  const stressMetrics = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+    const base = goalMetrics.prob;
+    const n = goalMetrics.yearsUntilPurchase;
+    const monthlyExpenses = profile?.monthly_expenses ?? 0;
+
+    // Rate +2%
+    const stressRate = inputs.mortgage_rate / 100 + 0.02;
+    const loan = inputs.purchase_price - inputs.down_payment;
+    const stressMPmt = calcMortgagePayment(loan, stressRate, inputs.loan_term_years);
+    const stressTotalMonthly1 = stressMPmt + inputs.property_tax_monthly + inputs.insurance_monthly + inputs.hoa_monthly;
+    const stressDTI1 = goalMetrics.projectedMonthlyIncome > 0 ? (stressTotalMonthly1 / goalMetrics.projectedMonthlyIncome) * 100 : null;
+    const prob1 = calcGoalProb(goalMetrics.cashSurplus, goalMetrics.totalNeeded, stressDTI1, goalMetrics.emergencyMonths);
+
+    // Income growth -1%
+    const stressGrowth = Math.max(0, salaryGrowthRate - 0.01);
+    const stressProjIncome2 = (profile?.monthly_income ?? 0) * 12 * Math.pow(1 + stressGrowth, n);
+    const stressDTI2 = stressProjIncome2 > 0 ? (computed.totalMonthly / (stressProjIncome2 / 12)) * 100 : null;
+    const prob2 = calcGoalProb(goalMetrics.cashSurplus, goalMetrics.totalNeeded, stressDTI2, goalMetrics.emergencyMonths);
+
+    // Returns -2%
+    const stressR = Math.max(0, inputs.investment_return / 100 - 0.02);
+    let stressCash: number;
+    if (n === 0) {
+      stressCash = liquidAssets;
+    } else if (stressR > 0) {
+      const sgf = Math.pow(1 + stressR, n);
+      stressCash = liquidAssets * sgf + (goalMetrics.annualSavings > 0 ? goalMetrics.annualSavings * (sgf - 1) / stressR : 0);
+    } else {
+      stressCash = liquidAssets + goalMetrics.annualSavings * n;
+    }
+    stressCash = Math.max(0, stressCash);
+    const stressSurplus3 = stressCash - goalMetrics.totalNeeded;
+    const stressRem3 = stressCash - goalMetrics.totalNeeded;
+    const stressEm3 = monthlyExpenses > 0 ? stressRem3 / monthlyExpenses : null;
+    const prob3 = calcGoalProb(stressSurplus3, goalMetrics.totalNeeded, goalMetrics.futureDTI, stressEm3);
+
+    return {
+      base,
+      scenarios: [
+        {
+          label: `Rate ${(inputs.mortgage_rate + 2).toFixed(2)}% (+2%)`,
+          detail: `+${fmt(Math.round(stressTotalMonthly1 - computed.totalMonthly))}/mo housing cost`,
+          probBefore: base,
+          probAfter: prob1,
+        },
+        {
+          label: `Income growth ${Math.max(0, Math.round((salaryGrowthRate - 0.01) * 100))}%/yr (-1%)`,
+          detail: `${fmtK(stressProjIncome2)}/yr projected in ${new Date().getFullYear() + n}`,
+          probBefore: base,
+          probAfter: prob2,
+        },
+        {
+          label: `Returns ${Math.max(0, inputs.investment_return - 2).toFixed(0)}% (-2%)`,
+          detail: `${fmtK(stressCash)} projected by ${new Date().getFullYear() + n}`,
+          probBefore: base,
+          probAfter: prob3,
+        },
+      ],
+    };
+  }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
 
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
@@ -1695,28 +1877,222 @@ export default function HomeClient({
                 </div>
               </div>
 
-              {gm.actions.length > 0 ? (
-                <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 7px" }}>Suggested Actions</p>
-                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
-                    {gm.actions.map((a, i) => (
-                      <span key={i} style={{ fontSize: "11px", color: "oklch(0.75 0.18 70)", background: "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)", border: "1px solid color-mix(in oklch, oklch(0.75 0.18 70) 22%, transparent)", borderRadius: "6px", padding: "4px 10px", fontFamily: "var(--font-body)" }}>
-                        {a}
-                      </span>
-                    ))}
+              {/* Readiness Breakdown */}
+              <div style={{ padding: "12px 16px 10px", borderTop: "1px solid var(--border-subtle)" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 9px" }}>Readiness Breakdown</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {([
+                    { label: "Down Payment", score: gm.dpReadiness, sub: gm.cashSurplus >= 0 ? `${fmtK(gm.cashSurplus)} surplus` : `${fmtK(-gm.cashSurplus)} short` },
+                    ...(gm.dtiReadiness !== null ? [{ label: "Income / DTI", score: gm.dtiReadiness, sub: gm.futureDTI !== null ? `${gm.futureDTI.toFixed(0)}% DTI` : "" }] : []),
+                    ...(gm.efReadiness !== null ? [{ label: "Emergency Fund", score: gm.efReadiness, sub: gm.emergencyMonths !== null ? `${Math.max(0, gm.emergencyMonths).toFixed(1)} mo left` : "" }] : []),
+                  ] as { label: string; score: number; sub: string }[]).map(({ label, score, sub }) => {
+                    const barColor = score >= 80 ? "oklch(0.70 0.18 155)" : score >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                    return (
+                      <div key={label}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                          <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{label}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {sub && <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{sub}</span>}
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: barColor, minWidth: "28px", textAlign: "right" as const }}>{score}%</span>
+                          </div>
+                        </div>
+                        <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${score}%`, borderRadius: "2px", background: barColor, transition: "width 0.4s ease" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Overall */}
+                  <div style={{ paddingTop: "4px", borderTop: "1px solid var(--border-subtle)", marginTop: "2px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Overall Score</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: gm.overallReadiness >= 80 ? "oklch(0.70 0.18 155)" : gm.overallReadiness >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)" }}>{gm.overallReadiness}%</span>
+                    </div>
+                    <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${gm.overallReadiness}%`, borderRadius: "2px", background: gm.overallReadiness >= 80 ? "oklch(0.70 0.18 155)" : gm.overallReadiness >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)", transition: "width 0.4s ease" }} />
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div style={{ padding: "9px 16px", borderTop: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "7px" }}>
-                  <span style={{ color: "oklch(0.70 0.18 155)", fontSize: "12px", flexShrink: 0 }}>✓</span>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                    Projected income in {targetPurchaseYear}: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(gm.projectedAnnualIncome)}/yr</span> &middot; Monthly payment: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.totalMonthly)}/mo</span>
-                  </p>
+              </div>
+
+              {/* Risks / Strengths */}
+              {(gm.risks.length > 0 || gm.strengths.length > 0) && (
+                <div style={{ padding: "10px 16px 12px", borderTop: "1px solid var(--border-subtle)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {gm.strengths.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Strengths</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {gm.strengths.map((st, i) => (
+                          <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                            <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>+</span>{st}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {gm.risks.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Risks</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {gm.risks.map((rsk, i) => (
+                          <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                            <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.68 0.18 25)", fontWeight: 700 }}>!</span>{rsk}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           );
         })()}
+
+        {/* Goal Timeline */}
+        {goalMetrics.hasProfile && (() => {
+          const currentYear = new Date().getFullYear();
+          const retirYear = profile?.current_age && profile?.target_retirement_age
+            ? currentYear + (profile.target_retirement_age - profile.current_age)
+            : null;
+          const milestones: { year: number; label: string; sub: string; done: boolean }[] = [
+            { year: currentYear, label: "Today", sub: `${fmtK(liquidAssets)} saved`, done: true },
+          ];
+          if (goalMetrics.dpReadyYear && goalMetrics.dpReadyYear < targetPurchaseYear) {
+            milestones.push({ year: goalMetrics.dpReadyYear, label: "Down Payment Ready", sub: fmt(goalMetrics.totalNeeded) + " reached", done: false });
+          }
+          milestones.push({ year: targetPurchaseYear, label: "Purchase Target", sub: fmt(inputs.purchase_price), done: false });
+          if (retirYear && retirYear > targetPurchaseYear) {
+            milestones.push({ year: retirYear, label: "Retirement", sub: computed.retirWithHomeAssets != null ? fmtK(computed.retirWithHomeAssets) + " est." : "age " + profile!.target_retirement_age, done: false });
+          }
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+              <p style={{ ...sectionHead, marginBottom: "14px" }}>Goal Timeline</p>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto" }}>
+                {milestones.map((m, i) => (
+                  <div key={m.year} style={{ display: "flex", alignItems: "flex-start", flex: i < milestones.length - 1 ? 1 : undefined, minWidth: "80px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "80px" }}>
+                      <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: m.done ? "oklch(0.70 0.18 155)" : "var(--bg-elevated)", border: `2px solid ${m.done ? "oklch(0.70 0.18 155)" : "var(--text-muted)"}`, flexShrink: 0, marginBottom: "6px" }} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: m.done ? "oklch(0.70 0.18 155)" : "var(--text-primary)" }}>{m.year}</span>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "2px", textAlign: "center" as const, lineHeight: 1.3 }}>{m.label}</span>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px", textAlign: "center" as const }}>{m.sub}</span>
+                    </div>
+                    {i < milestones.length - 1 && (
+                      <div style={{ flex: 1, height: "2px", marginTop: "4px", background: "var(--border-subtle)", alignSelf: "flex-start" }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Path to Success */}
+        {pathMetrics && (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+              <p style={{ ...sectionHead, margin: 0 }}>Path to Success</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Three ways to improve your {pathMetrics.options[0].probBefore}% readiness score</p>
+            </div>
+            <div>
+              {pathMetrics.options.map((opt, i) => {
+                const delta = opt.probAfter - opt.probBefore;
+                const deltaColor = delta >= 10 ? "oklch(0.70 0.18 155)" : delta >= 4 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+                return (
+                  <div key={opt.letter} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{opt.letter}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{opt.label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{opt.detail}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
+                      {delta > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Forecast Impact */}
+        {computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null && (() => {
+          const baseline = computed.retirBaselineAssets!;
+          const withHome = computed.retirWithHomeAssets!;
+          const delta = withHome - baseline;
+          const deltaColor = delta >= 0 ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)";
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Forecast Impact on Retirement</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  Projected assets at age {profile?.target_retirement_age ?? "—"} · {inputs.hold_years}yr hold assumed
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>Without Home</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmtK(baseline)}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{computed.retirBaselineProb != null ? `${computed.retirBaselineProb}% retirement prob` : "renting baseline"}</p>
+                </div>
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>With Home</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmtK(withHome)}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{computed.retirWithHomeProb != null ? `${computed.retirWithHomeProb}% retirement prob` : "after home equity"}</p>
+                </div>
+                <div style={{ padding: "14px 16px" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>Difference</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: deltaColor, margin: "0 0 2px" }}>
+                    {delta >= 0 ? "+" : ""}{fmtK(delta)}
+                  </p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>
+                    {computed.retirBaselineProb != null && computed.retirWithHomeProb != null
+                      ? `${computed.retirWithHomeProb - computed.retirBaselineProb > 0 ? "+" : ""}${computed.retirWithHomeProb - computed.retirBaselineProb}pp retire prob`
+                      : delta < 0 ? "home equity offsets portfolio drag" : "home equity boosts net worth"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Stress Tests */}
+        {stressMetrics && (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+              <p style={{ ...sectionHead, margin: 0 }}>Stress Tests</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Sensitivity of your {stressMetrics.base}% readiness to adverse changes</p>
+            </div>
+            <div>
+              {stressMetrics.scenarios.map((sc, i) => {
+                const delta = sc.probAfter - sc.probBefore;
+                const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+                return (
+                  <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
+                      {delta !== 0 && (
+                        <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
+                          {delta > 0 ? "+" : ""}{delta}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Compare Futures — ranked table */}
         {scenarios.length >= 1 && (() => {
