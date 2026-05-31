@@ -1031,6 +1031,11 @@ export default function HomeClient({
   const [zipError, setZipError] = useState<string | null>(null);
   const [zipData, setZipData] = useState<import("@/app/api/planning/home-market/route").HomeMarketData | null>(null);
   const [avgMortgageRate, setAvgMortgageRate] = useState<number | null>(null);
+  const [hasStarted, setHasStarted] = useState(scenarios.length > 0);
+  const [startPrice, setStartPrice] = useState("");
+  const [startYear, setStartYear] = useState(String(new Date().getFullYear() + 3));
+  const [startZip, setStartZip] = useState("");
+
   const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => {
     // Seed from an existing linked home_purchase event so "Update" doesn't silently reset the year
     const existing = homeEvents.find((e) => e.category === "home_purchase");
@@ -1177,6 +1182,20 @@ export default function HomeClient({
     } finally {
       setZipLoading(false);
     }
+  }
+
+  function handleStartPlanning() {
+    const price = Number(startPrice.replace(/[^0-9]/g, "")) || BASE_DEFAULTS.purchase_price;
+    const yr = Number(startYear) || new Date().getFullYear() + 3;
+    const dp = Math.round(price * 0.20 / 1000) * 1000;
+    const tax = Math.round((price * 0.012) / 12 / 10) * 10;
+    setInputs((prev) => ({ ...prev, purchase_price: price, down_payment: dp, property_tax_monthly: tax }));
+    setTargetPurchaseYear(yr);
+    if (startZip.length === 5) {
+      setZipInput(startZip);
+      setDataMode("zip");
+    }
+    setHasStarted(true);
   }
 
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
@@ -1775,6 +1794,63 @@ export default function HomeClient({
     });
   }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, targetPurchaseYear, computed.retirBaselineProb]);
 
+  // ── FINN Executive Summary (rule-based, always available) ──────────────────
+
+  const finnSummary = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+    const gm = goalMetrics;
+    const parts: string[] = [];
+
+    // Sentence 1: Status + target
+    const priceStr = fmtK(inputs.purchase_price);
+    const statusWord = gm.onTrack ? "on track" : gm.prob >= 60 ? "close to on track" : "currently off track";
+    parts.push(`You are ${statusWord} to purchase a ${priceStr} home in ${targetPurchaseYear}.`);
+
+    // Sentence 2: Savings position
+    if (gm.cashSurplus >= 0) {
+      parts.push(`Based on your projected savings and income growth, you are estimated to exceed your down payment target by approximately ${fmtK(gm.cashSurplus)} at purchase.`);
+    } else {
+      const shortfall = fmtK(-gm.cashSurplus);
+      if (gm.yearsUntilPurchase > 0) {
+        parts.push(`At your current savings rate, you are projected to be ${shortfall} short of your down payment target — increasing monthly savings or extending your timeline would close this gap.`);
+      } else {
+        parts.push(`Your projected savings fall ${shortfall} short of the down payment and closing costs required for this purchase.`);
+      }
+    }
+
+    // Sentence 3: Retirement impact
+    if (computed.retirDelta !== null && computed.retirWithHomeProb !== null) {
+      const delta = computed.retirDelta;
+      const withProb = computed.retirWithHomeProb;
+      if (delta <= -5) {
+        const assetDelta = computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null
+          ? fmtK(Math.abs(computed.retirBaselineAssets - computed.retirWithHomeAssets))
+          : null;
+        parts.push(`This purchase ${assetDelta ? `reduces projected retirement assets by approximately ${assetDelta}` : "has a meaningful impact on retirement assets"}, bringing retirement probability to ${withProb}%.`);
+      } else if (delta >= 0) {
+        parts.push(`This purchase maintains or improves your retirement trajectory, with retirement probability at ${withProb}% after accounting for home equity growth.`);
+      } else {
+        parts.push(`This purchase has a modest effect on retirement planning, with retirement probability at ${withProb}% after accounting for home equity.`);
+      }
+    }
+
+    // Sentence 4: Biggest risk
+    if (gm.risks.length > 0) {
+      const risk = gm.risks[0].replace(/\.$/, "").toLowerCase();
+      parts.push(`The largest near-term risk is ${risk}.`);
+    }
+
+    // Sentence 5: Break-even economics
+    const be = computed.breakEvenYear;
+    if (be !== null && be <= inputs.hold_years) {
+      parts.push(`At current appreciation rates, home equity outpaces the rented-and-invested alternative in ${be} year${be === 1 ? "" : "s"}.`);
+    } else if (be === null) {
+      parts.push(`Under current assumptions, the home does not break even against renting and investing within the ${inputs.hold_years}-year hold period.`);
+    }
+
+    return parts.join(" ");
+  }, [goalMetrics, computed, inputs, targetPurchaseYear]);
+
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
@@ -1989,8 +2065,78 @@ export default function HomeClient({
           </div>
         )}
 
+        {/* First-time empty state */}
+        {!hasStarted && (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div style={{ padding: "32px 32px 24px", textAlign: "center" as const }}>
+              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="oklch(0.62 0.22 245)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px", margin: "0 0 8px" }}>Your Home Planning Starts Here</h2>
+              <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: "0 auto 28px", maxWidth: "400px", lineHeight: 1.6 }}>
+                BuyTune will project your future income, savings, down payment readiness, retirement impact, and local market conditions to determine whether you are on track.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", maxWidth: "520px", margin: "0 auto 20px" }}>
+                <div>
+                  <label style={{ ...labelS, textAlign: "left" as const }}>Target Home Price</label>
+                  <input
+                    type="text"
+                    placeholder="$500,000"
+                    value={startPrice}
+                    onChange={(e) => setStartPrice(e.target.value)}
+                    style={{ ...inputS, textAlign: "center" as const }}
+                  />
+                </div>
+                <div>
+                  <label style={{ ...labelS, textAlign: "left" as const }}>Purchase Year</label>
+                  <input
+                    type="number"
+                    min={new Date().getFullYear()}
+                    max={new Date().getFullYear() + 20}
+                    value={startYear}
+                    onChange={(e) => setStartYear(e.target.value)}
+                    style={{ ...inputS, textAlign: "center" as const }}
+                  />
+                </div>
+                <div>
+                  <label style={{ ...labelS, textAlign: "left" as const }}>ZIP Code (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 75201"
+                    maxLength={5}
+                    value={startZip}
+                    onChange={(e) => setStartZip(e.target.value)}
+                    style={{ ...inputS, textAlign: "center" as const }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleStartPlanning}
+                style={{ fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "10px", padding: "10px 28px", cursor: "pointer", letterSpacing: "-0.1px" }}
+              >
+                Start Planning
+              </button>
+            </div>
+            <div style={{ padding: "14px 32px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "center", gap: "24px" }}>
+              {[
+                { icon: "📊", label: "Goal readiness score" },
+                { icon: "🏠", label: "Compare home paths" },
+                { icon: "📈", label: "Retirement impact" },
+              ].map(({ icon, label }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "13px" }}>{icon}</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Goal Dashboard */}
-        {(() => {
+        {hasStarted && (() => {
           const gm = goalMetrics;
           if (!gm.hasProfile) {
             return (
@@ -2137,47 +2283,47 @@ export default function HomeClient({
           );
         })()}
 
-        {/* Future Home Snapshot */}
-        {goalMetrics.hasProfile && (() => {
-          const ageAtPurchase = profile?.current_age != null
-            ? profile.current_age + goalMetrics.yearsUntilPurchase
-            : null;
-          const retirProb = computed.retirWithHomeProb ?? computed.retirBaselineProb;
-          const cells: { label: string; value: string; sub?: string; highlight?: boolean }[] = [
-            { label: "Purchase Year", value: String(targetPurchaseYear), sub: goalMetrics.yearsUntilPurchase > 0 ? `${goalMetrics.yearsUntilPurchase} yrs away` : "This year" },
-            ...(ageAtPurchase != null ? [{ label: "Your Age", value: String(ageAtPurchase) }] : []),
-            { label: "Projected Income", value: fmt(goalMetrics.projectedAnnualIncome) + "/yr", sub: `at ${targetPurchaseYear}` },
-            { label: "Projected Savings", value: fmtK(goalMetrics.projectedCash), sub: `by ${targetPurchaseYear}` },
-            { label: "Cash Needed", value: fmt(goalMetrics.totalNeeded), sub: "down + closing" },
-            {
-              label: "Remaining Liquidity",
-              value: goalMetrics.cashSurplus >= 0 ? fmtK(goalMetrics.cashSurplus) : `−${fmtK(-goalMetrics.cashSurplus)}`,
-              sub: goalMetrics.emergencyMonths != null ? `${Math.max(0, goalMetrics.emergencyMonths).toFixed(1)} mo emergency fund` : undefined,
-              highlight: goalMetrics.cashSurplus < 0,
-            },
-            { label: "Monthly Housing Cost", value: fmt(computed.totalMonthly) + "/mo", sub: "P&I + tax + ins" },
-            ...(retirProb != null ? [{ label: "Retirement Probability", value: retirProb + "%", sub: "at target age" }] : []),
-          ];
-          return (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>Future Home Snapshot</p>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
-                  Your financial profile at the moment of purchase — {targetPurchaseYear}
-                </p>
+        {/* FINN Executive Summary */}
+        {hasStarted && finnSummary && (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ width: "24px", height: "24px", borderRadius: "7px", background: "rgba(109,40,217,0.08)", border: "1px solid rgba(109,40,217,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="11" height="11" viewBox="0 0 20 20" fill="oklch(0.55 0.22 295)"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zm.75-9.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.25 9.5h1.5v5h-1.5V9.5z"/></svg>
+                </div>
+                <p style={{ ...sectionHead, margin: 0 }}>FINN Advisor Summary</p>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-                {cells.map(({ label, value, sub, highlight }, i) => (
-                  <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
-                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
-                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
-                  </div>
-                ))}
-              </div>
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
             </div>
-          );
-        })()}
+            <div style={{ padding: "14px 16px 16px" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 0 14px", fontFamily: "var(--font-body)" }}>{finnSummary}</p>
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" as const }}>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, flex: 1 }}>
+                  Want a deeper, AI-powered analysis? FINN can account for nuances these rules cannot capture.
+                </p>
+                {finnCommentary ? (
+                  <button type="button" onClick={() => setFinnCommentary(null)} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const }}>
+                    Refresh AI Analysis
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={fetchFinnCommentary}
+                    disabled={finnLoading}
+                    style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: finnLoading ? "var(--text-muted)" : "linear-gradient(135deg,#7c3aed,#5b21b6)", border: "none", borderRadius: "8px", padding: "5px 14px", cursor: finnLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}
+                  >
+                    {finnLoading ? "Analyzing…" : "Deep AI Analysis"}
+                  </button>
+                )}
+              </div>
+              {finnCommentary && (
+                <div style={{ marginTop: "12px", padding: "12px 14px", background: "rgba(109,40,217,0.04)", border: "1px solid rgba(109,40,217,0.15)", borderRadius: "10px" }}>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{finnCommentary}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Compare Home Paths */}
         {comparePathMetrics && (() => {
@@ -2238,6 +2384,48 @@ export default function HomeClient({
           );
         })()}
 
+        {/* Future Home Snapshot */}
+        {goalMetrics.hasProfile && (() => {
+          const ageAtPurchase = profile?.current_age != null
+            ? profile.current_age + goalMetrics.yearsUntilPurchase
+            : null;
+          const retirProb = computed.retirWithHomeProb ?? computed.retirBaselineProb;
+          const cells: { label: string; value: string; sub?: string; highlight?: boolean }[] = [
+            { label: "Purchase Year", value: String(targetPurchaseYear), sub: goalMetrics.yearsUntilPurchase > 0 ? `${goalMetrics.yearsUntilPurchase} yrs away` : "This year" },
+            ...(ageAtPurchase != null ? [{ label: "Your Age", value: String(ageAtPurchase) }] : []),
+            { label: "Projected Income", value: fmt(goalMetrics.projectedAnnualIncome) + "/yr", sub: `at ${targetPurchaseYear}` },
+            { label: "Projected Savings", value: fmtK(goalMetrics.projectedCash), sub: `by ${targetPurchaseYear}` },
+            { label: "Cash Needed", value: fmt(goalMetrics.totalNeeded), sub: "down + closing" },
+            {
+              label: "Remaining Liquidity",
+              value: goalMetrics.cashSurplus >= 0 ? fmtK(goalMetrics.cashSurplus) : `−${fmtK(-goalMetrics.cashSurplus)}`,
+              sub: goalMetrics.emergencyMonths != null ? `${Math.max(0, goalMetrics.emergencyMonths).toFixed(1)} mo emergency fund` : undefined,
+              highlight: goalMetrics.cashSurplus < 0,
+            },
+            { label: "Monthly Housing Cost", value: fmt(computed.totalMonthly) + "/mo", sub: "P&I + tax + ins" },
+            ...(retirProb != null ? [{ label: "Retirement Probability", value: retirProb + "%", sub: "at target age" }] : []),
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Future Home Snapshot</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  Your financial profile at the moment of purchase — {targetPurchaseYear}
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+                {cells.map(({ label, value, sub, highlight }, i) => (
+                  <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
+                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Goal Timeline */}
         {goalMetrics.hasProfile && (() => {
           const currentYear = new Date().getFullYear();
@@ -2271,6 +2459,72 @@ export default function HomeClient({
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Worth It Score */}
+        {worthItMetrics && (() => {
+          const { score, label, strengths, concerns } = worthItMetrics;
+          const scoreColor = score >= 70 ? "oklch(0.70 0.18 155)" : score >= 55 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const scoreBg = score >= 70 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : score >= 55 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
+          const components = [
+            { label: "Goal Readiness", pts: worthItMetrics.goalPts, max: 25 },
+            { label: "Ownership Economics", pts: worthItMetrics.econPts, max: 25 },
+            { label: "Retirement Safety", pts: worthItMetrics.retirPts, max: 25 },
+            { label: "Liquidity After Purchase", pts: worthItMetrics.liqPts, max: 25 },
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Worth It Score</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Should you do this — not just can you</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: scoreColor, background: scoreBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor, letterSpacing: "-0.02em" }}>{score}</span>
+                </div>
+              </div>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "7px" }}>
+                {components.map(({ label: cl, pts, max }) => {
+                  const pct = Math.round((pts / max) * 100);
+                  const cColor = pts >= max * 0.8 ? "oklch(0.70 0.18 155)" : pts >= max * 0.5 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                  return (
+                    <div key={cl}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                        <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cl}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: cColor }}>{pts}/{max}</span>
+                      </div>
+                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, borderRadius: "2px", background: cColor, transition: "width 0.4s ease" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
+                {strengths.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
+                    {strengths.map((s, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {concerns.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
+                    {concerns.map((c, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -2431,71 +2685,39 @@ export default function HomeClient({
           );
         })()}
 
-        {/* Worth It Score */}
-        {worthItMetrics && (() => {
-          const { score, label, strengths, concerns } = worthItMetrics;
-          const scoreColor = score >= 70 ? "oklch(0.70 0.18 155)" : score >= 55 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
-          const scoreBg = score >= 70 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : score >= 55 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
-          const components = [
-            { label: "Goal Readiness", pts: worthItMetrics.goalPts, max: 25 },
-            { label: "Ownership Economics", pts: worthItMetrics.econPts, max: 25 },
-            { label: "Retirement Safety", pts: worthItMetrics.retirPts, max: 25 },
-            { label: "Liquidity After Purchase", pts: worthItMetrics.liqPts, max: 25 },
-          ];
-          return (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
-                <div>
-                  <p style={{ ...sectionHead, margin: 0 }}>Worth It Score</p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Should you do this — not just can you</p>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 600, color: scoreColor, background: scoreBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor, letterSpacing: "-0.02em" }}>{score}</span>
-                </div>
-              </div>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "7px" }}>
-                {components.map(({ label: cl, pts, max }) => {
-                  const pct = Math.round((pts / max) * 100);
-                  const cColor = pts >= max * 0.8 ? "oklch(0.70 0.18 155)" : pts >= max * 0.5 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
-                  return (
-                    <div key={cl}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                        <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cl}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: cColor }}>{pts}/{max}</span>
-                      </div>
-                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, borderRadius: "2px", background: cColor, transition: "width 0.4s ease" }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
-                {strengths.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
-                    {strengths.map((s, i) => (
-                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
-                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {concerns.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
-                    {concerns.map((c, i) => (
-                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
-                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {/* Stress Tests */}
+        {stressMetrics && (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+              <p style={{ ...sectionHead, margin: 0 }}>Stress Tests</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Sensitivity of your {stressMetrics.base}% readiness to adverse changes</p>
             </div>
-          );
-        })()}
+            <div>
+              {stressMetrics.scenarios.map((sc, i) => {
+                const delta = sc.probAfter - sc.probBefore;
+                const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+                return (
+                  <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
+                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
+                      {delta !== 0 && (
+                        <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
+                          {delta > 0 ? "+" : ""}{delta}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Home Market Intelligence */}
         {zipData?.marketScore != null && (() => {
@@ -2570,40 +2792,6 @@ export default function HomeClient({
             </div>
           );
         })()}
-
-        {/* Stress Tests */}
-        {stressMetrics && (
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-              <p style={{ ...sectionHead, margin: 0 }}>Stress Tests</p>
-              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Sensitivity of your {stressMetrics.base}% readiness to adverse changes</p>
-            </div>
-            <div>
-              {stressMetrics.scenarios.map((sc, i) => {
-                const delta = sc.probAfter - sc.probBefore;
-                const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
-                return (
-                  <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
-                      {delta !== 0 && (
-                        <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
-                          {delta > 0 ? "+" : ""}{delta}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Compare Futures — ranked table */}
         {scenarios.length >= 1 && (() => {
