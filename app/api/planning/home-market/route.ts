@@ -17,45 +17,57 @@ const HUD_FMR_BASE = "https://www.huduser.gov/hudapi/public/fmr/zip";
 
 type CensusRow = [string, string, string, string]; // [homeValue, rent, income, zcta]
 
-async function fetchCensusData(zip: string): Promise<{
+type CensusResult = {
   medianHomeValue: number | null;
   medianRent: number | null;
   medianHouseholdIncome: number | null;
-}> {
-  const apiKey = process.env.CENSUS_API_KEY;
-  // Census geography param uses %20 for spaces (not +) in for= parameter
-  const buildUrl = (withKey: boolean) =>
-    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip%20code%20tabulation%20area:${zip}${withKey && apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
+  keyRequired: boolean;
+};
 
-  async function tryCensus(url: string) {
+async function fetchCensusData(zip: string): Promise<CensusResult> {
+  const apiKey = process.env.CENSUS_API_KEY;
+  const nullResult = (keyRequired = false): CensusResult =>
+    ({ medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired });
+
+  if (!apiKey) return nullResult(true); // Census requires a key — skip entirely
+
+  // Try full geography name first, then zcta5 short form as fallback
+  const urls = [
+    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip%20code%20tabulation%20area:${zip}&key=${encodeURIComponent(apiKey)}`,
+    `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zcta5:${zip}&key=${encodeURIComponent(apiKey)}`,
+  ];
+
+  async function tryCensus(url: string): Promise<CensusRow[] | null> {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-      console.error(`[census] HTTP ${res.status} for ZIP ${zip}: ${await res.text().catch(() => "")}`);
+    const body = await res.text().catch(() => "");
+    // Census returns 200 with HTML when key is missing/invalid
+    if (!res.ok || body.trimStart().startsWith("<")) {
+      console.error(`[census] ZIP ${zip} status=${res.status} body_start="${body.slice(0, 120)}"`);
       return null;
     }
-    const body = await res.text();
     try { return JSON.parse(body) as CensusRow[]; } catch (e) {
-      console.error(`[census] JSON parse error for ZIP ${zip}:`, e, "body:", body.slice(0, 200));
+      console.error(`[census] JSON parse error ZIP ${zip}:`, e, "body:", body.slice(0, 200));
       return null;
     }
   }
 
   try {
-    // Try with key first; fall back to keyless if key is inactive or rejected
-    let rows = apiKey ? await tryCensus(buildUrl(true)) : null;
-    if (!rows || rows.length < 2) rows = await tryCensus(buildUrl(false));
-    if (!rows || rows.length < 2) return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
-
-    const [homeValueStr, rentStr, incomeStr] = rows[1];
-    const parse = (v: string) => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? null : n; };
-
-    return {
-      medianHomeValue: parse(homeValueStr),
-      medianRent: parse(rentStr),
-      medianHouseholdIncome: parse(incomeStr),
-    };
+    for (const url of urls) {
+      const rows = await tryCensus(url);
+      if (rows && rows.length >= 2) {
+        const [homeValueStr, rentStr, incomeStr] = rows[1];
+        const parse = (v: string) => { const n = parseInt(v, 10); return isNaN(n) || n < 0 ? null : n; };
+        return {
+          medianHomeValue: parse(homeValueStr),
+          medianRent: parse(rentStr),
+          medianHouseholdIncome: parse(incomeStr),
+          keyRequired: false,
+        };
+      }
+    }
+    return nullResult();
   } catch {
-    return { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
+    return nullResult();
   }
 }
 
@@ -147,7 +159,7 @@ export type HomeMarketData = {
   fredAvailable: boolean;
   hudAvailable: boolean;
   dataVintage: string;
-  _debug: { censusKeyPresent: boolean; fredKeyPresent: boolean; censusRejected: boolean };
+  _debug: { censusKeyPresent: boolean; fredKeyPresent: boolean; censusRejected: boolean; censusKeyRequired: boolean };
 };
 
 export async function GET(req: NextRequest) {
@@ -164,7 +176,7 @@ export async function GET(req: NextRequest) {
 
   const censusData = censusResult.status === "fulfilled"
     ? censusResult.value
-    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null };
+    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired: false };
   const mortgageRate = rateResult.status === "fulfilled" ? rateResult.value : null;
   const hudData = hudResult.status === "fulfilled" ? hudResult.value : { twoBed: null, countyName: null };
 
@@ -240,6 +252,7 @@ export async function GET(req: NextRequest) {
       censusKeyPresent: !!process.env.CENSUS_API_KEY,
       fredKeyPresent: !!process.env.FRED_API_KEY,
       censusRejected: censusResult.status === "rejected",
+      censusKeyRequired: censusData.keyRequired,
     },
   };
 

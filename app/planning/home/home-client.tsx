@@ -1122,7 +1122,8 @@ export default function HomeClient({
       const res = await fetch(`/api/planning/home-market?zip=${zipInput}`);
       const data = await res.json() as import("@/app/api/planning/home-market/route").HomeMarketData & { error?: string };
       if (!res.ok || data.error) { setZipError(data.error ?? "Lookup failed. Try again."); return; }
-      if (!data.censusAvailable) { setZipError("No Census data found for this ZIP. Try a nearby ZIP or use Metro Preset."); return; }
+      if (data._debug?.censusKeyRequired) { setZipError("ZIP lookup requires a Census API key. Add CENSUS_API_KEY to your Vercel environment variables (free at api.census.gov/data/key_signup.html)."); return; }
+      if (!data.censusAvailable) { setZipError("No data found for this ZIP. Try a nearby ZIP or use a Metro Preset instead."); return; }
       setZipData(data);
       // Apply to inputs
       setInputs((prev) => ({
