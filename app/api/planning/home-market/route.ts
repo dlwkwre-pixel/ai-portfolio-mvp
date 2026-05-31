@@ -22,14 +22,15 @@ type CensusResult = {
   medianRent: number | null;
   medianHouseholdIncome: number | null;
   keyRequired: boolean;
+  lastError: string | null;
 };
 
 async function fetchCensusData(zip: string): Promise<CensusResult> {
-  const apiKey = process.env.CENSUS_API_KEY;
-  const nullResult = (keyRequired = false): CensusResult =>
-    ({ medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired });
+  const apiKey = process.env.CENSUS_API_KEY?.trim();
+  const nullResult = (keyRequired = false, lastError: string | null = null): CensusResult =>
+    ({ medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired, lastError });
 
-  if (!apiKey) return nullResult(true); // Census requires a key — skip entirely
+  if (!apiKey) return nullResult(true, "CENSUS_API_KEY not set");
 
   // Try full geography name first, then zcta5 short form as fallback
   const urls = [
@@ -37,15 +38,19 @@ async function fetchCensusData(zip: string): Promise<CensusResult> {
     `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zcta5:${zip}&key=${encodeURIComponent(apiKey)}`,
   ];
 
+  let lastError: string | null = null;
+
   async function tryCensus(url: string): Promise<CensusRow[] | null> {
     const res = await fetch(url, { cache: "no-store" });
     const body = await res.text().catch(() => "");
     // Census returns 200 with HTML when key is missing/invalid
     if (!res.ok || body.trimStart().startsWith("<")) {
-      console.error(`[census] ZIP ${zip} status=${res.status} body_start="${body.slice(0, 120)}"`);
+      lastError = `HTTP ${res.status}: ${body.slice(0, 120).replace(/\s+/g, " ")}`;
+      console.error(`[census] ZIP ${zip} ${lastError}`);
       return null;
     }
     try { return JSON.parse(body) as CensusRow[]; } catch (e) {
+      lastError = `JSON parse failed: ${body.slice(0, 120)}`;
       console.error(`[census] JSON parse error ZIP ${zip}:`, e, "body:", body.slice(0, 200));
       return null;
     }
@@ -62,12 +67,13 @@ async function fetchCensusData(zip: string): Promise<CensusResult> {
           medianRent: parse(rentStr),
           medianHouseholdIncome: parse(incomeStr),
           keyRequired: false,
+          lastError: null,
         };
       }
     }
-    return nullResult();
-  } catch {
-    return nullResult();
+    return nullResult(false, lastError ?? "No ZCTA data found for this ZIP");
+  } catch (e) {
+    return nullResult(false, String(e));
   }
 }
 
@@ -159,7 +165,7 @@ export type HomeMarketData = {
   fredAvailable: boolean;
   hudAvailable: boolean;
   dataVintage: string;
-  _debug: { censusKeyPresent: boolean; fredKeyPresent: boolean; censusRejected: boolean; censusKeyRequired: boolean };
+  _debug: { censusKeyPresent: boolean; fredKeyPresent: boolean; censusRejected: boolean; censusKeyRequired: boolean; censusLastError: string | null };
 };
 
 export async function GET(req: NextRequest) {
@@ -176,7 +182,7 @@ export async function GET(req: NextRequest) {
 
   const censusData = censusResult.status === "fulfilled"
     ? censusResult.value
-    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired: false };
+    : { medianHomeValue: null, medianRent: null, medianHouseholdIncome: null, keyRequired: false, lastError: "fetch rejected" };
   const mortgageRate = rateResult.status === "fulfilled" ? rateResult.value : null;
   const hudData = hudResult.status === "fulfilled" ? hudResult.value : { twoBed: null, countyName: null };
 
@@ -249,10 +255,11 @@ export async function GET(req: NextRequest) {
     hudAvailable: !!hudData.twoBed,
     dataVintage: "2022 ACS 5-yr",
     _debug: {
-      censusKeyPresent: !!process.env.CENSUS_API_KEY,
+      censusKeyPresent: !!process.env.CENSUS_API_KEY?.trim(),
       fredKeyPresent: !!process.env.FRED_API_KEY,
       censusRejected: censusResult.status === "rejected",
       censusKeyRequired: censusData.keyRequired,
+      censusLastError: censusData.lastError,
     },
   };
 
