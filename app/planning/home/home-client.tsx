@@ -966,11 +966,15 @@ export default function HomeClient({
   profile,
   defaultInvestmentReturn,
   homeEvents,
+  salaryGrowthRate = 0.02,
+  liquidAssets = 0,
 }: {
   scenarios: HomeScenario[];
   profile: FinancialProfile | null;
   defaultInvestmentReturn: number;
   homeEvents: FutureEvent[];
+  salaryGrowthRate?: number;
+  liquidAssets?: number;
 }) {
   const router = useRouter();
   const smartDefaults = buildDefaults(profile, defaultInvestmentReturn);
@@ -1319,6 +1323,97 @@ export default function HomeClient({
     };
   }, [inputs, profile]);
 
+  // ── Goal Dashboard metrics (forecast-aware) ────────────────────────────────
+
+  const goalMetrics = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const yearsUntilPurchase = Math.max(0, targetPurchaseYear - currentYear);
+
+    const monthlyIncome = profile?.monthly_income ?? 0;
+    const monthlyExpenses = profile?.monthly_expenses ?? 0;
+    const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
+    const annualSavings = monthlySavings * 12;
+    const hasProfile = monthlyIncome > 0;
+
+    // Projected income in purchase year
+    const incomeGrowthFactor = Math.pow(1 + salaryGrowthRate, yearsUntilPurchase);
+    const projectedAnnualIncome = monthlyIncome * 12 * incomeGrowthFactor;
+    const projectedMonthlyIncome = projectedAnnualIncome / 12;
+
+    // Projected liquid cash in purchase year (FV of existing assets + savings contributions)
+    const r = inputs.investment_return / 100;
+    let projectedCash: number;
+    if (yearsUntilPurchase === 0) {
+      projectedCash = liquidAssets;
+    } else if (r > 0) {
+      const gf = Math.pow(1 + r, yearsUntilPurchase);
+      projectedCash = liquidAssets * gf + (annualSavings > 0 ? annualSavings * (gf - 1) / r : 0);
+    } else {
+      projectedCash = liquidAssets + annualSavings * yearsUntilPurchase;
+    }
+    projectedCash = Math.max(0, projectedCash);
+
+    // What's needed
+    const closingCosts = inputs.purchase_price * (inputs.closing_cost_pct / 100);
+    const totalNeeded = inputs.down_payment + closingCosts;
+    const cashSurplus = projectedCash - totalNeeded;
+    const remainingCash = projectedCash - totalNeeded;
+
+    // Emergency fund after purchase
+    const emergencyMonths = monthlyExpenses > 0 ? remainingCash / monthlyExpenses : null;
+
+    // Future DTI (total monthly cost / projected monthly income)
+    const futureDTI = projectedMonthlyIncome > 0 ? (computed.totalMonthly / projectedMonthlyIncome) * 100 : null;
+
+    const dtiStatus = futureDTI === null ? null
+      : futureDTI <= 28 ? "excellent"
+      : futureDTI <= 36 ? "good"
+      : futureDTI <= 43 ? "caution"
+      : "high";
+
+    const emergencyStatus = emergencyMonths === null ? null
+      : emergencyMonths >= 6 ? "strong"
+      : emergencyMonths >= 3 ? "adequate"
+      : emergencyMonths >= 1 ? "thin"
+      : "depleted";
+
+    // Probability score
+    let prob = 100;
+    if (cashSurplus < 0 && totalNeeded > 0) prob -= Math.min(35, Math.round((-cashSurplus / totalNeeded) * 35));
+    if (futureDTI !== null && futureDTI > 43) prob -= 25;
+    else if (futureDTI !== null && futureDTI > 36) prob -= 10;
+    if (emergencyMonths !== null && emergencyMonths < 3) prob -= Math.min(15, Math.round((3 - Math.max(0, emergencyMonths)) * 5));
+    prob = Math.max(10, Math.min(97, prob));
+
+    const onTrack = cashSurplus >= 0 && (futureDTI === null || futureDTI <= 43) && (emergencyMonths === null || emergencyMonths >= 1);
+
+    // Action items
+    const actions: string[] = [];
+    if (cashSurplus < 0) {
+      if (yearsUntilPurchase > 0 && monthlySavings > 0) {
+        const extraMonthly = Math.ceil(-cashSurplus / (yearsUntilPurchase * 12) / 50) * 50;
+        if (extraMonthly > 0) actions.push(`Save ${fmt(extraMonthly)}/mo more toward your down payment.`);
+      }
+      if (yearsUntilPurchase > 0) {
+        const extraYears = Math.min(5, Math.ceil(-cashSurplus / Math.max(1, annualSavings)));
+        if (extraYears >= 1) actions.push(`Delay purchase ${extraYears} year${extraYears > 1 ? "s" : ""} to ${targetPurchaseYear + extraYears}.`);
+      }
+      const priceReduction = Math.round((-cashSurplus / Math.max(0.01, inputs.down_payment / Math.max(1, inputs.purchase_price))) / 5000) * 5000;
+      if (priceReduction > 0) actions.push(`Reduce target price by ${fmtK(priceReduction)}.`);
+    }
+    if (futureDTI !== null && futureDTI > 43 && actions.length < 3) {
+      actions.push("Housing payment is high vs. projected income — consider a longer term or lower price.");
+    }
+
+    return {
+      hasProfile, yearsUntilPurchase,
+      projectedAnnualIncome, projectedMonthlyIncome, projectedCash,
+      totalNeeded, cashSurplus, remainingCash,
+      emergencyMonths, futureDTI, dtiStatus, emergencyStatus,
+      prob, onTrack, actions,
+    };
+  }, [inputs, profile, targetPurchaseYear, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
+
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
@@ -1408,6 +1503,16 @@ export default function HomeClient({
       net_worth: null,
       retirement_prob_baseline: computed.retirBaselineProb,
       retirement_prob_with_home: computed.retirWithHomeProb,
+      // Goal planning context
+      purchase_year: targetPurchaseYear,
+      years_until_purchase: goalMetrics.yearsUntilPurchase,
+      projected_income_at_purchase: goalMetrics.hasProfile ? goalMetrics.projectedAnnualIncome : null,
+      projected_cash_at_purchase: goalMetrics.hasProfile ? goalMetrics.projectedCash : null,
+      cash_surplus_deficit: goalMetrics.hasProfile ? goalMetrics.cashSurplus : null,
+      future_dti: goalMetrics.futureDTI,
+      emergency_months_after: goalMetrics.emergencyMonths,
+      goal_probability: goalMetrics.hasProfile ? goalMetrics.prob : null,
+      on_track: goalMetrics.hasProfile ? goalMetrics.onTrack : null,
     };
     try {
       const res = await fetch("/api/planning/home-finn", {
@@ -1512,6 +1617,106 @@ export default function HomeClient({
             ))}
           </div>
         )}
+
+        {/* Goal Dashboard */}
+        {(() => {
+          const gm = goalMetrics;
+          if (!gm.hasProfile) {
+            return (
+              <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="oklch(0.62 0.18 260)" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 2px" }}>Goal projection requires a financial profile</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>Add your income and expenses in <a href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none" }}>Financial Planning</a> to see whether you are on track for this purchase year.</p>
+                </div>
+              </div>
+            );
+          }
+
+          const statusColor = gm.onTrack ? "oklch(0.70 0.18 155)" : gm.prob >= 60 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const statusBg = gm.onTrack ? "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)" : gm.prob >= 60 ? "color-mix(in oklch, oklch(0.75 0.18 70) 10%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 10%, transparent)";
+          const statusBorder = gm.onTrack ? "color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" : gm.prob >= 60 ? "color-mix(in oklch, oklch(0.75 0.18 70) 25%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 25%, transparent)";
+          const statusLabel = gm.onTrack ? "On Track" : gm.prob >= 60 ? "At Risk" : "Off Track";
+
+          const dtiColor = !gm.dtiStatus ? "var(--text-secondary)" : gm.dtiStatus === "excellent" || gm.dtiStatus === "good" ? "oklch(0.70 0.18 155)" : gm.dtiStatus === "caution" ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const dtiLabel = !gm.dtiStatus ? "—" : { excellent: "Excellent", good: "Comfortable", caution: "Caution", high: "High" }[gm.dtiStatus];
+
+          const efColor = !gm.emergencyStatus ? "var(--text-secondary)" : gm.emergencyStatus === "strong" || gm.emergencyStatus === "adequate" ? "oklch(0.70 0.18 155)" : gm.emergencyStatus === "thin" ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const efLabel = !gm.emergencyStatus ? "—" : { strong: "Healthy", adequate: "Adequate", thin: "Thin", depleted: "Depleted" }[gm.emergencyStatus];
+
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Goal Dashboard</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    {fmt(inputs.purchase_price)} target &middot; {targetPurchaseYear}
+                    {gm.yearsUntilPurchase > 0 ? ` · ${gm.yearsUntilPurchase} year${gm.yearsUntilPurchase !== 1 ? "s" : ""} away` : " · This year"}
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "4px 10px", borderRadius: "6px", background: statusBg, border: `1px solid ${statusBorder}`, color: statusColor, fontFamily: "var(--font-body)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    {statusLabel}
+                  </span>
+                  <span style={{ fontSize: "24px", fontWeight: 700, color: statusColor, fontFamily: "var(--font-mono)", letterSpacing: "-0.02em" }}>{gm.prob}%</span>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Projected Cash ({targetPurchaseYear})</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmtK(gm.projectedCash)}</p>
+                  <p style={{ fontSize: "11px", color: gm.cashSurplus >= 0 ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)", margin: "0 0 2px", fontFamily: "var(--font-body)" }}>
+                    {gm.cashSurplus >= 0 ? `+${fmtK(gm.cashSurplus)} above target` : `${fmtK(-gm.cashSurplus)} short`}
+                  </p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Need {fmt(gm.totalNeeded)}</p>
+                </div>
+
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Future Housing DTI</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: gm.futureDTI !== null ? dtiColor : "var(--text-secondary)", margin: "0 0 3px" }}>
+                    {gm.futureDTI !== null ? `${gm.futureDTI.toFixed(0)}%` : "—"}
+                  </p>
+                  <p style={{ fontSize: "11px", color: dtiColor, margin: "0 0 2px", fontFamily: "var(--font-body)" }}>{dtiLabel}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{fmt(gm.projectedMonthlyIncome)}/mo est. income</p>
+                </div>
+
+                <div style={{ padding: "14px 16px" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Emergency Fund After</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: gm.emergencyMonths !== null ? efColor : "var(--text-secondary)", margin: "0 0 3px" }}>
+                    {gm.emergencyMonths !== null ? `${Math.max(0, gm.emergencyMonths).toFixed(1)}mo` : "—"}
+                  </p>
+                  <p style={{ fontSize: "11px", color: efColor, margin: "0 0 2px", fontFamily: "var(--font-body)" }}>{efLabel}</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>
+                    {gm.remainingCash >= 0 ? `${fmt(gm.remainingCash)} remaining` : "Purchase would deplete cash"}
+                  </p>
+                </div>
+              </div>
+
+              {gm.actions.length > 0 ? (
+                <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 7px" }}>Suggested Actions</p>
+                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
+                    {gm.actions.map((a, i) => (
+                      <span key={i} style={{ fontSize: "11px", color: "oklch(0.75 0.18 70)", background: "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)", border: "1px solid color-mix(in oklch, oklch(0.75 0.18 70) 22%, transparent)", borderRadius: "6px", padding: "4px 10px", fontFamily: "var(--font-body)" }}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: "9px 16px", borderTop: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "7px" }}>
+                  <span style={{ color: "oklch(0.70 0.18 155)", fontSize: "12px", flexShrink: 0 }}>✓</span>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                    Projected income in {targetPurchaseYear}: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(gm.projectedAnnualIncome)}/yr</span> &middot; Monthly payment: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.totalMonthly)}/mo</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Compare Futures — ranked table */}
         {scenarios.length >= 1 && (() => {

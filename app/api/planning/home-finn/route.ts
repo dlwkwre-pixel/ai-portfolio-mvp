@@ -24,6 +24,16 @@ export type HomeFinnRequest = {
   net_worth: number | null;
   retirement_prob_baseline: number | null;
   retirement_prob_with_home: number | null;
+  // Goal planning context
+  purchase_year?: number | null;
+  years_until_purchase?: number | null;
+  projected_income_at_purchase?: number | null;
+  projected_cash_at_purchase?: number | null;
+  cash_surplus_deficit?: number | null;
+  future_dti?: number | null;
+  emergency_months_after?: number | null;
+  goal_probability?: number | null;
+  on_track?: boolean | null;
 };
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -49,6 +59,9 @@ export async function POST(req: NextRequest) {
     monthly_payment, true_effective_cost, break_even_year, equity_at_hold, home_value_at_hold,
     current_age, years_to_retire, net_worth,
     retirement_prob_baseline, retirement_prob_with_home,
+    purchase_year, years_until_purchase, projected_income_at_purchase,
+    projected_cash_at_purchase, cash_surplus_deficit, future_dti,
+    emergency_months_after, goal_probability, on_track,
   } = body;
 
   const downPct = purchase_price > 0 ? ((down_payment / purchase_price) * 100).toFixed(0) : "0";
@@ -57,34 +70,48 @@ export async function POST(req: NextRequest) {
     ? `  Retirement probability: ${retirement_prob_baseline}% → ${retirement_prob_with_home}% with this purchase (${retirement_prob_with_home - retirement_prob_baseline > 0 ? "+" : ""}${retirement_prob_with_home - retirement_prob_baseline}pp)`
     : null;
 
-  const systemPrompt = `You are FINN, BuyTune's financial planning advisor specializing in housing decisions.
-You provide clear, balanced analysis of rent vs. buy decisions — not sales pitches.
-You communicate tradeoffs honestly, acknowledge uncertainty, and help users think clearly.
-You never guarantee home appreciation or investment returns.
-Never give legal or licensed financial advice. End with the standard disclaimer.`;
+  const goalLines = purchase_year != null ? [
+    `  Target purchase year: ${purchase_year} (${years_until_purchase ?? 0} years away)`,
+    projected_cash_at_purchase != null
+      ? `  Projected savings at purchase: ${fmt(projected_cash_at_purchase)} vs. ${fmt(down_payment)} needed for down payment`
+      : null,
+    cash_surplus_deficit != null
+      ? `  Cash position: ${cash_surplus_deficit >= 0 ? "+" : ""}${fmt(cash_surplus_deficit)} vs. target`
+      : null,
+    projected_income_at_purchase != null
+      ? `  Projected annual income at purchase year: ${fmt(projected_income_at_purchase)}`
+      : null,
+    future_dti != null ? `  Future housing DTI: ${future_dti.toFixed(0)}%` : null,
+    emergency_months_after != null
+      ? `  Emergency fund after purchase: ${emergency_months_after.toFixed(1)} months`
+      : null,
+    goal_probability != null
+      ? `  Goal probability: ${goal_probability}% — ${on_track ? "On Track" : "At Risk"}`
+      : null,
+  ].filter(Boolean).join("\n") : null;
 
-  const userPrompt = `Analyze this home purchase scenario and provide 3–5 sentences of clear, actionable guidance.
+  const systemPrompt = `You are FINN, BuyTune's financial planning advisor.
+You are not a mortgage calculator. You are a CFP-style advisor helping users understand if a home purchase fits their life plan.
+You use the user's actual projected financials — not generic rules of thumb.
+Be honest about tradeoffs, specific with numbers, and give actionable guidance.
+Never guarantee investment returns or home appreciation. Never give legal or tax advice.`;
+
+  const userPrompt = `Analyze this home purchase scenario. Write 4–5 sentences as a trusted financial advisor, not a readout. Lead with the user's goal readiness, not the mortgage math.
 
 Scenario: ${scenario_name}
-Property: ${fmt(purchase_price)} purchase price, ${fmt(down_payment)} down (${downPct}%), ${mortgage_rate * 100}% rate, ${loan_term_years}-year mortgage.
+Property: ${fmt(purchase_price)}, ${fmt(down_payment)} down (${downPct}%), ${(mortgage_rate * 100).toFixed(2)}% rate, ${loan_term_years}yr.
 
-Monthly costs:
-  Mortgage P&I: ${fmt(monthly_payment)}/mo
-  Total ownership cost (P&I + tax + insurance + HOA + maintenance): ${fmt(monthly_ownership_cost)}/mo
-  Current rent alternative: ${fmt(monthly_rent)}/mo
-  Monthly cost difference (own vs. rent): ${monthlyDelta >= 0 ? "+" : ""}${fmt(monthlyDelta)}/mo
+Monthly: P&I ${fmt(monthly_payment)} · Total cost ${fmt(monthly_ownership_cost)} vs. rent ${fmt(monthly_rent)} (${monthlyDelta >= 0 ? "+" : ""}${fmt(monthlyDelta)}/mo difference)
+True effective cost after equity: ${fmt(true_effective_cost)}/mo
+Break-even: ${break_even_year != null ? `Year ${break_even_year}` : "Does not break even within hold period"}
+Equity at year ${hold_years}: ${fmt(equity_at_hold)} (home value ${fmt(home_value_at_hold)})
 
-Analysis:
-  True effective ownership cost (after principal credit): ${fmt(true_effective_cost)}/mo
-  Break-even vs. renting: ${break_even_year != null ? `Year ${break_even_year}` : "Does not break even within hold period"}
-  Projected home equity at year ${hold_years}: ${fmt(equity_at_hold)} (${fmt(home_value_at_hold)} home value)
-
-User context:
-  Age: ${current_age ?? "unknown"}, years to retirement: ${years_to_retire ?? "unknown"}
-  Current net worth: ${net_worth != null ? fmt(net_worth) : "unknown"}
+User: age ${current_age ?? "unknown"}, ${years_to_retire ?? "unknown"} years to retirement
 ${retirementLine ?? ""}
 
-Focus on: (1) affordability and cash flow impact, (2) whether the break-even timing is favorable, (3) retirement impact if data is available, (4) key risks or considerations. Be specific with the numbers. Do not use bullet points.
+${goalLines ? `Goal planning:\n${goalLines}` : ""}
+
+Instructions: If goal data is available, lead with it specifically ("Based on your projected savings of $X by [year]..."). Cover: goal readiness and timeline; monthly cash flow impact; retirement tradeoff; biggest risk. Do not use bullet points. Synthesize — do not just list the numbers.
 
 End with: "For informational purposes only — not financial advice."`;
 
