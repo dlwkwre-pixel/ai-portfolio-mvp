@@ -1596,6 +1596,81 @@ export default function HomeClient({
     };
   }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
 
+  // ── Worth It Score ─────────────────────────────────────────────────────────
+
+  const worthItMetrics = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+
+    // Goal Readiness (25 pts)
+    const gProb = goalMetrics.prob;
+    const goalPts = gProb >= 85 ? 25 : gProb >= 70 ? 20 : gProb >= 55 ? 12 : gProb >= 40 ? 5 : 0;
+
+    // Ownership Economics (25 pts) — break-even speed + equity outcome
+    const be = computed.breakEvenYear;
+    const equityWins = computed.lastPoint && computed.lastPoint.homeEquity > computed.lastPoint.rentPortfolio;
+    let econPts: number;
+    if (be !== null && be <= 4) econPts = 25;
+    else if (be !== null && be <= 7) econPts = 20;
+    else if (be !== null && be <= inputs.hold_years) econPts = 14;
+    else if (equityWins) econPts = 8;
+    else econPts = 3;
+
+    // Retirement Safety (25 pts)
+    const rd = computed.retirDelta;
+    let retirPts: number;
+    if (rd === null) retirPts = 15;
+    else if (rd >= 2) retirPts = 25;
+    else if (rd >= -2) retirPts = 22;
+    else if (rd >= -7) retirPts = 14;
+    else if (rd >= -15) retirPts = 7;
+    else retirPts = 0;
+
+    // Liquidity (25 pts) — emergency fund months after purchase
+    const em = goalMetrics.emergencyMonths;
+    let liqPts: number;
+    if (em === null) liqPts = 15;
+    else if (em >= 6) liqPts = 25;
+    else if (em >= 4) liqPts = 20;
+    else if (em >= 3) liqPts = 14;
+    else if (em >= 1) liqPts = 7;
+    else liqPts = 0;
+
+    const score = goalPts + econPts + retirPts + liqPts;
+
+    const label = score >= 85 ? "Excellent — strong financial case"
+      : score >= 70 ? "Good — sound financial decision"
+      : score >= 55 ? "Reasonable — manageable trade-offs"
+      : score >= 40 ? "Marginal — address risks first"
+      : "Weak — significant concerns";
+
+    const strengths: string[] = [];
+    const concerns: string[] = [];
+
+    // Goal readiness
+    if (goalPts >= 20) strengths.push(`${gProb}% goal readiness — on track for ${targetPurchaseYear}`);
+    else if (goalPts <= 5) concerns.push(`Low goal readiness (${gProb}%) — savings or timeline needs work`);
+
+    // Economics
+    if (be !== null && be <= 4) strengths.push(`Fast break-even in ${be} year${be === 1 ? "" : "s"}`);
+    else if (equityWins) strengths.push(`Home equity leads renter portfolio at year ${inputs.hold_years}`);
+    else if (be === null) concerns.push(`No break-even within ${inputs.hold_years}-year hold period`);
+    else if (be > inputs.hold_years) concerns.push(`Break-even (yr ${be}) is beyond planned hold period`);
+
+    // Retirement
+    if (rd !== null && rd >= 0) strengths.push(`Retirement probability maintained or improved`);
+    else if (rd !== null && rd <= -7) concerns.push(`Purchase reduces retirement probability by ${Math.abs(rd)}pp`);
+
+    // Liquidity
+    if (em !== null && em >= 6) strengths.push(`${em.toFixed(1)} months emergency fund after purchase`);
+    else if (em !== null && em < 1) concerns.push(`Purchase depletes emergency fund — only ${Math.max(0, em).toFixed(1)} months left`);
+    else if (em !== null && em < 3) concerns.push(`Only ${em.toFixed(1)} months of expenses remain after purchase`);
+
+    // Always-present: flexibility note
+    concerns.push("Home ownership reduces geographic and financial flexibility vs. renting");
+
+    return { score, label, goalPts, econPts, retirPts, liqPts, strengths, concerns };
+  }, [goalMetrics, computed, inputs, targetPurchaseYear]);
+
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
@@ -1695,6 +1770,16 @@ export default function HomeClient({
       emergency_months_after: goalMetrics.emergencyMonths,
       goal_probability: goalMetrics.hasProfile ? goalMetrics.prob : null,
       on_track: goalMetrics.hasProfile ? goalMetrics.onTrack : null,
+      // Market intel
+      market_zip: zipData?.zip ?? null,
+      market_score: zipData?.marketScore ?? null,
+      market_score_label: zipData?.marketScoreLabel ?? null,
+      vacancy_rate: zipData?.vacancyRate ?? null,
+      rent_burden_pct: zipData?.rentBurdenPct ?? null,
+      homeownership_rate: zipData?.homeownershipRate ?? null,
+      median_year_built: zipData?.medianYearBuilt ?? null,
+      suggested_maintenance_pct: zipData?.suggestedMaintenancePct ?? null,
+      median_owner_costs: zipData?.medianOwnerCosts ?? null,
     };
     try {
       const res = await fetch("/api/planning/home-finn", {
@@ -1948,6 +2033,48 @@ export default function HomeClient({
           );
         })()}
 
+        {/* Future Home Snapshot */}
+        {goalMetrics.hasProfile && (() => {
+          const ageAtPurchase = profile?.current_age != null
+            ? profile.current_age + goalMetrics.yearsUntilPurchase
+            : null;
+          const retirProb = computed.retirWithHomeProb ?? computed.retirBaselineProb;
+          const cells: { label: string; value: string; sub?: string; highlight?: boolean }[] = [
+            { label: "Purchase Year", value: String(targetPurchaseYear), sub: goalMetrics.yearsUntilPurchase > 0 ? `${goalMetrics.yearsUntilPurchase} yrs away` : "This year" },
+            ...(ageAtPurchase != null ? [{ label: "Your Age", value: String(ageAtPurchase) }] : []),
+            { label: "Projected Income", value: fmt(goalMetrics.projectedAnnualIncome) + "/yr", sub: `at ${targetPurchaseYear}` },
+            { label: "Projected Savings", value: fmtK(goalMetrics.projectedCash), sub: `by ${targetPurchaseYear}` },
+            { label: "Cash Needed", value: fmt(goalMetrics.totalNeeded), sub: "down + closing" },
+            {
+              label: "Remaining Liquidity",
+              value: goalMetrics.cashSurplus >= 0 ? fmtK(goalMetrics.cashSurplus) : `−${fmtK(-goalMetrics.cashSurplus)}`,
+              sub: goalMetrics.emergencyMonths != null ? `${Math.max(0, goalMetrics.emergencyMonths).toFixed(1)} mo emergency fund` : undefined,
+              highlight: goalMetrics.cashSurplus < 0,
+            },
+            { label: "Monthly Housing Cost", value: fmt(computed.totalMonthly) + "/mo", sub: "P&I + tax + ins" },
+            ...(retirProb != null ? [{ label: "Retirement Probability", value: retirProb + "%", sub: "at target age" }] : []),
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Future Home Snapshot</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  Your financial profile at the moment of purchase — {targetPurchaseYear}
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+                {cells.map(({ label, value, sub, highlight }, i) => (
+                  <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
+                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Goal Timeline */}
         {goalMetrics.hasProfile && (() => {
           const currentYear = new Date().getFullYear();
@@ -2056,6 +2183,146 @@ export default function HomeClient({
                   </p>
                 </div>
               </div>
+            </div>
+          );
+        })()}
+
+        {/* Worth It Score */}
+        {worthItMetrics && (() => {
+          const { score, label, strengths, concerns } = worthItMetrics;
+          const scoreColor = score >= 70 ? "oklch(0.70 0.18 155)" : score >= 55 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const scoreBg = score >= 70 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : score >= 55 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
+          const components = [
+            { label: "Goal Readiness", pts: worthItMetrics.goalPts, max: 25 },
+            { label: "Ownership Economics", pts: worthItMetrics.econPts, max: 25 },
+            { label: "Retirement Safety", pts: worthItMetrics.retirPts, max: 25 },
+            { label: "Liquidity After Purchase", pts: worthItMetrics.liqPts, max: 25 },
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Worth It Score</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Should you do this — not just can you</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: scoreColor, background: scoreBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor, letterSpacing: "-0.02em" }}>{score}</span>
+                </div>
+              </div>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "7px" }}>
+                {components.map(({ label: cl, pts, max }) => {
+                  const pct = Math.round((pts / max) * 100);
+                  const cColor = pts >= max * 0.8 ? "oklch(0.70 0.18 155)" : pts >= max * 0.5 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                  return (
+                    <div key={cl}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                        <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cl}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: cColor }}>{pts}/{max}</span>
+                      </div>
+                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, borderRadius: "2px", background: cColor, transition: "width 0.4s ease" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
+                {strengths.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
+                    {strengths.map((s, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {concerns.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
+                    {concerns.map((c, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Home Market Intelligence */}
+        {zipData?.marketScore != null && (() => {
+          const zd = zipData!;
+          const ms = zd.marketScore!;
+          const msColor = ms >= 65 ? "oklch(0.70 0.18 155)" : ms >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+          const msBg = ms >= 65 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : ms >= 50 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
+          const positives = zd.marketFactors.filter((f) => f.positive);
+          const negatives = zd.marketFactors.filter((f) => !f.positive);
+          const stats: { label: string; value: string; sub?: string }[] = [
+            ...(zd.vacancyRate != null ? [{ label: "Vacancy Rate", value: `${zd.vacancyRate}%`, sub: zd.vacancyRate < 4 ? "Tight supply" : zd.vacancyRate > 8 ? "Soft market" : "Moderate" }] : []),
+            ...(zd.rentBurdenPct != null ? [{ label: "Rent Burden", value: `${zd.rentBurdenPct}%`, sub: "of median renter income" }] : []),
+            ...(zd.homeownershipRate != null ? [{ label: "Homeownership", value: `${zd.homeownershipRate}%`, sub: "owner-occupied" }] : []),
+            ...(zd.medianOwnerCosts != null ? [{ label: "Typical Owner Cost", value: fmt(zd.medianOwnerCosts) + "/mo", sub: "incl. utilities (Census)" }] : []),
+            ...(zd.medianYearBuilt != null ? [{ label: "Median Vintage", value: String(zd.medianYearBuilt), sub: zd.suggestedMaintenancePct != null ? `Suggested maint: ${zd.suggestedMaintenancePct}%/yr` : undefined }] : []),
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Home Market Intelligence</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>ZIP {zd.zip} · {zd.dataVintage}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 600, color: msColor, background: msBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{zd.marketScoreLabel}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: msColor, letterSpacing: "-0.02em" }}>{ms}</span>
+                </div>
+              </div>
+              {stats.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", borderBottom: "1px solid var(--border-subtle)" }}>
+                  {stats.map(({ label, value, sub }, i) => (
+                    <div key={label} style={{ padding: "10px 14px", borderRight: i < stats.length - 1 ? "1px solid var(--border-subtle)" : undefined }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1px" }}>{value}</p>
+                      {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(positives.length > 0 || negatives.length > 0) && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
+                  {positives.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Market Strengths</p>
+                      {positives.map((f, i) => (
+                        <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                          <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>+</span>{f.label}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {negatives.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Watch Out</p>
+                      {negatives.map((f, i) => (
+                        <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                          <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.68 0.18 25)", fontWeight: 700 }}>·</span>{f.label}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {zd.suggestedMaintenancePct != null && Math.abs(zd.suggestedMaintenancePct - inputs.maintenance_pct) >= 0.25 && (
+                <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border-subtle)", background: "color-mix(in oklch, oklch(0.75 0.18 70) 5%, transparent)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "11px", color: "oklch(0.75 0.18 70)" }}>→</span>
+                  <p style={{ fontSize: "10px", color: "var(--text-secondary)", margin: 0, fontFamily: "var(--font-body)" }}>
+                    Based on {zd.medianYearBuilt} median vintage, suggested maintenance is <strong style={{ color: "var(--text-primary)" }}>{zd.suggestedMaintenancePct}%/yr</strong> — your scenario uses {inputs.maintenance_pct}%.
+                  </p>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -2413,6 +2680,14 @@ export default function HomeClient({
                           </div>
                         ))}
                       </div>
+
+                      {/* Market Score chip (when available) */}
+                      {zipData.marketScore != null && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 10px", borderRadius: "var(--radius-md)", background: zipData.marketScore >= 65 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : zipData.marketScore >= 50 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)", border: `1px solid ${zipData.marketScore >= 65 ? "color-mix(in oklch, oklch(0.70 0.18 155) 20%, transparent)" : zipData.marketScore >= 50 ? "color-mix(in oklch, oklch(0.75 0.18 70) 20%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 20%, transparent)"}` }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{zipData.marketScoreLabel}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: zipData.marketScore >= 65 ? "oklch(0.70 0.18 155)" : zipData.marketScore >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)" }}>{zipData.marketScore}/100</span>
+                        </div>
+                      )}
 
                       {/* Buy vs rent signal */}
                       {zipData.buyRentSignal && (

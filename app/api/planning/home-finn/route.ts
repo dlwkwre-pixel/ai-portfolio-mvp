@@ -34,6 +34,16 @@ export type HomeFinnRequest = {
   emergency_months_after?: number | null;
   goal_probability?: number | null;
   on_track?: boolean | null;
+  // Market intelligence context (optional)
+  market_zip?: string | null;
+  market_score?: number | null;
+  market_score_label?: string | null;
+  vacancy_rate?: number | null;
+  rent_burden_pct?: number | null;
+  homeownership_rate?: number | null;
+  median_year_built?: number | null;
+  suggested_maintenance_pct?: number | null;
+  median_owner_costs?: number | null;
 };
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -62,6 +72,8 @@ export async function POST(req: NextRequest) {
     purchase_year, years_until_purchase, projected_income_at_purchase,
     projected_cash_at_purchase, cash_surplus_deficit, future_dti,
     emergency_months_after, goal_probability, on_track,
+    market_zip, market_score, market_score_label, vacancy_rate, rent_burden_pct,
+    homeownership_rate, median_year_built, suggested_maintenance_pct, median_owner_costs,
   } = body;
 
   const downPct = purchase_price > 0 ? ((down_payment / purchase_price) * 100).toFixed(0) : "0";
@@ -69,6 +81,15 @@ export async function POST(req: NextRequest) {
   const retirementLine = retirement_prob_baseline != null && retirement_prob_with_home != null
     ? `  Retirement probability: ${retirement_prob_baseline}% → ${retirement_prob_with_home}% with this purchase (${retirement_prob_with_home - retirement_prob_baseline > 0 ? "+" : ""}${retirement_prob_with_home - retirement_prob_baseline}pp)`
     : null;
+
+  const marketLines = market_zip != null ? [
+    `  ZIP: ${market_zip}${market_score != null ? ` · Market Score: ${market_score}/100 (${market_score_label ?? ""})` : ""}`,
+    vacancy_rate != null ? `  Vacancy rate: ${vacancy_rate}%` : null,
+    rent_burden_pct != null ? `  Rent burden: ${rent_burden_pct}% of income (median renter)` : null,
+    homeownership_rate != null ? `  Homeownership rate: ${homeownership_rate}%` : null,
+    median_year_built != null ? `  Median housing vintage: ${median_year_built}${suggested_maintenance_pct != null ? ` → suggested maintenance ${suggested_maintenance_pct}%/yr` : ""}` : null,
+    median_owner_costs != null ? `  Typical local owner cost: ${fmt(median_owner_costs)}/mo (Census — includes utilities)` : null,
+  ].filter(Boolean).join("\n") : null;
 
   const goalLines = purchase_year != null ? [
     `  Target purchase year: ${purchase_year} (${years_until_purchase ?? 0} years away)`,
@@ -111,7 +132,9 @@ ${retirementLine ?? ""}
 
 ${goalLines ? `Goal planning:\n${goalLines}` : ""}
 
-Instructions: If goal data is available, lead with it specifically ("Based on your projected savings of $X by [year]..."). Cover: goal readiness and timeline; monthly cash flow impact; retirement tradeoff; biggest risk. Do not use bullet points. Synthesize — do not just list the numbers.
+${marketLines ? `Local market (ZIP ${market_zip}):\n${marketLines}` : ""}
+
+Instructions: If goal data is available, lead with it specifically ("Based on your projected savings of $X by [year]..."). Cover: goal readiness and timeline; monthly cash flow impact; retirement tradeoff; biggest risk. If market data is present, weave in one sentence on what local conditions mean for this decision (don't just recite numbers — interpret them). Do not use bullet points. Synthesize — do not just list the numbers.
 
 End with: "For informational purposes only — not financial advice."`;
 
