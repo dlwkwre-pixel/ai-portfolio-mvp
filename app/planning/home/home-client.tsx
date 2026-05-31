@@ -821,6 +821,26 @@ function calcGoalProb(cashSurplus: number, totalNeeded: number, futureDTI: numbe
   return Math.max(10, Math.min(97, p));
 }
 
+function estimateEquityAtHold(
+  purchasePrice: number,
+  downPayment: number,
+  annualRate: number,
+  termYears: number,
+  appreciation: number,
+  holdYears: number,
+): { equity: number; homeValue: number } {
+  const loan = purchasePrice - downPayment;
+  const homeValue = purchasePrice * Math.pow(1 + appreciation, holdYears);
+  if (loan <= 0) return { equity: homeValue, homeValue };
+  const r = annualRate / 12;
+  const paymentsMade = holdYears * 12;
+  const monthlyPmt = calcMortgagePayment(loan, annualRate, termYears);
+  const remainingBalance = annualRate <= 0
+    ? Math.max(0, loan - monthlyPmt * paymentsMade)
+    : Math.max(0, loan * Math.pow(1 + r, paymentsMade) - monthlyPmt * (Math.pow(1 + r, paymentsMade) - 1) / r);
+  return { equity: Math.max(0, homeValue - remainingBalance), homeValue };
+}
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const inputS: React.CSSProperties = {
@@ -1671,6 +1691,90 @@ export default function HomeClient({
     return { score, label, goalPts, econPts, retirPts, liqPts, strengths, concerns };
   }, [goalMetrics, computed, inputs, targetPurchaseYear]);
 
+  // ── Compare Home Paths ──────────────────────────────────────────────────────
+
+  const comparePathMetrics = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+    if (!profile?.monthly_income || !profile.monthly_expenses) return null;
+
+    const monthlyIncome = profile.monthly_income;
+    const monthlyExpenses = profile.monthly_expenses;
+    const dpPct = inputs.purchase_price > 0 ? inputs.down_payment / inputs.purchase_price : 0.20;
+    const r = inputs.investment_return / 100;
+    const annualRate = inputs.mortgage_rate / 100;
+    const appr = inputs.expected_appreciation / 100;
+    const annualSavings = Math.max(0, (monthlyIncome - monthlyExpenses) * 12);
+
+    const pathDefs = [
+      { key: "starter", label: "Starter", priceMult: 0.70, yearOffset: 0 },
+      { key: "target",  label: "Target",  priceMult: 1.00, yearOffset: 0 },
+      { key: "dream",   label: "Dream",   priceMult: 1.40, yearOffset: 2 },
+    ];
+
+    return pathDefs.map(({ key, label, priceMult, yearOffset }) => {
+      const price = key === "target"
+        ? inputs.purchase_price
+        : Math.round(inputs.purchase_price * priceMult / 5000) * 5000;
+      const dp = key === "target"
+        ? inputs.down_payment
+        : Math.round(price * dpPct / 1000) * 1000;
+      const closingCosts = price * (inputs.closing_cost_pct / 100);
+      const totalNeeded = dp + closingCosts;
+      const monthlyPmt = calcMortgagePayment(price - dp, annualRate, inputs.loan_term_years);
+      const maintMonthly = (price * (inputs.maintenance_pct / 100)) / 12;
+      const totalMonthly = monthlyPmt + inputs.property_tax_monthly + inputs.insurance_monthly + inputs.hoa_monthly + maintMonthly;
+
+      const n = goalMetrics.yearsUntilPurchase + yearOffset;
+      const incomeGrowthFactor = Math.pow(1 + salaryGrowthRate, n);
+      const projectedAnnualIncome = monthlyIncome * 12 * incomeGrowthFactor;
+      let projectedCash: number;
+      if (n === 0) {
+        projectedCash = liquidAssets;
+      } else if (r > 0) {
+        const gf = Math.pow(1 + r, n);
+        projectedCash = liquidAssets * gf + (annualSavings > 0 ? annualSavings * (gf - 1) / r : 0);
+      } else {
+        projectedCash = liquidAssets + annualSavings * n;
+      }
+      projectedCash = Math.max(0, projectedCash);
+
+      const cashSurplus = projectedCash - totalNeeded;
+      const projectedMonthlyIncome = projectedAnnualIncome / 12;
+      const futureDTI = projectedMonthlyIncome > 0 ? (totalMonthly / projectedMonthlyIncome) * 100 : null;
+      const emergencyAfter = monthlyExpenses > 0 ? cashSurplus / monthlyExpenses : null;
+      const prob = calcGoalProb(cashSurplus, totalNeeded, futureDTI, emergencyAfter);
+
+      const { equity: equityAtHold, homeValue: homeValueAtHold } = estimateEquityAtHold(
+        price, dp, annualRate, inputs.loan_term_years, appr, inputs.hold_years,
+      );
+
+      let retirDelta: number | null = null;
+      if (profile?.current_age && profile?.target_retirement_age) {
+        const yearsToRetire = profile.target_retirement_age - profile.current_age;
+        if (yearsToRetire > 0) {
+          const annualSavingsBase = (monthlyIncome - monthlyExpenses) * 12;
+          const extraMonthly = totalMonthly - inputs.monthly_rent;
+          const reducedSavings = annualSavingsBase - Math.max(0, extraMonthly) * 12;
+          const withHomeGrowth = reducedSavings > 0
+            ? (r > 0
+              ? reducedSavings * ((Math.pow(1 + r, yearsToRetire) - 1) / r)
+              : reducedSavings * yearsToRetire) - dp - closingCosts
+            : -(dp + closingCosts);
+          const withHomeTotal = Math.max(0, withHomeGrowth + equityAtHold);
+          const withHomeProb = calcRetirementProb(withHomeTotal, monthlyExpenses * 12);
+          retirDelta = withHomeProb != null && computed.retirBaselineProb != null
+            ? withHomeProb - computed.retirBaselineProb
+            : null;
+        }
+      }
+
+      return {
+        key, label, price, dp, totalMonthly, prob, equityAtHold, homeValueAtHold,
+        retirDelta, purchaseYear: targetPurchaseYear + yearOffset, cashSurplus,
+      };
+    });
+  }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, targetPurchaseYear, computed.retirBaselineProb]);
+
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
@@ -2075,6 +2179,65 @@ export default function HomeClient({
           );
         })()}
 
+        {/* Compare Home Paths */}
+        {comparePathMetrics && (() => {
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Compare Home Paths</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  Starter, target, and dream — side by side
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
+                {comparePathMetrics.map((path, i) => {
+                  const isLast = i === comparePathMetrics.length - 1;
+                  const isTarget = path.key === "target";
+                  const probColor = path.prob >= 75 ? "oklch(0.70 0.18 155)" : path.prob >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                  const retirColor = path.retirDelta == null ? "var(--text-muted)"
+                    : path.retirDelta >= 0 ? "oklch(0.70 0.18 155)"
+                    : path.retirDelta >= -5 ? "oklch(0.75 0.18 70)"
+                    : "oklch(0.68 0.18 25)";
+                  return (
+                    <div key={path.key} style={{
+                      padding: "14px 14px",
+                      borderRight: isLast ? "none" : "1px solid var(--border-subtle)",
+                      background: isTarget ? "color-mix(in oklch, oklch(0.62 0.22 245) 4%, transparent)" : undefined,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                        <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: isTarget ? "oklch(0.62 0.22 245)" : "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0 }}>{path.label}</p>
+                        {isTarget && <span style={{ fontSize: "8px", fontWeight: 700, color: "oklch(0.62 0.22 245)", background: "color-mix(in oklch, oklch(0.62 0.22 245) 12%, transparent)", padding: "1px 5px", borderRadius: "4px", letterSpacing: "0.04em", fontFamily: "var(--font-body)" }}>CURRENT</span>}
+                      </div>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1px" }}>{fmt(path.price)}</p>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{fmt(path.dp)} down · {path.purchaseYear}</p>
+                      <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
+                        <div>
+                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Monthly Cost</p>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{fmt(path.totalMonthly)}/mo</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Goal Readiness</p>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: probColor, margin: 0 }}>{path.prob}%</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Retirement Impact</p>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: retirColor, margin: 0 }}>
+                            {path.retirDelta != null ? `${path.retirDelta >= 0 ? "+" : ""}${path.retirDelta}pp` : "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Equity @ Yr {inputs.hold_years}</p>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{fmtK(path.equityAtHold)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Goal Timeline */}
         {goalMetrics.hasProfile && (() => {
           const currentYear = new Date().getFullYear();
@@ -2181,6 +2344,87 @@ export default function HomeClient({
                       ? `${computed.retirWithHomeProb - computed.retirBaselineProb > 0 ? "+" : ""}${computed.retirWithHomeProb - computed.retirBaselineProb}pp retire prob`
                       : delta < 0 ? "home equity offsets portfolio drag" : "home equity boosts net worth"}
                   </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Life After Purchase */}
+        {goalMetrics.hasProfile && profile?.monthly_income && (() => {
+          const monthlyIncome = profile.monthly_income!;
+          const monthlyExpenses = profile.monthly_expenses ?? 0;
+          const rentNow = inputs.monthly_rent;
+          const ownNow = computed.totalMonthly;
+          const monthlyCostDelta = ownNow - rentNow;
+          const savingsNow = Math.max(0, monthlyIncome - monthlyExpenses);
+          const savingsAfterMonthly = monthlyIncome - monthlyExpenses - (ownNow - rentNow);
+          const savingsRateBefore = monthlyIncome > 0 ? (savingsNow / monthlyIncome) * 100 : null;
+          const savingsRateAfter = monthlyIncome > 0 ? (Math.max(0, savingsAfterMonthly) / monthlyIncome) * 100 : null;
+          const emergencyBefore = monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : null;
+          const emergencyAfter = goalMetrics.emergencyMonths;
+          const equityAtHold = computed.lastPoint?.homeEquity ?? null;
+          const rentPortfolioAtHold = computed.lastPoint?.rentPortfolio ?? null;
+          const positiveColor = "oklch(0.70 0.18 155)";
+          const negativeColor = "oklch(0.68 0.18 25)";
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Life After Purchase</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>How this purchase reshapes your monthly finances</p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Monthly Housing Cost</p>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" as const }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-tertiary)" }}>{fmt(rentNow)}</span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>to</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{fmt(ownNow)}</span>
+                  </div>
+                  <p style={{ fontSize: "10px", color: monthlyCostDelta > 0 ? negativeColor : positiveColor, margin: "4px 0 0", fontFamily: "var(--font-mono)" }}>
+                    {monthlyCostDelta >= 0 ? "+" : ""}{fmt(monthlyCostDelta)}/mo vs. renting
+                  </p>
+                </div>
+                <div style={{ padding: "14px 16px" }}>
+                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Savings Rate</p>
+                  {savingsRateBefore != null && savingsRateAfter != null ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-tertiary)" }}>{savingsRateBefore.toFixed(0)}%</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>to</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{savingsRateAfter.toFixed(0)}%</span>
+                      </div>
+                      <p style={{ fontSize: "10px", color: savingsRateAfter < savingsRateBefore ? negativeColor : positiveColor, margin: "4px 0 0", fontFamily: "var(--font-mono)" }}>
+                        {(savingsRateAfter - savingsRateBefore).toFixed(0)}pp change
+                      </p>
+                    </>
+                  ) : <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>—</p>}
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+                <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
+                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Emergency Fund</p>
+                  {emergencyBefore != null && emergencyAfter != null ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-tertiary)" }}>{Math.max(0, emergencyBefore).toFixed(1)} mo</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>to</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: emergencyAfter < 3 ? negativeColor : "var(--text-primary)" }}>{Math.max(0, emergencyAfter).toFixed(1)} mo</span>
+                      </div>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "4px 0 0" }}>
+                        {emergencyAfter >= 6 ? "Strong cushion" : emergencyAfter >= 3 ? "Adequate" : emergencyAfter >= 1 ? "Thin — save more first" : "Depleted by purchase"}
+                      </p>
+                    </>
+                  ) : <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>—</p>}
+                </div>
+                <div style={{ padding: "14px 16px" }}>
+                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Net Worth at Yr {inputs.hold_years}</p>
+                  {equityAtHold != null && rentPortfolioAtHold != null ? (
+                    <>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmtK(equityAtHold)}</p>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>home equity vs. {fmtK(rentPortfolioAtHold)} renter portfolio</p>
+                    </>
+                  ) : <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>—</p>}
                 </div>
               </div>
             </div>
