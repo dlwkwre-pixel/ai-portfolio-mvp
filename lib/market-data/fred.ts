@@ -17,25 +17,21 @@ type FredSeriesResponse = {
   observations: FredObservation[];
 };
 
-// Fetch the latest N observations for a FRED series.
-// We request 2× the needed count to absorb "." gaps (weekends, holidays, publication lags)
-// that FRED returns before filtering. No observation_start filter — desc+limit is enough.
-async function fetchFredSeries(seriesId: string, count = 5): Promise<FredObservation[]> {
+// Fetch the latest N valid observations for a FRED series.
+// buffer controls how many raw observations to request before filtering "."/ND gaps.
+async function fetchFredSeries(seriesId: string, count = 5, buffer = 50): Promise<FredObservation[]> {
   const apiKey = getApiKey();
   if (!apiKey) return [];
-
-  // Fetch 2× the requested count so "." gaps don't leave us short after filtering
-  const fetchCount = Math.max(count * 2, 20);
 
   const url = new URL(`${FRED_BASE}/series/observations`);
   url.searchParams.set("series_id", seriesId);
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("file_type", "json");
   url.searchParams.set("sort_order", "desc");
-  url.searchParams.set("limit", String(fetchCount));
+  url.searchParams.set("limit", String(buffer));
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res = await fetch(url.toString(), { cache: "no-store", signal: controller.signal });
@@ -45,13 +41,19 @@ async function fetchFredSeries(seriesId: string, count = 5): Promise<FredObserva
       return [];
     }
     const data: FredSeriesResponse = await res.json();
-    // Filter "." (unreleased) and empty values, then return only the N most recent valid ones
-    const valid = (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "" && o.value !== "ND");
+    const valid = (data.observations ?? []).filter(
+      (o) => o.value !== "." && o.value !== "" && o.value !== "ND"
+    );
+    if (valid.length === 0) {
+      console.error(`[fred] ${seriesId} → 0 valid obs from ${(data.observations ?? []).length} fetched`);
+    }
     return valid.slice(0, count);
   } catch (err) {
     clearTimeout(timeout);
     if (err instanceof Error && err.name === "AbortError") {
-      console.error(`[fred] ${seriesId} → timeout`);
+      console.error(`[fred] ${seriesId} → timeout after 15s`);
+    } else {
+      console.error(`[fred] ${seriesId} → fetch error:`, err);
     }
     return [];
   }
@@ -71,7 +73,7 @@ function previousValue(obs: FredObservation[]): number | null {
 
 export type MacroSignals = {
   // Yield curve
-  yieldCurveSpread: number | null;    // T10Y2Y: 10Y minus 2Y (positive = normal, negative = inverted)
+  yieldCurveSpread: number | null;    // T10Y2Y or computed DGS10-DGS2
   yield10y: number | null;            // DGS10: 10-year treasury yield %
   fedFundsRate: number | null;        // FEDFUNDS: current fed funds rate %
   fedFundsPrev: number | null;        // Previous period (trend detection)
@@ -81,7 +83,7 @@ export type MacroSignals = {
   unemployment: number | null;        // UNRATE: current unemployment %
   unemploymentPrev: number | null;
   // Credit
-  creditSpread: number | null;        // BAMLH0A0HYM2: high-yield OAS basis points
+  creditSpread: number | null;        // BAMLH0A0HYM2OAS high-yield OAS basis points
   // Availability
   fredAvailable: boolean;
 };
@@ -96,14 +98,15 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
     };
   }
 
-  const [yieldCurveObs, yield10yObs, fedFundsObs, cpiObs, unemploymentObs, creditObs] =
+  const [yieldCurveObs, yield10yObs, dgs2Obs, fedFundsObs, cpiObs, unemploymentObs, creditObs] =
     await Promise.all([
-      fetchFredSeries("T10Y2Y", 3),           // daily — fetchFredSeries fetches 2× internally
-      fetchFredSeries("DGS10", 3),
-      fetchFredSeries("FEDFUNDS", 3),
-      fetchFredSeries("CPIAUCSL", 14),         // 14 valid obs needed for YoY + prev
-      fetchFredSeries("UNRATE", 3),
-      fetchFredSeries("BAMLH0A0HYM2OAS", 3),  // daily — 2× fetch handles weekend gaps
+      fetchFredSeries("T10Y2Y", 3, 50),
+      fetchFredSeries("DGS10", 3, 50),
+      fetchFredSeries("DGS2", 3, 50),           // fallback for yield curve spread
+      fetchFredSeries("FEDFUNDS", 3, 10),        // monthly — small buffer fine
+      fetchFredSeries("CPIAUCSL", 14, 30),       // monthly — 14 valid obs + buffer
+      fetchFredSeries("UNRATE", 3, 10),          // monthly — small buffer fine
+      fetchFredSeries("BAMLH0A0HYM2OAS", 3, 50), // daily — large buffer for pub lag
     ]);
 
   // Compute CPI YoY %
@@ -124,12 +127,23 @@ export async function getFredMacroSignals(): Promise<MacroSignals> {
     }
   }
 
-  // BAMLH0A0HYM2OAS is in percent (e.g. 3.5 = 350bps) — convert to basis points for scoring
+  // Yield curve spread: prefer T10Y2Y, fall back to DGS10 - DGS2
+  let yieldCurveSpread = latestValue(yieldCurveObs);
+  if (yieldCurveSpread === null) {
+    const t10 = latestValue(yield10yObs);
+    const t2  = latestValue(dgs2Obs);
+    if (t10 !== null && t2 !== null) {
+      yieldCurveSpread = Math.round((t10 - t2) * 100) / 100;
+      console.error("[fred] T10Y2Y empty — computed spread from DGS10-DGS2:", yieldCurveSpread);
+    }
+  }
+
+  // BAMLH0A0HYM2OAS is in percent (e.g. 3.5 = 350bps) — convert to basis points
   const creditPct = latestValue(creditObs);
   const creditSpread = creditPct !== null ? Math.round(creditPct * 100) : null;
 
   return {
-    yieldCurveSpread: latestValue(yieldCurveObs),
+    yieldCurveSpread,
     yield10y: latestValue(yield10yObs),
     fedFundsRate: latestValue(fedFundsObs),
     fedFundsPrev: previousValue(fedFundsObs),

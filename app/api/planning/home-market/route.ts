@@ -28,7 +28,7 @@ async function fetchCensusData(zip: string): Promise<{
     `${CENSUS_BASE}?get=${CENSUS_VARS}&for=zip+code+tabulation+area:${zip}${withKey && apiKey ? `&key=${encodeURIComponent(apiKey)}` : ""}`;
 
   async function tryCensus(url: string) {
-    const res = await fetch(url, { next: { revalidate: 86400 } });
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
     const body = await res.text();
     try { return JSON.parse(body) as CensusRow[]; } catch { return null; }

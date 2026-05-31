@@ -1010,6 +1010,67 @@ export default function HomeClient({
       .catch(() => {});
   }, []);
 
+  async function exportToPDF() {
+    const { purchase_price: pp, down_payment: dp, closing_cost_pct: cc } = inputs;
+    const loanAmt = pp - dp;
+    const monthlyRate = inputs.mortgage_rate / 100 / 12;
+    const totalMonths = inputs.loan_term_years * 12;
+    const monthlyMortgage = monthlyRate > 0 && totalMonths > 0
+      ? loanAmt * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1)
+      : loanAmt / totalMonths;
+    const closingCosts = pp * (cc / 100);
+    const maintMonthly = (pp * (inputs.maintenance_pct / 100)) / 12;
+    const totalMonthlyCost = monthlyMortgage + inputs.property_tax_monthly + inputs.insurance_monthly + inputs.hoa_monthly + maintMonthly;
+    const totalInterestPaid = computed.amortStats ? computed.amortStats.totalInterest : null;
+
+    const payload = {
+      scenarioName: inputs.name,
+      purchasePrice: pp,
+      downPayment: dp,
+      downPaymentPct: pp > 0 ? (dp / pp) * 100 : 0,
+      closingCosts,
+      mortgageRate: inputs.mortgage_rate / 100,
+      loanTermYears: inputs.loan_term_years,
+      monthlyMortgage,
+      propertyTaxMonthly: inputs.property_tax_monthly,
+      insuranceMonthly: inputs.insurance_monthly,
+      hoaMonthly: inputs.hoa_monthly,
+      maintenancePct: inputs.maintenance_pct / 100,
+      maintenanceMonthly: maintMonthly,
+      totalMonthlyCost,
+      monthlyRent: inputs.monthly_rent,
+      rentGrowthRate: inputs.rent_growth_rate / 100,
+      expectedAppreciation: inputs.expected_appreciation / 100,
+      investmentReturn: inputs.investment_return / 100,
+      holdYears: inputs.hold_years,
+      targetPurchaseYear,
+      breakEvenYear: computed.breakEvenYear,
+      homeEquityAtHold: computed.lastPoint?.homeEquity ?? null,
+      rentPortfolioAtHold: computed.lastPoint?.rentPortfolio ?? null,
+      netAdvantage: computed.lastPoint ? computed.lastPoint.homeEquity - computed.lastPoint.rentPortfolio : null,
+      loanAmount: loanAmt,
+      totalInterestPaid,
+      verdict: computed.verdictData?.verdict ?? "WAIT",
+    };
+
+    try {
+      const res = await fetch("/api/planning/home/export-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) return;
+      const html = await res.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (win) win.focus();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch {
+      // silently fail
+    }
+  }
+
   async function exportAmortToCSV() {
     try {
       const res = await fetch("/api/planning/home/export-amort", {
@@ -2328,6 +2389,13 @@ export default function HomeClient({
                 {/* Table controls */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", marginBottom: "8px" }}>
                   <button
+                    onClick={exportToPDF}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.07)", color: "oklch(0.65 0.18 260)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
+                    Export PDF
+                  </button>
+                  <button
                     onClick={exportAmortToCSV}
                     style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
@@ -3597,6 +3665,10 @@ export default function HomeClient({
                 ))}
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={exportToPDF} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", color: "oklch(0.72 0.18 260)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
+                  Export PDF
+                </button>
                 <button onClick={exportAmortToCSV} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(59,130,246,0.28)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Export to Excel
