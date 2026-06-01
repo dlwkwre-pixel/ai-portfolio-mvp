@@ -19,6 +19,7 @@ export default async function HomePlanningPage() {
     { data: assumptionsData },
     { data: homeEventsData },
     { data: balanceSheetData },
+    { data: lifeGoalEventsData },
   ] = await Promise.all([
     supabase
       .from("home_planning_scenarios")
@@ -50,6 +51,12 @@ export default async function HomePlanningPage() {
       .from("balance_sheet_items")
       .select("category, value")
       .eq("user_id", user.id),
+    supabase
+      .from("planning_future_events")
+      .select("id, user_id, label, event_year, amount_impact, category, sort_order")
+      .eq("user_id", user.id)
+      .not("category", "in", "(home_purchase,home_sale)")
+      .order("event_year"),
   ]);
 
   const scenarios: HomeScenario[] = (scenariosData ?? []) as HomeScenario[];
@@ -74,6 +81,7 @@ export default async function HomePlanningPage() {
   const investmentReturn = assumptionsData ? Number(assumptionsData.return_rate) : 0.07;
   const salaryGrowthRate = assumptionsData ? Number(assumptionsData.salary_growth_rate) : 0.02;
   const homeEvents: FutureEvent[] = (homeEventsData ?? []) as FutureEvent[];
+  const lifeGoalEvents: FutureEvent[] = (lifeGoalEventsData ?? []) as FutureEvent[];
   const liquidAssets = (balanceSheetData ?? [])
     .filter((i: { category: string; value: unknown }) => i.category === "cash")
     .reduce((s: number, i: { value: unknown }) => s + Number(i.value ?? 0), 0);
@@ -99,6 +107,7 @@ export default async function HomePlanningPage() {
           homeEvents={homeEvents}
           salaryGrowthRate={salaryGrowthRate}
           liquidAssets={liquidAssets}
+          lifeGoalEvents={lifeGoalEvents}
         />
       </div>
     </div>

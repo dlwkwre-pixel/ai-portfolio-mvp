@@ -997,6 +997,7 @@ export default function HomeClient({
   homeEvents,
   salaryGrowthRate = 0.02,
   liquidAssets = 0,
+  lifeGoalEvents = [],
 }: {
   scenarios: HomeScenario[];
   profile: FinancialProfile | null;
@@ -1004,6 +1005,7 @@ export default function HomeClient({
   homeEvents: FutureEvent[];
   salaryGrowthRate?: number;
   liquidAssets?: number;
+  lifeGoalEvents?: FutureEvent[];
 }) {
   const router = useRouter();
   const smartDefaults = buildDefaults(profile, defaultInvestmentReturn);
@@ -1036,6 +1038,7 @@ export default function HomeClient({
   const [startYear, setStartYear] = useState(String(new Date().getFullYear() + 3));
   const [startZip, setStartZip] = useState("");
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
+  const [trackerMounted, setTrackerMounted] = useState(false);
 
   const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => {
     // Seed from an existing linked home_purchase event so "Update" doesn't silently reset the year
@@ -1048,6 +1051,8 @@ export default function HomeClient({
       .then((d) => { if (typeof d.rate === "number") setAvgMortgageRate(d.rate); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => { setTrackerMounted(true); }, []);
 
   async function exportToPDF() {
     const { purchase_price: pp, down_payment: dp, closing_cost_pct: cc } = inputs;
@@ -1958,6 +1963,62 @@ export default function HomeClient({
     };
   }, [goalMetrics, liquidAssets, inputs, targetPurchaseYear]);
 
+  // ── Home vs Life Goals ──────────────────────────────────────────────────────
+
+  const lifeGoalsImpact = useMemo(() => {
+    if (!goalMetrics.hasProfile || !profile?.monthly_income || !profile?.monthly_expenses) return null;
+    const monthlyIncome = profile.monthly_income;
+    const monthlyExpenses = profile.monthly_expenses;
+    const extraMonthly = Math.max(0, computed.totalMonthly - inputs.monthly_rent);
+
+    const savingsRateBefore = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : null;
+    const savingsRateAfter = monthlyIncome > 0 ? Math.round(Math.max(0, (monthlyIncome - monthlyExpenses - extraMonthly) / monthlyIncome) * 100) : null;
+    const savingsRateDelta = savingsRateBefore !== null && savingsRateAfter !== null ? savingsRateAfter - savingsRateBefore : null;
+
+    const retirProbBefore = computed.retirBaselineProb;
+    const retirProbAfter = computed.retirWithHomeProb;
+    const retirProbDelta = retirProbBefore !== null && retirProbAfter !== null ? retirProbAfter - retirProbBefore : null;
+    const retirAssetsDelta = computed.retirBaselineAssets !== null && computed.retirWithHomeAssets !== null
+      ? computed.retirWithHomeAssets - computed.retirBaselineAssets : null;
+
+    const currentYear = new Date().getFullYear();
+    const r = inputs.investment_return / 100;
+    const annualSavingsBase = (monthlyIncome - monthlyExpenses) * 12;
+    const annualSavingsAfter = Math.max(0, annualSavingsBase - extraMonthly * 12);
+
+    const eduEvents = lifeGoalEvents.filter((e) => e.category === "education" && e.amount_impact < 0);
+    const educationRows = eduEvents.map((ev) => {
+      const yearsUntil = Math.max(0, ev.event_year - currentYear);
+      const cost = Math.abs(ev.amount_impact);
+      const gfBase = r > 0 ? Math.pow(1 + r, yearsUntil) : 1;
+      const growBefore = r > 0
+        ? liquidAssets * gfBase + (annualSavingsBase > 0 ? annualSavingsBase * (gfBase - 1) / r : 0)
+        : liquidAssets + annualSavingsBase * yearsUntil;
+      const growAfter = r > 0
+        ? liquidAssets * gfBase + (annualSavingsAfter > 0 ? annualSavingsAfter * (gfBase - 1) / r : 0)
+        : liquidAssets + annualSavingsAfter * yearsUntil;
+      const fundedBefore = cost > 0 ? Math.min(100, Math.round((growBefore / cost) * 100)) : 100;
+      const fundedAfter = cost > 0 ? Math.min(100, Math.round((growAfter / cost) * 100)) : 100;
+      return { label: ev.label, event_year: ev.event_year, cost, fundedBefore, fundedAfter, delta: fundedAfter - fundedBefore };
+    });
+
+    const emergencyAfter = goalMetrics.emergencyMonths;
+
+    const retirRisk: "Low" | "Medium" | "High" | null = retirProbDelta === null ? null
+      : retirProbDelta <= -10 ? "High" : retirProbDelta <= -5 ? "Medium" : "Low";
+    const careerRisk: "Low" | "Medium" | "High" = (savingsRateAfter !== null && savingsRateAfter < 10) || (emergencyAfter !== null && emergencyAfter < 3)
+      ? "High" : (savingsRateAfter !== null && savingsRateAfter < 18) || (emergencyAfter !== null && emergencyAfter < 5)
+      ? "Medium" : "Low";
+
+    if (retirProbDelta === null && educationRows.length === 0 && savingsRateDelta === null) return null;
+
+    return {
+      savingsRateBefore, savingsRateAfter, savingsRateDelta,
+      retirProbBefore, retirProbAfter, retirProbDelta, retirAssetsDelta, retirRisk,
+      educationRows, emergencyAfter, careerRisk,
+    };
+  }, [goalMetrics, profile, computed, inputs, liquidAssets, lifeGoalEvents]);
+
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
     [scenarios, profile],
@@ -2423,7 +2484,7 @@ export default function HomeClient({
                   </div>
                 </div>
                 <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${filledPct}%`, borderRadius: "3px", background: statusColor, transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
+                  <div style={{ height: "100%", width: trackerMounted ? `${filledPct}%` : "0%", borderRadius: "3px", background: statusColor, transition: "width 0.9s cubic-bezier(0.16,1,0.3,1)" }} />
                 </div>
                 {gt.projectedYear !== null && (
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
@@ -2732,6 +2793,95 @@ export default function HomeClient({
           );
         })()}
 
+        {/* Home vs Life Goals */}
+        {lifeGoalsImpact && (() => {
+          const li = lifeGoalsImpact;
+          const riskColor = (r: "Low" | "Medium" | "High" | null): string =>
+            r === "High" ? "oklch(0.68 0.18 25)" : r === "Medium" ? "oklch(0.75 0.18 70)" : r === "Low" ? "oklch(0.70 0.18 155)" : "var(--text-muted)";
+          const riskBg = (r: "Low" | "Medium" | "High" | null): string =>
+            `color-mix(in oklch, ${riskColor(r)} 8%, transparent)`;
+          const eduRisk = (delta: number): "Low" | "Medium" | "High" =>
+            delta <= -10 ? "High" : delta <= -3 ? "Medium" : "Low";
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Home vs Life Goals</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>How this purchase affects your other financial goals</p>
+              </div>
+              <div>
+                {/* Retirement */}
+                {li.retirProbDelta !== null && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--text-muted)"><path d="M2 10a8 8 0 1016 0A8 8 0 002 10zm8-5a1 1 0 011 1v4l3 2a1 1 0 01-1 1.73l-3.5-2A1 1 0 019 11V6a1 1 0 011-1z"/></svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Retirement</span>
+                        {li.retirRisk && (
+                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.retirRisk), background: riskBg(li.retirRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.retirRisk} Risk</span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
+                        {li.retirProbBefore !== null && li.retirProbAfter !== null && `${li.retirProbBefore}% → ${li.retirProbAfter}% probability`}
+                        {li.retirProbDelta !== null && ` (${li.retirProbDelta > 0 ? "+" : ""}${li.retirProbDelta}pp)`}
+                        {li.retirAssetsDelta !== null && ` · ${li.retirAssetsDelta < 0 ? fmtK(Math.abs(li.retirAssetsDelta)) + " less" : fmtK(li.retirAssetsDelta) + " more"} at retirement`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {/* Savings Rate / Career Flexibility */}
+                {li.savingsRateDelta !== null && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 16px", borderBottom: li.educationRows.length > 0 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--text-muted)"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Career Flexibility</span>
+                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.careerRisk), background: riskBg(li.careerRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.careerRisk} Risk</span>
+                      </div>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
+                        Savings rate {li.savingsRateBefore}% → {li.savingsRateAfter}%
+                        {li.savingsRateDelta !== null && li.savingsRateDelta < -5
+                          ? " — reduced cushion narrows career risk tolerance"
+                          : li.savingsRateDelta !== null && li.savingsRateDelta < 0
+                          ? " — modest reduction, career options intact"
+                          : " — savings rate maintained"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {/* Education rows */}
+                {li.educationRows.map((edu, i) => {
+                  const er = eduRisk(edu.delta);
+                  return (
+                    <div key={edu.label} style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "12px 16px", borderBottom: i < li.educationRows.length - 1 ? "1px solid var(--border-subtle)" : undefined }}>
+                      <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>
+                        <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--text-muted)"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/></svg>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
+                          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{edu.label}</span>
+                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(er), background: riskBg(er), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{er} Risk</span>
+                        </div>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
+                          {edu.event_year} · {fmtK(edu.cost)} target · {edu.fundedBefore}% → {edu.fundedAfter}% funded
+                          {edu.delta < -10
+                            ? " — consider front-loading before purchase"
+                            : edu.delta < 0
+                            ? ` — funding drops ${Math.abs(edu.delta)}pp`
+                            : " — funding maintained"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Future Home Snapshot */}
         {goalMetrics.hasProfile && (() => {
           const ageAtPurchase = profile?.current_age != null
@@ -3010,22 +3160,29 @@ export default function HomeClient({
                     <div>
                       {stressMetrics.scenarios.map((sc, i) => {
                         const delta = sc.probAfter - sc.probBefore;
-                        const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+                        const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "oklch(0.70 0.18 155)";
+                        const barColor = sc.probAfter >= 60 ? "oklch(0.70 0.18 155)" : sc.probAfter >= 40 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
                         return (
-                          <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
-                              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                          <div key={sc.label} style={{ padding: "12px 16px", borderBottom: i < stressMetrics.scenarios.length - 1 ? "1px solid var(--border-subtle)" : undefined }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "8px" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
+                                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
+                                <span style={{ color: "var(--text-muted)", fontSize: "9px" }}>→</span>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
+                                {delta !== 0 && (
+                                  <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
+                                    {delta > 0 ? "+" : ""}{delta}pp
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
-                              <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
-                              {delta !== 0 && (
-                                <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
-                                  {delta > 0 ? "+" : ""}{delta}%
-                                </span>
-                              )}
+                            <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden", position: "relative" as const }}>
+                              <div style={{ position: "absolute" as const, left: 0, top: 0, height: "100%", width: `${sc.probBefore}%`, background: `color-mix(in oklch, ${barColor} 25%, transparent)`, borderRadius: "2px" }} />
+                              <div style={{ position: "absolute" as const, left: 0, top: 0, height: "100%", width: `${Math.max(0, sc.probAfter)}%`, background: barColor, borderRadius: "2px", transition: "width 0.5s ease-out" }} />
                             </div>
                           </div>
                         );
