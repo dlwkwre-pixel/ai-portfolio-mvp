@@ -21,8 +21,8 @@ import {
   addFutureEvent,
   deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary } from "./planning-actions";
-import { logExpenseActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
+import { logExpenseActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -2264,6 +2264,18 @@ function EstatePlanningTab({
   const [benPending, setBenPending] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
+  // Account access state
+  const [accounts, setAccounts] = useState<EstateAccount[]>(() => estateProfile?.estate_accounts ?? []);
+  const [addingAcct, setAddingAcct] = useState(false);
+  const [newAcct, setNewAcct] = useState<Omit<EstateAccount, "id">>({ institution: "", account_type: "Checking", contact: "", notes: "" });
+  const [acctPending, setAcctPending] = useState(false);
+
+  // Family instructions state
+  const [editingInstr, setEditingInstr] = useState(false);
+  const [instrValue, setInstrValue] = useState(estateProfile?.family_instructions ?? "");
+  const [instrPending, setInstrPending] = useState(false);
+  const [instrMsg, setInstrMsg] = useState("");
+
   const totalAssets = balanceItems.filter((i) => !i.is_liability).reduce((s, i) => s + i.value, 0) + portfolioTotalValue;
   const totalLiabilities = balanceItems.filter((i) => i.is_liability).reduce((s, i) => s + i.value, 0);
   const estateValue = totalAssets - totalLiabilities;
@@ -2295,6 +2307,36 @@ function EstatePlanningTab({
     const updated = beneficiaries.filter((b) => b.id !== id);
     setBeneficiaries(updated);
     void saveBeneficiaries(updated);
+  }
+
+  async function saveAccounts(updated: EstateAccount[]) {
+    setAcctPending(true);
+    await upsertEstateAccounts(updated);
+    setAcctPending(false);
+  }
+
+  function addAccount() {
+    if (!newAcct.institution.trim()) return;
+    const updated = [...accounts, { ...newAcct, id: crypto.randomUUID() }];
+    setAccounts(updated);
+    void saveAccounts(updated);
+    setNewAcct({ institution: "", account_type: "Checking", contact: "", notes: "" });
+    setAddingAcct(false);
+  }
+
+  function removeAccount(id: string) {
+    const updated = accounts.filter((a) => a.id !== id);
+    setAccounts(updated);
+    void saveAccounts(updated);
+  }
+
+  async function saveInstructions() {
+    setInstrPending(true);
+    await upsertFamilyInstructions(instrValue);
+    setInstrPending(false);
+    setEditingInstr(false);
+    setInstrMsg("Saved.");
+    setTimeout(() => setInstrMsg(""), 3000);
   }
 
   const inputStyle: React.CSSProperties = {
@@ -2341,8 +2383,40 @@ function EstatePlanningTab({
   const eRingOffset = ringCirc - (estateScore / 100) * ringCirc;
   const eScoreColor = estateScore >= 75 ? "var(--green)" : estateScore >= 45 ? "var(--amber)" : "var(--red)";
 
+  const ACCOUNT_TYPES = ["Checking", "Savings", "Brokerage", "401(k)", "IRA", "Roth IRA", "Life Insurance", "Pension", "HSA", "529 Plan", "Crypto", "Real Estate", "Business", "Other"];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* Header Banner — Protect Your Plan */}
+      <div style={{
+        borderRadius: "var(--radius-lg)", overflow: "hidden",
+        background: "linear-gradient(135deg, oklch(0.18 0.04 270) 0%, oklch(0.15 0.02 250) 100%)",
+        border: "1px solid oklch(0.35 0.1 270 / 0.4)",
+        padding: "20px 24px",
+        display: "flex", alignItems: "center", gap: "18px",
+      }}>
+        <div style={{
+          width: "40px", height: "40px", borderRadius: "10px", flexShrink: 0,
+          background: "oklch(0.45 0.15 270 / 0.25)",
+          border: "1px solid oklch(0.55 0.18 270 / 0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="oklch(0.7 0.18 270)" strokeWidth="1.5" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Protect Your Plan</div>
+          <div style={{ fontSize: "12px", color: "oklch(0.65 0.1 270)", marginTop: "3px", lineHeight: 1.5 }}>
+            Document your estate readiness, record where everything is, and leave clear instructions for the people who matter.
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: "22px", fontFamily: "var(--font-mono)", fontWeight: 700, color: eScoreColor }}>{estateScore}</div>
+          <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>readiness</div>
+        </div>
+      </div>
 
       {/* Estate Readiness Score */}
       <div style={{
@@ -2632,15 +2706,135 @@ function EstatePlanningTab({
         )}
       </div>
 
-      {/* Notes read view */}
+      {/* Notes read view (kept for doc-edit form notes field) */}
       {!editing && estateProfile?.notes && (
         <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 18px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px" }}>Notes & Instructions</div>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "8px" }}>Document Notes</div>
           <div style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
             {isPrivate ? "••••••••••••" : estateProfile.notes}
           </div>
         </div>
       )}
+
+      {/* Account Access Planning */}
+      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Account Access</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>Where your accounts live and how to reach them</div>
+          </div>
+          <button onClick={() => setAddingAcct((v) => !v)} style={{ fontSize: "11px", color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer" }}>
+            {addingAcct ? "Cancel" : "+ Add"}
+          </button>
+        </div>
+
+        {addingAcct && (
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "8px" }}>
+              <div>
+                <div style={labelStyle}>Institution</div>
+                <input value={newAcct.institution} onChange={(e) => setNewAcct((a) => ({ ...a, institution: e.target.value }))} placeholder="e.g. Fidelity, Chase, Coinbase" style={inputStyle} />
+              </div>
+              <div>
+                <div style={labelStyle}>Account type</div>
+                <select value={newAcct.account_type} onChange={(e) => setNewAcct((a) => ({ ...a, account_type: e.target.value }))} style={inputStyle}>
+                  {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <div style={labelStyle}>Contact / phone</div>
+                <input value={newAcct.contact} onChange={(e) => setNewAcct((a) => ({ ...a, contact: e.target.value }))} placeholder="800-555-0100 or login URL" style={inputStyle} />
+              </div>
+              <div>
+                <div style={labelStyle}>Notes</div>
+                <input value={newAcct.notes} onChange={(e) => setNewAcct((a) => ({ ...a, notes: e.target.value }))} placeholder="e.g. joint account, in safe deposit box" style={inputStyle} />
+              </div>
+            </div>
+            <button onClick={addAccount} disabled={!newAcct.institution.trim() || acctPending} style={{ alignSelf: "flex-start", padding: "6px 14px", borderRadius: "8px", background: "var(--brand-blue)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+              {acctPending ? "Saving…" : "Add Account"}
+            </button>
+          </div>
+        )}
+
+        {accounts.length === 0 && !addingAcct ? (
+          <div style={{ padding: "30px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>No accounts recorded yet.</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", maxWidth: "300px", margin: "0 auto", lineHeight: 1.6 }}>
+              Record where each account lives so your family can find everything quickly.
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: "6px 0" }}>
+            {accounts.map((a) => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 18px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{isPrivate ? "••••••" : a.institution}</div>
+                    <div style={{ fontSize: "10px", padding: "1px 7px", borderRadius: "4px", background: "var(--bg-elevated)", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{a.account_type}</div>
+                  </div>
+                  {(a.contact || a.notes) && (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      {isPrivate ? "••••••" : [a.contact, a.notes].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => removeAccount(a.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Family Instructions */}
+      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+        <div style={{ padding: "14px 18px", borderBottom: editingInstr ? "1px solid var(--border-subtle)" : "none", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Family Instructions</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>What your family needs to know if something happens to you</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {instrMsg && <span style={{ fontSize: "11px", color: "var(--green)" }}>{instrMsg}</span>}
+            <button onClick={() => { setEditingInstr((v) => !v); if (!editingInstr) setInstrValue(estateProfile?.family_instructions ?? ""); }} style={{ fontSize: "11px", color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer" }}>
+              {editingInstr ? "Cancel" : (estateProfile?.family_instructions ? "Edit" : "Add")}
+            </button>
+          </div>
+        </div>
+
+        {editingInstr ? (
+          <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+              Consider covering: location of important documents, contact your attorney and executor first, passwords in [location], final wishes, and anything else your family needs to navigate without you.
+            </div>
+            <textarea
+              value={instrValue}
+              onChange={(e) => setInstrValue(e.target.value)}
+              rows={8}
+              placeholder="Write freely — this is for your family, not a legal document. Where are your will and trust documents? Who should they call first? Where is the safe deposit box key? What accounts need immediate attention?"
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <button onClick={saveInstructions} disabled={instrPending} style={{ padding: "7px 16px", borderRadius: "8px", background: "var(--brand-blue)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                {instrPending ? "Saving…" : "Save Instructions"}
+              </button>
+            </div>
+          </div>
+        ) : estateProfile?.family_instructions ? (
+          <div style={{ padding: "14px 18px" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-primary)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+              {isPrivate ? "••••••••••••" : estateProfile.family_instructions}
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: "24px 18px", textAlign: "center" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>No instructions written yet.</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", maxWidth: "340px", margin: "0 auto", lineHeight: 1.6 }}>
+              Leave a plain-language guide for the people who will need to act on your behalf. The clearer this is, the easier you make an already difficult time.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

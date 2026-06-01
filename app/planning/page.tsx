@@ -4,7 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
 import { ageFromDob } from "./planning-utils";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
@@ -173,6 +173,8 @@ export default async function PlanningPage({
         healthcare_proxy_name:    estateProfileData.healthcare_proxy_name ?? null,
         healthcare_proxy_phone:   estateProfileData.healthcare_proxy_phone ?? null,
         beneficiaries:            (estateProfileData.beneficiaries ?? []) as EstateBeneficiary[],
+        estate_accounts:          (estateProfileData.estate_accounts ?? []) as EstateAccount[],
+        family_instructions:      estateProfileData.family_instructions ?? null,
         notes:                    estateProfileData.notes ?? null,
         last_reviewed_at:         estateProfileData.last_reviewed_at ?? null,
         updated_at:               estateProfileData.updated_at,

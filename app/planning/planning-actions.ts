@@ -437,6 +437,14 @@ export type EstateBeneficiary = {
   notes: string;
 };
 
+export type EstateAccount = {
+  id: string;
+  institution: string;
+  account_type: string;
+  contact: string;
+  notes: string;
+};
+
 export type EstateProfile = {
   id: string;
   user_id: string;
@@ -455,6 +463,8 @@ export type EstateProfile = {
   healthcare_proxy_name: string | null;
   healthcare_proxy_phone: string | null;
   beneficiaries: EstateBeneficiary[];
+  estate_accounts: EstateAccount[];
+  family_instructions: string | null;
   notes: string | null;
   last_reviewed_at: string | null;
   updated_at: string;
@@ -484,6 +494,7 @@ export async function upsertEstateProfile(formData: FormData): Promise<{ error?:
       attorney_email:           str("attorney_email"),
       healthcare_proxy_name:    str("healthcare_proxy_name"),
       healthcare_proxy_phone:   str("healthcare_proxy_phone"),
+      family_instructions:      str("family_instructions"),
       notes:                    str("notes"),
       last_reviewed_at:         str("last_reviewed_at"),
       updated_at:               new Date().toISOString(),
@@ -505,6 +516,40 @@ export async function upsertEstateBeneficiaries(
 
   const { error } = await supabase.from("estate_profiles").upsert(
     { user_id: user.id, beneficiaries, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function upsertEstateAccounts(
+  accounts: EstateAccount[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase.from("estate_profiles").upsert(
+    { user_id: user.id, estate_accounts: accounts, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+export async function upsertFamilyInstructions(
+  text: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase.from("estate_profiles").upsert(
+    { user_id: user.id, family_instructions: text, updated_at: new Date().toISOString() },
     { onConflict: "user_id" }
   );
 
