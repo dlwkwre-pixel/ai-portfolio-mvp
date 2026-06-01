@@ -3479,6 +3479,7 @@ function BudgetTrackerTab({
   expenseActuals: ExpenseActual[];
   isPrivate: boolean;
 }) {
+  const router = useRouter();
   const now = new Date();
   const [selYear, setSelYear] = useState(now.getFullYear());
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
@@ -3586,6 +3587,7 @@ function BudgetTrackerTab({
           onDone={(count) => {
             setShowStatementImport(false);
             setStatementSuccess(count);
+            router.refresh();
           }}
         />
       )}
@@ -3668,7 +3670,7 @@ function BudgetTrackerTab({
                     fd.set("label", item.label);
                     fd.set("period_year", String(selYear));
                     fd.set("period_month", String(selMonth));
-                    startTransition(() => { void logExpenseActual(fd); });
+                    startTransition(async () => { await logExpenseActual(fd); router.refresh(); });
                   }}
                   style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
