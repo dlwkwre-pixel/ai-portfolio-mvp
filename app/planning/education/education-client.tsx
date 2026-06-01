@@ -29,6 +29,17 @@ function fvCalc(pv: number, pmt: number, years: number, r: number): number {
   return pv * Math.pow(1 + mr, mo) + pmt * ((Math.pow(1 + mr, mo) - 1) / mr);
 }
 
+function yearsToFI(currentNW: number, monthlySavings: number, targetNW: number, mr: number): number | null {
+  if (currentNW >= targetNW) return 0;
+  if (monthlySavings <= 0) return null;
+  for (let y = 1; y <= 60; y++) {
+    const mo = y * 12;
+    const fv = currentNW * Math.pow(1 + mr, mo) + (mr > 0 ? monthlySavings * ((Math.pow(1 + mr, mo) - 1) / mr) : monthlySavings * mo);
+    if (fv >= targetNW) return y;
+  }
+  return null;
+}
+
 function retirProb(nw: number, annualExpenses: number): number {
   const needed = annualExpenses * 25;
   if (needed <= 0) return 100;
@@ -96,6 +107,8 @@ type Computed529 = {
   retirAssetsAfter: number | null;
   retirProbBefore: number | null;
   retirProbAfter: number | null;
+  fiYearsBefore: number | null;
+  fiYearsAfter: number | null;
   monthlySavingsBefore: number | null;
   monthlySavingsAfter: number | null;
   flipContribution: number | null;
@@ -231,6 +244,8 @@ function computeAll(
   let retirAssetsAfter: number | null = null;
   let retirProbBefore: number | null = null;
   let retirProbAfter: number | null = null;
+  let fiYearsBefore: number | null = null;
+  let fiYearsAfter: number | null = null;
   let monthlySavingsBefore: number | null = null;
   let monthlySavingsAfter: number | null = null;
   let retirImpactScore = 15;
@@ -247,6 +262,10 @@ function computeAll(
     retirProbAfter  = retirProb(retirAssetsAfter,  exp * 12);
     const drop = retirProbBefore - (retirProbAfter ?? 0);
     retirImpactScore = drop < 3 ? 15 : drop < 7 ? 11 : drop < 12 ? 7 : 3;
+    const fiTarget = exp * 12 * 25;
+    const mr = ret / 12;
+    fiYearsBefore = yearsToFI(currentNetWorth, Math.max(0, monthlySavingsBefore), fiTarget, mr);
+    fiYearsAfter  = yearsToFI(currentNetWorth, Math.max(0, monthlySavingsAfter),  fiTarget, mr);
   }
 
   // Readiness score
@@ -514,6 +533,7 @@ function computeAll(
     verdictType, verdictReasons, confidencePct, suggestedMonthly,
     readinessScore, readinessComponents, fundingTargets,
     retirAssetsBefore, retirAssetsAfter, retirProbBefore, retirProbAfter,
+    fiYearsBefore, fiYearsAfter,
     monthlySavingsBefore, monthlySavingsAfter,
     flipContribution, flipCostReduction, flipReturn,
     opportunityCostRetirement, autoNarrative,
@@ -1199,12 +1219,15 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Impact Across Your Financial Plan</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
-                {[
+                {([
                   { label: "Retirement Probability", value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`, color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 8 ? "oklch(0.70 0.18 25)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 3 ? "oklch(0.78 0.15 80)" : "oklch(0.72 0.18 145)" },
                   { label: "Retirement Assets",       value: computed.retirAssetsAfter != null ? fmtK(computed.retirAssetsAfter) : "—", color: "var(--text-secondary)" },
                   { label: "Monthly Savings",         value: computed.monthlySavingsAfter != null ? `${fmt(Math.max(0, computed.monthlySavingsBefore ?? 0))} → ${fmt(Math.max(0, computed.monthlySavingsAfter))}` : "—", color: (computed.monthlySavingsAfter ?? 0) < 0 ? "oklch(0.70 0.18 25)" : "var(--text-secondary)" },
                   { label: "529 at Enrollment",       value: fmtK(computed.fv529), color: computed.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : computed.coveragePct >= 80 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)" },
-                ].map(({ label, value, color }, ei) => (
+                  computed.fiYearsBefore != null && computed.fiYearsAfter != null
+                    ? { label: "FI Timeline", value: computed.fiYearsAfter - computed.fiYearsBefore > 0 ? `+${computed.fiYearsAfter - computed.fiYearsBefore} yrs later` : "Unchanged", color: computed.fiYearsAfter - computed.fiYearsBefore > 5 ? "oklch(0.78 0.15 80)" : computed.fiYearsAfter - computed.fiYearsBefore > 2 ? "oklch(0.78 0.15 80 / 0.8)" : "oklch(0.72 0.18 145)" }
+                    : null,
+                ].filter(Boolean) as { label: string; value: string; color: string }[]).map(({ label, value, color }, ei) => (
                   <div key={label} className="edu-eco-tile" style={{ padding: "12px", borderRadius: 8, background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--border)", animation: `edu-fade-up 0.28s ease-out ${0.05 + ei * 0.04}s both` }}>
                     <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color }}>{value}</div>

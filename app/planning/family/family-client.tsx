@@ -88,6 +88,8 @@ type ComputedFamily = {
   costSpikes: CostSpike[];
   // P9 comparison
   comparisonRows: ComparisonRow[];
+  // P12 opportunity cost
+  opportunityCostFI: number | null;
 };
 
 const PHASE_COLORS: Record<"Infant" | "Child" | "Teen", string> = {
@@ -223,6 +225,7 @@ function computeFamily(
     fiYearsBefore: null, fiYearsAfter: null, emergencyMonths: null,
     incomeFlipAmount: null, childCostFlipReduction: null, nwFlipAmount: null,
     annualCostVsAvg, autoNarrative: null, costSpikes, comparisonRows: [],
+    opportunityCostFI: null,
   };
 
   if (
@@ -373,6 +376,7 @@ function computeFamily(
   const fiYearsBefore = yearsToFI(currentNetWorth, Math.max(0, savingsBefore), fiTarget, r);
   const fiYearsAfter = yearsToFI(currentNetWorth, Math.max(0, savingsAfter), fiTarget, r);
   const emergencyMonths = baseExpenses > 0 ? liquidAssets / baseExpenses : null;
+  const opportunityCostFI = currentMonthlyImpact > 0 ? fvCalc(0, currentMonthlyImpact, n, r) : null;
 
   // P4: Binary search — what would flip the verdict to READY?
   let incomeFlipAmount: number | null = null;
@@ -475,6 +479,7 @@ function computeFamily(
     fiYearsBefore, fiYearsAfter, emergencyMonths,
     incomeFlipAmount, childCostFlipReduction, nwFlipAmount,
     annualCostVsAvg, autoNarrative, costSpikes, comparisonRows,
+    opportunityCostFI,
   };
 }
 
@@ -1403,7 +1408,56 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
         </div>
 
-        {/* Row 5: Scenario Comparison Table */}
+        {/* Row 5: Opportunity Cost */}
+        {computed.opportunityCostFI != null && (
+          <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
+            <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+              <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Opportunity Cost</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 14px" }}>If {fmt(computed.currentMonthlyImpact)}/mo in child costs were invested instead:</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 25 / 0.08)", border: "1px solid oklch(0.45 0.18 25 / 0.2)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If Invested</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 25)" }}>+{fmtK(computed.opportunityCostFI)}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at age {profile?.target_retirement_age ?? 65}</div>
+                </div>
+                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 250 / 0.08)", border: "1px solid oklch(0.45 0.18 250 / 0.2)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Retirement Impact</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 250)" }}>
+                    {computed.retirProbBefore != null && computed.retirProbAfter != null ? `${computed.retirProbBefore}% → ${computed.retirProbAfter}%` : "—"}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>retirement probability</div>
+                </div>
+              </div>
+              <p style={{ fontSize: 10, color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>Tradeoff analysis, not a recommendation.</p>
+            </div>
+            {computed.fiYearsBefore != null && computed.fiYearsAfter != null && (
+              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
+                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Financial Independence Timeline</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 14px" }}>How child costs shift your FI date (25x expenses target):</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { label: "Without child costs", years: computed.fiYearsBefore, isBase: true },
+                    { label: "With child costs", years: computed.fiYearsAfter, isBase: false },
+                  ].map(({ label, years, isBase }) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: isBase ? "var(--bg-elevated, var(--bg-base))" : "oklch(0.45 0.18 25 / 0.06)", border: `1px solid ${isBase ? "var(--border)" : "oklch(0.45 0.18 25 / 0.2)"}` }}>
+                      <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{label}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: isBase ? "var(--green)" : computed.fiYearsAfter! - computed.fiYearsBefore! > 5 ? "var(--amber)" : "var(--text-primary)" }}>
+                        {years != null ? `${years} yrs` : "60+ yrs"}
+                      </span>
+                    </div>
+                  ))}
+                  {computed.fiYearsAfter - computed.fiYearsBefore > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", padding: "9px 12px", background: "oklch(0.45 0.18 25 / 0.06)", borderRadius: 8, border: "1px solid oklch(0.45 0.18 25 / 0.15)", lineHeight: 1.5 }}>
+                      Child costs push FI back by {computed.fiYearsAfter - computed.fiYearsBefore} year{computed.fiYearsAfter - computed.fiYearsBefore !== 1 ? "s" : ""}.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Row 6: Scenario Comparison Table */}
         {computed.comparisonRows.length > 0 && (
           <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Scenario Comparison</p>

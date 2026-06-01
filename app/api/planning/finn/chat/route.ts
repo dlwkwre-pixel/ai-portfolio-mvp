@@ -186,6 +186,47 @@ export async function POST(req: NextRequest) {
       }).join("\n")
     : null;
 
+  const activePlanners: string[] = [];
+  if (context.home_scenarios?.length) activePlanners.push("Home");
+  if (context.career_scenarios?.length) activePlanners.push("Career");
+  if (context.education_scenarios?.length) activePlanners.push("Education");
+  if (context.family_scenarios?.length) activePlanners.push("Family");
+
+  let crossPlannerLines: string | null = null;
+  if (activePlanners.length >= 2) {
+    const homeObligation = context.home_scenarios?.reduce((s, sc) => s + sc.total_monthly, 0) ?? 0;
+    const careerDelta = context.career_scenarios?.reduce((s, sc) => s + (sc.new_monthly - sc.current_monthly), 0) ?? 0;
+    const edu529Monthly = context.education_scenarios?.reduce((s, sc) => s + sc.monthly_contribution, 0) ?? 0;
+    const familyMonthly = context.family_scenarios?.reduce((s, sc) => s + sc.current_monthly_impact, 0) ?? 0;
+    const combinedObligation = homeObligation + edu529Monthly + familyMonthly;
+    const combinedPct = context.monthly_net_income > 0 ? ((combinedObligation / context.monthly_net_income) * 100).toFixed(0) : "?";
+
+    const interactionRisks: string[] = [];
+    if (homeObligation > 0 && familyMonthly > 0) {
+      const housingFamilyPct = context.monthly_expenses > 0 ? ((homeObligation + familyMonthly) / context.monthly_expenses) * 100 : 0;
+      if (housingFamilyPct > 50) interactionRisks.push(`Housing + family costs are ${housingFamilyPct.toFixed(0)}% of total expenses — cash flow squeeze risk`);
+    }
+    if (context.education_scenarios?.some((s) => s.funding_gap > 0) && context.family_scenarios?.length) {
+      interactionRisks.push("Active education funding gap and child costs compete for the same savings capacity");
+    }
+    if (context.career_scenarios?.some((s) => s.gap_months > 0) && (homeObligation > 0 || familyMonthly > 0)) {
+      interactionRisks.push(`Career income gap of ${Math.max(...(context.career_scenarios?.map((s) => s.gap_months) ?? [0]))} months overlaps with fixed housing/family obligations — liquidity risk during transition`);
+    }
+    if (context.education_scenarios?.length && context.career_scenarios?.some((s) => s.gap_months > 0)) {
+      interactionRisks.push("Education savings contributions may be at risk during any career income gap");
+    }
+
+    const breakdownParts: string[] = [];
+    if (homeObligation > 0) breakdownParts.push(`housing ${fmt(homeObligation)}/mo`);
+    if (edu529Monthly > 0) breakdownParts.push(`529 savings ${fmt(edu529Monthly)}/mo`);
+    if (familyMonthly > 0) breakdownParts.push(`child costs ${fmt(familyMonthly)}/mo`);
+    if (careerDelta !== 0) breakdownParts.push(`career income delta ${careerDelta >= 0 ? "+" : ""}${fmt(careerDelta)}/mo`);
+
+    crossPlannerLines = `\nCROSS-PLANNER SYNTHESIS (${activePlanners.join(" + ")} scenarios active):
+  Combined planning obligations: ${fmt(combinedObligation)}/mo (${combinedPct}% of net income)${breakdownParts.length > 0 ? `\n  Breakdown: ${breakdownParts.join(", ")}` : ""}${interactionRisks.length > 0 ? `\n  Interaction risks detected:\n${interactionRisks.map((ri) => `    - ${ri}`).join("\n")}` : ""}
+  Proactively connect insights across planners — highlight compounding effects and timing conflicts between them.`;
+  }
+
   const systemPrompt = `You are FINN, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
 
 CAPABILITIES:
@@ -242,7 +283,7 @@ ${careerLines ? `\nCAREER CHANGE SCENARIOS:\n${careerLines}` : ""}
 ${educationLines ? `\nEDUCATION / 529 SCENARIOS:\n${educationLines}` : ""}
 ${familyLines ? `\nFAMILY PLANNING SCENARIOS:\n${familyLines}` : ""}
 ${(context.estate_score != null) ? `\nESTATE READINESS: Score ${context.estate_score}/100 | ${context.estate_docs_complete ?? 0}/${context.estate_docs_total ?? 6} documents complete | estate value ${context.estate_value != null ? fmt(context.estate_value) : "unknown"} | ${context.estate_accounts_count ?? 0} account location${(context.estate_accounts_count ?? 0) !== 1 ? "s" : ""} recorded | family instructions ${context.family_instructions_written ? "written" : "NOT written"}` : ""}
-
+${crossPlannerLines ?? ""}
 KEY BENCHMARKS (use these in calculations):
   Emergency fund target: ${fmt(context.monthly_expenses * 3)}–${fmt(context.monthly_expenses * 6)} (3–6 months expenses)
   Retirement target (4% rule): 25× projected annual expenses

@@ -5247,7 +5247,7 @@ export default function PlanningClient({
       {
         role: "user" as const,
         content: isInit
-          ? "Introduce yourself briefly as FINN, then immediately analyze my financial situation. Lead with the single most important alert or insight — cite my actual numbers. Give 2–3 additional specific insights. End by suggesting 2 questions I could ask you."
+          ? "Introduce yourself as FINN in one sentence. Then, using my complete financial picture — including all active planning scenarios and their interactions — give me: (1) the single most important cross-planner interaction or timing risk right now, with specific numbers; (2) my highest-leverage action this month; (3) one blind spot I might be missing. End with 2 targeted questions worth exploring."
           : text,
       },
     ];
