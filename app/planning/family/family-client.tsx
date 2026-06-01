@@ -507,10 +507,10 @@ function defaultForm(profile: FinancialProfile | null, defaultReturn: number): F
 // ── Verdict meta ──────────────────────────────────────────────────────────────
 
 const verdictMeta: Record<VerdictType, { label: string; color: string; bg: string; border: string }> = {
-  READY:       { label: "READY",       color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" },
-  WAIT:        { label: "WAIT",        color: "oklch(0.78 0.15 80)",  bg: "color-mix(in oklch, oklch(0.60 0.14 80) 8%, var(--card-bg))",   border: "color-mix(in oklch, oklch(0.60 0.14 80) 28%, transparent)" },
-  HIGH_STRAIN: { label: "HIGH STRAIN", color: "oklch(0.70 0.18 25)",  bg: "color-mix(in oklch, oklch(0.45 0.18 25) 10%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.45 0.18 25) 30%, transparent)" },
-  LOW_IMPACT:  { label: "LOW IMPACT",  color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.50 0.10 240) 25%, transparent)" },
+  READY:       { label: "Recommended",          color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" },
+  WAIT:        { label: "Proceed with Caution", color: "oklch(0.78 0.15 80)",  bg: "color-mix(in oklch, oklch(0.60 0.14 80) 8%, var(--card-bg))",   border: "color-mix(in oklch, oklch(0.60 0.14 80) 28%, transparent)" },
+  HIGH_STRAIN: { label: "Delay",                color: "oklch(0.70 0.18 25)",  bg: "color-mix(in oklch, oklch(0.45 0.18 25) 10%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.45 0.18 25) 30%, transparent)" },
+  LOW_IMPACT:  { label: "Low Impact",           color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.50 0.10 240) 25%, transparent)" },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -538,6 +538,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const [numChildren, setNumChildren] = useState<1 | 2 | 3 | 4>(1);
   const [addingForecast, startAddForecast] = useTransition();
   const [forecastStatus, setForecastStatus] = useState<string | null>(null);
+
+  type PlannerSection = "recommendation" | "readiness" | "impact" | "options";
+  const [section, setPlannerSection] = useState<PlannerSection>("recommendation");
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -747,9 +750,46 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       </div>
 
-      {/* P1: Verdict card */}
+      {/* Section nav */}
+      <div data-print-hide style={{
+        padding: "0 24px",
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex", gap: "0",
+        background: "var(--bg-base)",
+        position: "sticky",
+        top: "0",
+        zIndex: 9,
+        overflowX: "auto",
+      }}>
+        {(["recommendation", "readiness", "impact", "options"] as PlannerSection[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setPlannerSection(s)}
+            style={{
+              padding: "9px 16px",
+              border: "none",
+              background: "transparent",
+              fontSize: "12px",
+              fontFamily: "var(--font-body)",
+              cursor: "pointer",
+              color: section === s ? "var(--text-primary)" : "var(--text-tertiary)",
+              fontWeight: section === s ? 600 : 400,
+              borderBottom: `2px solid ${section === s ? "var(--accent)" : "transparent"}`,
+              textTransform: "capitalize",
+              letterSpacing: "0.01em",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {s === "recommendation" ? "Recommendation" : s === "readiness" ? "Readiness" : s === "impact" ? "Impact" : "Options"}
+          </button>
+        ))}
+      </div>
+
+      {/* P1: Verdict card — always visible as section header */}
       {meta && computed.verdict && (
-        <div style={{ padding: "16px 24px 0" }}>
+        <div id="planner-verdict" style={{ padding: "16px 24px 0" }}>
           <div style={{ ...cardS, background: meta.bg, borderColor: meta.border }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
@@ -835,8 +875,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       )}
 
-      {/* P6: National Benchmark + P8: Cost Spikes */}
-      {(computed.annualCostVsAvg || computed.costSpikes.length > 0) && (
+      {/* P6: National Benchmark + P8: Cost Spikes — shown in readiness */}
+      {section === "readiness" && (computed.annualCostVsAvg || computed.costSpikes.length > 0) && (
         <div style={{ padding: "10px 24px 0", display: "flex", gap: "10px", flexWrap: "wrap" }}>
           {computed.annualCostVsAvg && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
@@ -862,11 +902,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       )}
 
-      {/* Grid: left + right */}
-      <div data-family-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 320px) 1fr", gap: "20px", padding: "16px 24px 8px", alignItems: "start" }}>
-
-        {/* Left column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      {/* Options section: left column only */}
+      {section === "options" && (
+        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "12px", maxWidth: 380 }}>
 
           {/* Number of children selector */}
           <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", overflow: "hidden", position: "relative" }}>
@@ -1000,9 +1038,11 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           </div>
         </div>
+      )}
 
-        {/* Right column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      {/* Recommendation section: FINN + What Would Change */}
+      {section === "recommendation" && (
+        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
           {/* P7: Auto FINN Narrative */}
           {computed.autoNarrative && meta && (
@@ -1075,6 +1115,13 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* Readiness section: Benchmark + Readiness Score + Affordability */}
+      {section === "readiness" && (
+        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
           {/* P2: Readiness Score */}
           {computed.readinessScore != null && meta && (
             <div style={cardS}>
@@ -1131,10 +1178,11 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           )}
 
         </div>
-      </div>
+      )}
 
-      {/* ── Full-width analysis below the grid ──────────────────────────────── */}
-      <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Impact section: full-width rows */}
+      {section === "impact" && (
+        <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
         {/* Row 1: Timing Simulator + Ecosystem Impact */}
         {(computed.timingRows.length > 0 || computed.retirProbBefore != null) && (
@@ -1396,7 +1444,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
         )}
 
-      </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes bt-fade-up {

@@ -260,6 +260,9 @@ export default function CareerClient({
   });
   const [forecastStatus, setForecastStatus] = useState<"idle" | "adding" | "done" | "error">("idle");
 
+  type PlannerSection = "recommendation" | "readiness" | "impact" | "options";
+  const [section, setPlannerSection] = useState<PlannerSection>("recommendation");
+
   function set<K extends keyof Inputs>(key: K, val: Inputs[K]) {
     setInputs((p) => ({ ...p, [key]: val }));
     setFinnCommentary(null);
@@ -722,19 +725,19 @@ export default function CareerClient({
 
   const verdictMeta = {
     SWITCH: {
-      label: "SWITCH",
+      label: "Strong Case",
       color: "oklch(0.72 0.18 145)",
       bg: "color-mix(in oklch, oklch(0.55 0.15 145) 12%, transparent)",
       border: "color-mix(in oklch, oklch(0.55 0.15 145) 28%, transparent)",
     },
     WAIT: {
-      label: "WAIT",
+      label: "Moderate",
       color: "oklch(0.78 0.15 80)",
       bg: "color-mix(in oklch, oklch(0.65 0.15 80) 12%, transparent)",
       border: "color-mix(in oklch, oklch(0.65 0.15 80) 28%, transparent)",
     },
     STAY: {
-      label: "STAY",
+      label: "High Risk",
       color: "oklch(0.68 0.10 240)",
       bg: "color-mix(in oklch, oklch(0.50 0.10 240) 12%, transparent)",
       border: "color-mix(in oklch, oklch(0.50 0.10 240) 28%, transparent)",
@@ -836,8 +839,45 @@ export default function CareerClient({
         </button>
       </div>
 
-      {/* ─── BUYTUNE VERDICT CARD ─────────────────────────────────────────────── */}
-      <div style={{ padding: "16px 24px 0" }}>
+      {/* Section nav */}
+      <div data-print-hide style={{
+        padding: "0 24px",
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex", gap: "0",
+        background: "var(--bg-base)",
+        position: "sticky",
+        top: "41px",
+        zIndex: 9,
+        overflowX: "auto",
+      }}>
+        {(["recommendation", "readiness", "impact", "options"] as PlannerSection[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setPlannerSection(s)}
+            style={{
+              padding: "9px 16px",
+              border: "none",
+              background: "transparent",
+              fontSize: "12px",
+              fontFamily: "var(--font-body)",
+              cursor: "pointer",
+              color: section === s ? "var(--text-primary)" : "var(--text-tertiary)",
+              fontWeight: section === s ? 600 : 400,
+              borderBottom: `2px solid ${section === s ? "var(--accent)" : "transparent"}`,
+              textTransform: "capitalize",
+              letterSpacing: "0.01em",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {s === "recommendation" ? "Recommendation" : s === "readiness" ? "Readiness" : s === "impact" ? "Impact" : "Options"}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── BUYTUNE VERDICT CARD — always visible as section header ─────────── */}
+      <div id="planner-verdict" style={{ padding: "16px 24px 0" }}>
         <div style={{
           borderRadius: "var(--radius-lg)",
           padding: "20px 24px",
@@ -985,11 +1025,10 @@ export default function CareerClient({
         </div>
       </div>
 
-      {/* Main layout */}
-      <div data-career-grid style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) 1fr", gap: "20px", padding: "16px 24px 20px", alignItems: "start" }}>
+      {/* ── Options section: inputs form ── */}
+      {section === "options" && (
+        <div style={{ padding: "16px 24px 20px", display: "flex", flexDirection: "column", gap: "14px", maxWidth: 480 }}>
 
-        {/* ── LEFT: Inputs ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div>
             <label style={labelS}>Scenario Name</label>
             <input value={inputs.name} onChange={(e) => set("name", e.target.value)} style={inputS} />
@@ -1139,9 +1178,11 @@ export default function CareerClient({
               </div>
           </div>
         </div>
+      )}
 
-        {/* ── RIGHT: Analysis ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      {/* ── Impact section ── */}
+      {section === "impact" && (
+        <div style={{ padding: "16px 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
           {/* P8: Future Path Comparison */}
           <div style={cardS}>
@@ -1271,54 +1312,6 @@ export default function CareerClient({
             </p>
           </div>
 
-          {/* P3: Career ROI Score */}
-          <div style={cardS}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
-              <p style={{ ...sectionHead, margin: 0 }}>Career Change Score</p>
-              <div style={{ textAlign: "right" }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 800, color: scoreColor(computed.overallRoiScore) }}>
-                  {computed.overallRoiScore}
-                </span>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}> / 100</span>
-                <div style={{ fontSize: "9px", color: scoreColor(computed.overallRoiScore), fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  {scoreLabel(computed.overallRoiScore)}
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
-              {[
-                { label: "Financial Return", score: computed.financialReturnScore },
-                { label: "Payback Period", score: computed.paybackScore },
-                { label: "Transition Risk", score: computed.transitionRiskScore },
-                { label: "Retirement Impact", score: computed.retirementScore },
-                { label: "Income Stability", score: computed.incomeStabilityScore },
-              ].map(({ label, score }) => (
-                <div key={label}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: scoreColor(score) }}>{Math.round(score)}</span>
-                  </div>
-                  <div style={{ height: "4px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.round(score)}%`, background: scoreColor(score), borderRadius: "2px" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            {computed.scoreWeaknesses.length > 0 && (
-              <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
-                  What&apos;s holding it back
-                </div>
-                {computed.scoreWeaknesses.map((w, i) => (
-                  <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginBottom: "5px" }}>
-                    <span style={{ color: "oklch(0.70 0.18 25)", fontSize: "10px", flexShrink: 0, marginTop: "2px" }}>↓</span>
-                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{w}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Modeled Outcomes (P3: renamed + dynamic + disclaimer) */}
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
@@ -1352,11 +1345,6 @@ export default function CareerClient({
               Based on BuyTune scenario modeling across best, expected, and worst cases — not historical labor-market data.
             </p>
           </div>
-
-        </div>
-      </div>
-
-      <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
           {/* P5: Best / Expected / Worst Case */}
           <div style={cardS}>
@@ -1451,6 +1439,61 @@ export default function CareerClient({
                   : `The new career does not recover the earnings deficit within ${inputs.projection_years} years. The total lifetime impact is ${fmtK(computed.lifetimeDelta)}, averaging ${fmt(Math.abs(computed.monthlyEquivalent))}/month.`}
               </p>
             </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Readiness section ── */}
+      {section === "readiness" && (
+        <div style={{ padding: "16px 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
+          {/* P3: Career ROI Score — readiness */}
+          <div style={cardS}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
+              <p style={{ ...sectionHead, margin: 0 }}>Career Change Score</p>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 800, color: scoreColor(computed.overallRoiScore) }}>
+                  {computed.overallRoiScore}
+                </span>
+                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}> / 100</span>
+                <div style={{ fontSize: "9px", color: scoreColor(computed.overallRoiScore), fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  {scoreLabel(computed.overallRoiScore)}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+              {[
+                { label: "Financial Return", score: computed.financialReturnScore },
+                { label: "Payback Period", score: computed.paybackScore },
+                { label: "Transition Risk", score: computed.transitionRiskScore },
+                { label: "Retirement Impact", score: computed.retirementScore },
+                { label: "Income Stability", score: computed.incomeStabilityScore },
+              ].map(({ label, score }) => (
+                <div key={label}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: scoreColor(score) }}>{Math.round(score)}</span>
+                  </div>
+                  <div style={{ height: "4px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.round(score)}%`, background: scoreColor(score), borderRadius: "2px" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {computed.scoreWeaknesses.length > 0 && (
+              <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
+                  What&apos;s holding it back
+                </div>
+                {computed.scoreWeaknesses.map((w, i) => (
+                  <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start", marginBottom: "5px" }}>
+                    <span style={{ color: "oklch(0.70 0.18 25)", fontSize: "10px", flexShrink: 0, marginTop: "2px" }}>↓</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{w}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* P3: Regret Risk Analysis */}
@@ -1625,6 +1668,13 @@ export default function CareerClient({
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* ── Impact section (continued) — retirement + ecosystem + chart ── */}
+      {section === "impact" && (
+        <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
           {/* Retirement Impact (P4: assets primary) */}
           {computed.retirCurrentProb != null && computed.retirNewProb != null && (
             <div style={cardS}>
@@ -1673,6 +1723,13 @@ export default function CareerClient({
               </p>
             </div>
           )}
+
+        </div>
+      )}
+
+      {/* ── Recommendation section ── */}
+      {section === "recommendation" && (
+        <div style={{ padding: "16px 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
           {/* P9: BuyTune Ecosystem Impact */}
           {computed.ecosystemImpact && (
@@ -1787,6 +1844,13 @@ export default function CareerClient({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* ── Impact section: income trajectory chart ── */}
+      {section === "impact" && (
+        <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+
           {/* Income trajectory chart */}
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -1854,7 +1918,8 @@ export default function CareerClient({
             )}
           </div>
 
-      </div>
+        </div>
+      )}
 
       <style>{`
         @media (max-width: 768px) {

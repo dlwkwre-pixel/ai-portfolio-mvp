@@ -374,7 +374,7 @@ function computeAll(
   let contextVerdictBg: string;
 
   if (coveragePct >= 100 && (!hasRetirData || retirDrop <= 3)) {
-    contextVerdictLabel    = "STRONG POSITION";
+    contextVerdictLabel    = "Fully Funded";
     contextVerdictSubtitle = `${Math.round(Math.min(coveragePct, 100))}% Coverage`;
     contextVerdictColor    = "oklch(0.72 0.18 145)";
     contextVerdictBg       = "oklch(0.72 0.18 145 / 0.08)";
@@ -384,7 +384,7 @@ function computeAll(
       { positive: true,  text: "No immediate action required" },
     ];
   } else if (coveragePct >= 100 && hasRetirData && retirDrop > 8) {
-    contextVerdictLabel    = "OVERFUNDING RISK";
+    contextVerdictLabel    = "Overfunded";
     contextVerdictSubtitle = "College Fully Funded";
     contextVerdictColor    = "oklch(0.78 0.15 80)";
     contextVerdictBg       = "oklch(0.78 0.15 80 / 0.08)";
@@ -394,7 +394,7 @@ function computeAll(
       { positive: true,  text: "College gap is fully covered" },
     ];
   } else if (coveragePct >= 75 && (!hasRetirData || retirDrop <= 5)) {
-    contextVerdictLabel    = "GOOD POSITION";
+    contextVerdictLabel    = "On Track";
     contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
     contextVerdictColor    = "oklch(0.65 0.15 250)";
     contextVerdictBg       = "oklch(0.65 0.15 250 / 0.08)";
@@ -404,7 +404,7 @@ function computeAll(
       { positive: true,  text: "Current contribution path sufficient" },
     ];
   } else if (coveragePct >= 40) {
-    contextVerdictLabel    = "REVIEW NEEDED";
+    contextVerdictLabel    = "Stretch";
     contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
     contextVerdictColor    = "oklch(0.78 0.15 80)";
     contextVerdictBg       = "oklch(0.78 0.15 80 / 0.08)";
@@ -414,7 +414,7 @@ function computeAll(
       { positive: true,  text: hasRetirData && retirDrop <= 5 ? "Retirement trajectory not at risk yet" : "Time remains to course-correct" },
     ];
   } else {
-    contextVerdictLabel    = "ACTION REQUIRED";
+    contextVerdictLabel    = "At Risk";
     contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
     contextVerdictColor    = "oklch(0.70 0.18 25)";
     contextVerdictBg       = "oklch(0.70 0.18 25 / 0.08)";
@@ -559,6 +559,9 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   const [preset, setPreset]                     = useState<string>("custom");
   const [addingForecast, startAddForecast]       = useTransition();
   const [forecastStatus, setForecastStatus]      = useState<string | null>(null);
+
+  type PlannerSection = "recommendation" | "readiness" | "impact" | "options";
+  const [section, setPlannerSection] = useState<PlannerSection>("recommendation");
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -756,8 +759,96 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         </p>
       </div>
 
-      {/* ── 2-col grid ─────────────────────────────────────────────────────── */}
-      <div data-edu-grid style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, alignItems: "stretch" }}>
+      {/* Section nav */}
+      <div data-print-hide style={{
+        marginBottom: 20,
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex", gap: "0",
+        background: "transparent",
+        overflowX: "auto",
+      }}>
+        {(["recommendation", "readiness", "impact", "options"] as PlannerSection[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setPlannerSection(s)}
+            style={{
+              padding: "9px 16px",
+              border: "none",
+              background: "transparent",
+              fontSize: "12px",
+              fontFamily: "var(--font-body)",
+              cursor: "pointer",
+              color: section === s ? "var(--text-primary)" : "var(--text-tertiary)",
+              fontWeight: section === s ? 600 : 400,
+              borderBottom: `2px solid ${section === s ? "var(--accent)" : "transparent"}`,
+              textTransform: "capitalize",
+              letterSpacing: "0.01em",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {s === "recommendation" ? "Recommendation" : s === "readiness" ? "Readiness" : s === "impact" ? "Impact" : "Options"}
+          </button>
+        ))}
+      </div>
+
+      {/* Verdict card — always visible as section header */}
+      <div id="planner-verdict" style={{ marginBottom: 20, background: computed.contextVerdictBg, border: `1px solid ${computed.contextVerdictColor}40`, borderRadius: 12, padding: "20px 24px", animation: "edu-fade-up 0.4s ease-out both" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: computed.contextVerdictColor, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 5 }}>BuyTune Education Verdict</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: computed.contextVerdictColor, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{computed.contextVerdictLabel}</div>
+            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{computed.contextVerdictSubtitle}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Confidence</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{computed.confidencePct}%</div>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+          {[
+            { label: "Funded",         value: `${Math.round(Math.min(computed.coveragePct, 100))}%` },
+            { label: computed.coveragePct >= 100 ? "Surplus" : "Gap", value: fmtK(computed.coveragePct >= 100 ? computed.fv529 - computed.effectiveTotalCost : computed.fundingGap) },
+            { label: "Suggested /mo",  value: computed.verdictType === "FULLY_FUNDED" ? "On Track" : fmt(computed.suggestedMonthly) },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ padding: "10px 12px", background: "var(--bg-card)", borderRadius: 8, border: `1px solid ${computed.contextVerdictColor}20` }}>
+              <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          {computed.contextVerdictBullets.map(({ positive, text }, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--text-secondary)", animation: `edu-fade-up 0.3s ease-out ${0.1 + i * 0.06}s both` }}>
+              <span style={{ color: positive ? computed.contextVerdictColor : "oklch(0.70 0.18 25)", flexShrink: 0, fontSize: 13 }}>{positive ? "✓" : "⚠"}</span>
+              <span>{text}</span>
+            </div>
+          ))}
+        </div>
+        {/* Add to Forecast */}
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${computed.contextVerdictColor}25`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 11, color: forecastStatus?.startsWith("Added") ? "oklch(0.72 0.18 145)" : forecastStatus ? "oklch(0.78 0.15 80)" : "var(--text-muted)" }}>
+            {forecastStatus ?? "Add projected college costs to your Life Forecast"}
+          </div>
+          <button
+            onClick={handleAddEduToForecast}
+            disabled={addingForecast || computed.yearsUntilCollege === 0}
+            style={{
+              padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+              background: "var(--accent)", color: "#fff", border: "none",
+              cursor: addingForecast || computed.yearsUntilCollege === 0 ? "not-allowed" : "pointer",
+              opacity: addingForecast || computed.yearsUntilCollege === 0 ? 0.5 : 1, flexShrink: 0,
+            }}
+          >
+            {addingForecast ? "Adding…" : "Add to Forecast"}
+          </button>
+        </div>
+      </div>
+
+      {/* Options section: left column only */}
+      {section === "options" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 320 }}>
 
         {/* Left column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -959,67 +1050,14 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           </div>
         </div>
+        </div>
+      )}
 
-        {/* Right column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Recommendation section: FINN's Take */}
+      {section === "recommendation" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
 
-          {/* P3: Smarter Verdict */}
-          <div style={{ ...cardS, background: computed.contextVerdictBg, border: `1px solid ${computed.contextVerdictColor}40`, animation: "edu-fade-up 0.4s ease-out both" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: computed.contextVerdictColor, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 5 }}>BuyTune Education Verdict</div>
-                <div style={{ fontSize: 26, fontWeight: 900, color: computed.contextVerdictColor, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{computed.contextVerdictLabel}</div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{computed.contextVerdictSubtitle}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Confidence</div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{computed.confidencePct}%</div>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-              {[
-                { label: "Funded",         value: `${Math.round(Math.min(computed.coveragePct, 100))}%` },
-                { label: computed.coveragePct >= 100 ? "Surplus" : "Gap", value: fmtK(computed.coveragePct >= 100 ? computed.fv529 - computed.effectiveTotalCost : computed.fundingGap) },
-                { label: "Suggested /mo",  value: computed.verdictType === "FULLY_FUNDED" ? "On Track" : fmt(computed.suggestedMonthly) },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ padding: "10px 12px", background: "var(--bg-card)", borderRadius: 8, border: `1px solid ${computed.contextVerdictColor}20` }}>
-                  <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: computed.contextVerdictColor, fontFamily: "var(--font-mono)" }}>{value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {computed.contextVerdictBullets.map(({ positive, text }, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12, color: "var(--text-secondary)", animation: `edu-fade-up 0.3s ease-out ${0.1 + i * 0.06}s both` }}>
-                  <span style={{ color: positive ? computed.contextVerdictColor : "oklch(0.70 0.18 25)", flexShrink: 0, fontSize: 13 }}>{positive ? "✓" : "⚠"}</span>
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Add to Forecast */}
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${computed.contextVerdictColor}25`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 11, color: forecastStatus?.startsWith("Added") ? "oklch(0.72 0.18 145)" : forecastStatus ? "oklch(0.78 0.15 80)" : "var(--text-muted)" }}>
-                {forecastStatus ?? "Add projected college costs to your Life Forecast"}
-              </div>
-              <button
-                onClick={handleAddEduToForecast}
-                disabled={addingForecast || computed.yearsUntilCollege === 0}
-                style={{
-                  padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-                  background: "var(--accent)", color: "#fff", border: "none",
-                  cursor: addingForecast || computed.yearsUntilCollege === 0 ? "not-allowed" : "pointer",
-                  opacity: addingForecast || computed.yearsUntilCollege === 0 ? 0.5 : 1, flexShrink: 0,
-                }}
-              >
-                {addingForecast ? "Adding…" : "Add to Forecast"}
-              </button>
-            </div>
-          </div>
-
-          {/* FINN's Take — auto-narrative at top for immediate guidance */}
+          {/* FINN's Take */}
           <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.05s both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: `${computed.contextVerdictColor}18`, border: `1px solid ${computed.contextVerdictColor}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1037,8 +1075,15 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </p>
           </div>
 
+        </div>
+      )}
+
+      {/* Readiness section */}
+      {section === "readiness" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 20 }}>
+
           {/* Readiness score */}
-          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both", flex: 1 }}>
+          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Education Readiness Score</p>
               <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
@@ -1064,10 +1109,70 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           </div>
 
         </div>
-      </div>
+      )}
 
-      {/* ── Full-width below grid ───────────────────────────────────────────── */}
-      <div style={{ padding: "16px 0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Readiness: Row 2 - P1 Optimizer + P7 Benchmarks */}
+      {section === "readiness" && computed.optimalPlanScore != null && (
+        <div style={{ padding: "0 0 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+            {/* P1: Optimizer */}
+            <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.03 255) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.18 250 / 0.2)", animation: "edu-fade-up 0.4s ease-out both" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "oklch(0.65 0.15 250)", boxShadow: "0 0 8px oklch(0.65 0.15 250 / 0.6)" }} />
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Retirement vs College Optimizer</p>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Optimal monthly split to maximize your combined plan score:</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 250 / 0.10)", border: "1px solid oklch(0.45 0.18 250 / 0.25)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 250)", marginBottom: 5 }}>Retirement</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.15 250)" }}>{fmt(computed.optimalRetirMonthly!)}/mo</div>
+                </div>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 145 / 0.10)", border: "1px solid oklch(0.45 0.18 145 / 0.25)" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 145)", marginBottom: 5 }}>529</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.optimalCollegeMonthly!)}/mo</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[
+                  { label: "Retire Prob", value: `${computed.optimalRetirProb}%` },
+                  { label: "College Cov", value: `${computed.optimalCollegeCoverage}%` },
+                  { label: "Plan Score",  value: `${computed.optimalPlanScore}` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ flex: 1, textAlign: "center", padding: "8px 4px", borderRadius: 7, background: "oklch(0.14 0.01 240)", border: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{label}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* P7: Benchmarks */}
+            <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Compared to National Averages</p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Projected total cost at enrollment ({computed.yearsUntilCollege}yr horizon)</p>
+              {(() => {
+                const maxCost = Math.max(...computed.benchmarkContext.map((b) => b.projCost));
+                return computed.benchmarkContext.map((b, i) => (
+                  <div key={b.label} style={{ marginBottom: 10, animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-secondary)", fontWeight: b.isCurrent ? 700 : 400 }}>
+                        {b.label}{b.isCurrent ? " ← You" : ""}
+                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-muted)" }}>{fmtK(b.projCost)}</span>
+                    </div>
+                    <div style={{ height: 5, background: "var(--bg-elevated, var(--border))", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(b.projCost / maxCost) * 100}%`, background: b.isCurrent ? "oklch(0.55 0.18 250)" : "oklch(0.35 0.06 240)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Impact section: full-width rows */}
+      {section === "impact" && (
+        <div style={{ padding: "16px 0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* Row 1: Funding Targets + Ecosystem */}
         <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
@@ -1127,65 +1232,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           )}
         </div>
-
-        {/* Row 2: P1 Optimizer + P7 Benchmarks */}
-        {computed.optimalPlanScore != null && (
-          <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-
-            {/* P1: Optimizer */}
-            <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.03 255) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.18 250 / 0.2)", animation: "edu-fade-up 0.4s ease-out both" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "oklch(0.65 0.15 250)", boxShadow: "0 0 8px oklch(0.65 0.15 250 / 0.6)" }} />
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Retirement vs College Optimizer</p>
-              </div>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Optimal monthly split to maximize your combined plan score:</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 250 / 0.10)", border: "1px solid oklch(0.45 0.18 250 / 0.25)" }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 250)", marginBottom: 5 }}>Retirement</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.15 250)" }}>{fmt(computed.optimalRetirMonthly!)}/mo</div>
-                </div>
-                <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 145 / 0.10)", border: "1px solid oklch(0.45 0.18 145 / 0.25)" }}>
-                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 145)", marginBottom: 5 }}>529</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.optimalCollegeMonthly!)}/mo</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {[
-                  { label: "Retire Prob", value: `${computed.optimalRetirProb}%` },
-                  { label: "College Cov", value: `${computed.optimalCollegeCoverage}%` },
-                  { label: "Plan Score",  value: `${computed.optimalPlanScore}` },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ flex: 1, textAlign: "center", padding: "8px 4px", borderRadius: 7, background: "oklch(0.14 0.01 240)", border: "1px solid var(--border)" }}>
-                    <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{label}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* P7: Benchmarks */}
-            <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Compared to National Averages</p>
-              <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Projected total cost at enrollment ({computed.yearsUntilCollege}yr horizon)</p>
-              {(() => {
-                const maxCost = Math.max(...computed.benchmarkContext.map((b) => b.projCost));
-                return computed.benchmarkContext.map((b, i) => (
-                  <div key={b.label} style={{ marginBottom: 10, animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both` }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-secondary)", fontWeight: b.isCurrent ? 700 : 400 }}>
-                        {b.label}{b.isCurrent ? " ← You" : ""}
-                      </span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-muted)" }}>{fmtK(b.projCost)}</span>
-                    </div>
-                    <div style={{ height: 5, background: "var(--bg-elevated, var(--border))", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${(b.projCost / maxCost) * 100}%`, background: b.isCurrent ? "oklch(0.55 0.18 250)" : "oklch(0.35 0.06 240)", borderRadius: 3, transition: "width 0.4s ease" }} />
-                    </div>
-                  </div>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
 
         {/* Row 3: Chart */}
         {computed.yearsUntilCollege > 0 ? (
@@ -1387,7 +1433,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           </div>
 
-      </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes edu-fade-up {
