@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
-import { saveFamilyScenario, deleteFamilyScenario } from "./family-actions";
+import { saveFamilyScenario, deleteFamilyScenario, addFamilyToForecast } from "./family-actions";
 import type { FamilyScenario } from "./family-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import type { FamilyFinnRequest } from "@/app/api/planning/family-finn/route";
@@ -536,6 +536,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
     initialScenarios.length > 0 ? initialScenarios[0].id : null,
   );
   const [numChildren, setNumChildren] = useState<1 | 2 | 3 | 4>(1);
+  const [addingForecast, startAddForecast] = useTransition();
+  const [forecastStatus, setForecastStatus] = useState<string | null>(null);
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -687,6 +689,27 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
     }
   }
 
+  function handleAddFamilyToForecast() {
+    startAddForecast(async () => {
+      const fv = getFormValues();
+      const result = await addFamilyToForecast({
+        childName: fv.child_name || "Child",
+        childCurrentAge: fv.child_current_age,
+        monthlyInfantCost: fv.monthly_infant_cost,
+        monthlyChildCost: fv.monthly_child_cost,
+        monthlyTeenCost: fv.monthly_teen_cost,
+        currentYear: new Date().getFullYear(),
+      });
+      if (result.error) {
+        setForecastStatus(result.error);
+      } else if (result.added === 0) {
+        setForecastStatus("No years to add (child is 18+).");
+      } else {
+        setForecastStatus(`Added ${result.added} events to your Life Forecast.`);
+      }
+    });
+  }
+
   const v = getFormValues();
   const costImpactPct = v.monthly_expenses_now > 0
     ? (computed.currentMonthlyImpact / v.monthly_expenses_now * 100).toFixed(0) : "0";
@@ -790,6 +813,24 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 ))}
               </div>
             )}
+            {/* Add to Forecast */}
+            <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: `1px solid ${meta.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ fontSize: 11, color: forecastStatus?.startsWith("Added") ? "var(--green)" : forecastStatus ? "var(--amber)" : "var(--text-muted)" }}>
+                {forecastStatus ?? "Add child costs to your Life Forecast"}
+              </div>
+              <button
+                onClick={handleAddFamilyToForecast}
+                disabled={addingForecast || computed.remainingYears === 0}
+                style={{
+                  padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  background: "var(--accent)", color: "#fff", border: "none",
+                  cursor: addingForecast || computed.remainingYears === 0 ? "not-allowed" : "pointer",
+                  opacity: addingForecast || computed.remainingYears === 0 ? 0.5 : 1, flexShrink: 0,
+                }}
+              >
+                {addingForecast ? "Adding…" : "Add to Forecast"}
+              </button>
+            </div>
           </div>
         </div>
       )}

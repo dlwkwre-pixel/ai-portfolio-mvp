@@ -74,3 +74,43 @@ export async function deleteEducationScenario(id: string): Promise<{ error?: str
   revalidatePath("/planning/education");
   return {};
 }
+
+export async function addEducationToForecast(params: {
+  childName: string | null;
+  childCurrentAge: number;
+  yearsInCollege: number;
+  annualCostToday: number;
+  costInflationRate: number;
+  currentYear: number;
+}): Promise<{ error?: string; added: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated.", added: 0 };
+
+  const yearsUntilCollege = Math.max(0, 18 - params.childCurrentAge);
+  const label = params.childName ? `${params.childName} — ` : "Education — ";
+  const events: {
+    user_id: string; label: string; event_year: number;
+    amount_impact: number; category: string; sort_order: number;
+  }[] = [];
+
+  for (let y = 0; y < params.yearsInCollege; y++) {
+    const projectedCost = params.annualCostToday * Math.pow(1 + params.costInflationRate, yearsUntilCollege + y);
+    events.push({
+      user_id: user.id,
+      label: `${label}College Year ${y + 1}`,
+      event_year: params.currentYear + yearsUntilCollege + y,
+      amount_impact: -Math.round(projectedCost),
+      category: "education",
+      sort_order: y,
+    });
+  }
+
+  if (events.length === 0) return { added: 0 };
+
+  const { error } = await supabase.from("planning_future_events").insert(events);
+  if (error) return { error: error.message, added: 0 };
+  revalidatePath("/planning");
+  revalidatePath("/planning/education");
+  return { added: events.length };
+}

@@ -5,7 +5,7 @@ import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { saveEducationScenario, deleteEducationScenario } from "./education-actions";
+import { saveEducationScenario, deleteEducationScenario, addEducationToForecast } from "./education-actions";
 import type { EducationScenario } from "./education-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import type { EducationFinnRequest } from "@/app/api/planning/education-finn/route";
@@ -557,6 +557,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   const [numChildren, setNumChildren]           = useState<number>(1);
   const [scholarshipPct, setScholarshipPct]     = useState<number>(0);
   const [preset, setPreset]                     = useState<string>("custom");
+  const [addingForecast, startAddForecast]       = useTransition();
+  const [forecastStatus, setForecastStatus]      = useState<string | null>(null);
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
@@ -716,6 +718,26 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
     } finally {
       setLoadingCommentary(false);
     }
+  }
+
+  function handleAddEduToForecast() {
+    startAddForecast(async () => {
+      const result = await addEducationToForecast({
+        childName: src.child_name || null,
+        childCurrentAge: src.child_current_age,
+        yearsInCollege: src.years_in_college,
+        annualCostToday: src.annual_cost_today,
+        costInflationRate: src.cost_inflation_rate,
+        currentYear: new Date().getFullYear(),
+      });
+      if (result.error) {
+        setForecastStatus(result.error);
+      } else if (result.added === 0) {
+        setForecastStatus("No college years to add.");
+      } else {
+        setForecastStatus(`Added ${result.added} college year events to your Life Forecast.`);
+      }
+    });
   }
 
   return (
@@ -976,6 +998,43 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 </div>
               ))}
             </div>
+
+            {/* Add to Forecast */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${computed.contextVerdictColor}25`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 11, color: forecastStatus?.startsWith("Added") ? "oklch(0.72 0.18 145)" : forecastStatus ? "oklch(0.78 0.15 80)" : "var(--text-muted)" }}>
+                {forecastStatus ?? "Add projected college costs to your Life Forecast"}
+              </div>
+              <button
+                onClick={handleAddEduToForecast}
+                disabled={addingForecast || computed.yearsUntilCollege === 0}
+                style={{
+                  padding: "6px 14px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  background: "var(--accent)", color: "#fff", border: "none",
+                  cursor: addingForecast || computed.yearsUntilCollege === 0 ? "not-allowed" : "pointer",
+                  opacity: addingForecast || computed.yearsUntilCollege === 0 ? 0.5 : 1, flexShrink: 0,
+                }}
+              >
+                {addingForecast ? "Adding…" : "Add to Forecast"}
+              </button>
+            </div>
+          </div>
+
+          {/* FINN's Take — auto-narrative at top for immediate guidance */}
+          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out 0.05s both" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: `${computed.contextVerdictColor}18`, border: `1px solid ${computed.contextVerdictColor}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill={computed.contextVerdictColor}/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>FINN&apos;s Take</div>
+                <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rule-Based Analysis</div>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+              {computed.autoNarrative}
+            </p>
           </div>
 
           {/* Readiness score */}
@@ -1279,27 +1338,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "10px 0 0" }}>Click a row to apply that path to your calculator.</p>
         </div>
 
-        {/* Row 7: FINN cards */}
-        <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "stretch" }}>
-
-          {/* Auto FINN narrative */}
-          <div style={{ ...cardS, animation: "edu-fade-up 0.4s ease-out both" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: "oklch(0.45 0.18 250 / 0.15)", border: "1px solid oklch(0.45 0.18 250 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.72 0.15 250)"/>
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>FINN&apos;s Take</div>
-                <div style={{ fontSize: 10, color: "oklch(0.58 0.1 250)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rule-Based Analysis</div>
-              </div>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, animation: "edu-fade-up 0.4s ease-out 0.1s both" }}>
-              {computed.autoNarrative}
-            </p>
-          </div>
-
+        {/* Row 7: FINN Deep Analysis */}
           {/* FINN Deep Analysis */}
           <div style={{ ...cardS, background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
             <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.10) 0%, transparent 70%)", pointerEvents: "none", animation: "edu-orb-pulse 4s ease-in-out infinite" }} />
@@ -1347,7 +1386,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               </button>
             </div>
           </div>
-        </div>
 
       </div>
 
