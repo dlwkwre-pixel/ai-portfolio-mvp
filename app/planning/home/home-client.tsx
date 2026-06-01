@@ -1035,6 +1035,7 @@ export default function HomeClient({
   const [startPrice, setStartPrice] = useState("");
   const [startYear, setStartYear] = useState(String(new Date().getFullYear() + 3));
   const [startZip, setStartZip] = useState("");
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
   const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => {
     // Seed from an existing linked home_purchase event so "Update" doesn't silently reset the year
@@ -1794,6 +1795,74 @@ export default function HomeClient({
     });
   }, [goalMetrics, inputs, profile, salaryGrowthRate, liquidAssets, targetPurchaseYear, computed.retirBaselineProb]);
 
+  // ── Recommended Path ────────────────────────────────────────────────────────
+
+  const recommendedPath = useMemo(() => {
+    if (!comparePathMetrics) return null;
+    const monthlyIncome = profile?.monthly_income ?? 0;
+    const monthlyExpenses = profile?.monthly_expenses ?? 0;
+
+    const scored = comparePathMetrics.map((path) => {
+      const probScore = path.prob * 0.5;
+      const retirScore = path.retirDelta !== null
+        ? Math.max(0, Math.min(100, 50 + path.retirDelta * 2)) * 0.3
+        : 15;
+      const equityScore = Math.min(1, path.equityAtHold / 400000) * 20;
+      return { ...path, totalScore: probScore + retirScore + equityScore };
+    });
+    scored.sort((a, b) => b.totalScore - a.totalScore);
+    const best = scored[0];
+    const runnerUp = scored[1];
+
+    const gap = best.totalScore - (runnerUp?.totalScore ?? 0);
+    const confidence = Math.min(99, Math.max(60, Math.round(60 + gap * 3)));
+
+    const reasons: string[] = [];
+    const concerns: string[] = [];
+
+    const maxProb = Math.max(...comparePathMetrics.map((p) => p.prob));
+    if (best.prob === maxProb && best.prob >= 55) {
+      reasons.push(`Highest goal readiness at ${best.prob}%`);
+    }
+    if (best.retirDelta !== null && best.retirDelta >= -3) {
+      reasons.push(`Retirement probability stays on track${best.retirDelta > 0 ? ` (+${best.retirDelta}pp)` : ""}`);
+    }
+    if (best.cashSurplus > 0) {
+      reasons.push(`Cash surplus of ${fmtK(best.cashSurplus)} at purchase`);
+    }
+    const dreamPath = comparePathMetrics.find((p) => p.key === "dream");
+    if (best.key === "target") {
+      reasons.push("Best balance of lifestyle and long-term wealth");
+    } else if (best.key === "starter" && dreamPath && best.prob > dreamPath.prob + 15) {
+      reasons.push(`Meaningfully more achievable than larger options`);
+    } else if (best.key === "dream" && best.prob >= 75) {
+      reasons.push("Dream home achievable without compromising financial health");
+    }
+
+    const curSavingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : null;
+    const newSavingsRate = monthlyIncome > 0
+      ? ((monthlyIncome - monthlyExpenses - Math.max(0, best.totalMonthly - inputs.monthly_rent)) / monthlyIncome) * 100
+      : null;
+    if (curSavingsRate !== null && newSavingsRate !== null && newSavingsRate < curSavingsRate - 5) {
+      concerns.push(`Savings rate falls from ${Math.round(curSavingsRate)}% to ${Math.round(Math.max(0, newSavingsRate))}%`);
+    }
+    if (best.retirDelta !== null && best.retirDelta <= -5) {
+      concerns.push(`Retirement probability reduced by ${Math.abs(best.retirDelta)}pp`);
+    }
+    if (best.prob < 60) {
+      concerns.push(`Goal readiness is ${best.prob}% — plan needs strengthening before committing`);
+    }
+
+    const verdict = best.prob >= 70 ? "Recommended" : best.prob >= 50 ? "Proceed with Caution" : "Not Recommended";
+    const verdictColor = verdict === "Recommended"
+      ? "oklch(0.70 0.18 155)"
+      : verdict === "Proceed with Caution"
+      ? "oklch(0.75 0.18 70)"
+      : "oklch(0.68 0.18 25)";
+
+    return { ...best, confidence, reasons, concerns, verdict, verdictColor };
+  }, [comparePathMetrics, profile, inputs.monthly_rent]);
+
   // ── FINN Executive Summary (rule-based, always available) ──────────────────
 
   const finnSummary = useMemo(() => {
@@ -1801,55 +1870,93 @@ export default function HomeClient({
     const gm = goalMetrics;
     const parts: string[] = [];
 
-    // Sentence 1: Status + target
+    // Sentence 1: Opinionated verdict on readiness
     const priceStr = fmtK(inputs.purchase_price);
-    const statusWord = gm.onTrack ? "on track" : gm.prob >= 60 ? "close to on track" : "currently off track";
-    parts.push(`You are ${statusWord} to purchase a ${priceStr} home in ${targetPurchaseYear}.`);
-
-    // Sentence 2: Savings position
-    if (gm.cashSurplus >= 0) {
-      parts.push(`Based on your projected savings and income growth, you are estimated to exceed your down payment target by approximately ${fmtK(gm.cashSurplus)} at purchase.`);
+    if (gm.onTrack) {
+      parts.push(`A ${priceStr} home in ${targetPurchaseYear} is financially achievable based on your current savings trajectory and income profile.`);
+    } else if (gm.prob >= 60) {
+      parts.push(`A ${priceStr} home in ${targetPurchaseYear} is within reach, but closing a ${fmtK(-gm.cashSurplus)} savings gap before that date will be the determining factor.`);
     } else {
-      const shortfall = fmtK(-gm.cashSurplus);
-      if (gm.yearsUntilPurchase > 0) {
-        parts.push(`At your current savings rate, you are projected to be ${shortfall} short of your down payment target — increasing monthly savings or extending your timeline would close this gap.`);
-      } else {
-        parts.push(`Your projected savings fall ${shortfall} short of the down payment and closing costs required for this purchase.`);
-      }
+      parts.push(`At your current savings rate, a ${priceStr} home in ${targetPurchaseYear} carries significant financial risk — either a lower price point or a later timeline would materially improve your position.`);
     }
 
-    // Sentence 3: Retirement impact
+    // Sentence 2: Savings position — advisor recommendation
+    if (gm.cashSurplus >= 0) {
+      parts.push(`With a projected ${fmtK(gm.cashSurplus)} surplus above your down payment and closing costs, you have meaningful financial cushion entering this purchase.`);
+    } else if (gm.yearsUntilPurchase > 0) {
+      const extraPerMonth = Math.ceil(-gm.cashSurplus / (gm.yearsUntilPurchase * 12) / 50) * 50;
+      parts.push(`Closing the ${fmtK(-gm.cashSurplus)} shortfall over ${gm.yearsUntilPurchase} year${gm.yearsUntilPurchase === 1 ? "" : "s"} requires roughly ${fmt(extraPerMonth)}/mo in additional savings — this is the single most important lever to pull right now.`);
+    } else {
+      parts.push(`Your projected savings fall ${fmtK(-gm.cashSurplus)} short of what this purchase requires — either increase the down payment savings goal or reconsider the timing.`);
+    }
+
+    // Sentence 3: Retirement — opinionated synthesis, not narration
     if (computed.retirDelta !== null && computed.retirWithHomeProb !== null) {
       const delta = computed.retirDelta;
       const withProb = computed.retirWithHomeProb;
-      if (delta <= -5) {
-        const assetDelta = computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null
-          ? fmtK(Math.abs(computed.retirBaselineAssets - computed.retirWithHomeAssets))
-          : null;
-        parts.push(`This purchase ${assetDelta ? `reduces projected retirement assets by approximately ${assetDelta}` : "has a meaningful impact on retirement assets"}, bringing retirement probability to ${withProb}%.`);
+      const assetDelta = computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null
+        ? fmtK(Math.abs(computed.retirBaselineAssets - computed.retirWithHomeAssets))
+        : null;
+      if (delta <= -5 && withProb >= 80) {
+        parts.push(`Despite reducing projected retirement assets by approximately ${assetDelta ?? "a meaningful amount"}, this home remains financially viable because retirement probability holds at ${withProb}% — equity growth partially offsets the drag on liquid savings.`);
+      } else if (delta <= -5) {
+        parts.push(`This purchase reduces retirement probability to ${withProb}% — that is below the 80% comfort threshold, and warrants serious consideration before committing.`);
       } else if (delta >= 0) {
-        parts.push(`This purchase maintains or improves your retirement trajectory, with retirement probability at ${withProb}% after accounting for home equity growth.`);
+        parts.push(`Your retirement trajectory is intact after this purchase, with probability at ${withProb}% — home equity growth is expected to compensate for the reduced liquid savings.`);
       } else {
-        parts.push(`This purchase has a modest effect on retirement planning, with retirement probability at ${withProb}% after accounting for home equity.`);
+        parts.push(`Retirement probability sits at ${withProb}% with this purchase — a modest reduction, but within an acceptable range if emergency reserves remain healthy.`);
       }
     }
 
-    // Sentence 4: Biggest risk
+    // Sentence 4: Biggest risk — advisor framing
     if (gm.risks.length > 0) {
       const risk = gm.risks[0].replace(/\.$/, "").toLowerCase();
-      parts.push(`The largest near-term risk is ${risk}.`);
+      parts.push(`The factor most likely to derail this plan is ${risk} — address this before committing to a purchase date.`);
     }
 
-    // Sentence 5: Break-even economics
+    // Sentence 5: Ownership economics — is this actually a good financial move?
     const be = computed.breakEvenYear;
     if (be !== null && be <= inputs.hold_years) {
-      parts.push(`At current appreciation rates, home equity outpaces the rented-and-invested alternative in ${be} year${be === 1 ? "" : "s"}.`);
+      parts.push(`The ownership math works in your favor: home equity is projected to outpace the rented-and-invested alternative by year ${be}.`);
     } else if (be === null) {
-      parts.push(`Under current assumptions, the home does not break even against renting and investing within the ${inputs.hold_years}-year hold period.`);
+      parts.push(`Under current assumptions, renting and investing would outperform ownership over your ${inputs.hold_years}-year horizon — this purchase is a lifestyle and stability decision more than a financial optimization.`);
     }
 
     return parts.join(" ");
   }, [goalMetrics, computed, inputs, targetPurchaseYear]);
+
+  // ── Home Goal Tracker ───────────────────────────────────────────────────────
+
+  const goalTracker = useMemo(() => {
+    if (!goalMetrics.hasProfile) return null;
+    const totalNeeded = goalMetrics.totalNeeded;
+    if (totalNeeded <= 0) return null;
+    const progress = Math.min(1, liquidAssets / totalNeeded);
+    const progressPct = Math.round(progress * 100);
+    const r = inputs.investment_return / 100;
+    const annualSavings = goalMetrics.annualSavings;
+    const currentYear = new Date().getFullYear();
+    let projectedYear: number | null = null;
+    if (liquidAssets >= totalNeeded) {
+      projectedYear = currentYear;
+    } else if (annualSavings > 0) {
+      let accum = liquidAssets;
+      for (let yr = 1; yr <= 30; yr++) {
+        accum = r > 0 ? accum * (1 + r) + annualSavings : accum + annualSavings;
+        if (accum >= totalNeeded) { projectedYear = currentYear + yr; break; }
+      }
+    }
+    const yearsAhead = projectedYear !== null ? targetPurchaseYear - projectedYear : null;
+    const status = projectedYear === null ? "Increase savings to stay on track"
+      : projectedYear <= targetPurchaseYear - 1 ? "Ahead of Schedule"
+      : projectedYear <= targetPurchaseYear ? "On Track"
+      : "Behind Schedule";
+    return {
+      totalNeeded, currentSaved: liquidAssets, progressPct, projectedYear,
+      status, yearsAhead, dpGoal: inputs.down_payment,
+      purchasePrice: inputs.purchase_price, targetYear: targetPurchaseYear,
+    };
+  }, [goalMetrics, liquidAssets, inputs, targetPurchaseYear]);
 
   const scenarioSummaries = useMemo(
     () => scenarios.map((s) => computeScenarioSummary(s, profile)),
@@ -2283,6 +2390,59 @@ export default function HomeClient({
           );
         })()}
 
+        {/* Home Goal Tracker */}
+        {hasStarted && goalTracker && (() => {
+          const gt = goalTracker;
+          const statusColor = gt.status === "Ahead of Schedule" ? "oklch(0.70 0.18 155)"
+            : gt.status === "On Track" ? "oklch(0.68 0.18 200)"
+            : gt.status === "Behind Schedule" ? "oklch(0.68 0.18 25)"
+            : "oklch(0.75 0.18 70)";
+          const statusBg = gt.status === "Ahead of Schedule" ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)"
+            : gt.status === "On Track" ? "color-mix(in oklch, oklch(0.68 0.18 200) 8%, transparent)"
+            : gt.status === "Behind Schedule" ? "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)"
+            : "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)";
+          const filledPct = gt.progressPct;
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, letterSpacing: "-0.01em" }}>Home Goal Progress</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "1px 0 0" }}>{fmt(gt.purchasePrice)} target · {gt.targetYear}</p>
+                </div>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: statusColor, background: statusBg, padding: "3px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{gt.status}</span>
+              </div>
+              <div style={{ padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "8px" }}>
+                  <div>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>{filledPct}%</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)", marginLeft: "6px" }}>{fmtK(gt.currentSaved)} saved</span>
+                  </div>
+                  <div style={{ textAlign: "right" as const }}>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", margin: 0 }}>{fmtK(gt.totalNeeded)} needed</p>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0", fontFamily: "var(--font-body)" }}>down payment + closing</p>
+                  </div>
+                </div>
+                <div style={{ height: "6px", borderRadius: "3px", background: "var(--border-subtle)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${filledPct}%`, borderRadius: "3px", background: statusColor, transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
+                </div>
+                {gt.projectedYear !== null && (
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>
+                      Projected completion: <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>{gt.projectedYear}</span>
+                    </p>
+                    {gt.yearsAhead !== null && gt.yearsAhead > 0 && (
+                      <p style={{ fontSize: "10px", color: statusColor, margin: 0, fontFamily: "var(--font-body)", fontWeight: 600 }}>{gt.yearsAhead} yr{gt.yearsAhead === 1 ? "" : "s"} ahead of target</p>
+                    )}
+                    {gt.yearsAhead !== null && gt.yearsAhead < 0 && (
+                      <p style={{ fontSize: "10px", color: statusColor, margin: 0, fontFamily: "var(--font-body)", fontWeight: 600 }}>{Math.abs(gt.yearsAhead)} yr{Math.abs(gt.yearsAhead) === 1 ? "" : "s"} behind target</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* FINN Executive Summary */}
         {hasStarted && finnSummary && (
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
@@ -2324,6 +2484,72 @@ export default function HomeClient({
             </div>
           </div>
         )}
+
+        {/* Recommended Path */}
+        {hasStarted && recommendedPath && (() => {
+          const rp = recommendedPath;
+          const isStrong = rp.verdict === "Recommended";
+          const accentColor = rp.verdictColor;
+          const accentBg = `color-mix(in oklch, ${accentColor} 8%, transparent)`;
+          const accentBorder = `color-mix(in oklch, ${accentColor} 22%, transparent)`;
+          return (
+            <div style={{ background: "var(--card-bg)", border: `1px solid ${accentBorder}`, borderRadius: "var(--radius-lg)", overflow: "hidden", boxShadow: `0 0 0 1px ${accentBorder}` }}>
+              <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: accentBg, border: `1px solid ${accentBorder}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill={accentColor}><path d="M10 2l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 14.27l-4.77 2.44.91-5.32L2.27 7.62l5.34-.78z"/></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.09em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 2px" }}>BuyTune Recommendation</p>
+                    <p style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, letterSpacing: "-0.02em" }}>{rp.label} Home</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                  <div style={{ textAlign: "right" as const }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 2px" }}>Confidence</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: accentColor, letterSpacing: "-0.02em", margin: 0 }}>{rp.confidence}%</p>
+                  </div>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: accentColor, background: accentBg, border: `1px solid ${accentBorder}`, padding: "5px 12px", borderRadius: "7px", fontFamily: "var(--font-body)" }}>{rp.verdict}</span>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", borderBottom: "1px solid var(--border-subtle)" }}>
+                {[
+                  { label: "Price", value: fmt(rp.price) },
+                  { label: "Monthly Cost", value: fmt(rp.totalMonthly) + "/mo" },
+                  { label: "Goal Readiness", value: rp.prob + "%" },
+                  { label: "Equity at Yr " + inputs.hold_years, value: fmtK(rp.equityAtHold) },
+                ].map(({ label, value }, i) => (
+                  <div key={label} style={{ padding: "10px 14px", borderRight: i < 3 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: rp.concerns.length > 0 ? "1fr 1fr" : "1fr", gap: "12px", padding: "12px 16px" }}>
+                {rp.reasons.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Why this path</p>
+                    {rp.reasons.map((r, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 4px", lineHeight: 1.4, paddingLeft: "12px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: accentColor, fontWeight: 700 }}>✓</span>{r}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {rp.concerns.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Consider</p>
+                    {rp.concerns.map((c, i) => (
+                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 4px", lineHeight: 1.4, paddingLeft: "12px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Compare Home Paths */}
         {comparePathMetrics && (() => {
@@ -2383,185 +2609,6 @@ export default function HomeClient({
             </div>
           );
         })()}
-
-        {/* Future Home Snapshot */}
-        {goalMetrics.hasProfile && (() => {
-          const ageAtPurchase = profile?.current_age != null
-            ? profile.current_age + goalMetrics.yearsUntilPurchase
-            : null;
-          const retirProb = computed.retirWithHomeProb ?? computed.retirBaselineProb;
-          const cells: { label: string; value: string; sub?: string; highlight?: boolean }[] = [
-            { label: "Purchase Year", value: String(targetPurchaseYear), sub: goalMetrics.yearsUntilPurchase > 0 ? `${goalMetrics.yearsUntilPurchase} yrs away` : "This year" },
-            ...(ageAtPurchase != null ? [{ label: "Your Age", value: String(ageAtPurchase) }] : []),
-            { label: "Projected Income", value: fmt(goalMetrics.projectedAnnualIncome) + "/yr", sub: `at ${targetPurchaseYear}` },
-            { label: "Projected Savings", value: fmtK(goalMetrics.projectedCash), sub: `by ${targetPurchaseYear}` },
-            { label: "Cash Needed", value: fmt(goalMetrics.totalNeeded), sub: "down + closing" },
-            {
-              label: "Remaining Liquidity",
-              value: goalMetrics.cashSurplus >= 0 ? fmtK(goalMetrics.cashSurplus) : `−${fmtK(-goalMetrics.cashSurplus)}`,
-              sub: goalMetrics.emergencyMonths != null ? `${Math.max(0, goalMetrics.emergencyMonths).toFixed(1)} mo emergency fund` : undefined,
-              highlight: goalMetrics.cashSurplus < 0,
-            },
-            { label: "Monthly Housing Cost", value: fmt(computed.totalMonthly) + "/mo", sub: "P&I + tax + ins" },
-            ...(retirProb != null ? [{ label: "Retirement Probability", value: retirProb + "%", sub: "at target age" }] : []),
-          ];
-          return (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>Future Home Snapshot</p>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
-                  Your financial profile at the moment of purchase — {targetPurchaseYear}
-                </p>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
-                {cells.map(({ label, value, sub, highlight }, i) => (
-                  <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
-                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
-                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Goal Timeline */}
-        {goalMetrics.hasProfile && (() => {
-          const currentYear = new Date().getFullYear();
-          const retirYear = profile?.current_age && profile?.target_retirement_age
-            ? currentYear + (profile.target_retirement_age - profile.current_age)
-            : null;
-          const milestones: { year: number; label: string; sub: string; done: boolean }[] = [
-            { year: currentYear, label: "Today", sub: `${fmtK(liquidAssets)} saved`, done: true },
-          ];
-          if (goalMetrics.dpReadyYear && goalMetrics.dpReadyYear < targetPurchaseYear) {
-            milestones.push({ year: goalMetrics.dpReadyYear, label: "Down Payment Ready", sub: fmt(goalMetrics.totalNeeded) + " reached", done: false });
-          }
-          milestones.push({ year: targetPurchaseYear, label: "Purchase Target", sub: fmt(inputs.purchase_price), done: false });
-          if (retirYear && retirYear > targetPurchaseYear) {
-            milestones.push({ year: retirYear, label: "Retirement", sub: computed.retirWithHomeAssets != null ? fmtK(computed.retirWithHomeAssets) + " est." : "age " + profile!.target_retirement_age, done: false });
-          }
-          return (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-              <p style={{ ...sectionHead, marginBottom: "14px" }}>Goal Timeline</p>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto" }}>
-                {milestones.map((m, i) => (
-                  <div key={m.year} style={{ display: "flex", alignItems: "flex-start", flex: i < milestones.length - 1 ? 1 : undefined, minWidth: "80px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "80px" }}>
-                      <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: m.done ? "oklch(0.70 0.18 155)" : "var(--bg-elevated)", border: `2px solid ${m.done ? "oklch(0.70 0.18 155)" : "var(--text-muted)"}`, flexShrink: 0, marginBottom: "6px" }} />
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: m.done ? "oklch(0.70 0.18 155)" : "var(--text-primary)" }}>{m.year}</span>
-                      <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "2px", textAlign: "center" as const, lineHeight: 1.3 }}>{m.label}</span>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px", textAlign: "center" as const }}>{m.sub}</span>
-                    </div>
-                    {i < milestones.length - 1 && (
-                      <div style={{ flex: 1, height: "2px", marginTop: "4px", background: "var(--border-subtle)", alignSelf: "flex-start" }} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Worth It Score */}
-        {worthItMetrics && (() => {
-          const { score, label, strengths, concerns } = worthItMetrics;
-          const scoreColor = score >= 70 ? "oklch(0.70 0.18 155)" : score >= 55 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
-          const scoreBg = score >= 70 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : score >= 55 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
-          const components = [
-            { label: "Goal Readiness", pts: worthItMetrics.goalPts, max: 25 },
-            { label: "Ownership Economics", pts: worthItMetrics.econPts, max: 25 },
-            { label: "Retirement Safety", pts: worthItMetrics.retirPts, max: 25 },
-            { label: "Liquidity After Purchase", pts: worthItMetrics.liqPts, max: 25 },
-          ];
-          return (
-            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
-                <div>
-                  <p style={{ ...sectionHead, margin: 0 }}>Worth It Score</p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Should you do this — not just can you</p>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 600, color: scoreColor, background: scoreBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{label}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor, letterSpacing: "-0.02em" }}>{score}</span>
-                </div>
-              </div>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "7px" }}>
-                {components.map(({ label: cl, pts, max }) => {
-                  const pct = Math.round((pts / max) * 100);
-                  const cColor = pts >= max * 0.8 ? "oklch(0.70 0.18 155)" : pts >= max * 0.5 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
-                  return (
-                    <div key={cl}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
-                        <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cl}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: cColor }}>{pts}/{max}</span>
-                      </div>
-                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, borderRadius: "2px", background: cColor, transition: "width 0.4s ease" }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
-                {strengths.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
-                    {strengths.map((s, i) => (
-                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
-                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
-                      </p>
-                    ))}
-                  </div>
-                )}
-                {concerns.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
-                    {concerns.map((c, i) => (
-                      <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
-                        <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Path to Success */}
-        {pathMetrics && (
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-              <p style={{ ...sectionHead, margin: 0 }}>Path to Success</p>
-              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Three ways to improve your {pathMetrics.options[0].probBefore}% readiness score</p>
-            </div>
-            <div>
-              {pathMetrics.options.map((opt, i) => {
-                const delta = opt.probAfter - opt.probBefore;
-                const deltaColor = delta >= 10 ? "oklch(0.70 0.18 155)" : delta >= 4 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
-                return (
-                  <div key={opt.letter} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
-                    <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{opt.letter}</span>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{opt.label}</div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{opt.detail}</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
-                      {delta > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Forecast Impact */}
         {computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null && (() => {
@@ -2685,32 +2732,111 @@ export default function HomeClient({
           );
         })()}
 
-        {/* Stress Tests */}
-        {stressMetrics && (
+        {/* Future Home Snapshot */}
+        {goalMetrics.hasProfile && (() => {
+          const ageAtPurchase = profile?.current_age != null
+            ? profile.current_age + goalMetrics.yearsUntilPurchase
+            : null;
+          const retirProb = computed.retirWithHomeProb ?? computed.retirBaselineProb;
+          const cells: { label: string; value: string; sub?: string; highlight?: boolean }[] = [
+            { label: "Purchase Year", value: String(targetPurchaseYear), sub: goalMetrics.yearsUntilPurchase > 0 ? `${goalMetrics.yearsUntilPurchase} yrs away` : "This year" },
+            ...(ageAtPurchase != null ? [{ label: "Your Age", value: String(ageAtPurchase) }] : []),
+            { label: "Projected Income", value: fmt(goalMetrics.projectedAnnualIncome) + "/yr", sub: `at ${targetPurchaseYear}` },
+            { label: "Projected Savings", value: fmtK(goalMetrics.projectedCash), sub: `by ${targetPurchaseYear}` },
+            { label: "Cash Needed", value: fmt(goalMetrics.totalNeeded), sub: "down + closing" },
+            {
+              label: "Remaining Liquidity",
+              value: goalMetrics.cashSurplus >= 0 ? fmtK(goalMetrics.cashSurplus) : `−${fmtK(-goalMetrics.cashSurplus)}`,
+              sub: goalMetrics.emergencyMonths != null ? `${Math.max(0, goalMetrics.emergencyMonths).toFixed(1)} mo emergency fund` : undefined,
+              highlight: goalMetrics.cashSurplus < 0,
+            },
+            { label: "Monthly Housing Cost", value: fmt(computed.totalMonthly) + "/mo", sub: "P&I + tax + ins" },
+            ...(retirProb != null ? [{ label: "Retirement Probability", value: retirProb + "%", sub: "at target age" }] : []),
+          ];
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                <p style={{ ...sectionHead, margin: 0 }}>Future Home Snapshot</p>
+                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                  Your financial profile at the moment of purchase — {targetPurchaseYear}
+                </p>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
+                {cells.map(({ label, value, sub, highlight }, i) => (
+                  <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
+                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
+                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Goal Timeline */}
+        {goalMetrics.hasProfile && (() => {
+          const currentYear = new Date().getFullYear();
+          const retirYear = profile?.current_age && profile?.target_retirement_age
+            ? currentYear + (profile.target_retirement_age - profile.current_age)
+            : null;
+          const milestones: { year: number; label: string; sub: string; done: boolean }[] = [
+            { year: currentYear, label: "Today", sub: `${fmtK(liquidAssets)} saved`, done: true },
+          ];
+          if (goalMetrics.dpReadyYear && goalMetrics.dpReadyYear < targetPurchaseYear) {
+            milestones.push({ year: goalMetrics.dpReadyYear, label: "Down Payment Ready", sub: fmt(goalMetrics.totalNeeded) + " reached", done: false });
+          }
+          milestones.push({ year: targetPurchaseYear, label: "Purchase Target", sub: fmt(inputs.purchase_price), done: false });
+          if (retirYear && retirYear > targetPurchaseYear) {
+            milestones.push({ year: retirYear, label: "Retirement", sub: computed.retirWithHomeAssets != null ? fmtK(computed.retirWithHomeAssets) + " est." : "age " + profile!.target_retirement_age, done: false });
+          }
+          return (
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+              <p style={{ ...sectionHead, marginBottom: "14px" }}>Goal Timeline</p>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 0, overflowX: "auto" }}>
+                {milestones.map((m, i) => (
+                  <div key={m.year} style={{ display: "flex", alignItems: "flex-start", flex: i < milestones.length - 1 ? 1 : undefined, minWidth: "80px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "80px" }}>
+                      <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: m.done ? "oklch(0.70 0.18 155)" : "var(--bg-elevated)", border: `2px solid ${m.done ? "oklch(0.70 0.18 155)" : "var(--text-muted)"}`, flexShrink: 0, marginBottom: "6px" }} />
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: m.done ? "oklch(0.70 0.18 155)" : "var(--text-primary)" }}>{m.year}</span>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "2px", textAlign: "center" as const, lineHeight: 1.3 }}>{m.label}</span>
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px", textAlign: "center" as const }}>{m.sub}</span>
+                    </div>
+                    {i < milestones.length - 1 && (
+                      <div style={{ flex: 1, height: "2px", marginTop: "4px", background: "var(--border-subtle)", alignSelf: "flex-start" }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Path to Success */}
+        {pathMetrics && (
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-              <p style={{ ...sectionHead, margin: 0 }}>Stress Tests</p>
-              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Sensitivity of your {stressMetrics.base}% readiness to adverse changes</p>
+              <p style={{ ...sectionHead, margin: 0 }}>Path to Success</p>
+              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Three ways to improve your {pathMetrics.options[0].probBefore}% readiness score</p>
             </div>
             <div>
-              {stressMetrics.scenarios.map((sc, i) => {
-                const delta = sc.probAfter - sc.probBefore;
-                const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+              {pathMetrics.options.map((opt, i) => {
+                const delta = opt.probAfter - opt.probBefore;
+                const deltaColor = delta >= 10 ? "oklch(0.70 0.18 155)" : delta >= 4 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
                 return (
-                  <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                  <div key={opt.letter} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                    <div style={{ width: "24px", height: "24px", borderRadius: "6px", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{opt.letter}</span>
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{opt.label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{opt.detail}</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
                       <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
-                      {delta !== 0 && (
-                        <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
-                          {delta > 0 ? "+" : ""}{delta}%
-                        </span>
-                      )}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
+                      {delta > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>}
                     </div>
                   </div>
                 );
@@ -2792,6 +2918,125 @@ export default function HomeClient({
             </div>
           );
         })()}
+
+        {/* Advanced Analysis — collapsible */}
+        {hasStarted && (worthItMetrics || stressMetrics) && (
+          <div>
+            <button
+              onClick={() => setAdvancedExpanded((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "11px 16px", cursor: "pointer", color: "var(--text-muted)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: advancedExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s ease", flexShrink: 0 }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              Advanced Analysis
+              <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 400 }}>Worth It Score, Stress Tests</span>
+            </button>
+            {advancedExpanded && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", marginTop: "20px" }}>
+                {/* Worth It Score */}
+                {worthItMetrics && (() => {
+                  const { score, label, strengths, concerns } = worthItMetrics;
+                  const scoreColor = score >= 70 ? "oklch(0.70 0.18 155)" : score >= 55 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                  const scoreBg = score >= 70 ? "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)" : score >= 55 ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, transparent)" : "color-mix(in oklch, oklch(0.68 0.18 25) 8%, transparent)";
+                  const components = [
+                    { label: "Goal Readiness", pts: worthItMetrics.goalPts, max: 25 },
+                    { label: "Ownership Economics", pts: worthItMetrics.econPts, max: 25 },
+                    { label: "Retirement Safety", pts: worthItMetrics.retirPts, max: 25 },
+                    { label: "Liquidity After Purchase", pts: worthItMetrics.liqPts, max: 25 },
+                  ];
+                  return (
+                    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+                      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+                        <div>
+                          <p style={{ ...sectionHead, margin: 0 }}>Worth It Score</p>
+                          <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Should you do this — not just can you</p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: scoreColor, background: scoreBg, padding: "4px 10px", borderRadius: "6px", fontFamily: "var(--font-body)" }}>{label}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor, letterSpacing: "-0.02em" }}>{score}</span>
+                        </div>
+                      </div>
+                      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "7px" }}>
+                        {components.map(({ label: cl, pts, max }) => {
+                          const pct = Math.round((pts / max) * 100);
+                          const cColor = pts >= max * 0.8 ? "oklch(0.70 0.18 155)" : pts >= max * 0.5 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)";
+                          return (
+                            <div key={cl}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                                <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cl}</span>
+                                <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: cColor }}>{pts}/{max}</span>
+                              </div>
+                              <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)" }}>
+                                <div style={{ height: "100%", width: `${pct}%`, borderRadius: "2px", background: cColor, transition: "width 0.4s ease" }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
+                        {strengths.length > 0 && (
+                          <div>
+                            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
+                            {strengths.map((s, i) => (
+                              <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                                <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {concerns.length > 0 && (
+                          <div>
+                            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
+                            {concerns.map((c, i) => (
+                              <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
+                                <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Stress Tests */}
+                {stressMetrics && (
+                  <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+                    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
+                      <p style={{ ...sectionHead, margin: 0 }}>Stress Tests</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>Sensitivity of your {stressMetrics.base}% readiness to adverse changes</p>
+                    </div>
+                    <div>
+                      {stressMetrics.scenarios.map((sc, i) => {
+                        const delta = sc.probAfter - sc.probBefore;
+                        const deltaColor = delta <= -15 ? "oklch(0.68 0.18 25)" : delta <= -5 ? "oklch(0.75 0.18 70)" : "var(--text-secondary)";
+                        return (
+                          <div key={sc.label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", borderBottom: i < 2 ? "1px solid var(--border-subtle)" : undefined }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{sc.label}</div>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{sc.detail}</div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
+                              <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
+                              {delta !== 0 && (
+                                <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
+                                  {delta > 0 ? "+" : ""}{delta}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Compare Futures — ranked table */}
         {scenarios.length >= 1 && (() => {
