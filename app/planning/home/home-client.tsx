@@ -2400,7 +2400,7 @@ export default function HomeClient({
                           </div>
                         </div>
                         <div style={{ height: "3px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${score}%`, borderRadius: "2px", background: barColor, transition: "width 0.4s ease" }} />
+                          <div style={{ height: "100%", width: trackerMounted ? `${score}%` : "0%", borderRadius: "2px", background: barColor, transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
                         </div>
                       </div>
                     );
@@ -2412,7 +2412,7 @@ export default function HomeClient({
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: gm.overallReadiness >= 80 ? "oklch(0.70 0.18 155)" : gm.overallReadiness >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)" }}>{gm.overallReadiness}%</span>
                     </div>
                     <div style={{ height: "4px", borderRadius: "2px", background: "var(--border-subtle)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${gm.overallReadiness}%`, borderRadius: "2px", background: gm.overallReadiness >= 80 ? "oklch(0.70 0.18 155)" : gm.overallReadiness >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)", transition: "width 0.4s ease" }} />
+                      <div style={{ height: "100%", width: trackerMounted ? `${gm.overallReadiness}%` : "0%", borderRadius: "2px", background: gm.overallReadiness >= 80 ? "oklch(0.70 0.18 155)" : gm.overallReadiness >= 50 ? "oklch(0.75 0.18 70)" : "oklch(0.68 0.18 25)", transition: "width 0.7s cubic-bezier(0.16,1,0.3,1)" }} />
                     </div>
                   </div>
                 </div>

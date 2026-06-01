@@ -4837,80 +4837,6 @@ export default function PlanningClient({
         isPrivate={isPrivate}
       />
 
-      {/* Supporting metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-        <MetricCard
-          label="Monthly Savings"
-          value={pHide(monthlySavings >= 0 ? fmt(monthlySavings) : "−" + fmt(Math.abs(monthlySavings)))}
-          sub={effectiveIncome > 0 ? `${fmtPct(savingsRate)} savings rate` : undefined}
-          color={monthlySavings >= 0 ? "var(--text-primary)" : "var(--red)"}
-        />
-        <MetricCard
-          label="Monthly Income"
-          value={pHide(fmt(effectiveIncome))}
-          sub="net, after taxes"
-        />
-        <MetricCard
-          label="Monthly Expenses"
-          value={pHide(fmt(effectiveExpenses))}
-          color="var(--text-primary)"
-        />
-        {retirementProb != null && (
-          <MetricCard
-            label="On Track"
-            value={`${mcResult?.mcRetirementProbability ?? retirementProb}%`}
-            sub={mcResult ? "Monte Carlo" : "4% rule"}
-            color={(mcResult?.mcRetirementProbability ?? retirementProb) >= 75 ? "var(--green)" : (mcResult?.mcRetirementProbability ?? retirementProb) >= 50 ? "var(--amber)" : "var(--red)"}
-          />
-        )}
-      </div>
-
-      {/* Health score + FINN banner */}
-      <div style={{
-        background: "var(--violet-bg)", border: "1px solid var(--violet-border)",
-        borderRadius: "var(--radius-lg)", padding: "16px 20px",
-        display: "flex", gap: "16px", alignItems: "flex-start",
-        marginBottom: "20px", flexWrap: "wrap",
-      }}>
-        <ScoreRing score={healthData.total} />
-        <div style={{ flex: 1, minWidth: "200px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--violet)", fontFamily: "var(--font-body)" }}>
-              Financial Health Score
-            </span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)" }}>
-              {healthData.total}/100
-            </span>
-          </div>
-
-          {/* Factor bars */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "10px" }}>
-            {healthData.factors.map((f) => (
-              <div key={f.name} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <div style={{ width: "48px", height: "4px", borderRadius: "2px", background: "var(--card-border)", overflow: "hidden" }}>
-                  <div style={{ width: `${(f.score / f.max) * 100}%`, height: "100%", background: f.direction === "strength" ? "var(--green)" : f.direction === "weakness" ? "var(--red)" : "var(--amber)", borderRadius: "2px", transition: "width 0.5s cubic-bezier(0.23,1,0.32,1)" }} />
-                </div>
-                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{f.name}</span>
-                <InfoTooltip text={getFactorExplainer(f.name, savingsRate, liquidAssets, effectiveExpenses, totalAssets, totalLiabilities, retirementProb)} />
-              </div>
-            ))}
-          </div>
-
-          {finnCommentary ? (
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnCommentary}</p>
-          ) : (
-            <button
-              type="button"
-              onClick={fetchFinnCommentary}
-              disabled={finnLoading}
-              style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "6px 12px", opacity: finnLoading ? 0.7 : 1 }}
-            >
-              {finnLoading ? "FINN is thinking…" : "Get FINN Commentary"}
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="planning-tabs-bar" style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "20px" }}>
         {TABS.map(({ id, label }) => (
@@ -5037,6 +4963,75 @@ export default function PlanningClient({
               </div>
             </div>
           </div>
+
+          {/* ── Section 1b: Biggest Risk + Biggest Opportunity ── */}
+          {commandPriorities.length > 0 && (() => {
+            const risk = commandPriorities.find((p) => p.urgent) ?? null;
+            const opportunity = commandPriorities.find((p) => !p.urgent) ?? commandPriorities[0];
+            const showBoth = risk && opportunity && risk.id !== opportunity.id;
+            const item = showBoth ? null : (risk ?? opportunity);
+            return (
+              <div className="cmd-section" style={{ animationDelay: "40ms", display: "grid", gridTemplateColumns: showBoth ? "1fr 1fr" : "1fr", gap: "10px" }}>
+                {/* Risk card */}
+                {(showBoth ? risk : (risk ?? null)) && (() => {
+                  const r = risk!;
+                  return (
+                    <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.14)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                        Biggest Risk
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "5px", lineHeight: 1.3 }}>{r.title}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "10px" }}>{r.why}</div>
+                      <button type="button" onClick={() => setTab(r.tabKey as Tab)}
+                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "oklch(0.65 0.18 25)", cursor: "pointer" }}>
+                        {r.ctaLabel} →
+                      </button>
+                    </div>
+                  );
+                })()}
+                {/* Opportunity card */}
+                {(showBoth ? opportunity : (!risk ? opportunity : null)) && (() => {
+                  const o = opportunity!;
+                  return (
+                    <div style={{ background: "rgba(37,99,235,0.04)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.60 0.18 250)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                        <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
+                        Biggest Opportunity
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "5px", lineHeight: 1.3 }}>{o.title}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{o.why}</div>
+                      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "oklch(0.72 0.19 145)", marginBottom: "8px", fontWeight: 600 }}>↑ {o.impact}</div>
+                      <button type="button" onClick={() => setTab(o.tabKey as Tab)}
+                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)", color: "oklch(0.60 0.18 250)", cursor: "pointer" }}>
+                        {o.ctaLabel} →
+                      </button>
+                    </div>
+                  );
+                })()}
+                {/* If only one item matches, fill with the item regardless of type */}
+                {item && (() => {
+                  const isRisk = item.urgent;
+                  const accent = isRisk ? "239,68,68" : "37,99,235";
+                  const accentOklch = isRisk ? "oklch(0.65 0.18 25)" : "oklch(0.60 0.18 250)";
+                  return (
+                    <div style={{ background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.14)`, borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: accentOklch, fontFamily: "var(--font-body)", marginBottom: "6px" }}>
+                        {isRisk ? "Biggest Risk" : "Biggest Opportunity"}
+                      </div>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{item.why}</div>
+                      {!isRisk && <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "oklch(0.72 0.19 145)", marginBottom: "8px", fontWeight: 600 }}>↑ {item.impact}</div>}
+                      <button type="button" onClick={() => setTab(item.tabKey as Tab)}
+                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: `rgba(${accent},0.08)`, border: `1px solid rgba(${accent},0.18)`, color: accentOklch, cursor: "pointer" }}>
+                        {item.ctaLabel} →
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })()}
 
           {/* ── Section 2: Priorities + System Health ── */}
           <div className="cmd-section cmd-body-cols" style={{ display: "flex", flexDirection: "column", gap: "14px", animationDelay: "60ms" }}>
