@@ -3617,6 +3617,7 @@ export default function PlanningClient({
     profile?.target_retirement_age ?? null
   );
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
+  const [whatIfScenario, setWhatIfScenario] = useState<"home" | "child" | "career" | null>(null);
 
   // ── Derived numbers ────────────────────────────────────────────────────────
 
@@ -3748,6 +3749,44 @@ export default function PlanningClient({
   const retirementProb = retirementPoint
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
     : null;
+
+  const whatIfImpacts = useMemo(() => {
+    if (retirementPoint == null || forecastYears <= 0) return null;
+    const base = retirementPoint.baseline;
+    const retYear = Math.min(activeYearsToRetire ?? forecastYears, forecastYears);
+    const opts = [localAssumptions.return_rate / 100, localAssumptions.inflation_rate / 100, localAssumptions.salary_growth_rate / 100] as const;
+
+    const homeExtraMo = homeScenarios.length > 0
+      ? (() => {
+          const s = homeScenarios[0];
+          const loan = s.purchase_price - s.down_payment;
+          const r = s.mortgage_rate / 12;
+          const n = s.loan_term_years * 12;
+          const pmt = loan > 0 && r > 0 ? loan * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : 0;
+          return Math.max(0, pmt + s.property_tax_monthly + s.insurance_monthly + s.hoa_monthly - s.monthly_rent);
+        })()
+      : Math.round(effectiveIncome * 0.28);
+    const dpOutflow = homeScenarios.length > 0 ? homeScenarios[0].down_payment : Math.round(effectiveIncome * 12 * 0.1);
+    const homeEvents: FutureEvent[] = [
+      ...futureEvents,
+      { id: "__wi_dp", user_id: "", label: "Home down payment", event_year: currentYear + 3, amount_impact: -dpOutflow, category: "what_if", sort_order: 999 },
+    ];
+    const homeBands = buildForecastBands(netWorth, effectiveIncome, effectiveExpenses + homeExtraMo, forecastYears, ...opts, homeEvents, currentYear);
+    const homeAtRetire = homeBands[Math.min(retYear, homeBands.length - 1)];
+    const childBands = buildForecastBands(netWorth, effectiveIncome, effectiveExpenses + 1200, forecastYears, ...opts, futureEvents, currentYear);
+    const childAtRetire = childBands[Math.min(retYear, childBands.length - 1)];
+    const careerBands = buildForecastBands(netWorth, Math.round(effectiveIncome * 1.2), effectiveExpenses, forecastYears, ...opts, futureEvents, currentYear);
+    const careerAtRetire = careerBands[Math.min(retYear, careerBands.length - 1)];
+
+    return {
+      home:   { impact: homeAtRetire  ? homeAtRetire.baseline  - base : null, bands: homeBands,   extraMo: homeExtraMo, dpOutflow },
+      child:  { impact: childAtRetire ? childAtRetire.baseline - base : null, bands: childBands  },
+      career: { impact: careerAtRetire ? careerAtRetire.baseline - base : null, bands: careerBands },
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retirementPoint?.baseline, forecastYears, activeYearsToRetire, netWorth, effectiveIncome, effectiveExpenses,
+      localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.salary_growth_rate,
+      homeScenarios, futureEvents, currentYear]);
 
   // ── Life Plan hub computation ──────────────────────────────────────────────
   const lifePlan = useMemo(() => {
@@ -4010,12 +4049,16 @@ export default function PlanningClient({
     baseline: null as number | null,
     pessimistic: null as number | null,
   }));
-  const forecastForChart = forecastBands.map((p) => ({
+  const whatIfActiveBands = whatIfScenario && whatIfImpacts
+    ? whatIfImpacts[whatIfScenario].bands
+    : null;
+  const forecastForChart = forecastBands.map((p, i) => ({
     label: p.label,
     historical: null as number | null,
     optimistic: p.optimistic,
     baseline: p.baseline,
     pessimistic: p.pessimistic,
+    whatif: whatIfActiveBands ? (whatIfActiveBands[i]?.baseline ?? null) : (null as number | null),
   }));
   const chartData = [...historyForChart, ...forecastForChart];
 
@@ -5837,32 +5880,126 @@ export default function PlanningClient({
             </div>
           )}
 
-          {/* What-If quick buttons */}
+          {/* What-If Library */}
           {profile?.current_age != null && (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>What-If</span>
-              {[
-                { label: "Retire 5yr Earlier", action: () => { if (profile?.current_age != null) setScenarioRetirementAge(Math.max(profile.current_age + 1, (activeRetirementAge ?? 65) - 5)); } },
-                { label: "Retire 5yr Later",   action: () => { setScenarioRetirementAge(Math.min(85, (activeRetirementAge ?? 65) + 5)); } },
-                { label: "Market Crash −6%",   action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.max(0.5, p.return_rate - 6) })) },
-                { label: "Bull Market +4%",    action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.min(20, p.return_rate + 4) })) },
-                { label: "Reset",              action: () => { setScenarioRetirementAge(profile?.target_retirement_age ?? null); setLocalAssumptions({ return_rate: assumptions?.return_rate ?? 7, inflation_rate: assumptions?.inflation_rate ?? 3, salary_growth_rate: assumptions?.salary_growth_rate ?? 2 }); } },
-              ].map(({ label, action }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={action}
-                  style={{
-                    padding: "5px 11px", borderRadius: "20px", fontSize: "11px",
-                    fontFamily: "var(--font-body)", fontWeight: 500, cursor: "pointer",
-                    background: "var(--card-bg)", border: "1px solid var(--border)",
-                    color: label === "Reset" ? "var(--text-muted)" : "var(--text-secondary)",
-                    transition: "border-color 0.15s, color 0.15s",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.65 0.18 270 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = label === "Reset" ? "var(--text-muted)" : "var(--text-secondary)"; }}
-                >{label}</button>
-              ))}
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <div>
+                  <div style={{ ...sectionHeadStyle }}>Life Impact Simulator</div>
+                  <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "3px 0 0" }}>Tap a scenario to overlay it on the chart below.</p>
+                </div>
+                {(whatIfScenario != null || scenarioRetirementAge !== (profile?.target_retirement_age ?? null)) && (
+                  <button
+                    type="button"
+                    onClick={() => { setWhatIfScenario(null); setScenarioRetirementAge(profile?.target_retirement_age ?? null); setLocalAssumptions({ return_rate: assumptions?.return_rate ?? 7, inflation_rate: assumptions?.inflation_rate ?? 3, salary_growth_rate: assumptions?.salary_growth_rate ?? 2 }); }}
+                    style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)" }}
+                  >Reset all</button>
+                )}
+              </div>
+
+              {/* Life event scenarios */}
+              {whatIfImpacts && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px", marginBottom: "14px" }}>
+                  {([
+                    {
+                      id: "home" as const,
+                      title: "Buy a Home",
+                      desc: homeScenarios.length > 0 ? "Based on your home plan" : "Est. 28% of income",
+                      impact: whatIfImpacts.home.impact,
+                      icon: "🏠",
+                    },
+                    {
+                      id: "child" as const,
+                      title: "Have a Child",
+                      desc: "+$1,200/mo for 18 yrs",
+                      impact: whatIfImpacts.child.impact,
+                      icon: "👶",
+                    },
+                    {
+                      id: "career" as const,
+                      title: "Career Move +20%",
+                      desc: "20% income increase",
+                      impact: whatIfImpacts.career.impact,
+                      icon: "🚀",
+                    },
+                  ]).map(({ id, title, desc, impact, icon }) => {
+                    const isActive = whatIfScenario === id;
+                    const positive = impact != null && impact > 0;
+                    const impactColor = impact == null ? "var(--text-muted)"
+                      : positive ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setWhatIfScenario(isActive ? null : id)}
+                        style={{
+                          background: isActive ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, var(--bg-elevated))" : "var(--bg-elevated)",
+                          border: `1px solid ${isActive ? "oklch(0.75 0.18 70 / 0.4)" : "var(--border-subtle)"}`,
+                          borderRadius: "var(--radius-md)", padding: "12px 14px",
+                          cursor: "pointer", textAlign: "left",
+                          transition: "border-color 0.15s, background 0.15s",
+                        }}
+                      >
+                        <div style={{ fontSize: "16px", lineHeight: 1, marginBottom: "6px" }}>{icon}</div>
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{title}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "8px" }}>{desc}</div>
+                        {impact != null && (
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: impactColor }}>
+                            {positive ? "+" : ""}{fmt(impact)}
+                          </div>
+                        )}
+                        <div style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Retire/Market chips */}
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", paddingTop: whatIfImpacts ? "10px" : "0", borderTop: whatIfImpacts ? "1px solid var(--border-subtle)" : "none" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Retire / Market</span>
+                {[
+                  { label: "Retire 5yr Earlier", action: () => setScenarioRetirementAge(Math.max(profile.current_age! + 1, (activeRetirementAge ?? 65) - 5)) },
+                  { label: "Retire 5yr Later",   action: () => setScenarioRetirementAge(Math.min(85, (activeRetirementAge ?? 65) + 5)) },
+                  { label: "Market Crash −6%",   action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.max(0.5, p.return_rate - 6) })) },
+                  { label: "Bull Market +4%",    action: () => setLocalAssumptions((p) => ({ ...p, return_rate: Math.min(20, p.return_rate + 4) })) },
+                ].map(({ label, action }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={action}
+                    style={{
+                      padding: "4px 10px", borderRadius: "20px", fontSize: "11px",
+                      fontFamily: "var(--font-body)", fontWeight: 400, cursor: "pointer",
+                      background: "transparent", border: "1px solid var(--border)",
+                      color: "var(--text-secondary)", transition: "border-color 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.65 0.18 270 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
+                  >{label}</button>
+                ))}
+              </div>
+
+              {/* Active scenario banner */}
+              {whatIfScenario != null && whatIfImpacts && (() => {
+                const s = whatIfImpacts[whatIfScenario];
+                const positive = s.impact != null && s.impact > 0;
+                const impactColor = s.impact == null ? "var(--text-muted)" : positive ? "var(--green)" : "var(--red)";
+                const labels: Record<string, string> = { home: "Buy a Home", child: "Have a Child", career: "Career Move +20%" };
+                return (
+                  <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
+                    <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1 }}>
+                      Scenario: <strong style={{ color: "var(--text-primary)" }}>{labels[whatIfScenario]}</strong> — chart shows the scenario baseline in amber.
+                    </span>
+                    {s.impact != null && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: impactColor, flexShrink: 0 }}>
+                        {positive ? "+" : ""}{fmt(s.impact)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -6088,6 +6225,10 @@ export default function PlanningClient({
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.08} />
                       <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
+                    <linearGradient id="whatifGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#fb923c" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#fb923c" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 10, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
@@ -6097,7 +6238,8 @@ export default function PlanningClient({
                     labelStyle={{ color: "var(--text-secondary)" }}
                     formatter={(value, name) => {
                       const v = typeof value === "number" ? value : 0;
-                      const labels: Record<string, string> = { historical: "Historical", optimistic: "Optimistic", baseline: "Baseline", pessimistic: "Pessimistic" };
+                      const scenLabel = whatIfScenario ? { home: "Buy a Home", child: "Have a Child", career: "Career +20%" }[whatIfScenario] : "Scenario";
+                      const labels: Record<string, string> = { historical: "Historical", optimistic: "Optimistic", baseline: "Baseline", pessimistic: "Pessimistic", whatif: scenLabel };
                       return [fmt(v), labels[String(name)] ?? String(name)];
                     }}
                   />
@@ -6105,6 +6247,7 @@ export default function PlanningClient({
                   <Area type="monotone" dataKey="optimistic" stroke="#00d395" strokeWidth={1} strokeDasharray="4 3" fill="url(#optGrad)" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="baseline" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="pessimistic" stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 3" fill="url(#pessGrad)" dot={false} connectNulls={false} />
+                  {whatIfScenario && <Area type="monotone" dataKey="whatif" stroke="#fb923c" strokeWidth={2.5} fill="url(#whatifGrad)" dot={false} connectNulls={false} />}
                   {activeYearsToRetire != null && (
                     <ReferenceLine x={`+${activeYearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
                   )}
@@ -6129,6 +6272,7 @@ export default function PlanningClient({
                   { color: "#00d395", label: "Optimistic", dashed: true },
                   { color: "#a78bfa", label: "Baseline", dashed: true },
                   { color: "#f59e0b", label: "Pessimistic", dashed: true },
+                  ...(whatIfScenario ? [{ color: "#fb923c", label: { home: "Buy a Home", child: "Have a Child", career: "Career +20%" }[whatIfScenario], dashed: false }] : []),
                 ].map(({ color, label, dashed }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
                     <div style={{ width: "16px", height: "2px", background: dashed ? "transparent" : color, borderTop: dashed ? `2px dashed ${color}` : "none" }} />
