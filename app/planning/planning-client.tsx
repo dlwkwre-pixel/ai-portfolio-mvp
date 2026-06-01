@@ -535,6 +535,150 @@ function computeCommandPriorities(p: {
   return items.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || a.rank - b.rank).slice(0, 4);
 }
 
+// ── Conflict Detection Engine ─────────────────────────────────────────────────
+
+export type ConflictAlert = {
+  severity: "critical" | "warning" | "info";
+  title: string;
+  description: string;
+  recommendation: string;
+  tabKey: string;
+  years: number[];
+};
+
+function computeConflictAlerts(p: {
+  homeScenarios: HomeScenario[];
+  familyScenarios: FamilyScenario[];
+  educationScenarios: EducationScenario[];
+  careerScenarios: CareerScenario[];
+  futureEvents: FutureEvent[];
+  profile: FinancialProfile | null;
+  currentYear: number;
+  monthlySavings: number;
+  liquidAssets: number;
+  effectiveExpenses: number;
+  retirementProb: number | null;
+}): ConflictAlert[] {
+  const alerts: ConflictAlert[] = [];
+  const cy = p.currentYear;
+
+  type Ev = { year: number; label: string; cost: number; source: string };
+  const events: Ev[] = [];
+
+  for (const s of p.familyScenarios) {
+    const monthly = s.child_current_age < 3 ? Number(s.monthly_infant_cost) : s.child_current_age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+    events.push({ year: cy, label: s.child_name ?? s.name, cost: monthly * 12, source: "family" });
+  }
+  for (const s of p.educationScenarios) {
+    const yu = Math.max(0, 18 - s.child_current_age);
+    const futureAnnual = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yu);
+    events.push({ year: cy + yu, label: `${s.child_name ?? "College"} tuition`, cost: futureAnnual * s.years_in_college, source: "education" });
+  }
+  for (const e of p.futureEvents) {
+    if (e.amount_impact < 0) events.push({ year: e.event_year, label: e.label, cost: Math.abs(e.amount_impact), source: e.category ?? "event" });
+  }
+
+  // Detect: events clustered within a 2-year window
+  const windowYears = 2;
+  type Window = { startYear: number; events: Ev[]; totalCost: number; sources: Set<string> };
+  const windows: Window[] = [];
+  const futureEvs = events.filter((e) => e.year >= cy && e.year <= cy + 20);
+  const years = [...new Set(futureEvs.map((e) => e.year))].sort((a, b) => a - b);
+  for (const y of years) {
+    const inWindow = futureEvs.filter((e) => e.year >= y && e.year < y + windowYears);
+    if (inWindow.length >= 2) {
+      windows.push({ startYear: y, events: inWindow, totalCost: inWindow.reduce((s, e) => s + e.cost, 0), sources: new Set(inWindow.map((e) => e.source)) });
+    }
+  }
+  windows.sort((a, b) => b.totalCost - a.totalCost);
+  if (windows.length > 0) {
+    const w = windows[0];
+    if (w.sources.size >= 2 && w.totalCost > 15000) {
+      const severity = w.totalCost > 100000 ? "critical" : "warning";
+      const labels = [...new Set(w.events.map((e) => e.label))].slice(0, 3).join(", ");
+      alerts.push({
+        severity,
+        title: `${w.sources.size} major cost categories overlap in ${w.startYear}–${w.startYear + windowYears - 1}`,
+        description: `${labels} — totaling approximately ${fmt(Math.round(w.totalCost))} — concentrate within a 2-year window. Combined, these create significant cash flow pressure.`,
+        recommendation: "Consider staggering major events where possible, or build a dedicated buffer of at least 3–6 months of total costs before this period.",
+        tabKey: "events",
+        years: [w.startYear, w.startYear + 1],
+      });
+    }
+  }
+
+  // Detect: home purchase event + child overlap
+  const homeEvents = p.futureEvents.filter((e) => ["home_purchase", "home"].includes(e.category ?? ""));
+  for (const he of homeEvents) {
+    const childInfants = p.familyScenarios.filter((s) => s.child_current_age <= 2);
+    if (childInfants.length > 0) {
+      alerts.push({
+        severity: "warning",
+        title: "Home purchase + infant costs in same period",
+        description: `A home purchase event coincides with infant-stage child expenses. These are two of the highest-cost life events — occurring simultaneously strains both liquidity and monthly cash flow.`,
+        recommendation: "Model both in the forecast to see the combined monthly obligation. Ensure liquid assets cover at least 6 months of combined costs before committing.",
+        tabKey: "events",
+        years: [he.event_year],
+      });
+    }
+  }
+
+  // Detect: large events within 5 years of retirement
+  if (p.profile?.current_age != null && p.profile.target_retirement_age != null) {
+    const ytr = p.profile.target_retirement_age - p.profile.current_age;
+    if (ytr > 0 && ytr <= 10) {
+      const critStart = cy + Math.max(0, ytr - 5);
+      const critEnd = cy + ytr;
+      const critEvs = futureEvs.filter((e) => e.year >= critStart && e.year <= critEnd && e.cost > 20000);
+      if (critEvs.length > 0) {
+        const totalCrit = critEvs.reduce((s, e) => s + e.cost, 0);
+        alerts.push({
+          severity: ytr <= 5 ? "critical" : "warning",
+          title: `${critEvs.length} large expense${critEvs.length > 1 ? "s" : ""} within ${ytr <= 5 ? "5" : "10"} years of retirement`,
+          description: `${fmt(Math.round(totalCrit))} in planned expenses land in the years leading up to your retirement target. Liquidating compounding assets at this stage has an outsized long-term cost.`,
+          recommendation: "Pre-fund these expenses in a separate liquid account rather than liquidating investment assets. Adjust your forecast to see the impact.",
+          tabKey: "forecast",
+          years: critEvs.map((e) => e.year),
+        });
+      }
+    }
+  }
+
+  // Detect: low emergency fund + upcoming major expenses
+  const emergencyMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 99;
+  const nearExpenses = futureEvs.filter((e) => e.year <= cy + 3 && e.cost > 5000);
+  if (emergencyMonths < 3 && nearExpenses.length > 0) {
+    alerts.push({
+      severity: "critical",
+      title: "Emergency reserves below 3 months with major expenses planned",
+      description: `Liquid reserves cover ${emergencyMonths.toFixed(1)} months of expenses. With ${nearExpenses.length} planned expense event${nearExpenses.length > 1 ? "s" : ""} in the next 3 years, a single financial disruption could force selling investments at a loss.`,
+      recommendation: "Prioritize building liquid reserves to at least 3 months before committing to large discretionary expenses.",
+      tabKey: "balance",
+      years: [],
+    });
+  }
+
+  // Detect: education + career gap overlap
+  for (const s of p.educationScenarios) {
+    const collegeYear = cy + Math.max(0, 18 - s.child_current_age);
+    for (const c of p.careerScenarios) {
+      if (c.gap_months > 6 && Math.abs(collegeYear - cy - 1) <= 2) {
+        alerts.push({
+          severity: "info",
+          title: "Career income gap near college start",
+          description: `A career transition with a ${c.gap_months}-month income gap may coincide with college expenses. This combination reduces the savings available for both goals simultaneously.`,
+          recommendation: "Ensure your 529 balance can cover the full college cost before the career transition begins.",
+          tabKey: "events",
+          years: [cy + 1, collegeYear],
+        });
+        break;
+      }
+    }
+  }
+
+  return alerts.slice(0, 5);
+}
+
 function computeFinnInsight(p: {
   savingsRate: number; monthlySavings: number;
   effectiveExpenses: number; liquidAssets: number;
@@ -4210,6 +4354,35 @@ export default function PlanningClient({
     const retirementMilestone = timelineItems.find(t => t.type === "retirement");
     const nearTermItems = timelineItems.filter(t => t.year <= currentYear + 12 && t.type !== "retirement");
 
+    // Conflict Detection Engine
+    const conflictAlerts = computeConflictAlerts({
+      homeScenarios, familyScenarios, educationScenarios, careerScenarios, futureEvents,
+      profile, currentYear, monthlySavings, liquidAssets, effectiveExpenses, retirementProb,
+    });
+
+    // Full roadmap (all events from now to retirement + 3 years)
+    const retirYear = profile?.current_age != null && activeRetirementAge != null
+      ? currentYear + (activeRetirementAge - profile.current_age)
+      : currentYear + 35;
+    const roadmapItems = timelineItems
+      .filter((t) => t.year >= currentYear && t.year <= retirYear + 3)
+      .sort((a, b) => a.year - b.year);
+    // Auto-inject FI milestone if not already in roadmap
+    const conflictYears = new Set(conflictAlerts.flatMap((a) => a.years));
+
+    // Financial Independence estimate: years until net_worth * (1+r)^n + PMT*... >= 25 * annual_expenses
+    let fiYear: number | null = null;
+    const annualExpenses = effectiveExpenses * 12;
+    const fiTarget = annualExpenses > 0 ? annualExpenses * 25 : 0;
+    if (fiTarget > 0 && netWorth > 0) {
+      const r = localAssumptions.return_rate / 100;
+      const annualSavings = monthlySavings * 12;
+      for (let y = 1; y <= 50; y++) {
+        const projected = netWorth * Math.pow(1 + r, y) + (annualSavings > 0 && r > 0 ? annualSavings * ((Math.pow(1 + r, y) - 1) / r) : annualSavings * y);
+        if (projected >= fiTarget) { fiYear = currentYear + y; break; }
+      }
+    }
+
     return {
       plannerHealth,
       futureReadinessScore,
@@ -4222,6 +4395,10 @@ export default function PlanningClient({
       familyMetrics,
       biggestDecisions,
       nearTermItems,
+      roadmapItems,
+      conflictAlerts,
+      conflictYears,
+      fiYear,
       retirementMilestone: retirementMilestone ?? null,
       nextAction,
       insights,
@@ -4233,7 +4410,7 @@ export default function PlanningClient({
   }, [homeScenarios, familyScenarios, careerScenarios, educationScenarios, futureEvents,
       retirementProb, retirementPoint, healthData.total, profile?.current_age,
       activeRetirementAge, currentYear, savingsRate, effectiveIncome, liquidAssets,
-      localAssumptions.return_rate]);
+      monthlySavings, effectiveExpenses, netWorth, localAssumptions.return_rate]);
 
   // Combine historical + deterministic forecast for chart
   const historyForChart = netWorthHistory.map((s) => ({
@@ -4756,16 +4933,31 @@ export default function PlanningClient({
        futureEvents, currentYear]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const commandPriorities = useMemo(() => computeCommandPriorities({
-    profile, savingsRate, monthlySavings, effectiveIncome, effectiveExpenses,
-    liquidAssets, netWorth, totalAssets, totalLiabilities, retirementProb, yearsToRetire,
-    cashFlowItems, homeScenarios, familyScenarios, careerScenarios, educationScenarios, estateProfile,
-    localReturn: localAssumptions.return_rate / 100,
+  const commandPriorities = useMemo(() => {
+    const base = computeCommandPriorities({
+      profile, savingsRate, monthlySavings, effectiveIncome, effectiveExpenses,
+      liquidAssets, netWorth, totalAssets, totalLiabilities, retirementProb, yearsToRetire,
+      cashFlowItems, homeScenarios, familyScenarios, careerScenarios, educationScenarios, estateProfile,
+      localReturn: localAssumptions.return_rate / 100,
+    });
+    const conflictItems: CommandPriority[] = lifePlan.conflictAlerts
+      .filter((a) => a.severity !== "info")
+      .map((a, i) => ({
+        id: `conflict-${i}`,
+        rank: a.severity === "critical" ? 0 : 1,
+        urgent: a.severity === "critical",
+        tabKey: a.tabKey,
+        ctaLabel: "Review events",
+        title: a.title,
+        why: a.description,
+        impact: a.recommendation,
+      }));
+    return [...conflictItems, ...base].slice(0, 4);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [savingsRate, monthlySavings, effectiveIncome, effectiveExpenses, liquidAssets, netWorth,
+  }, [savingsRate, monthlySavings, effectiveIncome, effectiveExpenses, liquidAssets, netWorth,
        totalAssets, totalLiabilities, retirementProb, yearsToRetire,
        homeScenarios, familyScenarios, careerScenarios, educationScenarios,
-       localAssumptions.return_rate]);
+       localAssumptions.return_rate, lifePlan.conflictAlerts]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const systemHealth = useMemo(() => computeSystemHealth({
@@ -6860,6 +7052,53 @@ export default function PlanningClient({
             </div>
           )}
 
+          {/* Sprint 2.1: Conflict Detection Alerts */}
+          {lifePlan.conflictAlerts.length > 0 && (
+            <div className="hub-section" style={{ animationDelay: "0.14s", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>
+                Plan Conflicts Detected
+              </div>
+              {lifePlan.conflictAlerts.map((alert, i) => {
+                const sev = alert.severity;
+                const color = sev === "critical" ? "var(--red)" : sev === "warning" ? "oklch(0.78 0.17 70)" : "var(--accent)";
+                const bg = sev === "critical"
+                  ? "color-mix(in oklch, var(--red) 5%, var(--bg-card))"
+                  : sev === "warning"
+                  ? "color-mix(in oklch, oklch(0.78 0.17 70) 5%, var(--bg-card))"
+                  : "color-mix(in oklch, var(--accent) 5%, var(--bg-card))";
+                const border = sev === "critical"
+                  ? "color-mix(in oklch, var(--red) 22%, var(--border))"
+                  : sev === "warning"
+                  ? "color-mix(in oklch, oklch(0.78 0.17 70) 20%, var(--border))"
+                  : "color-mix(in oklch, var(--accent) 18%, var(--border))";
+                const firstYear = alert.years.length > 0 ? alert.years[0] : null;
+                const lastYear = alert.years.length > 1 ? alert.years[alert.years.length - 1] : null;
+                return (
+                  <div key={i} style={{ borderRadius: "var(--radius-lg)", border: `1px solid ${border}`, background: bg, padding: "16px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color, background: `color-mix(in oklch, ${color} 12%, transparent)`, padding: "2px 7px", borderRadius: "20px" }}>
+                        {sev}
+                      </span>
+                      {firstYear != null && (
+                        <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "auto" }}>
+                          {firstYear}{lastYear != null ? `–${lastYear}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "6px", lineHeight: 1.3 }}>{alert.title}</div>
+                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.55 }}>{alert.description}</p>
+                    <div style={{ padding: "10px 12px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, var(--bg-base) 50%, transparent)", border: "1px solid color-mix(in oklch, var(--border) 50%, transparent)" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 600, color }}>Recommended: </span>{alert.recommendation}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* P5+P1: Major Life Decisions */}
           <div className="hub-section" style={{ animationDelay: "0.16s" }}>
             <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Major Life Decisions</div>
@@ -7080,41 +7319,90 @@ export default function PlanningClient({
             )}
           </div>
 
-          {/* Near-Term Timeline */}
+          {/* Sprint 2.1: Life Roadmap */}
           <div className="hub-section" style={{ animationDelay: "0.28s" }}>
-            <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Near-Term Milestones</div>
-            {lifePlan.nearTermItems.length > 0 ? (
-              <div style={{ display: "flex", overflowX: "auto", paddingBottom: "6px" }}>
-                {lifePlan.nearTermItems.map((item, i) => {
-                  const typeColor: Record<string, string> = {
-                    education: "var(--accent)",
-                    career: "oklch(0.75 0.16 55)",
-                    family: "oklch(0.72 0.15 340)",
-                    event: "var(--text-secondary)",
-                    home: "oklch(0.65 0.14 200)",
-                    placeholder: "var(--border)",
-                  };
-                  const color = typeColor[item.type] ?? "var(--text-tertiary)";
-                  const isPlaceholder = item.isPlaceholder === true;
-                  return (
-                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, minWidth: "110px" }}>
-                      <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isPlaceholder ? "var(--border)" : "var(--text-tertiary)", marginBottom: "6px" }}>{item.year}</div>
-                      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                        {i > 0 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
-                        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: isPlaceholder ? "transparent" : color, flexShrink: 0, border: `2px ${isPlaceholder ? "dashed" : "solid"} ${color}` }} />
-                        {i < lifePlan.nearTermItems.length - 1 && <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Life Roadmap</div>
+              {lifePlan.fiYear != null && (
+                <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--green)", background: "color-mix(in oklch, var(--green) 11%, transparent)", padding: "1px 8px", borderRadius: "20px" }}>FI {lifePlan.fiYear}</span>
+              )}
+            </div>
+            {(() => {
+              type RMItem = { year: number; label: string; detail: string; type: string; isPlaceholder?: boolean };
+              const items: RMItem[] = lifePlan.roadmapItems
+                .filter((t) => !t.isPlaceholder)
+                .map((t) => ({ ...t }));
+              if (lifePlan.fiYear != null && !items.some((t) => t.type === "fi")) {
+                items.push({ year: lifePlan.fiYear, label: "Financial Independence", detail: "25× annual expenses reached", type: "fi" });
+              }
+              items.sort((a, b) => a.year - b.year);
+              if (items.length === 0) {
+                return <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>Add scenarios to any planner to see your Life Roadmap here.</p>;
+              }
+              const TYPE_COLOR: Record<string, string> = {
+                education: "var(--accent)",
+                career: "oklch(0.75 0.16 55)",
+                family: "oklch(0.72 0.15 340)",
+                event: "var(--text-secondary)",
+                home: "oklch(0.65 0.14 200)",
+                retirement: "var(--green)",
+                fi: "var(--green)",
+              };
+              const byYear = new Map<number, RMItem[]>();
+              for (const it of items) {
+                if (!byYear.has(it.year)) byYear.set(it.year, []);
+                byYear.get(it.year)!.push(it);
+              }
+              const sortedYears = [...byYear.keys()].sort((a, b) => a - b);
+              return (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {sortedYears.map((year, yi) => {
+                    const yearItems = byYear.get(year)!;
+                    const isConflict = lifePlan.conflictYears.has(year);
+                    const isLast = yi === sortedYears.length - 1;
+                    const isSpecial = yearItems.some((t) => t.type === "retirement" || t.type === "fi");
+                    const dotColor = isConflict
+                      ? "oklch(0.78 0.17 70)"
+                      : isSpecial
+                      ? "var(--green)"
+                      : TYPE_COLOR[yearItems[0].type] ?? "var(--border)";
+                    return (
+                      <div key={year} style={{ display: "flex", gap: "14px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "28px", flexShrink: 0 }}>
+                          <div style={{ width: "9px", height: "9px", borderRadius: "50%", background: dotColor, flexShrink: 0, marginTop: "4px", boxShadow: isSpecial || isConflict ? `0 0 7px ${dotColor}` : "none" }} />
+                          {!isLast && <div style={{ flex: 1, width: "1px", background: isConflict ? "color-mix(in oklch, oklch(0.78 0.17 70) 35%, var(--border-subtle))" : "var(--border-subtle)", minHeight: "18px", margin: "4px 0" }} />}
+                        </div>
+                        <div style={{
+                          flex: 1, paddingBottom: isLast ? "0" : "14px",
+                          paddingLeft: isConflict ? "8px" : "0",
+                          paddingRight: isConflict ? "8px" : "0",
+                          background: isConflict ? "color-mix(in oklch, oklch(0.78 0.17 70) 4%, transparent)" : "transparent",
+                          borderRadius: isConflict ? "var(--radius-sm)" : "0",
+                        }}>
+                          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isConflict ? "oklch(0.78 0.17 70)" : "var(--text-muted)", fontWeight: 600, marginBottom: "5px", display: "flex", alignItems: "center", gap: "7px" }}>
+                            {year}
+                            {isConflict && <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", color: "oklch(0.78 0.17 70)", fontWeight: 400 }}>conflict zone</span>}
+                          </div>
+                          {yearItems.map((item, ii) => {
+                            const color = TYPE_COLOR[item.type] ?? "var(--text-tertiary)";
+                            const isSpecialItem = item.type === "retirement" || item.type === "fi";
+                            return (
+                              <div key={ii} style={{ display: "flex", alignItems: "flex-start", gap: "7px", marginBottom: ii < yearItems.length - 1 ? "6px" : "0" }}>
+                                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, flexShrink: 0, marginTop: "5px" }} />
+                                <div>
+                                  <span style={{ fontSize: isSpecialItem ? "13px" : "12px", fontFamily: "var(--font-body)", fontWeight: isSpecialItem ? 700 : 500, color: isSpecialItem ? "var(--green)" : "var(--text-primary)", lineHeight: 1.3 }}>{item.label}</span>
+                                  {item.detail && <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "7px" }}>{item.detail}</span>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div style={{ marginTop: "6px", textAlign: "center", padding: "0 4px" }}>
-                        <div style={{ fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, color: isPlaceholder ? "var(--text-tertiary)" : "var(--text-primary)", lineHeight: 1.3, fontStyle: isPlaceholder ? "italic" : "normal" }}>{item.label}</div>
-                        <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginTop: "2px" }}>{item.detail}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>Add scenarios to any planner to see upcoming milestones here.</p>
-            )}
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Retirement Milestone */}
