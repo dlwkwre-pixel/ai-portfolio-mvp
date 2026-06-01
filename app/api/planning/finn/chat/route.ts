@@ -80,6 +80,12 @@ export type FinnChatContext = {
   partner_name?: string | null;
   partner_age?: number | null;
   partner_target_retirement_age?: number | null;
+  estate_score?: number;
+  estate_docs_complete?: number;
+  estate_docs_total?: number;
+  estate_value?: number;
+  estate_accounts_count?: number;
+  family_instructions_written?: boolean;
 };
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -235,6 +241,7 @@ ${homeLines ? `\nHOME PLANNING SCENARIOS:\n${homeLines}` : ""}
 ${careerLines ? `\nCAREER CHANGE SCENARIOS:\n${careerLines}` : ""}
 ${educationLines ? `\nEDUCATION / 529 SCENARIOS:\n${educationLines}` : ""}
 ${familyLines ? `\nFAMILY PLANNING SCENARIOS:\n${familyLines}` : ""}
+${(context.estate_score != null) ? `\nESTATE READINESS: Score ${context.estate_score}/100 | ${context.estate_docs_complete ?? 0}/${context.estate_docs_total ?? 6} documents complete | estate value ${context.estate_value != null ? fmt(context.estate_value) : "unknown"} | ${context.estate_accounts_count ?? 0} account location${(context.estate_accounts_count ?? 0) !== 1 ? "s" : ""} recorded | family instructions ${context.family_instructions_written ? "written" : "NOT written"}` : ""}
 
 KEY BENCHMARKS (use these in calculations):
   Emergency fund target: ${fmt(context.monthly_expenses * 3)}–${fmt(context.monthly_expenses * 6)} (3–6 months expenses)

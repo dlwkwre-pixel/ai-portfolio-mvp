@@ -5016,6 +5016,23 @@ export default function PlanningClient({
       partner_name: profile?.partner_name ?? null,
       partner_age: profile?.partner_age ?? null,
       partner_target_retirement_age: profile?.partner_target_retirement_age ?? null,
+      ...(() => {
+        if (!estateProfile) return {};
+        const wt: Record<string, number> = { doc_will: 20, doc_living_trust: 15, doc_durable_poa: 20, doc_healthcare_directive: 20, doc_beneficiary_desig: 15, doc_digital_assets: 10 };
+        const docKeys = Object.keys(wt) as (keyof EstateProfile)[];
+        const docsComplete = docKeys.filter((k) => (estateProfile[k] ?? "none") !== "none").length;
+        const estScore = docKeys.reduce((s, k) => (estateProfile[k] ?? "none") !== "none" ? s + wt[k as string] : s, 0);
+        const estateAssets = balanceItems.filter((i) => !i.is_liability).reduce((s, i) => s + i.value, 0) + portfolioTotalValue;
+        const estateLiabs = balanceItems.filter((i) => i.is_liability).reduce((s, i) => s + i.value, 0);
+        return {
+          estate_score: estScore,
+          estate_docs_complete: docsComplete,
+          estate_docs_total: docKeys.length,
+          estate_value: estateAssets - estateLiabs,
+          estate_accounts_count: estateProfile.estate_accounts?.length ?? 0,
+          family_instructions_written: !!estateProfile.family_instructions,
+        };
+      })(),
     };
   }
 
@@ -7208,17 +7225,34 @@ export default function PlanningClient({
       {tab === "finn" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
-          {/* Today's Biggest Insight */}
+          {/* Financial Position Snapshot */}
           <div style={{
-            padding: "14px 18px", borderRadius: "var(--radius-lg)",
-            background: "color-mix(in oklch, oklch(0.55 0.18 270) 7%, var(--card-bg))",
-            border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 24%, transparent)",
+            borderRadius: "var(--radius-lg)", overflow: "hidden",
+            background: "linear-gradient(135deg, oklch(0.16 0.04 265) 0%, oklch(0.13 0.02 250) 100%)",
+            border: "1px solid oklch(0.3 0.1 265 / 0.5)",
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
-              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
-              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>Today&apos;s Biggest Insight</span>
+            {/* Stats row */}
+            <div style={{ display: "flex", gap: "0px", borderBottom: "1px solid oklch(0.28 0.06 265 / 0.4)" }}>
+              {[
+                { label: "Net Worth", value: isPrivate ? "••••" : (netWorth >= 0 ? `$${Math.round(netWorth / 1000)}k` : `-$${Math.round(Math.abs(netWorth) / 1000)}k`), color: netWorth >= 0 ? "var(--green)" : "var(--red)" },
+                { label: "Savings Rate", value: savingsRate > 0 ? `${savingsRate.toFixed(0)}%` : "—", color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : "var(--red)" },
+                { label: "Retirement", value: retirementProb != null ? `${Math.round(retirementProb)}%` : "—", color: (retirementProb ?? 0) >= 75 ? "var(--green)" : (retirementProb ?? 0) >= 50 ? "var(--amber)" : "var(--red)" },
+                { label: "Estate Score", value: estateProfile ? `${(() => { const wt: Record<string,number> = {doc_will:20,doc_living_trust:15,doc_durable_poa:20,doc_healthcare_directive:20,doc_beneficiary_desig:15,doc_digital_assets:10}; return (Object.keys(wt) as (keyof EstateProfile)[]).reduce((s,k) => (estateProfile[k] ?? "none") !== "none" ? s + wt[k as string] : s, 0); })()}/100` : "—", color: estateProfile ? ((() => { const wt: Record<string,number> = {doc_will:20,doc_living_trust:15,doc_durable_poa:20,doc_healthcare_directive:20,doc_beneficiary_desig:15,doc_digital_assets:10}; const s = (Object.keys(wt) as (keyof EstateProfile)[]).reduce((acc,k) => (estateProfile[k] ?? "none") !== "none" ? acc + wt[k as string] : acc, 0); return s >= 75 ? "var(--green)" : s >= 45 ? "var(--amber)" : "var(--red)"; })()) : "var(--text-muted)" },
+              ].map(({ label, value, color }, i, arr) => (
+                <div key={label} style={{
+                  flex: 1, padding: "12px 16px",
+                  borderRight: i < arr.length - 1 ? "1px solid oklch(0.28 0.06 265 / 0.4)" : "none",
+                }}>
+                  <div style={{ fontSize: "10px", color: "oklch(0.55 0.08 265)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>{value}</div>
+                </div>
+              ))}
             </div>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{finnInsight}</p>
+            {/* Insight row */}
+            <div style={{ padding: "12px 18px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0, marginTop: "5px" }} />
+              <p style={{ fontSize: "12px", color: "oklch(0.72 0.08 265)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{finnInsight}</p>
+            </div>
           </div>
 
           {/* Chat panel */}
@@ -7353,33 +7387,64 @@ export default function PlanningClient({
 
           {/* Suggested prompts — visible after FINN’s intro before user has sent anything */}
           {finnChatMessages.length === 1 && !finnChatLoading && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", paddingBottom: "12px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
               {(() => {
-                const prompts: string[] = [];
-                if (retirementProb != null && retirementProb < 70) prompts.push(`My retirement probability is ${retirementProb}% — what’s the fastest way to improve it?`);
-                if (savingsRate > 0 && savingsRate < 15 && effectiveIncome > 0) prompts.push(`How much more should I save to reach a 15% savings rate?`);
-                if (homeScenarios.length === 0) prompts.push("What would buying a home mean for my retirement?");
-                if (homeScenarios.length > 0) prompts.push("How does my home purchase scenario affect my long-term net worth?");
-                if (careerScenarios.some((s) => s.new_monthly_income < s.current_monthly_income)) prompts.push("How should I prepare financially for my career change?");
-                if (familyScenarios.length > 0) prompts.push("How do my child cost scenarios affect my savings rate?");
-                if (netWorthHistory.length >= 2) prompts.push("Am I building wealth fast enough for my timeline?");
-                prompts.push("Where am I most financially at risk right now?");
-                prompts.push("What should I optimize first?");
-                return prompts.slice(0, 6).map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => { void sendFinnChatMessage(prompt); }}
-                    disabled={finnChatLoading}
-                    style={{
-                      padding: "6px 12px", borderRadius: "20px",
-                      border: "1px solid var(--violet-border)", background: "var(--violet-bg)",
-                      color: "var(--violet)", fontSize: "11px",
-                      fontFamily: "var(--font-body)", cursor: "pointer",
-                    }}
-                  >
-                    {prompt}
-                  </button>
+                type PromptGroup = { domain: string; color: string; prompts: string[] };
+                const groups: PromptGroup[] = [];
+
+                // Retirement & Savings
+                const retirPrompts: string[] = [];
+                if (retirementProb != null && retirementProb < 70) retirPrompts.push(`My retirement probability is ${Math.round(retirementProb)}% — what’s the fastest way to improve it?`);
+                if (savingsRate > 0 && savingsRate < 15 && effectiveIncome > 0) retirPrompts.push(`How much more should I save to reach a 15% savings rate?`);
+                if (netWorthHistory.length >= 2) retirPrompts.push("Am I building wealth fast enough for my timeline?");
+                retirPrompts.push("What should I optimize first?");
+                groups.push({ domain: "Retirement & Savings", color: "oklch(0.65 0.18 260)", prompts: retirPrompts.slice(0, 2) });
+
+                // Home & Life Events
+                const lifePrompts: string[] = [];
+                if (homeScenarios.length === 0) lifePrompts.push("What would buying a home mean for my retirement?");
+                if (homeScenarios.length > 0) lifePrompts.push("How does my home purchase affect my long-term net worth?");
+                if (careerScenarios.some((s) => s.new_monthly_income < s.current_monthly_income)) lifePrompts.push("How should I prepare financially for my career change?");
+                if (familyScenarios.length > 0) lifePrompts.push("How do my child costs affect my savings rate?");
+                if (educationScenarios.some((s) => s.current_529_balance < s.annual_cost_today * s.years_in_college)) lifePrompts.push("Is my 529 plan on track to cover college costs?");
+                lifePrompts.push("Where am I most financially at risk right now?");
+                if (lifePrompts.length > 0) groups.push({ domain: "Life Planning", color: "oklch(0.65 0.16 160)", prompts: lifePrompts.slice(0, 2) });
+
+                // Estate
+                const estatePrompts: string[] = [];
+                const estDocsComplete = (() => {
+                  if (!estateProfile) return 0;
+                  const docKeys = ["doc_will","doc_living_trust","doc_durable_poa","doc_healthcare_directive","doc_beneficiary_desig","doc_digital_assets"] as (keyof EstateProfile)[];
+                  return docKeys.filter((k) => (estateProfile[k] ?? "none") !== "none").length;
+                })();
+                if (!estateProfile || estDocsComplete < 3) estatePrompts.push("What estate planning documents should I prioritize first?");
+                if (estateProfile && !estateProfile.family_instructions) estatePrompts.push("What should I include in family instructions for my estate?");
+                if (estateProfile && (estateProfile.estate_accounts?.length ?? 0) === 0) estatePrompts.push("Which accounts should I document for my family to find?");
+                if (estatePrompts.length > 0) groups.push({ domain: "Estate & Protection", color: "oklch(0.65 0.15 30)", prompts: estatePrompts.slice(0, 2) });
+
+                return groups.map((g) => (
+                  <div key={g.domain}>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: g.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{g.domain}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {g.prompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => { void sendFinnChatMessage(prompt); }}
+                          disabled={finnChatLoading}
+                          style={{
+                            padding: "6px 12px", borderRadius: "20px",
+                            border: `1px solid color-mix(in oklch, ${g.color} 30%, transparent)`,
+                            background: `color-mix(in oklch, ${g.color} 8%, var(--card-bg))`,
+                            color: g.color, fontSize: "11px",
+                            fontFamily: "var(--font-body)", cursor: "pointer",
+                          }}
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ));
               })()}
             </div>
