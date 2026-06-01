@@ -3435,6 +3435,109 @@ function BudgetTrackerTab({
   );
 }
 
+// ── Forecast Variance Trend Card ──────────────────────────────────────────────
+
+function ForecastVarianceTrendCard({
+  cashFlowItems, expenseActuals, isPrivate,
+}: {
+  cashFlowItems: CashFlowItem[];
+  expenseActuals: ExpenseActual[];
+  isPrivate: boolean;
+}) {
+  const pHide = (v: string) => isPrivate ? "••••" : v;
+  const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
+  const totalBudgeted = expenseItems.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+
+  const monthSet = new Map<string, { year: number; month: number }>();
+  for (const a of expenseActuals) {
+    const key = `${a.period_year}-${String(a.period_month).padStart(2, "0")}`;
+    if (!monthSet.has(key)) monthSet.set(key, { year: a.period_year, month: a.period_month });
+  }
+  const months = [...monthSet.values()]
+    .sort((a, b) => b.year !== a.year ? b.year - a.year : b.month - a.month)
+    .slice(0, 6)
+    .reverse();
+
+  const monthData = months.map(({ year, month }) => {
+    const monthActuals = expenseActuals.filter((a) => a.period_year === year && a.period_month === month);
+    const actual = monthActuals.reduce((s, a) => s + a.actual_amount, 0);
+    return { year, month, budgeted: totalBudgeted, actual, variance: actual - totalBudgeted, loggedCount: monthActuals.length };
+  });
+
+  const loggedMonths = monthData.filter((m) => m.loggedCount > 0);
+  if (loggedMonths.length < 2) return null;
+
+  const avgVariance = loggedMonths.reduce((s, m) => s + m.variance, 0) / loggedMonths.length;
+  const maxVal = Math.max(...monthData.map((m) => Math.max(m.budgeted, m.actual, 1)));
+
+  const categoryDelta = new Map<string, number>();
+  for (const item of expenseItems) {
+    const budget = toMonthly(item.amount, item.frequency);
+    const cat = getCategoryForExpense(item.label);
+    for (const { year, month } of months) {
+      const act = expenseActuals.find(
+        (a) => a.cash_flow_item_id === item.id && a.period_year === year && a.period_month === month
+      );
+      if (act) categoryDelta.set(cat, (categoryDelta.get(cat) ?? 0) + (act.actual_amount - budget));
+    }
+  }
+  const topOverCat = [...categoryDelta.entries()].sort((a, b) => b[1] - a[1]).find(([, v]) => v > 0);
+
+  const trendDir = avgVariance > 100 ? "over" : avgVariance < -100 ? "under" : "on-track";
+  const finnLine = trendDir === "over"
+    ? (topOverCat
+        ? `${loggedMonths.length}-month average is ${pHide(fmt(avgVariance))}/mo over budget — ${topOverCat[0]} is the biggest driver.`
+        : `Averaging ${pHide(fmt(avgVariance))}/mo over budget across ${loggedMonths.length} months.`)
+    : trendDir === "under"
+    ? `Consistently coming in ${pHide(fmt(Math.abs(avgVariance)))}/mo under budget — a healthy cushion.`
+    : `Spending is tracking close to budget on average (${avgVariance >= 0 ? "+" : ""}${pHide(fmt(Math.abs(avgVariance)))}/mo).`;
+
+  return (
+    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 18px" }}>
+      <div style={{ marginBottom: "12px" }}>
+        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Spending Trend</span>
+        <span style={{ marginLeft: "8px", fontSize: "10px", color: "var(--text-muted)" }}>{loggedMonths.length} months logged</span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+        {monthData.map(({ year, month, budgeted, actual, variance, loggedCount }) => {
+          const hasActual = loggedCount > 0;
+          const budgetPct = maxVal > 0 ? (budgeted / maxVal) * 100 : 0;
+          const actualPct = maxVal > 0 ? (actual / maxVal) * 100 : 0;
+          const barFill = !hasActual ? "transparent" : variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)";
+          const varColor = !hasActual ? "var(--text-tertiary)" : variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)";
+          return (
+            <div key={`${year}-${month}`} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", width: "28px", flexShrink: 0 }}>{MONTH_NAMES[month - 1]}</span>
+              <div style={{ flex: 1, position: "relative", height: "14px" }}>
+                <div style={{ position: "absolute", left: 0, top: "4px", height: "6px", width: `${budgetPct}%`, borderRadius: "3px", background: "var(--border)" }} />
+                {hasActual && (
+                  <div style={{ position: "absolute", left: 0, top: "4px", height: "6px", width: `${actualPct}%`, borderRadius: "3px", background: barFill, transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
+                )}
+              </div>
+              <div style={{ width: "72px", textAlign: "right", flexShrink: 0 }}>
+                {hasActual
+                  ? <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: varColor }}>{variance >= 0 ? "+" : ""}{isPrivate ? "••••" : `$${Math.abs(Math.round(variance)).toLocaleString()}`}</span>
+                  : <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>not logged</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ paddingTop: "12px", borderTop: "1px solid var(--border-subtle)", display: "flex", alignItems: "flex-start", gap: "20px", flexWrap: "wrap" }}>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Avg Monthly Variance</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: avgVariance > 100 ? "var(--red)" : avgVariance < -100 ? "var(--green)" : "var(--text-secondary)" }}>
+            {avgVariance >= 0 ? "+" : ""}{isPrivate ? "••••" : `$${Math.abs(Math.round(avgVariance)).toLocaleString()}`}
+          </div>
+        </div>
+        <p style={{ flex: 1, minWidth: "180px", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.55, margin: 0, fontStyle: "italic" }}>{finnLine}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -5685,7 +5788,10 @@ export default function PlanningClient({
               <div style={sectionHeadStyle}>Budget vs. Actuals</div>
               <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "4px 0 0" }}>Log actual monthly spending and compare against your cash flow budget.</p>
             </div>
-            <BudgetTrackerTab cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
+            <ForecastVarianceTrendCard cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
+            <div style={{ marginTop: "20px" }}>
+              <BudgetTrackerTab cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
+            </div>
           </div>
 
         </div>
