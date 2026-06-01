@@ -5848,6 +5848,193 @@ export default function PlanningClient({
             );
           })()}
 
+          {/* ── Section: Financial Independence (P10) ── */}
+          {(() => {
+            const fiTarget = effectiveExpenses > 0 ? effectiveExpenses * 12 * 25 : 0;
+            if (fiTarget <= 0) return null;
+            const fiGap = Math.max(0, fiTarget - netWorth);
+            const fiProgress = Math.min(1, Math.max(0, netWorth / fiTarget));
+            const fiPct = Math.round(fiProgress * 100);
+            const fiYearsAway = lifePlan.fiYear != null ? lifePlan.fiYear - currentYear : null;
+            const fiAlreadyReached = netWorth >= fiTarget;
+            // Boost: how many years earlier if +5pp savings rate?
+            const boostMonthly = effectiveIncome > 0 ? effectiveIncome * 0.05 : 0;
+            const r = localAssumptions.return_rate / 100;
+            let fiYearBoost: number | null = null;
+            if (!fiAlreadyReached && boostMonthly > 0) {
+              for (let y = 1; y <= 50; y++) {
+                const mr = r / 12; const mo = y * 12;
+                const fv = mr > 0 ? netWorth * Math.pow(1+mr, mo) + (monthlySavings + boostMonthly) * ((Math.pow(1+mr, mo) - 1) / mr) : netWorth + (monthlySavings + boostMonthly) * mo;
+                if (fv >= fiTarget) { fiYearBoost = currentYear + y; break; }
+              }
+            }
+            const speedup = fiYearBoost != null && lifePlan.fiYear != null ? lifePlan.fiYear - fiYearBoost : null;
+            const fiColor = fiAlreadyReached ? "var(--green)" : fiPct >= 60 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 260)";
+            return (
+              <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "125ms" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Financial Independence</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                      {fiAlreadyReached ? "You've reached FI threshold" : `Target: ${pHide(fmt(fiTarget))} (25× annual expenses)`}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color: fiColor, lineHeight: 1 }}>{fiAlreadyReached ? "100%" : `${fiPct}%`}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>of FI target</div>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: "6px", borderRadius: "3px", background: "var(--border)", overflow: "hidden", marginBottom: "16px" }}>
+                  <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "3px", background: fiColor, transform: `scaleX(${fiProgress})`, animationDelay: "300ms" }} />
+                </div>
+                {/* Metrics grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>FI Year</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: fiAlreadyReached ? "var(--green)" : "var(--text-primary)" }}>
+                      {fiAlreadyReached ? "Now" : lifePlan.fiYear != null ? String(lifePlan.fiYear) : "60+yr"}
+                    </div>
+                    {fiYearsAway != null && !fiAlreadyReached && (
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>{fiYearsAway} yrs away</div>
+                    )}
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Gap to FI</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: fiAlreadyReached ? "var(--green)" : "var(--text-primary)" }}>
+                      {fiAlreadyReached ? "Achieved" : pHide(fmt(fiGap))}
+                    </div>
+                    {!fiAlreadyReached && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>remaining</div>}
+                  </div>
+                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: speedup != null && speedup > 0 ? "oklch(0.72 0.19 145 / 0.06)" : "var(--card-bg)", border: `1px solid ${speedup != null && speedup > 0 ? "oklch(0.72 0.19 145 / 0.2)" : "var(--border-subtle)"}` }}>
+                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>+5% Savings Rate</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: speedup != null && speedup > 0 ? "var(--green)" : "var(--text-muted)" }}>
+                      {speedup != null && speedup > 0 ? `${speedup} yr${speedup !== 1 ? "s" : ""} earlier` : "—"}
+                    </div>
+                    {speedup != null && speedup > 0 && <div style={{ fontSize: "10px", color: "oklch(0.72 0.19 145)", marginTop: "2px" }}>fastest lever</div>}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Section: Wealth Milestones (P11) ── */}
+          {(() => {
+            const MILESTONES = [100_000, 250_000, 500_000, 1_000_000, 2_000_000];
+            const fiTarget2 = effectiveExpenses > 0 ? effectiveExpenses * 12 * 25 : 0;
+            if (fiTarget2 > 0 && !MILESTONES.includes(Math.round(fiTarget2 / 10000) * 10000)) {
+              // Insert FI target at appropriate position
+              const insertAt = MILESTONES.findIndex((m) => m > fiTarget2);
+              if (insertAt === -1) MILESTONES.push(fiTarget2);
+              else MILESTONES.splice(insertAt, 0, fiTarget2);
+            }
+            const r = localAssumptions.return_rate / 100;
+            const mr = r / 12;
+            const milestoneRows = MILESTONES.slice(0, 6).map((target) => {
+              const isFiTarget = fiTarget2 > 0 && Math.abs(target - fiTarget2) < 5000;
+              const achieved = netWorth >= target;
+              let projYear: number | null = null;
+              if (!achieved && monthlySavings > 0) {
+                for (let y = 1; y <= 50; y++) {
+                  const mo = y * 12;
+                  const fv = mr > 0 ? netWorth * Math.pow(1+mr, mo) + monthlySavings * ((Math.pow(1+mr, mo) - 1) / mr) : netWorth + monthlySavings * mo;
+                  if (fv >= target) { projYear = currentYear + y; break; }
+                }
+              }
+              return { target, label: isFiTarget ? `FI Target (${fmt(target)})` : fmt(target), achieved, projYear, isFiTarget };
+            });
+            const nextMilestone = milestoneRows.find((m) => !m.achieved);
+            if (!nextMilestone) return null; // all achieved — skip
+            return (
+              <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "130ms" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Wealth Milestones</div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "14px" }}>
+                  {nextMilestone.projYear != null ? `Next: ${pHide(nextMilestone.label)} — projected ${nextMilestone.projYear}` : `Next target: ${pHide(nextMilestone.label)}`}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {milestoneRows.map((m) => {
+                    const isNext = !m.achieved && milestoneRows.find((r2) => !r2.achieved) === m;
+                    const progress = Math.min(1, Math.max(0, netWorth / m.target));
+                    const mColor = m.achieved ? "var(--green)" : isNext ? "oklch(0.65 0.18 260)" : "var(--text-muted)";
+                    return (
+                      <div key={m.target} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                        <div style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%", background: m.achieved ? "oklch(0.72 0.19 145 / 0.15)" : isNext ? "oklch(0.65 0.18 260 / 0.12)" : "var(--border)", border: `1px solid ${m.achieved ? "oklch(0.72 0.19 145 / 0.35)" : isNext ? "oklch(0.65 0.18 260 / 0.3)" : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {m.achieved && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="oklch(0.72 0.19 145)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: m.achieved || isNext ? "0" : "0" }}>
+                            <span style={{ fontSize: "12px", fontWeight: m.achieved || isNext ? 600 : 400, color: m.achieved ? "var(--text-primary)" : isNext ? "var(--text-primary)" : "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                              {m.isFiTarget ? `FI — ${pHide(fmt(m.target))}` : pHide(m.label)}
+                            </span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: mColor, flexShrink: 0, marginLeft: "8px" }}>
+                              {m.achieved ? "Achieved" : m.projYear != null ? String(m.projYear) : "50+ yrs"}
+                            </span>
+                          </div>
+                          {isNext && (
+                            <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden", marginTop: "6px" }}>
+                              <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: "oklch(0.65 0.18 260)", transform: `scaleX(${progress})`, animationDelay: "350ms" }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Section: Financial Momentum (P7 + P8) ── */}
+          {(() => {
+            if (netWorthHistory.length < 2) return null;
+            const sorted = [...netWorthHistory].sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
+            const oldest = sorted[0];
+            const msApart = new Date().getTime() - new Date(oldest.snapshot_date).getTime();
+            const daysDiff = msApart / (1000 * 60 * 60 * 24);
+            if (daysDiff < 14) return null; // need at least 2 weeks of history
+            const monthsDiff = Math.max(1, daysDiff / 30.4);
+            const nwChange = netWorth - oldest.net_worth;
+            const monthlyBuildRate = nwChange / monthsDiff;
+            const assetsChange = totalAssets - oldest.total_assets;
+            const liabChange = totalLiabilities - oldest.total_liabilities;
+            const isPositive = nwChange >= 0;
+            const since12m = sorted.find((s) => {
+              const d = (new Date().getTime() - new Date(s.snapshot_date).getTime()) / (1000 * 60 * 60 * 24);
+              return d >= 300;
+            }) ?? oldest;
+            const nwChange12m = netWorth - since12m.net_worth;
+            const changeLabel = daysDiff >= 340 ? "12-month gain" : `${Math.round(daysDiff)}-day gain`;
+            const changeValue = nwChange12m;
+            return (
+              <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "135ms" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Financial Momentum</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Since {fmtDateShort(oldest.snapshot_date)}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 800, color: changeValue >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
+                      {changeValue >= 0 ? "+" : ""}{pHide(fmt(Math.abs(changeValue)))}
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{changeLabel}</div>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                  {[
+                    { label: "Build Rate", value: pHide(`${monthlyBuildRate >= 0 ? "+" : ""}${fmt(Math.round(monthlyBuildRate))}/mo`), color: monthlyBuildRate >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "Assets Change", value: pHide(`${assetsChange >= 0 ? "+" : ""}${fmt(Math.round(assetsChange))}`), color: assetsChange >= 0 ? "var(--text-primary)" : "var(--red)" },
+                    { label: "Debt Change", value: pHide(`${liabChange <= 0 ? "" : "+"}${fmt(Math.round(liabChange))}`), color: liabChange <= 0 ? "var(--green)" : "var(--red)" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Section 5: Profile Settings ── */}
           <div className="cmd-section" style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px", animationDelay: "140ms" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
