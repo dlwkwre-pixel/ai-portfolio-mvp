@@ -64,41 +64,61 @@ function calcHealthScore(
   currentAge: number | null,
   targetRetirementAge: number | null,
   monthlyNetWorth: number,
+  estateDocsComplete: number = 0,
+  effectiveIncome: number = 0,
+  retirementProb: number | null = null,
 ) {
-  // Factor 1: Savings rate (0-25 pts). Target ≥ 20%.
-  const savingsScore = Math.min(25, (savingsRate / 20) * 25);
+  type Dir = "strength" | "weakness" | "neutral";
+  const dir = (s: number, hi: number, lo: number): Dir => s >= hi ? "strength" : s >= lo ? "neutral" : "weakness";
 
-  // Factor 2: Emergency fund (0-25 pts). Target: 3 months expenses.
-  const emergencyMonths = monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0;
-  const emergencyScore = Math.min(25, (emergencyMonths / 3) * 25);
+  // Domain 1: Cash Flow (0-20). Savings rate ≥ 20% = full marks.
+  const cfScore = Math.min(20, (savingsRate / 20) * 20);
+  const cfMetric = effectiveIncome > 0 ? `${savingsRate.toFixed(0)}% savings rate` : "No income data";
+  const cfAction = savingsRate >= 20 ? "On target" : effectiveIncome > 0 ? `Need ${fmt(Math.round(Math.max(0, effectiveIncome * 0.20 - monthlyNetWorth)))}/mo more` : "Add income & expenses";
 
-  // Factor 3: Debt ratio (0-25 pts). Lower liabilities vs assets = better.
-  const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : 1;
-  const debtScore = Math.min(25, Math.max(0, (1 - debtRatio) * 25));
+  // Domain 2: Liquidity (0-20). 3-month emergency fund = full marks.
+  const efMonths = monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : 0;
+  const liqScore = Math.min(20, (efMonths / 3) * 20);
+  const liqMetric = monthlyExpenses > 0 ? `${efMonths.toFixed(1)} months covered` : "Add expenses";
+  const liqAction = efMonths >= 3 ? "Emergency fund healthy" : monthlyExpenses > 0 ? `Build ${fmt(Math.round(Math.max(0, monthlyExpenses * 3 - liquidAssets)))} more` : "Set monthly expenses";
 
-  // Factor 4: Retirement trajectory (0-25 pts). Are they saving anything?
-  let trajectoryScore = 0;
-  if (currentAge != null && targetRetirementAge != null && targetRetirementAge > currentAge) {
+  // Domain 3: Debt (0-20). Zero liabilities = full marks; debt/assets ≤ 30% = near full.
+  const debtRatio = totalAssets > 0 ? totalLiabilities / totalAssets : (totalLiabilities > 0 ? 1 : 0);
+  const debtScore = Math.min(20, Math.max(0, (1 - debtRatio) * 20));
+  const debtMetric = totalAssets > 0 ? `${Math.round(debtRatio * 100)}% debt-to-assets` : totalLiabilities === 0 ? "No debt tracked" : "Add assets";
+  const debtAction = totalLiabilities === 0 ? "Debt-free" : debtRatio <= 0.3 ? "Low debt load" : debtRatio <= 0.6 ? "Moderate — reduce debt" : "High debt — priority focus";
+
+  // Domain 4: Retirement (0-20). Trajectory + probability.
+  let retirScore = 0;
+  if (retirementProb != null) {
+    retirScore = Math.min(20, (retirementProb / 100) * 20);
+  } else if (currentAge != null && targetRetirementAge != null && targetRetirementAge > currentAge) {
     const yearsLeft = targetRetirementAge - currentAge;
-    // Simple check: saving > 0, and at current rate they accumulate something meaningful
     if (monthlyNetWorth > 0) {
       const projected = monthlyNetWorth * 12 * yearsLeft;
-      // Target: 25× current annual expenses at retirement
       const target = monthlyExpenses * 12 * 25;
-      trajectoryScore = target > 0 ? Math.min(25, (projected / target) * 25) : 12;
+      retirScore = target > 0 ? Math.min(20, (projected / target) * 20) : 10;
     }
   } else if (monthlyNetWorth > 0) {
-    trajectoryScore = 12; // partial credit for saving without full profile
+    retirScore = 10;
   }
+  const retirMetric = retirementProb != null ? `${retirementProb}% on track` : currentAge != null && targetRetirementAge != null ? "Forecast unavailable" : "Set retirement age";
+  const retirAction = retirementProb != null ? (retirementProb >= 80 ? "On track for retirement" : retirementProb >= 60 ? `${80 - retirementProb}pp gap — increase savings` : "Retirement needs attention") : "Add profile for analysis";
+
+  // Domain 5: Estate (0-20). 6 core docs complete = full marks; partial credit per doc.
+  const estScore = Math.min(20, Math.round((estateDocsComplete / 6) * 20));
+  const estMetric = estateDocsComplete > 0 ? `${estateDocsComplete}/6 core documents` : "Not started";
+  const estAction = estateDocsComplete === 0 ? "Start with a will" : estateDocsComplete < 4 ? "Complete key documents" : estateDocsComplete < 6 ? "Nearly complete" : "Estate plan in order";
 
   return {
-    total: Math.round(savingsScore + emergencyScore + debtScore + trajectoryScore),
+    total: Math.round(cfScore + liqScore + debtScore + retirScore + estScore),
     factors: [
-      { name: "Savings Rate", score: Math.round(savingsScore), max: 25, direction: (savingsScore >= 20 ? "strength" : savingsScore >= 10 ? "neutral" : "weakness") as "strength" | "weakness" | "neutral" },
-      { name: "Emergency Fund", score: Math.round(emergencyScore), max: 25, direction: (emergencyScore >= 20 ? "strength" : emergencyScore >= 10 ? "neutral" : "weakness") as "strength" | "weakness" | "neutral" },
-      { name: "Debt Ratio", score: Math.round(debtScore), max: 25, direction: (debtScore >= 20 ? "strength" : debtScore >= 10 ? "neutral" : "weakness") as "strength" | "weakness" | "neutral" },
-      { name: "Retirement Trajectory", score: Math.round(trajectoryScore), max: 25, direction: (trajectoryScore >= 20 ? "strength" : trajectoryScore >= 10 ? "neutral" : "weakness") as "strength" | "weakness" | "neutral" },
-    ],
+      { name: "Cash Flow",  score: Math.round(cfScore),    max: 20, direction: dir(cfScore, 16, 8),    metric: cfMetric,    action: cfAction,    tabKey: "cashflow" },
+      { name: "Liquidity",  score: Math.round(liqScore),   max: 20, direction: dir(liqScore, 16, 8),   metric: liqMetric,   action: liqAction,   tabKey: "balance"  },
+      { name: "Debt",       score: Math.round(debtScore),  max: 20, direction: dir(debtScore, 16, 8),  metric: debtMetric,  action: debtAction,  tabKey: "balance"  },
+      { name: "Retirement", score: Math.round(retirScore), max: 20, direction: dir(retirScore, 16, 8), metric: retirMetric, action: retirAction, tabKey: "forecast" },
+      { name: "Estate",     score: Math.round(estScore),   max: 20, direction: dir(estScore, 16, 8),   metric: estMetric,   action: estAction,   tabKey: "estate"   },
+    ] as { name: string; score: number; max: number; direction: "strength" | "weakness" | "neutral"; metric: string; action: string; tabKey: string }[],
   };
 }
 
@@ -3989,13 +4009,6 @@ export default function PlanningClient({
     ? Math.max(0, profile.target_retirement_age - profile.current_age)
     : null;
 
-  const healthData = calcHealthScore(
-    savingsRate, effectiveExpenses, liquidAssets,
-    totalAssets, totalLiabilities,
-    profile?.current_age ?? null, profile?.target_retirement_age ?? null,
-    monthlySavings,
-  );
-
   // ── Auto-save snapshot once per session ───────────────────────────────────
 
   useEffect(() => {
@@ -4087,6 +4100,18 @@ export default function PlanningClient({
   const retirementProb = retirementPoint
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
     : null;
+
+  const estateDocsComplete = estateProfile
+    ? [estateProfile.doc_will, estateProfile.doc_living_trust, estateProfile.doc_durable_poa, estateProfile.doc_healthcare_directive, estateProfile.doc_beneficiary_desig, estateProfile.doc_digital_assets].filter((d) => d !== "none" && d != null).length
+    : 0;
+
+  const healthData = calcHealthScore(
+    savingsRate, effectiveExpenses, liquidAssets,
+    totalAssets, totalLiabilities,
+    profile?.current_age ?? null, profile?.target_retirement_age ?? null,
+    monthlySavings,
+    estateDocsComplete, effectiveIncome, retirementProb,
+  );
 
   const whatIfImpacts = useMemo(() => {
     if (retirementPoint == null || forecastYears <= 0) return null;
@@ -5496,10 +5521,10 @@ export default function PlanningClient({
                     <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Financial Health Score</span>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>/100</span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "8px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "6px" }}>
                     {healthData.factors.map((f) => (
                       <div key={f.name}>
-                        <div style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: "8px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {f.name.split(" ")[0]}
                         </div>
                         <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
@@ -5626,32 +5651,40 @@ export default function PlanningClient({
               </div>
             </div>
 
-            {/* Financial System Health */}
+            {/* Financial Health Breakdown — P14 */}
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Financial System Health</div>
-              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Completion across all planning modules</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {systemHealth.map((sec) => {
-                  const sColor = sec.status === "complete" ? "oklch(0.72 0.19 145)" : sec.status === "partial" ? "oklch(0.75 0.18 70)" : "var(--text-muted)";
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "2px" }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>Health Breakdown</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>{healthData.total}/100</div>
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "14px" }}>Score by financial domain</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {healthData.factors.map((f, fi) => {
+                  const fColor = f.direction === "strength" ? "oklch(0.72 0.19 145)" : f.direction === "neutral" ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)";
+                  const barPct = f.score / f.max;
                   return (
-                    <div key={sec.id}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "5px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-                          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: sColor, flexShrink: 0 }} />
-                          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{sec.label}</span>
+                    <div key={f.name}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
+                          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: fColor, flexShrink: 0 }} />
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{f.name}</span>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: sColor, fontWeight: 600 }}>{sec.pct}%</span>
-                          {sec.status !== "complete" && (
-                            <button type="button" onClick={() => setTab(sec.tabKey as Tab)}
-                              style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-tertiary)", cursor: "pointer", whiteSpace: "nowrap" }}>
-                              {sec.cta} →
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginLeft: "8px" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", fontWeight: 600 }}>{f.score}/{f.max}</span>
+                          {f.direction !== "strength" && (
+                            <button type="button" onClick={() => setTab(f.tabKey as Tab)}
+                              style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "9px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-tertiary)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                              Fix →
                             </button>
                           )}
                         </div>
                       </div>
-                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
-                        <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: sColor, transform: `scaleX(${sec.pct / 100})`, animationDelay: "250ms" }} />
+                      <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden", marginBottom: "3px" }}>
+                        <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: fColor, transform: `scaleX(${barPct})`, animationDelay: `${200 + fi * 60}ms` }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{f.metric}</span>
+                        <span style={{ fontSize: "10px", color: fColor, fontFamily: "var(--font-body)", fontWeight: 500 }}>{f.action}</span>
                       </div>
                     </div>
                   );

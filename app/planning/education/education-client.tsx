@@ -781,10 +781,12 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
       {/* Section nav */}
       <div data-print-hide style={{
-        marginBottom: 20,
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex", gap: "0",
-        background: "transparent",
+        background: "var(--bg-base)",
+        position: "sticky",
+        top: "0",
+        zIndex: 9,
         overflowX: "auto",
       }}>
         {(["recommendation", "readiness", "impact", "options"] as PlannerSection[]).map((s) => (
@@ -1192,7 +1194,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
       {/* Impact section: full-width rows */}
       {section === "impact" && (
-        <div style={{ padding: "16px 0 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* Row 1: Funding Targets + Ecosystem */}
         <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
