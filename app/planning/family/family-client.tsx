@@ -544,9 +544,6 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const [addingForecast, startAddForecast] = useTransition();
   const [forecastStatus, setForecastStatus] = useState<string | null>(null);
 
-  type PlannerSection = "recommendation" | "readiness" | "impact" | "options";
-  const [section, setPlannerSection] = useState<PlannerSection>("recommendation");
-
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
 
   function getFormValues(): FormState {
@@ -741,10 +738,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const meta = computed.verdict ? verdictMeta[computed.verdict] : null;
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
 
       {/* Header */}
-      <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)", position: "sticky", top: 0, zIndex: 10 }}>
+      <div style={{ flexShrink: 0, padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <a href="/planning?tab=events" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -755,46 +752,121 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       </div>
 
-      {/* Section nav */}
-      <div data-print-hide style={{
-        padding: "0 24px",
-        borderBottom: "1px solid var(--border-subtle)",
-        display: "flex", gap: "0",
-        background: "var(--bg-base)",
-        position: "sticky",
-        top: "0",
-        zIndex: 9,
-        overflowX: "auto",
-      }}>
-        {(["recommendation", "readiness", "impact", "options"] as PlannerSection[]).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setPlannerSection(s)}
-            style={{
-              padding: "9px 16px",
-              border: "none",
-              background: "transparent",
-              fontSize: "12px",
-              fontFamily: "var(--font-body)",
-              cursor: "pointer",
-              color: section === s ? "var(--text-primary)" : "var(--text-tertiary)",
-              fontWeight: section === s ? 600 : 400,
-              borderBottom: `2px solid ${section === s ? "var(--accent)" : "transparent"}`,
-              textTransform: "capitalize",
-              letterSpacing: "0.01em",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {s === "recommendation" ? "Recommendation" : s === "readiness" ? "Readiness" : s === "impact" ? "Impact" : "Options"}
-          </button>
-        ))}
-      </div>
+      {/* Two-column layout */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }} data-family-cols>
 
-      {/* P1: Verdict card — always visible as section header */}
-      {meta && computed.verdict && (
-        <div id="planner-verdict" style={{ padding: "16px 24px 0" }}>
+        {/* ── Left sidebar: assumptions ─────────────────────────────────── */}
+        <div style={{ width: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", overflowY: "auto", padding: "20px 20px 40px" }} data-family-sidebar>
+
+          {/* Number of children selector */}
+          <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", borderRadius: "10px", padding: "14px", overflow: "hidden", position: "relative", marginBottom: "18px" }}>
+            <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "oklch(0.55 0.15 265 / 0.06)", pointerEvents: "none" }} />
+            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Planning For</div>
+            <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+              {([1, 2, 3, 4] as const).map((n) => {
+                const active = numChildren === n;
+                const icons = ["👶", "👶👶", "👶👶👶", "👨‍👩‍👧‍👦"];
+                const lbl = n === 4 ? "4+" : String(n);
+                return (
+                  <button key={n} onClick={() => setNumChildren(n)} className="bt-child-btn" style={{ flex: 1, padding: "10px 0 8px", borderRadius: 10, cursor: "pointer", background: active ? "oklch(0.55 0.15 265 / 0.18)" : "oklch(0.14 0.01 240)", border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid oklch(0.22 0.02 240)", boxShadow: active ? "0 0 14px oklch(0.55 0.15 265 / 0.25), inset 0 1px 0 oklch(0.75 0.1 265 / 0.1)" : "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all 0.18s ease", fontFamily: "var(--font-body)" }}>
+                    <span style={{ fontSize: n === 3 ? 12 : n === 4 ? 11 : 14, lineHeight: 1 }}>{icons[n - 1]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: active ? "oklch(0.85 0.12 265)" : "var(--text-secondary)", fontFamily: "var(--font-mono)", transition: "color 0.18s ease" }}>{lbl}</span>
+                    <span style={{ fontSize: 9, color: active ? "oklch(0.65 0.1 265)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", transition: "color 0.18s ease" }}>{n === 1 ? "child" : n === 4 ? "or more" : "children"}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {numChildren > 1 && (
+              <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", marginTop: 10, padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
+                All costs scaled to {numChildren} {numChildren === 4 ? "or more" : ""} children
+              </div>
+            )}
+          </div>
+
+          {/* Saved scenarios */}
+          {scenarios.length > 0 && (
+            <>
+              <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Scenarios</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "4px" }}>
+                {scenarios.map((s) => (
+                  <div key={s.id} onClick={() => { setActiveScenarioId(s.id); setEditingId(null); setCommentary(null); }} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover, var(--bg-elevated))" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.name}</div>
+                      {s.child_name && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.child_name}, age {s.child_current_age}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={(e) => { e.stopPropagation(); startEdit(s); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "2px 6px" }}>Edit</button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 12, padding: "2px 6px" }}>Del</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* New / Edit form */}
+          <div style={{ height: "1px", background: "var(--border-subtle)", margin: "18px 0 14px" }} />
+          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>{editingId ? "Edit Scenario" : "New Scenario"}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
+            {([{ label: "Scenario Name", field: "name" as const, type: "text" }, { label: "Child Name (optional)", field: "child_name" as const, type: "text" }] as const).map(({ label, field, type }) => (
+              <div key={field}>
+                <label style={labelS}>{label}</label>
+                <input type={type} value={form[field] as string} onChange={(e) => set(field, e.target.value)} style={inputS} />
+              </div>
+            ))}
+            <div>
+              <label style={labelS}>Child Current Age</label>
+              <input type="number" value={form.child_current_age} min={0} max={17} step={1} onChange={(e) => set("child_current_age", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
+            </div>
+          </div>
+
+          <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
+          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Monthly Costs by Phase</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
+            {([{ label: "Infant (Ages 0–2) $/mo", field: "monthly_infant_cost" as const, color: PHASE_COLORS.Infant }, { label: "Child (Ages 3–12) $/mo", field: "monthly_child_cost" as const, color: PHASE_COLORS.Child }, { label: "Teen (Ages 13–17) $/mo", field: "monthly_teen_cost" as const, color: PHASE_COLORS.Teen }] as const).map(({ label, field, color }) => (
+              <div key={field}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</label>
+                  <span style={{ fontSize: 11, color, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(form[field] as number)}</span>
+                </div>
+                <input type="range" min={0} max={5000} step={50} value={form[field] as number} onChange={(e) => set(field, Number(e.target.value))} style={{ width: "100%", accentColor: "var(--accent)" }} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
+          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Household Context</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
+            <div>
+              <label style={labelS}>Monthly Household Expenses ($)</label>
+              <input type="number" value={form.monthly_expenses_now} min={0} step={100} onChange={(e) => set("monthly_expenses_now", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
+            </div>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Investment Return</label>
+                <span style={{ fontSize: 11, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{pct(form.investment_return * 100)}</span>
+              </div>
+              <input type="range" min={0.03} max={0.12} step={0.005} value={form.investment_return} onChange={(e) => set("investment_return", Number(e.target.value))} style={{ width: "100%", marginTop: 4, accentColor: "var(--accent)" }} />
+            </div>
+          </div>
+
+          {saveStatus && <div style={{ fontSize: 12, color: saveStatus === "Saved." ? "var(--green, #22c55e)" : "var(--red, #ef4444)", marginBottom: 8 }}>{saveStatus}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: "9px 0", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
+              {saving ? "Saving…" : editingId ? "Update" : "Save Scenario"}
+            </button>
+            {editingId && <button onClick={cancelEdit} style={{ padding: "9px 14px", background: "var(--bg-elevated, var(--bg-hover))", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Cancel</button>}
+          </div>
+
+        </div>
+
+        {/* ── Right panel: analysis ────────────────────────────────────── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px", display: "flex", flexDirection: "column", gap: "14px" }} data-family-analysis>
+
+          {/* P1: Verdict card */}
+          {meta && computed.verdict && (
+            <div id="planner-verdict">
           <div style={{ ...cardS, background: meta.bg, borderColor: meta.border }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
@@ -880,178 +952,11 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       )}
 
-      {/* P6: National Benchmark + P8: Cost Spikes — shown in readiness */}
-      {section === "readiness" && (computed.annualCostVsAvg || computed.costSpikes.length > 0) && (
-        <div style={{ padding: "10px 24px 0", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {computed.annualCostVsAvg && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
-              <span style={{ color: "var(--text-muted)" }}>vs National Avg</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: computed.annualCostVsAvg.label === "Above Average" ? "var(--amber)" : computed.annualCostVsAvg.label === "Below Average" ? "var(--green)" : "var(--text-primary)" }}>
-                {fmtK(computed.annualCostVsAvg.yours)}/yr
-              </span>
-              <span style={{ color: "var(--text-tertiary, var(--text-muted))", fontSize: "10px" }}>
-                ({computed.annualCostVsAvg.label}, nat. avg {fmtK(computed.annualCostVsAvg.national)}/yr)
-              </span>
-            </div>
-          )}
-          {computed.costSpikes.map((spike) => (
-            <div key={spike.age} style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 12px", background: "color-mix(in oklch, oklch(0.60 0.14 80) 6%, var(--card-bg, var(--bg-card)))", border: "1px solid color-mix(in oklch, oklch(0.60 0.14 80) 20%, transparent)", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
-              <span style={{ fontSize: "10px", color: "oklch(0.78 0.15 80)" }}>▲</span>
-              <span style={{ color: "var(--text-secondary)" }}>{spike.label}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "oklch(0.78 0.15 80)" }}>
-                {spike.yearsAway === 0 ? "Active" : `Age ${spike.age}`}
-              </span>
-              <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>+{fmt(spike.monthlyCost)}/mo{spike.estimated ? " est." : ""}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Options section: left column only */}
-      {section === "options" && (
-        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "12px", maxWidth: 380 }}>
 
-          {/* Number of children selector */}
-          <div style={{ ...cardS, background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", overflow: "hidden", position: "relative" }}>
-            <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "oklch(0.55 0.15 265 / 0.06)", pointerEvents: "none" }} />
-            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
-              Planning For
-            </div>
-            <div style={{ display: "flex", gap: "8px", position: "relative" }}>
-              {([1, 2, 3, 4] as const).map((n) => {
-                const active = numChildren === n;
-                const icons = ["👶", "👶👶", "👶👶👶", "👨‍👩‍👧‍👦"];
-                const label = n === 4 ? "4+" : String(n);
-                return (
-                  <button
-                    key={n}
-                    onClick={() => setNumChildren(n)}
-                    className="bt-child-btn"
-                    style={{
-                      flex: 1, padding: "10px 0 8px", borderRadius: 10, cursor: "pointer",
-                      background: active ? "oklch(0.55 0.15 265 / 0.18)" : "oklch(0.14 0.01 240)",
-                      border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid oklch(0.22 0.02 240)",
-                      boxShadow: active ? "0 0 14px oklch(0.55 0.15 265 / 0.25), inset 0 1px 0 oklch(0.75 0.1 265 / 0.1)" : "none",
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                      transition: "all 0.18s ease",
-                      fontFamily: "var(--font-body)",
-                    }}
-                  >
-                    <span style={{ fontSize: n === 3 ? 12 : n === 4 ? 11 : 14, lineHeight: 1 }}>{icons[n - 1]}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: active ? "oklch(0.85 0.12 265)" : "var(--text-secondary)", fontFamily: "var(--font-mono)", transition: "color 0.18s ease" }}>{label}</span>
-                    <span style={{ fontSize: 9, color: active ? "oklch(0.65 0.1 265)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", transition: "color 0.18s ease" }}>{n === 1 ? "child" : n === 4 ? "or more" : "children"}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {numChildren > 1 && (
-              <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", marginTop: 10, padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
-                All costs scaled to {numChildren} {numChildren === 4 ? "or more" : ""} children
-              </div>
-            )}
-          </div>
-
-          {/* Saved scenarios */}
-          {scenarios.length > 0 && (
-            <div style={cardS}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                Saved Scenarios
-              </div>
-              {scenarios.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => { setActiveScenarioId(s.id); setEditingId(null); setCommentary(null); }}
-                  style={{
-                    padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-                    background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover, var(--bg-elevated))" : "transparent",
-                    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.name}</div>
-                    {s.child_name && (
-                      <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.child_name}, age {s.child_current_age}</div>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button onClick={(e) => { e.stopPropagation(); startEdit(s); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "2px 6px" }}>Edit</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red, #ef4444)", fontSize: 12, padding: "2px 6px" }}>Del</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* New / Edit form */}
-          <div style={cardS}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
-              {editingId ? "Edit Scenario" : "New Scenario"}
-            </div>
-            {[
-              { label: "Scenario Name", field: "name" as const, type: "text" },
-              { label: "Child Name (optional)", field: "child_name" as const, type: "text" },
-            ].map(({ label, field, type }) => (
-              <div key={field} style={{ marginBottom: 10 }}>
-                <label style={labelS}>{label}</label>
-                <input type={type} value={form[field] as string} onChange={(e) => set(field, e.target.value)} style={inputS} />
-              </div>
-            ))}
-            <div style={{ marginBottom: 10 }}>
-              <label style={labelS}>Child Current Age</label>
-              <input type="number" value={form.child_current_age} min={0} max={17} step={1} onChange={(e) => set("child_current_age", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 8px" }}>
-              Monthly Costs by Phase
-            </div>
-            {[
-              { label: "Infant (Ages 0–2) $/mo", field: "monthly_infant_cost" as const, color: PHASE_COLORS.Infant },
-              { label: "Child (Ages 3–12) $/mo", field: "monthly_child_cost" as const, color: PHASE_COLORS.Child },
-              { label: "Teen (Ages 13–17) $/mo", field: "monthly_teen_cost" as const, color: PHASE_COLORS.Teen },
-            ].map(({ label, field, color }) => (
-              <div key={field} style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>{label}</label>
-                  <span style={{ fontSize: 11, color, fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(form[field] as number)}</span>
-                </div>
-                <input type="range" min={0} max={5000} step={50} value={form[field] as number} onChange={(e) => set(field, Number(e.target.value))} style={{ width: "100%", accentColor: "var(--accent)" }} />
-              </div>
-            ))}
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 8px" }}>
-              Household Context
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={labelS}>Monthly Household Expenses ($)</label>
-              <input type="number" value={form.monthly_expenses_now} min={0} step={100} onChange={(e) => set("monthly_expenses_now", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Investment Return</label>
-                <span style={{ fontSize: 11, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{pct(form.investment_return * 100)}</span>
-              </div>
-              <input type="range" min={0.03} max={0.12} step={0.005} value={form.investment_return} onChange={(e) => set("investment_return", Number(e.target.value))} style={{ width: "100%", marginTop: 4, accentColor: "var(--accent)" }} />
-            </div>
-            {saveStatus && (
-              <div style={{ fontSize: 12, color: saveStatus === "Saved." ? "var(--green, #22c55e)" : "var(--red, #ef4444)", marginBottom: 8 }}>{saveStatus}</div>
-            )}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: "9px 0", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1 }}>
-                {saving ? "Saving…" : editingId ? "Update" : "Save Scenario"}
-              </button>
-              {editingId && (
-                <button onClick={cancelEdit} style={{ padding: "9px 14px", background: "var(--bg-elevated, var(--bg-hover))", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Cancel</button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recommendation section: FINN + What Would Change */}
-      {section === "recommendation" && (
-        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "14px" }}>
-
-          {/* P7: Auto FINN Narrative */}
+          {/* FINN Assessment */}
           {computed.autoNarrative && meta && (
-            <div style={{ ...cardS, borderColor: meta.border, background: `color-mix(in oklch, ${meta.color} 4%, var(--card-bg, var(--bg-card)))` }}>
+            <div style={{ background: `color-mix(in oklch, ${meta.color} 4%, var(--card-bg, var(--bg-card)))`, border: `1px solid ${meta.border}`, borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: 10 }}>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
                   <circle cx="10" cy="10" r="8" stroke={meta.color} strokeWidth="1.5" />
@@ -1068,7 +973,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
           {/* P4: What Would Change The Verdict? */}
           {computed.verdict && computed.verdict !== "READY" && computed.verdict !== "LOW_IMPACT" && (computed.incomeFlipAmount || computed.childCostFlipReduction || computed.nwFlipAmount) && (
-            <div style={cardS}>
+            <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px" }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>What Would Change The Verdict?</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {computed.incomeFlipAmount != null && (
@@ -1120,16 +1025,16 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-        </div>
-      )}
+          {/* Impact Analysis divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+          </div>
 
-      {/* Readiness section: Benchmark + Readiness Score + Affordability */}
-      {section === "readiness" && (
-        <div style={{ padding: "16px 24px 8px", display: "flex", flexDirection: "column", gap: "14px" }}>
-
-          {/* P2: Readiness Score */}
+          {/* Readiness & Risk (score cards moved here from readiness tab) */}
           {computed.readinessScore != null && meta && (
-            <div style={cardS}>
+            <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Family Readiness Score</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
@@ -1153,9 +1058,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* P3: Affordability Score */}
+          {/* Affordability Score */}
           {computed.affordabilityScore != null && meta && (
-            <div style={cardS}>
+            <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Family Affordability Score</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
@@ -1182,19 +1087,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-        </div>
-      )}
-
-      {/* Impact section: full-width rows */}
-      {section === "impact" && (
-        <div style={{ padding: "0 24px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-
-        {/* Row 1: Timing Simulator + Ecosystem Impact */}
-        {(computed.timingRows.length > 0 || computed.retirProbBefore != null) && (
-          <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "start" }}>
-
-            {computed.timingRows.length > 0 && (
-              <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+          {/* Timing Simulator */}
+          {computed.timingRows.length > 0 && (
+            <div className="bt-card" style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out both" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>When Are You Planning to Have a Child?</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {computed.timingRows.map(({ label, delayYears, retirAssets }, ti) => {
@@ -1227,10 +1122,11 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               </div>
             )}
 
-            {computed.retirProbBefore != null && (
-              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
+          {/* Ecosystem Impact */}
+          {computed.retirProbBefore != null && (
+            <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>Impact Across Your Financial Plan</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
                   {[
                     { label: "Retirement Probability", value: `${computed.retirProbBefore}% → ${computed.retirProbAfter}%`, sub: "on track for retirement", icon: "◎", color: (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 10 ? "var(--red)" : (computed.retirProbBefore - (computed.retirProbAfter ?? 0)) > 5 ? "var(--amber)" : "var(--green)" },
                     { label: "Home Affordability", value: computed.homeAffordBefore != null && computed.homeAffordAfter != null ? `${fmtK(computed.homeAffordBefore)} → ${fmtK(computed.homeAffordAfter)}` : "—", sub: "max home (28% DTI)", icon: "⌂", color: computed.homeAffordBefore != null && computed.homeAffordAfter != null && computed.homeAffordBefore - computed.homeAffordAfter > 50_000 ? "var(--amber)" : "var(--green)" },
@@ -1249,29 +1145,27 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Row 2: Summary tiles */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {[
-            { label: "Current Monthly Impact", value: fmt(computed.currentMonthlyImpact), sub: `${costImpactPct}% of household expenses`, color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)" },
-            { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
-            { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
-          ].map(({ label, value, sub, color }, ti) => (
-            <div key={label} className="bt-summary-tile" style={{ ...cardS, padding: "14px 16px", animation: `bt-fade-up 0.35s ease-out ${ti * 0.07}s both` }}>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: "var(--font-mono)", animation: "bt-pop 0.4s ease-out 0.2s both" }}>{value}</div>
-              <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{sub}</div>
             </div>
-          ))}
-        </div>
+          )}
 
-        {/* Row 3: Chart */}
-        {computed.chartData.length > 0 ? (
-          <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.1s both" }}>
+          {/* Summary tiles */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            {[
+              { label: "Current Monthly Impact", value: fmt(computed.currentMonthlyImpact), sub: `${costImpactPct}% of household expenses`, color: computed.currentMonthlyImpact > v.monthly_expenses_now * 0.3 ? "var(--amber, #f59e0b)" : "var(--text-primary)" },
+              { label: "Total Cost to Age 18", value: fmtK(computed.totalCostToAge18), sub: `${computed.remainingYears} years remaining`, color: "var(--text-primary)" },
+              { label: "Retirement NW Impact", value: retirementImpact != null ? "-" + fmtK(retirementImpact) : "—", sub: retirementImpact != null ? "vs no child costs" : "Add profile for forecast", color: retirementImpact != null && retirementImpact > 0 ? "var(--red, #ef4444)" : "var(--text-secondary)" },
+            ].map(({ label, value, sub, color }, ti) => (
+              <div key={label} className="bt-summary-tile" style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "14px 16px", animation: `bt-fade-up 0.35s ease-out ${ti * 0.07}s both` }}>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: "var(--font-mono)", animation: "bt-pop 0.4s ease-out 0.2s both" }}>{value}</div>
+                <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Cost chart */}
+          {computed.chartData.length > 0 ? (
+            <div className="bt-card" style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.1s both" }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Annual Child Costs by Age</div>
             <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
               {(["Infant", "Child", "Teen"] as const).map((p) => (
@@ -1302,17 +1196,17 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               </BarChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          <div style={{ ...cardS, textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
-            Child is 18+ — cost modeling phase complete.
-          </div>
-        )}
+          ) : (
+            <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", textAlign: "center", color: "var(--text-secondary)", fontSize: 13 }}>
+              Child is 18+ — cost modeling phase complete.
+            </div>
+          )}
 
-        {/* Row 4: Retirement Impact + FINN side by side */}
-        <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
+          {/* Retirement Impact + FINN side by side */}
+          <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
 
-          {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
-            <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+            {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
+              <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out both" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Retirement Impact</div>
               <div style={{ padding: "14px 16px", borderRadius: 10, background: "var(--bg-elevated, var(--bg-base))", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
@@ -1344,7 +1238,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column", background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", overflow: "hidden", position: "relative" }}>
+            <div style={{ background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
             {/* ambient glow orb */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.12) 0%, transparent 70%)", pointerEvents: "none", animation: "bt-orb-pulse 4s ease-in-out infinite" }} />
             <div style={{ position: "absolute", bottom: -30, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 265 / 0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -1408,10 +1302,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
         </div>
 
-        {/* Row 5: Opportunity Cost */}
-        {computed.opportunityCostFI != null && (
-          <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
-            <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out both" }}>
+          {/* Opportunity Cost + FI Timeline */}
+          {computed.opportunityCostFI != null && (
+            <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
+              <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out both" }}>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Opportunity Cost</p>
               <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 14px" }}>If {fmt(computed.currentMonthlyImpact)}/mo in child costs were invested instead:</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -1430,8 +1324,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               </div>
               <p style={{ fontSize: 10, color: "var(--text-muted)", margin: 0, fontStyle: "italic" }}>Tradeoff analysis, not a recommendation.</p>
             </div>
-            {computed.fiYearsBefore != null && computed.fiYearsAfter != null && (
-              <div style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
+              {computed.fiYearsBefore != null && computed.fiYearsAfter != null && (
+                <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.08s both" }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Financial Independence Timeline</p>
                 <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 14px" }}>How child costs shift your FI date (25x expenses target):</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1457,9 +1351,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
         )}
 
-        {/* Row 6: Scenario Comparison Table */}
-        {computed.comparisonRows.length > 0 && (
-          <div className="bt-card" style={{ ...cardS, animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
+          {/* Scenario Comparison */}
+          {computed.comparisonRows.length > 0 && (
+            <div className="bt-card" style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.05s both" }}>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px" }}>Scenario Comparison</p>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -1498,8 +1392,36 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
         )}
 
-        </div>
-      )}
+          {/* Readiness & Risk divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Readiness & Risk</span>
+            <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+          </div>
+
+          {/* National Benchmark + Cost Spikes */}
+          {(computed.annualCostVsAvg || computed.costSpikes.length > 0) && (
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              {computed.annualCostVsAvg && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 12px", background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
+                  <span style={{ color: "var(--text-muted)" }}>vs National Avg</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: computed.annualCostVsAvg.label === "Above Average" ? "var(--amber)" : computed.annualCostVsAvg.label === "Below Average" ? "var(--green)" : "var(--text-primary)" }}>{fmtK(computed.annualCostVsAvg.yours)}/yr</span>
+                  <span style={{ color: "var(--text-tertiary, var(--text-muted))", fontSize: "10px" }}>({computed.annualCostVsAvg.label}, nat. avg {fmtK(computed.annualCostVsAvg.national)}/yr)</span>
+                </div>
+              )}
+              {computed.costSpikes.map((spike) => (
+                <div key={spike.age} style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 12px", background: "color-mix(in oklch, oklch(0.60 0.14 80) 6%, var(--card-bg, var(--bg-card)))", border: "1px solid color-mix(in oklch, oklch(0.60 0.14 80) 20%, transparent)", borderRadius: "var(--radius-md, 8px)", fontSize: "12px" }}>
+                  <span style={{ fontSize: "10px", color: "oklch(0.78 0.15 80)" }}>▲</span>
+                  <span style={{ color: "var(--text-secondary)" }}>{spike.label}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "oklch(0.78 0.15 80)" }}>{spike.yearsAway === 0 ? "Active" : `Age ${spike.age}`}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>+{fmt(spike.monthlyCost)}/mo{spike.estimated ? " est." : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </div>{/* end right panel */}
+      </div>{/* end two-column wrapper */}
 
       <style>{`
         @keyframes bt-fade-up {
@@ -1549,6 +1471,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         .bt-finn-btn:not(:disabled):hover { background: oklch(0.50 0.2 290 / 0.24) !important; border-color: oklch(0.50 0.2 290 / 0.6) !important; box-shadow: 0 0 18px oklch(0.50 0.25 290 / 0.45) !important; }
         .bt-child-btn:hover { box-shadow: 0 0 10px oklch(0.55 0.15 265 / 0.2) !important; }
         @media (max-width: 900px) {
+          [data-family-cols] { flex-direction: column !important; }
+          [data-family-sidebar] { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border-subtle) !important; }
           [data-family-fw] { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 768px) {
