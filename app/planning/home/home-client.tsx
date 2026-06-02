@@ -818,7 +818,7 @@ function calcGoalProb(cashSurplus: number, totalNeeded: number, futureDTI: numbe
   if (futureDTI !== null && futureDTI > 43) p -= 25;
   else if (futureDTI !== null && futureDTI > 36) p -= 10;
   if (emergencyMonths !== null && emergencyMonths < 3) p -= Math.min(15, Math.round((3 - Math.max(0, emergencyMonths)) * 5));
-  return Math.max(10, Math.min(97, p));
+  return Math.max(10, Math.min(100, p));
 }
 
 function estimateEquityAtHold(
@@ -1550,6 +1550,10 @@ export default function HomeClient({
     const newDTIC = goalMetrics.projectedMonthlyIncome > 0 ? (newTotalMonthly / goalMetrics.projectedMonthlyIncome) * 100 : goalMetrics.futureDTI;
     const optionCProb = Math.max(base, calcGoalProb(newSurplusC, newTotalNeeded, newDTIC, newEmC));
 
+    const surplusGainA = optionACashSurplus - goalMetrics.cashSurplus;
+    const cashGainB = newProjCash - goalMetrics.projectedCash;
+    const neededDropC = goalMetrics.totalNeeded - newTotalNeeded;
+
     return {
       options: [
         {
@@ -1558,6 +1562,7 @@ export default function HomeClient({
           detail: goalMetrics.cashSurplus < 0 ? `Closes ${fmtK(-goalMetrics.cashSurplus)} cash gap by ${currentYear + n}` : "Builds additional cash buffer",
           probBefore: base,
           probAfter: optionAProb,
+          metric: surplusGainA > 0 ? `+${fmtK(surplusGainA)} buffer` : `+${fmt(optionASaveDelta * 12)}/yr saved`,
         },
         {
           letter: "B",
@@ -1565,6 +1570,7 @@ export default function HomeClient({
           detail: `Projects ${fmtK(newProjCash)} saved by ${currentYear + newN}`,
           probBefore: base,
           probAfter: optionBProb,
+          metric: cashGainB > 0 ? `+${fmtK(cashGainB)} more cash` : `Buy in ${currentYear + newN}`,
         },
         {
           letter: "C",
@@ -1572,6 +1578,7 @@ export default function HomeClient({
           detail: `Target ${fmtK(newPrice)} · saves ${fmtK(goalMetrics.totalNeeded - newTotalNeeded)} upfront`,
           probBefore: base,
           probAfter: optionCProb,
+          metric: neededDropC > 0 ? `-${fmtK(neededDropC)} needed` : newDTIC != null ? `DTI ${Math.round(newDTIC)}%` : `-${fmtK(priceCut)} price`,
         },
       ],
     };
@@ -2983,10 +2990,16 @@ export default function HomeClient({
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", fontFamily: "var(--font-body)" }}>{opt.detail}</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
-                      {delta > 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>}
+                      {delta > 0 ? (
+                        <>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
+                          <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
+                          <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.70 0.18 155)", background: "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)", padding: "3px 8px", borderRadius: "6px", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" as const }}>{opt.metric}</span>
+                      )}
                     </div>
                   </div>
                 );
