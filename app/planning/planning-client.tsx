@@ -3756,6 +3756,55 @@ function BudgetTrackerTab({
                 </div>
               )}
 
+              {/* Move whole actual — shown when logged without a breakdown */}
+              {actual && (!actual.breakdown || actual.breakdown.length === 0) && expenseItems.filter((ei) => ei.id !== item.id).length > 0 && (() => {
+                const mKey = `${item.id}:whole`;
+                const isMoving = movingKey === mKey;
+                const otherItems = expenseItems.filter((ei) => ei.id !== item.id);
+                return (
+                  <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <button
+                        type="button"
+                        title="Move to another category"
+                        onClick={() => setMovingKey(isMoving ? null : mKey)}
+                        style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "2px 7px", lineHeight: 1, fontFamily: "var(--font-body)" }}
+                      >
+                        → Move
+                      </button>
+                    </div>
+                    {isMoving && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Move to:</span>
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const destId = e.target.value;
+                            if (!destId) return;
+                            setMovingKey(null);
+                            startTransition(async () => {
+                              await moveMerchantActual(item.id, destId, item.label, actual.actual_amount, selYear, selMonth);
+                              router.refresh();
+                            });
+                          }}
+                          style={{ flex: 1, padding: "4px 6px", borderRadius: "6px", fontSize: "11px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontFamily: "var(--font-body)", cursor: "pointer" }}
+                        >
+                          <option value="" disabled>Select bucket...</option>
+                          {otherItems.map((ei) => (
+                            <option key={ei.id} value={ei.id}>{ei.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setMovingKey(null)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}
+                        >×</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Breakdown toggle */}
               {actual?.breakdown && actual.breakdown.length > 0 && (
                 <>
