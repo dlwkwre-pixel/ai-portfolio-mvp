@@ -3770,7 +3770,7 @@ function BudgetTrackerTab({
                         onClick={() => setMovingKey(isMoving ? null : mKey)}
                         style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "2px 7px", lineHeight: 1, fontFamily: "var(--font-body)" }}
                       >
-                        → Move
+                        → Move ${actual.actual_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </button>
                     </div>
                     {isMoving && (
