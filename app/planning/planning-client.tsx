@@ -1167,6 +1167,7 @@ function LineItemRow({
   onDelete: (id: string) => void;
   isPrivate?: boolean;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -1186,7 +1187,7 @@ function LineItemRow({
 
   function handleDelete() {
     if (!confirm(`Remove "${item.label}"?`)) return;
-    startTransition(async () => { await onDelete(item.id); });
+    startTransition(async () => { await onDelete(item.id); router.refresh(); });
   }
 
   function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
@@ -2089,15 +2090,16 @@ function CompareTab({
   });
 
   function applyPreset(preset: "early-late" | "save-more" | "bull-bear") {
+    const base = { retirementAge: baseRetire, monthlySavings: defaultMonthlySavings, returnRate: defaultReturnRate };
     if (preset === "early-late") {
-      setCfgA((c) => ({ ...c, label: "Early Retirement", retirementAge: Math.max((currentAge ?? 30) + 5, baseRetire - 7) }));
-      setCfgB((c) => ({ ...c, label: "Late Retirement", retirementAge: Math.min(baseRetire + 7, 75) }));
+      setCfgA({ ...base, label: "Early Retirement", retirementAge: Math.max((currentAge ?? 30) + 5, baseRetire - 7) });
+      setCfgB({ ...base, label: "Late Retirement", retirementAge: Math.min(baseRetire + 7, 75) });
     } else if (preset === "save-more") {
-      setCfgA((c) => ({ ...c, label: "Save More", monthlySavings: Math.round(defaultMonthlySavings * 1.25) }));
-      setCfgB((c) => ({ ...c, label: "Current Pace", monthlySavings: defaultMonthlySavings }));
+      setCfgA({ ...base, label: "Save More", monthlySavings: Math.round(defaultMonthlySavings * 1.25) });
+      setCfgB({ ...base, label: "Current Pace" });
     } else {
-      setCfgA((c) => ({ ...c, label: "Bull Market", returnRate: Math.min(defaultReturnRate + 3, 14) }));
-      setCfgB((c) => ({ ...c, label: "Bear Market", returnRate: Math.max(defaultReturnRate - 3, 2) }));
+      setCfgA({ ...base, label: "Bull Market", returnRate: Math.min(defaultReturnRate + 3, 14) });
+      setCfgB({ ...base, label: "Bear Market", returnRate: Math.max(defaultReturnRate - 3, 2) });
     }
   }
 
