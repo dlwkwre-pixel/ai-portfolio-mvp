@@ -22,7 +22,7 @@ import {
   deleteFutureEvent,
 } from "./planning-actions";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
-import { logExpenseActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
+import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -3489,6 +3489,7 @@ function BudgetTrackerTab({
   const [showStatementImport, setShowStatementImport] = useState(false);
   const [statementSuccess, setStatementSuccess] = useState<number | null>(null);
   const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
+  const [movingKey, setMovingKey] = useState<string | null>(null);
 
   const expenseItems = cashFlowItems.filter((i) => i.type === "expense");
 
@@ -3771,14 +3772,63 @@ function BudgetTrackerTab({
                   </button>
                   {expandedBreakdown.has(item.id) && (
                     <div style={{ marginTop: "4px", paddingLeft: "8px", display: "flex", flexDirection: "column", gap: "3px" }}>
-                      {actual.breakdown.map((m, mi) => (
-                        <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>↳ {m.label}</span>
-                          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                            ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))}
+                      {actual.breakdown.map((m, mi) => {
+                        const mKey = `${item.id}:${mi}`;
+                        const isMoving = movingKey === mKey;
+                        const otherItems = expenseItems.filter((ei) => ei.id !== item.id);
+                        return (
+                          <div key={mi} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>↳ {m.label}</span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                                <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                                  ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                                {otherItems.length > 0 && (
+                                  <button
+                                    type="button"
+                                    title="Move to another category"
+                                    onClick={() => setMovingKey(isMoving ? null : mKey)}
+                                    style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "none", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "11px", padding: "2px 5px", lineHeight: 1, fontFamily: "var(--font-mono)" }}
+                                  >
+                                    →
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {isMoving && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "10px" }}>
+                                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Move to:</span>
+                                <select
+                                  defaultValue=""
+                                  onChange={(e) => {
+                                    const destId = e.target.value;
+                                    if (!destId) return;
+                                    setMovingKey(null);
+                                    startTransition(async () => {
+                                      await moveMerchantActual(item.id, destId, m.label, m.amount, selYear, selMonth);
+                                      router.refresh();
+                                    });
+                                  }}
+                                  style={{ flex: 1, padding: "4px 6px", borderRadius: "6px", fontSize: "11px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontFamily: "var(--font-body)", cursor: "pointer" }}
+                                >
+                                  <option value="" disabled>Select bucket...</option>
+                                  {otherItems.map((ei) => (
+                                    <option key={ei.id} value={ei.id}>{ei.label}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => setMovingKey(null)}
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>

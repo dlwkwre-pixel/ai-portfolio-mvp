@@ -379,6 +379,75 @@ export async function logExpenseActual(formData: FormData): Promise<{ error?: st
   return {};
 }
 
+export async function moveMerchantActual(
+  sourceItemId: string,
+  destItemId: string,
+  merchantLabel: string,
+  merchantAmount: number,
+  periodYear: number,
+  periodMonth: number,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: src } = await supabase
+    .from("expense_actuals")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("cash_flow_item_id", sourceItemId)
+    .eq("period_year", periodYear)
+    .eq("period_month", periodMonth)
+    .maybeSingle();
+
+  if (!src) return { error: "Source actual not found." };
+
+  // Remove first matching merchant from source breakdown
+  let removed = false;
+  const newSrcBreakdown = ((src.breakdown ?? []) as ActualBreakdownItem[]).filter((m) => {
+    if (!removed && m.label === merchantLabel && Math.abs(m.amount - merchantAmount) < 0.01) {
+      removed = true;
+      return false;
+    }
+    return true;
+  });
+  const newSrcAmount = Math.max(0, (src.actual_amount ?? 0) - merchantAmount);
+
+  const { error: srcErr } = await supabase
+    .from("expense_actuals")
+    .update({ actual_amount: newSrcAmount, breakdown: newSrcBreakdown.length > 0 ? newSrcBreakdown : null, updated_at: new Date().toISOString() })
+    .eq("id", src.id)
+    .eq("user_id", user.id);
+
+  if (srcErr) return { error: srcErr.message };
+
+  const { data: dest } = await supabase
+    .from("expense_actuals")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("cash_flow_item_id", destItemId)
+    .eq("period_year", periodYear)
+    .eq("period_month", periodMonth)
+    .maybeSingle();
+
+  const newDestBreakdown: ActualBreakdownItem[] = [
+    ...((dest?.breakdown ?? []) as ActualBreakdownItem[]),
+    { label: merchantLabel, amount: merchantAmount },
+  ];
+  const newDestAmount = (dest?.actual_amount ?? 0) + merchantAmount;
+
+  const { error: destErr } = await supabase
+    .from("expense_actuals")
+    .upsert(
+      { user_id: user.id, cash_flow_item_id: destItemId, label: dest?.label ?? merchantLabel, period_year: periodYear, period_month: periodMonth, actual_amount: newDestAmount, breakdown: newDestBreakdown, notes: dest?.notes ?? null, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,cash_flow_item_id,period_year,period_month" }
+    );
+
+  if (destErr) return { error: destErr.message };
+  revalidatePath("/planning");
+  return {};
+}
+
 export async function deleteExpenseActual(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
