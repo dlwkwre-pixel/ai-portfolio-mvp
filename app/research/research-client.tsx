@@ -40,6 +40,9 @@ type TrendingTicker = {
   analystRec?: { buy: number; hold: number; sell: number } | null;
 };
 
+type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
+type RawFinancial = { period: string; revenue: number | null; netIncome: number | null };
+
 type DigestResult = {
   company_overview: string;
   news_digest: string;
@@ -47,6 +50,8 @@ type DigestResult = {
   financial_snapshot: string | null;
   market_outlook: string;
   generated_at: string;
+  raw_earnings: RawEarning[];
+  raw_financials: RawFinancial[];
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
@@ -666,6 +671,101 @@ function BuyModal({
   );
 }
 
+// ─── Mini Charts ──────────────────────────────────────────────────────────────
+
+function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
+  const valid = [...earnings].reverse().filter(
+    (e) => e.actual != null || e.estimate != null
+  );
+  if (valid.length === 0) return null;
+
+  const posVals = valid
+    .flatMap((e) => [e.actual, e.estimate])
+    .filter((v): v is number => v != null && v > 0);
+  if (posVals.length === 0) return null;
+
+  const maxVal = Math.max(...posVals) * 1.18;
+  const chartH = 60;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "var(--border-strong)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
+        {valid.map((e, i) => {
+          const actualH =
+            e.actual != null && e.actual > 0
+              ? Math.max(3, (e.actual / maxVal) * chartH)
+              : 0;
+          const estH =
+            e.estimate != null && e.estimate > 0
+              ? Math.max(3, (e.estimate / maxVal) * chartH)
+              : 0;
+          const color =
+            e.beat === true
+              ? "var(--green)"
+              : e.beat === false
+              ? "var(--red)"
+              : "var(--brand-blue)";
+          return (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
+              <div style={{ height: `${chartH}px`, display: "flex", alignItems: "flex-end", gap: "3px" }}>
+                <div style={{ width: "9px", height: `${estH}px`, background: "var(--border-strong)", borderRadius: "2px 2px 0 0" }} />
+                <div style={{ width: "9px", height: `${actualH}px`, background: color, borderRadius: "2px 2px 0 0" }} />
+              </div>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{e.quarter}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RevenueChart({ financials }: { financials: RawFinancial[] }) {
+  const valid = [...financials].reverse().filter((f) => f.revenue != null && f.revenue > 0);
+  if (valid.length === 0) return null;
+
+  const maxRev = Math.max(...valid.map((f) => f.revenue!)) * 1.12;
+  const chartH = 56;
+  const fmtRev = (n: number) =>
+    n >= 1e9 ? `$${(n / 1e9).toFixed(0)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
+
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
+      {valid.map((f, i) => {
+        const revH = Math.max(4, (f.revenue! / maxRev) * chartH);
+        const netPositive = f.netIncome != null && f.netIncome > 0;
+        const netH = f.netIncome != null && f.netIncome > 0
+          ? Math.max(2, (f.netIncome / maxRev) * chartH)
+          : 0;
+        return (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
+            <div style={{ height: `${chartH}px`, width: "100%", display: "flex", alignItems: "flex-end", gap: "2px" }}>
+              <div style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.65 }} />
+              {netH > 0 && (
+                <div style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
+              )}
+            </div>
+            <div style={{ fontSize: "9px", color: "var(--text-muted)", textAlign: "center" }}>{f.period}</div>
+            {f.revenue && (
+              <div className="num" style={{ fontSize: "9px", color: "var(--text-secondary)" }}>{fmtRev(f.revenue)}</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
 function DetailView({
@@ -875,9 +975,11 @@ function DetailView({
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
                 <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                  {result.profile.marketCap >= 1000
-                    ? `$${(result.profile.marketCap / 1000).toFixed(1)}T`
-                    : `$${result.profile.marketCap.toFixed(1)}B`}
+                  {result.profile.marketCap >= 1_000_000
+                    ? `$${(result.profile.marketCap / 1_000_000).toFixed(2)}T`
+                    : result.profile.marketCap >= 1_000
+                    ? `$${(result.profile.marketCap / 1_000).toFixed(1)}B`
+                    : `$${Math.round(result.profile.marketCap)}M`}
                 </div>
               </div>
             )}
@@ -973,16 +1075,34 @@ function DetailView({
               <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.news_digest}</div>
             </div>
-            {digest.earnings_snapshot && (
-              <div style={{ marginBottom: "11px" }}>
-                <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Earnings Track Record</div>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.earnings_snapshot}</div>
+            {digest.raw_earnings?.length > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
+                <EarningsChart earnings={digest.raw_earnings} />
+                {digest.earnings_snapshot && (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.earnings_snapshot}</div>
+                )}
               </div>
             )}
-            {digest.financial_snapshot && (
-              <div style={{ marginBottom: "11px" }}>
-                <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Financials</div>
-                <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.financial_snapshot}</div>
+            {digest.raw_financials?.length > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
+                  <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Revenue / Net Income</div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                      <div style={{ width: "8px", height: "8px", background: "var(--brand-blue)", borderRadius: "1px", opacity: 0.65 }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Rev</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                      <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px", opacity: 0.8 }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>NI</span>
+                    </div>
+                  </div>
+                </div>
+                <RevenueChart financials={digest.raw_financials} />
+                {digest.financial_snapshot && (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.financial_snapshot}</div>
+                )}
               </div>
             )}
             <div style={{ marginBottom: "8px" }}>

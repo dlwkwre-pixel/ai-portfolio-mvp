@@ -3,6 +3,9 @@ import OpenAI from "openai";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubNews } from "@/lib/market-data/finnhub";
 
+type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
+type RawFinancial = { period: string; revenue: number | null; netIncome: number | null };
+
 type DigestResult = {
   company_overview: string;
   news_digest: string;
@@ -10,65 +13,85 @@ type DigestResult = {
   financial_snapshot: string | null;
   market_outlook: string;
   generated_at: string;
+  raw_earnings: RawEarning[];
+  raw_financials: RawFinancial[];
 };
 
 const cache = new Map<string, { data: DigestResult; ts: number }>();
 const CACHE_TTL = 30 * 60 * 1000;
 
-async function fetchEarnings(ticker: string): Promise<string> {
+async function fetchEarnings(ticker: string): Promise<{ text: string; raw: RawEarning[] }> {
   const key = process.env.FINNHUB_API_KEY;
-  if (!key) return "";
+  if (!key) return { text: "", raw: [] };
   try {
     const url = `https://finnhub.io/api/v1/stock/earnings?symbol=${ticker}&limit=4&token=${key}`;
     const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) return "";
+    if (!res.ok) return { text: "", raw: [] };
     const data = await res.json() as Array<{
       quarter?: number; year?: number;
       actual?: number | null; estimate?: number | null;
       surprisePercent?: number | null;
     }>;
-    if (!Array.isArray(data) || data.length === 0) return "";
-    return data.slice(0, 4).map((e) => {
-      const q = `Q${e.quarter ?? "?"}/${e.year ?? "?"}`;
-      if (e.actual == null || e.estimate == null) return `${q}: no data`;
-      const diff = e.actual - e.estimate;
-      const pct = e.surprisePercent != null
-        ? ` (${e.surprisePercent >= 0 ? "+" : ""}${e.surprisePercent.toFixed(1)}% surprise)`
-        : "";
-      return `${q}: $${e.actual.toFixed(2)} actual vs $${e.estimate.toFixed(2)} est${pct} — ${diff >= 0 ? "BEAT" : "MISS"}`;
+    if (!Array.isArray(data) || data.length === 0) return { text: "", raw: [] };
+
+    const raw: RawEarning[] = data.slice(0, 4).map((e) => {
+      const quarter = `Q${e.quarter ?? "?"}  '${String(e.year ?? "").slice(-2)}`;
+      const actual = typeof e.actual === "number" ? e.actual : null;
+      const estimate = typeof e.estimate === "number" ? e.estimate : null;
+      const beat =
+        actual != null && estimate != null
+          ? actual >= estimate
+          : null;
+      return { quarter, actual, estimate, beat };
+    });
+
+    const text = raw.map((r) => {
+      if (r.actual == null || r.estimate == null) return `${r.quarter}: no data`;
+      const diff = r.actual - r.estimate;
+      return `${r.quarter}: $${r.actual.toFixed(2)} vs $${r.estimate.toFixed(2)} est — ${diff >= 0 ? "BEAT" : "MISS"}`;
     }).join("; ");
+
+    return { text, raw };
   } catch {
-    return "";
+    return { text: "", raw: [] };
   }
 }
 
-async function fetchIncomeStatement(ticker: string): Promise<string> {
+async function fetchIncomeStatement(ticker: string): Promise<{ text: string; raw: RawFinancial[] }> {
   const key = process.env.FMP_API_KEY;
-  if (!key) return "";
+  if (!key) return { text: "", raw: [] };
   try {
-    const url = `https://financialmodelingprep.com/api/v3/income-statement/${ticker}?limit=2&apikey=${key}`;
+    const url = `https://financialmodelingprep.com/api/v3/income-statement/${ticker}?limit=4&apikey=${key}`;
     const res = await fetch(url, { next: { revalidate: 86400 } });
-    if (!res.ok) return "";
+    if (!res.ok) return { text: "", raw: [] };
     const data = await res.json() as Array<{
       date?: string;
       revenue?: number;
       netIncome?: number;
       grossProfitRatio?: number;
     }>;
-    if (!Array.isArray(data) || data.length === 0) return "";
-    const d = data[0];
+    if (!Array.isArray(data) || data.length === 0) return { text: "", raw: [] };
+
+    const raw: RawFinancial[] = data.slice(0, 4).map((d) => ({
+      period: d.date ? d.date.slice(0, 4) : "?",
+      revenue: typeof d.revenue === "number" ? d.revenue : null,
+      netIncome: typeof d.netIncome === "number" ? d.netIncome : null,
+    }));
+
     const fmtB = (n: number) =>
       n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
+    const d = data[0];
     const parts: string[] = [];
     if (d.revenue) parts.push(`Revenue: ${fmtB(d.revenue)}`);
     if (d.netIncome != null)
       parts.push(`Net Income: ${d.netIncome >= 0 ? fmtB(d.netIncome) : `-${fmtB(Math.abs(d.netIncome))}`}`);
     if (d.grossProfitRatio)
       parts.push(`Gross Margin: ${(d.grossProfitRatio * 100).toFixed(1)}%`);
-    if (parts.length === 0) return "";
-    return parts.join(", ") + (d.date ? ` (${d.date.slice(0, 4)})` : "");
+    const text = parts.length > 0 ? parts.join(", ") + (d.date ? ` (${d.date.slice(0, 4)})` : "") : "";
+
+    return { text, raw };
   } catch {
-    return "";
+    return { text: "", raw: [] };
   }
 }
 
@@ -102,7 +125,7 @@ export async function POST(req: NextRequest) {
   const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
   const model = isGrok ? "grok-4.3" : "llama-3.3-70b-versatile";
 
-  const [news, earnings, financials] = await Promise.all([
+  const [news, earningsResult, financialsResult] = await Promise.all([
     getFinnhubNews(ticker, 3),
     fetchEarnings(ticker),
     fetchIncomeStatement(ticker),
@@ -125,14 +148,14 @@ Company: ${companyName} (${ticker}) — ${priceStr}
 
 Recent news (last 3 days):
 ${newsLines}
-${earnings ? `\nEarnings history (last 4 quarters): ${earnings}` : ""}
-${financials ? `\nFinancials (most recent annual): ${financials}` : ""}
+${earningsResult.text ? `\nEarnings history (last 4 quarters): ${earningsResult.text}` : ""}
+${financialsResult.text ? `\nFinancials (most recent annual): ${financialsResult.text}` : ""}
 
 Return this exact JSON:
 {
   "company_overview": "2-3 sentences: what ${ticker} does, key products/services, competitive position or scale",
   "news_digest": "2-3 sentences synthesizing the news headlines above. If no meaningful news, say 'No major developments in the past few days.'",
-  "earnings_snapshot": "Specific beats/misses over recent quarters. Return null if no earnings data provided.",
+  "earnings_snapshot": "1-2 sentences on recent earnings performance — specific beats/misses and trend. Return null if no earnings data provided.",
   "financial_snapshot": "Revenue scale, profitability, key trend in 1-2 sentences. Return null if no financial data provided.",
   "market_outlook": "One sentence on the key catalyst or risk to watch near-term"
 }`;
@@ -150,14 +173,19 @@ Return this exact JSON:
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
 
-    let parsed: Omit<DigestResult, "generated_at">;
+    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_financials">;
     try {
-      parsed = JSON.parse(match[0]) as Omit<DigestResult, "generated_at">;
+      parsed = JSON.parse(match[0]) as typeof parsed;
     } catch {
       return NextResponse.json({ error: "Failed to parse AI response." }, { status: 502 });
     }
 
-    const result: DigestResult = { ...parsed, generated_at: new Date().toISOString() };
+    const result: DigestResult = {
+      ...parsed,
+      generated_at: new Date().toISOString(),
+      raw_earnings: earningsResult.raw,
+      raw_financials: financialsResult.raw,
+    };
     cache.set(ticker, { data: result, ts: Date.now() });
     return NextResponse.json(result);
   } catch (err) {
