@@ -674,6 +674,8 @@ function BuyModal({
 // ─── Mini Charts ──────────────────────────────────────────────────────────────
 
 function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   const valid = [...earnings].reverse().filter(
     (e) => e.actual != null || e.estimate != null
   );
@@ -685,83 +687,189 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
   if (posVals.length === 0) return null;
 
   const maxVal = Math.max(...posVals) * 1.18;
-  const chartH = 60;
+  const chartH = 72;
+  const yAxisW = 36;
+  const fmtEps = (n: number) => `$${n.toFixed(2)}`;
+  const gridLines = [0.5, 1.0].map((f) => ({ pct: f * 100, label: fmtEps(maxVal * f) }));
 
   return (
     <div>
-      <div style={{ display: "flex", gap: "6px", marginBottom: "4px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <div style={{ width: "8px", height: "8px", background: "var(--border-strong)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <div style={{ width: "8px", height: "8px", background: "var(--border-strong)", borderRadius: "1px" }} />
+            <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
+            <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
-        </div>
+        {activeIdx !== null && (
+          <button onClick={() => setActiveIdx(null)} style={{ fontSize: "9px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)" }}>
+            clear
+          </button>
+        )}
       </div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
-        {valid.map((e, i) => {
-          const actualH =
-            e.actual != null && e.actual > 0
-              ? Math.max(3, (e.actual / maxVal) * chartH)
-              : 0;
-          const estH =
-            e.estimate != null && e.estimate > 0
-              ? Math.max(3, (e.estimate / maxVal) * chartH)
-              : 0;
-          const color =
-            e.beat === true
-              ? "var(--green)"
-              : e.beat === false
-              ? "var(--red)"
-              : "var(--brand-blue)";
-          return (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
-              <div style={{ height: `${chartH}px`, display: "flex", alignItems: "flex-end", gap: "3px" }}>
-                <div style={{ width: "9px", height: `${estH}px`, background: "var(--border-strong)", borderRadius: "2px 2px 0 0" }} />
-                <div style={{ width: "9px", height: `${actualH}px`, background: color, borderRadius: "2px 2px 0 0" }} />
+
+      <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          {/* Y-axis labels */}
+          <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
+            {gridLines.map((g, i) => (
+              <div key={i} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1, textAlign: "right" }}>
+                {g.label}
               </div>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>{e.quarter}</div>
+            ))}
+          </div>
+
+          {/* Bars area with gridlines */}
+          <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
+            {gridLines.map((g, i) => (
+              <div key={i} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+            ))}
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "6px" }}>
+              {valid.map((e, i) => {
+                const actualH = e.actual != null && e.actual > 0 ? Math.max(3, (e.actual / maxVal) * chartH) : 0;
+                const estH = e.estimate != null && e.estimate > 0 ? Math.max(3, (e.estimate / maxVal) * chartH) : 0;
+                const barColor = e.beat === true ? "var(--green)" : e.beat === false ? "var(--red)" : "var(--brand-blue)";
+                const isActive = activeIdx === i;
+                const isDimmed = activeIdx !== null && !isActive;
+                return (
+                  <div
+                    key={i}
+                    style={{ flex: 1, height: "100%", position: "relative", cursor: "pointer" }}
+                    onClick={() => setActiveIdx(isActive ? null : i)}
+                  >
+                    {isActive && (
+                      <div style={{ position: "absolute", inset: "-2px -4px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", pointerEvents: "none", zIndex: 1 }} />
+                    )}
+                    {isActive && (
+                      <div style={{ position: "absolute", bottom: `${Math.max(actualH, estH) + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+                        <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
+                        {e.estimate != null && (
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>
+                        )}
+                        {e.actual != null && (
+                          <div style={{ fontSize: "10px", fontWeight: 600, color: barColor, fontFamily: "var(--font-mono)" }}>
+                            Act: {fmtEps(e.actual)}{e.beat === true ? " ✓" : e.beat === false ? " ✗" : ""}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, transition: "opacity 150ms ease" }}>
+                      <div style={{ width: "10px", height: `${estH}px`, background: "var(--border-strong)", borderRadius: "2px 2px 0 0" }} />
+                      <div style={{ width: "10px", height: `${actualH}px`, background: barColor, borderRadius: "2px 2px 0 0" }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        </div>
+
+        {/* X-axis quarter labels */}
+        <div style={{ display: "flex", gap: "6px", marginTop: "5px", paddingLeft: `${yAxisW + 8}px` }}>
+          {valid.map((e, i) => (
+            <div key={i} style={{ flex: 1, textAlign: "center" }}
+              onClick={() => setActiveIdx(activeIdx === i ? null : i)}>
+              <span style={{ fontSize: "8px", color: activeIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: activeIdx === i ? 600 : 400, transition: "color 150ms ease", cursor: "pointer" }}>
+                {e.quarter}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
 function RevenueChart({ financials }: { financials: RawFinancial[] }) {
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   const valid = [...financials].reverse().filter((f) => f.revenue != null && f.revenue > 0);
   if (valid.length === 0) return null;
 
   const maxRev = Math.max(...valid.map((f) => f.revenue!)) * 1.12;
-  const chartH = 56;
-  const fmtRev = (n: number) =>
+  const chartH = 64;
+  const yAxisW = 36;
+
+  const fmtAxis = (n: number) =>
     n >= 1e9 ? `$${(n / 1e9).toFixed(0)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
+  const fmtFull = (n: number) =>
+    n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
+
+  const gridLines = [0.5, 1.0].map((f) => ({ pct: f * 100, label: fmtAxis(maxRev * f) }));
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-      {valid.map((f, i) => {
-        const revH = Math.max(4, (f.revenue! / maxRev) * chartH);
-        const netPositive = f.netIncome != null && f.netIncome > 0;
-        const netH = f.netIncome != null && f.netIncome > 0
-          ? Math.max(2, (f.netIncome / maxRev) * chartH)
-          : 0;
-        return (
-          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
-            <div style={{ height: `${chartH}px`, width: "100%", display: "flex", alignItems: "flex-end", gap: "2px" }}>
-              <div style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.65 }} />
-              {netH > 0 && (
-                <div style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.8 }} />
-              )}
+    <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
+      <div style={{ display: "flex", gap: "8px" }}>
+        {/* Y-axis labels */}
+        <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
+          {gridLines.map((g, i) => (
+            <div key={i} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1, textAlign: "right" }}>
+              {g.label}
             </div>
-            <div style={{ fontSize: "9px", color: "var(--text-muted)", textAlign: "center" }}>{f.period}</div>
-            {f.revenue && (
-              <div className="num" style={{ fontSize: "9px", color: "var(--text-secondary)" }}>{fmtRev(f.revenue)}</div>
-            )}
+          ))}
+        </div>
+
+        {/* Bars area with gridlines */}
+        <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
+          {gridLines.map((g, i) => (
+            <div key={i} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+          ))}
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "8px" }}>
+            {valid.map((f, i) => {
+              const revH = Math.max(4, (f.revenue! / maxRev) * chartH);
+              const netPositive = f.netIncome != null && f.netIncome > 0;
+              const netH = f.netIncome != null && f.netIncome > 0
+                ? Math.max(2, (f.netIncome / maxRev) * chartH) : 0;
+              const isActive = activeIdx === i;
+              const isDimmed = activeIdx !== null && !isActive;
+              return (
+                <div
+                  key={i}
+                  style={{ flex: 1, height: "100%", position: "relative", cursor: "pointer" }}
+                  onClick={() => setActiveIdx(isActive ? null : i)}
+                >
+                  {isActive && (
+                    <div style={{ position: "absolute", inset: "-2px -4px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", pointerEvents: "none", zIndex: 1 }} />
+                  )}
+                  {isActive && (
+                    <div style={{ position: "absolute", bottom: `${revH + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{f.period}</div>
+                      <div style={{ fontSize: "10px", color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>Rev: {fmtFull(f.revenue!)}</div>
+                      {f.netIncome != null && (
+                        <div style={{ fontSize: "10px", fontWeight: 600, color: netPositive ? "var(--green)" : "var(--red)", fontFamily: "var(--font-mono)" }}>
+                          NI: {f.netIncome < 0 ? "-" : ""}{fmtFull(Math.abs(f.netIncome))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, transition: "opacity 150ms ease" }}>
+                    <div style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.7 }} />
+                    {netH > 0 && (
+                      <div style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      </div>
+
+      {/* X-axis year labels */}
+      <div style={{ display: "flex", gap: "8px", marginTop: "5px", paddingLeft: `${yAxisW + 8}px` }}>
+        {valid.map((f, i) => (
+          <div key={i} style={{ flex: 1, textAlign: "center" }}
+            onClick={() => setActiveIdx(activeIdx === i ? null : i)}>
+            <span style={{ fontSize: "8px", color: activeIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: activeIdx === i ? 600 : 400, transition: "color 150ms ease", cursor: "pointer" }}>
+              {f.period}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -992,9 +1100,9 @@ function DetailView({
             {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
-                <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4, display: "flex", flexWrap: "nowrap", alignItems: "center", gap: "2px" }}>
                   <span style={{ color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</span>
-                  <span style={{ color: "var(--text-muted)", margin: "0 3px" }}>–</span>
+                  <span style={{ color: "var(--text-muted)" }}>–</span>
                   <span style={{ color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</span>
                 </div>
               </div>
@@ -1428,7 +1536,7 @@ function DetailView({
                               @ ${tx.transactionPrice.toFixed(2)}
                               {value > 0 && (
                                 <span style={{ color: "var(--text-secondary)", marginLeft: "4px" }}>
-                                  (${value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(0)}K` : value.toFixed(0)})
+                                  (${value >= 1_000_000_000 ? `${(value / 1_000_000_000).toFixed(2)}B` : value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(0)}K` : value.toFixed(0)})
                                 </span>
                               )}
                             </span>
