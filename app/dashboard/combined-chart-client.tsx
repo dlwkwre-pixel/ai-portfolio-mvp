@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -30,6 +30,14 @@ function formatMoney(v: number) {
   return `$${v.toFixed(0)}`;
 }
 
+function formatChange(delta: number) {
+  const abs = Math.abs(delta);
+  const prefix = delta >= 0 ? "+" : "-";
+  if (abs >= 1_000_000) return `${prefix}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${prefix}$${(abs / 1_000).toFixed(1)}k`;
+  return `${prefix}$${abs.toFixed(0)}`;
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -39,15 +47,24 @@ type TooltipProps = {
   active?: boolean;
   payload?: { value: number }[];
   label?: string;
+  isPrivate: boolean;
+  startVal: number;
 };
 
-function ChartTooltip({ active, payload, label }: TooltipProps) {
+function ChartTooltip({ active, payload, label, isPrivate, startVal }: TooltipProps) {
   if (!active || !payload?.length) return null;
+  const val = payload[0].value;
+  const delta = val - startVal;
+  const pct = startVal > 0 ? (delta / startVal) * 100 : 0;
+  const isUp = pct >= 0;
   return (
     <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "10px", padding: "10px 14px", fontSize: "12px" }}>
       <div style={{ color: "var(--text-muted)", marginBottom: "4px" }}>{label ? formatDate(label) : ""}</div>
       <div style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "14px" }}>
-        {formatMoney(payload[0].value)}
+        {isPrivate ? "••••••" : formatMoney(val)}
+      </div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isUp ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+        {isPrivate ? `${isUp ? "+" : ""}${pct.toFixed(2)}%` : `${formatChange(delta)} (${isUp ? "+" : ""}${pct.toFixed(2)}%)`}
       </div>
     </div>
   );
@@ -55,17 +72,30 @@ function ChartTooltip({ active, payload, label }: TooltipProps) {
 
 export default function CombinedChartClient({ data }: { data: CombinedChartPoint[] }) {
   const [tfDays, setTfDays] = useState(0);
+  const [isPrivate, setIsPrivate] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem("bt-privacy-mode") === "true"; } catch { return false; }
+  });
+
+  useEffect(() => {
+    const onPrivacyChange = () => {
+      try { setIsPrivate(localStorage.getItem("bt-privacy-mode") === "true"); } catch {}
+    };
+    window.addEventListener("bt-privacy-change", onPrivacyChange);
+    return () => window.removeEventListener("bt-privacy-change", onPrivacyChange);
+  }, []);
 
   const filtered = useMemo(() => filterByDays(data, tfDays), [data, tfDays]);
 
-  const startVal = filtered[0]?.total ?? 0;
-  const endVal   = filtered[filtered.length - 1]?.total ?? 0;
-  const changePct = startVal > 0 ? ((endVal - startVal) / startVal) * 100 : 0;
-  const isUp = changePct >= 0;
-  const lineColor = isUp ? "#00d395" : "#fb7185";
+  const startVal   = filtered[0]?.total ?? 0;
+  const endVal     = filtered[filtered.length - 1]?.total ?? 0;
+  const delta      = endVal - startVal;
+  const changePct  = startVal > 0 ? (delta / startVal) * 100 : 0;
+  const isUp       = changePct >= 0;
+  const lineColor  = isUp ? "#00d395" : "#fb7185";
 
-  const minVal = Math.min(...filtered.map(d => d.total));
-  const maxVal = Math.max(...filtered.map(d => d.total));
+  const minVal  = Math.min(...filtered.map(d => d.total));
+  const maxVal  = Math.max(...filtered.map(d => d.total));
   const padding = (maxVal - minVal) * 0.08 || maxVal * 0.05;
 
   if (filtered.length < 2) {
@@ -81,10 +111,18 @@ export default function CombinedChartClient({ data }: { data: CombinedChartPoint
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
         <div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
-            {formatMoney(endVal)}
+            {isPrivate ? "••••••" : formatMoney(endVal)}
           </div>
-          <div style={{ fontSize: "11px", color: isUp ? "var(--green)" : "var(--red)", marginTop: "1px", fontFamily: "var(--font-mono)" }}>
-            {isUp ? "+" : ""}{changePct.toFixed(2)}% this period
+          <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginTop: "2px" }}>
+            {!isPrivate && (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isUp ? "var(--green)" : "var(--red)" }}>
+                {formatChange(delta)}
+              </span>
+            )}
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isUp ? "var(--green)" : "var(--red)" }}>
+              ({isUp ? "+" : ""}{changePct.toFixed(2)}%)
+            </span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>this period</span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "4px" }}>
@@ -130,13 +168,13 @@ export default function CombinedChartClient({ data }: { data: CombinedChartPoint
           />
           <YAxis
             domain={[minVal - padding, maxVal + padding]}
-            tickFormatter={formatMoney}
+            tickFormatter={isPrivate ? () => "•••" : formatMoney}
             tick={{ fontSize: 9, fill: "var(--text-muted)" }}
             axisLine={false}
             tickLine={false}
-            width={52}
+            width={isPrivate ? 28 : 52}
           />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={<ChartTooltip isPrivate={isPrivate} startVal={startVal} />} />
           <Area
             type="monotone"
             dataKey="total"
