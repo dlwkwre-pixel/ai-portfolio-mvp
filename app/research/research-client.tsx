@@ -40,14 +40,16 @@ type TrendingTicker = {
   analystRec?: { buy: number; hold: number; sell: number } | null;
 };
 
-type AIAnalysis = {
-  bull_case: string; bear_case: string;
-  key_catalysts: string; key_risks: string;
-  takeaway: string; confidence: string; cached_at?: string;
+type DigestResult = {
+  company_overview: string;
+  news_digest: string;
+  earnings_snapshot: string | null;
+  financial_snapshot: string | null;
+  market_outlook: string;
+  generated_at: string;
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
-type DetailTab = "overview" | "news" | "ai" | "social" | "insiders";
 
 type InsiderTx = {
   name: string;
@@ -671,12 +673,10 @@ function DetailView({
 }: {
   result: SearchResult; portfolios: Portfolio[]; onClose: () => void;
 }) {
-  const [tab, setTab]           = useState<DetailTab>("overview");
-  const [aiAnalysis, setAiAnalysis]   = useState<AIAnalysis | null>(null);
-  const [aiLoading, setAiLoading]     = useState(false);
-  const [aiError, setAiError]         = useState<string | null>(null);
-  const [aiCooldown, setAiCooldown]   = useState(false);
-  const [buyOpen, setBuyOpen]         = useState(false);
+  const [digest, setDigest]               = useState<DigestResult | null>(null);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const [digestError, setDigestError]     = useState<string | null>(null);
+  const [buyOpen, setBuyOpen]             = useState(false);
   const [socialPulse, setSocialPulse]         = useState<RedditPulse | null>(null);
   const [socialLoading, setSocialLoading]     = useState(false);
   const [socialError, setSocialError]         = useState<string | null>(null);
@@ -694,30 +694,30 @@ function DetailView({
       : null;
   const isUp = result.quote.dp >= 0;
 
-  function requestAI() {
-    if (aiLoading || aiCooldown) return;
-    setAiLoading(true);
-    setAiError(null);
-    trackEvent(result.ticker, "ai_analysis_requested");
-    fetch("/api/research/ai-analysis", {
+  // Auto-load digest on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setDigestLoading(true);
+    setDigestError(null);
+    fetch("/api/research/digest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker: result.ticker, company_name: result.profile?.name ?? result.ticker, price: result.quote.c, change_pct: result.quote.dp }),
+      body: JSON.stringify({
+        ticker: result.ticker,
+        company_name: result.profile?.name ?? result.ticker,
+        price: result.quote.c,
+        change_pct: result.quote.dp,
+      }),
     })
       .then((r) => r.json())
-      .then((d) => {
-        if (d.error) throw new Error(d.error);
-        setAiAnalysis(d);
-        setAiCooldown(true);
-        setTimeout(() => setAiCooldown(false), 60_000);
-      })
-      .catch((err) => setAiError(err.message ?? "Analysis failed. Try again later."))
-      .finally(() => setAiLoading(false));
-  }
+      .then((d) => { if (d.error) throw new Error(d.error); setDigest(d as DigestResult); })
+      .catch((err) => setDigestError((err as Error).message ?? "Unable to generate digest."))
+      .finally(() => setDigestLoading(false));
+  }, [result.ticker]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (tab !== "insiders" || insiderTicker === result.ticker || insiderLoading) return;
+    if (insiderTicker === result.ticker || insiderLoading) return;
     setInsiderLoading(true);
     setInsiderData(null);
     fetch(`/api/insider/${result.ticker}`)
@@ -725,11 +725,11 @@ function DetailView({
       .then((d: InsiderData) => { setInsiderData(d); setInsiderTicker(result.ticker); })
       .catch(() => setInsiderData({ transactions: [], netBuys: 0, netSells: 0, signal: "neutral" }))
       .finally(() => setInsiderLoading(false));
-  }, [tab, result.ticker]);
+  }, [result.ticker]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (tab !== "social" || socialTicker === result.ticker || socialLoading) return;
+    if (socialTicker === result.ticker || socialLoading) return;
     const company = encodeURIComponent(result.profile?.name ?? result.ticker);
     setSocialLoading(true);
     setSocialError(null);
@@ -746,7 +746,7 @@ function DetailView({
       })
       .catch(() => setSocialError("Failed to load Reddit Pulse. Try again later."))
       .finally(() => setSocialLoading(false));
-  }, [tab, result.ticker]);
+  }, [result.ticker]);
 
   function refreshSocialPulse() {
     if (socialLoading) return;
@@ -768,14 +768,6 @@ function DetailView({
       .catch(() => setSocialError("Failed to refresh Reddit Pulse."))
       .finally(() => setSocialLoading(false));
   }
-
-  const TABS: { id: DetailTab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "news",     label: result.news.length > 0 ? `News (${result.news.length})` : "News" },
-    { id: "ai",       label: "AI Analysis" },
-    { id: "social",   label: "Reddit Pulse" },
-    { id: "insiders", label: "Insiders" },
-  ];
 
   return (
     <>
@@ -866,237 +858,194 @@ function DetailView({
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid var(--border-subtle)", padding: "0 18px" }}
-        className="bt-tabs-scroll"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              padding: "9px 12px", fontSize: "12px",
-              fontWeight: tab === t.id ? 600 : 400,
-              fontFamily: "var(--font-body)",
-              background: "none", border: "none",
-              borderBottom: `2px solid ${tab === t.id ? "var(--brand-blue)" : "transparent"}`,
-              color: tab === t.id ? "var(--text-primary)" : "var(--text-tertiary)",
-              cursor: "pointer", whiteSpace: "nowrap",
-              transition: "color 150ms ease", marginBottom: "-1px",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Chart + key stats + analyst — always visible */}
+      <div style={{ padding: "16px 18px" }}>
+        <div style={{ marginBottom: "18px" }}>
+          <StockChart key={result.ticker} ticker={result.ticker} height={180} defaultRange="1D" showRangeControls />
+        </div>
+
+        {(result.profile?.marketCap || result.profile?.industry || result.metrics?.peRatio || result.metrics?.weekHigh52) && (
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
+            gap: "1px", background: "var(--border-subtle)",
+            border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)",
+            overflow: "hidden", marginBottom: "18px",
+          }}>
+            {result.profile?.marketCap && (
+              <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
+                <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                  {result.profile.marketCap >= 1000
+                    ? `$${(result.profile.marketCap / 1000).toFixed(1)}T`
+                    : `$${result.profile.marketCap.toFixed(1)}B`}
+                </div>
+              </div>
+            )}
+            {result.metrics?.peRatio && result.metrics.peRatio > 0 && (
+              <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
+                <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{result.metrics.peRatio.toFixed(1)}x</div>
+              </div>
+            )}
+            {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
+              <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
+                <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>
+                  <span style={{ color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</span>
+                  <span style={{ color: "var(--text-muted)", margin: "0 3px" }}>–</span>
+                  <span style={{ color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</span>
+                </div>
+              </div>
+            )}
+            {result.profile?.industry && (
+              <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
+                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{result.profile.industry}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(result.recommendation || result.priceTarget) && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            {result.recommendation && (() => {
+              const rec   = result.recommendation!;
+              const total = rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell;
+              const bullPct = total > 0 ? ((rec.strongBuy + rec.buy) / total) * 100 : 0;
+              const holdPct = total > 0 ? (rec.hold / total) * 100 : 0;
+              const bearPct = total > 0 ? ((rec.strongSell + rec.sell) / total) * 100 : 0;
+              return (
+                <div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
+                  <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
+                    <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
+                    <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+                    <div style={{ width: `${bearPct}%`, background: "var(--red)",   flexShrink: 0 }} />
+                  </div>
+                  <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
+                    <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
+                    <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
+                    <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
+                  </div>
+                </div>
+              );
+            })()}
+            {result.priceTarget && (
+              <div>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
+                <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(result.priceTarget.targetMean)}</div>
+                {upside !== null && (
+                  <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+                    {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
+                  </div>
+                )}
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>
+                  {formatPrice(result.priceTarget.targetLow)} — {formatPrice(result.priceTarget.targetHigh)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Overview */}
-      {tab === "overview" && (
-        <div className="bt-tab-enter" style={{ padding: "16px 18px" }}>
-          {/* Chart */}
-          <div style={{ marginBottom: "18px" }}>
-            <StockChart key={result.ticker} ticker={result.ticker} height={180} defaultRange="1D" showRangeControls />
+      {/* AI Digest */}
+      <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>AI Digest</span>
+        <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+      </div>
+      <div style={{ padding: "10px 18px 20px" }}>
+        {digestLoading && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-muted)" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--brand-blue)", opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />
+            Generating digest for {result.ticker}...
           </div>
-
-          {/* Key stats row */}
-          {(result.profile?.marketCap || result.profile?.industry || result.metrics?.peRatio || result.metrics?.weekHigh52) && (
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
-              gap: "1px", background: "var(--border-subtle)",
-              border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)",
-              overflow: "hidden", marginBottom: "18px",
-            }}>
-              {result.profile?.marketCap && (
-                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
-                  <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                    {result.profile.marketCap >= 1000
-                      ? `$${(result.profile.marketCap / 1000).toFixed(1)}T`
-                      : `$${result.profile.marketCap.toFixed(1)}B`}
-                  </div>
-                </div>
-              )}
-              {result.metrics?.peRatio && result.metrics.peRatio > 0 && (
-                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
-                  <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{result.metrics.peRatio.toFixed(1)}x</div>
-                </div>
-              )}
-              {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
-                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
-                  <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4 }}>
-                    <span style={{ color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</span>
-                    <span style={{ color: "var(--text-muted)", margin: "0 3px" }}>–</span>
-                    <span style={{ color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</span>
-                  </div>
-                </div>
-              )}
-              {result.profile?.industry && (
-                <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
-                  <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{result.profile.industry}</div>
-                </div>
-              )}
+        )}
+        {digestError && !digestLoading && (
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", fontStyle: "italic" }}>Unable to generate digest right now.</div>
+        )}
+        {digest && !digestLoading && (
+          <div>
+            <div style={{ marginBottom: "11px" }}>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
+              <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.company_overview}</div>
             </div>
-          )}
-
-          {(result.recommendation || result.priceTarget) ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              {result.recommendation && (() => {
-                const rec   = result.recommendation!;
-                const total = rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell;
-                const bullPct = total > 0 ? ((rec.strongBuy + rec.buy) / total) * 100 : 0;
-                const holdPct = total > 0 ? (rec.hold / total) * 100 : 0;
-                const bearPct = total > 0 ? ((rec.strongSell + rec.sell) / total) * 100 : 0;
-                return (
-                  <div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
-                    <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
-                      <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
-                      <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
-                      <div style={{ width: `${bearPct}%`, background: "var(--red)",   flexShrink: 0 }} />
-                    </div>
-                    <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                      <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
-                      <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
-                      <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              {result.priceTarget && (
-                <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
-                  <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(result.priceTarget.targetMean)}</div>
-                  {upside !== null && (
-                    <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
-                      {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
-                    </div>
-                  )}
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>
-                    {formatPrice(result.priceTarget.targetLow)} — {formatPrice(result.priceTarget.targetHigh)}
-                  </div>
-                </div>
-              )}
+            <div style={{ marginBottom: "11px" }}>
+              <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
+              <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.news_digest}</div>
             </div>
-          ) : (
-            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>No analyst data available.</div>
-          )}
-        </div>
-      )}
+            {digest.earnings_snapshot && (
+              <div style={{ marginBottom: "11px" }}>
+                <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Earnings Track Record</div>
+                <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.earnings_snapshot}</div>
+              </div>
+            )}
+            {digest.financial_snapshot && (
+              <div style={{ marginBottom: "11px" }}>
+                <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Financials</div>
+                <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.financial_snapshot}</div>
+              </div>
+            )}
+            <div style={{ marginBottom: "8px" }}>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
+              <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.market_outlook}</div>
+            </div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
+              AI digest · {new Date(digest.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* News */}
-      {tab === "news" && (
-        <div className="bt-tab-enter">
-          {result.news.length === 0 ? (
-            <div style={{ padding: "18px", fontSize: "13px", color: "var(--text-muted)" }}>No recent news found.</div>
-          ) : (
-            result.news.slice(0, 6).map((item, i) => (
-              <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
-                style={{
-                  display: "block", padding: "12px 18px",
-                  borderBottom: i < 5 ? "1px solid var(--border-subtle)" : "none",
-                  textDecoration: "none",
-                  transition: "background 120ms ease",
-                }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--card-hover)")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-              >
-                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px" }}>{item.headline}</div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{item.source} · {timeAgo(item.datetime)}</div>
-              </a>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* AI Analysis */}
-      {tab === "ai" && (
-        <div className="bt-tab-enter" style={{ padding: "16px 18px" }}>
-          {!aiAnalysis && !aiLoading && (
-            <div>
-              <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "14px" }}>
-                AI-powered breakdown of {result.ticker} — bull case, bear case, key catalysts, and investor takeaway.
-              </div>
-              <button
-                onClick={requestAI}
-                disabled={aiCooldown}
-                style={{
-                  padding: "8px 18px", background: "var(--brand-gradient)",
-                  border: "none", borderRadius: "var(--radius-md)",
-                  color: "#fff", fontSize: "13px", fontWeight: 600,
-                  fontFamily: "var(--font-body)",
-                  cursor: aiCooldown ? "not-allowed" : "pointer",
-                  opacity: aiCooldown ? 0.5 : 1,
-                  transition: "opacity 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1)",
-                }}
-                onPointerDown={(e) => { if (!aiCooldown) e.currentTarget.style.transform = "scale(0.97)"; }}
-                onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
-              >
-                Generate Analysis
-              </button>
-              {aiError && <div style={{ marginTop: "12px", fontSize: "12px", color: "var(--red)" }}>{aiError}</div>}
-            </div>
-          )}
-          {aiLoading && (
-            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Analyzing {result.ticker}...</div>
-          )}
-          {aiAnalysis && !aiLoading && (
-            <div>
-              {aiAnalysis.cached_at && (
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "14px" }}>
-                  Generated {new Date(aiAnalysis.cached_at).toLocaleDateString()} · Confidence: <strong>{aiAnalysis.confidence}</strong>
-                </div>
-              )}
-              {([
-                { key: "bull_case",    label: "Bull Case",         color: "var(--green)" },
-                { key: "bear_case",    label: "Bear Case",         color: "var(--red)" },
-                { key: "key_catalysts",label: "Key Catalysts",     color: "var(--brand-blue)" },
-                { key: "key_risks",    label: "Key Risks",         color: "var(--amber)" },
-                { key: "takeaway",     label: "Investor Takeaway", color: "var(--violet)" },
-              ] as const).map(({ key, label, color }) => (
-                <div key={key} style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color, marginBottom: "4px" }}>{label}</div>
-                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{aiAnalysis[key]}</div>
-                </div>
-              ))}
-              <button
-                onClick={() => { setAiAnalysis(null); setAiError(null); }}
-                style={{
-                  marginTop: "4px", padding: "5px 12px",
-                  background: "none", border: "1px solid var(--card-border)",
-                  borderRadius: "var(--radius-sm)", color: "var(--text-muted)",
-                  fontSize: "11px", cursor: "pointer", fontFamily: "var(--font-body)",
-                }}
-              >
-                Regenerate
-              </button>
-            </div>
-          )}
-        </div>
+      <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>
+          {result.news.length > 0 ? `News · ${result.news.length}` : "News"}
+        </span>
+        <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+      </div>
+      {result.news.length === 0 ? (
+        <div style={{ padding: "12px 18px", fontSize: "13px", color: "var(--text-muted)" }}>No recent news found.</div>
+      ) : (
+        result.news.slice(0, 6).map((item, i) => (
+          <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+            style={{
+              display: "block", padding: "12px 18px",
+              borderBottom: i < Math.min(5, result.news.length - 1) ? "1px solid var(--border-subtle)" : "none",
+              textDecoration: "none",
+              transition: "background 120ms ease",
+            }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--card-hover)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+          >
+            <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px" }}>{item.headline}</div>
+            <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{item.source} · {timeAgo(item.datetime)}</div>
+          </a>
+        ))
       )}
 
       {/* Reddit Pulse */}
-      {tab === "social" && (
-        <div className="bt-tab-enter" style={{ padding: "16px 18px" }}>
-          {socialLoading && (
-            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-              Fetching Reddit discussion for {result.ticker}...
+      <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
+        <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+      </div>
+      <div style={{ padding: "10px 18px 18px" }}>
+        {socialLoading && (
+          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+            Fetching Reddit discussion for {result.ticker}...
+          </div>
+        )}
+        {socialError && !socialLoading && (
+          <div>
+            <div style={{ padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>
+              {socialError}
             </div>
-          )}
-          {socialError && !socialLoading && (
-            <div>
-              <div style={{ padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>
-                {socialError}
-              </div>
-              <button onClick={refreshSocialPulse} style={{ padding: "6px 14px", background: "none", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
-                Try again
-              </button>
-            </div>
-          )}
-          {socialPulse && !socialLoading && (() => {
-            const sp = socialPulse;
+            <button onClick={refreshSocialPulse} style={{ padding: "6px 14px", background: "none", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+              Try again
+            </button>
+          </div>
+        )}
+        {socialPulse && !socialLoading && (() => {
+          const sp = socialPulse;
 
             if (sp.source === "apewisdom") {
               const trendScore  = sp.reddit_trend_score ?? 0;
@@ -1283,112 +1232,106 @@ function DetailView({
             );
           })()}
         </div>
-      )}
 
-      {tab === "insiders" && (
-        <div style={{ padding: "14px 18px" }}>
-          {insiderLoading ? (
-            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)", fontSize: "13px" }}>
-              Loading insider data...
+      {/* Insider Activity */}
+      <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Insider Activity</span>
+        <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+      </div>
+      <div style={{ padding: "14px 18px", paddingBottom: "40px" }}>
+        {insiderLoading ? (
+          <div style={{ textAlign: "center", padding: "28px 0", color: "var(--text-muted)", fontSize: "13px" }}>
+            Loading insider data...
+          </div>
+        ) : !insiderData || insiderData.transactions.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "28px 0" }}>
+            <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px" }}>No insider transactions found</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              Insider data comes from SEC Form 4 filings (open-market transactions only, last 90 days). Crypto and foreign-listed stocks are not covered.
             </div>
-          ) : !insiderData || insiderData.transactions.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-              <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px" }}>No insider transactions found</div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                Insider data comes from SEC Form 4 filings (open-market transactions only, last 90 days).
-                Crypto and foreign-listed stocks are not covered.
-              </div>
-            </div>
-          ) : (() => {
-            const { transactions, netBuys, netSells, signal } = insiderData;
-            const signalColor = signal === "buy" ? "var(--green)" : signal === "sell" ? "var(--red)" : "var(--text-muted)";
-            const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed Activity";
-            return (
-              <div>
-                {/* Signal summary */}
+          </div>
+        ) : (() => {
+          const { transactions, netBuys, netSells, signal } = insiderData;
+          const signalColor = signal === "buy" ? "var(--green)" : signal === "sell" ? "var(--red)" : "var(--text-muted)";
+          const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed Activity";
+          return (
+            <div>
+              <div style={{
+                display: "flex", alignItems: "center", gap: "12px",
+                padding: "10px 12px", marginBottom: "14px",
+                background: "var(--bg-surface)", border: "1px solid var(--card-border)",
+                borderRadius: "var(--radius-md)",
+              }}>
                 <div style={{
-                  display: "flex", alignItems: "center", gap: "12px",
-                  padding: "10px 12px", marginBottom: "14px",
-                  background: "var(--bg-surface)", border: "1px solid var(--card-border)",
-                  borderRadius: "var(--radius-md)",
+                  padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
+                  fontFamily: "var(--font-mono)", letterSpacing: "0.04em",
+                  background: signal === "buy" ? "rgba(34,197,94,0.12)" : signal === "sell" ? "rgba(239,68,68,0.12)" : "var(--bg-elevated)",
+                  color: signalColor,
                 }}>
-                  <div style={{
-                    padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                    fontFamily: "var(--font-mono)", letterSpacing: "0.04em",
-                    background: signal === "buy" ? "rgba(34,197,94,0.12)" : signal === "sell" ? "rgba(239,68,68,0.12)" : "var(--bg-elevated)",
-                    color: signalColor,
-                  }}>
-                    {signal === "buy" ? "INS▲" : signal === "sell" ? "INS▼" : "INS—"}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: signalColor }}>{signalLabel}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
-                      {netBuys > 0 && <span style={{ color: "var(--green)", marginRight: "10px" }}>{netBuys} purchase{netBuys !== 1 ? "s" : ""}</span>}
-                      {netSells > 0 && <span style={{ color: "var(--red)" }}>{netSells} sale{netSells !== 1 ? "s" : ""}</span>}
-                    </div>
+                  {signal === "buy" ? "INS▲" : signal === "sell" ? "INS▼" : "INS—"}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: signalColor }}>{signalLabel}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
+                    {netBuys > 0 && <span style={{ color: "var(--green)", marginRight: "10px" }}>{netBuys} purchase{netBuys !== 1 ? "s" : ""}</span>}
+                    {netSells > 0 && <span style={{ color: "var(--red)" }}>{netSells} sale{netSells !== 1 ? "s" : ""}</span>}
                   </div>
                 </div>
-
-                {/* Transaction list */}
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>
-                    Recent Transactions
-                  </div>
-                  {transactions.map((tx, i) => {
-                    const isBuy = tx.transactionCode === "P";
-                    const value = tx.share * tx.transactionPrice;
-                    return (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: "10px",
-                        padding: "8px 0",
-                        borderBottom: i < transactions.length - 1 ? "1px solid var(--border-subtle)" : "none",
+              </div>
+              <div style={{ marginBottom: "12px" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>Recent Transactions</div>
+                {transactions.map((tx, i) => {
+                  const isBuy = tx.transactionCode === "P";
+                  const value = tx.share * tx.transactionPrice;
+                  return (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      padding: "8px 0",
+                      borderBottom: i < transactions.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                    }}>
+                      <div style={{
+                        padding: "2px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700,
+                        fontFamily: "var(--font-mono)", flexShrink: 0,
+                        background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                        color: isBuy ? "var(--green)" : "var(--red)",
                       }}>
-                        <div style={{
-                          padding: "2px 6px", borderRadius: "3px", fontSize: "10px", fontWeight: 700,
-                          fontFamily: "var(--font-mono)", flexShrink: 0,
-                          background: isBuy ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
-                          color: isBuy ? "var(--green)" : "var(--red)",
-                        }}>
-                          {isBuy ? "BUY" : "SELL"}
+                        {isBuy ? "BUY" : "SELL"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {tx.name}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {tx.name}
-                          </div>
-                          <div className="num" style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
-                            {Math.abs(tx.share).toLocaleString()} shares
-                            {tx.transactionPrice > 0 && (
-                              <span style={{ marginLeft: "6px" }}>
-                                @ ${tx.transactionPrice.toFixed(2)}
-                                {value > 0 && (
-                                  <span style={{ color: "var(--text-secondary)", marginLeft: "4px" }}>
-                                    (${value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(0)}K` : value.toFixed(0)})
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>
-                          {new Date(tx.transactionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        <div className="num" style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
+                          {Math.abs(tx.share).toLocaleString()} shares
+                          {tx.transactionPrice > 0 && (
+                            <span style={{ marginLeft: "6px" }}>
+                              @ ${tx.transactionPrice.toFixed(2)}
+                              {value > 0 && (
+                                <span style={{ color: "var(--text-secondary)", marginLeft: "4px" }}>
+                                  (${value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${(value / 1_000).toFixed(0)}K` : value.toFixed(0)})
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-
-                {/* Caveat note */}
-                <div style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
-                  Buying is a stronger signal than selling. Insiders sell for many reasons (diversification, taxes, RSU vesting) but buy for only one.
-                </div>
-                <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>
-                  Source: SEC Form 4 filings via Finnhub · Open-market transactions only · Last 90 days
-                </div>
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>
+                        {new Date(tx.transactionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
-        </div>
-      )}
+              <div style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                Buying is a stronger signal than selling. Insiders sell for many reasons (diversification, taxes, RSU vesting) but buy for only one.
+              </div>
+              <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>
+                Source: SEC Form 4 filings via Finnhub · Open-market transactions only · Last 90 days
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
     </>
   );

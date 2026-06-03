@@ -54,6 +54,7 @@ const navItems = [
   {
     href: "/planning",
     label: "Planning",
+    isNew: true,
     icon: (
       <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
         <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
@@ -76,7 +77,7 @@ const discoverItems = [
   {
     href: "/research",
     label: "Research",
-    isNew: true,
+    isNew: false,
     icon: (
       <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
@@ -270,6 +271,9 @@ export default function Sidebar({
             >
               <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
               {item.label}
+              {(item as { isNew?: boolean }).isNew && (
+                <span className="bt-badge bt-badge-new" style={{ marginLeft: "auto" }}>NEW</span>
+              )}
             </Link>
           );
         })}
