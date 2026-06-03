@@ -4,7 +4,17 @@ import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubNews } from "@/lib/market-data/finnhub";
 
 type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
-type RawFinancial = { period: string; revenue: number | null; netIncome: number | null };
+
+export type RawMetrics = {
+  netMarginTTM?: number | null;
+  revenueGrowth3Y?: number | null;
+  epsGrowth3Y?: number | null;
+  roeTTM?: number | null;
+  peBasicExclExtraTTM?: number | null;
+  currentRatioAnnual?: number | null;
+  debtToEquityAnnual?: number | null;
+  revenuePerShareTTM?: number | null;
+};
 
 type DigestResult = {
   company_overview: string;
@@ -14,7 +24,7 @@ type DigestResult = {
   market_outlook: string;
   generated_at: string;
   raw_earnings: RawEarning[];
-  raw_financials: RawFinancial[];
+  raw_metrics: RawMetrics | null;
 };
 
 const cache = new Map<string, { data: DigestResult; ts: number }>();
@@ -30,7 +40,6 @@ async function fetchEarnings(ticker: string): Promise<{ text: string; raw: RawEa
     const data = await res.json() as Array<{
       quarter?: number; year?: number;
       actual?: number | null; estimate?: number | null;
-      surprisePercent?: number | null;
     }>;
     if (!Array.isArray(data) || data.length === 0) return { text: "", raw: [] };
 
@@ -38,10 +47,7 @@ async function fetchEarnings(ticker: string): Promise<{ text: string; raw: RawEa
       const quarter = `Q${e.quarter ?? "?"}  '${String(e.year ?? "").slice(-2)}`;
       const actual = typeof e.actual === "number" ? e.actual : null;
       const estimate = typeof e.estimate === "number" ? e.estimate : null;
-      const beat =
-        actual != null && estimate != null
-          ? actual >= estimate
-          : null;
+      const beat = actual != null && estimate != null ? actual >= estimate : null;
       return { quarter, actual, estimate, beat };
     });
 
@@ -57,49 +63,28 @@ async function fetchEarnings(ticker: string): Promise<{ text: string; raw: RawEa
   }
 }
 
-async function fetchIncomeStatement(ticker: string): Promise<{ text: string; raw: RawFinancial[] }> {
-  const key = process.env.FMP_API_KEY;
-  if (!key) { console.warn("[fmp] FMP_API_KEY not set"); return { text: "", raw: [] }; }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+async function fetchFinnhubMetrics(ticker: string): Promise<{ text: string; raw: RawMetrics | null }> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return { text: "", raw: null };
   try {
-    const url = `https://financialmodelingprep.com/api/v3/income-statement/${ticker}?limit=4&apikey=${key}`;
-    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 86400 } });
-    clearTimeout(timeout);
-    if (!res.ok) {
-      console.error(`[fmp] ${ticker} HTTP ${res.status}`);
-      return { text: "", raw: [] };
-    }
-    const data = await res.json() as Array<{ date?: string; revenue?: number; netIncome?: number; grossProfitRatio?: number; }> | { "Error Message"?: string };
-    if (!Array.isArray(data)) {
-      console.error(`[fmp] ${ticker} error:`, (data as { "Error Message"?: string })["Error Message"] ?? JSON.stringify(data).slice(0, 120));
-      return { text: "", raw: [] };
-    }
-    if (data.length === 0) { console.warn(`[fmp] ${ticker} empty`); return { text: "", raw: [] }; }
+    const url = `https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${key}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) { console.error(`[finnhub-metric] ${ticker} HTTP ${res.status}`); return { text: "", raw: null }; }
+    const data = await res.json() as { metric?: RawMetrics };
+    const m = data.metric;
+    if (!m) return { text: "", raw: null };
 
-    const raw: RawFinancial[] = data.slice(0, 4).map((d) => ({
-      period: d.date ? d.date.slice(0, 4) : "?",
-      revenue: typeof d.revenue === "number" ? d.revenue : null,
-      netIncome: typeof d.netIncome === "number" ? d.netIncome : null,
-    }));
-
-    const fmtB = (n: number) =>
-      n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
-    const d = data[0];
+    const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
     const parts: string[] = [];
-    if (d.revenue) parts.push(`Revenue: ${fmtB(d.revenue)}`);
-    if (d.netIncome != null)
-      parts.push(`Net Income: ${d.netIncome >= 0 ? fmtB(d.netIncome) : `-${fmtB(Math.abs(d.netIncome))}`}`);
-    if (d.grossProfitRatio)
-      parts.push(`Gross Margin: ${(d.grossProfitRatio * 100).toFixed(1)}%`);
-    const text = parts.length > 0 ? parts.join(", ") + (d.date ? ` (${d.date.slice(0, 4)})` : "") : "";
+    if (m.netMarginTTM != null)    parts.push(`Net Margin: ${pct(m.netMarginTTM)}`);
+    if (m.revenueGrowth3Y != null) parts.push(`Rev Growth (3Y CAGR): ${pct(m.revenueGrowth3Y)}`);
+    if (m.epsGrowth3Y != null)     parts.push(`EPS Growth (3Y CAGR): ${pct(m.epsGrowth3Y)}`);
+    if (m.roeTTM != null)          parts.push(`ROE: ${pct(m.roeTTM)}`);
 
-    return { text, raw };
+    return { text: parts.join(", "), raw: m };
   } catch (err) {
-    clearTimeout(timeout);
-    const isTimeout = err instanceof Error && err.name === "AbortError";
-    console.error(`[fmp] ${ticker} ${isTimeout ? "timed out (5s)" : (err instanceof Error ? err.message : "failed")}`);
-    return { text: "", raw: [] };
+    console.error(`[finnhub-metric] ${ticker}`, err instanceof Error ? err.message : err);
+    return { text: "", raw: null };
   }
 }
 
@@ -133,10 +118,10 @@ export async function POST(req: NextRequest) {
   const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
   const model = isGrok ? "grok-4.3" : "llama-3.3-70b-versatile";
 
-  const [news, earningsResult, financialsResult] = await Promise.all([
+  const [news, earningsResult, metricsResult] = await Promise.all([
     getFinnhubNews(ticker, 3),
     fetchEarnings(ticker),
-    fetchIncomeStatement(ticker),
+    fetchFinnhubMetrics(ticker),
   ]);
 
   const newsLines = news.length > 0
@@ -157,14 +142,14 @@ Company: ${companyName} (${ticker}) — ${priceStr}
 Recent news (last 3 days):
 ${newsLines}
 ${earningsResult.text ? `\nEarnings history (last 4 quarters): ${earningsResult.text}` : ""}
-${financialsResult.text ? `\nFinancials (most recent annual): ${financialsResult.text}` : ""}
+${metricsResult.text ? `\nKey financial metrics (TTM): ${metricsResult.text}` : ""}
 
 Return this exact JSON:
 {
   "company_overview": "2-3 sentences: what ${ticker} does, key products/services, competitive position or scale",
   "news_digest": "2-3 sentences synthesizing the news headlines above. If no meaningful news, say 'No major developments in the past few days.'",
   "earnings_snapshot": "1-2 sentences on recent earnings performance — specific beats/misses and trend. Return null if no earnings data provided.",
-  "financial_snapshot": "Revenue scale, profitability, key trend in 1-2 sentences. Return null if no financial data provided.",
+  "financial_snapshot": "Profitability, growth, and financial health in 1-2 sentences based on the metrics provided. Return null if no financial data provided.",
   "market_outlook": "One sentence on the key catalyst or risk to watch near-term"
 }`;
 
@@ -181,7 +166,7 @@ Return this exact JSON:
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
 
-    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_financials">;
+    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_metrics">;
     try {
       parsed = JSON.parse(match[0]) as typeof parsed;
     } catch {
@@ -192,7 +177,7 @@ Return this exact JSON:
       ...parsed,
       generated_at: new Date().toISOString(),
       raw_earnings: earningsResult.raw,
-      raw_financials: financialsResult.raw,
+      raw_metrics: metricsResult.raw,
     };
     cache.set(ticker, { data: result, ts: Date.now() });
     return NextResponse.json(result);

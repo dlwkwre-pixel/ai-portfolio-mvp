@@ -41,7 +41,16 @@ type TrendingTicker = {
 };
 
 type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
-type RawFinancial = { period: string; revenue: number | null; netIncome: number | null };
+
+type RawMetrics = {
+  netMarginTTM?: number | null;
+  revenueGrowth3Y?: number | null;
+  epsGrowth3Y?: number | null;
+  roeTTM?: number | null;
+  peBasicExclExtraTTM?: number | null;
+  currentRatioAnnual?: number | null;
+  debtToEquityAnnual?: number | null;
+};
 
 type DigestResult = {
   company_overview: string;
@@ -51,7 +60,7 @@ type DigestResult = {
   market_outlook: string;
   generated_at: string;
   raw_earnings: RawEarning[];
-  raw_financials: RawFinancial[];
+  raw_metrics: RawMetrics | null;
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
@@ -804,110 +813,51 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
   );
 }
 
-function RevenueChart({ financials }: { financials: RawFinancial[] }) {
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
+  const pct = (n: number, decimals = 1) => `${(n * 100).toFixed(decimals)}%`;
+  const signedPct = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;
 
-  const valid = [...financials].reverse().filter((f) => f.revenue != null && f.revenue > 0);
-  if (valid.length === 0) return null;
+  const items: { label: string; value: string; color: string }[] = [];
 
-  const maxRev = Math.max(...valid.map((f) => f.revenue!)) * 1.15;
-  const chartH = 64;
-  const yAxisW = 36;
+  if (metrics.netMarginTTM != null) {
+    const v = metrics.netMarginTTM;
+    items.push({ label: "Net Margin", value: pct(v), color: v >= 0.2 ? "var(--green)" : v >= 0.08 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.revenueGrowth3Y != null) {
+    const v = metrics.revenueGrowth3Y;
+    items.push({ label: "Rev Growth 3Y", value: signedPct(v), color: v >= 0.1 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.epsGrowth3Y != null) {
+    const v = metrics.epsGrowth3Y;
+    items.push({ label: "EPS Growth 3Y", value: signedPct(v), color: v >= 0.1 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.roeTTM != null) {
+    const v = metrics.roeTTM;
+    items.push({ label: "ROE", value: pct(v), color: v >= 0.15 ? "var(--green)" : v >= 0.05 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.currentRatioAnnual != null) {
+    const v = metrics.currentRatioAnnual;
+    items.push({ label: "Current Ratio", value: v.toFixed(2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.debtToEquityAnnual != null) {
+    const v = metrics.debtToEquityAnnual;
+    items.push({ label: "Debt/Equity", value: v.toFixed(2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--amber)" : "var(--red)" });
+  }
 
-  const fmtAxis = (n: number) =>
-    n >= 1e9 ? `$${(n / 1e9).toFixed(0)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
-  const fmtFull = (n: number) =>
-    n >= 1e9 ? `$${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(0)}M` : `$${n.toFixed(0)}`;
-
-  const gridLines = [0.5, 1.0].map((f) => ({ pct: f * 100, label: fmtAxis(maxRev * f) }));
+  if (items.length === 0) return null;
 
   return (
-    <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
-      <div style={{ display: "flex", gap: "8px" }}>
-        {/* Y-axis */}
-        <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
-          {gridLines.map((g, gi) => (
-            <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
-              {g.label}
-            </div>
-          ))}
-        </div>
-
-        {/* Plot area */}
-        <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
-          {gridLines.map((g, gi) => (
-            <div key={gi} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-          ))}
-
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "6px" }}>
-            {valid.map((f, i) => {
-              const revH = Math.max(4, (f.revenue! / maxRev) * chartH);
-              const netPositive = f.netIncome != null && f.netIncome > 0;
-              const netH = f.netIncome != null && f.netIncome > 0
-                ? Math.max(2, (f.netIncome / maxRev) * chartH) : 0;
-              const isHovered = hoverIdx === i;
-              const isDimmed  = hoverIdx !== null && !isHovered;
-              return (
-                <div
-                  key={i}
-                  style={{ flex: 1, height: "100%", position: "relative" }}
-                  onMouseEnter={() => setHoverIdx(i)}
-                  onMouseLeave={() => setHoverIdx(null)}
-                >
-                  {/* Tooltip */}
-                  {isHovered && (
-                    <div style={{
-                      position: "absolute",
-                      bottom: `${revH + 10}px`,
-                      left: "50%", transform: "translateX(-50%)",
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--border-strong)",
-                      borderRadius: "var(--radius-sm)",
-                      padding: "5px 8px", zIndex: 20,
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
-                      pointerEvents: "none",
-                    }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{f.period}</div>
-                      <div style={{ fontSize: "10px", color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>Rev: {fmtFull(f.revenue!)}</div>
-                      {f.netIncome != null && (
-                        <div style={{ fontSize: "10px", fontWeight: 600, color: netPositive ? "var(--green)" : "var(--red)", fontFamily: "var(--font-mono)" }}>
-                          NI: {f.netIncome < 0 ? "-" : ""}{fmtFull(Math.abs(f.netIncome))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Bars — no box, just brightness on hover */}
-                  <div style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    display: "flex", alignItems: "flex-end", gap: "2px",
-                    opacity: isDimmed ? 0.25 : 1,
-                    filter: isHovered ? "brightness(1.5) saturate(1.1)" : "none",
-                    transition: "opacity 180ms ease, filter 180ms ease",
-                  }}>
-                    <div className="bt-bar-r" style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.75, animationDelay: `${i * 0.08}s` }} />
-                    {netH > 0 && (
-                      <div className="bt-bar-r" style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.85, animationDelay: `${i * 0.08 + 0.05}s` }} />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+          <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>
+            {item.label}
+          </div>
+          <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: item.color, lineHeight: 1 }}>
+            {item.value}
           </div>
         </div>
-      </div>
-
-      {/* X-axis labels */}
-      <div style={{ display: "flex", gap: "6px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
-        {valid.map((f, i) => (
-          <div key={i} style={{ flex: 1, textAlign: "center" }}>
-            <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>
-              {f.period}
-            </span>
-          </div>
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
@@ -1229,22 +1179,10 @@ function DetailView({
                 )}
               </div>
             )}
-            {digest.raw_financials?.length > 0 && (
+            {digest.raw_metrics && (
               <div style={{ marginBottom: "14px" }}>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
-                  <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Revenue / Net Income</div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                      <div style={{ width: "8px", height: "8px", background: "var(--brand-blue)", borderRadius: "1px", opacity: 0.65 }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Rev</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                      <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px", opacity: 0.8 }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>NI</span>
-                    </div>
-                  </div>
-                </div>
-                <RevenueChart financials={digest.raw_financials} />
+                <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
+                <FinancialMetricsGrid metrics={digest.raw_metrics} />
                 {digest.financial_snapshot && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.financial_snapshot}</div>
                 )}
