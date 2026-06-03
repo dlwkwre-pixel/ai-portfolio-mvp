@@ -60,19 +60,22 @@ async function fetchEarnings(ticker: string): Promise<{ text: string; raw: RawEa
 async function fetchIncomeStatement(ticker: string): Promise<{ text: string; raw: RawFinancial[] }> {
   const key = process.env.FMP_API_KEY;
   if (!key) { console.warn("[fmp] FMP_API_KEY not set"); return { text: "", raw: [] }; }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const url = `https://financialmodelingprep.com/api/v3/income-statement/${ticker}?limit=4&apikey=${key}`;
-    const res = await fetch(url, { next: { revalidate: 86400 } });
+    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 86400 } });
+    clearTimeout(timeout);
     if (!res.ok) {
       console.error(`[fmp] ${ticker} HTTP ${res.status}`);
       return { text: "", raw: [] };
     }
     const data = await res.json() as Array<{ date?: string; revenue?: number; netIncome?: number; grossProfitRatio?: number; }> | { "Error Message"?: string };
     if (!Array.isArray(data)) {
-      console.error(`[fmp] ${ticker} non-array response:`, (data as { "Error Message"?: string })["Error Message"] ?? JSON.stringify(data).slice(0, 120));
+      console.error(`[fmp] ${ticker} error:`, (data as { "Error Message"?: string })["Error Message"] ?? JSON.stringify(data).slice(0, 120));
       return { text: "", raw: [] };
     }
-    if (data.length === 0) { console.warn(`[fmp] ${ticker} returned empty array`); return { text: "", raw: [] }; }
+    if (data.length === 0) { console.warn(`[fmp] ${ticker} empty`); return { text: "", raw: [] }; }
 
     const raw: RawFinancial[] = data.slice(0, 4).map((d) => ({
       period: d.date ? d.date.slice(0, 4) : "?",
@@ -92,7 +95,10 @@ async function fetchIncomeStatement(ticker: string): Promise<{ text: string; raw
     const text = parts.length > 0 ? parts.join(", ") + (d.date ? ` (${d.date.slice(0, 4)})` : "") : "";
 
     return { text, raw };
-  } catch {
+  } catch (err) {
+    clearTimeout(timeout);
+    const isTimeout = err instanceof Error && err.name === "AbortError";
+    console.error(`[fmp] ${ticker} ${isTimeout ? "timed out (5s)" : (err instanceof Error ? err.message : "failed")}`);
     return { text: "", raw: [] };
   }
 }
