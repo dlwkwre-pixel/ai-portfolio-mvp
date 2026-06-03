@@ -16,6 +16,22 @@ export type RawMetrics = {
   revenuePerShareTTM?: number | null;
 };
 
+export type RawRecommendation = {
+  buy: number;
+  hold: number;
+  sell: number;
+  strongBuy: number;
+  strongSell: number;
+  period: string;
+};
+
+export type CompanyProfile = {
+  finnhubIndustry?: string;
+  country?: string;
+  ipo?: string;
+  name?: string;
+};
+
 type DigestResult = {
   company_overview: string;
   news_digest: string;
@@ -25,6 +41,8 @@ type DigestResult = {
   generated_at: string;
   raw_earnings: RawEarning[];
   raw_metrics: RawMetrics | null;
+  raw_recommendation: RawRecommendation | null;
+  profile: CompanyProfile | null;
 };
 
 const cache = new Map<string, { data: DigestResult; ts: number }>();
@@ -88,6 +106,36 @@ async function fetchFinnhubMetrics(ticker: string): Promise<{ text: string; raw:
   }
 }
 
+async function fetchAnalystRecommendation(ticker: string): Promise<RawRecommendation | null> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return null;
+  try {
+    const url = `https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${key}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const data = await res.json() as RawRecommendation[];
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data[0];
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCompanyProfile(ticker: string): Promise<CompanyProfile | null> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return null;
+  try {
+    const url = `https://finnhub.io/api/v1/stock/profile2?symbol=${ticker}&token=${key}`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const data = await res.json() as CompanyProfile;
+    if (!data?.finnhubIndustry && !data?.country) return null;
+    return { finnhubIndustry: data.finnhubIndustry, country: data.country, ipo: data.ipo, name: data.name };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { limited, retryAfter } = checkRateLimit(`research-digest:${getIp(req)}`, 5, 5 * 60_000);
   if (limited) {
@@ -118,10 +166,12 @@ export async function POST(req: NextRequest) {
   const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
   const model = isGrok ? "grok-4.3" : "llama-3.3-70b-versatile";
 
-  const [news, earningsResult, metricsResult] = await Promise.all([
+  const [news, earningsResult, metricsResult, recommendation, profile] = await Promise.all([
     getFinnhubNews(ticker, 3),
     fetchEarnings(ticker),
     fetchFinnhubMetrics(ticker),
+    fetchAnalystRecommendation(ticker),
+    fetchCompanyProfile(ticker),
   ]);
 
   const newsLines = news.length > 0
@@ -166,7 +216,7 @@ Return this exact JSON:
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
 
-    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_metrics">;
+    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_metrics" | "raw_recommendation" | "profile">;
     try {
       parsed = JSON.parse(match[0]) as typeof parsed;
     } catch {
@@ -178,6 +228,8 @@ Return this exact JSON:
       generated_at: new Date().toISOString(),
       raw_earnings: earningsResult.raw,
       raw_metrics: metricsResult.raw,
+      raw_recommendation: recommendation,
+      profile,
     };
     cache.set(ticker, { data: result, ts: Date.now() });
     return NextResponse.json(result);

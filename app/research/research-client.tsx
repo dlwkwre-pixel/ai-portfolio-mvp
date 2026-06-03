@@ -52,6 +52,14 @@ type RawMetrics = {
   debtToEquityAnnual?: number | null;
 };
 
+type RawRecommendation = {
+  buy: number; hold: number; sell: number; strongBuy: number; strongSell: number; period: string;
+};
+
+type CompanyProfile = {
+  finnhubIndustry?: string; country?: string; ipo?: string; name?: string;
+};
+
 type DigestResult = {
   company_overview: string;
   news_digest: string;
@@ -61,6 +69,8 @@ type DigestResult = {
   generated_at: string;
   raw_earnings: RawEarning[];
   raw_metrics: RawMetrics | null;
+  raw_recommendation: RawRecommendation | null;
+  profile: CompanyProfile | null;
 };
 
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
@@ -863,6 +873,45 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
   );
 }
 
+function AnalystConsensusBar({ rec }: { rec: RawRecommendation }) {
+  const sb = rec.strongBuy ?? 0;
+  const b  = rec.buy ?? 0;
+  const h  = rec.hold ?? 0;
+  const s  = rec.sell ?? 0;
+  const ss = rec.strongSell ?? 0;
+  const total = sb + b + h + s + ss;
+  if (total === 0) return null;
+
+  const bullCount = sb + b;
+  const bearCount = s + ss;
+  const consensusLabel = bullCount > h && bullCount > bearCount ? "Bullish"
+    : bearCount > bullCount ? "Bearish" : "Neutral";
+  const consensusColor = bullCount > bearCount ? "var(--green)" : bearCount > bullCount ? "var(--red)" : "var(--amber)";
+
+  const segments = [
+    { count: sb, color: "#00d395" },
+    { count: b,  color: "#4ade80" },
+    { count: h,  color: "#f59e0b" },
+    { count: s,  color: "#fb7185" },
+    { count: ss, color: "#ef4444" },
+  ].filter(seg => seg.count > 0);
+
+  return (
+    <div>
+      <div style={{ display: "flex", height: "7px", borderRadius: "4px", overflow: "hidden", gap: "1px" }}>
+        {segments.map((seg, i) => (
+          <div key={i} style={{ flex: seg.count, background: seg.color, minWidth: "2px" }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px", fontSize: "10px" }}>
+        <span style={{ color: "var(--green)" }}>{bullCount} Buy</span>
+        <span style={{ color: consensusColor, fontWeight: 600 }}>{consensusLabel} · {total} analysts</span>
+        <span style={{ color: "var(--red)" }}>{bearCount} Sell</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
 function DetailView({
@@ -1163,6 +1212,25 @@ function DetailView({
         )}
         {digest && !digestLoading && (
           <div>
+            {digest.profile && (digest.profile.finnhubIndustry || digest.profile.country) && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
+                {digest.profile.finnhubIndustry && (
+                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                    {digest.profile.finnhubIndustry}
+                  </span>
+                )}
+                {digest.profile.country && (
+                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                    {digest.profile.country}
+                  </span>
+                )}
+                {digest.profile.ipo && (
+                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                    IPO {digest.profile.ipo.slice(0, 4)}
+                  </span>
+                )}
+              </div>
+            )}
             <div style={{ marginBottom: "11px" }}>
               <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.company_overview}</div>
@@ -1187,6 +1255,12 @@ function DetailView({
                 {digest.financial_snapshot && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.financial_snapshot}</div>
                 )}
+              </div>
+            )}
+            {digest.raw_recommendation && (
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Consensus</div>
+                <AnalystConsensusBar rec={digest.raw_recommendation} />
               </div>
             )}
             <div style={{ marginBottom: "8px" }}>
