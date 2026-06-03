@@ -674,7 +674,7 @@ function BuyModal({
 // ─── Mini Charts ──────────────────────────────────────────────────────────────
 
 function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const valid = [...earnings].reverse().filter(
     (e) => e.actual != null || e.estimate != null
@@ -686,70 +686,79 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
     .filter((v): v is number => v != null && v > 0);
   if (posVals.length === 0) return null;
 
-  const maxVal = Math.max(...posVals) * 1.18;
+  const maxVal = Math.max(...posVals) * 1.2;
   const chartH = 72;
   const yAxisW = 36;
   const fmtEps = (n: number) => `$${n.toFixed(2)}`;
   const gridLines = [0.5, 1.0].map((f) => ({ pct: f * 100, label: fmtEps(maxVal * f) }));
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <div style={{ width: "8px", height: "8px", background: "var(--border-strong)", borderRadius: "1px" }} />
-            <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
-            <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
-          </div>
+    <>
+      <style>{`
+        @keyframes bt-bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        .bt-bar-r { transform-origin: bottom center; animation: bt-bar-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      `}</style>
+
+      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "rgba(255,255,255,0.22)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
         </div>
-        {activeIdx !== null && (
-          <button onClick={() => setActiveIdx(null)} style={{ fontSize: "9px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)" }}>
-            clear
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+        </div>
       </div>
 
       <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
         <div style={{ display: "flex", gap: "8px" }}>
-          {/* Y-axis labels */}
+          {/* Y-axis */}
           <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
-            {gridLines.map((g, i) => (
-              <div key={i} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1, textAlign: "right" }}>
+            {gridLines.map((g, gi) => (
+              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                 {g.label}
               </div>
             ))}
           </div>
 
-          {/* Bars area with gridlines */}
+          {/* Plot area */}
           <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
-            {gridLines.map((g, i) => (
-              <div key={i} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+            {/* Gridlines */}
+            {gridLines.map((g, gi) => (
+              <div key={gi} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
             ))}
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "6px" }}>
+
+            {/* Bar groups */}
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "4px" }}>
               {valid.map((e, i) => {
                 const actualH = e.actual != null && e.actual > 0 ? Math.max(3, (e.actual / maxVal) * chartH) : 0;
-                const estH = e.estimate != null && e.estimate > 0 ? Math.max(3, (e.estimate / maxVal) * chartH) : 0;
+                const estH    = e.estimate != null && e.estimate > 0 ? Math.max(3, (e.estimate / maxVal) * chartH) : 0;
                 const barColor = e.beat === true ? "var(--green)" : e.beat === false ? "var(--red)" : "var(--brand-blue)";
-                const isActive = activeIdx === i;
-                const isDimmed = activeIdx !== null && !isActive;
+                const isHovered = hoverIdx === i;
+                const isDimmed  = hoverIdx !== null && !isHovered;
                 return (
                   <div
                     key={i}
-                    style={{ flex: 1, height: "100%", position: "relative", cursor: "pointer" }}
-                    onClick={() => setActiveIdx(isActive ? null : i)}
+                    style={{ flex: 1, height: "100%", position: "relative" }}
+                    onMouseEnter={() => setHoverIdx(i)}
+                    onMouseLeave={() => setHoverIdx(null)}
                   >
-                    {isActive && (
-                      <div style={{ position: "absolute", inset: "-2px -4px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", pointerEvents: "none", zIndex: 1 }} />
-                    )}
-                    {isActive && (
-                      <div style={{ position: "absolute", bottom: `${Math.max(actualH, estH) + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+                    {/* Tooltip — floats above bars, no background box on the bars */}
+                    {isHovered && (
+                      <div style={{
+                        position: "absolute",
+                        bottom: `${Math.max(actualH, estH) + 10}px`,
+                        left: "50%", transform: "translateX(-50%)",
+                        background: "var(--bg-elevated)",
+                        border: "1px solid var(--border-strong)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "5px 8px", zIndex: 20,
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
+                        pointerEvents: "none",
+                      }}>
                         <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
-                        {e.estimate != null && (
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>
-                        )}
+                        {e.estimate != null && <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>}
                         {e.actual != null && (
                           <div style={{ fontSize: "10px", fontWeight: 600, color: barColor, fontFamily: "var(--font-mono)" }}>
                             Act: {fmtEps(e.actual)}{e.beat === true ? " ✓" : e.beat === false ? " ✗" : ""}
@@ -757,9 +766,21 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
                         )}
                       </div>
                     )}
-                    <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, transition: "opacity 150ms ease" }}>
-                      <div style={{ width: "10px", height: `${estH}px`, background: "var(--border-strong)", borderRadius: "2px 2px 0 0" }} />
-                      <div style={{ width: "10px", height: `${actualH}px`, background: barColor, borderRadius: "2px 2px 0 0" }} />
+
+                    {/* Bars — brightness on hover, no box */}
+                    <div style={{
+                      position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+                      display: "flex", alignItems: "flex-end", gap: "2px",
+                      opacity: isDimmed ? 0.25 : 1,
+                      filter: isHovered ? "brightness(1.5) saturate(1.2)" : "none",
+                      transition: "opacity 180ms ease, filter 180ms ease",
+                    }}>
+                      {estH > 0 && (
+                        <div className="bt-bar-r" style={{ width: "11px", height: `${estH}px`, background: "rgba(255,255,255,0.22)", borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07}s` }} />
+                      )}
+                      {actualH > 0 && (
+                        <div className="bt-bar-r" style={{ width: "11px", height: `${actualH}px`, background: barColor, borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07 + 0.05}s` }} />
+                      )}
                     </div>
                   </div>
                 );
@@ -768,29 +789,28 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
           </div>
         </div>
 
-        {/* X-axis quarter labels */}
-        <div style={{ display: "flex", gap: "6px", marginTop: "5px", paddingLeft: `${yAxisW + 8}px` }}>
+        {/* X-axis labels */}
+        <div style={{ display: "flex", gap: "4px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
           {valid.map((e, i) => (
-            <div key={i} style={{ flex: 1, textAlign: "center" }}
-              onClick={() => setActiveIdx(activeIdx === i ? null : i)}>
-              <span style={{ fontSize: "8px", color: activeIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: activeIdx === i ? 600 : 400, transition: "color 150ms ease", cursor: "pointer" }}>
+            <div key={i} style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>
                 {e.quarter}
               </span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
 function RevenueChart({ financials }: { financials: RawFinancial[] }) {
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const valid = [...financials].reverse().filter((f) => f.revenue != null && f.revenue > 0);
   if (valid.length === 0) return null;
 
-  const maxRev = Math.max(...valid.map((f) => f.revenue!)) * 1.12;
+  const maxRev = Math.max(...valid.map((f) => f.revenue!)) * 1.15;
   const chartH = 64;
   const yAxisW = 36;
 
@@ -804,39 +824,50 @@ function RevenueChart({ financials }: { financials: RawFinancial[] }) {
   return (
     <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
       <div style={{ display: "flex", gap: "8px" }}>
-        {/* Y-axis labels */}
+        {/* Y-axis */}
         <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
-          {gridLines.map((g, i) => (
-            <div key={i} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1, textAlign: "right" }}>
+          {gridLines.map((g, gi) => (
+            <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
               {g.label}
             </div>
           ))}
         </div>
 
-        {/* Bars area with gridlines */}
+        {/* Plot area */}
         <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
-          {gridLines.map((g, i) => (
-            <div key={i} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+          {gridLines.map((g, gi) => (
+            <div key={gi} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           ))}
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "8px" }}>
+
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "6px" }}>
             {valid.map((f, i) => {
               const revH = Math.max(4, (f.revenue! / maxRev) * chartH);
               const netPositive = f.netIncome != null && f.netIncome > 0;
               const netH = f.netIncome != null && f.netIncome > 0
                 ? Math.max(2, (f.netIncome / maxRev) * chartH) : 0;
-              const isActive = activeIdx === i;
-              const isDimmed = activeIdx !== null && !isActive;
+              const isHovered = hoverIdx === i;
+              const isDimmed  = hoverIdx !== null && !isHovered;
               return (
                 <div
                   key={i}
-                  style={{ flex: 1, height: "100%", position: "relative", cursor: "pointer" }}
-                  onClick={() => setActiveIdx(isActive ? null : i)}
+                  style={{ flex: 1, height: "100%", position: "relative" }}
+                  onMouseEnter={() => setHoverIdx(i)}
+                  onMouseLeave={() => setHoverIdx(null)}
                 >
-                  {isActive && (
-                    <div style={{ position: "absolute", inset: "-2px -4px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.04)", border: "1px solid var(--border-subtle)", pointerEvents: "none", zIndex: 1 }} />
-                  )}
-                  {isActive && (
-                    <div style={{ position: "absolute", bottom: `${revH + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.35)", pointerEvents: "none" }}>
+                  {/* Tooltip */}
+                  {isHovered && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: `${revH + 10}px`,
+                      left: "50%", transform: "translateX(-50%)",
+                      background: "var(--bg-elevated)",
+                      border: "1px solid var(--border-strong)",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "5px 8px", zIndex: 20,
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
+                      pointerEvents: "none",
+                    }}>
                       <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{f.period}</div>
                       <div style={{ fontSize: "10px", color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>Rev: {fmtFull(f.revenue!)}</div>
                       {f.netIncome != null && (
@@ -846,10 +877,18 @@ function RevenueChart({ financials }: { financials: RawFinancial[] }) {
                       )}
                     </div>
                   )}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, transition: "opacity 150ms ease" }}>
-                    <div style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.7 }} />
+
+                  {/* Bars — no box, just brightness on hover */}
+                  <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0,
+                    display: "flex", alignItems: "flex-end", gap: "2px",
+                    opacity: isDimmed ? 0.25 : 1,
+                    filter: isHovered ? "brightness(1.5) saturate(1.1)" : "none",
+                    transition: "opacity 180ms ease, filter 180ms ease",
+                  }}>
+                    <div className="bt-bar-r" style={{ flex: 1, height: `${revH}px`, background: "var(--brand-blue)", borderRadius: "3px 3px 0 0", opacity: 0.75, animationDelay: `${i * 0.08}s` }} />
                     {netH > 0 && (
-                      <div style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.85 }} />
+                      <div className="bt-bar-r" style={{ flex: 1, height: `${netH}px`, background: netPositive ? "var(--green)" : "var(--red)", borderRadius: "3px 3px 0 0", opacity: 0.85, animationDelay: `${i * 0.08 + 0.05}s` }} />
                     )}
                   </div>
                 </div>
@@ -859,12 +898,11 @@ function RevenueChart({ financials }: { financials: RawFinancial[] }) {
         </div>
       </div>
 
-      {/* X-axis year labels */}
-      <div style={{ display: "flex", gap: "8px", marginTop: "5px", paddingLeft: `${yAxisW + 8}px` }}>
+      {/* X-axis labels */}
+      <div style={{ display: "flex", gap: "6px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
         {valid.map((f, i) => (
-          <div key={i} style={{ flex: 1, textAlign: "center" }}
-            onClick={() => setActiveIdx(activeIdx === i ? null : i)}>
-            <span style={{ fontSize: "8px", color: activeIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: activeIdx === i ? 600 : 400, transition: "color 150ms ease", cursor: "pointer" }}>
+          <div key={i} style={{ flex: 1, textAlign: "center" }}>
+            <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>
               {f.period}
             </span>
           </div>
@@ -1074,7 +1112,7 @@ function DetailView({
 
         {(result.profile?.marketCap || result.profile?.industry || result.metrics?.peRatio || result.metrics?.weekHigh52) && (
           <div style={{
-            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))",
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))",
             gap: "1px", background: "var(--border-subtle)",
             border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)",
             overflow: "hidden", marginBottom: "18px",
@@ -1100,10 +1138,9 @@ function DetailView({
             {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
-                <div className="num" style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.4, display: "flex", flexWrap: "nowrap", alignItems: "center", gap: "2px" }}>
-                  <span style={{ color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</span>
-                  <span style={{ color: "var(--text-muted)" }}>–</span>
-                  <span style={{ color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</span>
+                <div className="num" style={{ lineHeight: 1.45 }}>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</div>
+                  <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</div>
                 </div>
               </div>
             )}
