@@ -74,12 +74,12 @@ async function fetchFinnhubMetrics(ticker: string): Promise<{ text: string; raw:
     const m = data.metric;
     if (!m) return { text: "", raw: null };
 
-    const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+    // netMarginTTM is a decimal (0.241); growth/ROE are already percentages (1.81, 146.69)
     const parts: string[] = [];
-    if (m.netMarginTTM != null)    parts.push(`Net Margin: ${pct(m.netMarginTTM)}`);
-    if (m.revenueGrowth3Y != null) parts.push(`Rev Growth (3Y CAGR): ${pct(m.revenueGrowth3Y)}`);
-    if (m.epsGrowth3Y != null)     parts.push(`EPS Growth (3Y CAGR): ${pct(m.epsGrowth3Y)}`);
-    if (m.roeTTM != null)          parts.push(`ROE: ${pct(m.roeTTM)}`);
+    if (m.netMarginTTM != null)    parts.push(`Net Margin: ${(m.netMarginTTM * 100).toFixed(1)}%`);
+    if (m.revenueGrowth3Y != null) parts.push(`Rev Growth (3Y CAGR): ${m.revenueGrowth3Y.toFixed(1)}%`);
+    if (m.epsGrowth3Y != null)     parts.push(`EPS Growth (3Y CAGR): ${m.epsGrowth3Y.toFixed(1)}%`);
+    if (m.roeTTM != null)          parts.push(`ROE: ${m.roeTTM.toFixed(1)}%`);
 
     return { text: parts.join(", "), raw: m };
   } catch (err) {

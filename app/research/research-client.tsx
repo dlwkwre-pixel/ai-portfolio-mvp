@@ -814,26 +814,27 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
 }
 
 function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
-  const pct = (n: number, decimals = 1) => `${(n * 100).toFixed(decimals)}%`;
-  const signedPct = (n: number) => `${n >= 0 ? "+" : ""}${(n * 100).toFixed(1)}%`;
+  // netMarginTTM comes as decimal (0.241); growth/ROE come as already-percentage (1.81, 146.69)
+  const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+  const fmtSignedPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
 
   const items: { label: string; value: string; color: string }[] = [];
 
   if (metrics.netMarginTTM != null) {
-    const v = metrics.netMarginTTM;
-    items.push({ label: "Net Margin", value: pct(v), color: v >= 0.2 ? "var(--green)" : v >= 0.08 ? "var(--amber)" : "var(--red)" });
+    const v = metrics.netMarginTTM * 100;
+    items.push({ label: "Net Margin", value: fmtPct(v), color: v >= 20 ? "var(--green)" : v >= 8 ? "var(--amber)" : "var(--red)" });
   }
   if (metrics.revenueGrowth3Y != null) {
     const v = metrics.revenueGrowth3Y;
-    items.push({ label: "Rev Growth 3Y", value: signedPct(v), color: v >= 0.1 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Rev Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
   }
   if (metrics.epsGrowth3Y != null) {
     const v = metrics.epsGrowth3Y;
-    items.push({ label: "EPS Growth 3Y", value: signedPct(v), color: v >= 0.1 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "EPS Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
   }
   if (metrics.roeTTM != null) {
     const v = metrics.roeTTM;
-    items.push({ label: "ROE", value: pct(v), color: v >= 0.15 ? "var(--green)" : v >= 0.05 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "ROE", value: fmtPct(v), color: v >= 15 ? "var(--green)" : v >= 5 ? "var(--amber)" : "var(--red)" });
   }
   if (metrics.currentRatioAnnual != null) {
     const v = metrics.currentRatioAnnual;
