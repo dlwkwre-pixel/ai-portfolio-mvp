@@ -541,9 +541,34 @@ export default function MarketRegimeCard({ compact = false }: Props) {
       {/* 30-day regime trend timeline */}
       {history.length > 1 && (
         <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-subtle)" }}>
-          <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            30-day trend
-          </p>
+          {(() => {
+            const last15 = history.slice(-15);
+            const last30 = history.slice(-30);
+            const avg15 = last15.length > 0 ? Math.round(last15.reduce((s, h) => s + h.score, 0) / last15.length) : null;
+            const avg30 = last30.length > 0 ? Math.round(last30.reduce((s, h) => s + h.score, 0) / last30.length) : null;
+            const scoreColor = (s: number) => s >= 65 ? "#00d395" : s >= 45 ? "#f59e0b" : "#f87171";
+            return (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+                  30-day trend
+                </p>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  {avg15 !== null && (
+                    <div style={{ padding: "4px 10px", background: "var(--bg-elevated)", border: `1px solid ${scoreColor(avg15)}33`, borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+                      <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>15d avg</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(avg15), lineHeight: 1 }}>{avg15}</div>
+                    </div>
+                  )}
+                  {avg30 !== null && (
+                    <div style={{ padding: "4px 10px", background: "var(--bg-elevated)", border: `1px solid ${scoreColor(avg30)}33`, borderRadius: "var(--radius-sm)", textAlign: "center" }}>
+                      <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>30d avg</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(avg30), lineHeight: 1 }}>{avg30}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <div style={{ position: "relative" }}>
             <div style={{ display: "flex", gap: "3px", alignItems: "flex-end" }}>
               {history.map((h) => {

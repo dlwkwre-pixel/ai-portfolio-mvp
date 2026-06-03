@@ -10,6 +10,7 @@ import MarketRegimeCard from "@/app/components/market-regime-card";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 import StreakBadge from "./streak-badge";
 import CombinedChart from "./combined-chart";
+import DashboardHeaderClient from "./dashboard-header-client";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -264,6 +265,7 @@ export default async function DashboardPage({
               </p>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
               <StreakBadge initialStreak={initialStreak} />
               <div className="hidden sm:flex" style={{ gap: "8px" }}>
                 <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">

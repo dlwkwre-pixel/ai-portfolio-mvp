@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
 import TermsAcceptModal from "@/app/components/terms-accept-modal";
 
@@ -100,16 +100,14 @@ export default function DashboardClient({
     try { return localStorage.getItem("bt-privacy-mode") === "true"; } catch { return false; }
   });
 
-  function setIsPrivate(v: boolean | ((prev: boolean) => boolean)) {
-    setIsPrivateState(prev => {
-      const next = typeof v === "function" ? v(prev) : v;
-      try {
-        localStorage.setItem("bt-privacy-mode", String(next));
-        window.dispatchEvent(new CustomEvent("bt-privacy-change"));
-      } catch {}
-      return next;
-    });
-  }
+  // Sync when DashboardHeaderClient (topbar) toggles privacy
+  useEffect(() => {
+    const onPrivacyChange = () => {
+      try { setIsPrivateState(localStorage.getItem("bt-privacy-mode") === "true"); } catch {}
+    };
+    window.addEventListener("bt-privacy-change", onPrivacyChange);
+    return () => window.removeEventListener("bt-privacy-change", onPrivacyChange);
+  }, []);
 
   const [portfolioRows, setPortfolioRows] = useState(initialRows);
   const [reordering, setReordering] = useState(false);
@@ -164,27 +162,8 @@ export default function DashboardClient({
 
       {/* ── Metric row ── */}
       <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+        <div style={{ marginBottom: "8px" }}>
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Overview</p>
-          <button
-            type="button"
-            onClick={() => setIsPrivate(p => !p)}
-            className="bt-btn bt-btn-ghost bt-btn-sm"
-            style={{ gap: "6px" }}
-          >
-            {isPrivate ? (
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.091 1.092a4 4 0 00-5.557-5.557z" clipRule="evenodd"/>
-                <path d="M10.748 13.93l2.523 2.523a9.987 9.987 0 01-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 010-1.186A10.007 10.007 0 012.839 6.02L6.07 9.252a4 4 0 004.678 4.678z"/>
-              </svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
-                <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41z" clipRule="evenodd"/>
-              </svg>
-            )}
-            {isPrivate ? "Show values" : "Privacy mode"}
-          </button>
         </div>
 
         <div className="dashboard-stats-grid">
