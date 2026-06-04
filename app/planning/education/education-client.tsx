@@ -80,6 +80,7 @@ function computeVerdictType(coveragePct: number): VerdictType {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type FamilyChild = { id: string; name: string; age: number };
+type EduChild = { id: string; name: string; age: number; scholarshipPct: number };
 type NeedleLever = { label: string; improvementK: number; description: string };
 type CompRow = { label: string; coveragePct: number; gap: number; monthlyNeeded: number; verdictTag: string; verdictColor: string };
 type AltPath = { key: string; label: string; totalCost: number; gap: number; surplus: number; coveragePct: number };
@@ -138,10 +139,11 @@ type Computed529 = {
   benchmarkContext: BenchmarkItem[];
 };
 
+let _eduChildId = 0;
+function makeEduChildId() { return `edu-${_eduChildId++}`; }
+
 type FormState = {
   name: string;
-  child_name: string;
-  child_current_age: number;
   years_in_college: number;
   annual_cost_today: number;
   cost_inflation_rate: number;
@@ -153,8 +155,6 @@ type FormState = {
 function defaultForm(_profile: FinancialProfile | null, defaultReturn: number): FormState {
   return {
     name: "College Savings",
-    child_name: "",
-    child_current_age: 0,
     years_in_college: 4,
     annual_cost_today: 35000,
     cost_inflation_rate: 0.05,
@@ -168,21 +168,35 @@ function defaultForm(_profile: FinancialProfile | null, defaultReturn: number): 
 
 function computeAll(
   f: FormState,
-  numChildren: number,
-  scholarshipPct: number,
+  eduChildren: EduChild[],
   preset: string,
   profile: FinancialProfile | null,
   currentNetWorth: number,
 ): Computed529 {
-  const { child_current_age: childAge, years_in_college: yrs, annual_cost_today: costToday,
+  const { years_in_college: yrs, annual_cost_today: costToday,
     cost_inflation_rate: inflation, current_529_balance: bal529, monthly_contribution: monthly,
     investment_return: ret } = f;
+
+  const numChildren = eduChildren.length || 1;
+  const primaryChild = eduChildren[0];
+  const childAge = primaryChild?.age ?? 0;
 
   const yearsUntilCollege = Math.max(0, 18 - childAge);
   const futureAnnualCost = costToday * Math.pow(1 + inflation, yearsUntilCollege);
   const totalCollegeCost = futureAnnualCost * yrs;
-  const scholarshipSavings = totalCollegeCost * numChildren * (scholarshipPct / 100);
-  const effectiveTotalCost = Math.max(0, totalCollegeCost * numChildren - scholarshipSavings);
+
+  const effectiveTotalCost = eduChildren.reduce((sum, c) => {
+    const yrsForChild = Math.max(0, 18 - c.age);
+    const futureAnnualForChild = costToday * Math.pow(1 + inflation, yrsForChild);
+    return sum + futureAnnualForChild * yrs * (1 - c.scholarshipPct / 100);
+  }, 0);
+  const scholarshipSavings = eduChildren.reduce((sum, c) => {
+    const yrsForChild = Math.max(0, 18 - c.age);
+    const futureAnnualForChild = costToday * Math.pow(1 + inflation, yrsForChild);
+    return sum + futureAnnualForChild * yrs * (c.scholarshipPct / 100);
+  }, 0);
+
+  const primaryScholarshipPct = eduChildren[0]?.scholarshipPct ?? 0;
 
   const mr = ret / 12;
   const mo = yearsUntilCollege * 12;
@@ -207,7 +221,7 @@ function computeAll(
       ? bal529
       : bal529 * Math.pow(1 + mr, months) +
         (mr > 0 ? monthly * ((Math.pow(1 + mr, months) - 1) / mr) : monthly * months);
-    const target = costToday * Math.pow(1 + inflation, i) * yrs * numChildren * (1 - scholarshipPct / 100);
+    const target = effectiveTotalCost > 0 ? Math.round(effectiveTotalCost * Math.pow(1 + inflation, i) / Math.pow(1 + inflation, yearsUntilCollege)) : 0;
     return { year: i, balance: Math.round(balance), target: Math.round(Math.max(0, target)), label: i === 0 ? "Now" : `Yr ${i}` };
   });
 
@@ -219,7 +233,7 @@ function computeAll(
   ];
   if (yearsUntilCollege >= 5) verdictReasons.push(`${yearsUntilCollege} years until enrollment to build savings`);
   else if (yearsUntilCollege > 0) verdictReasons.push(`Only ${yearsUntilCollege} year${yearsUntilCollege === 1 ? "" : "s"} until enrollment — urgency is high`);
-  if (scholarshipPct > 0) verdictReasons.push(`${scholarshipPct}% scholarship reduces required funding by ${fmtK(scholarshipSavings)}`);
+  if (scholarshipSavings > 0) verdictReasons.push(`Scholarship assumptions reduce required funding by ${fmtK(scholarshipSavings)}`);
   else if (coveragePct < 80) verdictReasons.push("College inflation may outpace the current savings rate");
   if (coveragePct >= 100) verdictReasons.push("Retirement planning is not impacted by current contributions");
 
@@ -329,7 +343,7 @@ function computeAll(
     } else if (verdictType === "ON_TRACK") {
       autoNarrative = `You're on track to fund ${pctStr}% of projected ${childStr} costs. ${flipContribution ? `A modest increase of ${fmt(flipContribution)}/mo would close the remaining ${fmtK(fundingGap)} gap.` : "Continue at the current rate."} Your retirement trajectory is healthy alongside these contributions.`;
     } else if (verdictType === "PARTIALLY_FUNDED") {
-      autoNarrative = `Current contributions will cover approximately ${pctStr}% of projected ${childStr} costs${scholarshipPct > 0 ? ` after a ${scholarshipPct}% scholarship` : ""}. ${flipContribution ? `Increasing by ${fmt(flipContribution)}/mo reaches 80% coverage.` : ""} ${yearsUntilCollege > 3 ? `With ${yearsUntilCollege} years until enrollment, there is still time to close this gap.` : "Enrollment is approaching — prioritize contributions soon."}`;
+      autoNarrative = `Current contributions will cover approximately ${pctStr}% of projected ${childStr} costs${scholarshipSavings > 0 ? ` after scholarships` : ""}. ${flipContribution ? `Increasing by ${fmt(flipContribution)}/mo reaches 80% coverage.` : ""} ${yearsUntilCollege > 3 ? `With ${yearsUntilCollege} years until enrollment, there is still time to close this gap.` : "Enrollment is approaching — prioritize contributions soon."}`;
     } else {
       autoNarrative = `At the current savings rate, the 529 will cover only ${pctStr}% of projected ${childStr} costs. ${flipContribution ? `Adding ${fmt(flipContribution)}/mo reaches the 80% threshold.` : "A significant increase is needed."} ${flipCostReduction ? `Alternatively, reducing expected costs by ${fmtK(flipCostReduction)} through scholarships or school choice could close the gap.` : ""}`;
     }
@@ -447,15 +461,18 @@ function computeAll(
   // ── P4: What Moves the Needle Most ───────────────────────────────────────────
   const needleLevers: NeedleLever[] = [];
 
-  if (scholarshipPct < 50 && effectiveTotalCost > 0) {
-    const schCost50 = Math.max(0, totalCollegeCost * numChildren * (1 - 0.50));
+  if (primaryScholarshipPct < 50 && effectiveTotalCost > 0) {
+    const schCost50 = eduChildren.reduce((sum, c) => {
+      const y = Math.max(0, 18 - c.age);
+      return sum + costToday * Math.pow(1 + inflation, y) * yrs * 0.50;
+    }, 0);
     const improvement = Math.max(0, effectiveTotalCost - schCost50);
     if (improvement > 1000) needleLevers.push({ label: "50% Scholarship", improvementK: improvement, description: "Merit or need-based aid" });
   }
 
   if (preset !== "public-in-state" && effectiveTotalCost > 0) {
     const pubFutAnn = 28000 * Math.pow(1 + 0.04, yearsUntilCollege);
-    const pubEffective = Math.max(0, pubFutAnn * 4 * numChildren * (1 - scholarshipPct / 100));
+    const pubEffective = Math.max(0, pubFutAnn * 4 * numChildren * (1 - primaryScholarshipPct / 100));
     const improvement = Math.max(0, effectiveTotalCost - pubEffective);
     if (improvement > 1000) needleLevers.push({ label: "Public vs Private School", improvementK: improvement, description: "Switch to public in-state" });
   }
@@ -468,7 +485,7 @@ function computeAll(
 
   if (yearsUntilCollege > 0 && childAge < 17 && effectiveTotalCost > 0) {
     const fvDelay = fvCalc(bal529, monthly, yearsUntilCollege + 1, ret);
-    const targetDelay = costToday * Math.pow(1 + inflation, yearsUntilCollege + 1) * yrs * numChildren * (1 - scholarshipPct / 100);
+    const targetDelay = costToday * Math.pow(1 + inflation, yearsUntilCollege + 1) * yrs * numChildren * (1 - primaryScholarshipPct / 100);
     const gapDelay = Math.max(0, targetDelay - fvDelay);
     const improvement = Math.max(0, fundingGap - gapDelay);
     if (improvement > 500) needleLevers.push({ label: "Delay Enrollment 1 Year", improvementK: improvement, description: "Extra year of compound growth" });
@@ -492,11 +509,11 @@ function computeAll(
   }
 
   const comparisonRows: CompRow[] = [
-    buildCompRow("Current Scenario",     costToday, inflation, yrs, numChildren, scholarshipPct),
-    buildCompRow("Public In-State",      28000, 0.04, 4, numChildren, scholarshipPct),
-    buildCompRow("Private University",   60000, 0.05, 4, numChildren, scholarshipPct),
+    buildCompRow("Current Scenario",     costToday, inflation, yrs, numChildren, primaryScholarshipPct),
+    buildCompRow("Public In-State",      28000, 0.04, 4, numChildren, primaryScholarshipPct),
+    buildCompRow("Private University",   60000, 0.05, 4, numChildren, primaryScholarshipPct),
     buildCompRow("50% Scholarship",      costToday, inflation, yrs, numChildren, 50),
-    buildCompRow("Two Children",         costToday, inflation, yrs, 2, scholarshipPct),
+    buildCompRow("Two Children",         costToday, inflation, yrs, 2, primaryScholarshipPct),
   ];
 
   // ── P6: Alternative Education Paths ──────────────────────────────────────────
@@ -505,7 +522,7 @@ function computeAll(
     .map(([key, p]) => {
       const futAnn = p.annualCost * Math.pow(1 + p.inflation, yearsUntilCollege);
       const totalC = futAnn * p.years;
-      const effective = Math.max(0, totalC * numChildren * (1 - scholarshipPct / 100));
+      const effective = Math.max(0, totalC * numChildren * (1 - primaryScholarshipPct / 100));
       const fvPath = mo === 0 ? bal529 : bal529 * Math.pow(1 + mr, mo) + (mr > 0 ? monthly * ((Math.pow(1 + mr, mo) - 1) / mr) : monthly * mo);
       const gap = Math.max(0, effective - fvPath);
       const surplus = Math.max(0, fvPath - effective);
@@ -565,8 +582,12 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(
     initialScenarios.length > 0 ? initialScenarios[0].id : null,
   );
-  const [numChildren, setNumChildren]           = useState<number>(1);
-  const [scholarshipPct, setScholarshipPct]     = useState<number>(0);
+  const [eduChildren, setEduChildren] = useState<EduChild[]>(() => {
+    const first = initialScenarios[0];
+    return first
+      ? [{ id: makeEduChildId(), name: first.child_name ?? "", age: first.child_current_age, scholarshipPct: 0 }]
+      : [{ id: makeEduChildId(), name: "", age: 0, scholarshipPct: 0 }];
+  });
   const [preset, setPreset]                     = useState<string>("custom");
   const [addingForecast, startAddForecast]       = useTransition();
   const [forecastStatus, setForecastStatus]      = useState<string | null>(null);
@@ -578,8 +599,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
     if (editingId != null) return form;
     if (activeScenario) return {
       name: activeScenario.name,
-      child_name: activeScenario.child_name ?? "",
-      child_current_age: activeScenario.child_current_age,
       years_in_college: activeScenario.years_in_college,
       annual_cost_today: Number(activeScenario.annual_cost_today),
       cost_inflation_rate: Number(activeScenario.cost_inflation_rate),
@@ -591,8 +610,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   }, [form, activeScenario, editingId]);
 
   const computed = useMemo(() =>
-    computeAll(src, numChildren, scholarshipPct, preset, profile, currentNetWorth),
-    [src, numChildren, scholarshipPct, preset, profile, currentNetWorth],
+    computeAll(src, eduChildren, preset, profile, currentNetWorth),
+    [src, eduChildren, preset, profile, currentNetWorth],
   );
 
   function set(field: keyof FormState, value: string | number) {
@@ -617,8 +636,17 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
     setCommentary(null);
   }
 
+  function selectEduScenario(id: string) {
+    const s = scenarios.find(sc => sc.id === id);
+    if (!s) return;
+    setActiveScenarioId(id);
+    setEditingId(null);
+    setCommentary(null);
+    setEduChildren([{ id: makeEduChildId(), name: s.child_name ?? "", age: s.child_current_age, scholarshipPct: 0 }]);
+  }
+
   function importFamilyChild(child: FamilyChild) {
-    setForm((prev) => ({ ...prev, child_name: child.name, child_current_age: child.age }));
+    setEduChildren(prev => prev.map((c, i) => i === 0 ? { ...c, name: child.name, age: child.age } : c));
     setPreset("custom");
     setSaveStatus(null);
     setCommentary(null);
@@ -629,8 +657,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
     setActiveScenarioId(s.id);
     setForm({
       name: s.name,
-      child_name: s.child_name ?? "",
-      child_current_age: s.child_current_age,
       years_in_college: s.years_in_college,
       annual_cost_today: Number(s.annual_cost_today),
       cost_inflation_rate: Number(s.cost_inflation_rate),
@@ -638,22 +664,25 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       monthly_contribution: Number(s.monthly_contribution),
       investment_return: Number(s.investment_return),
     });
+    setEduChildren([{ id: makeEduChildId(), name: s.child_name ?? "", age: s.child_current_age, scholarshipPct: 0 }]);
     setCommentary(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setForm(defaultForm(profile, defaultInvestmentReturn));
+    setEduChildren([{ id: makeEduChildId(), name: "", age: 0, scholarshipPct: 0 }]);
     setSaveStatus(null);
   }
 
   function handleSave() {
     startSaving(async () => {
       setSaveStatus(null);
+      const primaryEduChild = eduChildren[0];
       const payload = {
         name: form.name || "College Savings",
-        child_name: form.child_name || null,
-        child_current_age: form.child_current_age,
+        child_name: primaryEduChild?.name || null,
+        child_current_age: primaryEduChild?.age ?? 0,
         years_in_college: form.years_in_college,
         annual_cost_today: form.annual_cost_today,
         cost_inflation_rate: form.cost_inflation_rate,
@@ -699,8 +728,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   async function handleGetCommentary() {
     const payload: EducationFinnRequest = {
       scenario_name: src.name,
-      child_name: src.child_name || null,
-      child_current_age: src.child_current_age,
+      child_name: eduChildren[0]?.name || null,
+      child_current_age: eduChildren[0]?.age ?? 0,
       years_until_college: computed.yearsUntilCollege,
       years_in_college: src.years_in_college,
       annual_cost_today: src.annual_cost_today,
@@ -735,8 +764,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   function handleAddEduToForecast() {
     startAddForecast(async () => {
       const result = await addEducationToForecast({
-        childName: src.child_name || null,
-        childCurrentAge: src.child_current_age,
+        childName: eduChildren[0]?.name || null,
+        childCurrentAge: eduChildren[0]?.age ?? 0,
         yearsInCollege: src.years_in_college,
         annualCostToday: src.annual_cost_today,
         costInflationRate: src.cost_inflation_rate,
@@ -753,7 +782,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
 
       {/* Header */}
       <div style={{ flexShrink: 0, padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-base)" }}>
@@ -772,46 +801,76 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       </div>
 
       {/* Two-column layout */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }} data-edu-cols>
+      <div style={{ flex: 1, display: "flex", overflowY: "auto", minHeight: 0 }} data-edu-cols>
 
         {/* Left sidebar */}
-        <div style={{ width: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", overflowY: "auto", padding: "20px 20px 40px" }} data-edu-sidebar>
+        <div style={{ width: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", alignSelf: "flex-start", padding: "20px 20px 40px" }} data-edu-sidebar>
 
-          {/* Number of Children — gradient card */}
-          <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.15 250 / 0.2)", borderRadius: "var(--radius-lg, 12px)", padding: "14px 16px", marginBottom: "16px", position: "relative", overflow: "hidden" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Number of Children</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {([1, 2, 3, 4] as const).map((n) => {
-                const active = numChildren === n;
-                const icons = ["👶", "👶👶", "👶👶👶", "👨‍👩‍👧‍👦"];
-                return (
-                  <button key={n} onClick={() => setNumChildren(n)} style={{ flex: 1, padding: "8px 0 6px", borderRadius: 8, cursor: "pointer", background: active ? "oklch(0.55 0.15 250 / 0.18)" : "oklch(0.14 0.01 240)", border: active ? "1px solid oklch(0.55 0.15 250 / 0.5)" : "1px solid oklch(0.22 0.02 240)", boxShadow: active ? "0 0 12px oklch(0.55 0.15 250 / 0.22)" : "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, transition: "all 0.18s ease" }}>
-                    <span style={{ fontSize: n >= 3 ? 11 : 13 }}>{icons[n - 1]}</span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: active ? "oklch(0.82 0.12 250)" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{n === 4 ? "4+" : n}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Per-child rows */}
+          <div style={{ marginBottom: 14 }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Children</p>
+            {eduChildren.map((child, idx) => (
+              <div key={child.id} style={{ marginBottom: 12, padding: "12px", background: "oklch(0.13 0.02 250 / 0.6)", borderRadius: 10, border: "1px solid oklch(0.25 0.03 250 / 0.4)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Child {idx + 1}</span>
+                  {eduChildren.length > 1 && (
+                    <button onClick={() => setEduChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove child">×</button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Name (optional)"
+                  value={child.name}
+                  onChange={e => setEduChildren(prev => prev.map(c => c.id === child.id ? { ...c, name: e.target.value } : c))}
+                  style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 9px", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box", marginBottom: 7 }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9 }}>
+                  <label style={{ fontSize: 11, color: "var(--text-secondary)", flexShrink: 0 }}>Age</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={25}
+                    value={child.age}
+                    onChange={e => setEduChildren(prev => prev.map(c => c.id === child.id ? { ...c, age: Number(e.target.value) } : c))}
+                    style={{ width: "60px", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 7, padding: "5px 8px", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <label style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 145)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Scholarship</label>
+                    <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 145)", fontWeight: 700 }}>{child.scholarshipPct === 0 ? "None" : child.scholarshipPct === 100 ? "Full" : `${child.scholarshipPct}%`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={child.scholarshipPct}
+                    onChange={e => setEduChildren(prev => prev.map(c => c.id === child.id ? { ...c, scholarshipPct: Number(e.target.value) } : c))}
+                    style={{ width: "100%", marginBottom: 5, accentColor: "oklch(0.72 0.18 145)" }}
+                  />
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {([0, 25, 50, 75, 100] as const).map(pct => (
+                      <button key={pct} onClick={() => setEduChildren(prev => prev.map(c => c.id === child.id ? { ...c, scholarshipPct: pct } : c))} style={{ flex: 1, padding: "4px 0", borderRadius: 5, fontSize: 10, fontWeight: child.scholarshipPct === pct ? 700 : 500, cursor: "pointer", background: child.scholarshipPct === pct ? "oklch(0.72 0.18 145 / 0.15)" : "transparent", color: child.scholarshipPct === pct ? "oklch(0.72 0.18 145)" : "var(--text-muted)", border: child.scholarshipPct === pct ? "1px solid oklch(0.72 0.18 145 / 0.4)" : "1px solid var(--border)", fontFamily: "var(--font-mono)", transition: "all 0.12s" }}>
+                        {pct === 0 ? "0" : pct === 100 ? "Full" : `${pct}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => setEduChildren(prev => [...prev, { id: makeEduChildId(), name: "", age: 0, scholarshipPct: 0 }])}
+              style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", color: "oklch(0.62 0.12 250)", border: "1px dashed oklch(0.45 0.12 250 / 0.4)", transition: "all 0.15s" }}
+            >
+              + Add Child
+            </button>
+            {computed.scholarshipSavings > 0 && (
+              <div style={{ fontSize: 11, color: "oklch(0.65 0.12 145)", marginTop: 8, padding: "5px 8px", background: "oklch(0.72 0.18 145 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.72 0.18 145 / 0.12)" }}>
+                Scholarship saves {fmtK(computed.scholarshipSavings)} total
+              </div>
+            )}
           </div>
-
-          {/* Scholarship */}
-          <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Scholarship Assumption</p>
-          <div style={{ display: "flex", gap: 5, marginBottom: 8 }}>
-            {([0, 25, 50, 75, 100] as const).map((pct) => {
-              const active = scholarshipPct === pct;
-              return (
-                <button key={pct} onClick={() => setScholarshipPct(pct)} style={{ flex: 1, padding: "7px 0", borderRadius: 7, fontSize: 11, fontWeight: active ? 700 : 500, cursor: "pointer", background: active ? "oklch(0.72 0.18 145 / 0.15)" : "var(--bg-elevated, var(--bg-base))", color: active ? "oklch(0.72 0.18 145)" : "var(--text-secondary)", border: active ? "1px solid oklch(0.72 0.18 145 / 0.4)" : "1px solid var(--border)", transition: "all 0.15s ease", fontFamily: "var(--font-mono)" }}>
-                  {pct === 0 ? "None" : pct === 100 ? "Full" : `${pct}%`}
-                </button>
-              );
-            })}
-          </div>
-          {scholarshipPct > 0 && (
-            <div style={{ fontSize: 11, color: "oklch(0.65 0.12 145)", marginBottom: 12, padding: "5px 8px", background: "oklch(0.72 0.18 145 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.72 0.18 145 / 0.12)" }}>
-              Saves {fmtK(computed.scholarshipSavings)} in projected costs
-            </div>
-          )}
 
           {/* College Type */}
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
@@ -849,7 +908,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
               <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Saved Scenarios</p>
               {scenarios.map((s) => (
-                <div key={s.id} onClick={() => { setActiveScenarioId(s.id); setEditingId(null); setCommentary(null); }} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover)" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                <div key={s.id} onClick={() => selectEduScenario(s.id)} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover)" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.name}</div>
                     {s.child_name && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.child_name}, age {s.child_current_age}</div>}
@@ -866,17 +925,11 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {/* Scenario Form */}
           <div style={{ height: "1px", background: "var(--border-subtle)", margin: "14px 0" }} />
           <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 12px" }}>{editingId ? "Edit Scenario" : "Scenario Details"}</p>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Scenario Name</label>
+            <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" }} />
+          </div>
           {[
-            { label: "Scenario Name", field: "name" as const, type: "text" },
-            { label: "Child Name (optional)", field: "child_name" as const, type: "text" },
-          ].map(({ label, field, type }) => (
-            <div key={field} style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>{label}</label>
-              <input type={type} value={form[field] as string} onChange={(e) => set(field, e.target.value)} style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" }} />
-            </div>
-          ))}
-          {[
-            { label: "Child Current Age", field: "child_current_age" as const, min: 0, max: 17, step: 1 },
             { label: "Years in College", field: "years_in_college" as const, min: 1, max: 8, step: 1 },
             { label: "Annual Cost Today ($)", field: "annual_cost_today" as const, min: 0, max: 200000, step: 1000 },
           ].map(({ label, field, min, max, step }) => (
@@ -920,7 +973,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         </div>{/* end left sidebar */}
 
         {/* Right panel */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px", display: "flex", flexDirection: "column", gap: "14px" }} data-edu-analysis>
+        <div style={{ flex: 1, padding: "16px 24px 40px", display: "flex", flexDirection: "column", gap: "14px" }} data-edu-analysis>
 
           {/* Verdict */}
           <div style={{ background: computed.contextVerdictBg, border: `1px solid ${computed.contextVerdictColor}40`, borderRadius: "var(--radius-lg, 12px)", padding: "20px 24px", animation: "edu-fade-up 0.4s ease-out both" }}>

@@ -157,7 +157,7 @@ function computeVerdictType(
 }
 
 function computeFamily(
-  childCurrentAge: number,
+  children: { age: number }[],
   monthlyInfant: number,
   monthlyChild: number,
   monthlyTeen: number,
@@ -166,7 +166,6 @@ function computeFamily(
   profile: FinancialProfile | null,
   currentNetWorth: number,
   liquidAssets: number,
-  numChildren: number,
 ): ComputedFamily {
   function costAtAge(age: number) {
     if (age < 3) return monthlyInfant;
@@ -175,17 +174,38 @@ function computeFamily(
     return 0;
   }
 
-  const baseMonthlyImpact = costAtAge(childCurrentAge);
-  const currentMonthlyImpact = baseMonthlyImpact * numChildren;
-  let baseTotalCost = 0;
-  for (let age = childCurrentAge; age < 18; age++) baseTotalCost += costAtAge(age) * 12;
-  const totalCostToAge18 = baseTotalCost * numChildren;
-  const remainingYears = Math.max(0, 18 - childCurrentAge);
+  const primaryAge = Math.max(0, children[0]?.age ?? 0);
+  const numChildren = children.length || 1;
+  const baseMonthlyImpact = costAtAge(primaryAge);
+  const currentMonthlyImpact = children.reduce((sum, c) => sum + (c.age >= 0 ? costAtAge(c.age) : 0), 0);
+
+  const totalCostToAge18 = children.reduce((sum, c) => {
+    const startAge = Math.max(0, c.age);
+    let cost = 0;
+    for (let age = startAge; age < 18; age++) cost += costAtAge(age) * 12;
+    return sum + cost;
+  }, 0);
+
+  const remainingYears = children.length > 0
+    ? Math.max(0, ...children.map(c => Math.max(0, 18 - c.age)))
+    : 0;
 
   const chartData: PhaseBar[] = [];
-  for (let age = childCurrentAge; age < 18; age++) {
-    const phase: "Infant" | "Child" | "Teen" = age < 3 ? "Infant" : age <= 12 ? "Child" : "Teen";
-    chartData.push({ age, annualCost: costAtAge(age) * 12 * numChildren, phase, fill: PHASE_COLORS[phase] });
+  const projYears = Math.max(1, remainingYears);
+  for (let yr = 0; yr < projYears; yr++) {
+    let annualCost = 0;
+    let dominantPhase: "Infant" | "Child" | "Teen" = "Child";
+    for (const c of children) {
+      const ageAtYear = c.age + yr;
+      if (ageAtYear >= 0 && ageAtYear < 18) {
+        annualCost += costAtAge(ageAtYear) * 12;
+        const ph: "Infant" | "Child" | "Teen" = ageAtYear < 3 ? "Infant" : ageAtYear <= 12 ? "Child" : "Teen";
+        dominantPhase = ph;
+      }
+    }
+    if (annualCost > 0) {
+      chartData.push({ age: primaryAge + yr, annualCost, phase: dominantPhase, fill: PHASE_COLORS[dominantPhase] });
+    }
   }
 
   // P6: National benchmark (USDA ~$16,500/yr per child)
@@ -197,19 +217,20 @@ function computeFamily(
     label: yourAnnual < NATIONAL_ANNUAL * 0.85 ? "Below Average" : yourAnnual <= NATIONAL_ANNUAL * 1.15 ? "Average" : "Above Average",
   } : null;
 
-  // P8: Cost spikes
+  // P8: Cost spikes (first child for timing, scaled by count)
   const costSpikes: CostSpike[] = [];
-  if (childCurrentAge <= 2 && monthlyInfant >= 500) {
-    costSpikes.push({ age: 0, label: "Daycare", monthlyCost: monthlyInfant * numChildren, yearsAway: 0, estimated: false });
+  const firstAge = children[0]?.age ?? 0;
+  if (firstAge <= 2 && monthlyInfant >= 500) {
+    costSpikes.push({ age: 0, label: "Daycare", monthlyCost: monthlyInfant * numChildren, yearsAway: Math.max(0, -firstAge), estimated: false });
   }
-  if (childCurrentAge < 13 && monthlyTeen - monthlyChild >= 200) {
-    costSpikes.push({ age: 13, label: "Teen phase increase", monthlyCost: (monthlyTeen - monthlyChild) * numChildren, yearsAway: 13 - childCurrentAge, estimated: false });
+  if (firstAge < 13 && monthlyTeen - monthlyChild >= 200) {
+    costSpikes.push({ age: 13, label: "Teen phase increase", monthlyCost: (monthlyTeen - monthlyChild) * numChildren, yearsAway: Math.max(0, 13 - firstAge), estimated: false });
   }
-  if (childCurrentAge < 16) {
-    costSpikes.push({ age: 16, label: "Vehicle & insurance", monthlyCost: 350 * numChildren, yearsAway: 16 - childCurrentAge, estimated: true });
+  if (firstAge < 16) {
+    costSpikes.push({ age: 16, label: "Vehicle & insurance", monthlyCost: 350 * numChildren, yearsAway: Math.max(0, 16 - firstAge), estimated: true });
   }
-  if (childCurrentAge < 18) {
-    costSpikes.push({ age: 18, label: "College", monthlyCost: 2500 * numChildren, yearsAway: 18 - childCurrentAge, estimated: true });
+  if (firstAge < 18) {
+    costSpikes.push({ age: 18, label: "College", monthlyCost: 2500 * numChildren, yearsAway: Math.max(0, 18 - firstAge), estimated: true });
   }
 
   const noProfile: ComputedFamily = {
@@ -485,10 +506,18 @@ function computeFamily(
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type ChildEntry = { id: string; name: string; isFuture: boolean; ageOrBirthYear: number };
+
+let _childId = 0;
+function makeChildId() { return `child-${_childId++}`; }
+
+function resolveChildAge(c: ChildEntry): number {
+  if (c.isFuture) return new Date().getFullYear() - c.ageOrBirthYear;
+  return Math.max(0, c.ageOrBirthYear);
+}
+
 type FormState = {
   name: string;
-  child_name: string;
-  child_current_age: number;
   monthly_infant_cost: number;
   monthly_child_cost: number;
   monthly_teen_cost: number;
@@ -499,8 +528,6 @@ type FormState = {
 function defaultForm(profile: FinancialProfile | null, defaultReturn: number): FormState {
   return {
     name: "Family Scenario",
-    child_name: "",
-    child_current_age: 0,
     monthly_infant_cost: 2000,
     monthly_child_cost: 1200,
     monthly_teen_cost: 1000,
@@ -540,19 +567,31 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const [activeScenarioId, setActiveScenarioId] = useState<string | null>(
     initialScenarios.length > 0 ? initialScenarios[0].id : null,
   );
-  const [numChildren, setNumChildren] = useState<1 | 2 | 3 | 4>(1);
+  const [children, setChildren] = useState<ChildEntry[]>(() => {
+    const first = initialScenarios[0];
+    return first
+      ? [{ id: makeChildId(), name: first.child_name ?? "", isFuture: false, ageOrBirthYear: first.child_current_age }]
+      : [{ id: makeChildId(), name: "", isFuture: false, ageOrBirthYear: 0 }];
+  });
   const [addingForecast, startAddForecast] = useTransition();
   const [forecastStatus, setForecastStatus] = useState<string | null>(null);
 
   const activeScenario = scenarios.find((s) => s.id === activeScenarioId) ?? null;
+
+  function selectScenario(id: string) {
+    const s = scenarios.find(sc => sc.id === id);
+    if (!s) return;
+    setActiveScenarioId(id);
+    setEditingId(null);
+    setCommentary(null);
+    setChildren([{ id: makeChildId(), name: s.child_name ?? "", isFuture: false, ageOrBirthYear: s.child_current_age }]);
+  }
 
   function getFormValues(): FormState {
     if (editingId != null) return form;
     if (activeScenario) {
       return {
         name: activeScenario.name,
-        child_name: activeScenario.child_name ?? "",
-        child_current_age: activeScenario.child_current_age,
         monthly_infant_cost: Number(activeScenario.monthly_infant_cost),
         monthly_child_cost: Number(activeScenario.monthly_child_cost),
         monthly_teen_cost: Number(activeScenario.monthly_teen_cost),
@@ -566,7 +605,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   const computed = useMemo<ComputedFamily>(() => {
     const v = getFormValues();
     return computeFamily(
-      v.child_current_age,
+      children.map(c => ({ age: resolveChildAge(c) })),
       v.monthly_infant_cost,
       v.monthly_child_cost,
       v.monthly_teen_cost,
@@ -575,10 +614,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
       profile,
       currentNetWorth,
       liquidAssets,
-      numChildren,
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, activeScenario, editingId, profile, currentNetWorth, liquidAssets, numChildren]);
+  }, [form, activeScenario, editingId, profile, currentNetWorth, liquidAssets, children]);
 
   function set(field: keyof FormState, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -591,30 +629,31 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
     setActiveScenarioId(s.id);
     setForm({
       name: s.name,
-      child_name: s.child_name ?? "",
-      child_current_age: s.child_current_age,
       monthly_infant_cost: Number(s.monthly_infant_cost),
       monthly_child_cost: Number(s.monthly_child_cost),
       monthly_teen_cost: Number(s.monthly_teen_cost),
       monthly_expenses_now: Number(s.monthly_expenses_now),
       investment_return: Number(s.investment_return),
     });
+    setChildren([{ id: makeChildId(), name: s.child_name ?? "", isFuture: false, ageOrBirthYear: s.child_current_age }]);
     setCommentary(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setForm(defaultForm(profile, defaultInvestmentReturn));
+    setChildren([{ id: makeChildId(), name: "", isFuture: false, ageOrBirthYear: 0 }]);
     setSaveStatus(null);
   }
 
   function handleSave() {
     startSaving(async () => {
       setSaveStatus(null);
+      const primaryChild = children[0];
       const payload = {
         name: form.name || "Family Scenario",
-        child_name: form.child_name || null,
-        child_current_age: form.child_current_age,
+        child_name: primaryChild?.name || null,
+        child_current_age: primaryChild ? resolveChildAge(primaryChild) : 0,
         monthly_infant_cost: form.monthly_infant_cost,
         monthly_child_cost: form.monthly_child_cost,
         monthly_teen_cost: form.monthly_teen_cost,
@@ -658,12 +697,14 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
   async function handleGetCommentary() {
     const v = getFormValues();
+    const primaryChild = children[0];
+    const primaryAge = primaryChild ? resolveChildAge(primaryChild) : 0;
     const yearsToRetirement = profile?.current_age != null && profile?.target_retirement_age != null
       ? profile.target_retirement_age - profile.current_age : null;
     const payload: FamilyFinnRequest = {
       scenario_name: v.name || "Family Scenario",
-      child_name: v.child_name || null,
-      child_current_age: v.child_current_age,
+      child_name: primaryChild?.name || null,
+      child_current_age: primaryAge,
       monthly_infant_cost: v.monthly_infant_cost,
       monthly_child_cost: v.monthly_child_cost,
       monthly_teen_cost: v.monthly_teen_cost,
@@ -697,9 +738,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
   function handleAddFamilyToForecast() {
     startAddForecast(async () => {
       const fv = getFormValues();
+      const primaryChild = children[0];
       const result = await addFamilyToForecast({
-        childName: fv.child_name || "Child",
-        childCurrentAge: fv.child_current_age,
+        childName: primaryChild?.name || "Child",
+        childCurrentAge: primaryChild ? resolveChildAge(primaryChild) : 0,
         monthlyInfantCost: fv.monthly_infant_cost,
         monthlyChildCost: fv.monthly_child_cost,
         monthlyTeenCost: fv.monthly_teen_cost,
@@ -752,34 +794,71 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }} data-family-cols>
+      {/* Two-column layout — single scroll, sidebar ends at content */}
+      <div style={{ flex: 1, display: "flex", overflowY: "auto" }} data-family-cols>
 
         {/* ── Left sidebar: assumptions ─────────────────────────────────── */}
-        <div style={{ width: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", overflowY: "auto", padding: "20px 20px 40px" }} data-family-sidebar>
+        <div style={{ width: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", padding: "20px 20px 40px", alignSelf: "flex-start" }} data-family-sidebar>
 
-          {/* Number of children selector */}
-          <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", borderRadius: "10px", padding: "14px", overflow: "hidden", position: "relative", marginBottom: "18px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Planning For</div>
-            <div style={{ display: "flex", gap: "8px", position: "relative" }}>
-              {([1, 2, 3, 4] as const).map((n) => {
-                const active = numChildren === n;
-                const icons = ["👶", "👶👶", "👶👶👶", "👨‍👩‍👧‍👦"];
-                const lbl = n === 4 ? "4+" : String(n);
-                return (
-                  <button key={n} onClick={() => setNumChildren(n)} className="bt-child-btn" style={{ flex: 1, padding: "10px 0 8px", borderRadius: 10, cursor: "pointer", background: active ? "oklch(0.55 0.15 265 / 0.18)" : "oklch(0.14 0.01 240)", border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid oklch(0.22 0.02 240)", boxShadow: active ? "0 0 14px oklch(0.55 0.15 265 / 0.25), inset 0 1px 0 oklch(0.75 0.1 265 / 0.1)" : "none", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all 0.18s ease", fontFamily: "var(--font-body)" }}>
-                    <span style={{ fontSize: n === 3 ? 12 : n === 4 ? 11 : 14, lineHeight: 1 }}>{icons[n - 1]}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: active ? "oklch(0.85 0.12 265)" : "var(--text-secondary)", fontFamily: "var(--font-mono)", transition: "color 0.18s ease" }}>{lbl}</span>
-                    <span style={{ fontSize: 9, color: active ? "oklch(0.65 0.1 265)" : "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", transition: "color 0.18s ease" }}>{n === 1 ? "child" : n === 4 ? "or more" : "children"}</span>
-                  </button>
-                );
-              })}
+          {/* Per-child planning rows */}
+          <div style={{ marginBottom: "18px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Planning For</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {children.map((child, idx) => (
+                <div key={child.id} style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.22 0.02 240)", borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.65 0.12 265)" }}>Child {idx + 1}</span>
+                    {children.length > 1 && (
+                      <button onClick={() => setChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Name (optional)"
+                    value={child.name}
+                    onChange={e => setChildren(prev => prev.map(c => c.id === child.id ? { ...c, name: e.target.value } : c))}
+                    style={{ width: "100%", background: "var(--bg-input, var(--bg-base))", border: "1px solid var(--border)", borderRadius: 7, padding: "5px 9px", color: "var(--text-primary)", fontSize: 12, boxSizing: "border-box", marginBottom: 6 }}
+                  />
+                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                    {(["Age", "Birth Year"] as const).map((lbl) => {
+                      const isBorn = lbl === "Age";
+                      const active = child.isFuture !== isBorn;
+                      return (
+                        <button key={lbl} onClick={() => setChildren(prev => prev.map(c => c.id === child.id ? { ...c, isFuture: !isBorn } : c))} style={{ flex: 1, padding: "4px 0", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", background: active ? "oklch(0.55 0.15 265 / 0.18)" : "transparent", border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid var(--border)", color: active ? "oklch(0.85 0.12 265)" : "var(--text-muted)", transition: "all 0.15s ease" }}>{lbl}</button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="number"
+                    placeholder={child.isFuture ? `Birth year (e.g. ${new Date().getFullYear() + 1})` : "Current age (0–17)"}
+                    value={child.ageOrBirthYear}
+                    min={child.isFuture ? 1980 : 0}
+                    max={child.isFuture ? new Date().getFullYear() + 10 : 17}
+                    step={1}
+                    onChange={e => setChildren(prev => prev.map(c => c.id === child.id ? { ...c, ageOrBirthYear: Number(e.target.value) } : c))}
+                    style={{ width: "100%", background: "var(--bg-input, var(--bg-base))", border: "1px solid var(--border)", borderRadius: 7, padding: "5px 9px", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", boxSizing: "border-box" }}
+                  />
+                  {child.isFuture && child.ageOrBirthYear > 0 && (
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
+                      {new Date().getFullYear() >= child.ageOrBirthYear
+                        ? `Age now: ${new Date().getFullYear() - child.ageOrBirthYear}`
+                        : `Expected in ${child.ageOrBirthYear - new Date().getFullYear()} year${child.ageOrBirthYear - new Date().getFullYear() === 1 ? "" : "s"}`}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={() => setChildren(prev => [...prev, { id: makeChildId(), name: "", isFuture: false, ageOrBirthYear: 0 }])}
+                style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", border: "1px dashed oklch(0.55 0.15 265 / 0.35)", color: "oklch(0.65 0.12 265)", transition: "all 0.15s ease" }}
+              >
+                + Add Child
+              </button>
+              {children.length > 1 && (
+                <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
+                  Costs calculated across all {children.length} children
+                </div>
+              )}
             </div>
-            {numChildren > 1 && (
-              <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", marginTop: 10, padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
-                All costs scaled to {numChildren} {numChildren === 4 ? "or more" : ""} children
-              </div>
-            )}
           </div>
 
           {/* Saved scenarios */}
@@ -789,7 +868,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Scenarios</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "4px" }}>
                 {scenarios.map((s) => (
-                  <div key={s.id} onClick={() => { setActiveScenarioId(s.id); setEditingId(null); setCommentary(null); }} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover, var(--bg-elevated))" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={s.id} onClick={() => selectScenario(s.id)} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover, var(--bg-elevated))" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{s.name}</div>
                       {s.child_name && <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{s.child_name}, age {s.child_current_age}</div>}
@@ -808,15 +887,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           <div style={{ height: "1px", background: "var(--border-subtle)", margin: "18px 0 14px" }} />
           <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>{editingId ? "Edit Scenario" : "New Scenario"}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
-            {([{ label: "Scenario Name", field: "name" as const, type: "text" }, { label: "Child Name (optional)", field: "child_name" as const, type: "text" }] as const).map(({ label, field, type }) => (
-              <div key={field}>
-                <label style={labelS}>{label}</label>
-                <input type={type} value={form[field] as string} onChange={(e) => set(field, e.target.value)} style={inputS} />
-              </div>
-            ))}
             <div>
-              <label style={labelS}>Child Current Age</label>
-              <input type="number" value={form.child_current_age} min={0} max={17} step={1} onChange={(e) => set("child_current_age", Number(e.target.value))} style={{ ...inputS, fontFamily: "var(--font-mono)" }} />
+              <label style={labelS}>Scenario Name</label>
+              <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} style={inputS} />
             </div>
           </div>
 
@@ -861,7 +934,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
         </div>
 
         {/* ── Right panel: analysis ────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 40px", display: "flex", flexDirection: "column", gap: "14px" }} data-family-analysis>
+        <div style={{ flex: 1, padding: "16px 24px 40px", display: "flex", flexDirection: "column", gap: "14px" }} data-family-analysis>
 
           {/* P1: Verdict card */}
           {meta && computed.verdict && (
