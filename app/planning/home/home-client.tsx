@@ -2623,11 +2623,13 @@ export default function HomeClient({
         {comparePathMetrics && (() => {
           return (
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>Compare Home Paths</p>
-                <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
-                  Starter, target, and dream — side by side
-                </p>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <p style={{ ...sectionHead, margin: 0 }}>Compare Home Paths</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                    Click any path to apply its assumptions
+                  </p>
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)" }}>
                 {comparePathMetrics.map((path, i) => {
@@ -2638,15 +2640,42 @@ export default function HomeClient({
                     : path.retirDelta >= 0 ? "oklch(0.70 0.18 155)"
                     : path.retirDelta >= -5 ? "oklch(0.75 0.18 70)"
                     : "oklch(0.68 0.18 25)";
+                  const pathAccent = path.key === "starter" ? "oklch(0.70 0.18 155)"
+                    : path.key === "dream" ? "oklch(0.68 0.18 25)"
+                    : "oklch(0.62 0.22 245)";
                   return (
-                    <div key={path.key} style={{
-                      padding: "14px 14px",
-                      borderRight: isLast ? "none" : "1px solid var(--border-subtle)",
-                      background: isTarget ? "color-mix(in oklch, oklch(0.62 0.22 245) 4%, transparent)" : undefined,
-                    }}>
+                    <button
+                      key={path.key}
+                      type="button"
+                      onClick={() => {
+                        setInputs(prev => ({ ...prev, purchase_price: path.price, down_payment: path.dp }));
+                      }}
+                      style={{
+                        display: "block", width: "100%", textAlign: "left" as const,
+                        padding: "14px 14px",
+                        borderRight: isLast ? "none" : "1px solid var(--border-subtle)",
+                        borderTop: "none", borderBottom: "none", borderLeft: "none",
+                        background: isTarget ? `color-mix(in oklch, ${pathAccent} 5%, transparent)` : "transparent",
+                        cursor: "pointer",
+                        transition: "background 120ms ease",
+                        outline: isTarget ? `2px solid color-mix(in oklch, ${pathAccent} 35%, transparent)` : "none",
+                        outlineOffset: "-2px",
+                      }}
+                      onMouseEnter={e => { if (!isTarget) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+                      onMouseLeave={e => { if (!isTarget) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
-                        <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: isTarget ? "oklch(0.62 0.22 245)" : "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0 }}>{path.label}</p>
-                        {isTarget && <span style={{ fontSize: "8px", fontWeight: 700, color: "oklch(0.62 0.22 245)", background: "color-mix(in oklch, oklch(0.62 0.22 245) 12%, transparent)", padding: "1px 5px", borderRadius: "4px", letterSpacing: "0.04em", fontFamily: "var(--font-body)" }}>CURRENT</span>}
+                        <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: pathAccent, fontFamily: "var(--font-body)", margin: 0 }}>{path.label}</p>
+                        {isTarget && (
+                          <span style={{ fontSize: "8px", fontWeight: 700, color: pathAccent, background: `color-mix(in oklch, ${pathAccent} 14%, transparent)`, padding: "1px 5px", borderRadius: "4px", letterSpacing: "0.04em", fontFamily: "var(--font-body)" }}>
+                            ACTIVE
+                          </span>
+                        )}
+                        {!isTarget && (
+                          <span style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", opacity: 0.6 }}>
+                            click to apply
+                          </span>
+                        )}
                       </div>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1px" }}>{fmt(path.price)}</p>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{fmt(path.dp)} down · {path.purchaseYear}</p>
@@ -2670,7 +2699,7 @@ export default function HomeClient({
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{fmtK(path.equityAtHold)}</p>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
