@@ -4084,6 +4084,7 @@ export default function PlanningClient({
   function pHide(value: string): string { return isPrivate ? "••••••" : value; }
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [profileKids, setProfileKids] = useState<ProfileKid[]>(() => profile?.kids_json ?? []);
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
@@ -5195,10 +5196,15 @@ export default function PlanningClient({
 
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setProfileSaveError(null);
     const fd = new FormData(e.currentTarget);
     fd.set("kids_json", JSON.stringify(profileKids));
     startProfileTransition(async () => {
-      await upsertFinancialProfile(fd);
+      const result = await upsertFinancialProfile(fd);
+      if (result?.error) {
+        setProfileSaveError(result.error);
+        return;
+      }
       setEditingProfile(false);
     });
   }
@@ -5863,6 +5869,11 @@ export default function PlanningClient({
                   </div>
                 </div>
 
+                {profileSaveError && (
+                  <div style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: "12px", color: "var(--red)", marginBottom: "8px" }}>
+                    {profileSaveError}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                   <button type="submit" disabled={profilePending} style={btnPrimaryStyle}>{profilePending ? "Saving…" : "Save Profile"}</button>
                   {profile && <button type="button" onClick={() => setEditingProfile(false)} style={btnSecondaryStyle}>Cancel</button>}
