@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type ProfileKid = { name: string; age: number };
+
 export type FinancialProfile = {
   id: string;
   user_id: string;
@@ -17,6 +19,7 @@ export type FinancialProfile = {
   partner_name: string | null;
   partner_age: number | null;
   partner_target_retirement_age: number | null;
+  kids_json: ProfileKid[];
   updated_at: string;
 };
 
@@ -64,6 +67,8 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const partner_name = String(formData.get("partner_name") || "").trim() || null;
   const partner_age = formData.get("partner_age") ? Number(formData.get("partner_age")) : null;
   const partner_target_retirement_age = formData.get("partner_target_retirement_age") ? Number(formData.get("partner_target_retirement_age")) : null;
+  let kids_json: { name: string; age: number }[] = [];
+  try { kids_json = JSON.parse(String(formData.get("kids_json") || "[]")); } catch {}
 
   const { error } = await supabase.from("financial_profiles").upsert(
     {
@@ -76,6 +81,7 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       partner_name,
       partner_age,
       partner_target_retirement_age,
+      kids_json,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

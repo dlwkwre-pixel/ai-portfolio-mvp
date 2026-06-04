@@ -21,7 +21,7 @@ import {
   addFutureEvent,
   deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
+import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
 import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
@@ -2414,11 +2414,13 @@ function EstatePlanningTab({
   balanceItems,
   portfolioTotalValue,
   isPrivate,
+  profileKids,
 }: {
   estateProfile: EstateProfile | null;
   balanceItems: BalanceSheetItem[];
   portfolioTotalValue: number;
   isPrivate: boolean;
+  profileKids: ProfileKid[];
 }) {
   const [editing, setEditing] = useState(!estateProfile);
   const [pending, startTransition] = useTransition();
@@ -2799,6 +2801,35 @@ function EstatePlanningTab({
                 {c.email && <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{isPrivate ? "••••••" : c.email}</div>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Beneficiary suggestion from profile kids */}
+      {profileKids.length > 0 && beneficiaries.length === 0 && (
+        <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: "oklch(0.45 0.15 270 / 0.08)", border: "1px solid oklch(0.45 0.15 270 / 0.25)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0, background: "oklch(0.45 0.15 270 / 0.15)", border: "1px solid oklch(0.55 0.18 270 / 0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="oklch(0.7 0.18 270)" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "oklch(0.72 0.15 270)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>Dependants in Your Profile</div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "8px" }}>
+              {profileKids.map((k) => k.name || "Child").join(", ")} {profileKids.length === 1 ? "is" : "are"} listed in your profile but not named as a beneficiary here. Consider adding {profileKids.length === 1 ? "them" : "them"} to your beneficiary designations.
+            </div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {profileKids.map((kid, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setNewBenef({ name: kid.name || "Child", relationship: "Child", allocation_pct: 0, notes: "" });
+                    setAddingBenef(true);
+                  }}
+                  style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 270 / 0.15)", border: "1px solid oklch(0.55 0.18 270 / 0.3)", color: "oklch(0.72 0.15 270)" }}
+                >
+                  + Add {kid.name || `Child ${i + 1}`}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -4051,6 +4082,7 @@ export default function PlanningClient({
   function pHide(value: string): string { return isPrivate ? "••••••" : value; }
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
+  const [profileKids, setProfileKids] = useState<ProfileKid[]>(() => profile?.kids_json ?? []);
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const snapshotSaved = useRef(false);
@@ -5152,6 +5184,7 @@ export default function PlanningClient({
   function handleProfileSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    fd.set("kids_json", JSON.stringify(profileKids));
     startProfileTransition(async () => {
       await upsertFinancialProfile(fd);
       setEditingProfile(false);
@@ -5659,6 +5692,157 @@ export default function PlanningClient({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ── Profile Settings ── */}
+          <div className="cmd-section" style={{ animationDelay: "20ms" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Profile Settings</div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Age, income, kids, and retirement target</div>
+              </div>
+              {!editingProfile && (
+                <button type="button" onClick={() => setEditingProfile(true)} style={btnSecondaryStyle}>Edit</button>
+              )}
+            </div>
+
+            {editingProfile ? (
+              <form onSubmit={handleProfileSubmit}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
+                    <input name="date_of_birth" type="date" max={new Date().toISOString().split("T")[0]} defaultValue={profile?.date_of_birth ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                  </div>
+                  {[
+                    { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
+                    { name: "monthly_income", label: "Monthly Net Income ($)", type: "number", default: profile?.monthly_income ?? "" },
+                    { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
+                  ].map((f) => (
+                    <div key={f.name}>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{f.label}</label>
+                      <input name={f.name} type={f.type} min="0" defaultValue={String(f.default)} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
+                    <select name="risk_tolerance" defaultValue={profile?.risk_tolerance ?? "moderate"} style={{ ...selectStyle, width: "100%" }}>
+                      <option value="conservative">Conservative</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="aggressive">Aggressive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Kids */}
+                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "16px 0 14px", paddingTop: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px", fontFamily: "var(--font-body)" }}>Children (optional)</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {profileKids.map((kid, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <input
+                          type="text"
+                          placeholder={`Child ${i + 1} name`}
+                          value={kid.name}
+                          onChange={(e) => setProfileKids((prev) => prev.map((k, j) => j === i ? { ...k, name: e.target.value } : k))}
+                          style={{ ...inputStyle, minWidth: "unset", flex: 2 }}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Age"
+                          min="0"
+                          max="25"
+                          value={kid.age === 0 ? "" : kid.age}
+                          onChange={(e) => setProfileKids((prev) => prev.map((k, j) => j === i ? { ...k, age: Number(e.target.value) || 0 } : k))}
+                          style={{ ...inputStyle, minWidth: "unset", flex: 1 }}
+                        />
+                        {i > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setProfileKids((prev) => prev.filter((_, j) => j !== i))}
+                            style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "4px", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}
+                          >×</button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setProfileKids((prev) => [...prev, { name: "", age: 0 }])}
+                      style={{ ...btnSecondaryStyle, alignSelf: "flex-start", fontSize: "11px", padding: "5px 10px" }}
+                    >+ Add Child</button>
+                  </div>
+                </div>
+
+                {/* Partner */}
+                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "4px 0 14px", paddingTop: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px", fontFamily: "var(--font-body)" }}>Partner (optional)</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Name</label>
+                      <input name="partner_name" type="text" placeholder="e.g. Alex" defaultValue={profile?.partner_name ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Age</label>
+                      <input name="partner_age" type="number" min="18" max="100" placeholder="e.g. 34" defaultValue={profile?.partner_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Retire At</label>
+                      <input name="partner_target_retirement_age" type="number" min="40" max="85" placeholder="e.g. 62" defaultValue={profile?.partner_target_retirement_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                  <button type="submit" disabled={profilePending} style={btnPrimaryStyle}>{profilePending ? "Saving…" : "Save Profile"}</button>
+                  {profile && <button type="button" onClick={() => setEditingProfile(false)} style={btnSecondaryStyle}>Cancel</button>}
+                </div>
+              </form>
+            ) : profile ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
+                  {[
+                    { label: "Age", value: profile.current_age ? `${profile.current_age}` : "—" },
+                    { label: "Retirement Target", value: profile.target_retirement_age ? String(profile.target_retirement_age) : "—" },
+                    { label: "Years Left", value: yearsToRetire != null ? `${yearsToRetire} yrs` : "—" },
+                    { label: "Risk Tolerance", value: profile.risk_tolerance ?? "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                {profileKids.length > 0 && (
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+                    <div style={{ ...sectionHeadStyle, marginBottom: "8px" }}>Children</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {profileKids.map((kid, i) => (
+                        <span key={i} style={{ fontSize: "11px", fontFamily: "var(--font-body)", padding: "3px 9px", borderRadius: "12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}>
+                          {kid.name || `Child ${i + 1}`}{kid.age > 0 ? `, ${kid.age}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {profile.partner_name && (
+                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
+                    {[
+                      { label: "Partner", value: profile.partner_name },
+                      { label: "Partner Age", value: profile.partner_age ? String(profile.partner_age) : "—" },
+                      { label: "Partner Retires At", value: profile.partner_target_retirement_age ? String(profile.partner_target_retirement_age) : "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label}>
+                        <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+                Add your profile to unlock your financial health score and retirement forecast.
+              </p>
+            )}
           </div>
 
           {/* ── Section 1b: Biggest Risk + Biggest Opportunity ── */}
@@ -6191,102 +6375,7 @@ export default function PlanningClient({
             );
           })()}
 
-          {/* ── Section 5: Profile Settings ── */}
-          <div className="cmd-section" style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px", animationDelay: "140ms" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Profile Settings</div>
-                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Age, income, retirement target, and risk tolerance</div>
-              </div>
-              {!editingProfile && (
-                <button type="button" onClick={() => setEditingProfile(true)} style={btnSecondaryStyle}>Edit</button>
-              )}
-            </div>
-
-            {editingProfile ? (
-              <form onSubmit={handleProfileSubmit}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
-                    <input name="date_of_birth" type="date" max={new Date().toISOString().split("T")[0]} defaultValue={profile?.date_of_birth ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
-                  </div>
-                  {[
-                    { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
-                    { name: "monthly_income", label: "Monthly Net Income ($)", type: "number", default: profile?.monthly_income ?? "" },
-                    { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
-                  ].map((f) => (
-                    <div key={f.name}>
-                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{f.label}</label>
-                      <input name={f.name} type={f.type} min="0" defaultValue={String(f.default)} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
-                    <select name="risk_tolerance" defaultValue={profile?.risk_tolerance ?? "moderate"} style={{ ...selectStyle, width: "100%" }}>
-                      <option value="conservative">Conservative</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="aggressive">Aggressive</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "16px 0 14px", paddingTop: "14px" }}>
-                  <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px", fontFamily: "var(--font-body)" }}>Partner (optional)</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Name</label>
-                      <input name="partner_name" type="text" placeholder="e.g. Alex" defaultValue={profile?.partner_name ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Age</label>
-                      <input name="partner_age" type="number" min="18" max="100" placeholder="e.g. 34" defaultValue={profile?.partner_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Retire At</label>
-                      <input name="partner_target_retirement_age" type="number" min="40" max="85" placeholder="e.g. 62" defaultValue={profile?.partner_target_retirement_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                  <button type="submit" disabled={profilePending} style={btnPrimaryStyle}>{profilePending ? "Saving…" : "Save Profile"}</button>
-                  {profile && <button type="button" onClick={() => setEditingProfile(false)} style={btnSecondaryStyle}>Cancel</button>}
-                </div>
-              </form>
-            ) : profile ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
-                  {[
-                    { label: "Age", value: profile.current_age ? `${profile.current_age}` : "—" },
-                    { label: "Retirement Target", value: profile.target_retirement_age ? String(profile.target_retirement_age) : "—" },
-                    { label: "Years Left", value: yearsToRetire != null ? `${yearsToRetire} yrs` : "—" },
-                    { label: "Risk Tolerance", value: profile.risk_tolerance ?? "—" },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
-                    </div>
-                  ))}
-                </div>
-                {profile.partner_name && (
-                  <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "12px" }}>
-                    {[
-                      { label: "Partner", value: profile.partner_name },
-                      { label: "Partner Age", value: profile.partner_age ? String(profile.partner_age) : "—" },
-                      { label: "Partner Retires At", value: profile.partner_target_retirement_age ? String(profile.partner_target_retirement_age) : "—" },
-                    ].map(({ label, value }) => (
-                      <div key={label}>
-                        <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{label}</div>
-                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
-                Add your profile to unlock your financial health score and retirement forecast.
-              </p>
-            )}
-          </div>
+          {/* ── Profile Settings (moved to top, above Biggest Opportunity) — placeholder removed from bottom ── */}
 
         </div>
       )}
@@ -7789,6 +7878,7 @@ export default function PlanningClient({
           balanceItems={balanceItems}
           portfolioTotalValue={portfolioTotalValue}
           isPrivate={isPrivate}
+          profileKids={profileKids}
         />
       )}
 

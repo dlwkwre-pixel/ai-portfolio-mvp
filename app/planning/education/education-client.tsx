@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { saveEducationScenario, deleteEducationScenario, addEducationToForecast } from "./education-actions";
 import type { EducationScenario } from "./education-actions";
-import type { FinancialProfile } from "@/app/planning/planning-actions";
+import type { FinancialProfile, ProfileKid } from "@/app/planning/planning-actions";
 import type { EducationFinnRequest } from "@/app/api/planning/education-finn/route";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -568,9 +568,10 @@ type Props = {
   defaultInvestmentReturn: number;
   currentNetWorth: number;
   familyChildren: FamilyChild[];
+  profileKids?: ProfileKid[];
 };
 
-export default function EducationClient({ scenarios: initialScenarios, profile, defaultInvestmentReturn, currentNetWorth, familyChildren }: Props) {
+export default function EducationClient({ scenarios: initialScenarios, profile, defaultInvestmentReturn, currentNetWorth, familyChildren, profileKids = [] }: Props) {
   const [scenarios, setScenarios]               = useState<EducationScenario[]>(initialScenarios);
   const [editingId, setEditingId]               = useState<string | null>(null);
   const [form, setForm]                         = useState<FormState>(() => defaultForm(profile, defaultInvestmentReturn));
@@ -885,6 +886,22 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               );
             })}
           </div>
+
+          {/* Profile Kids import */}
+          {profileKids.length > 0 && (
+            <>
+              <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
+              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Profile</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
+                {profileKids.map((kid, i) => (
+                  <button key={i} onClick={() => importFamilyChild({ id: `profile-${i}`, name: kid.name || `Child ${i + 1}`, age: kid.age })} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}>
+                    {kid.name || `Child ${i + 1}`}{kid.age > 0 ? `, ${kid.age}` : ""}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "0 0 14px" }}>Click to auto-fill</p>
+            </>
+          )}
 
           {/* Family Children import */}
           {familyChildren.length > 0 && (

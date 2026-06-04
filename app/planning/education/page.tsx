@@ -66,6 +66,7 @@ export default async function EducationPlanningPage() {
         partner_name: profileData.partner_name ?? null,
         partner_age: profileData.partner_age ?? null,
         partner_target_retirement_age: profileData.partner_target_retirement_age ?? null,
+        kids_json: Array.isArray(profileData.kids_json) ? profileData.kids_json : [],
         updated_at: profileData.updated_at,
       }
     : null;
@@ -103,6 +104,7 @@ export default async function EducationPlanningPage() {
           defaultInvestmentReturn={investmentReturn}
           currentNetWorth={currentNetWorth}
           familyChildren={familyChildren}
+          profileKids={profile?.kids_json ?? []}
         />
       </div>
     </div>
