@@ -208,8 +208,8 @@ function buildDefaults(
   if (!profile) return base;
   return {
     ...base,
-    current_monthly_income: profile.monthly_income ? Math.round(profile.monthly_income) : base.current_monthly_income,
-    new_monthly_income: profile.monthly_income ? Math.round(profile.monthly_income * 0.85) : base.new_monthly_income,
+    current_monthly_income: profile.gross_monthly_income ? Math.round(profile.gross_monthly_income) : base.current_monthly_income,
+    new_monthly_income: profile.gross_monthly_income ? Math.round(profile.gross_monthly_income * 0.85) : base.new_monthly_income,
     monthly_expenses: profile.monthly_expenses ? Math.round(profile.monthly_expenses) : base.monthly_expenses,
   };
 }

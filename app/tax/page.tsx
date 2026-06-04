@@ -49,6 +49,13 @@ export type WashSaleWarning = {
   disallowedLoss: number | null;
 };
 
+export type TaxProfile = {
+  grossMonthly: number | null;
+  filingStatus: string;
+  incomeType: string;
+  stateCode: string | null;
+};
+
 export type TaxPageData = {
   years: number[];
   selectedYear: number;
@@ -58,6 +65,7 @@ export type TaxPageData = {
   washSaleWarnings: WashSaleWarning[];
   totalPortfolioValue: number;
   portfolioCount: number;
+  taxProfile: TaxProfile | null;
 };
 
 function holdingDays(acquiredAt: string | null, soldAt: string): number | null {
@@ -97,6 +105,12 @@ export default async function TaxPage({
   // Transactions for selected year (sell + dividend)
   const yearStart = `${selectedYear}-01-01T00:00:00.000Z`;
   const yearEnd = `${selectedYear}-12-31T23:59:59.999Z`;
+
+  const { data: financialProfileData } = await supabase
+    .from("financial_profiles")
+    .select("gross_monthly_income, filing_status, income_type, state_code")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   const [
     { data: sellTx },
@@ -252,6 +266,13 @@ export default async function TaxPage({
 
   tlhOpportunities.sort((a, b) => (a.unrealizedLoss ?? 0) - (b.unrealizedLoss ?? 0));
 
+  const taxProfile: TaxProfile | null = financialProfileData ? {
+    grossMonthly: financialProfileData.gross_monthly_income ? Number(financialProfileData.gross_monthly_income) : null,
+    filingStatus: financialProfileData.filing_status ?? "single",
+    incomeType: financialProfileData.income_type ?? "w2",
+    stateCode: financialProfileData.state_code ?? null,
+  } : null;
+
   const taxData: TaxPageData = {
     years,
     selectedYear,
@@ -261,6 +282,7 @@ export default async function TaxPage({
     washSaleWarnings,
     totalPortfolioValue,
     portfolioCount: activePortfolios.length,
+    taxProfile,
   };
 
   return (

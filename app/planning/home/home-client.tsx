@@ -279,10 +279,10 @@ function computeScenarioSummary(s: HomeScenario, profile: FinancialProfile | nul
   let retirWithHomeProb: number | null = null;
   let retirBaselineAssets: number | null = null;
   let retirWithHomeAssets: number | null = null;
-  if (profile?.current_age && profile?.target_retirement_age && profile?.monthly_income && profile?.monthly_expenses) {
+  if (profile?.current_age && profile?.target_retirement_age && profile?.gross_monthly_income && profile?.monthly_expenses) {
     const yearsToRetire = profile.target_retirement_age - profile.current_age;
     if (yearsToRetire > 0) {
-      const annualSavingsBase = (profile.monthly_income - profile.monthly_expenses) * 12;
+      const annualSavingsBase = (profile.gross_monthly_income - profile.monthly_expenses) * 12;
       const baseGrowth = annualSavingsBase > 0
         ? annualSavingsBase * ((Math.pow(1 + ir, yearsToRetire) - 1) / ir)
         : 0;
@@ -298,14 +298,14 @@ function computeScenarioSummary(s: HomeScenario, profile: FinancialProfile | nul
       retirWithHomeAssets = Math.round(withHomeTotal);
     }
   }
-  const affordabilityRatio = profile?.monthly_income && profile.monthly_income > 0
-    ? totalMonthly / (profile.monthly_income * 0.28)
+  const affordabilityRatio = profile?.gross_monthly_income && profile.gross_monthly_income > 0
+    ? totalMonthly / (profile.gross_monthly_income * 0.28)
     : null;
   const verdictData = calcVerdict(breakEvenYear, retirBaselineProb, retirWithHomeProb, affordabilityRatio, s.hold_years);
   const retirDeltaVal = retirBaselineProb != null && retirWithHomeProb != null
     ? retirWithHomeProb - retirBaselineProb : null;
   const affordabilityScore = calcAffordabilityScore(
-    totalMonthly, profile?.monthly_income, s.purchase_price, s.down_payment, breakEvenYear, s.hold_years, retirDeltaVal,
+    totalMonthly, profile?.gross_monthly_income, s.purchase_price, s.down_payment, breakEvenYear, s.hold_years, retirDeltaVal,
   );
   return {
     id: s.id, name: s.name, purchasePrice: s.purchase_price, totalMonthly,
@@ -928,9 +928,9 @@ function buildDefaults(
     investment_return: +(defaultInvestmentReturn * 100).toFixed(2),
   };
 
-  if (!profile?.monthly_income || profile.monthly_income <= 0) return base;
+  if (!profile?.gross_monthly_income || profile.gross_monthly_income <= 0) return base;
 
-  const income = profile.monthly_income;
+  const income = profile.gross_monthly_income;
 
   // 28% rule: max PITI (principal + interest + tax + insurance)
   const maxPITI = income * 0.28;
@@ -1256,10 +1256,10 @@ export default function HomeClient({
     let retirWithHomeProb: number | null = null;
     let retirBaselineAssets: number | null = null;
     let retirWithHomeAssets: number | null = null;
-    if (profile?.current_age && profile?.target_retirement_age && profile?.monthly_income && profile?.monthly_expenses) {
+    if (profile?.current_age && profile?.target_retirement_age && profile?.gross_monthly_income && profile?.monthly_expenses) {
       const yearsToRetire = profile.target_retirement_age - profile.current_age;
       if (yearsToRetire > 0) {
-        const annualSavingsBase = (profile.monthly_income - profile.monthly_expenses) * 12;
+        const annualSavingsBase = (profile.gross_monthly_income - profile.monthly_expenses) * 12;
         const baseGrowth = annualSavingsBase > 0
           ? annualSavingsBase * ((Math.pow(1 + ir / 100, yearsToRetire) - 1) / (ir / 100))
           : 0;
@@ -1281,8 +1281,8 @@ export default function HomeClient({
       loan, rate / 100, term, pp, appr / 100,
     );
 
-    const affordabilityRatio = profile?.monthly_income && profile.monthly_income > 0
-      ? totalMonthly / (profile.monthly_income * 0.28)
+    const affordabilityRatio = profile?.gross_monthly_income && profile.gross_monthly_income > 0
+      ? totalMonthly / (profile.gross_monthly_income * 0.28)
       : null;
 
     const appreciationCreditMonthly = (pp * (appr / 100)) / 12;
@@ -1316,7 +1316,7 @@ export default function HomeClient({
       : null;
 
     const affordabilityScore = calcAffordabilityScore(
-      totalMonthly, profile?.monthly_income, pp, dp, breakEvenYear, hold, retirDeltaVal,
+      totalMonthly, profile?.gross_monthly_income, pp, dp, breakEvenYear, hold, retirDeltaVal,
     );
 
     const buyingAdvantages: string[] = [];
@@ -1343,13 +1343,13 @@ export default function HomeClient({
     if (retirDeltaVal != null && retirDeltaVal < -3)
       rentingAdvantages.push(`Buying reduces retirement probability by ${Math.abs(retirDeltaVal)}pp`);
 
-    const homePriceRanges = profile?.monthly_income && profile.monthly_income > 0
+    const homePriceRanges = profile?.gross_monthly_income && profile.gross_monthly_income > 0
       ? ([
           { label: "Conservative", dtiRatio: 0.28, desc: "Comfortable within guidelines" },
           { label: "Moderate",     dtiRatio: 0.33, desc: "Manageable stretch" },
           { label: "Aggressive",   dtiRatio: 0.40, desc: "Maximum stretch" },
         ] as const).map((range) => {
-          const price = calcMaxPrice(profile.monthly_income!, range.dtiRatio, rate / 100, term);
+          const price = calcMaxPrice(profile.gross_monthly_income!, range.dtiRatio, rate / 100, term);
           const downPayment = Math.round(price * 0.20);
           const monthlyEst = Math.round(
             calcMortgagePayment(price * 0.80, rate / 100, term)
@@ -1361,12 +1361,12 @@ export default function HomeClient({
       : null;
 
     const readinessScore = calcReadinessScore(
-      totalMonthly, profile?.monthly_income, profile?.monthly_expenses,
+      totalMonthly, profile?.gross_monthly_income, profile?.monthly_expenses,
       dp, pp, retirBaselineProb, closingCosts,
     );
 
     const stressTests = calcStressTests(
-      totalMonthly, profile?.monthly_income, profile?.monthly_expenses,
+      totalMonthly, profile?.gross_monthly_income, profile?.monthly_expenses,
     );
 
     return {
@@ -1387,7 +1387,7 @@ export default function HomeClient({
     const currentYear = new Date().getFullYear();
     const yearsUntilPurchase = Math.max(0, targetPurchaseYear - currentYear);
 
-    const monthlyIncome = profile?.monthly_income ?? 0;
+    const monthlyIncome = profile?.gross_monthly_income ?? 0;
     const monthlyExpenses = profile?.monthly_expenses ?? 0;
     const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
     const annualSavings = monthlySavings * 12;
@@ -1506,7 +1506,7 @@ export default function HomeClient({
     const r = inputs.investment_return / 100;
     const n = goalMetrics.yearsUntilPurchase;
     const monthlyExpenses = profile?.monthly_expenses ?? 0;
-    const monthlyIncome = profile?.monthly_income ?? 0;
+    const monthlyIncome = profile?.gross_monthly_income ?? 0;
     const currentYear = new Date().getFullYear();
 
     // Option A: Save more per month — minimum to close cash gap
@@ -1606,7 +1606,7 @@ export default function HomeClient({
 
     // Income growth -1% — recompute projected cash with lower savings trajectory
     const stressGrowth = Math.max(0, salaryGrowthRate - 0.01);
-    const stressProjIncome2 = (profile?.monthly_income ?? 0) * 12 * Math.pow(1 + stressGrowth, n);
+    const stressProjIncome2 = (profile?.gross_monthly_income ?? 0) * 12 * Math.pow(1 + stressGrowth, n);
     const stressDTI2 = stressProjIncome2 > 0 ? (computed.totalMonthly / (stressProjIncome2 / 12)) * 100 : null;
     const stressMonthlySavings2 = Math.max(0, stressProjIncome2 / 12 - (profile?.monthly_expenses ?? 0));
     const stressAnnualSavings2 = stressMonthlySavings2 * 12;
@@ -1746,9 +1746,9 @@ export default function HomeClient({
 
   const comparePathMetrics = useMemo(() => {
     if (!goalMetrics.hasProfile) return null;
-    if (!profile?.monthly_income || !profile.monthly_expenses) return null;
+    if (!profile?.gross_monthly_income || !profile.monthly_expenses) return null;
 
-    const monthlyIncome = profile.monthly_income;
+    const monthlyIncome = profile.gross_monthly_income;
     const monthlyExpenses = profile.monthly_expenses;
     const dpPct = inputs.purchase_price > 0 ? inputs.down_payment / inputs.purchase_price : 0.20;
     const r = inputs.investment_return / 100;
@@ -1830,7 +1830,7 @@ export default function HomeClient({
 
   const recommendedPath = useMemo(() => {
     if (!comparePathMetrics) return null;
-    const monthlyIncome = profile?.monthly_income ?? 0;
+    const monthlyIncome = profile?.gross_monthly_income ?? 0;
     const monthlyExpenses = profile?.monthly_expenses ?? 0;
 
     const scored = comparePathMetrics.map((path) => {
@@ -1992,8 +1992,8 @@ export default function HomeClient({
   // ── Home vs Life Goals ──────────────────────────────────────────────────────
 
   const lifeGoalsImpact = useMemo(() => {
-    if (!goalMetrics.hasProfile || !profile?.monthly_income || !profile?.monthly_expenses) return null;
-    const monthlyIncome = profile.monthly_income;
+    if (!goalMetrics.hasProfile || !profile?.gross_monthly_income || !profile?.monthly_expenses) return null;
+    const monthlyIncome = profile.gross_monthly_income;
     const monthlyExpenses = profile.monthly_expenses;
     const extraMonthly = Math.max(0, computed.totalMonthly - inputs.monthly_rent);
 
@@ -2054,9 +2054,9 @@ export default function HomeClient({
     () => rankPaths(
       scenarioSummaries,
       { retirAssets: computed.retirBaselineAssets, retirProb: computed.retirBaselineProb, monthlyRent: inputs.monthly_rent },
-      profile?.monthly_income,
+      profile?.gross_monthly_income,
     ),
-    [scenarioSummaries, computed.retirBaselineAssets, computed.retirBaselineProb, inputs.monthly_rent, profile?.monthly_income],
+    [scenarioSummaries, computed.retirBaselineAssets, computed.retirBaselineProb, inputs.monthly_rent, profile?.gross_monthly_income],
   );
 
   // ── Save / Delete ──────────────────────────────────────────────────────────
@@ -2768,8 +2768,8 @@ export default function HomeClient({
         })()}
 
         {/* Life After Purchase */}
-        {goalMetrics.hasProfile && profile?.monthly_income && (() => {
-          const monthlyIncome = profile.monthly_income!;
+        {goalMetrics.hasProfile && profile?.gross_monthly_income && (() => {
+          const monthlyIncome = profile.gross_monthly_income!;
           const monthlyExpenses = profile.monthly_expenses ?? 0;
           const rentNow = inputs.monthly_rent;
           const ownNow = computed.totalMonthly;
@@ -3365,8 +3365,8 @@ export default function HomeClient({
             </div>
 
             {/* Affordability hint — shown when income is known */}
-            {profile?.monthly_income && profile.monthly_income > 0 && (() => {
-              const maxPITI = profile.monthly_income! * 0.28;
+            {profile?.gross_monthly_income && profile.gross_monthly_income > 0 && (() => {
+              const maxPITI = profile.gross_monthly_income! * 0.28;
               const totalMonthly = computed.totalMonthly;
               const ratio = totalMonthly / maxPITI;
               const isOver = ratio > 1;
@@ -3393,7 +3393,7 @@ export default function HomeClient({
                         : `${Math.round(ratio * 100)}% of income — within 28% guideline`}
                     </div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>
-                      Based on {fmt(profile.monthly_income!)}/mo income · <abbr title="The 28% rule: lenders recommend your total housing payment (Principal, Interest, Taxes & Insurance) stay below 28% of gross monthly income.">28% rule</abbr> suggests max {fmt(Math.round(maxPITI))}/mo
+                      Based on {fmt(profile.gross_monthly_income!)}/mo income · <abbr title="The 28% rule: lenders recommend your total housing payment (Principal, Interest, Taxes & Insurance) stay below 28% of gross monthly income.">28% rule</abbr> suggests max {fmt(Math.round(maxPITI))}/mo
                     </div>
                   </div>
                 </div>
@@ -3405,7 +3405,7 @@ export default function HomeClient({
               <div data-card style={cardS}>
                 <p style={{ ...sectionHead, marginBottom: "4px" }}>What Can I Afford?</p>
                 <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "0 0 12px", lineHeight: 1.5 }}>
-                  Based on {fmt(profile!.monthly_income!)}/mo income at {inputs.mortgage_rate}% for {inputs.loan_term_years} yrs.
+                  Based on {fmt(profile!.gross_monthly_income!)}/mo income at {inputs.mortgage_rate}% for {inputs.loan_term_years} yrs.
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {computed.homePriceRanges.map((range) => {
@@ -4269,7 +4269,7 @@ export default function HomeClient({
               const narrative = buildFinnNarrative({
                 verdict: computed.verdictData.verdict,
                 totalMonthly: computed.totalMonthly,
-                income: profile?.monthly_income,
+                income: profile?.gross_monthly_income,
                 breakEvenYear: computed.breakEvenYear,
                 holdYears: inputs.hold_years,
                 retirDelta: computed.retirDelta,
@@ -4724,11 +4724,11 @@ export default function HomeClient({
                     })}
                   </div>
                   {/* Cash Remaining After Housing */}
-                  {profile?.monthly_income && profile.monthly_income > 0 && (() => {
-                    const cashLeft = profile.monthly_income! - total;
+                  {profile?.gross_monthly_income && profile.gross_monthly_income > 0 && (() => {
+                    const cashLeft = profile.gross_monthly_income! - total;
                     const isPositive = cashLeft > 0;
-                    const cashColor = cashLeft >= profile.monthly_income! * 0.30 ? "oklch(0.70 0.18 155)"
-                      : cashLeft >= profile.monthly_income! * 0.15 ? "oklch(0.80 0.14 80)"
+                    const cashColor = cashLeft >= profile.gross_monthly_income! * 0.30 ? "oklch(0.70 0.18 155)"
+                      : cashLeft >= profile.gross_monthly_income! * 0.15 ? "oklch(0.80 0.14 80)"
                       : cashLeft >= 0 ? "oklch(0.68 0.18 25)"
                       : "oklch(0.65 0.20 25)";
                     return (
@@ -4736,7 +4736,7 @@ export default function HomeClient({
                         <div>
                           <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "2px" }}>Cash Remaining After Housing</div>
                           <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>
-                            {isPositive ? `${Math.round((cashLeft / profile.monthly_income!) * 100)}% of income available for savings, living, and other goals` : "Housing costs exceed gross income"}
+                            {isPositive ? `${Math.round((cashLeft / profile.gross_monthly_income!) * 100)}% of income available for savings, living, and other goals` : "Housing costs exceed gross income"}
                           </div>
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -4993,7 +4993,7 @@ export default function HomeClient({
                 const narrative = buildFinnNarrative({
                   verdict: computed.verdictData.verdict,
                   totalMonthly: computed.totalMonthly,
-                  income: profile?.monthly_income,
+                  income: profile?.gross_monthly_income,
                   breakEvenYear: computed.breakEvenYear,
                   holdYears: inputs.hold_years,
                   retirDelta: computed.retirDelta,

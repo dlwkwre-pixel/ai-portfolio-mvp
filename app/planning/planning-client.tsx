@@ -31,6 +31,8 @@ import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
+import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS } from "@/lib/tax/estimator";
+import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -436,7 +438,7 @@ function computeSystemHealth(p: {
   const prof = [
     p.profile?.date_of_birth != null,
     p.profile?.target_retirement_age != null,
-    p.cashFlowItems.some((i) => i.type === "income") || (p.profile?.monthly_income ?? 0) > 0,
+    p.cashFlowItems.some((i) => i.type === "income") || (p.profile?.gross_monthly_income ?? 0) > 0,
     p.cashFlowItems.some((i) => i.type === "expense") || (p.profile?.monthly_expenses ?? 0) > 0,
   ].filter(Boolean).length;
   const bal = [p.assets.length > 0, p.liabilities.length > 0].filter(Boolean).length;
@@ -1468,8 +1470,8 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Net Income</label>
-                    <input name="monthly_income" type="number" min="0" step="100" placeholder="e.g. 5000" style={fieldStyle} />
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Gross Monthly Income</label>
+                    <input name="gross_monthly_income" type="number" min="0" step="100" placeholder="e.g. 8500" style={fieldStyle} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Expenses</label>
@@ -4139,8 +4141,18 @@ export default function PlanningClient({
     .filter((i) => i.type === "expense")
     .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
 
+  // Derive estimated net income from gross profile income using tax estimator
+  const profileGross = profile?.gross_monthly_income ?? 0;
+  const profileNetMonthly = profileGross > 0
+    ? estimateTax(
+        profileGross,
+        (profile?.filing_status as FilingStatus) ?? "single",
+        (profile?.income_type as IncomeType) ?? "w2",
+        profile?.state_code ?? "",
+      ).netMonthly
+    : 0;
   // Use profile overrides if cash flow items are empty
-  const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : (profile?.monthly_income ?? 0);
+  const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : profileNetMonthly;
   const effectiveExpenses = monthlyExpenses > 0 ? monthlyExpenses : (profile?.monthly_expenses ?? 0);
   const monthlySavings = effectiveIncome - effectiveExpenses;
   const savingsRate = effectiveIncome > 0 ? (monthlySavings / effectiveIncome) * 100 : 0;
@@ -5715,7 +5727,7 @@ export default function PlanningClient({
                   </div>
                   {[
                     { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
-                    { name: "monthly_income", label: "Monthly Net Income ($)", type: "number", default: profile?.monthly_income ?? "" },
+                    { name: "gross_monthly_income", label: "Gross Monthly Income ($)", type: "number", default: profile?.gross_monthly_income ?? "" },
                     { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
                   ].map((f) => (
                     <div key={f.name}>
@@ -5731,6 +5743,66 @@ export default function PlanningClient({
                       <option value="aggressive">Aggressive</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Tax Profile */}
+                <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "14px 0 14px", paddingTop: "14px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px", fontFamily: "var(--font-body)" }}>Tax Profile</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Income Type</label>
+                      <select name="income_type" defaultValue={profile?.income_type ?? "w2"} style={{ ...selectStyle, width: "100%" }}>
+                        <option value="w2">W-2 Employee</option>
+                        <option value="self_employed">Self-Employed / 1099</option>
+                        <option value="mixed">W-2 + Freelance</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Filing Status</label>
+                      <select name="filing_status" defaultValue={profile?.filing_status ?? "single"} style={{ ...selectStyle, width: "100%" }}>
+                        <option value="single">Single</option>
+                        <option value="married_filing_jointly">Married Filing Jointly</option>
+                        <option value="head_of_household">Head of Household</option>
+                        <option value="married_filing_separately">Married Filing Separately</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>State</label>
+                      <select name="state_code" defaultValue={profile?.state_code ?? ""} style={{ ...selectStyle, width: "100%" }}>
+                        <option value="">— Select state —</option>
+                        {US_STATES.map((s) => (
+                          <option key={s.code} value={s.code}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {(profile?.gross_monthly_income ?? 0) > 0 && (() => {
+                    const t = estimateTax(
+                      profile!.gross_monthly_income!,
+                      (profile?.filing_status as FilingStatus) ?? "single",
+                      (profile?.income_type as IncomeType) ?? "w2",
+                      profile?.state_code ?? "",
+                    );
+                    return (
+                      <div style={{ marginTop: "10px", padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.06)", border: "1px solid oklch(0.55 0.15 265 / 0.18)", borderRadius: "var(--radius-md)" }}>
+                        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.60 0.15 265)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "6px" }}>
+                          {[
+                            { label: "Federal Income Tax", val: fmt(Math.round(t.federalIncomeTax / 12)) + "/mo" },
+                            { label: profile?.income_type === "self_employed" || profile?.income_type === "mixed" ? "SE Tax" : "FICA", val: fmt(Math.round(((profile?.income_type === "self_employed" || profile?.income_type === "mixed") ? t.seTax : t.ficaTax) / 12)) + "/mo" },
+                            { label: `State Tax${profile?.state_code ? ` (${profile.state_code})` : ""}`, val: fmt(Math.round(t.stateTax / 12)) + "/mo" },
+                            { label: "Est. Net Monthly", val: fmt(Math.round(t.netMonthly)), highlight: true },
+                          ].map(({ label, val, highlight }) => (
+                            <div key={label}>
+                              <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: highlight ? "var(--green)" : "var(--text-secondary)" }}>{val}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "7px", fontFamily: "var(--font-body)" }}>Planning calculations use est. net monthly. Estimates only — not tax advice.</div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Kids */}
@@ -5810,6 +5882,27 @@ export default function PlanningClient({
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{value}</div>
                     </div>
                   ))}
+                  {(profile.gross_monthly_income ?? 0) > 0 && (() => {
+                    const t = estimateTax(
+                      profile.gross_monthly_income!,
+                      (profile.filing_status as FilingStatus) ?? "single",
+                      (profile.income_type as IncomeType) ?? "w2",
+                      profile.state_code ?? "",
+                    );
+                    return (
+                      <>
+                        <div>
+                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>Gross Monthly</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{fmt(profile.gross_monthly_income!)}</div>
+                        </div>
+                        <div>
+                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>Est. Net Monthly</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--green)", fontWeight: 500 }}>{fmt(Math.round(t.netMonthly))}</div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>{Math.round(t.federalEffectiveRate * 100 + t.stateEffectiveRate * 100)}% effective total tax</div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 {profileKids.length > 0 && (
                   <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>

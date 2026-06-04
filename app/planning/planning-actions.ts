@@ -14,8 +14,11 @@ export type FinancialProfile = {
   current_age: number | null;
   target_retirement_age: number | null;
   risk_tolerance: string | null;
-  monthly_income: number | null;
+  gross_monthly_income: number | null;
   monthly_expenses: number | null;
+  filing_status: string | null;
+  state_code: string | null;
+  income_type: string | null;
   partner_name: string | null;
   partner_age: number | null;
   partner_target_retirement_age: number | null;
@@ -62,8 +65,11 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const date_of_birth = formData.get("date_of_birth") ? String(formData.get("date_of_birth")) : null;
   const target_retirement_age = formData.get("target_retirement_age") ? Number(formData.get("target_retirement_age")) : null;
   const risk_tolerance = String(formData.get("risk_tolerance") || "moderate");
-  const monthly_income = formData.get("monthly_income") ? Number(formData.get("monthly_income")) : null;
+  const gross_monthly_income = formData.get("gross_monthly_income") ? Number(formData.get("gross_monthly_income")) : null;
   const monthly_expenses = formData.get("monthly_expenses") ? Number(formData.get("monthly_expenses")) : null;
+  const filing_status = String(formData.get("filing_status") || "single");
+  const state_code = String(formData.get("state_code") || "").trim() || null;
+  const income_type = String(formData.get("income_type") || "w2");
   const partner_name = String(formData.get("partner_name") || "").trim() || null;
   const partner_age = formData.get("partner_age") ? Number(formData.get("partner_age")) : null;
   const partner_target_retirement_age = formData.get("partner_target_retirement_age") ? Number(formData.get("partner_target_retirement_age")) : null;
@@ -76,8 +82,11 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       date_of_birth,
       target_retirement_age,
       risk_tolerance,
-      monthly_income,
+      gross_monthly_income,
       monthly_expenses,
+      filing_status,
+      state_code,
+      income_type,
       partner_name,
       partner_age,
       partner_target_retirement_age,

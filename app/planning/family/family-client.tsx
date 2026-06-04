@@ -250,7 +250,7 @@ function computeFamily(
   };
 
   if (
-    profile?.monthly_income == null ||
+    profile?.gross_monthly_income == null ||
     profile?.current_age == null ||
     profile?.target_retirement_age == null ||
     profile.target_retirement_age <= profile.current_age
@@ -259,7 +259,7 @@ function computeFamily(
   const yearsToRetirement = profile.target_retirement_age - profile.current_age;
   const r = investmentReturn / 12;
   const n = yearsToRetirement * 12;
-  const monthlyIncome = profile.monthly_income;
+  const monthlyIncome = profile.gross_monthly_income;
   const baseExpenses = monthlyExpensesNow;
   const savingsBefore = monthlyIncome - baseExpenses;
   const savingsAfter = monthlyIncome - baseExpenses - currentMonthlyImpact;

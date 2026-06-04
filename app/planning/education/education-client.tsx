@@ -264,9 +264,9 @@ function computeAll(
   let monthlySavingsAfter: number | null = null;
   let retirImpactScore = 15;
 
-  if (profile?.monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age) {
+  if (profile?.gross_monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age) {
     const yToRetir = Math.max(0, profile.target_retirement_age - profile.current_age);
-    const inc = profile.monthly_income;
+    const inc = profile.gross_monthly_income;
     const exp = profile.monthly_expenses;
     monthlySavingsBefore = inc - exp;
     monthlySavingsAfter = inc - exp - monthly;
@@ -356,9 +356,9 @@ function computeAll(
   let optimalCollegeCoverage: number | null = null;
   let optimalPlanScore: number | null = null;
 
-  if (profile?.monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age && effectiveTotalCost > 0) {
+  if (profile?.gross_monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age && effectiveTotalCost > 0) {
     const yToRetir = Math.max(0, profile.target_retirement_age - profile.current_age);
-    const totalBudget = Math.max(0, profile.monthly_income - profile.monthly_expenses);
+    const totalBudget = Math.max(0, profile.gross_monthly_income - profile.monthly_expenses);
     const annualExp = profile.monthly_expenses * 12;
     const step = Math.max(10, Math.round(totalBudget / 80) * 10);
 

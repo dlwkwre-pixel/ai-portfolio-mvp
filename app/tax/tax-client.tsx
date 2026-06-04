@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
+import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
+import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +64,26 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [realizedFilter, setRealizedFilter] = useState<"all" | "gains" | "losses">("all");
 
-  const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear } = data;
+  const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
+
+  // ── Income tax estimate from planning profile ──
+  const incomeTaxEstimate = taxProfile?.grossMonthly
+    ? estimateTax(
+        taxProfile.grossMonthly,
+        (taxProfile.filingStatus as FilingStatus) ?? "single",
+        (taxProfile.incomeType as IncomeType) ?? "w2",
+        taxProfile.stateCode ?? "",
+      )
+    : null;
+
+  // Derived filing/marginal rates from profile (used as defaults for cap gains bracket picker)
+  const derivedStcgRate = incomeTaxEstimate?.federalMarginalRate ?? 0.22;
+  const derivedLtcgRate = incomeTaxEstimate
+    ? incomeTaxEstimate.grossAnnual > (taxProfile?.filingStatus === "married_filing_jointly" ? 583_750 : 518_900)
+      ? 0.20
+      : incomeTaxEstimate.grossAnnual > (taxProfile?.filingStatus === "married_filing_jointly" ? 94_050 : 47_025)
+        ? 0.15 : 0.00
+    : 0.15;
 
   // ── aggregates ──
   const stcgLots = realizedLots.filter(l => l.termType === "short");
@@ -75,11 +96,23 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const totalRealizedGain = stcgNet + ltcgNet + unknownNet;
   const totalTLHAvailable = tlhOpportunities.reduce((s, o) => s + (o.unrealizedLoss ?? 0), 0);
 
+  // Capital gains tax (using derived or manual rates)
+  const cgStcgRate = incomeTaxEstimate ? derivedStcgRate : stcgRate;
+  const cgLtcgRate = incomeTaxEstimate ? derivedLtcgRate : ltcgRate;
+  const cgNiit = incomeTaxEstimate
+    ? (incomeTaxEstimate.grossAnnual > (taxProfile?.filingStatus === "married_filing_jointly" ? 250_000 : 200_000))
+    : niitApplies;
+
+  const estimatedCapGainsTax = Math.max(0, stcgNet) * cgStcgRate
+    + Math.max(0, ltcgNet) * (cgLtcgRate + (cgNiit ? 0.038 : 0))
+    + dividendIncome * cgLtcgRate;
+
+  // Legacy manual picker tax (for override panel)
   const estimatedTax = Math.max(0, stcgNet) * stcgRate
     + Math.max(0, ltcgNet) * (ltcgRate + (niitApplies ? 0.038 : 0))
     + dividendIncome * ltcgRate;
 
-  const potentialSavings = Math.abs(totalTLHAvailable) * stcgRate;
+  const potentialSavings = Math.abs(totalTLHAvailable) * cgStcgRate;
 
   // ── filtered realized lots ──
   const filteredLots = realizedLots.filter(l =>
@@ -169,6 +202,92 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       {/* ── OVERVIEW TAB ── */}
       {tab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+          {/* ── Income tax setup prompt if no profile ── */}
+          {!taxProfile?.grossMonthly && (
+            <div style={{ padding: "14px 16px", background: "oklch(0.55 0.15 265 / 0.07)", border: "1px solid oklch(0.55 0.15 265 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", marginBottom: "3px" }}>Add income to see your full tax picture</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Set gross income + filing status in your Planning profile to combine W-2 income tax with capital gains tax below.</div>
+              </div>
+              <Link href="/planning" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 265)", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 265 / 0.3)", background: "oklch(0.55 0.15 265 / 0.08)" }}>Set up profile →</Link>
+            </div>
+          )}
+
+          {/* ── Unified Tax Picture (when profile exists) ── */}
+          {incomeTaxEstimate && (
+            <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "2px" }}>Your {selectedYear} Tax Picture</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>
+                    {INCOME_TYPE_LABELS[(taxProfile!.incomeType as IncomeType) ?? "w2"]} · {FILING_STATUS_LABELS[(taxProfile!.filingStatus as FilingStatus) ?? "single"]}
+                    {taxProfile?.stateCode ? ` · ${US_STATES.find(s => s.code === taxProfile.stateCode)?.name ?? taxProfile.stateCode}` : ""}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" as const }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--red)", lineHeight: 1 }}>{fmt(Math.round(incomeTaxEstimate.totalTax + estimatedCapGainsTax))}</div>
+                  <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px" }}>total estimated tax</div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
+                {/* Income tax row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Income Tax (Federal + State)</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      {fmt(Math.round(taxProfile!.grossMonthly! * 12))} gross · {Math.round(incomeTaxEstimate.federalEffectiveRate * 100 + incomeTaxEstimate.stateEffectiveRate * 100)}% effective
+                      {taxProfile!.incomeType !== "w2" && " · includes SE tax"}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--red)", flexShrink: 0, marginLeft: "12px" }}>{fmt(Math.round(incomeTaxEstimate.totalTax))}</div>
+                </div>
+                {/* Cap gains row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Capital Gains + Dividends ({selectedYear})</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                      STCG {Math.round(cgStcgRate * 100)}% · LTCG {Math.round(cgLtcgRate * 100)}%{cgNiit ? " + 3.8% NIIT" : ""}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: estimatedCapGainsTax > 0 ? "var(--red)" : "var(--text-muted)", flexShrink: 0, marginLeft: "12px" }}>{fmt(Math.round(estimatedCapGainsTax))}</div>
+                </div>
+              </div>
+
+              {/* Breakdown grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "8px" }}>
+                <TaxEstCard label="Federal Income Tax" value={incomeTaxEstimate.federalIncomeTax} sub={`${(incomeTaxEstimate.federalEffectiveRate * 100).toFixed(1)}% effective`} />
+                <TaxEstCard label={taxProfile!.incomeType === "self_employed" || taxProfile!.incomeType === "mixed" ? "SE Tax" : "FICA (employee)"} value={taxProfile!.incomeType === "self_employed" || taxProfile!.incomeType === "mixed" ? incomeTaxEstimate.seTax : incomeTaxEstimate.ficaTax} sub={taxProfile!.incomeType === "self_employed" ? "15.3% on net SE income" : "SS + Medicare"} />
+                <TaxEstCard label={`State Tax${taxProfile?.stateCode ? ` (${taxProfile.stateCode})` : ""}`} value={incomeTaxEstimate.stateTax} sub={`${(incomeTaxEstimate.stateEffectiveRate * 100).toFixed(1)}% effective`} />
+                <TaxEstCard label="Cap Gains Tax" value={estimatedCapGainsTax} sub={`${selectedYear} trades & dividends`} />
+              </div>
+
+              {/* W-2 withholding note / self-employed quarterly */}
+              <div style={{ marginTop: "12px", padding: "10px 12px", background: taxProfile!.incomeType === "w2" ? "rgba(0,211,149,0.04)" : "rgba(245,158,11,0.05)", border: `1px solid ${taxProfile!.incomeType === "w2" ? "rgba(0,211,149,0.15)" : "rgba(245,158,11,0.15)"}`, borderRadius: "var(--radius-md)" }}>
+                {taxProfile!.incomeType === "w2" ? (
+                  <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                    <span style={{ fontWeight: 600, color: "var(--green)" }}>W-2 note:</span> Your employer withholds income tax and FICA automatically. The cap gains tax above may require you to make an estimated payment or withhold extra via Form W-4 if it exceeds $1,000.
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", marginBottom: "4px" }}>Self-employed quarterly estimate</div>
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "2px" }}>Per quarter (income tax + SE)</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "#f59e0b" }}>{fmt(Math.round((incomeTaxEstimate.totalTax) / 4))}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "2px" }}>Due dates</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Apr 15 · Jun 16 · Sep 15 · Jan 15</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Summary cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
             <SummaryCard
@@ -197,10 +316,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             />
           </div>
 
-          {/* Bracket selector + estimated tax */}
+          {/* Bracket selector + estimated tax — shown as override when no profile, or as collapsible override when profile exists */}
+          {!incomeTaxEstimate && (
           <div className="bt-card" style={{ padding: "18px 20px" }}>
             <div style={{ marginBottom: "14px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px" }}>Estimated Tax Owed — {selectedYear}</div>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "4px" }}>Estimated Cap Gains Tax — {selectedYear}</div>
               <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Set your marginal rates to calculate your estimated liability</div>
             </div>
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "16px" }}>
@@ -248,6 +368,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </div>
             </div>
           </div>
+          )}
 
           {/* TLH snapshot */}
           {tlhOpportunities.length > 0 && (
