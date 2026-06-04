@@ -17,6 +17,17 @@ export type CareerScenario = {
   liquid_assets: number;
   investment_return: number;
   projection_years: number;
+  // Total comp extras
+  current_annual_bonus: number;
+  current_equity_annual: number;
+  current_benefits_monthly: number;
+  current_401k_match_pct: number;
+  new_annual_bonus: number;
+  new_equity_annual: number;
+  new_benefits_monthly: number;
+  new_401k_match_pct: number;
+  new_signing_bonus: number;
+  new_relocation: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;

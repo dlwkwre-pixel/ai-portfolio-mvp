@@ -180,6 +180,17 @@ const BASE_DEFAULTS = {
   liquid_assets: 0,
   investment_return: 7.0,
   projection_years: 20,
+  // Total comp extras
+  current_annual_bonus: 0,
+  current_equity_annual: 0,
+  current_benefits_monthly: 0,
+  current_401k_match_pct: 0,
+  new_annual_bonus: 0,
+  new_equity_annual: 0,
+  new_benefits_monthly: 0,
+  new_401k_match_pct: 0,
+  new_signing_bonus: 0,
+  new_relocation: 0,
 };
 
 type Inputs = typeof BASE_DEFAULTS;
@@ -216,6 +227,16 @@ function scenarioToInputs(s: CareerScenario): Inputs {
     liquid_assets: s.liquid_assets,
     investment_return: +(s.investment_return * 100).toFixed(2),
     projection_years: s.projection_years,
+    current_annual_bonus: s.current_annual_bonus ?? 0,
+    current_equity_annual: s.current_equity_annual ?? 0,
+    current_benefits_monthly: s.current_benefits_monthly ?? 0,
+    current_401k_match_pct: s.current_401k_match_pct ?? 0,
+    new_annual_bonus: s.new_annual_bonus ?? 0,
+    new_equity_annual: s.new_equity_annual ?? 0,
+    new_benefits_monthly: s.new_benefits_monthly ?? 0,
+    new_401k_match_pct: s.new_401k_match_pct ?? 0,
+    new_signing_bonus: s.new_signing_bonus ?? 0,
+    new_relocation: s.new_relocation ?? 0,
   };
 }
 
@@ -273,13 +294,31 @@ export default function CareerClient({
   // ── Derived calculations ───────────────────────────────────────────────────
 
   const computed = useMemo(() => {
+    // Effective monthly comp = base + bonus/12 + equity/12 + benefits + 401k match
+    const effectiveCurrentMonthly =
+      inputs.current_monthly_income
+      + inputs.current_annual_bonus / 12
+      + inputs.current_equity_annual / 12
+      + inputs.current_benefits_monthly
+      + inputs.current_monthly_income * (inputs.current_401k_match_pct / 100);
+
+    const effectiveNewMonthly =
+      inputs.new_monthly_income
+      + inputs.new_annual_bonus / 12
+      + inputs.new_equity_annual / 12
+      + inputs.new_benefits_monthly
+      + inputs.new_monthly_income * (inputs.new_401k_match_pct / 100);
+
+    // Signing bonus and relocation reduce the net cost of switching
+    const effectiveTransitionCost = Math.max(0, inputs.transition_cost - inputs.new_signing_bonus - inputs.new_relocation);
+
     const timeline = buildCareerTimeline(
-      inputs.current_monthly_income,
+      effectiveCurrentMonthly,
       inputs.current_growth_rate / 100,
-      inputs.new_monthly_income,
+      effectiveNewMonthly,
       inputs.new_growth_rate / 100,
       inputs.gap_months,
-      inputs.transition_cost,
+      effectiveTransitionCost,
       inputs.projection_years,
     );
 
@@ -293,11 +332,11 @@ export default function CareerClient({
     // Lifetime earnings
     const lifetimeCurrent = lastPt.cumulativeCurrent;
     const lifetimeNewNet = lastPt.cumulativeNew;
-    const lifetimeNewGross = lifetimeNewNet + inputs.transition_cost;
+    const lifetimeNewGross = lifetimeNewNet + effectiveTransitionCost;
     const lifetimeDelta = lifetimeNewNet - lifetimeCurrent;
 
     // Emergency fund analysis
-    const gapCost = inputs.gap_months * inputs.monthly_expenses + inputs.transition_cost;
+    const gapCost = inputs.gap_months * inputs.monthly_expenses + effectiveTransitionCost;
     const gapDeficit = Math.max(0, gapCost - inputs.liquid_assets);
     const runwayMonths = inputs.monthly_expenses > 0 ? inputs.liquid_assets / inputs.monthly_expenses : 0;
 
@@ -333,9 +372,10 @@ export default function CareerClient({
 
     const retirDeltaPp = (retirNewProb ?? 0) - (retirCurrentProb ?? 0);
 
-    // Scenario analysis (best/worst)
-    const scenarioBest = buildScenarioMetrics(inputs, 2.0, 0.5, 0.7);
-    const scenarioWorst = buildScenarioMetrics(inputs, -2.0, 1.5, 1.4);
+    // Scenario analysis (best/worst) — use effective comp values
+    const effectiveInputs = { ...inputs, current_monthly_income: effectiveCurrentMonthly, new_monthly_income: effectiveNewMonthly, transition_cost: effectiveTransitionCost };
+    const scenarioBest = buildScenarioMetrics(effectiveInputs, 2.0, 0.5, 0.7);
+    const scenarioWorst = buildScenarioMetrics(effectiveInputs, -2.0, 1.5, 1.4);
 
     // Career ROI sub-scores
     const financialReturnScore = lifetimeCurrent > 0
@@ -350,7 +390,7 @@ export default function CareerClient({
     const incomeStabilityScore = Math.max(0, Math.min(100,
       50
       + (inputs.new_growth_rate - inputs.current_growth_rate) * 5
-      + (inputs.new_monthly_income >= inputs.current_monthly_income ? 15 : -15),
+      + (effectiveNewMonthly >= effectiveCurrentMonthly ? 15 : -15),
     ));
     const overallRoiScore = Math.round(
       financialReturnScore * 0.30
@@ -562,6 +602,7 @@ export default function CareerClient({
       minSalaryForSwitch, minGrowthForSwitch, maxGapForSwitch,
       scoreWeaknesses,
       annualEquivalent, monthlyEquivalent,
+      effectiveCurrentMonthly, effectiveNewMonthly, effectiveTransitionCost,
     };
   }, [inputs, profile, currentNetWorth]);
 
@@ -650,6 +691,16 @@ export default function CareerClient({
       liquid_assets: inputs.liquid_assets,
       investment_return: inputs.investment_return / 100,
       projection_years: inputs.projection_years,
+      current_annual_bonus: inputs.current_annual_bonus,
+      current_equity_annual: inputs.current_equity_annual,
+      current_benefits_monthly: inputs.current_benefits_monthly,
+      current_401k_match_pct: inputs.current_401k_match_pct,
+      new_annual_bonus: inputs.new_annual_bonus,
+      new_equity_annual: inputs.new_equity_annual,
+      new_benefits_monthly: inputs.new_benefits_monthly,
+      new_401k_match_pct: inputs.new_401k_match_pct,
+      new_signing_bonus: inputs.new_signing_bonus,
+      new_relocation: inputs.new_relocation,
     };
     const result = await saveCareerScenario(data, activeScenarioId ?? undefined);
     if (result.error) { setSaveStatus("error"); return; }
@@ -664,12 +715,12 @@ export default function CareerClient({
     const { pt10, pt20, breakEvenYear, maxCost, gapDeficit, runwayMonths, retirCurrentProb, retirNewProb } = computed;
     const body: CareerFinnRequest = {
       scenario_name: inputs.name,
-      current_monthly_income: inputs.current_monthly_income,
+      current_monthly_income: computed.effectiveCurrentMonthly,
       current_growth_rate_pct: inputs.current_growth_rate,
-      new_monthly_income: inputs.new_monthly_income,
+      new_monthly_income: computed.effectiveNewMonthly,
       new_growth_rate_pct: inputs.new_growth_rate,
       gap_months: inputs.gap_months,
-      transition_cost: inputs.transition_cost,
+      transition_cost: computed.effectiveTransitionCost,
       monthly_expenses: inputs.monthly_expenses,
       liquid_assets: inputs.liquid_assets,
       projection_years: inputs.projection_years,
@@ -701,13 +752,13 @@ export default function CareerClient({
   async function handleAddToForecast() {
     setForecastStatus("adding");
     const currentYear = new Date().getFullYear();
-    const yr1Delta = (inputs.new_monthly_income - inputs.current_monthly_income) * 12;
-    const yr5New = inputs.new_monthly_income * 12 * Math.pow(1 + inputs.new_growth_rate / 100, 5);
-    const yr5Current = inputs.current_monthly_income * 12 * Math.pow(1 + inputs.current_growth_rate / 100, 5);
+    const yr1Delta = (computed.effectiveNewMonthly - computed.effectiveCurrentMonthly) * 12;
+    const yr5New = computed.effectiveNewMonthly * 12 * Math.pow(1 + inputs.new_growth_rate / 100, 5);
+    const yr5Current = computed.effectiveCurrentMonthly * 12 * Math.pow(1 + inputs.current_growth_rate / 100, 5);
     const yr5Delta = yr5New - yr5Current;
     const result = await addCareerChangeToForecast({
       scenarioName: inputs.name,
-      transitionCost: inputs.transition_cost,
+      transitionCost: computed.effectiveTransitionCost,
       annualIncomeChangeYear1: yr1Delta,
       annualIncomeChangeYear5: yr5Delta,
       currentYear,
@@ -742,7 +793,7 @@ export default function CareerClient({
     },
   }[computed.verdict];
 
-  const incomeDeltaYear1 = inputs.new_monthly_income - inputs.current_monthly_income;
+  const incomeDeltaYear1 = computed.effectiveNewMonthly - computed.effectiveCurrentMonthly;
   const isPayCut = incomeDeltaYear1 < 0;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -866,29 +917,81 @@ export default function CareerClient({
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "16px" }} />
           <p style={{ ...sectionHead, marginBottom: "10px" }}>Current Path</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "10px" }}>
             <div>
-              <label style={labelS}>Monthly Income</label>
+              <label style={labelS}>Base Monthly Salary</label>
               <input type="number" min="0" value={inputs.current_monthly_income} onChange={num("current_monthly_income")} style={inputS} />
             </div>
             <div>
-              <label style={labelS}>Annual Income Growth (%)</label>
+              <label style={labelS}>Annual Salary Growth (%)</label>
               <input type="number" min="0" max="30" step="0.1" value={inputs.current_growth_rate} onChange={num("current_growth_rate")} style={inputS} />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={labelS}>Annual Bonus ($)</label>
+                <input type="number" min="0" step="500" value={inputs.current_annual_bonus} onChange={num("current_annual_bonus")} style={inputS} />
+              </div>
+              <div>
+                <label style={labelS}>Annual Equity/RSUs ($)</label>
+                <input type="number" min="0" step="1000" value={inputs.current_equity_annual} onChange={num("current_equity_annual")} style={inputS} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={labelS}>Monthly Benefits ($)</label>
+                <input type="number" min="0" step="50" value={inputs.current_benefits_monthly} onChange={num("current_benefits_monthly")} style={inputS} />
+              </div>
+              <div>
+                <label style={labelS}>401k Match (%)</label>
+                <input type="number" min="0" max="20" step="0.5" value={inputs.current_401k_match_pct} onChange={num("current_401k_match_pct")} style={inputS} />
+              </div>
+            </div>
           </div>
+          {(inputs.current_annual_bonus > 0 || inputs.current_equity_annual > 0 || inputs.current_benefits_monthly > 0 || inputs.current_401k_match_pct > 0) && (
+            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "oklch(0.14 0.015 250)", border: "1px solid oklch(0.25 0.03 250 / 0.5)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Effective total comp</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.effectiveCurrentMonthly * 12)}/yr</span>
+            </div>
+          )}
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "16px" }} />
           <p style={{ ...sectionHead, marginBottom: "10px" }}>New Career</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "10px" }}>
             <div>
-              <label style={labelS}>Year 1 Monthly Income</label>
+              <label style={labelS}>Year 1 Base Monthly Salary</label>
               <input type="number" min="0" value={inputs.new_monthly_income} onChange={num("new_monthly_income")} style={inputS} />
             </div>
             <div>
-              <label style={labelS}>Annual Income Growth (%)</label>
+              <label style={labelS}>Annual Salary Growth (%)</label>
               <input type="number" min="0" max="30" step="0.1" value={inputs.new_growth_rate} onChange={num("new_growth_rate")} style={inputS} />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={labelS}>Annual Bonus ($)</label>
+                <input type="number" min="0" step="500" value={inputs.new_annual_bonus} onChange={num("new_annual_bonus")} style={inputS} />
+              </div>
+              <div>
+                <label style={labelS}>Annual Equity/RSUs ($)</label>
+                <input type="number" min="0" step="1000" value={inputs.new_equity_annual} onChange={num("new_equity_annual")} style={inputS} />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={labelS}>Monthly Benefits ($)</label>
+                <input type="number" min="0" step="50" value={inputs.new_benefits_monthly} onChange={num("new_benefits_monthly")} style={inputS} />
+              </div>
+              <div>
+                <label style={labelS}>401k Match (%)</label>
+                <input type="number" min="0" max="20" step="0.5" value={inputs.new_401k_match_pct} onChange={num("new_401k_match_pct")} style={inputS} />
+              </div>
+            </div>
           </div>
+          {(inputs.new_annual_bonus > 0 || inputs.new_equity_annual > 0 || inputs.new_benefits_monthly > 0 || inputs.new_401k_match_pct > 0) && (
+            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "oklch(0.14 0.015 250)", border: "1px solid oklch(0.25 0.03 250 / 0.5)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Effective total comp</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.effectiveNewMonthly * 12)}/yr</span>
+            </div>
+          )}
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "16px" }} />
           <p style={{ ...sectionHead, marginBottom: "10px" }}>Transition</p>
@@ -898,9 +1001,24 @@ export default function CareerClient({
               <input type="number" min="0" max="60" value={inputs.gap_months} onChange={num("gap_months")} style={inputS} />
             </div>
             <div>
-              <label style={labelS}>One-time Transition Cost</label>
+              <label style={labelS}>One-time Transition Cost ($)</label>
               <input type="number" min="0" value={inputs.transition_cost} onChange={num("transition_cost")} style={inputS} />
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <label style={labelS}>Signing Bonus ($)</label>
+                <input type="number" min="0" step="1000" value={inputs.new_signing_bonus} onChange={num("new_signing_bonus")} style={inputS} />
+              </div>
+              <div>
+                <label style={labelS}>Relocation Stipend ($)</label>
+                <input type="number" min="0" step="500" value={inputs.new_relocation} onChange={num("new_relocation")} style={inputS} />
+              </div>
+            </div>
+            {(inputs.new_signing_bonus > 0 || inputs.new_relocation > 0) && (
+              <div style={{ padding: "6px 9px", borderRadius: "7px", background: "oklch(0.72 0.18 145 / 0.07)", border: "1px solid oklch(0.72 0.18 145 / 0.2)", fontSize: "11px", color: "oklch(0.72 0.18 145)" }}>
+                Net transition cost: {fmtK(computed.effectiveTransitionCost)} after signing/relocation
+              </div>
+            )}
           </div>
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "16px" }} />

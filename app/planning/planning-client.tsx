@@ -2733,7 +2733,6 @@ function EstatePlanningTab({
                 <div key={prefix} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{label}</div>
                   <input name={`${prefix}_name`}  defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_name`] ?? ""} placeholder="Name" style={inputStyle} />
-                  <input name={`${prefix}_phone`} defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_phone`] ?? ""} placeholder="Phone" style={inputStyle} />
                   {prefix !== "healthcare_proxy" && (
                     <input name={`${prefix}_email`} defaultValue={(estateProfile as Record<string, string | null> | null)?.[`${prefix}_email`] ?? ""} placeholder="Email" style={inputStyle} />
                   )}
@@ -2790,14 +2789,13 @@ function EstatePlanningTab({
           <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "12px" }}>Key Contacts</div>
           <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
             {[
-              { label: "Executor",          name: estateProfile.executor_name,        phone: estateProfile.executor_phone,        email: estateProfile.executor_email },
-              { label: "Estate Attorney",   name: estateProfile.attorney_name,        phone: estateProfile.attorney_phone,        email: estateProfile.attorney_email },
-              { label: "Healthcare Proxy",  name: estateProfile.healthcare_proxy_name, phone: estateProfile.healthcare_proxy_phone, email: null },
+              { label: "Executor",         name: estateProfile.executor_name,         email: estateProfile.executor_email },
+              { label: "Estate Attorney",  name: estateProfile.attorney_name,         email: estateProfile.attorney_email },
+              { label: "Healthcare Proxy", name: estateProfile.healthcare_proxy_name, email: null },
             ].filter((c) => c.name).map((c) => (
               <div key={c.label} style={{ flex: "1 1 160px" }}>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>{c.label}</div>
                 <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{isPrivate ? "••••••" : c.name}</div>
-                {c.phone && <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{isPrivate ? "••••••" : c.phone}</div>}
                 {c.email && <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{isPrivate ? "••••••" : c.email}</div>}
               </div>
             ))}
@@ -2894,8 +2892,19 @@ function EstatePlanningTab({
           </button>
         </div>
 
+        {/* Security notice */}
+        <div style={{ margin: "12px 18px 0", padding: "9px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
+            <path d="M8 1.5L1.5 13h13L8 1.5z" stroke="rgba(245,158,11,0.9)" strokeWidth="1.4" strokeLinejoin="round"/>
+            <path d="M8 6v4M8 11.5v.5" stroke="rgba(245,158,11,0.9)" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <span style={{ fontSize: "11px", color: "oklch(0.78 0.12 80)", lineHeight: 1.55 }}>
+            <strong>Do not enter passwords, PINs, or login credentials here.</strong> Record institution names, account types, and customer service numbers only — enough for your family to locate accounts, not to access them.
+          </span>
+        </div>
+
         {addingAcct && (
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "8px" }}>
               <div>
                 <div style={labelStyle}>Institution</div>
@@ -2910,8 +2919,8 @@ function EstatePlanningTab({
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <div>
-                <div style={labelStyle}>Contact / phone</div>
-                <input value={newAcct.contact} onChange={(e) => setNewAcct((a) => ({ ...a, contact: e.target.value }))} placeholder="800-555-0100 or login URL" style={inputStyle} />
+                <div style={labelStyle}>Customer service number</div>
+                <input value={newAcct.contact} onChange={(e) => setNewAcct((a) => ({ ...a, contact: e.target.value }))} placeholder="e.g. 800-555-0100" style={inputStyle} />
               </div>
               <div>
                 <div style={labelStyle}>Notes</div>
