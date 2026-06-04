@@ -91,6 +91,8 @@ export default async function PlanningPage({
         target_retirement_age: profileData.target_retirement_age ?? null,
         risk_tolerance: profileData.risk_tolerance ?? "moderate",
         gross_monthly_income: profileData.gross_monthly_income ? Number(profileData.gross_monthly_income) : null,
+        pre_tax_deductions_annual: profileData.pre_tax_deductions_annual ? Number(profileData.pre_tax_deductions_annual) : null,
+        net_monthly_override: profileData.net_monthly_override ? Number(profileData.net_monthly_override) : null,
         monthly_expenses: profileData.monthly_expenses ? Number(profileData.monthly_expenses) : null,
         filing_status: profileData.filing_status ?? "single",
         state_code: profileData.state_code ?? null,

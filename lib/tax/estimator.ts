@@ -6,6 +6,7 @@ export type IncomeType = "w2" | "self_employed" | "mixed";
 
 export interface TaxBreakdown {
   grossAnnual: number;
+  preTaxDeductionsAnnual: number;
   federalIncomeTax: number;
   federalEffectiveRate: number;
   federalMarginalRate: number;
@@ -404,6 +405,7 @@ export function estimateTax(
   filing: FilingStatus,
   incomeType: IncomeType,
   stateCode: string,
+  preTaxDeductionsAnnual: number = 0,
 ): TaxBreakdown {
   const grossAnnual = grossMonthly * 12;
   const stdDeduction = STD_DEDUCTION[filing];
@@ -426,6 +428,10 @@ export function estimateTax(
     }
   }
 
+  // Pre-tax deductions (401k, HSA, IRA, etc.) reduce AGI before applying income tax brackets.
+  // FICA is still owed on full wages — these deductions don't reduce payroll tax.
+  estimatedAGI = Math.max(0, estimatedAGI - Math.max(0, preTaxDeductionsAnnual));
+
   const taxableIncome = Math.max(0, estimatedAGI - stdDeduction);
   const brackets = FEDERAL_BRACKETS[filing];
   const { tax: federalIncomeTax, marginalRate: federalMarginalRate } = applyBrackets(taxableIncome, brackets);
@@ -440,6 +446,7 @@ export function estimateTax(
 
   return {
     grossAnnual,
+    preTaxDeductionsAnnual: Math.max(0, preTaxDeductionsAnnual),
     federalIncomeTax,
     federalEffectiveRate,
     federalMarginalRate,

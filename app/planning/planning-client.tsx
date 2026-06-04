@@ -4086,6 +4086,14 @@ export default function PlanningClient({
   const [editingProfile, setEditingProfile] = useState(!profile);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [profileKids, setProfileKids] = useState<ProfileKid[]>(() => profile?.kids_json ?? []);
+  // Live tax form state — drives the reactive preview while editing
+  const [formGross, setFormGross] = useState(() => profile?.gross_monthly_income ?? 0);
+  const [formFilingStatus, setFormFilingStatus] = useState<FilingStatus>(() => (profile?.filing_status as FilingStatus) ?? "single");
+  const [formIncomeType, setFormIncomeType] = useState<IncomeType>(() => (profile?.income_type as IncomeType) ?? "w2");
+  const [formStateCode, setFormStateCode] = useState(() => profile?.state_code ?? "");
+  const [formPreTax, setFormPreTax] = useState(() => profile?.pre_tax_deductions_annual ?? 0);
+  const [netOverride, setNetOverride] = useState<number | null>(() => profile?.net_monthly_override ?? null);
+  const [showNetOverride, setShowNetOverride] = useState(() => (profile?.net_monthly_override ?? null) !== null);
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const snapshotSaved = useRef(false);
@@ -4144,14 +4152,17 @@ export default function PlanningClient({
 
   // Derive estimated net income from gross profile income using tax estimator
   const profileGross = profile?.gross_monthly_income ?? 0;
-  const profileNetMonthly = profileGross > 0
-    ? estimateTax(
-        profileGross,
-        (profile?.filing_status as FilingStatus) ?? "single",
-        (profile?.income_type as IncomeType) ?? "w2",
-        profile?.state_code ?? "",
-      ).netMonthly
-    : 0;
+  const profileNetMonthly = (profile?.net_monthly_override !== null && profile?.net_monthly_override !== undefined)
+    ? profile.net_monthly_override
+    : profileGross > 0
+      ? estimateTax(
+          profileGross,
+          (profile?.filing_status as FilingStatus) ?? "single",
+          (profile?.income_type as IncomeType) ?? "w2",
+          profile?.state_code ?? "",
+          profile?.pre_tax_deductions_annual ?? 0,
+        ).netMonthly
+      : 0;
   // Use profile overrides if cash flow items are empty
   const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : profileNetMonthly;
   const effectiveExpenses = monthlyExpenses > 0 ? monthlyExpenses : (profile?.monthly_expenses ?? 0);
@@ -5199,6 +5210,7 @@ export default function PlanningClient({
     setProfileSaveError(null);
     const fd = new FormData(e.currentTarget);
     fd.set("kids_json", JSON.stringify(profileKids));
+    fd.set("net_monthly_override", netOverride !== null ? String(netOverride) : "");
     startProfileTransition(async () => {
       const result = await upsertFinancialProfile(fd);
       if (result?.error) {
@@ -5733,7 +5745,6 @@ export default function PlanningClient({
                   </div>
                   {[
                     { name: "target_retirement_age", label: "Retirement Age", type: "number", default: profile?.target_retirement_age ?? 65 },
-                    { name: "gross_monthly_income", label: "Gross Monthly Income ($)", type: "number", default: profile?.gross_monthly_income ?? "" },
                     { name: "monthly_expenses", label: "Monthly Expenses ($)", type: "number", default: profile?.monthly_expenses ?? "" },
                   ].map((f) => (
                     <div key={f.name}>
@@ -5741,6 +5752,16 @@ export default function PlanningClient({
                       <input name={f.name} type={f.type} min="0" defaultValue={String(f.default)} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
                     </div>
                   ))}
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Gross Monthly Income ($)</label>
+                    <input
+                      name="gross_monthly_income"
+                      type="number" min="0" step="100"
+                      value={formGross || ""}
+                      onChange={(e) => setFormGross(Number(e.target.value) || 0)}
+                      style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
+                    />
+                  </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
                     <select name="risk_tolerance" defaultValue={profile?.risk_tolerance ?? "moderate"} style={{ ...selectStyle, width: "100%" }}>
@@ -5757,7 +5778,7 @@ export default function PlanningClient({
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Income Type</label>
-                      <select name="income_type" defaultValue={profile?.income_type ?? "w2"} style={{ ...selectStyle, width: "100%" }}>
+                      <select name="income_type" value={formIncomeType} onChange={(e) => setFormIncomeType(e.target.value as IncomeType)} style={{ ...selectStyle, width: "100%" }}>
                         <option value="w2">W-2 Employee</option>
                         <option value="self_employed">Self-Employed / 1099</option>
                         <option value="mixed">W-2 + Freelance</option>
@@ -5765,7 +5786,7 @@ export default function PlanningClient({
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Filing Status</label>
-                      <select name="filing_status" defaultValue={profile?.filing_status ?? "single"} style={{ ...selectStyle, width: "100%" }}>
+                      <select name="filing_status" value={formFilingStatus} onChange={(e) => setFormFilingStatus(e.target.value as FilingStatus)} style={{ ...selectStyle, width: "100%" }}>
                         <option value="single">Single</option>
                         <option value="married_filing_jointly">Married Filing Jointly</option>
                         <option value="head_of_household">Head of Household</option>
@@ -5774,38 +5795,72 @@ export default function PlanningClient({
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>State</label>
-                      <select name="state_code" defaultValue={profile?.state_code ?? ""} style={{ ...selectStyle, width: "100%" }}>
+                      <select name="state_code" value={formStateCode} onChange={(e) => setFormStateCode(e.target.value)} style={{ ...selectStyle, width: "100%" }}>
                         <option value="">— Select state —</option>
                         {US_STATES.map((s) => (
                           <option key={s.code} value={s.code}>{s.name}</option>
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Pre-Tax Deductions / yr ($)</label>
+                      <input
+                        name="pre_tax_deductions_annual"
+                        type="number" min="0" step="100"
+                        value={formPreTax || ""}
+                        onChange={(e) => setFormPreTax(Number(e.target.value) || 0)}
+                        placeholder="e.g. 23500"
+                        style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
+                      />
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>401k (up to $23,500), HSA ($4,300), IRA ($7,000)</div>
+                    </div>
                   </div>
-                  {(profile?.gross_monthly_income ?? 0) > 0 && (() => {
-                    const t = estimateTax(
-                      profile!.gross_monthly_income!,
-                      (profile?.filing_status as FilingStatus) ?? "single",
-                      (profile?.income_type as IncomeType) ?? "w2",
-                      profile?.state_code ?? "",
-                    );
+                  {formGross > 0 && (() => {
+                    const t = estimateTax(formGross, formFilingStatus, formIncomeType, formStateCode, formPreTax);
+                    const isSE = formIncomeType === "self_employed" || formIncomeType === "mixed";
+                    const computedNet = Math.round(t.netMonthly);
                     return (
                       <div style={{ marginTop: "10px", padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.06)", border: "1px solid oklch(0.55 0.15 265 / 0.18)", borderRadius: "var(--radius-md)" }}>
                         <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.60 0.15 265)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "6px" }}>
                           {[
                             { label: "Federal Income Tax", val: fmt(Math.round(t.federalIncomeTax / 12)) + "/mo" },
-                            { label: profile?.income_type === "self_employed" || profile?.income_type === "mixed" ? "SE Tax" : "FICA", val: fmt(Math.round(((profile?.income_type === "self_employed" || profile?.income_type === "mixed") ? t.seTax : t.ficaTax) / 12)) + "/mo" },
-                            { label: `State Tax${profile?.state_code ? ` (${profile.state_code})` : ""}`, val: fmt(Math.round(t.stateTax / 12)) + "/mo" },
-                            { label: "Est. Net Monthly", val: fmt(Math.round(t.netMonthly)), highlight: true },
-                          ].map(({ label, val, highlight }) => (
+                            { label: isSE ? "SE Tax" : "FICA", val: fmt(Math.round((isSE ? t.seTax : t.ficaTax) / 12)) + "/mo" },
+                            { label: `State Tax${formStateCode ? ` (${formStateCode})` : ""}`, val: fmt(Math.round(t.stateTax / 12)) + "/mo" },
+                          ].map(({ label, val }) => (
                             <div key={label}>
                               <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
-                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: highlight ? "var(--green)" : "var(--text-secondary)" }}>{val}</div>
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>{val}</div>
                             </div>
                           ))}
+                          <div>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>
+                              Est. Net Monthly
+                              {!showNetOverride && (
+                                <button type="button" onClick={() => { setShowNetOverride(true); setNetOverride(computedNet); }} style={{ background: "none", border: "none", color: "oklch(0.60 0.15 265)", cursor: "pointer", fontSize: "9px", padding: "0 0 0 5px", fontFamily: "var(--font-body)" }}>override</button>
+                              )}
+                            </div>
+                            {showNetOverride ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <input
+                                  type="number" min="0" step="100"
+                                  value={netOverride ?? computedNet}
+                                  onChange={(e) => setNetOverride(Number(e.target.value) || 0)}
+                                  style={{ ...inputStyle, minWidth: "unset", width: "80px", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "3px 6px" }}
+                                />
+                                <button type="button" onClick={() => { setShowNetOverride(false); setNetOverride(null); }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "10px", padding: 0, fontFamily: "var(--font-body)" }}>✕ reset</button>
+                              </div>
+                            ) : (
+                              <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--green)" }}>{fmt(computedNet)}</div>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "7px", fontFamily: "var(--font-body)" }}>Planning calculations use est. net monthly. Estimates only — not tax advice.</div>
+                        {formPreTax > 0 && (
+                          <div style={{ fontSize: "9px", color: "oklch(0.60 0.15 265)", marginTop: "5px", fontFamily: "var(--font-body)" }}>
+                            Pre-tax deductions ({fmt(formPreTax)}/yr) reduce your taxable income by {fmt(Math.round(t.federalMarginalRate * formPreTax))} in federal tax.
+                          </div>
+                        )}
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "5px", fontFamily: "var(--font-body)" }}>Planning calculations use {showNetOverride && netOverride !== null ? "your override" : "est. net monthly"}. Estimates only — not tax advice.</div>
                       </div>
                     );
                   })()}

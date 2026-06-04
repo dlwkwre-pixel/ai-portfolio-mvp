@@ -15,6 +15,8 @@ export type FinancialProfile = {
   target_retirement_age: number | null;
   risk_tolerance: string | null;
   gross_monthly_income: number | null;
+  pre_tax_deductions_annual: number | null;
+  net_monthly_override: number | null;
   monthly_expenses: number | null;
   filing_status: string | null;
   state_code: string | null;
@@ -66,6 +68,9 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const target_retirement_age = formData.get("target_retirement_age") ? Number(formData.get("target_retirement_age")) : null;
   const risk_tolerance = String(formData.get("risk_tolerance") || "moderate");
   const gross_monthly_income = formData.get("gross_monthly_income") ? Number(formData.get("gross_monthly_income")) : null;
+  const pre_tax_deductions_annual = formData.get("pre_tax_deductions_annual") ? Number(formData.get("pre_tax_deductions_annual")) : 0;
+  const net_monthly_override_raw = String(formData.get("net_monthly_override") ?? "").trim();
+  const net_monthly_override = net_monthly_override_raw !== "" ? Number(net_monthly_override_raw) : null;
   const monthly_expenses = formData.get("monthly_expenses") ? Number(formData.get("monthly_expenses")) : null;
   const filing_status = String(formData.get("filing_status") || "single");
   const state_code = String(formData.get("state_code") || "").trim() || null;
@@ -83,6 +88,8 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       target_retirement_age,
       risk_tolerance,
       gross_monthly_income,
+      pre_tax_deductions_annual,
+      net_monthly_override,
       monthly_expenses,
       filing_status,
       state_code,
