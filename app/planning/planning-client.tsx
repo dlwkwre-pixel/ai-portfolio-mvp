@@ -552,7 +552,7 @@ function computeCommandPriorities(p: {
     });
   }
 
-  return items.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || a.rank - b.rank).slice(0, 4);
+  return items.sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0) || a.rank - b.rank).slice(0, 5);
 }
 
 // ── Conflict Detection Engine ─────────────────────────────────────────────────
@@ -5917,44 +5917,66 @@ export default function PlanningClient({
           {/* ── Section 2: Priorities + System Health ── */}
           <div className="cmd-section cmd-body-cols" style={{ display: "flex", flexDirection: "column", gap: "14px", animationDelay: "60ms" }}>
 
-            {/* What Matters Most */}
+            {/* Action Center */}
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>What Matters Most</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>AI-ranked priorities by financial impact</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Action Center</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Ranked by financial impact — act on these first</div>
                 </div>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", flexShrink: 0 }}>
-                  {commandPriorities.length} items
-                </span>
+                {commandPriorities.some((p) => p.urgent) && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "20px", fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", flexShrink: 0 }}>
+                    <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 25)", display: "inline-block" }} />
+                    Needs attention
+                  </span>
+                )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {commandPriorities.length === 0 ? (
-                  <div style={{ padding: "16px 0", textAlign: "center", color: "var(--text-tertiary)", fontSize: "13px", fontFamily: "var(--font-body)" }}>
-                    Your financial position looks strong across all key areas.
+                  <div style={{ padding: "20px 0", textAlign: "center" as const }}>
+                    <div style={{ fontSize: "22px", marginBottom: "8px" }}>✓</div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>All clear</div>
+                    <div style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Your financial position looks strong across all key areas.</div>
                   </div>
-                ) : commandPriorities.map((pri, i) => (
-                  <div key={pri.id} style={{ display: "flex", gap: "12px", padding: "12px 14px", borderRadius: "var(--radius-md)", background: pri.urgent ? "rgba(239,68,68,0.04)" : i === 0 ? "rgba(37,99,235,0.04)" : "var(--card-bg)", border: `1px solid ${pri.urgent ? "rgba(239,68,68,0.14)" : i === 0 ? "rgba(37,99,235,0.12)" : "var(--border-subtle)"}` }}>
-                    <div style={{ flexShrink: 0, minWidth: "18px", display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", paddingTop: "1px" }}>
-                      {pri.urgent && <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--red)" }} />}
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: pri.urgent ? "var(--red)" : "var(--text-muted)", fontWeight: 700, letterSpacing: "0.06em" }}>#{i + 1}</span>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{pri.title}</div>
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{pri.why}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "var(--radius-md)", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 500, background: "rgba(0,211,149,0.06)", border: "1px solid rgba(0,211,149,0.14)" }}>
-                          <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M5 9V1M1 5l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          {pri.impact}
+                ) : commandPriorities.map((pri, i) => {
+                  const isUrgent = pri.urgent;
+                  const isTop = i === 0 && !isUrgent;
+                  const bg = isUrgent ? "oklch(0.18 0.04 25 / 0.5)" : isTop ? "oklch(0.18 0.04 265 / 0.5)" : "var(--card-bg)";
+                  const borderColor = isUrgent ? "oklch(0.55 0.18 25 / 0.28)" : isTop ? "oklch(0.55 0.15 265 / 0.22)" : "var(--border-subtle)";
+                  const accentColor = isUrgent ? "oklch(0.65 0.18 25)" : isTop ? "oklch(0.60 0.18 265)" : "oklch(0.72 0.19 145)";
+                  const ctaBg = isUrgent ? "rgba(239,68,68,0.1)" : isTop ? "rgba(37,99,235,0.1)" : "rgba(255,255,255,0.05)";
+                  const ctaBorder = isUrgent ? "rgba(239,68,68,0.25)" : isTop ? "rgba(37,99,235,0.22)" : "var(--border)";
+                  return (
+                    <div key={pri.id} style={{ borderRadius: "var(--radius-md)", background: bg, border: `1px solid ${borderColor}`, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                        {/* Rank badge */}
+                        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", paddingTop: "2px", minWidth: "24px" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: accentColor, lineHeight: 1 }}>#{i + 1}</span>
+                          {isUrgent && (
+                            <span style={{ fontSize: "7px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>URGENT</span>
+                          )}
                         </div>
-                        <button type="button" className="cmd-cta-btn" onClick={() => setTab(pri.tabKey as Tab)}
-                          style={{ padding: "3px 10px", borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", cursor: "pointer" }}>
-                          {pri.ctaLabel}
-                        </button>
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "4px", lineHeight: 1.3 }}>{pri.title}</div>
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.55, marginBottom: "10px" }}>{pri.why}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" as const }}>
+                            {/* Impact chip */}
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "20px", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 600, background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.18)" }}>
+                              <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M5 9V1M1 5l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              {pri.impact}
+                            </div>
+                            {/* CTA */}
+                            <button type="button" onClick={() => setTab(pri.tabKey as Tab)}
+                              style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", background: ctaBg, border: `1px solid ${ctaBorder}`, color: accentColor, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+                              {pri.ctaLabel} →
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
