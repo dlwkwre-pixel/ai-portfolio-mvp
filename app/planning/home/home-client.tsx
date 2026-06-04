@@ -4264,6 +4264,38 @@ export default function HomeClient({
               );
             })()}
 
+            {/* ── FINN Executive Summary ── */}
+            {(() => {
+              const narrative = buildFinnNarrative({
+                verdict: computed.verdictData.verdict,
+                totalMonthly: computed.totalMonthly,
+                income: profile?.monthly_income,
+                breakEvenYear: computed.breakEvenYear,
+                holdYears: inputs.hold_years,
+                retirDelta: computed.retirDelta,
+                retirBaselineAssets: computed.retirBaselineAssets,
+                retirWithHomeAssets: computed.retirWithHomeAssets,
+                equivalentRent: computed.equivalentRent,
+                monthlyRent: inputs.monthly_rent,
+              });
+              const vc = { BUY: "oklch(0.70 0.18 155)", WAIT: "oklch(0.80 0.14 80)", RENT: "oklch(0.68 0.18 25)" }[computed.verdictData.verdict];
+              return (
+                <div style={{ padding: "14px 16px", background: "color-mix(in oklch, oklch(0.45 0.1 265) 4%, var(--card-bg))", border: "1px solid rgba(99,102,241,0.16)", borderRadius: "var(--radius-lg)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "9px" }}>
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                      <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
+                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                    </svg>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>FINN Advisor Take</span>
+                  </div>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${vc} 40%, transparent)`, paddingLeft: "12px" }}>
+                    {narrative}
+                  </p>
+                </div>
+              );
+            })()}
+
             {/* ── Best Financial Outcome ── */}
             {rankedPaths.length >= 2 && (() => {
               const top = rankedPaths[0];
@@ -4344,192 +4376,12 @@ export default function HomeClient({
               );
             })()}
 
-            {/* ── SECTION: BREAKEVEN & TIMELINE ── */}
+            {/* ── Section: Readiness Dashboard ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Breakeven &amp; Timeline</span>
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Readiness Dashboard</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
-
-            {/* Rent Breakeven Timeline — moved up */}
-            {computed.timeline.length > 1 && (
-              <div data-card style={cardS}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#00d395" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                  {computed.timeline.slice(1).map((pt) => {
-                    const buyingWins = pt.homeEquity > pt.rentPortfolio;
-                    const isBreakEven = computed.breakEvenYear === pt.year;
-                    const diff = Math.abs(pt.homeEquity - pt.rentPortfolio);
-                    return (
-                      <div
-                        key={pt.year}
-                        title={`Year ${pt.year}: ${buyingWins ? "Buying" : "Renting"} ahead by ${fmtK(diff)}`}
-                        style={{
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          width: "32px", height: "28px", borderRadius: "6px",
-                          fontSize: "9px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
-                          background: isBreakEven
-                            ? "rgba(255,255,255,0.12)"
-                            : buyingWins ? "rgba(59,130,246,0.16)" : "rgba(0,211,149,0.13)",
-                          color: isBreakEven ? "var(--text-primary)" : buyingWins ? "#60a5fa" : "#00d395",
-                          border: isBreakEven
-                            ? "1px solid rgba(255,255,255,0.28)"
-                            : buyingWins ? "1px solid rgba(59,130,246,0.25)" : "1px solid rgba(0,211,149,0.22)",
-                        }}
-                      >
-                        {pt.year}
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
-                  {computed.breakEvenYear != null
-                    ? `Buying overtakes renting at Year ${computed.breakEvenYear} and stays ahead. Hover any year for the equity differential.`
-                    : `Renting outpaces buying throughout the ${inputs.hold_years}-year hold at current assumptions.`}
-                </p>
-              </div>
-            )}
-
-            {/* Break-Even Year + Upfront Costs — 2-col */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-              <div data-card style={cardS}>
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
-                  <p style={{ ...sectionHead, margin: 0 }}>Break-Even vs Renting</p>
-                  <span className="has-tip" data-tip="The year when buying a home becomes financially better than renting + investing your down payment. Before this point, the renter would have more wealth.">i</span>
-                </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
-                  {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
-                </div>
-                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
-                  {computed.breakEvenYear != null
-                    ? `Buying beats the rented + invested path after ${computed.breakEvenYear} ${computed.breakEvenYear === 1 ? "year" : "years"}.`
-                    : `Buying doesn't out-earn the rented + invested path within ${inputs.hold_years} years at these rates.`}
-                </p>
-              </div>
-              <div data-card style={cardS}>
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
-                  <p style={{ ...sectionHead, margin: 0 }}>Upfront Cash Needed</p>
-                  <span className="has-tip" data-tip="The total money you need on closing day before you get the keys. This includes your down payment plus closing costs (lender fees, title, escrow, etc.).">i</span>
-                </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
-                  {fmt(inputs.down_payment + computed.closingCosts)}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                    <span style={{ color: "var(--text-tertiary)" }}>Down payment</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(inputs.down_payment)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                    <span style={{ color: "var(--text-tertiary)" }}>Closing costs ({inputs.closing_cost_pct}%)</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.closingCosts)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── SECTION: RETIREMENT & HEALTH ── */}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
-              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Retirement &amp; Health</span>
-              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
-            </div>
-
-            {/* Retirement Impact Centerpiece */}
-            {computed.retirBaselineProb != null && (
-              <div data-card style={cardS}>
-                <p style={sectionHead}>Retirement Impact</p>
-                {/* Dollar diff as hero — only when asset data is available */}
-                {computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null && (() => {
-                  const diff = computed.retirWithHomeAssets - computed.retirBaselineAssets;
-                  const isPositive = diff >= 0;
-                  const heroColor = isPositive ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)";
-                  const heroBg = isPositive
-                    ? "color-mix(in oklch, oklch(0.70 0.18 155) 6%, var(--bg-elevated))"
-                    : "color-mix(in oklch, oklch(0.68 0.18 25) 6%, var(--bg-elevated))";
-                  const probColor = computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb
-                    ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)";
-                  const probDelta = computed.retirWithHomeProb != null ? computed.retirWithHomeProb - computed.retirBaselineProb : null;
-                  return (
-                    <>
-                      {/* Primary: dollar impact */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "14px", padding: "14px 16px", borderRadius: "var(--radius-md)", background: heroBg, border: `1px solid color-mix(in oklch, ${heroColor} 18%, transparent)` }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "5px" }}>
-                            {isPositive ? "Projected Retirement Advantage" : "Projected Retirement Cost"}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "36px", fontWeight: 800, color: heroColor, lineHeight: 1 }}>
-                              {isPositive ? "+" : ""}{fmtK(diff)}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>in projected retirement assets</div>
-                        </div>
-                        {/* Secondary: probability comparison */}
-                        <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Retirement Probability</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-secondary)", fontWeight: 600 }}>{computed.retirBaselineProb}%</span>
-                            <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M9 1l5 4-5 4" stroke={probColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: probColor, fontWeight: 700 }}>{computed.retirWithHomeProb ?? "—"}%</span>
-                          </div>
-                          {probDelta != null && (
-                            <div style={{ fontSize: "10px", color: probColor, marginTop: "3px", fontFamily: "var(--font-mono)" }}>
-                              {probDelta >= 0 ? "+" : ""}{probDelta}pp
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* Asset breakdown row */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "10px" }}>
-                        {[
-                          { label: "Without Home", val: computed.retirBaselineAssets!, color: "var(--text-secondary)" },
-                          { label: `With Home`, val: computed.retirWithHomeAssets!, color: isPositive ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" },
-                          { label: "Difference", val: diff, color: heroColor, prefix: isPositive ? "+" : "" },
-                        ].map(({ label, val, color, prefix = "" }) => (
-                          <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px", textAlign: "center" }}>
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{prefix}{fmtK(Math.abs(val))}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  );
-                })()}
-                {/* Fallback: probability only (no planning profile assets) */}
-                {(computed.retirBaselineAssets == null || computed.retirWithHomeAssets == null) && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "16px", marginBottom: "14px" }}>
-                    <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Without Home</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: "var(--text-secondary)", lineHeight: 1 }}>{computed.retirBaselineProb}%</div>
-                    </div>
-                    <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
-                      <path d="M1 6h18M13 1l6 5-6 5" stroke={computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>With Home</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)", lineHeight: 1 }}>
-                        {computed.retirWithHomeProb ?? "—"}%
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0", lineHeight: 1.5 }}>
-                  Based on your planning profile. Home equity at year {inputs.hold_years} counted as a retirement asset alongside reduced savings capacity.
-                </p>
-              </div>
-            )}
 
             {/* Affordability + Readiness — side by side */}
             {(computed.affordabilityScore || computed.readinessScore) && (
@@ -4641,6 +4493,193 @@ export default function HomeClient({
                 </div>
               );
             })()}
+
+            {/* ── SECTION: BREAKEVEN & TIMELINE ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Breakeven &amp; Timeline</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
+            {/* Rent Breakeven Timeline — moved up */}
+            {computed.timeline.length > 1 && (
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#00d395" }} />
+                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {computed.timeline.slice(1).map((pt) => {
+                    const buyingWins = pt.homeEquity > pt.rentPortfolio;
+                    const isBreakEven = computed.breakEvenYear === pt.year;
+                    const diff = Math.abs(pt.homeEquity - pt.rentPortfolio);
+                    return (
+                      <div
+                        key={pt.year}
+                        title={`Year ${pt.year}: ${buyingWins ? "Buying" : "Renting"} ahead by ${fmtK(diff)}`}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          width: "32px", height: "28px", borderRadius: "6px",
+                          fontSize: "9px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
+                          background: isBreakEven
+                            ? "rgba(255,255,255,0.12)"
+                            : buyingWins ? "rgba(59,130,246,0.16)" : "rgba(0,211,149,0.13)",
+                          color: isBreakEven ? "var(--text-primary)" : buyingWins ? "#60a5fa" : "#00d395",
+                          border: isBreakEven
+                            ? "1px solid rgba(255,255,255,0.28)"
+                            : buyingWins ? "1px solid rgba(59,130,246,0.25)" : "1px solid rgba(0,211,149,0.22)",
+                        }}
+                      >
+                        {pt.year}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
+                  {computed.breakEvenYear != null
+                    ? `Buying overtakes renting at Year ${computed.breakEvenYear} and stays ahead. Hover any year for the equity differential.`
+                    : `Renting outpaces buying throughout the ${inputs.hold_years}-year hold at current assumptions.`}
+                </p>
+              </div>
+            )}
+
+            {/* Break-Even Year + Upfront Costs — 2-col */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Break-Even vs Renting</p>
+                  <span className="has-tip" data-tip="The year when buying a home becomes financially better than renting + investing your down payment. Before this point, the renter would have more wealth.">i</span>
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: computed.breakEvenYear != null ? "var(--green)" : "var(--amber)" }}>
+                  {computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "N/A"}
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "6px 0 0", lineHeight: 1.5 }}>
+                  {computed.breakEvenYear != null
+                    ? `Buying beats the rented + invested path after ${computed.breakEvenYear} ${computed.breakEvenYear === 1 ? "year" : "years"}.`
+                    : `Buying doesn't out-earn the rented + invested path within ${inputs.hold_years} years at these rates.`}
+                </p>
+              </div>
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Upfront Cash Needed</p>
+                  <span className="has-tip" data-tip="The total money you need on closing day before you get the keys. This includes your down payment plus closing costs (lender fees, title, escrow, etc.).">i</span>
+                </div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)" }}>
+                  {fmt(inputs.down_payment + computed.closingCosts)}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginTop: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-tertiary)" }}>Down payment</span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(inputs.down_payment)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                    <span style={{ color: "var(--text-tertiary)" }}>Closing costs ({inputs.closing_cost_pct}%)</span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(computed.closingCosts)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION: RETIREMENT & HEALTH ── */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
+              <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Impact Analysis</span>
+              <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
+            </div>
+
+            {/* Retirement Impact Centerpiece */}
+            {computed.retirBaselineProb != null && (
+              <div data-card style={cardS}>
+                <p style={sectionHead}>Retirement Impact</p>
+                {/* Dollar diff as hero — only when asset data is available */}
+                {computed.retirBaselineAssets != null && computed.retirWithHomeAssets != null && (() => {
+                  const diff = computed.retirWithHomeAssets - computed.retirBaselineAssets;
+                  const isPositive = diff >= 0;
+                  const heroColor = isPositive ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)";
+                  const heroBg = isPositive
+                    ? "color-mix(in oklch, oklch(0.70 0.18 155) 6%, var(--bg-elevated))"
+                    : "color-mix(in oklch, oklch(0.68 0.18 25) 6%, var(--bg-elevated))";
+                  const probColor = computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb
+                    ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)";
+                  const probDelta = computed.retirWithHomeProb != null ? computed.retirWithHomeProb - computed.retirBaselineProb : null;
+                  return (
+                    <>
+                      {/* Primary: dollar impact */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "14px", padding: "14px 16px", borderRadius: "var(--radius-md)", background: heroBg, border: `1px solid color-mix(in oklch, ${heroColor} 18%, transparent)` }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "5px" }}>
+                            {isPositive ? "Projected Retirement Advantage" : "Projected Retirement Cost"}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "36px", fontWeight: 800, color: heroColor, lineHeight: 1 }}>
+                              {isPositive ? "+" : ""}{fmtK(diff)}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>in projected retirement assets</div>
+                        </div>
+                        {/* Secondary: probability comparison */}
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Retirement Probability</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-secondary)", fontWeight: 600 }}>{computed.retirBaselineProb}%</span>
+                            <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M9 1l5 4-5 4" stroke={probColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: probColor, fontWeight: 700 }}>{computed.retirWithHomeProb ?? "—"}%</span>
+                          </div>
+                          {probDelta != null && (
+                            <div style={{ fontSize: "10px", color: probColor, marginTop: "3px", fontFamily: "var(--font-mono)" }}>
+                              {probDelta >= 0 ? "+" : ""}{probDelta}pp
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Asset breakdown row */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+                        {[
+                          { label: "Without Home", val: computed.retirBaselineAssets!, color: "var(--text-secondary)" },
+                          { label: `With Home`, val: computed.retirWithHomeAssets!, color: isPositive ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" },
+                          { label: "Difference", val: diff, color: heroColor, prefix: isPositive ? "+" : "" },
+                        ].map(({ label, val, color, prefix = "" }) => (
+                          <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px", textAlign: "center" }}>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{prefix}{fmtK(Math.abs(val))}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+                {/* Fallback: probability only (no planning profile assets) */}
+                {(computed.retirBaselineAssets == null || computed.retirWithHomeAssets == null) && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "16px", marginBottom: "14px" }}>
+                    <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Without Home</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: "var(--text-secondary)", lineHeight: 1 }}>{computed.retirBaselineProb}%</div>
+                    </div>
+                    <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
+                      <path d="M1 6h18M13 1l6 5-6 5" stroke={computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>With Home</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)", lineHeight: 1 }}>
+                        {computed.retirWithHomeProb ?? "—"}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0", lineHeight: 1.5 }}>
+                  Based on your planning profile. Home equity at year {inputs.hold_years} counted as a retirement asset alongside reduced savings capacity.
+                </p>
+              </div>
+            )}
 
             {/* ── SECTION: COST ANALYSIS ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
@@ -4939,7 +4978,7 @@ export default function HomeClient({
             {/* ── SECTION: INTELLIGENCE ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Intelligence</span>
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>FINN &amp; Risk</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
