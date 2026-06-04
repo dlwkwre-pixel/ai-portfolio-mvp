@@ -815,8 +815,12 @@ const pct = (n: number) => n.toFixed(2) + "%";
 function calcGoalProb(cashSurplus: number, totalNeeded: number, futureDTI: number | null, emergencyMonths: number | null): number {
   let p = 100;
   if (cashSurplus < 0 && totalNeeded > 0) p -= Math.min(35, Math.round((-cashSurplus / totalNeeded) * 35));
-  if (futureDTI !== null && futureDTI > 43) p -= 25;
-  else if (futureDTI !== null && futureDTI > 36) p -= 10;
+  if (futureDTI !== null) {
+    if (futureDTI > 50) p -= 30;
+    else if (futureDTI > 43) p -= Math.round(20 + (futureDTI - 43) / 7 * 10);
+    else if (futureDTI > 36) p -= Math.round((futureDTI - 36) / 7 * 20);
+    else if (futureDTI > 28) p -= Math.round((futureDTI - 28) / 8 * 8);
+  }
   if (emergencyMonths !== null && emergencyMonths < 3) p -= Math.min(15, Math.round((3 - Math.max(0, emergencyMonths)) * 5));
   return Math.max(10, Math.min(100, p));
 }
@@ -1600,11 +1604,26 @@ export default function HomeClient({
     const stressDTI1 = goalMetrics.projectedMonthlyIncome > 0 ? (stressTotalMonthly1 / goalMetrics.projectedMonthlyIncome) * 100 : null;
     const prob1 = calcGoalProb(goalMetrics.cashSurplus, goalMetrics.totalNeeded, stressDTI1, goalMetrics.emergencyMonths);
 
-    // Income growth -1%
+    // Income growth -1% — recompute projected cash with lower savings trajectory
     const stressGrowth = Math.max(0, salaryGrowthRate - 0.01);
     const stressProjIncome2 = (profile?.monthly_income ?? 0) * 12 * Math.pow(1 + stressGrowth, n);
     const stressDTI2 = stressProjIncome2 > 0 ? (computed.totalMonthly / (stressProjIncome2 / 12)) * 100 : null;
-    const prob2 = calcGoalProb(goalMetrics.cashSurplus, goalMetrics.totalNeeded, stressDTI2, goalMetrics.emergencyMonths);
+    const stressMonthlySavings2 = Math.max(0, stressProjIncome2 / 12 - (profile?.monthly_expenses ?? 0));
+    const stressAnnualSavings2 = stressMonthlySavings2 * 12;
+    const r2 = inputs.investment_return / 100;
+    let stressCash2: number;
+    if (n === 0) {
+      stressCash2 = liquidAssets;
+    } else if (r2 > 0) {
+      const sgf2 = Math.pow(1 + r2, n);
+      stressCash2 = liquidAssets * sgf2 + (stressAnnualSavings2 > 0 ? stressAnnualSavings2 * (sgf2 - 1) / r2 : 0);
+    } else {
+      stressCash2 = liquidAssets + stressAnnualSavings2 * n;
+    }
+    stressCash2 = Math.max(0, stressCash2);
+    const stressSurplus2 = stressCash2 - goalMetrics.totalNeeded;
+    const stressEm2 = monthlyExpenses > 0 ? stressSurplus2 / monthlyExpenses : goalMetrics.emergencyMonths;
+    const prob2 = calcGoalProb(stressSurplus2, goalMetrics.totalNeeded, stressDTI2, stressEm2);
 
     // Returns -2%
     const stressR = Math.max(0, inputs.investment_return / 100 - 0.02);
@@ -1634,7 +1653,7 @@ export default function HomeClient({
         },
         {
           label: `Income growth ${Math.max(0, Math.round((salaryGrowthRate - 0.01) * 100))}%/yr (-1%)`,
-          detail: `${fmtK(stressProjIncome2)}/yr projected in ${new Date().getFullYear() + n}`,
+          detail: `${fmtK(stressCash2)} projected cash by ${new Date().getFullYear() + n}`,
           probBefore: base,
           probAfter: prob2,
         },

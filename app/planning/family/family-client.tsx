@@ -760,7 +760,6 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
           {/* Number of children selector */}
           <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", borderRadius: "10px", padding: "14px", overflow: "hidden", position: "relative", marginBottom: "18px" }}>
-            <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "oklch(0.55 0.15 265 / 0.06)", pointerEvents: "none" }} />
             <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Planning For</div>
             <div style={{ display: "flex", gap: "8px", position: "relative" }}>
               {([1, 2, 3, 4] as const).map((n) => {

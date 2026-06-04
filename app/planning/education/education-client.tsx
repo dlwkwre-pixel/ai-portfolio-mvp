@@ -758,9 +758,12 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       {/* Header */}
       <div style={{ flexShrink: 0, padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-base)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-          <a href="/planning?tab=events" style={{ color: "var(--text-muted)", fontSize: 12, textDecoration: "none" }}>Planning</a>
-          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>/</span>
-          <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>Education / 529</span>
+          <a href="/planning?tab=events" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Planning
+          </a>
+          <span style={{ color: "var(--border)" }}>/</span>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Education / 529</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>College Funding Decision Engine</h1>
@@ -776,7 +779,6 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
           {/* Number of Children — gradient card */}
           <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.15 250 / 0.2)", borderRadius: "var(--radius-lg, 12px)", padding: "14px 16px", marginBottom: "16px", position: "relative", overflow: "hidden" }}>
-            <div style={{ position: "absolute", top: -15, right: -15, width: 60, height: 60, borderRadius: "50%", background: "oklch(0.55 0.15 250 / 0.07)", pointerEvents: "none" }} />
             <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Number of Children</div>
             <div style={{ display: "flex", gap: 6 }}>
               {([1, 2, 3, 4] as const).map((n) => {

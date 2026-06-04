@@ -4295,12 +4295,12 @@ export default function PlanningClient({
     const futureReadinessScore = Math.round(retirScore * 0.5 + healthData.total * 0.3 + (nonEmptyCount / 4) * 20);
 
     // Score deductions + actions (P1)
-    type Deduction = { label: string; points: number };
+    type Deduction = { label: string; points: number; href?: string };
     const scoreDeductions: Deduction[] = [];
-    if (homeScenarios.length === 0) scoreDeductions.push({ label: "Home planning not started", points: -5 });
-    if (familyScenarios.length === 0) scoreDeductions.push({ label: "Family planning not started", points: -4 });
-    if (careerScenarios.length === 0) scoreDeductions.push({ label: "Career planning not started", points: -4 });
-    if (educationScenarios.length === 0) scoreDeductions.push({ label: "Education planning not started", points: -4 });
+    if (homeScenarios.length === 0) scoreDeductions.push({ label: "Home planning not started", points: -5, href: "/planning/home" });
+    if (familyScenarios.length === 0) scoreDeductions.push({ label: "Family planning not started", points: -4, href: "/planning/family" });
+    if (careerScenarios.length === 0) scoreDeductions.push({ label: "Career planning not started", points: -4, href: "/planning/career" });
+    if (educationScenarios.length === 0) scoreDeductions.push({ label: "Education planning not started", points: -4, href: "/planning/education" });
     if (retirementProb != null && retirementProb < 80) {
       const pen = Math.round((80 - retirementProb) * 0.4);
       if (pen >= 3) scoreDeductions.push({ label: `Retirement probability ${Math.round(retirementProb)}%`, points: -pen });
@@ -5428,6 +5428,17 @@ export default function PlanningClient({
 
   useEffect(() => {
     return () => { if (finnChatAnimationRef.current) clearInterval(finnChatAnimationRef.current); };
+  }, []);
+
+  // Scroll to tab nav when returning from a sub-planner page
+  useEffect(() => {
+    if (initialTab && initialTab !== "overview") {
+      const t = setTimeout(() => {
+        document.querySelector(".planning-tabs-bar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const TABS: { id: Tab; label: string }[] = [
@@ -7241,11 +7252,17 @@ export default function PlanningClient({
                 </div>
                 {lifePlan.scoreDeductions.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                    {lifePlan.scoreDeductions.map((d, i) => (
-                      <span key={i} style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", background: "color-mix(in oklch, var(--red) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--red) 18%, transparent)", padding: "2px 7px", borderRadius: "20px" }}>
-                        {d.label} ({d.points > 0 ? "-" : ""}{Math.abs(d.points)})
-                      </span>
-                    ))}
+                    {lifePlan.scoreDeductions.map((d, i) =>
+                      d.href ? (
+                        <Link key={i} href={d.href} style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", background: "color-mix(in oklch, var(--red) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--red) 18%, transparent)", padding: "2px 7px", borderRadius: "20px", textDecoration: "none", cursor: "pointer" }}>
+                          {d.label} ({d.points > 0 ? "-" : ""}{Math.abs(d.points)})
+                        </Link>
+                      ) : (
+                        <span key={i} style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-secondary)", background: "color-mix(in oklch, var(--red) 10%, transparent)", border: "1px solid color-mix(in oklch, var(--red) 18%, transparent)", padding: "2px 7px", borderRadius: "20px" }}>
+                          {d.label} ({d.points > 0 ? "-" : ""}{Math.abs(d.points)})
+                        </span>
+                      )
+                    )}
                   </div>
                 )}
                 {lifePlan.nextAction && (
