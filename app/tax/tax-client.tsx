@@ -185,6 +185,8 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>({});
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
+  const [pretax401k, setPretax401k] = useState<number>(0);
+  const [pretaxHSA, setPretaxHSA] = useState<number>(0);
 
   useEffect(() => {
     const t = setTimeout(() => setBarMounted(true), 150);
@@ -831,13 +833,77 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       detail={`${fmt(Math.round(incomeTaxEstimate.totalTax / 4))} due each quarter. Missing payments triggers an IRS underpayment penalty. Dates: Apr 15 · Jun 16 · Sep 15 · Jan 15`}
                     />
                   )}
-                  {(taxProfile?.preTaxDeductionsAnnual ?? 0) === 0 && incomeTaxEstimate && (
-                    <ActionItem
-                      type="info"
-                      text="Consider maxing out pre-tax accounts"
-                      detail={`You haven't entered any 401k, HSA, or pre-tax deductions. At your ${Math.round(incomeTaxEstimate.federalMarginalRate * 100)}% marginal rate, each $1,000 you contribute reduces your tax bill by ${fmt(Math.round(incomeTaxEstimate.federalMarginalRate * 1000))}.`}
-                    />
-                  )}
+                  {(taxProfile?.preTaxDeductionsAnnual ?? 0) === 0 && activeEstimate && (() => {
+                    const limit401k = selectedYear >= 2025 ? 23_500 : 23_000;
+                    const limitHSA = 4_300;
+                    const remaining401k = Math.max(0, limit401k - pretax401k);
+                    const remainingHSA = Math.max(0, limitHSA - pretaxHSA);
+                    const totalRemaining = remaining401k + remainingHSA;
+                    const potentialSaving = Math.round(totalRemaining * activeEstimate.federalMarginalRate);
+                    const mRate = Math.round(activeEstimate.federalMarginalRate * 100);
+                    return (
+                      <div style={{ padding: "12px 14px", background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "var(--radius-md)" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                          <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.62 0.15 260)", flexShrink: 0, marginTop: "5px" }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 2px", fontFamily: "var(--font-body)" }}>Consider maxing out pre-tax accounts</p>
+                            <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                              At your {mRate}% marginal rate, each $1,000 contributed to a 401k or HSA reduces your tax bill by {fmt(mRate * 10)}. How much have you contributed so far this year?
+                            </p>
+                            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" as const, marginBottom: totalRemaining > 0 ? "10px" : "0" }}>
+                              <div style={{ minWidth: "120px" }}>
+                                <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>401k so far</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
+                                  <input
+                                    type="number" min="0" max={limit401k} step="100"
+                                    value={pretax401k || ""}
+                                    placeholder="0"
+                                    onChange={(e) => setPretax401k(Math.min(limit401k, Number(e.target.value) || 0))}
+                                    style={{ width: "80px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "4px 6px", fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none" }}
+                                  />
+                                  <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>/ {fmt(limit401k)}</span>
+                                </div>
+                              </div>
+                              <div style={{ minWidth: "120px" }}>
+                                <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>HSA so far</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
+                                  <input
+                                    type="number" min="0" max={limitHSA} step="100"
+                                    value={pretaxHSA || ""}
+                                    placeholder="0"
+                                    onChange={(e) => setPretaxHSA(Math.min(limitHSA, Number(e.target.value) || 0))}
+                                    style={{ width: "80px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "4px 6px", fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none" }}
+                                  />
+                                  <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>/ {fmt(limitHSA)}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {totalRemaining > 0 && (
+                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const }}>
+                                <div style={{ padding: "7px 10px", background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
+                                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 265)" }}>{fmt(totalRemaining)}</div>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>
+                                    {remaining401k > 0 && `401k ${fmt(remaining401k)}`}{remaining401k > 0 && remainingHSA > 0 && " · "}{remainingHSA > 0 && `HSA ${fmt(remainingHSA)}`}
+                                  </div>
+                                </div>
+                                <div style={{ padding: "7px 10px", background: "rgba(0,211,149,0.06)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Potential tax savings</div>
+                                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--green)" }}>{fmt(potentialSaving)}</div>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>if you max out remaining</div>
+                                </div>
+                              </div>
+                            )}
+                            {totalRemaining === 0 && (
+                              <p style={{ fontSize: "11px", color: "var(--green)", fontWeight: 600, margin: 0 }}>You&apos;ve maxed out both accounts. Great work.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {itemizingSaves > 500 && (
                     <ActionItem
                       type="save"
