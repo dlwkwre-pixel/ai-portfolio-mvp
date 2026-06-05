@@ -36,6 +36,7 @@ export type FinancialProfile = {
   owner_agent_commission_pct: number;
   owner_move_in_costs: number;
   owner_expected_sale_price: number | null;
+  owner_hoa_monthly: number | null;
 };
 
 export type BalanceSheetItem = {

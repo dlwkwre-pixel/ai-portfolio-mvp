@@ -973,9 +973,10 @@ function buildDefaults(
   const suggestedTax = Math.round((suggestedPrice * 0.012) / 12 / 10) * 10;
   const suggestedIns = Math.round((suggestedPrice * 0.004) / 12 / 10) * 10;
 
-  // Owner-mover: use their actual PITI if available; otherwise fall back to monthly_expenses or base
-  const suggestedRent = (profile.is_homeowner && profile.owner_monthly_payment && profile.owner_monthly_payment > 0)
-    ? Math.round(profile.owner_monthly_payment / 100) * 100
+  // Owner-mover: use their actual PITI+HOA if available; otherwise fall back to monthly_expenses or base
+  const ownerTotal = (profile.owner_monthly_payment ?? 0) + (profile.owner_hoa_monthly ?? 0);
+  const suggestedRent = (profile.is_homeowner && ownerTotal > 0)
+    ? Math.round(ownerTotal / 100) * 100
     : profile.monthly_expenses && profile.monthly_expenses > 0
       ? Math.round(profile.monthly_expenses / 100) * 100
       : base.monthly_rent;
@@ -1095,6 +1096,7 @@ export default function HomeClient({
   const [ownerAgentCommission, setOwnerAgentCommission] = useState<number>(() => profile?.owner_agent_commission_pct ?? 6);
   const [ownerMoveInCosts, setOwnerMoveInCosts] = useState<number>(() => profile?.owner_move_in_costs ?? 0);
   const [ownerExpectedSalePrice, setOwnerExpectedSalePrice] = useState<number | null>(() => profile?.owner_expected_sale_price ?? null);
+  const [ownerHoaMonthly, setOwnerHoaMonthly] = useState<number>(() => profile?.owner_hoa_monthly ?? 0);
   const [ownerSaveStatus, setOwnerSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const ownerEquity = useMemo(() => {
@@ -1121,6 +1123,7 @@ export default function HomeClient({
       owner_agent_commission_pct: ownerAgentCommission,
       owner_move_in_costs: ownerMoveInCosts,
       owner_expected_sale_price: ownerExpectedSalePrice,
+      owner_hoa_monthly: ownerHoaMonthly || null,
     };
     const { error } = await saveHomeOwnerProfile(payload);
     if (error) {
@@ -2484,6 +2487,13 @@ export default function HomeClient({
                       <div>
                         <label style={labelS}>Agent Commission (%)</label>
                         <input type="number" min="0" max="10" step="0.5" value={ownerAgentCommission} onChange={(e) => setOwnerAgentCommission(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <label style={labelS}>HOA Fee (monthly, optional)</label>
+                        <input type="number" min="0" step="25" value={ownerHoaMonthly || ""} placeholder="0" onChange={(e) => setOwnerHoaMonthly(e.target.value ? Number(e.target.value) : 0)} style={inputS} />
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                          Leave blank if no HOA. Added to your current home cost baseline.
+                        </div>
                       </div>
                       <div>
                         <label style={labelS}>Move-In / Overlap Costs</label>
@@ -5033,7 +5043,7 @@ export default function HomeClient({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
                 {(isOwnerMode ? [
-                  { label: "Current Home (PITI)", value: fmt(inputs.monthly_rent), sub: "what you pay now" },
+                  { label: ownerHoaMonthly > 0 ? "Current Home (PITI + HOA)" : "Current Home (PITI)", value: fmt(inputs.monthly_rent), sub: ownerHoaMonthly > 0 ? `PITI ${fmt(ownerMonthlyPayment)} + HOA ${fmt(ownerHoaMonthly)}` : "what you pay now" },
                   { label: "New Home Gross", value: fmt(computed.totalMonthly), sub: "all in" },
                   { label: "New Home True Cost", value: fmt(computed.trueEffectiveCost), sub: "after equity credit" },
                 ] : [

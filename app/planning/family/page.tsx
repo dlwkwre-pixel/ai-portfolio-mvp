@@ -76,6 +76,7 @@ export default async function FamilyPlanningPage() {
         owner_agent_commission_pct: profileData.owner_agent_commission_pct ? Number(profileData.owner_agent_commission_pct) : 6,
         owner_move_in_costs: profileData.owner_move_in_costs ? Number(profileData.owner_move_in_costs) : 0,
         owner_expected_sale_price: profileData.owner_expected_sale_price ? Number(profileData.owner_expected_sale_price) : null,
+        owner_hoa_monthly: profileData.owner_hoa_monthly ? Number(profileData.owner_hoa_monthly) : null,
       }
     : null;
 

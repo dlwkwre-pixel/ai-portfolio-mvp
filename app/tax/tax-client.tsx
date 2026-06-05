@@ -218,6 +218,17 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const cgStcgRate = incomeTaxEstimate ? derivedStcgRate : stcgRate;
   const cgLtcgRate = incomeTaxEstimate ? derivedLtcgRate : ltcgRate;
 
+  // Quick bracket estimate (when no saved profile, user enters income directly in the bracket finder)
+  const quickTaxEstimate = !incomeTaxEstimate && quickAnnualIncome && quickAnnualIncome > 0
+    ? estimateTax(quickAnnualIncome / 12, quickFilingStatus, "w2", "", 0)
+    : null;
+  // Active estimate: prefer profile-based, fall back to quick entry
+  const activeEstimate = incomeTaxEstimate ?? quickTaxEstimate;
+  const cgStcgRateResolved = activeEstimate ? activeEstimate.federalMarginalRate : stcgRate;
+  const cgLtcgRateResolved = activeEstimate
+    ? (activeEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : activeEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
+    : ltcgRate;
+
   // Apply user-supplied acquisition years to unclassified lots
   const effectiveLots = realizedLots.map(lot => {
     if (lot.acquiredAt || !lotAcqYears[lot.id]) return lot;
@@ -260,28 +271,19 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     : 0;
 
   // Grand total
-  const incomeTaxTotal = incomeTaxEstimate ? Math.round(incomeTaxEstimate.totalTax) : 0;
+  const incomeTaxTotal = activeEstimate ? Math.round(activeEstimate.totalTax) : 0;
   const propertyTaxTotal = annualPropertyTax;
   const investTaxTotal = Math.round(estimatedCapGainsTax);
   const grandTotal = incomeTaxTotal + propertyTaxTotal + investTaxTotal;
   const displayTotal = useCountUp(grandTotal);
 
-  const grossAnnual = incomeTaxEstimate?.grossAnnual ?? 0;
+  const grossAnnual = activeEstimate?.grossAnnual ?? 0;
   const effectiveRate = grossAnnual > 0 ? ((grandTotal / grossAnnual) * 100).toFixed(1) : null;
 
   // Segment widths for progress bar
   const incomeBarPct = grandTotal > 0 ? (incomeTaxTotal / grandTotal) * 100 : 0;
   const propBarPct = grandTotal > 0 ? (propertyTaxTotal / grandTotal) * 100 : 0;
   const investBarPct = grandTotal > 0 ? (investTaxTotal / grandTotal) * 100 : 0;
-
-  // Quick bracket estimate (fallback when no income profile)
-  const quickTaxEstimate = !incomeTaxEstimate && quickAnnualIncome && quickAnnualIncome > 0
-    ? estimateTax(quickAnnualIncome / 12, quickFilingStatus, "w2", "", 0)
-    : null;
-  const cgStcgRateResolved = incomeTaxEstimate ? cgStcgRate : quickTaxEstimate ? quickTaxEstimate.federalMarginalRate : stcgRate;
-  const cgLtcgRateResolved = incomeTaxEstimate ? cgLtcgRate : quickTaxEstimate
-    ? (quickTaxEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : quickTaxEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
-    : ltcgRate;
 
   // Filtered trades
   const filteredLots = effectiveLots.filter(l =>
@@ -362,7 +364,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
             {/* Setup prompt */}
-            {!taxProfile && (
+            {!taxProfile && !quickAnnualIncome && (
               <div className="tax-card" style={{ padding: "14px 16px", background: "oklch(0.55 0.15 265 / 0.07)", border: "1px solid oklch(0.55 0.15 265 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 3px" }}>Connect your income for a full tax picture</p>
@@ -452,20 +454,29 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               color="#3b82f6"
               label="Income Tax"
               amount={incomeTaxTotal}
-              sub={incomeTaxEstimate ? `${fmt(Math.round(grossAnnual))} salary · ${FILING_STATUS_LABELS[(taxProfile?.filingStatus as FilingStatus) ?? "single"]}${taxProfile?.stateCode ? ` · ${taxProfile.stateCode}` : ""}` : "Add your income in Planning to see this"}
-              defaultOpen={!!incomeTaxEstimate}
+              sub={activeEstimate
+                ? `${fmt(Math.round(grossAnnual))} salary · ${FILING_STATUS_LABELS[(taxProfile?.filingStatus ?? quickFilingStatus) as FilingStatus]}${taxProfile?.stateCode ? ` · ${taxProfile.stateCode}` : ""}${quickTaxEstimate ? " · quick estimate" : ""}`
+                : "Add your income in Planning to see this"}
+              defaultOpen={!!activeEstimate}
             >
-              {!incomeTaxEstimate ? (
+              {!activeEstimate ? (
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
                   Your income tax estimate requires your salary, filing status, and state. <Link href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none", fontWeight: 600 }}>Add it in Planning →</Link>
                 </p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {quickTaxEstimate && (
+                    <div style={{ padding: "9px 12px", background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.18)", borderRadius: "var(--radius-md)" }}>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+                        Federal-only estimate based on your income entry below. No state tax included. <Link href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none", fontWeight: 600 }}>Save your profile in Planning →</Link> for a full estimate with state tax, deductions, and income type.
+                      </p>
+                    </div>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "8px" }}>
                     {[
-                      { label: "Federal income tax", value: incomeTaxEstimate.federalIncomeTax, sub: `${(incomeTaxEstimate.federalEffectiveRate * 100).toFixed(1)}% effective · ${Math.round(incomeTaxEstimate.federalMarginalRate * 100)}% marginal` },
-                      { label: taxProfile!.incomeType === "w2" ? "FICA (payroll)" : "Self-employment tax", value: taxProfile!.incomeType === "w2" ? incomeTaxEstimate.ficaTax : incomeTaxEstimate.seTax, sub: taxProfile!.incomeType === "w2" ? "Social Security 6.2% + Medicare 1.45%" : "15.3% on net SE income" },
-                      { label: `State tax${taxProfile?.stateCode ? ` (${taxProfile.stateCode})` : ""}`, value: incomeTaxEstimate.stateTax, sub: `${(incomeTaxEstimate.stateEffectiveRate * 100).toFixed(1)}% effective` },
+                      { label: "Federal income tax", value: activeEstimate.federalIncomeTax, sub: `${(activeEstimate.federalEffectiveRate * 100).toFixed(1)}% effective · ${Math.round(activeEstimate.federalMarginalRate * 100)}% marginal` },
+                      { label: (taxProfile?.incomeType ?? "w2") === "w2" ? "FICA (payroll)" : "Self-employment tax", value: (taxProfile?.incomeType ?? "w2") === "w2" ? activeEstimate.ficaTax : activeEstimate.seTax, sub: (taxProfile?.incomeType ?? "w2") === "w2" ? "Social Security 6.2% + Medicare 1.45%" : "15.3% on net SE income" },
+                      { label: `State tax${taxProfile?.stateCode ? ` (${taxProfile.stateCode})` : ""}`, value: activeEstimate.stateTax, sub: quickTaxEstimate ? "Not included in quick estimate" : `${(activeEstimate.stateEffectiveRate * 100).toFixed(1)}% effective` },
                     ].map(({ label, value, sub }) => (
                       <div key={label} style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
                         <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>{label}</p>
@@ -475,7 +486,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     ))}
                   </div>
 
-                  {taxProfile!.incomeType === "w2" ? (
+                  {(taxProfile?.incomeType ?? "w2") === "w2" ? (
                     <div style={{ padding: "10px 14px", background: "rgba(0,211,149,0.04)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         <strong style={{ color: "var(--green)" }}>Already handled.</strong> Your employer automatically withholds all of this from your paychecks and sends it to the IRS on your behalf. You don&apos;t need to make any additional payments for this portion.
@@ -487,7 +498,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
                         <div>
                           <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "0 0 2px" }}>Each quarter</p>
-                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{fmt(Math.round(incomeTaxEstimate.totalTax / 4))}</p>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{fmt(Math.round(activeEstimate.totalTax / 4))}</p>
                         </div>
                         <div>
                           <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "0 0 2px" }}>Payment due dates</p>
@@ -502,11 +513,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       <p style={{ margin: 0 }}>FICA stands for Federal Insurance Contributions Act. It&apos;s two separate taxes combined: Social Security (6.2% on wages up to $176,100) and Medicare (1.45% on all wages, plus an extra 0.9% above $200k). Your employer pays a matching 6.2% + 1.45% on top of what you pay — so it costs your employer more than your paycheck shows. For self-employed people, you pay both halves (15.3%) as the &quot;self-employment tax.&quot;</p>
                     </LearnPanel>
                     <LearnPanel title="What is the federal marginal rate?">
-                      <p style={{ margin: 0 }}>The US uses a &quot;progressive&quot; tax system — different portions of your income are taxed at different rates. Your &quot;marginal rate&quot; (currently {Math.round((incomeTaxEstimate.federalMarginalRate ?? 0) * 100)}%) is the rate that applies to your last dollar earned. Your &quot;effective rate&quot; ({(incomeTaxEstimate.federalEffectiveRate * 100).toFixed(1)}%) is the overall average. The marginal rate matters most for decisions like whether to contribute more to a 401k — because each dollar you put in reduces taxes at your marginal rate.</p>
+                      <p style={{ margin: 0 }}>The US uses a &quot;progressive&quot; tax system — different portions of your income are taxed at different rates. Your &quot;marginal rate&quot; (currently {Math.round((activeEstimate.federalMarginalRate ?? 0) * 100)}%) is the rate that applies to your last dollar earned. Your &quot;effective rate&quot; ({(activeEstimate.federalEffectiveRate * 100).toFixed(1)}%) is the overall average. The marginal rate matters most for decisions like whether to contribute more to a 401k — because each dollar you put in reduces taxes at your marginal rate.</p>
                     </LearnPanel>
                     {(taxProfile?.preTaxDeductionsAnnual ?? 0) > 0 && (
                       <LearnPanel title="How do pre-tax contributions help?">
-                        <p style={{ margin: 0 }}>Every dollar you put into a traditional 401k, 403b, or HSA comes directly off your taxable income before the IRS sees it. At your {Math.round((incomeTaxEstimate.federalMarginalRate ?? 0) * 100)}% federal rate, each $1,000 you contribute saves you roughly ${Math.round((incomeTaxEstimate.federalMarginalRate ?? 0) * 1000)} in taxes. Your current {fmt(taxProfile!.preTaxDeductionsAnnual)} in contributions is already reducing your taxable income — this estimate already accounts for it.</p>
+                        <p style={{ margin: 0 }}>Every dollar you put into a traditional 401k, 403b, or HSA comes directly off your taxable income before the IRS sees it. At your {Math.round((activeEstimate.federalMarginalRate ?? 0) * 100)}% federal rate, each $1,000 you contribute saves you roughly ${Math.round((activeEstimate.federalMarginalRate ?? 0) * 1000)} in taxes. Your current {fmt(taxProfile!.preTaxDeductionsAnnual)} in contributions is already reducing your taxable income — this estimate already accounts for it.</p>
                       </LearnPanel>
                     )}
                   </div>
