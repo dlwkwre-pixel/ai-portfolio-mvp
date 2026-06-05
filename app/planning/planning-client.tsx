@@ -5741,7 +5741,7 @@ export default function PlanningClient({
           </div>
 
           {/* ── Profile Settings ── */}
-          <div className="cmd-section" style={{ animationDelay: "20ms" }}>
+          <div id="profile-settings" className="cmd-section" style={{ animationDelay: "20ms" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
               <div>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Profile Settings</div>

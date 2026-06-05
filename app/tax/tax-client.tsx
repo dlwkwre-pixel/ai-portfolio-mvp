@@ -367,11 +367,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {!taxProfile && !quickAnnualIncome && (
               <div className="tax-card" style={{ padding: "14px 16px", background: "oklch(0.55 0.15 265 / 0.07)", border: "1px solid oklch(0.55 0.15 265 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <div>
-                  <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 3px" }}>Connect your income for a full tax picture</p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Add your gross salary, filing status, and state in Planning so we can estimate your full annual tax bill — not just investment taxes.</p>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 3px" }}>Add your income for a full tax picture</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Go to Planning → scroll to <strong style={{ color: "var(--text-secondary)" }}>Profile Settings</strong> → enter your <strong style={{ color: "var(--text-secondary)" }}>Gross Monthly Income</strong>, filing status, and state. Or use the bracket finder below.</p>
                 </div>
-                <Link href="/planning" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 265)", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 265 / 0.3)", background: "oklch(0.55 0.15 265 / 0.08)" }}>
-                  Set up →
+                <Link href="/planning#profile-settings" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 265)", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 265 / 0.3)", background: "oklch(0.55 0.15 265 / 0.08)" }}>
+                  Go to Profile Settings →
                 </Link>
               </div>
             )}
@@ -379,10 +379,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               <div className="tax-card" style={{ padding: "14px 16px", background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "#f59e0b", margin: "0 0 3px" }}>Add your gross salary to unlock income tax estimates</p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Your profile is set up, but income tax estimates need your gross monthly salary (before deductions). Your net income override is for cash flow planning only.</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>In Planning → <strong style={{ color: "var(--text-secondary)" }}>Profile Settings</strong>, enter your <strong style={{ color: "var(--text-secondary)" }}>Gross Monthly Income</strong> (pre-tax, before deductions). Your net override is for cash flow only.</p>
                 </div>
-                <Link href="/planning" style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)" }}>
-                  Update →
+                <Link href="/planning#profile-settings" style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)" }}>
+                  Go to Profile Settings →
                 </Link>
               </div>
             )}

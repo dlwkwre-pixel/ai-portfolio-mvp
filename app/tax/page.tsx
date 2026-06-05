@@ -113,11 +113,12 @@ export default async function TaxPage({
   const yearStart = `${selectedYear}-01-01T00:00:00.000Z`;
   const yearEnd = `${selectedYear}-12-31T23:59:59.999Z`;
 
-  const { data: financialProfileData } = await supabase
+  const { data: financialProfileData, error: profileError } = await supabase
     .from("financial_profiles")
-    .select("gross_monthly_income, filing_status, income_type, state_code, pre_tax_deductions_annual, is_homeowner, owner_home_value, owner_mortgage_balance, owner_monthly_payment, owner_interest_rate, owner_remaining_term")
+    .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (profileError) console.error("[tax/page] financial_profiles query error:", profileError.message);
 
   const [
     { data: sellTx },
