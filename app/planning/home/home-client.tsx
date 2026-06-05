@@ -5187,7 +5187,7 @@ export default function HomeClient({
                     {[
                       { label: `Equity at yr ${inputs.hold_years}`, value: fmtK(computed.lastPoint.homeEquity), color: "#3b82f6" },
                       { label: "Home value", value: fmtK(computed.lastPoint.homeValue), color: "var(--text-secondary)" },
-                      { label: "Renter portfolio", value: fmtK(computed.lastPoint.rentPortfolio), color: "#00d395" },
+                      { label: isOwnerMode ? "Stay & invest" : "Renter portfolio", value: fmtK(computed.lastPoint.rentPortfolio), color: "#00d395" },
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ textAlign: "center" }}>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
