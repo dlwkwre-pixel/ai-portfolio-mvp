@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Invalid unsubscribe link.", { status: 400 });
   }
 
-  const secret = process.env.UNSUBSCRIBE_SECRET ?? "buytune-unsub-secret";
+  const secret = process.env.UNSUBSCRIBE_SECRET;
+  if (!secret) return new NextResponse("Server misconfiguration.", { status: 500 });
   const expected = crypto.createHmac("sha256", secret).update(`${userId}:${portfolioId}`).digest("hex");
 
   if (expected !== token) {

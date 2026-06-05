@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
@@ -14,14 +13,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
-
-  let adminSupabase: ReturnType<typeof createAdminClient> | null = null;
+  // Use admin client — this job runs without a user session
+  let adminSupabase: ReturnType<typeof createAdminClient>;
   try {
     adminSupabase = createAdminClient();
   } catch {
-    console.warn("SUPABASE_SERVICE_ROLE_KEY not set — public portfolio sync will be skipped.");
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured." }, { status: 500 });
   }
+  const supabase = adminSupabase;
 
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
@@ -104,9 +103,8 @@ export async function GET(request: Request) {
       successCount++;
 
       // Sync public portfolio if this portfolio is shared
-      if (adminSupabase) {
-        try {
-          const { data: pubPortfolio } = await adminSupabase
+      try {
+        const { data: pubPortfolio } = await adminSupabase
             .from("public_portfolios")
             .select("id, baseline_total_value")
             .eq("source_portfolio_id", portfolio.id)
@@ -224,7 +222,6 @@ export async function GET(request: Request) {
         } catch (pubErr) {
           console.error(`Public portfolio sync failed for ${portfolio.id}:`, pubErr);
         }
-      }
     } catch (err) {
       console.error(`Error processing portfolio ${portfolio.id}:`, err);
       errorCount++;
