@@ -9,6 +9,22 @@ import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
 import type { FinancialProfile, FutureEvent } from "@/app/planning/planning-actions";
 import { addFutureEvent, deleteFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
+import { estimateTax } from "@/lib/tax/estimator";
+import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
+
+function getEffectiveNetMonthly(profile: FinancialProfile | null | undefined): number {
+  if (!profile) return 0;
+  if (profile.net_monthly_override != null) return profile.net_monthly_override;
+  const gross = profile.gross_monthly_income ?? 0;
+  if (gross <= 0) return 0;
+  return estimateTax(
+    gross,
+    (profile.filing_status as FilingStatus) ?? "single",
+    (profile.income_type as IncomeType) ?? "w2",
+    profile.state_code ?? "",
+    profile.pre_tax_deductions_annual ?? 0,
+  ).netMonthly;
+}
 
 // ── Math engines ──────────────────────────────────────────────────────────────
 
@@ -282,7 +298,8 @@ function computeScenarioSummary(s: HomeScenario, profile: FinancialProfile | nul
   if (profile?.current_age && profile?.target_retirement_age && profile?.gross_monthly_income && profile?.monthly_expenses) {
     const yearsToRetire = profile.target_retirement_age - profile.current_age;
     if (yearsToRetire > 0) {
-      const annualSavingsBase = (profile.gross_monthly_income - profile.monthly_expenses) * 12;
+      const netMonthly = getEffectiveNetMonthly(profile);
+      const annualSavingsBase = (netMonthly - profile.monthly_expenses) * 12;
       const baseGrowth = annualSavingsBase > 0
         ? annualSavingsBase * ((Math.pow(1 + ir, yearsToRetire) - 1) / ir)
         : 0;
@@ -1044,6 +1061,9 @@ export default function HomeClient({
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [trackerMounted, setTrackerMounted] = useState(false);
 
+  // Net income after tax/deductions — used for savings-based projections (not DTI/affordability rules which correctly use gross)
+  const effectiveNetMonthly = useMemo(() => getEffectiveNetMonthly(profile), [profile]);
+
   const [targetPurchaseYear, setTargetPurchaseYear] = useState(() => {
     // Seed from an existing linked home_purchase event so "Update" doesn't silently reset the year
     const existing = homeEvents.find((e) => e.category === "home_purchase");
@@ -1259,7 +1279,7 @@ export default function HomeClient({
     if (profile?.current_age && profile?.target_retirement_age && profile?.gross_monthly_income && profile?.monthly_expenses) {
       const yearsToRetire = profile.target_retirement_age - profile.current_age;
       if (yearsToRetire > 0) {
-        const annualSavingsBase = (profile.gross_monthly_income - profile.monthly_expenses) * 12;
+        const annualSavingsBase = (effectiveNetMonthly - profile.monthly_expenses) * 12;
         const baseGrowth = annualSavingsBase > 0
           ? annualSavingsBase * ((Math.pow(1 + ir / 100, yearsToRetire) - 1) / (ir / 100))
           : 0;
@@ -1379,7 +1399,7 @@ export default function HomeClient({
       opportunityCost, affordabilityScore, buyingAdvantages, rentingAdvantages,
       homePriceRanges, readinessScore, stressTests, retirDelta: retirDeltaVal,
     };
-  }, [inputs, profile]);
+  }, [inputs, profile, effectiveNetMonthly]);
 
   // ── Goal Dashboard metrics (forecast-aware) ────────────────────────────────
 
@@ -1387,11 +1407,11 @@ export default function HomeClient({
     const currentYear = new Date().getFullYear();
     const yearsUntilPurchase = Math.max(0, targetPurchaseYear - currentYear);
 
-    const monthlyIncome = profile?.gross_monthly_income ?? 0;
+    const monthlyIncome = effectiveNetMonthly;
     const monthlyExpenses = profile?.monthly_expenses ?? 0;
     const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
     const annualSavings = monthlySavings * 12;
-    const hasProfile = monthlyIncome > 0;
+    const hasProfile = (profile?.gross_monthly_income ?? 0) > 0 || effectiveNetMonthly > 0;
 
     // Projected income in purchase year
     const incomeGrowthFactor = Math.pow(1 + salaryGrowthRate, yearsUntilPurchase);
@@ -1496,7 +1516,7 @@ export default function HomeClient({
       risks, strengths,
       prob, onTrack, dpReadyYear,
     };
-  }, [inputs, profile, targetPurchaseYear, salaryGrowthRate, liquidAssets, computed.totalMonthly]);
+  }, [inputs, profile, targetPurchaseYear, salaryGrowthRate, liquidAssets, computed.totalMonthly, effectiveNetMonthly]);
 
   // ── Path to Success ────────────────────────────────────────────────────────
 
@@ -1748,13 +1768,14 @@ export default function HomeClient({
     if (!goalMetrics.hasProfile) return null;
     if (!profile?.gross_monthly_income || !profile.monthly_expenses) return null;
 
-    const monthlyIncome = profile.gross_monthly_income;
+    const monthlyGrossIncome = profile.gross_monthly_income; // gross for DTI/projected-income calculations
+    const monthlyNetIncome = getEffectiveNetMonthly(profile); // net for savings projections
     const monthlyExpenses = profile.monthly_expenses;
     const dpPct = inputs.purchase_price > 0 ? inputs.down_payment / inputs.purchase_price : 0.20;
     const r = inputs.investment_return / 100;
     const annualRate = inputs.mortgage_rate / 100;
     const appr = inputs.expected_appreciation / 100;
-    const annualSavings = Math.max(0, (monthlyIncome - monthlyExpenses) * 12);
+    const annualSavings = Math.max(0, (monthlyNetIncome - monthlyExpenses) * 12);
 
     const pathDefs = [
       { key: "starter", label: "Starter", priceMult: 0.70, yearOffset: 0 },
@@ -1777,7 +1798,7 @@ export default function HomeClient({
 
       const n = goalMetrics.yearsUntilPurchase + yearOffset;
       const incomeGrowthFactor = Math.pow(1 + salaryGrowthRate, n);
-      const projectedAnnualIncome = monthlyIncome * 12 * incomeGrowthFactor;
+      const projectedAnnualIncome = monthlyGrossIncome * 12 * incomeGrowthFactor;
       let projectedCash: number;
       if (n === 0) {
         projectedCash = liquidAssets;
@@ -1803,7 +1824,7 @@ export default function HomeClient({
       if (profile?.current_age && profile?.target_retirement_age) {
         const yearsToRetire = profile.target_retirement_age - profile.current_age;
         if (yearsToRetire > 0) {
-          const annualSavingsBase = (monthlyIncome - monthlyExpenses) * 12;
+          const annualSavingsBase = (monthlyNetIncome - monthlyExpenses) * 12;
           const extraMonthly = totalMonthly - inputs.monthly_rent;
           const reducedSavings = annualSavingsBase - Math.max(0, extraMonthly) * 12;
           const withHomeGrowth = reducedSavings > 0
@@ -1830,7 +1851,7 @@ export default function HomeClient({
 
   const recommendedPath = useMemo(() => {
     if (!comparePathMetrics) return null;
-    const monthlyIncome = profile?.gross_monthly_income ?? 0;
+    const monthlyNetIncome = getEffectiveNetMonthly(profile);
     const monthlyExpenses = profile?.monthly_expenses ?? 0;
 
     const scored = comparePathMetrics.map((path) => {
@@ -1870,9 +1891,9 @@ export default function HomeClient({
       reasons.push("Dream home achievable without compromising financial health");
     }
 
-    const curSavingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100 : null;
-    const newSavingsRate = monthlyIncome > 0
-      ? ((monthlyIncome - monthlyExpenses - Math.max(0, best.totalMonthly - inputs.monthly_rent)) / monthlyIncome) * 100
+    const curSavingsRate = monthlyNetIncome > 0 ? ((monthlyNetIncome - monthlyExpenses) / monthlyNetIncome) * 100 : null;
+    const newSavingsRate = monthlyNetIncome > 0
+      ? ((monthlyNetIncome - monthlyExpenses - Math.max(0, best.totalMonthly - inputs.monthly_rent)) / monthlyNetIncome) * 100
       : null;
     if (curSavingsRate !== null && newSavingsRate !== null && newSavingsRate < curSavingsRate - 5) {
       concerns.push(`Savings rate falls from ${Math.round(curSavingsRate)}% to ${Math.round(Math.max(0, newSavingsRate))}%`);
@@ -1993,12 +2014,12 @@ export default function HomeClient({
 
   const lifeGoalsImpact = useMemo(() => {
     if (!goalMetrics.hasProfile || !profile?.gross_monthly_income || !profile?.monthly_expenses) return null;
-    const monthlyIncome = profile.gross_monthly_income;
+    const monthlyNetIncome = getEffectiveNetMonthly(profile);
     const monthlyExpenses = profile.monthly_expenses;
     const extraMonthly = Math.max(0, computed.totalMonthly - inputs.monthly_rent);
 
-    const savingsRateBefore = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : null;
-    const savingsRateAfter = monthlyIncome > 0 ? Math.round(Math.max(0, (monthlyIncome - monthlyExpenses - extraMonthly) / monthlyIncome) * 100) : null;
+    const savingsRateBefore = monthlyNetIncome > 0 ? Math.round(((monthlyNetIncome - monthlyExpenses) / monthlyNetIncome) * 100) : null;
+    const savingsRateAfter = monthlyNetIncome > 0 ? Math.round(Math.max(0, (monthlyNetIncome - monthlyExpenses - extraMonthly) / monthlyNetIncome) * 100) : null;
     const savingsRateDelta = savingsRateBefore !== null && savingsRateAfter !== null ? savingsRateAfter - savingsRateBefore : null;
 
     const retirProbBefore = computed.retirBaselineProb;
@@ -2009,7 +2030,7 @@ export default function HomeClient({
 
     const currentYear = new Date().getFullYear();
     const r = inputs.investment_return / 100;
-    const annualSavingsBase = (monthlyIncome - monthlyExpenses) * 12;
+    const annualSavingsBase = (monthlyNetIncome - monthlyExpenses) * 12;
     const annualSavingsAfter = Math.max(0, annualSavingsBase - extraMonthly * 12);
 
     const eduEvents = lifeGoalEvents.filter((e) => e.category === "education" && e.amount_impact < 0);
@@ -4724,11 +4745,11 @@ export default function HomeClient({
                     })}
                   </div>
                   {/* Cash Remaining After Housing */}
-                  {profile?.gross_monthly_income && profile.gross_monthly_income > 0 && (() => {
-                    const cashLeft = profile.gross_monthly_income! - total;
+                  {effectiveNetMonthly > 0 && (() => {
+                    const cashLeft = effectiveNetMonthly - total;
                     const isPositive = cashLeft > 0;
-                    const cashColor = cashLeft >= profile.gross_monthly_income! * 0.30 ? "oklch(0.70 0.18 155)"
-                      : cashLeft >= profile.gross_monthly_income! * 0.15 ? "oklch(0.80 0.14 80)"
+                    const cashColor = cashLeft >= effectiveNetMonthly * 0.30 ? "oklch(0.70 0.18 155)"
+                      : cashLeft >= effectiveNetMonthly * 0.15 ? "oklch(0.80 0.14 80)"
                       : cashLeft >= 0 ? "oklch(0.68 0.18 25)"
                       : "oklch(0.65 0.20 25)";
                     return (
@@ -4736,7 +4757,7 @@ export default function HomeClient({
                         <div>
                           <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "2px" }}>Cash Remaining After Housing</div>
                           <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>
-                            {isPositive ? `${Math.round((cashLeft / profile.gross_monthly_income!) * 100)}% of income available for savings, living, and other goals` : "Housing costs exceed gross income"}
+                            {isPositive ? `${Math.round((cashLeft / effectiveNetMonthly) * 100)}% of net income available for savings, living, and other goals` : "Housing costs exceed net income"}
                           </div>
                         </div>
                         <div style={{ textAlign: "right", flexShrink: 0 }}>

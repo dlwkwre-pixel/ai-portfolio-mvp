@@ -153,11 +153,15 @@ export async function POST(req: NextRequest) {
   // Load authoritative identity fields from DB
   const { data: profileRow } = await supabase
     .from("financial_profiles")
-    .select("current_age, target_retirement_age, risk_tolerance, partner_name, partner_age, partner_target_retirement_age")
+    .select("date_of_birth, target_retirement_age, risk_tolerance, partner_name, partner_age, partner_target_retirement_age")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const dbAge = profileRow?.current_age ?? rawContext.current_age;
+  // current_age is not stored in DB — derive from date_of_birth
+  const computedAge = profileRow?.date_of_birth
+    ? Math.floor((Date.now() - new Date(profileRow.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    : null;
+  const dbAge = computedAge ?? rawContext.current_age;
   const dbRetireAge = profileRow?.target_retirement_age ?? rawContext.target_retirement_age;
 
   // Sanitize string labels that get interpolated into the LLM system prompt (prompt injection defence)

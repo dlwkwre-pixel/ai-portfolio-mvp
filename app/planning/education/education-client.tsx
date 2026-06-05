@@ -9,6 +9,22 @@ import { saveEducationScenario, deleteEducationScenario, addEducationToForecast 
 import type { EducationScenario } from "./education-actions";
 import type { FinancialProfile, ProfileKid } from "@/app/planning/planning-actions";
 import type { EducationFinnRequest } from "@/app/api/planning/education-finn/route";
+import { estimateTax } from "@/lib/tax/estimator";
+import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
+
+function getEffectiveNetMonthly(profile: FinancialProfile | null | undefined): number {
+  if (!profile) return 0;
+  if (profile.net_monthly_override != null) return profile.net_monthly_override;
+  const gross = profile.gross_monthly_income ?? 0;
+  if (gross <= 0) return 0;
+  return estimateTax(
+    gross,
+    (profile.filing_status as FilingStatus) ?? "single",
+    (profile.income_type as IncomeType) ?? "w2",
+    profile.state_code ?? "",
+    profile.pre_tax_deductions_annual ?? 0,
+  ).netMonthly;
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -266,7 +282,7 @@ function computeAll(
 
   if (profile?.gross_monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age) {
     const yToRetir = Math.max(0, profile.target_retirement_age - profile.current_age);
-    const inc = profile.gross_monthly_income;
+    const inc = getEffectiveNetMonthly(profile);
     const exp = profile.monthly_expenses;
     monthlySavingsBefore = inc - exp;
     monthlySavingsAfter = inc - exp - monthly;
@@ -358,7 +374,7 @@ function computeAll(
 
   if (profile?.gross_monthly_income && profile?.monthly_expenses && profile?.current_age && profile?.target_retirement_age && effectiveTotalCost > 0) {
     const yToRetir = Math.max(0, profile.target_retirement_age - profile.current_age);
-    const totalBudget = Math.max(0, profile.gross_monthly_income - profile.monthly_expenses);
+    const totalBudget = Math.max(0, getEffectiveNetMonthly(profile) - profile.monthly_expenses);
     const annualExp = profile.monthly_expenses * 12;
     const step = Math.max(10, Math.round(totalBudget / 80) * 10);
 

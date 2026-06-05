@@ -46,12 +46,16 @@ export async function POST(req: NextRequest) {
   // Load authoritative identity fields from DB — prevents fabricated age/retirement targets
   const { data: profileRow } = await supabase
     .from("financial_profiles")
-    .select("current_age, target_retirement_age")
+    .select("date_of_birth, target_retirement_age")
     .eq("user_id", user.id)
     .maybeSingle();
 
+  // current_age is not stored in DB — derive from date_of_birth
+  const dbAge = profileRow?.date_of_birth
+    ? Math.floor((Date.now() - new Date(profileRow.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    : null;
   // Clamp financial values to sane bounds; use DB-loaded identity fields
-  const current_age = profileRow?.current_age ?? rawContext.current_age;
+  const current_age = dbAge ?? rawContext.current_age;
   const target_retirement_age = profileRow?.target_retirement_age ?? rawContext.target_retirement_age;
   const years_to_retire = (current_age != null && target_retirement_age != null)
     ? Math.max(0, target_retirement_age - current_age)

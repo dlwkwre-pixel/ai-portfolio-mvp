@@ -4094,6 +4094,22 @@ export default function PlanningClient({
   const [formPreTax, setFormPreTax] = useState(() => profile?.pre_tax_deductions_annual ?? 0);
   const [netOverride, setNetOverride] = useState<number | null>(() => profile?.net_monthly_override ?? null);
   const [showNetOverride, setShowNetOverride] = useState(() => (profile?.net_monthly_override ?? null) !== null);
+
+  // Reset all tax-form state when the user opens the edit panel, so canceling and re-opening shows saved values
+  useEffect(() => {
+    if (editingProfile) {
+      setFormGross(profile?.gross_monthly_income ?? 0);
+      setFormFilingStatus((profile?.filing_status as FilingStatus) ?? "single");
+      setFormIncomeType((profile?.income_type as IncomeType) ?? "w2");
+      setFormStateCode(profile?.state_code ?? "");
+      setFormPreTax(profile?.pre_tax_deductions_annual ?? 0);
+      setNetOverride(profile?.net_monthly_override ?? null);
+      setShowNetOverride((profile?.net_monthly_override ?? null) !== null);
+      setProfileSaveError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingProfile]);
+
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
   const snapshotSaved = useRef(false);
