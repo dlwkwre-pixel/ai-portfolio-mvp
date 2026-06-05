@@ -105,6 +105,7 @@ export default function PrivacyPage() {
           <li>Authentication managed through Supabase Auth with secure session handling</li>
           <li>No plaintext storage of passwords</li>
         </ul>
+        <p className="legal-p">As the platform operator, BuyTune staff may access account data in the course of providing customer support, diagnosing technical issues, or as required by law. We do not access your financial data except for these limited operational purposes.</p>
         <p className="legal-p">Despite these measures, no system is completely secure. In the event of a data breach that affects your personal information, we will notify you as required by applicable law.</p>
       </section>
 
