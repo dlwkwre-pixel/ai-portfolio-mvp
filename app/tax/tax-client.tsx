@@ -509,14 +509,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   )}
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <LearnPanel title="What is FICA?">
+                    <LearnPanel title="What is FICA?" label="? What is FICA?">
                       <p style={{ margin: 0 }}>FICA stands for Federal Insurance Contributions Act. It&apos;s two separate taxes combined: Social Security (6.2% on wages up to $176,100) and Medicare (1.45% on all wages, plus an extra 0.9% above $200k). Your employer pays a matching 6.2% + 1.45% on top of what you pay — so it costs your employer more than your paycheck shows. For self-employed people, you pay both halves (15.3%) as the &quot;self-employment tax.&quot;</p>
                     </LearnPanel>
-                    <LearnPanel title="What is the federal marginal rate?">
+                    <LearnPanel title="What is the federal marginal rate?" label="? Marginal rate">
                       <p style={{ margin: 0 }}>The US uses a &quot;progressive&quot; tax system — different portions of your income are taxed at different rates. Your &quot;marginal rate&quot; (currently {Math.round((activeEstimate.federalMarginalRate ?? 0) * 100)}%) is the rate that applies to your last dollar earned. Your &quot;effective rate&quot; ({(activeEstimate.federalEffectiveRate * 100).toFixed(1)}%) is the overall average. The marginal rate matters most for decisions like whether to contribute more to a 401k — because each dollar you put in reduces taxes at your marginal rate.</p>
                     </LearnPanel>
                     {(taxProfile?.preTaxDeductionsAnnual ?? 0) > 0 && (
-                      <LearnPanel title="How do pre-tax contributions help?">
+                      <LearnPanel title="How do pre-tax contributions help?" label="? Pre-tax contributions">
                         <p style={{ margin: 0 }}>Every dollar you put into a traditional 401k, 403b, or HSA comes directly off your taxable income before the IRS sees it. At your {Math.round((activeEstimate.federalMarginalRate ?? 0) * 100)}% federal rate, each $1,000 you contribute saves you roughly ${Math.round((activeEstimate.federalMarginalRate ?? 0) * 1000)} in taxes. Your current {fmt(taxProfile!.preTaxDeductionsAnnual)} in contributions is already reducing your taxable income — this estimate already accounts for it.</p>
                       </LearnPanel>
                     )}
@@ -565,7 +565,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     </div>
                   )}
 
-                  <LearnPanel title="How does the property tax deduction work?">
+                  <LearnPanel title="How does the property tax deduction work?" label="? Property tax deduction">
                     <p style={{ margin: 0 }}>When you file your federal tax return, you choose between taking the &quot;standard deduction&quot; (a fixed dollar amount the IRS gives everyone) or listing your actual deductions (&quot;itemizing&quot;). As a homeowner, you can potentially deduct your mortgage interest AND property taxes. The catch: state + local taxes (including property tax) are capped at $10,000/year total — this is called the SALT limit. Many homeowners in high-cost areas find that itemizing still beats the standard deduction because the mortgage interest alone can exceed the standard amount.</p>
                   </LearnPanel>
                 </div>
@@ -786,10 +786,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     </div>
                   )}
 
-                  <LearnPanel title="What does 'itemizing deductions' mean?">
+                  <LearnPanel title="What does 'itemizing deductions' mean?" label="? Itemizing deductions">
                     <p style={{ margin: 0 }}>When you file your taxes, you can reduce your taxable income in two ways. Option A: take the &quot;standard deduction&quot; — the IRS lets everyone deduct a fixed amount ($15,000 single / $30,000 married) from their income, no questions asked. Option B: &quot;itemize&quot; — list your actual qualifying expenses (mortgage interest, property taxes, charitable donations, certain medical expenses) and deduct the total instead. You can only pick one. If your itemized total is higher than the standard deduction, itemizing saves you money.</p>
                   </LearnPanel>
-                  <LearnPanel title="What is the SALT cap?">
+                  <LearnPanel title="What is the SALT cap?" label="? SALT cap">
                     <p style={{ margin: 0 }}>SALT stands for State And Local Taxes. The IRS lets you deduct what you pay in state income taxes and local property taxes — but only up to $10,000 total per year (for 2025). This cap has a big impact on people in high-tax states like California, New York, and New Jersey, where state income taxes alone can exceed $10,000. Before this cap was introduced in 2017, there was no limit on SALT deductions.</p>
                   </LearnPanel>
                 </div>
