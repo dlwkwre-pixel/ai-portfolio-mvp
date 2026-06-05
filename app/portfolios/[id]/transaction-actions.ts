@@ -407,7 +407,8 @@ export async function updateTransaction(formData: FormData) {
         await supabase
           .from("holdings")
           .update({ average_cost_basis: newAvgCost })
-          .eq("id", holding.id);
+          .eq("id", holding.id)
+          .eq("portfolio_id", portfolioId);
       }
     }
   }
@@ -481,9 +482,9 @@ export async function deleteTransaction(formData: FormData) {
     if (holding) {
       const remainingShares = Number(holding.shares ?? 0) - Number(tx.quantity ?? 0);
       if (remainingShares <= 0) {
-        await supabase.from("holdings").delete().eq("id", holding.id);
+        await supabase.from("holdings").delete().eq("id", holding.id).eq("portfolio_id", portfolioId);
       } else {
-        await supabase.from("holdings").update({ shares: remainingShares }).eq("id", holding.id);
+        await supabase.from("holdings").update({ shares: remainingShares }).eq("id", holding.id).eq("portfolio_id", portfolioId);
       }
     }
   }
@@ -502,7 +503,8 @@ export async function deleteTransaction(formData: FormData) {
       await supabase
         .from("holdings")
         .update({ shares: Number(holding.shares ?? 0) + Number(tx.quantity ?? 0) })
-        .eq("id", holding.id);
+        .eq("id", holding.id)
+        .eq("portfolio_id", portfolioId);
     } else {
       // Holding was fully sold — recreate it
       await supabase.from("holdings").insert({

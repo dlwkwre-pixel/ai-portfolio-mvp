@@ -176,11 +176,13 @@ export async function copyStrategyAsTemplate(strategyId: string) {
     });
   }
 
-  // Increment copies count on source
-  await supabase
+  // Increment copies count — use admin client + is_public guard to prevent
+  // count inflation on private strategies or race-condition visibility changes.
+  await admin
     .from("strategies")
     .update({ copies_count: (source.copies_count ?? 0) + 1 })
-    .eq("id", strategyId);
+    .eq("id", strategyId)
+    .eq("is_public", true);
 
   revalidatePath("/strategies");
   revalidatePath("/community");

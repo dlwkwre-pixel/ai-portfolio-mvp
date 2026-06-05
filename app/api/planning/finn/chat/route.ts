@@ -120,6 +120,15 @@ function checkRateLimit(userId: string): string | null {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
+// Clamp to sane numeric bounds and sanitize strings that enter the LLM prompt
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, isFinite(n) ? n : 0));
+}
+function sanitize(s: string | null | undefined, maxLen = 120): string {
+  if (!s) return "";
+  return String(s).replace(/[\r\n]+/g, " ").slice(0, maxLen);
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -132,14 +141,57 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: "Groq not configured." }, { status: 500 });
 
   let messages: FinnChatMessage[];
-  let context: FinnChatContext;
+  let rawContext: FinnChatContext;
   try {
     const body = await req.json();
     messages = (body.messages as FinnChatMessage[]).slice(-20);
-    context = body.context as FinnChatContext;
+    rawContext = body.context as FinnChatContext;
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
+
+  // Load authoritative identity fields from DB
+  const { data: profileRow } = await supabase
+    .from("financial_profiles")
+    .select("current_age, target_retirement_age, risk_tolerance, partner_name, partner_age, partner_target_retirement_age")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const dbAge = profileRow?.current_age ?? rawContext.current_age;
+  const dbRetireAge = profileRow?.target_retirement_age ?? rawContext.target_retirement_age;
+
+  // Sanitize string labels that get interpolated into the LLM system prompt (prompt injection defence)
+  // and clamp numeric values to sane bounds.
+  const context: FinnChatContext = {
+    ...rawContext,
+    current_age: dbAge,
+    target_retirement_age: dbRetireAge,
+    years_to_retire: (dbAge != null && dbRetireAge != null) ? Math.max(0, dbRetireAge - dbAge) : rawContext.years_to_retire,
+    risk_tolerance: profileRow?.risk_tolerance ?? rawContext.risk_tolerance,
+    partner_name: sanitize(profileRow?.partner_name ?? rawContext.partner_name),
+    partner_age: profileRow?.partner_age ?? rawContext.partner_age,
+    partner_target_retirement_age: profileRow?.partner_target_retirement_age ?? rawContext.partner_target_retirement_age,
+    net_worth:              clamp(rawContext.net_worth, -1e10, 1e10),
+    total_assets:           clamp(rawContext.total_assets, 0, 1e10),
+    total_liabilities:      clamp(rawContext.total_liabilities, 0, 1e10),
+    portfolio_value:        clamp(rawContext.portfolio_value, 0, 1e10),
+    liquid_assets:          clamp(rawContext.liquid_assets, 0, 1e10),
+    monthly_net_income:     clamp(rawContext.monthly_net_income, 0, 1e7),
+    monthly_expenses:       clamp(rawContext.monthly_expenses, 0, 1e7),
+    monthly_savings:        clamp(rawContext.monthly_savings, -1e7, 1e7),
+    savings_rate_pct:       clamp(rawContext.savings_rate_pct, -100, 100),
+    financial_health_score: clamp(rawContext.financial_health_score, 0, 100),
+    health_factors: (rawContext.health_factors ?? []).map((f) => ({ ...f, name: sanitize(f.name, 60), score: clamp(f.score, 0, f.max) })),
+    asset_items:     (rawContext.asset_items ?? []).map((a) => ({ ...a, label: sanitize(a.label), category: sanitize(a.category, 40), value: clamp(a.value, 0, 1e10) })),
+    liability_items: (rawContext.liability_items ?? []).map((l) => ({ ...l, label: sanitize(l.label), value: clamp(l.value, 0, 1e10) })),
+    income_items:    (rawContext.income_items ?? []).map((i) => ({ ...i, label: sanitize(i.label), amount: clamp(i.amount, 0, 1e7) })),
+    expense_items:   (rawContext.expense_items ?? []).map((e) => ({ ...e, label: sanitize(e.label), amount: clamp(e.amount, 0, 1e7) })),
+    future_events:   (rawContext.future_events ?? []).map((e) => ({ ...e, label: sanitize(e.label), amount_impact: clamp(e.amount_impact, -1e9, 1e9) })),
+    home_scenarios:   (rawContext.home_scenarios ?? []).map((s) => ({ ...s, name: sanitize(s.name) })),
+    career_scenarios: (rawContext.career_scenarios ?? []).map((s) => ({ ...s, name: sanitize(s.name) })),
+    education_scenarios: (rawContext.education_scenarios ?? []).map((s) => ({ ...s, name: sanitize(s.name), child_name: sanitize(s.child_name) })),
+    family_scenarios: (rawContext.family_scenarios ?? []).map((s) => ({ ...s, name: sanitize(s.name), child_name: sanitize(s.child_name) })),
+  };
 
   const fmt = (n: number) => "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
   const pct = (n: number) => n.toFixed(1) + "%";

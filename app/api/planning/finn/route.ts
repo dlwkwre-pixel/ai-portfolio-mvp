@@ -24,6 +24,10 @@ export type FinnContext = {
   future_events_count?: number;
 };
 
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, isFinite(n) ? n : 0));
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -32,17 +36,50 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Groq not configured." }, { status: 500 });
 
-  let context: FinnContext;
+  let rawContext: FinnContext;
   try {
-    context = await req.json() as FinnContext;
+    rawContext = await req.json() as FinnContext;
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  // Load authoritative identity fields from DB — prevents fabricated age/retirement targets
+  const { data: profileRow } = await supabase
+    .from("financial_profiles")
+    .select("current_age, target_retirement_age")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  // Clamp financial values to sane bounds; use DB-loaded identity fields
+  const current_age = profileRow?.current_age ?? rawContext.current_age;
+  const target_retirement_age = profileRow?.target_retirement_age ?? rawContext.target_retirement_age;
+  const years_to_retire = (current_age != null && target_retirement_age != null)
+    ? Math.max(0, target_retirement_age - current_age)
+    : rawContext.years_to_retire;
+
+  const context = {
+    ...rawContext,
+    current_age,
+    target_retirement_age,
+    years_to_retire,
+    total_assets:           clamp(rawContext.total_assets, 0, 1e10),
+    total_liabilities:      clamp(rawContext.total_liabilities, 0, 1e10),
+    net_worth:              clamp(rawContext.net_worth, -1e10, 1e10),
+    monthly_income:         clamp(rawContext.monthly_income, 0, 1e7),
+    monthly_expenses:       clamp(rawContext.monthly_expenses, 0, 1e7),
+    monthly_savings:        clamp(rawContext.monthly_savings, -1e7, 1e7),
+    savings_rate_pct:       clamp(rawContext.savings_rate_pct, -100, 100),
+    portfolio_total_value:  clamp(rawContext.portfolio_total_value, 0, 1e10),
+    financial_health_score: clamp(rawContext.financial_health_score, 0, 100),
+    health_factors: (rawContext.health_factors ?? []).map((f) => ({
+      ...f,
+      score: clamp(f.score, 0, f.max),
+    })),
+  };
+
   const {
-    current_age, target_retirement_age, years_to_retire,
-    total_assets, total_liabilities, net_worth,
     monthly_income, monthly_expenses, monthly_savings, savings_rate_pct,
+    total_assets, total_liabilities, net_worth,
     portfolio_total_value, financial_health_score, health_factors,
     return_rate_pct, inflation_rate_pct, retirement_probability,
     projected_nw_at_retirement, future_events_count,
