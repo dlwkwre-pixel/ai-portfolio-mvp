@@ -22,8 +22,8 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 function glColor(v: number) {
-  if (v > 0) return "var(--red)";
-  if (v < 0) return "var(--green)";
+  if (v > 0) return "var(--green)";
+  if (v < 0) return "var(--red)";
   return "var(--text-secondary)";
 }
 
@@ -77,7 +77,7 @@ type TabId = typeof TABS[number]["id"];
 
 // ─── learn panel ─────────────────────────────────────────────────────────────
 
-function LearnPanel({ title, children }: { title: string; children: React.ReactNode }) {
+function LearnPanel({ title, label, children }: { title: string; label?: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div>
@@ -86,7 +86,7 @@ function LearnPanel({ title, children }: { title: string; children: React.ReactN
         onClick={() => setOpen(v => !v)}
         style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, color: "oklch(0.62 0.15 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "10px", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-body)", marginTop: "4px" }}
       >
-        {open ? "✕ Hide" : "? What is this"}
+        {open ? "✕ Hide" : (label ?? "? What is this")}
       </button>
       <div style={{ maxHeight: open ? "400px" : "0", overflow: "hidden", transition: "max-height 0.3s ease" }}>
         <div style={{ padding: "10px 14px", marginTop: "8px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.12)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
@@ -182,6 +182,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [finnError, setFinnError] = useState<string | null>(null);
   const [realizedFilter, setRealizedFilter] = useState<"all" | "gains" | "losses">("all");
   const [barMounted, setBarMounted] = useState(false);
+  const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>({});
+  const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
+  const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
 
   useEffect(() => {
     const t = setTimeout(() => setBarMounted(true), 150);
@@ -215,10 +218,19 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const cgStcgRate = incomeTaxEstimate ? derivedStcgRate : stcgRate;
   const cgLtcgRate = incomeTaxEstimate ? derivedLtcgRate : ltcgRate;
 
+  // Apply user-supplied acquisition years to unclassified lots
+  const effectiveLots = realizedLots.map(lot => {
+    if (lot.acquiredAt || !lotAcqYears[lot.id]) return lot;
+    const acqYear = lotAcqYears[lot.id];
+    const sellYear = new Date(lot.soldAt).getFullYear();
+    const term: "short" | "long" = acqYear >= sellYear ? "short" : "long";
+    return { ...lot, termType: term };
+  });
+
   // Realized gains breakdown
-  const stcgLots = realizedLots.filter(l => l.termType === "short");
-  const ltcgLots = realizedLots.filter(l => l.termType === "long");
-  const unknownLots = realizedLots.filter(l => l.termType === "unknown");
+  const stcgLots = effectiveLots.filter(l => l.termType === "short");
+  const ltcgLots = effectiveLots.filter(l => l.termType === "long");
+  const unknownLots = effectiveLots.filter(l => l.termType === "unknown");
   const stcgNet = stcgLots.reduce((s, l) => s + l.gainLoss, 0);
   const ltcgNet = ltcgLots.reduce((s, l) => s + l.gainLoss, 0);
   const totalRealizedGain = stcgNet + ltcgNet + unknownLots.reduce((s, l) => s + l.gainLoss, 0);
@@ -227,6 +239,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const estimatedCapGainsTax = Math.max(0, stcgNet) * cgStcgRate
     + Math.max(0, ltcgNet) * (cgLtcgRate + (cgNiit ? 0.038 : 0))
     + dividendIncome * cgLtcgRate;
+
 
   // Property tax estimate (homeowner)
   const annualPropertyTax = taxProfile?.isHomeowner && taxProfile.ownerHomeValue
@@ -261,11 +274,20 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const propBarPct = grandTotal > 0 ? (propertyTaxTotal / grandTotal) * 100 : 0;
   const investBarPct = grandTotal > 0 ? (investTaxTotal / grandTotal) * 100 : 0;
 
+  // Quick bracket estimate (fallback when no income profile)
+  const quickTaxEstimate = !incomeTaxEstimate && quickAnnualIncome && quickAnnualIncome > 0
+    ? estimateTax(quickAnnualIncome / 12, quickFilingStatus, "w2", "", 0)
+    : null;
+  const cgStcgRateResolved = incomeTaxEstimate ? cgStcgRate : quickTaxEstimate ? quickTaxEstimate.federalMarginalRate : stcgRate;
+  const cgLtcgRateResolved = incomeTaxEstimate ? cgLtcgRate : quickTaxEstimate
+    ? (quickTaxEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : quickTaxEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
+    : ltcgRate;
+
   // Filtered trades
-  const filteredLots = realizedLots.filter(l =>
+  const filteredLots = effectiveLots.filter(l =>
     realizedFilter === "all" ? true : realizedFilter === "gains" ? l.gainLoss >= 0 : l.gainLoss < 0
   );
-  const potentialSavings = Math.abs(totalTLHAvailable) * cgStcgRate;
+  const potentialSavings = Math.abs(totalTLHAvailable) * cgStcgRateResolved;
 
   async function runFinnAnalysis() {
     setFinnLoading(true); setFinnError(null); setFinnOutput(null);
@@ -340,14 +362,25 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
 
             {/* Setup prompt */}
-            {!taxProfile?.grossMonthly && (
+            {!taxProfile && (
               <div className="tax-card" style={{ padding: "14px 16px", background: "oklch(0.55 0.15 265 / 0.07)", border: "1px solid oklch(0.55 0.15 265 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 3px" }}>Connect your income for a full tax picture</p>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Add your salary, filing status, and state in Planning so we can estimate your full annual tax bill — not just investment taxes.</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Add your gross salary, filing status, and state in Planning so we can estimate your full annual tax bill — not just investment taxes.</p>
                 </div>
                 <Link href="/planning" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 265)", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 265 / 0.3)", background: "oklch(0.55 0.15 265 / 0.08)" }}>
                   Set up →
+                </Link>
+              </div>
+            )}
+            {taxProfile && !taxProfile.grossMonthly && (
+              <div className="tax-card" style={{ padding: "14px 16px", background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "#f59e0b", margin: "0 0 3px" }}>Add your gross salary to unlock income tax estimates</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Your profile is set up, but income tax estimates need your gross monthly salary (before deductions). Your net income override is for cash flow planning only.</p>
+                </div>
+                <Link href="/planning" style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", textDecoration: "none", whiteSpace: "nowrap", padding: "5px 12px", borderRadius: "var(--radius-full)", border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.08)" }}>
+                  Update →
                 </Link>
               </div>
             )}
@@ -583,7 +616,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     )}
                     {unknownLots.length > 0 && (
                       <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0 }}>
-                        ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s" : ""} have no purchase date — they can&apos;t be classified. Add acquisition dates when recording sells for accurate estimates.
+                        ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s" : ""}{" "}have no purchase date — they can&apos;t be classified. Pick purchase years in the My Trades tab to estimate the term.
                       </p>
                     )}
                     {taxProfile?.incomeType === "w2" && investTaxTotal > 1000 && (
@@ -596,25 +629,68 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </>
                 )}
 
-                {/* Manual bracket picker — only shown when no income profile */}
+                {/* Bracket finder — only shown when no income profile */}
                 {!incomeTaxEstimate && (
                   <div style={{ padding: "12px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                    <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 10px" }}>No income profile — pick your tax bracket to estimate:</p>
+                    <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>What&apos;s my tax bracket?</p>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const, marginBottom: "10px" }}>
+                      <div style={{ flex: "1 1 160px" }}>
+                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Annual income (gross)</p>
+                        <input
+                          type="number" min="0" step="1000"
+                          value={quickAnnualIncome ?? ""}
+                          onChange={e => setQuickAnnualIncome(Number(e.target.value) || null)}
+                          placeholder="e.g. 85000"
+                          style={{ width: "100%", padding: "6px 10px", background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: "12px", fontFamily: "var(--font-mono)", boxSizing: "border-box" as const }}
+                        />
+                      </div>
+                      <div style={{ flex: "1 1 140px" }}>
+                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Filing status</p>
+                        <select
+                          value={quickFilingStatus}
+                          onChange={e => setQuickFilingStatus(e.target.value as FilingStatus)}
+                          style={{ width: "100%", padding: "6px 10px", background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: "12px", boxSizing: "border-box" as const }}
+                        >
+                          <option value="single">Single</option>
+                          <option value="married_filing_jointly">Married filing jointly</option>
+                          <option value="head_of_household">Head of household</option>
+                          <option value="married_filing_separately">Married filing separately</option>
+                        </select>
+                      </div>
+                    </div>
+                    {quickTaxEstimate && (
+                      <div style={{ padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.08)", border: "1px solid oklch(0.55 0.15 265 / 0.2)", borderRadius: "var(--radius-sm)", marginBottom: "10px" }}>
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 4px" }}>
+                          You&apos;re in the {Math.round(quickTaxEstimate.federalMarginalRate * 100)}% federal bracket
+                        </p>
+                        <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
+                          {Math.round(quickTaxEstimate.federalEffectiveRate * 100)}% effective rate · long-term gains taxed at {Math.round(cgLtcgRateResolved * 100)}%
+                        </p>
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" as const }}>
                       <div>
-                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Ordinary rate (short-term)</p>
+                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Short-term rate (ordinary income)</p>
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" as const }}>
-                          {STCG_BRACKETS.map(b => (
-                            <button key={b.label} type="button" onClick={() => setStcgRate(b.rate)} style={{ padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", cursor: "pointer", border: "1px solid", background: stcgRate === b.rate ? "var(--brand-blue)" : "var(--bg-elevated)", borderColor: stcgRate === b.rate ? "var(--brand-blue)" : "var(--border)", color: stcgRate === b.rate ? "#fff" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{b.label}</button>
-                          ))}
+                          {STCG_BRACKETS.map(b => {
+                            const autoSelected = quickTaxEstimate && Math.round(quickTaxEstimate.federalMarginalRate * 100) === Math.round(b.rate * 100);
+                            const manualSelected = !quickTaxEstimate && stcgRate === b.rate;
+                            return (
+                              <button key={b.label} type="button" onClick={() => { setStcgRate(b.rate); setQuickAnnualIncome(null); }} style={{ padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", cursor: "pointer", border: "1px solid", background: (autoSelected || manualSelected) ? "var(--brand-blue)" : "var(--bg-elevated)", borderColor: (autoSelected || manualSelected) ? "var(--brand-blue)" : "var(--border)", color: (autoSelected || manualSelected) ? "#fff" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{b.label}</button>
+                            );
+                          })}
                         </div>
                       </div>
                       <div>
                         <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Long-term rate</p>
                         <div style={{ display: "flex", gap: "4px" }}>
-                          {LTCG_RATES.map(b => (
-                            <button key={b.label} type="button" onClick={() => setLtcgRate(b.rate)} style={{ padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", cursor: "pointer", border: "1px solid", background: ltcgRate === b.rate ? "var(--brand-blue)" : "var(--bg-elevated)", borderColor: ltcgRate === b.rate ? "var(--brand-blue)" : "var(--border)", color: ltcgRate === b.rate ? "#fff" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{b.label}</button>
-                          ))}
+                          {LTCG_RATES.map(b => {
+                            const autoSelected = quickTaxEstimate && Math.abs(cgLtcgRateResolved - b.rate) < 0.001;
+                            const manualSelected = !quickTaxEstimate && ltcgRate === b.rate;
+                            return (
+                              <button key={b.label} type="button" onClick={() => { setLtcgRate(b.rate); setQuickAnnualIncome(null); }} style={{ padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", cursor: "pointer", border: "1px solid", background: (autoSelected || manualSelected) ? "var(--brand-blue)" : "var(--bg-elevated)", borderColor: (autoSelected || manualSelected) ? "var(--brand-blue)" : "var(--border)", color: (autoSelected || manualSelected) ? "#fff" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{b.label}</button>
+                            );
+                          })}
                         </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "flex-end" }}>
@@ -626,14 +702,17 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         </label>
                       </div>
                     </div>
+                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0" }}>
+                      Or <Link href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none" }}>set up your full income profile in Planning</Link> to auto-calculate everything.
+                    </p>
                   </div>
                 )}
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <LearnPanel title="Why does it matter how long you hold a stock?">
+                  <LearnPanel title="Why does it matter how long you hold a stock?" label="? Holding period">
                     <p style={{ margin: 0 }}>The IRS rewards patience. If you sell a stock after holding it for more than one year, you pay the &quot;long-term&quot; rate — 0%, 15%, or 20% depending on your income. If you sell before one year, the profit is treated like ordinary income and taxed at your regular bracket (up to 37%). That difference can be massive: a $20,000 gain at 22% costs $4,400; the same gain at 15% costs $3,000. Simply waiting can save you over $1,000 on a single trade.</p>
                   </LearnPanel>
-                  <LearnPanel title="What are dividends and why are they taxed?">
+                  <LearnPanel title="What are dividends and why are they taxed?" label="? Dividends">
                     <p style={{ margin: 0 }}>When a company makes profit, it sometimes shares that money with shareholders as a &quot;dividend.&quot; The IRS taxes this as income. &quot;Qualified dividends&quot; (from US companies you&apos;ve held for more than 60 days) get the lower long-term capital gains rate. &quot;Ordinary dividends&quot; get taxed at your regular income rate. Most dividends from ETFs and major US stocks are qualified.</p>
                   </LearnPanel>
                 </div>
@@ -896,9 +975,25 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{lot.ticker}</td>
                           <td style={{ padding: "8px 12px", color: "var(--text-muted)", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{lot.portfolioName}</td>
                           <td style={{ padding: "8px 12px", color: "var(--text-secondary)", whiteSpace: "nowrap" as const }}>{fmtDate(lot.soldAt)}</td>
-                          <td style={{ padding: "8px 12px", color: lot.acquiredAt ? "var(--text-secondary)" : "var(--text-muted)", whiteSpace: "nowrap" as const }}>{lot.acquiredAt ? fmtDate(lot.acquiredAt) : "—"}</td>
-                          <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{lot.holdingDays !== null ? `${lot.holdingDays}d` : "—"}</td>
-                          <td style={{ padding: "8px 12px" }}><TermBadge term={lot.termType} /></td>
+                          <td style={{ padding: "8px 12px", color: "var(--text-secondary)", whiteSpace: "nowrap" as const }}>
+                            {lot.acquiredAt ? fmtDate(lot.acquiredAt) : (
+                              <select
+                                value={lotAcqYears[lot.id] ?? ""}
+                                onChange={e => {
+                                  const y = Number(e.target.value);
+                                  setLotAcqYears(prev => y ? { ...prev, [lot.id]: y } : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== lot.id)));
+                                }}
+                                style={{ padding: "2px 6px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: lotAcqYears[lot.id] ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px", cursor: "pointer" }}
+                              >
+                                <option value="">yr?</option>
+                                {Array.from({ length: 12 }, (_, i) => selectedYear - i).map(y => (
+                                  <option key={y} value={y}>{y}</option>
+                                ))}
+                              </select>
+                            )}
+                          </td>
+                          <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{lot.holdingDays !== null ? `${lot.holdingDays}d` : lotAcqYears[lot.id] ? `~${(selectedYear - lotAcqYears[lot.id]) * 365}d` : "—"}</td>
+                          <td style={{ padding: "8px 12px" }}><TermBadge term={(effectiveLots.find(e => e.id === lot.id)?.termType ?? lot.termType)} /></td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{lot.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.costBasis)}</td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.proceeds)}</td>
@@ -922,7 +1017,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
             {unknownLots.length > 0 && (
               <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0, padding: "0 2px" }}>
-                ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s" : ""} are missing an acquisition date. Add purchase dates when recording sells to get accurate short/long-term classification.
+                ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s" : ""}{" "}are missing an acquisition date. Use the &quot;yr?&quot; dropdown in the Acquired column above to pick the purchase year — that&apos;s enough to classify short vs long-term.
               </p>
             )}
             {disclaimer}
