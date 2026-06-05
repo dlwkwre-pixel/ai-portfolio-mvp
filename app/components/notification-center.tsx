@@ -32,14 +32,23 @@ export default function NotificationCenter() {
           .from("app_notifications")
           .select("id, title, body, created_at")
           .or(`target_user_id.is.null,target_user_id.eq.${user.id}`)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .limit(50),
         supabase
           .from("user_notification_reads")
           .select("notification_id")
           .eq("user_id", user.id),
       ]);
 
-      setNotifications(notifs ?? []);
+      // Deduplicate by title (newest wins), then cap at 10
+      const seen = new Set<string>();
+      const deduped = (notifs ?? []).filter((n) => {
+        if (seen.has(n.title)) return false;
+        seen.add(n.title);
+        return true;
+      }).slice(0, 10);
+
+      setNotifications(deduped);
       setReadIds(new Set((reads ?? []).map((r) => r.notification_id)));
       setLoaded(true);
     }
