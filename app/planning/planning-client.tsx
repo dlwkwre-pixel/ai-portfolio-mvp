@@ -5978,9 +5978,15 @@ export default function PlanningClient({
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{fmt(profile.gross_monthly_income!)}</div>
                         </div>
                         <div>
-                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>Est. Net Monthly</div>
-                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--green)", fontWeight: 500 }}>{fmt(Math.round(t.netMonthly))}</div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>{Math.round(t.federalEffectiveRate * 100 + t.stateEffectiveRate * 100)}% effective total tax</div>
+                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>
+                            {netOverride !== null ? "Net Monthly" : "Est. Net Monthly"}
+                          </div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--green)", fontWeight: 500 }}>
+                            {fmt(netOverride !== null ? netOverride : Math.round(t.netMonthly))}
+                          </div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
+                            {netOverride !== null ? "your override" : `${Math.round(t.federalEffectiveRate * 100 + t.stateEffectiveRate * 100)}% effective total tax`}
+                          </div>
                         </div>
                       </>
                     );
