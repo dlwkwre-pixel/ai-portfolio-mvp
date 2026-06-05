@@ -5859,7 +5859,7 @@ export default function PlanningClient({
                             {showNetOverride ? (
                               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                                 <input
-                                  type="number" min="0" step="100"
+                                  type="number" min="0" step="1"
                                   value={netOverride ?? computedNet}
                                   onChange={(e) => setNetOverride(Number(e.target.value) || 0)}
                                   style={{ ...inputStyle, minWidth: "unset", width: "80px", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "3px 6px" }}
