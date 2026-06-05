@@ -54,6 +54,13 @@ export type TaxProfile = {
   filingStatus: string;
   incomeType: string;
   stateCode: string | null;
+  preTaxDeductionsAnnual: number;
+  isHomeowner: boolean;
+  ownerHomeValue: number | null;
+  ownerMortgageBalance: number | null;
+  ownerMonthlyPayment: number | null;
+  ownerInterestRate: number | null;
+  ownerRemainingTerm: number | null;
 };
 
 export type TaxPageData = {
@@ -108,7 +115,7 @@ export default async function TaxPage({
 
   const { data: financialProfileData } = await supabase
     .from("financial_profiles")
-    .select("gross_monthly_income, filing_status, income_type, state_code")
+    .select("gross_monthly_income, filing_status, income_type, state_code, pre_tax_deductions_annual, is_homeowner, owner_home_value, owner_mortgage_balance, owner_monthly_payment, owner_interest_rate, owner_remaining_term")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -271,6 +278,13 @@ export default async function TaxPage({
     filingStatus: financialProfileData.filing_status ?? "single",
     incomeType: financialProfileData.income_type ?? "w2",
     stateCode: financialProfileData.state_code ?? null,
+    preTaxDeductionsAnnual: financialProfileData.pre_tax_deductions_annual ? Number(financialProfileData.pre_tax_deductions_annual) : 0,
+    isHomeowner: financialProfileData.is_homeowner ?? false,
+    ownerHomeValue: financialProfileData.owner_home_value ? Number(financialProfileData.owner_home_value) : null,
+    ownerMortgageBalance: financialProfileData.owner_mortgage_balance ? Number(financialProfileData.owner_mortgage_balance) : null,
+    ownerMonthlyPayment: financialProfileData.owner_monthly_payment ? Number(financialProfileData.owner_monthly_payment) : null,
+    ownerInterestRate: financialProfileData.owner_interest_rate ? Number(financialProfileData.owner_interest_rate) : null,
+    ownerRemainingTerm: financialProfileData.owner_remaining_term ? Number(financialProfileData.owner_remaining_term) : null,
   } : null;
 
   const taxData: TaxPageData = {
