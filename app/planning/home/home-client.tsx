@@ -973,10 +973,12 @@ function buildDefaults(
   const suggestedTax = Math.round((suggestedPrice * 0.012) / 12 / 10) * 10;
   const suggestedIns = Math.round((suggestedPrice * 0.004) / 12 / 10) * 10;
 
-  // Use monthly_expenses as a proxy for current rent if available
-  const suggestedRent = profile.monthly_expenses && profile.monthly_expenses > 0
-    ? Math.round(profile.monthly_expenses / 100) * 100
-    : base.monthly_rent;
+  // Owner-mover: use their actual PITI if available; otherwise fall back to monthly_expenses or base
+  const suggestedRent = (profile.is_homeowner && profile.owner_monthly_payment && profile.owner_monthly_payment > 0)
+    ? Math.round(profile.owner_monthly_payment / 100) * 100
+    : profile.monthly_expenses && profile.monthly_expenses > 0
+      ? Math.round(profile.monthly_expenses / 100) * 100
+      : base.monthly_rent;
 
   return {
     ...base,
@@ -5018,18 +5020,27 @@ export default function HomeClient({
               );
             })()}
 
-            {/* Effective cost vs rent */}
+            {/* Effective cost comparison */}
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>True Ownership Cost vs Rent</p>
-                <span className="has-tip" data-tip="Your 'true' monthly cost is lower than the gross payment because each month you're building equity (principal paydown) — that money stays yours. This compares the real cost of owning vs. just renting.">i</span>
+                <p style={{ ...sectionHead, margin: 0 }}>
+                  {isOwnerMode ? "Current Home vs New Home Monthly Cost" : "True Ownership Cost vs Rent"}
+                </p>
+                <span className="has-tip" data-tip={isOwnerMode
+                  ? "Compares what you pay now vs. what the new home will cost. 'True cost' subtracts principal paydown (equity you keep) and adds opportunity cost on the larger down payment."
+                  : "Your 'true' monthly cost is lower than the gross payment because each month you're building equity (principal paydown) — that money stays yours. This compares the real cost of owning vs. just renting."
+                }>i</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-                {[
+                {(isOwnerMode ? [
+                  { label: "Current Home (PITI)", value: fmt(inputs.monthly_rent), sub: "what you pay now" },
+                  { label: "New Home Gross", value: fmt(computed.totalMonthly), sub: "all in" },
+                  { label: "New Home True Cost", value: fmt(computed.trueEffectiveCost), sub: "after equity credit" },
+                ] : [
                   { label: "Gross Monthly", value: fmt(computed.totalMonthly), sub: "all in" },
                   { label: "True Effective", value: fmt(computed.trueEffectiveCost), sub: "after principal credit" },
                   { label: "Monthly Rent", value: fmt(inputs.monthly_rent), sub: "alternative" },
-                ].map(({ label, value, sub }) => (
+                ]).map(({ label, value, sub }) => (
                   <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                     <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
@@ -5038,52 +5049,115 @@ export default function HomeClient({
                 ))}
               </div>
               <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                True effective cost = gross monthly − principal paydown + opportunity cost on down payment ({pct(inputs.investment_return)} annual return foregone).
+                {isOwnerMode
+                  ? `Monthly delta: ${computed.totalMonthly > inputs.monthly_rent ? "+" : ""}${fmt(computed.totalMonthly - inputs.monthly_rent)}/mo vs your current home. New home true cost subtracts principal paydown and accounts for opportunity cost on the down payment at ${pct(inputs.investment_return)}/yr.`
+                  : `True effective cost = gross monthly − principal paydown + opportunity cost on down payment (${pct(inputs.investment_return)} annual return foregone).`}
               </p>
             </div>
 
-            {/* Equivalent rent threshold */}
-            <div data-card style={cardS}>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>Equivalent Rent Threshold</p>
-                <span className="has-tip" data-tip="If your actual rent is below this number, renting is the smarter financial move. Above it, buying starts to look better. This accounts for equity buildup and appreciation.">i</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
-                <div>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
-                    Renting wins if rent is below
+            {/* Rent threshold OR move cost analysis */}
+            {isOwnerMode ? (() => {
+              const newHomeClosingCosts = inputs.purchase_price * (inputs.closing_cost_pct / 100);
+              const agentFees = ownerEquity?.agentFees ?? 0;
+              const totalMoveCosts = agentFees + newHomeClosingCosts + ownerMoveInCosts;
+              const monthlyDelta = computed.totalMonthly - inputs.monthly_rent;
+              const breakEvenMonths = monthlyDelta > 0
+                ? Math.round(totalMoveCosts / monthlyDelta)
+                : monthlyDelta < 0
+                  ? Math.round(totalMoveCosts / Math.abs(monthlyDelta))
+                  : null;
+              const upsizing = monthlyDelta > 0;
+              return (
+                <div data-card style={cardS}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                    <p style={{ ...sectionHead, margin: 0 }}>Move Cost Analysis</p>
+                    <span className="has-tip" data-tip="Total cost to execute this move (selling fees + buying closing costs) vs the monthly payment change. Break-even shows how long you need to stay to justify the transaction costs.">i</span>
                   </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "26px", fontWeight: 700, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)", lineHeight: 1 }}>
-                    {fmt(computed.equivalentRent)}
-                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 400 }}>/mo</span>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "10px" }}>
+                    {[
+                      { label: "Selling costs", value: fmt(agentFees), sub: `agent fees on ${ownerExpectedSalePrice ? fmt(ownerExpectedSalePrice) : fmt(ownerHomeValue)}` },
+                      { label: "Buying costs", value: fmt(Math.round(newHomeClosingCosts)), sub: `${pct(inputs.closing_cost_pct)} closing on ${fmtK(inputs.purchase_price)}` },
+                      { label: "Move-in / overlap", value: fmt(ownerMoveInCosts), sub: "moving, storage, overlap" },
+                      { label: "Total move cost", value: fmt(Math.round(totalMoveCosts)), sub: "one-time", bold: true },
+                    ].map(({ label, value, sub, bold }) => (
+                      <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: bold ? "18px" : "15px", fontWeight: bold ? 800 : 700, color: bold ? "oklch(0.68 0.18 25)" : "var(--text-primary)" }}>{value}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  {[
-                    { label: "Your rent", val: `${fmt(inputs.monthly_rent)}/mo` },
-                    { label: "Threshold", val: `${fmt(computed.equivalentRent)}/mo` },
-                  ].map(({ label, val }) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                      <span style={{ color: "var(--text-tertiary)" }}>{label}</span>
-                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{val}</span>
+                  <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" as const }}>
+                    <div style={{ flex: 1, minWidth: "140px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Monthly delta</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: monthlyDelta > 0 ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }}>
+                        {monthlyDelta > 0 ? "+" : ""}{fmt(Math.round(monthlyDelta))}/mo
+                      </div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{monthlyDelta > 0 ? "more than current" : monthlyDelta < 0 ? "less than current" : "same as current"}</div>
                     </div>
-                  ))}
-                  <div style={{ height: "1px", background: "var(--border-subtle)", margin: "2px 0" }} />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-                    <span style={{ color: "var(--text-tertiary)" }}>Spread</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }}>
-                      {inputs.monthly_rent < computed.equivalentRent ? "-" : "+"}{fmt(Math.abs(computed.equivalentRent - inputs.monthly_rent))}/mo
-                    </span>
+                    <div style={{ flex: 1, minWidth: "140px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>
+                        {upsizing ? "Break-even (stay ≥)" : "Recoup move costs in"}
+                      </div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: "var(--text-primary)" }}>
+                        {breakEvenMonths != null ? `${breakEvenMonths > 24 ? `${Math.round(breakEvenMonths / 12)} yrs` : `${breakEvenMonths} mo`}` : "—"}
+                      </div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                        {upsizing ? "to justify transaction costs via equity" : "via monthly savings"}
+                      </div>
+                    </div>
+                  </div>
+                  {ownerEquity && (
+                    <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                      Sale nets you ~{fmt(Math.round(ownerEquity.netProceeds))} after agent fees
+                      {ownerEquity.coveragePct != null ? ` — covers ${Math.round(ownerEquity.coveragePct)}% of the down payment + closing costs on the new home` : ""}.
+                    </p>
+                  )}
+                </div>
+              );
+            })() : (
+              <div data-card style={cardS}>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+                  <p style={{ ...sectionHead, margin: 0 }}>Equivalent Rent Threshold</p>
+                  <span className="has-tip" data-tip="If your actual rent is below this number, renting is the smarter financial move. Above it, buying starts to look better. This accounts for equity buildup and appreciation.">i</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
+                  <div>
+                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
+                      Renting wins if rent is below
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "26px", fontWeight: 700, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)", lineHeight: 1 }}>
+                      {fmt(computed.equivalentRent)}
+                      <span style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 400 }}>/mo</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {[
+                      { label: "Your rent", val: `${fmt(inputs.monthly_rent)}/mo` },
+                      { label: "Threshold", val: `${fmt(computed.equivalentRent)}/mo` },
+                    ].map(({ label, val }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                        <span style={{ color: "var(--text-tertiary)" }}>{label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{val}</span>
+                      </div>
+                    ))}
+                    <div style={{ height: "1px", background: "var(--border-subtle)", margin: "2px 0" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+                      <span style={{ color: "var(--text-tertiary)" }}>Spread</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }}>
+                        {inputs.monthly_rent < computed.equivalentRent ? "-" : "+"}{fmt(Math.abs(computed.equivalentRent - inputs.monthly_rent))}/mo
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                  {inputs.monthly_rent < computed.equivalentRent
+                    ? `Your rent (${fmt(inputs.monthly_rent)}/mo) is below the threshold — renting is the better financial choice at these assumptions.`
+                    : `Your rent (${fmt(inputs.monthly_rent)}/mo) exceeds the threshold — buying may offer a financial advantage.`}
+                  {" "}Calculated as total monthly cost minus principal paydown and appreciation credit.
+                </p>
               </div>
-              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                {inputs.monthly_rent < computed.equivalentRent
-                  ? `Your rent (${fmt(inputs.monthly_rent)}/mo) is below the threshold — renting is the better financial choice at these assumptions.`
-                  : `Your rent (${fmt(inputs.monthly_rent)}/mo) exceeds the threshold — buying may offer a financial advantage.`}
-                {" "}Calculated as total monthly cost minus principal paydown and appreciation credit.
-              </p>
-            </div>
+            )}
 
             {/* Opportunity Cost */}
             <div data-card style={cardS}>
