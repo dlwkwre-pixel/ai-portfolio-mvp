@@ -4,8 +4,8 @@ import { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import type { HomeScenario } from "./home-actions";
-import { saveHomeScenario, deleteHomeScenario } from "./home-actions";
+import type { HomeScenario, HomeOwnerProfile } from "./home-actions";
+import { saveHomeScenario, deleteHomeScenario, saveHomeOwnerProfile } from "./home-actions";
 import type { FinancialProfile, FutureEvent } from "@/app/planning/planning-actions";
 import { addFutureEvent, deleteFutureEvent } from "@/app/planning/planning-actions";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
@@ -1019,6 +1019,8 @@ export default function HomeClient({
   salaryGrowthRate = 0.02,
   liquidAssets = 0,
   lifeGoalEvents = [],
+  balanceSheetItems = [],
+  cashFlowItems = [],
 }: {
   scenarios: HomeScenario[];
   profile: FinancialProfile | null;
@@ -1027,6 +1029,8 @@ export default function HomeClient({
   salaryGrowthRate?: number;
   liquidAssets?: number;
   lifeGoalEvents?: FutureEvent[];
+  balanceSheetItems?: { label: string; category: string; value: number }[];
+  cashFlowItems?: { label: string; type: string; frequency: string; amount: number }[];
 }) {
   const router = useRouter();
   const smartDefaults = buildDefaults(profile, defaultInvestmentReturn);
@@ -1060,6 +1064,71 @@ export default function HomeClient({
   const [startZip, setStartZip] = useState("");
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [trackerMounted, setTrackerMounted] = useState(false);
+
+  // ── Owner-mover mode ────────────────────────────────────────────────────────
+  const [isOwnerMode, setIsOwnerMode] = useState<boolean>(() => profile?.is_homeowner ?? false);
+  const [ownerPanelOpen, setOwnerPanelOpen] = useState(false);
+
+  // Auto-pull values from balance sheet / cash flow if not yet saved in profile
+  const bsHomeValue = useMemo(
+    () => (balanceSheetItems ?? []).filter((i) => i.category === "real_estate").reduce((s, i) => s + Number(i.value ?? 0), 0),
+    [balanceSheetItems],
+  );
+  const bsMortgageBalance = useMemo(
+    () => (balanceSheetItems ?? []).filter((i) => i.category === "mortgage").reduce((s, i) => s + Number(i.value ?? 0), 0),
+    [balanceSheetItems],
+  );
+  const bsMonthlyPayment = useMemo(
+    () => (cashFlowItems ?? [])
+      .filter((i) => i.type === "expense" && i.label.toLowerCase().includes("mortgage"))
+      .reduce((s, i) => s + (i.frequency === "annual" ? i.amount / 12 : i.amount), 0),
+    [cashFlowItems],
+  );
+
+  const [ownerHomeValue, setOwnerHomeValue] = useState<number>(() => profile?.owner_home_value ?? bsHomeValue);
+  const [ownerMortgageBalance, setOwnerMortgageBalance] = useState<number>(() => profile?.owner_mortgage_balance ?? bsMortgageBalance);
+  const [ownerMonthlyPayment, setOwnerMonthlyPayment] = useState<number>(() => profile?.owner_monthly_payment ?? bsMonthlyPayment);
+  const [ownerInterestRate, setOwnerInterestRate] = useState<number>(() => profile?.owner_interest_rate ?? 0);
+  const [ownerRemainingTerm, setOwnerRemainingTerm] = useState<number>(() => profile?.owner_remaining_term ?? 0);
+  const [ownerAgentCommission, setOwnerAgentCommission] = useState<number>(() => profile?.owner_agent_commission_pct ?? 6);
+  const [ownerMoveInCosts, setOwnerMoveInCosts] = useState<number>(() => profile?.owner_move_in_costs ?? 0);
+  const [ownerExpectedSalePrice, setOwnerExpectedSalePrice] = useState<number | null>(() => profile?.owner_expected_sale_price ?? null);
+  const [ownerSaveStatus, setOwnerSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const ownerEquity = useMemo(() => {
+    if (!isOwnerMode) return null;
+    const saleValue = ownerExpectedSalePrice ?? ownerHomeValue;
+    if (saleValue <= 0) return null;
+    const agentFees = saleValue * (ownerAgentCommission / 100);
+    const equityRaw = Math.max(0, saleValue - ownerMortgageBalance);
+    const netProceeds = Math.max(0, saleValue - agentFees - ownerMortgageBalance - ownerMoveInCosts);
+    const totalNeededForTarget = inputs.down_payment + inputs.purchase_price * inputs.closing_cost_pct / 100;
+    const coveragePct = totalNeededForTarget > 0 ? (netProceeds / totalNeededForTarget) * 100 : null;
+    return { saleValue, agentFees, equityRaw, netProceeds, coveragePct };
+  }, [isOwnerMode, ownerExpectedSalePrice, ownerHomeValue, ownerAgentCommission, ownerMortgageBalance, ownerMoveInCosts, inputs.down_payment, inputs.purchase_price, inputs.closing_cost_pct]);
+
+  async function handleSaveOwnerProfile() {
+    setOwnerSaveStatus("saving");
+    const payload: HomeOwnerProfile = {
+      is_homeowner: isOwnerMode,
+      owner_home_value: ownerHomeValue || null,
+      owner_mortgage_balance: ownerMortgageBalance || null,
+      owner_monthly_payment: ownerMonthlyPayment || null,
+      owner_interest_rate: ownerInterestRate || null,
+      owner_remaining_term: ownerRemainingTerm || null,
+      owner_agent_commission_pct: ownerAgentCommission,
+      owner_move_in_costs: ownerMoveInCosts,
+      owner_expected_sale_price: ownerExpectedSalePrice,
+    };
+    const { error } = await saveHomeOwnerProfile(payload);
+    if (error) {
+      setOwnerSaveStatus("error");
+    } else {
+      setOwnerSaveStatus("saved");
+      router.refresh();
+      setTimeout(() => setOwnerSaveStatus("idle"), 2500);
+    }
+  }
 
   // Net income after tax/deductions — used for savings-based projections (not DTI/affordability rules which correctly use gross)
   const effectiveNetMonthly = useMemo(() => getEffectiveNetMonthly(profile), [profile]);
@@ -2192,10 +2261,11 @@ export default function HomeClient({
 
   // ── Chart data ─────────────────────────────────────────────────────────────
 
+  const rentSeriesLabel = isOwnerMode ? "Invested (Stay)" : "Invested (Rent)";
   const chartData = computed.timeline.map((p) => ({
     name: p.year === 0 ? "Now" : `Yr ${p.year}`,
     "Home Equity": p.homeEquity,
-    "Invested (Rent)": p.rentPortfolio,
+    [rentSeriesLabel]: p.rentPortfolio,
   }));
 
   const downPct = inputs.purchase_price > 0
@@ -2279,6 +2349,177 @@ export default function HomeClient({
             ))}
           </div>
         )}
+
+        {/* Owner-mover mode toggle + detail panel */}
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" as const }}>
+            <div>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.01em" }}>Your Situation</p>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+                {isOwnerMode ? "Planning to upsize, downsize, or move" : "Comparing renting vs. buying for the first time"}
+              </p>
+            </div>
+            <div style={{ display: "flex", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--card-border)" }}>
+              {(["renting", "owner"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setIsOwnerMode(mode === "owner")}
+                  style={{
+                    padding: "5px 14px", fontSize: "11px", fontWeight: 600,
+                    background: (mode === "owner") === isOwnerMode ? "var(--brand-blue)" : "transparent",
+                    color: (mode === "owner") === isOwnerMode ? "#fff" : "var(--text-muted)",
+                    border: "none", cursor: "pointer", fontFamily: "var(--font-body)",
+                    transition: "background 0.15s, color 0.15s",
+                    whiteSpace: "nowrap" as const,
+                  }}
+                >
+                  {mode === "renting" ? "Renting" : "I own a home"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {isOwnerMode && (
+            <>
+              {/* Equity summary strip */}
+              {ownerEquity && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "1px solid var(--border-subtle)" }}>
+                  {([
+                    { label: "Gross Equity", value: fmt(ownerEquity.equityRaw) },
+                    { label: "Net Proceeds", value: fmt(ownerEquity.netProceeds), sub: `after ${ownerAgentCommission}% agent + costs` },
+                    { label: "Down Payment Coverage", value: ownerEquity.coveragePct !== null ? `${Math.min(999, Math.round(ownerEquity.coveragePct))}%` : "—" },
+                    {
+                      label: "Monthly Delta",
+                      value: ownerMonthlyPayment > 0
+                        ? `${computed.totalMonthly - ownerMonthlyPayment >= 0 ? "+" : ""}${fmt(computed.totalMonthly - ownerMonthlyPayment)}/mo`
+                        : "—",
+                    },
+                  ] as { label: string; value: string; sub?: string }[]).map(({ label, value, sub }, i) => (
+                    <div key={label} style={{ padding: "10px 14px", borderRight: i < 3 ? "1px solid var(--border-subtle)" : undefined }}>
+                      <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{value}</p>
+                      {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "1px 0 0", fontFamily: "var(--font-body)" }}>{sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Expandable detail inputs */}
+              <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                <button
+                  type="button"
+                  onClick={() => setOwnerPanelOpen((v) => !v)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                    background: "none", border: "none", padding: "10px 16px",
+                    cursor: "pointer", color: "var(--text-secondary)",
+                    fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 600,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: ownerPanelOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s ease", flexShrink: 0 }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  {ownerPanelOpen ? "Hide" : "Edit"} Current Home Details
+                  {(!profile?.owner_home_value && bsHomeValue > 0) && (
+                    <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(99,102,241,0.2)", marginLeft: "4px" }}>
+                      auto-filled
+                    </span>
+                  )}
+                </button>
+
+                {ownerPanelOpen && (
+                  <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <label style={labelS}>Current Home Value</label>
+                          {!profile?.owner_home_value && bsHomeValue > 0 && (
+                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                          )}
+                        </div>
+                        <input type="number" min="0" step="1000" value={ownerHomeValue} onChange={(e) => setOwnerHomeValue(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <label style={labelS}>Mortgage Balance</label>
+                          {!profile?.owner_mortgage_balance && bsMortgageBalance > 0 && (
+                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                          )}
+                        </div>
+                        <input type="number" min="0" step="1000" value={ownerMortgageBalance} onChange={(e) => setOwnerMortgageBalance(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <label style={labelS}>Monthly Payment (PITI)</label>
+                          {!profile?.owner_monthly_payment && bsMonthlyPayment > 0 && (
+                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
+                          )}
+                        </div>
+                        <input type="number" min="0" step="50" value={ownerMonthlyPayment} onChange={(e) => setOwnerMonthlyPayment(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <label style={labelS}>Current Rate (%)</label>
+                        <input type="number" min="0" max="20" step="0.05" value={ownerInterestRate} onChange={(e) => setOwnerInterestRate(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <label style={labelS}>Remaining Term (yrs)</label>
+                        <input type="number" min="0" max="30" value={ownerRemainingTerm} onChange={(e) => setOwnerRemainingTerm(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <label style={labelS}>Expected Sale Price (optional)</label>
+                        <input
+                          type="number" min="0" step="1000"
+                          value={ownerExpectedSalePrice ?? ""}
+                          placeholder={ownerHomeValue > 0 ? fmt(ownerHomeValue) : "Same as home value"}
+                          onChange={(e) => setOwnerExpectedSalePrice(e.target.value ? Number(e.target.value) : null)}
+                          style={inputS}
+                        />
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                          Leave blank to use current home value.
+                        </div>
+                      </div>
+                      <div>
+                        <label style={labelS}>Agent Commission (%)</label>
+                        <input type="number" min="0" max="10" step="0.5" value={ownerAgentCommission} onChange={(e) => setOwnerAgentCommission(Number(e.target.value))} style={inputS} />
+                      </div>
+                      <div>
+                        <label style={labelS}>Move-In / Overlap Costs</label>
+                        <input type="number" min="0" step="100" value={ownerMoveInCosts} onChange={(e) => setOwnerMoveInCosts(Number(e.target.value))} style={inputS} />
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                          Moving, storage, or overlap mortgage payments.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" as const, paddingTop: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={handleSaveOwnerProfile}
+                        disabled={ownerSaveStatus === "saving"}
+                        style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", opacity: ownerSaveStatus === "saving" ? 0.7 : 1 }}
+                      >
+                        {ownerSaveStatus === "saving" ? "Saving…" : ownerSaveStatus === "saved" ? "Saved ✓" : "Save"}
+                      </button>
+                      {ownerEquity && ownerEquity.netProceeds > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setInputs((prev) => ({ ...prev, down_payment: Math.round(ownerEquity!.netProceeds / 1000) * 1000 }))}
+                          style={{ fontSize: "11px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
+                        >
+                          Apply equity → down payment ({fmt(Math.round(ownerEquity.netProceeds / 1000) * 1000)})
+                        </button>
+                      )}
+                      {ownerSaveStatus === "error" && (
+                        <p style={{ fontSize: "11px", color: "var(--red)", margin: 0, fontFamily: "var(--font-body)" }}>Save failed. Try again.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* First-time empty state */}
         {!hasStarted && (
@@ -3778,22 +4019,26 @@ export default function HomeClient({
               </div>
             </div>
 
-            {/* Comparison */}
+            {/* Comparison baseline */}
             <div data-card style={cardS}>
-              <p style={sectionHead}>Rent Alternative</p>
+              <p style={sectionHead}>{isOwnerMode ? "Current Home" : "Rent Alternative"}</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={labelS}>Current Rent / mo</label>
+                  <label style={labelS}>{isOwnerMode ? "Current Payment (PITI) / mo" : "Current Rent / mo"}</label>
                   <input type="number" min="0" value={inputs.monthly_rent} onChange={num("monthly_rent")} style={inputS} />
                   <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                    Your current monthly rent. Used to compare the true cost of renting vs. buying.
+                    {isOwnerMode
+                      ? "Your all-in current housing cost. Used to show monthly delta vs. the new home."
+                      : "Your current monthly rent. Used to compare the true cost of renting vs. buying."}
                   </div>
                 </div>
                 <div>
-                  <label style={labelS}>Rent Growth (%/yr)</label>
+                  <label style={labelS}>{isOwnerMode ? "Housing Cost Growth (%/yr)" : "Rent Growth (%/yr)"}</label>
                   <input type="number" min="0" max="10" step="0.1" value={inputs.rent_growth_rate} onChange={num("rent_growth_rate")} style={inputS} />
                   <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                    US rents have grown ~3–4%/yr historically. Higher in fast-growing cities.
+                    {isOwnerMode
+                      ? "How much your current costs would grow if you stayed. Typically 2–4%/yr."
+                      : "US rents have grown ~3–4%/yr historically. Higher in fast-growing cities."}
                   </div>
                 </div>
               </div>
@@ -4933,7 +5178,7 @@ export default function HomeClient({
                       />
                       <Legend wrapperStyle={{ fontSize: "11px", color: "var(--text-secondary)" }} />
                       <Area type="monotone" dataKey="Home Equity" stroke="#3b82f6" fill="url(#equityGrad)" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="Invested (Rent)" stroke="#00d395" fill="url(#portfolioGrad)" strokeWidth={2} dot={false} />
+                      <Area type="monotone" dataKey={rentSeriesLabel} stroke="#00d395" fill="url(#portfolioGrad)" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

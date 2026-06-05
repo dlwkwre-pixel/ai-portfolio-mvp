@@ -20,6 +20,7 @@ export default async function HomePlanningPage() {
     { data: homeEventsData },
     { data: balanceSheetData },
     { data: lifeGoalEventsData },
+    { data: cashFlowData },
   ] = await Promise.all([
     supabase
       .from("home_planning_scenarios")
@@ -49,7 +50,7 @@ export default async function HomePlanningPage() {
       .order("event_year"),
     supabase
       .from("balance_sheet_items")
-      .select("category, value")
+      .select("label, category, value")
       .eq("user_id", user.id),
     supabase
       .from("planning_future_events")
@@ -57,6 +58,10 @@ export default async function HomePlanningPage() {
       .eq("user_id", user.id)
       .not("category", "in", "(home_purchase,home_sale)")
       .order("event_year"),
+    supabase
+      .from("cash_flow_items")
+      .select("label, type, frequency, amount")
+      .eq("user_id", user.id),
   ]);
 
   const scenarios: HomeScenario[] = (scenariosData ?? []) as HomeScenario[];
@@ -81,6 +86,16 @@ export default async function HomePlanningPage() {
         partner_target_retirement_age: profileData.partner_target_retirement_age ?? null,
         kids_json: Array.isArray(profileData.kids_json) ? profileData.kids_json : [],
         updated_at: profileData.updated_at,
+        // Owner-mover mode
+        is_homeowner: profileData.is_homeowner ?? false,
+        owner_home_value: profileData.owner_home_value ? Number(profileData.owner_home_value) : null,
+        owner_mortgage_balance: profileData.owner_mortgage_balance ? Number(profileData.owner_mortgage_balance) : null,
+        owner_monthly_payment: profileData.owner_monthly_payment ? Number(profileData.owner_monthly_payment) : null,
+        owner_interest_rate: profileData.owner_interest_rate ? Number(profileData.owner_interest_rate) : null,
+        owner_remaining_term: profileData.owner_remaining_term ? Number(profileData.owner_remaining_term) : null,
+        owner_agent_commission_pct: profileData.owner_agent_commission_pct ? Number(profileData.owner_agent_commission_pct) : 6,
+        owner_move_in_costs: profileData.owner_move_in_costs ? Number(profileData.owner_move_in_costs) : 0,
+        owner_expected_sale_price: profileData.owner_expected_sale_price ? Number(profileData.owner_expected_sale_price) : null,
       }
     : null;
 
@@ -88,9 +103,11 @@ export default async function HomePlanningPage() {
   const salaryGrowthRate = assumptionsData ? Number(assumptionsData.salary_growth_rate) : 0.02;
   const homeEvents: FutureEvent[] = (homeEventsData ?? []) as FutureEvent[];
   const lifeGoalEvents: FutureEvent[] = (lifeGoalEventsData ?? []) as FutureEvent[];
-  const liquidAssets = (balanceSheetData ?? [])
-    .filter((i: { category: string; value: unknown }) => i.category === "cash")
-    .reduce((s: number, i: { value: unknown }) => s + Number(i.value ?? 0), 0);
+  const balanceSheetItems = (balanceSheetData ?? []) as { label: string; category: string; value: number }[];
+  const liquidAssets = balanceSheetItems
+    .filter((i) => i.category === "cash")
+    .reduce((s, i) => s + Number(i.value ?? 0), 0);
+  const cashFlowItems = (cashFlowData ?? []) as { label: string; type: string; frequency: string; amount: number }[];
 
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
@@ -114,6 +131,8 @@ export default async function HomePlanningPage() {
           salaryGrowthRate={salaryGrowthRate}
           liquidAssets={liquidAssets}
           lifeGoalEvents={lifeGoalEvents}
+          balanceSheetItems={balanceSheetItems}
+          cashFlowItems={cashFlowItems}
         />
       </div>
     </div>

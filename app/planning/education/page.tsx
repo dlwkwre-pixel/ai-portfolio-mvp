@@ -73,6 +73,15 @@ export default async function EducationPlanningPage() {
         partner_target_retirement_age: profileData.partner_target_retirement_age ?? null,
         kids_json: Array.isArray(profileData.kids_json) ? profileData.kids_json : [],
         updated_at: profileData.updated_at,
+        is_homeowner: profileData.is_homeowner ?? false,
+        owner_home_value: profileData.owner_home_value ? Number(profileData.owner_home_value) : null,
+        owner_mortgage_balance: profileData.owner_mortgage_balance ? Number(profileData.owner_mortgage_balance) : null,
+        owner_monthly_payment: profileData.owner_monthly_payment ? Number(profileData.owner_monthly_payment) : null,
+        owner_interest_rate: profileData.owner_interest_rate ? Number(profileData.owner_interest_rate) : null,
+        owner_remaining_term: profileData.owner_remaining_term ? Number(profileData.owner_remaining_term) : null,
+        owner_agent_commission_pct: profileData.owner_agent_commission_pct ? Number(profileData.owner_agent_commission_pct) : 6,
+        owner_move_in_costs: profileData.owner_move_in_costs ? Number(profileData.owner_move_in_costs) : 0,
+        owner_expected_sale_price: profileData.owner_expected_sale_price ? Number(profileData.owner_expected_sale_price) : null,
       }
     : null;
 

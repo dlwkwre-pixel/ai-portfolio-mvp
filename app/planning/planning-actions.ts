@@ -26,6 +26,16 @@ export type FinancialProfile = {
   partner_target_retirement_age: number | null;
   kids_json: ProfileKid[];
   updated_at: string;
+  // Home owner-mover mode
+  is_homeowner: boolean;
+  owner_home_value: number | null;
+  owner_mortgage_balance: number | null;
+  owner_monthly_payment: number | null;
+  owner_interest_rate: number | null;
+  owner_remaining_term: number | null;
+  owner_agent_commission_pct: number;
+  owner_move_in_costs: number;
+  owner_expected_sale_price: number | null;
 };
 
 export type BalanceSheetItem = {
@@ -99,6 +109,7 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       partner_target_retirement_age,
       kids_json,
       updated_at: new Date().toISOString(),
+      // Preserve owner fields — not managed by this form
     },
     { onConflict: "user_id" }
   );

@@ -65,6 +65,33 @@ export async function saveHomeScenario(
   return { id: row.id };
 }
 
+export type HomeOwnerProfile = {
+  is_homeowner: boolean;
+  owner_home_value: number | null;
+  owner_mortgage_balance: number | null;
+  owner_monthly_payment: number | null;
+  owner_interest_rate: number | null;
+  owner_remaining_term: number | null;
+  owner_agent_commission_pct: number;
+  owner_move_in_costs: number;
+  owner_expected_sale_price: number | null;
+};
+
+export async function saveHomeOwnerProfile(data: HomeOwnerProfile): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase.from("financial_profiles").upsert(
+    { user_id: user.id, ...data, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" },
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning/home");
+  return {};
+}
+
 export async function deleteHomeScenario(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
