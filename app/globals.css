@@ -37,6 +37,7 @@
   --card-bg:        rgba(255,255,255,0.025);
   --card-border:    rgba(255,255,255,0.06);
   --card-hover:     rgba(255,255,255,0.04);
+  --bg-card:        var(--bg-surface);
 
   --sidebar-bg:     #0a0d15;
   --sidebar-border: rgba(255,255,255,0.06);
@@ -91,6 +92,7 @@
   --card-bg:        #ffffff;
   --card-border:    rgba(0,0,0,0.08);
   --card-hover:     rgba(0,0,0,0.035);
+  --bg-card:        var(--bg-surface);
 
   --sidebar-bg:     #ffffff;
   --sidebar-border: rgba(0,0,0,0.08);

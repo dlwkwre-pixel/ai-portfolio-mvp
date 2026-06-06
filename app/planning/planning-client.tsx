@@ -7634,7 +7634,7 @@ export default function PlanningClient({
 
       {/* ── Tab: Forecast ── */}
       {tab === "forecast" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", ["--card-bg" as string]: "var(--bg-surface)", ["--card-border" as string]: "var(--border-subtle)" }}>
 
           {/* Confidence Narrative */}
           {retirementPoint && profile?.current_age != null && (
@@ -8230,7 +8230,7 @@ export default function PlanningClient({
 
       {/* ── Tab: My Life Plan ── */}
       {tab === "events" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", ["--card-bg" as string]: "var(--bg-surface)", ["--card-border" as string]: "var(--border-subtle)" }}>
 
           <style>{`
             @keyframes hub-ring-draw { from { stroke-dashoffset: 226; } }
@@ -8830,6 +8830,7 @@ export default function PlanningClient({
 
       {/* ── Tab: Estate & Will ── */}
       {tab === "estate" && (
+        <div style={{ ["--card-bg" as string]: "var(--bg-surface)", ["--card-border" as string]: "var(--border-subtle)" }}>
         <EstatePlanningTab
           estateProfile={estateProfile}
           balanceItems={balanceItems}
@@ -8837,6 +8838,7 @@ export default function PlanningClient({
           isPrivate={isPrivate}
           profileKids={profileKids}
         />
+        </div>
       )}
 
       {/* ── Tab: Ask FINN ── */}
