@@ -1240,6 +1240,7 @@ function LineItemRow({
               <option value="annual">Annual</option>
             </select>
             <input name="amount" type="number" min="0" step="0.01" defaultValue={cf.amount} style={{ ...inputStyle, width: "120px" }} />
+            <input name="due_day" type="number" min="1" max="31" defaultValue={cf.due_day ?? ""} placeholder="Due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
           </>
         )}
         <button type="submit" disabled={pending} style={btnPrimaryStyle}>{pending ? "Saving…" : "Save"}</button>
@@ -4089,6 +4090,74 @@ function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
   return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${e - s > 180 ? 1 : 0} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
+function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowItem[]; year: number; month: number }) {
+  const [tip, setTip] = useState<string | null>(null);
+  const itemsWithDay = cashFlowItems.filter(i => i.due_day != null);
+  if (itemsWithDay.length === 0) return (
+    <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0 }}>
+      Set a due day on any income or expense item to see it here.
+    </p>
+  );
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const dayMap = new Map<number, CashFlowItem[]>();
+  for (const item of itemsWithDay) {
+    const d = item.due_day!;
+    if (!dayMap.has(d)) dayMap.set(d, []);
+    dayMap.get(d)!.push(item);
+  }
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const today = new Date();
+  const isNow = today.getFullYear() === year && today.getMonth() + 1 === month;
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: "3px", marginBottom: "2px" }}>
+        {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
+          <div key={d} style={{ textAlign: "center", fontSize: "9px", fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-body)", paddingBottom: "2px" }}>{d}</div>
+        ))}
+        {cells.map((day, i) => {
+          const items = day ? (dayMap.get(day) ?? []) : [];
+          const isToday = isNow && day === today.getDate();
+          return (
+            <div key={i}
+              onMouseEnter={() => items.length > 0 && setTip(items.map(it => `${it.label}: ${fmtFull(it.frequency === "annual" ? it.amount / 12 : it.amount)}/mo`).join(" · "))}
+              onMouseLeave={() => setTip(null)}
+              style={{
+                minHeight: "26px", borderRadius: "4px", padding: "2px 1px",
+                background: isToday ? "rgba(99,102,241,0.1)" : items.length > 0 ? "rgba(255,255,255,0.03)" : "transparent",
+                border: isToday ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
+                cursor: items.length > 0 ? "default" : "default",
+              }}>
+              {day && (
+                <>
+                  <div style={{ textAlign: "center", fontSize: "9px", fontFamily: "var(--font-mono)", color: isToday ? "oklch(0.65 0.18 260)" : "var(--text-tertiary)" }}>{day}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "1px" }}>
+                    {items.map((it, j) => (
+                      <div key={j} style={{ height: "3px", borderRadius: "2px", background: it.type === "income" ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" }} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {tip && (
+        <div style={{ marginTop: "6px", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", padding: "6px 10px", background: "rgba(255,255,255,0.04)", borderRadius: "6px" }}>{tip}</div>
+      )}
+      <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+          <span style={{ width: "8px", height: "3px", borderRadius: "2px", display: "inline-block", background: "oklch(0.72 0.19 145)" }} /> Income
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+          <span style={{ width: "8px", height: "3px", borderRadius: "2px", display: "inline-block", background: "oklch(0.65 0.18 25)" }} /> Expense
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
@@ -4111,7 +4180,10 @@ function CashFlowOS({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
+  const [viewMode, setViewMode] = useState<"monthly" | "annual">("monthly");
+  const [showCal, setShowCal] = useState(false);
 
+  const mult = viewMode === "annual" ? 12 : 1;
   const ph = (v: string) => isPrivate ? "••••" : v;
   const expenseItems = cashFlowItems.filter(i => i.type === "expense");
   const incomeItems  = cashFlowItems.filter(i => i.type === "income");
@@ -4131,6 +4203,10 @@ function CashFlowOS({
   function forecastedMonthly(item: CashFlowItem) {
     return item.frequency === "annual" ? item.amount / 12 : item.amount;
   }
+
+  const isCurrentMonth = selYear === now.getFullYear() && selMonth === (now.getMonth() + 1);
+  const daysInSelMonth = new Date(selYear, selMonth, 0).getDate();
+  const pacingRatio = isCurrentMonth ? Math.max(0.01, now.getDate() / daysInSelMonth) : 1;
 
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
@@ -4170,6 +4246,19 @@ function CashFlowOS({
     : "var(--text-muted)";
   const srBarPct = Math.min(100, Math.max(0, (savingsRate / 30) * 100));
 
+  const pacingAlerts = isCurrentMonth ? catData
+    .filter(cat => cat.actual > 0 && cat.budgeted > 0)
+    .map(cat => {
+      const projected = cat.actual / pacingRatio;
+      const overage = projected - cat.budgeted;
+      return { label: cat.label, overage, pct: overage / cat.budgeted };
+    })
+    .filter(c => c.overage > 30 && c.pct > 0.08)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 2) : [];
+
+  const daysLeft = isCurrentMonth ? daysInSelMonth - now.getDate() : 0;
+
   async function handleSync(itemId: string) {
     setSyncingId(itemId);
     const result = await syncForecastToActuals(itemId);
@@ -4181,9 +4270,9 @@ function CashFlowOS({
     setSyncingId(null);
   }
 
-  const displayCenter = totalBudgeted >= 1000
-    ? `$${(totalBudgeted / 1000).toFixed(1)}k`
-    : fmt(totalBudgeted);
+  const displayCenter = (totalBudgeted * mult) >= 1000
+    ? `$${((totalBudgeted * mult) / 1000).toFixed(1)}k`
+    : fmt(totalBudgeted * mult);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
@@ -4212,12 +4301,26 @@ function CashFlowOS({
         borderRadius: "var(--radius-lg)", padding: "18px 20px 16px", marginBottom: "10px",
         animationDelay: "0ms",
       }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
+            {(["monthly", "annual"] as const).map(m => (
+              <button key={m} type="button" onClick={() => setViewMode(m)} style={{
+                padding: "3px 10px", borderRadius: "4px", border: "none", cursor: "pointer",
+                fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "capitalize",
+                fontFamily: "var(--font-body)",
+                background: viewMode === m ? "rgba(255,255,255,0.1)" : "transparent",
+                color: viewMode === m ? "var(--text-primary)" : "var(--text-muted)",
+                transition: "all 0.15s",
+              }}>{m}</button>
+            ))}
+          </div>
+        </div>
         <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: "16px" }}>
           {([
-            { label: "Monthly Income",    val: ph(fmt(effectiveIncome)),              color: "oklch(0.72 0.19 145)" },
-            { label: "Budgeted Expenses", val: ph(fmt(monthlyExpenses)),              color: "oklch(0.65 0.18 25)"  },
-            { label: "Monthly Savings",   val: ph(fmt(Math.abs(monthlySavings))),     color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
-            { label: "Savings Rate",      val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—", color: srColor },
+            { label: viewMode === "annual" ? "Annual Income"    : "Monthly Income",    val: ph(fmt(effectiveIncome * mult)),                                    color: "oklch(0.72 0.19 145)" },
+            { label: viewMode === "annual" ? "Annual Expenses"  : "Budgeted Expenses", val: ph(fmt(monthlyExpenses * mult)),                                    color: "oklch(0.65 0.18 25)"  },
+            { label: viewMode === "annual" ? "Annual Savings"   : "Monthly Savings",   val: ph(fmt(Math.abs(monthlySavings * mult))),                           color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+            { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—",           color: srColor },
           ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
             <div key={label}>
               <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
@@ -4244,6 +4347,36 @@ function CashFlowOS({
         )}
       </div>
 
+      {/* Surplus routing callout */}
+      {monthlySavings > 50 && viewMode === "monthly" && (
+        <div className="cfo-zone" style={{
+          background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.2)",
+          borderRadius: "var(--radius-lg)", padding: "11px 16px", marginBottom: "10px",
+          animationDelay: "30ms", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
+        }}>
+          <div style={{ flex: 1, minWidth: "160px" }}>
+            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Surplus this month</div>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+              You&apos;re {ph(fmt(monthlySavings))} ahead — where should it go?
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {[
+              { label: "Invest it",         href: "/portfolios" },
+              { label: "Emergency fund",    href: "/planning?tab=balance" },
+              { label: "Toward a goal",     href: "/planning?tab=events" },
+            ].map(({ label, href }) => (
+              <a key={label} href={href} style={{
+                padding: "5px 12px", borderRadius: "6px", border: "1px solid rgba(34,197,94,0.25)",
+                background: "rgba(34,197,94,0.07)", color: "oklch(0.72 0.19 145)",
+                fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)",
+                textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap",
+              }}>{label}</a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FINN Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
         <div className="cfo-zone" style={{
@@ -4260,6 +4393,29 @@ function CashFlowOS({
           <div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Pacing Alert Strip — only for current month when tracking over budget */}
+      {pacingAlerts.length > 0 && (
+        <div className="cfo-zone" style={{
+          background: "rgba(251,146,60,0.04)", border: "1px solid rgba(251,146,60,0.22)",
+          borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
+          animationDelay: "80ms", display: "flex", gap: "10px", alignItems: "flex-start",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
+            <path d="M10 3L18 17H2L10 3z" fill="rgba(251,146,60,0.15)" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinejoin="round"/>
+            <line x1="10" y1="9" x2="10" y2="13" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinecap="round"/>
+            <circle cx="10" cy="15.5" r="0.8" fill="oklch(0.72 0.18 55)"/>
+          </svg>
+          <div>
+            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
+              {pacingAlerts.map((a, i) => (
+                <span key={a.label}>{i > 0 ? " " : ""}<strong style={{ color: "var(--text-primary)" }}>{a.label}</strong> is on track to exceed budget by {ph(fmt(a.overage))}.{i < pacingAlerts.length - 1 ? "" : ""}</span>
+              ))}
+            </p>
           </div>
         </div>
       )}
@@ -4310,9 +4466,9 @@ function CashFlowOS({
                 <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
                   style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                   {isPrivate ? "••••" : (highlightedCat
-                    ? (catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) >= 1000
-                      ? `$${((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) / 1000).toFixed(1)}k`
-                      : fmt(catData.find(c => c.label === highlightedCat)?.budgeted ?? 0)
+                    ? ((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) >= 1000
+                      ? `$${(((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult) / 1000).toFixed(1)}k`
+                      : fmt((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) * mult)
                     : displayCenter)}
                 </text>
               </svg>
@@ -4321,7 +4477,7 @@ function CashFlowOS({
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "7px" }}>
-                {MONTH_NAMES[selMonth - 1]} {selYear} — Budget vs. Actual
+                {viewMode === "annual" ? `${selYear} Annual Projection` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
               </div>
               {catData.map((cat, ci) => {
                 const isHl = highlightedCat === cat.label;
@@ -4345,10 +4501,10 @@ function CashFlowOS({
                       <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
                       <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: isHl ? 600 : 400, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isHl ? color : "var(--text-secondary)" }}>{ph(fmt(cat.budgeted))}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isHl ? color : "var(--text-secondary)" }}>{ph(fmt(cat.budgeted * mult))}</span>
                         {variance !== null && (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px" }}>
-                            {variance > 0 ? "+" : ""}{ph(fmt(variance))}
+                            {variance > 0 ? "+" : ""}{ph(fmt(variance * mult))}
                           </span>
                         )}
                       </div>
@@ -4382,6 +4538,35 @@ function CashFlowOS({
             }
           }}
         />
+      </div>
+
+      {/* Bill Calendar */}
+      <div className="cfo-zone" style={{
+        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)", padding: "16px 20px", marginBottom: "10px",
+        animationDelay: "170ms",
+      }}>
+        <button
+          type="button"
+          onClick={() => setShowCal(v => !v)}
+          style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%" }}
+        >
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="4" width="16" height="14" rx="2" stroke="var(--text-secondary)" strokeWidth="1.5"/>
+            <line x1="6" y1="2" x2="6" y2="6" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="14" y1="2" x2="14" y2="6" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round"/>
+            <line x1="2" y1="9" x2="18" y2="9" stroke="var(--text-secondary)" strokeWidth="1.5"/>
+          </svg>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1, textAlign: "left" }}>Bill Calendar — {MONTH_NAMES[selMonth - 1]} {selYear}</span>
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", transform: showCal ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+            <path d="M5 7l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+          </svg>
+        </button>
+        {showCal && (
+          <div style={{ marginTop: "14px" }}>
+            <BillCalendar cashFlowItems={cashFlowItems} year={selYear} month={selMonth} />
+          </div>
+        )}
       </div>
 
       {/* Zone 3 — Management */}

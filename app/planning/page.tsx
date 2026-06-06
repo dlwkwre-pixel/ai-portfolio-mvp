@@ -134,6 +134,7 @@ export default async function PlanningPage({
     type: item.type as "income" | "expense",
     frequency: item.frequency as "monthly" | "annual",
     amount: Number(item.amount),
+    due_day: item.due_day ?? null,
     sort_order: item.sort_order,
   }));
 

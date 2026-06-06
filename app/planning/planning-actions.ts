@@ -56,6 +56,7 @@ export type CashFlowItem = {
   type: "income" | "expense";
   frequency: "monthly" | "annual";
   amount: number;
+  due_day: number | null;
   sort_order: number;
 };
 
@@ -224,6 +225,8 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
   const type = String(formData.get("type") || "expense") as "income" | "expense";
   const frequency = String(formData.get("frequency") || "monthly") as "monthly" | "annual";
   const amount = Number(formData.get("amount") || 0);
+  const dueDayRaw = String(formData.get("due_day") ?? "").trim();
+  const due_day = dueDayRaw !== "" ? Math.min(31, Math.max(1, Number(dueDayRaw))) : null;
 
   const { data: existing } = await supabase
     .from("cash_flow_items")
@@ -241,6 +244,7 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
     type,
     frequency,
     amount,
+    due_day,
     sort_order,
   }).select("id").single();
 
@@ -273,6 +277,8 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   const type = String(formData.get("type") || "expense") as "income" | "expense";
   const frequency = String(formData.get("frequency") || "monthly") as "monthly" | "annual";
   const amount = Number(formData.get("amount") || 0);
+  const dueDayRawU = String(formData.get("due_day") ?? "").trim();
+  const due_day = dueDayRawU !== "" ? Math.min(31, Math.max(1, Number(dueDayRawU))) : null;
 
   const { data: currentItem } = await supabase
     .from("cash_flow_items")
@@ -283,7 +289,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
 
   const { error } = await supabase
     .from("cash_flow_items")
-    .update({ label, type, frequency, amount, updated_at: new Date().toISOString() })
+    .update({ label, type, frequency, amount, due_day, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
