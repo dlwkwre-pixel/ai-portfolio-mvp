@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
-import { saveLotAcqYears, saveLotCostBasis } from "./tax-actions";
+import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-actions";
 import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
@@ -185,11 +185,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [barMounted, setBarMounted] = useState(false);
   const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>(data.lotAcqYears ?? {});
   const [lotCostBasis, setLotCostBasis] = useState<Record<string, number>>(data.lotCostBasis ?? {});
+  const [lotProceeds, setLotProceeds] = useState<Record<string, number>>(data.lotProceeds ?? {});
   const [tradesSaved, setTradesSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialMount = useRef(true);
   const saveCbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialCbMount = useRef(true);
+  const saveProcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialProcMount = useRef(true);
   const savedFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
@@ -236,6 +239,23 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     };
   }, [lotCostBasis]);
 
+  useEffect(() => {
+    if (isInitialProcMount.current) {
+      isInitialProcMount.current = false;
+      return;
+    }
+    if (saveProcTimerRef.current) clearTimeout(saveProcTimerRef.current);
+    saveProcTimerRef.current = setTimeout(async () => {
+      await saveLotProceeds(lotProceeds);
+      setTradesSaved(true);
+      if (savedFadeRef.current) clearTimeout(savedFadeRef.current);
+      savedFadeRef.current = setTimeout(() => setTradesSaved(false), 2000);
+    }, 800);
+    return () => {
+      if (saveProcTimerRef.current) clearTimeout(saveProcTimerRef.current);
+    };
+  }, [lotProceeds]);
+
   const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
 
   // Income tax estimate
@@ -277,8 +297,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   // Apply user-supplied cost basis overrides and/or acquisition years
   const effectiveLots = realizedLots.map(lot => {
     const overriddenCostBasis = lotCostBasis[lot.id] !== undefined ? lotCostBasis[lot.id] : lot.costBasis;
-    const gainLoss = lot.proceeds - overriddenCostBasis;
-    let result = { ...lot, costBasis: overriddenCostBasis, gainLoss };
+    const overriddenProceeds = lotProceeds[lot.id] !== undefined ? lotProceeds[lot.id] : lot.proceeds;
+    const gainLoss = overriddenProceeds - overriddenCostBasis;
+    let result = { ...lot, costBasis: overriddenCostBasis, proceeds: overriddenProceeds, gainLoss };
     if (!lot.acquiredAt && lotAcqYears[lot.id]) {
       const acqYear = lotAcqYears[lot.id];
       const sellYear = new Date(lot.soldAt).getFullYear();
@@ -1176,7 +1197,22 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                               />
                             </div>
                           </td>
-                          <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.proceeds)}</td>
+                          <td style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={lotProceeds[lot.id] !== undefined ? lotProceeds[lot.id] : lot.proceeds.toFixed(2)}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setLotProceeds(prev => v === "" ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== lot.id)) : { ...prev, [lot.id]: Number(v) });
+                                }}
+                                style={{ width: "80px", padding: "2px 4px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: "11px" }}
+                              />
+                            </div>
+                          </td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 600, color: glColor(lot.gainLoss), whiteSpace: "nowrap" as const }}>{lot.gainLoss >= 0 ? "+" : ""}{fmt(lot.gainLoss)}</td>
                         </tr>
                       ))}

@@ -27,3 +27,16 @@ export async function saveLotCostBasis(overrides: Record<string, number>): Promi
       { onConflict: "user_id" }
     );
 }
+
+export async function saveLotProceeds(overrides: Record<string, number>): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("financial_profiles")
+    .upsert(
+      { user_id: user.id, lot_proceeds: overrides },
+      { onConflict: "user_id" }
+    );
+}

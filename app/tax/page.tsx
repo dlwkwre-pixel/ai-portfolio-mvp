@@ -75,6 +75,7 @@ export type TaxPageData = {
   taxProfile: TaxProfile | null;
   lotAcqYears: Record<string, number>;
   lotCostBasis: Record<string, number>;
+  lotProceeds: Record<string, number>;
 };
 
 function holdingDays(acquiredAt: string | null, soldAt: string): number | null {
@@ -332,6 +333,13 @@ export default async function TaxPage({
       ? (financialProfileData.lot_cost_basis as Record<string, number>)
       : {};
 
+  const savedLotProceeds: Record<string, number> =
+    financialProfileData?.lot_proceeds &&
+    typeof financialProfileData.lot_proceeds === "object" &&
+    !Array.isArray(financialProfileData.lot_proceeds)
+      ? (financialProfileData.lot_proceeds as Record<string, number>)
+      : {};
+
   const taxData: TaxPageData = {
     years,
     selectedYear,
@@ -344,6 +352,7 @@ export default async function TaxPage({
     taxProfile,
     lotAcqYears: savedLotAcqYears,
     lotCostBasis: savedLotCostBasis,
+    lotProceeds: savedLotProceeds,
   };
 
   return (
