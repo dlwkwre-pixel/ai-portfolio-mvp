@@ -1162,12 +1162,13 @@ function AddItemRow({
 }
 
 function LineItemRow({
-  item, type, onDelete, isPrivate = false,
+  item, type, onDelete, isPrivate = false, editTitle,
 }: {
   item: BalanceSheetItem | CashFlowItem;
   type: "balance" | "cashflow";
   onDelete: (id: string) => void;
   isPrivate?: boolean;
+  editTitle?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -1243,7 +1244,7 @@ function LineItemRow({
       <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
       <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: accentColor, fontWeight: 500 }}>{displayValue}</span>
-      <button type="button" onClick={() => setEditing(true)} style={iconBtnStyle} title="Edit">
+      <button type="button" onClick={() => setEditing(true)} style={iconBtnStyle} title={editTitle ?? "Edit"}>
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
       </button>
       <button type="button" onClick={handleDelete} disabled={pending} style={{ ...iconBtnStyle, color: "var(--red)" }} title="Delete">
@@ -4422,15 +4423,10 @@ function CashFlowOS({
 
         {/* Expenses with inline actuals */}
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "18px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
             <span style={sectionHeadStyle}>Expenses</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.65 0.18 25)", fontWeight: 600 }}>{ph(fmt(monthlyExpenses))}/mo</span>
           </div>
-          <p style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 12px", lineHeight: 1.5 }}>
-            Expand a category to log actuals or edit amounts. Use the{" "}
-            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ verticalAlign: "middle", color: "var(--text-tertiary)" }}><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-            {" "}pencil icon next to any item to edit its label or budgeted amount.
-          </p>
 
           {expenseItems.length === 0 ? (
             <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
@@ -4492,11 +4488,25 @@ function CashFlowOS({
                           const history = getHistory(item.id);
                           const mKeyWhole = `${item.id}:whole`;
 
+                          const rowLabel: React.CSSProperties = {
+                            fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
+                            letterSpacing: "0.09em", width: "44px", flexShrink: 0,
+                            fontFamily: "var(--font-body)", paddingTop: "11px",
+                          };
+
                           return (
                             <div key={item.id} style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "10px", marginBottom: "10px" }}>
-                              <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
-                              {/* Inline actual */}
-                              <div className="cfo-actual" style={{ marginTop: "5px", display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                              {/* Budget row */}
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: "4px" }}>
+                                <span style={{ ...rowLabel, color: "oklch(0.60 0.22 258)" }}>Budget</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} editTitle="Edit budget amount" />
+                                </div>
+                              </div>
+                              {/* Actual row */}
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: "4px", marginTop: "2px" }}>
+                                <span style={{ ...rowLabel, color: "oklch(0.68 0.18 163)", paddingTop: "6px" }}>Actual</span>
+                                <div className="cfo-actual" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", paddingTop: "4px" }}>
                                 <form
                                   action={fd => {
                                     fd.set("cash_flow_item_id", item.id);
@@ -4628,6 +4638,7 @@ function CashFlowOS({
                                   )}
                                 </>
                               )}
+                              </div>{/* end Actual row wrapper */}
                             </div>
                           );
                         })}
