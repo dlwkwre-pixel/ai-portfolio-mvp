@@ -6031,7 +6031,6 @@ export default function PlanningClient({
             const risk = commandPriorities.find((p) => p.urgent) ?? null;
             const opportunity = commandPriorities.find((p) => !p.urgent) ?? commandPriorities[0];
             const showBoth = risk && opportunity && risk.id !== opportunity.id;
-            const item = showBoth ? null : (risk ?? opportunity);
             return (
               <div className="cmd-section" style={{ animationDelay: "40ms", display: "grid", gridTemplateColumns: showBoth ? "1fr 1fr" : "1fr", gap: "10px" }}>
                 {/* Risk card */}
@@ -6067,26 +6066,6 @@ export default function PlanningClient({
                       <button type="button" onClick={() => setTab(o.tabKey as Tab)}
                         style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)", color: "oklch(0.60 0.18 250)", cursor: "pointer" }}>
                         {o.ctaLabel} →
-                      </button>
-                    </div>
-                  );
-                })()}
-                {/* If only one item matches, fill with the item regardless of type */}
-                {item && (() => {
-                  const isRisk = item.urgent;
-                  const accent = isRisk ? "239,68,68" : "37,99,235";
-                  const accentOklch = isRisk ? "oklch(0.65 0.18 25)" : "oklch(0.60 0.18 250)";
-                  return (
-                    <div style={{ background: `rgba(${accent},0.04)`, border: `1px solid rgba(${accent},0.14)`, borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: accentOklch, fontFamily: "var(--font-body)", marginBottom: "6px" }}>
-                        {isRisk ? "Biggest Risk" : "Biggest Opportunity"}
-                      </div>
-                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</div>
-                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{item.why}</div>
-                      {!isRisk && <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "oklch(0.72 0.19 145)", marginBottom: "8px", fontWeight: 600 }}>↑ {item.impact}</div>}
-                      <button type="button" onClick={() => setTab(item.tabKey as Tab)}
-                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: `rgba(${accent},0.08)`, border: `1px solid rgba(${accent},0.18)`, color: accentOklch, cursor: "pointer" }}>
-                        {item.ctaLabel} →
                       </button>
                     </div>
                   );
