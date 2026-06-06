@@ -206,7 +206,15 @@ const SECTION_COLORS: Record<string, string> = {
 
 // ─── Primitive components ─────────────────────────────────────────────────────
 
-function FilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function FilterChip({ active, label, onClick, accent }: { active: boolean; label: string; onClick: () => void; accent?: "purple" }) {
+  const purple = accent === "purple";
+  const activeColor   = purple ? "rgba(139,92,246,0.45)" : "rgba(37,99,235,0.45)";
+  const activeBg      = purple ? "rgba(139,92,246,0.12)" : "rgba(37,99,235,0.12)";
+  const activeText    = purple ? "#c4b5fd" : "#93c5fd";
+  const activeShadow  = purple ? "0 0 0 1px rgba(139,92,246,0.1)" : "0 0 0 1px rgba(37,99,235,0.1)";
+  const inactiveColor = purple ? "rgba(139,92,246,0.3)" : "var(--card-border)";
+  const inactiveText  = purple ? "#a78bfa" : "var(--text-tertiary)";
+
   return (
     <button
       onClick={onClick}
@@ -217,10 +225,10 @@ function FilterChip({ active, label, onClick }: { active: boolean; label: string
         fontSize: "12px",
         fontWeight: active ? 600 : 400,
         fontFamily: "var(--font-body)",
-        border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
-        background: active ? "rgba(37,99,235,0.12)" : "transparent",
-        color: active ? "#93c5fd" : "var(--text-tertiary)",
-        boxShadow: active ? "0 0 0 1px rgba(37,99,235,0.1)" : "none",
+        border: `1px solid ${active ? activeColor : inactiveColor}`,
+        background: active ? activeBg : "transparent",
+        color: active ? activeText : inactiveText,
+        boxShadow: active ? activeShadow : "none",
         cursor: "pointer",
         transition: "color 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease",
         whiteSpace: "nowrap",
@@ -1871,6 +1879,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
             label={chip.label}
             active={activeFilter === chip.id}
             onClick={() => setActiveFilter(chip.id)}
+            accent={chip.id === "scenarios" ? "purple" : undefined}
           />
         ))}
       </div>
