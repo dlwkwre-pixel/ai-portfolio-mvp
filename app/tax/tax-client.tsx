@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
+import { saveLotAcqYears } from "./tax-actions";
 import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
@@ -182,7 +183,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [finnError, setFinnError] = useState<string | null>(null);
   const [realizedFilter, setRealizedFilter] = useState<"all" | "gains" | "losses">("all");
   const [barMounted, setBarMounted] = useState(false);
-  const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>({});
+  const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>(data.lotAcqYears ?? {});
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialMount = useRef(true);
   const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
@@ -193,6 +196,20 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     const t = setTimeout(() => setBarMounted(true), 150);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveLotAcqYears(lotAcqYears);
+    }, 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [lotAcqYears]);
 
   const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
 
