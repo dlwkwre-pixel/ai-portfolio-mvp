@@ -156,11 +156,39 @@ export default async function TaxPage({
 
   const portfolioNameById = new Map(activePortfolios.map(p => [p.id, p.name]));
 
+  // Reconstruct weighted average cost basis from buy history for any sell where cost_basis_amount = 0.
+  // Walk all buy/sell transactions in chronological order, maintaining a running WACB per portfolio+ticker.
+  const wacbMap = new Map<string, { shares: number; totalCost: number }>();
+  const backfilledCostBasis = new Map<string, number>(); // txId → computed cost basis
+
+  for (const tx of allRecentTx ?? []) {
+    const key = `${tx.portfolio_id}:${(tx.ticker ?? "").toUpperCase()}`;
+    if (!wacbMap.has(key)) wacbMap.set(key, { shares: 0, totalCost: 0 });
+    const tracker = wacbMap.get(key)!;
+
+    if (tx.transaction_type === "buy") {
+      const qty = Number(tx.quantity ?? 0);
+      const price = Number(tx.price_per_share ?? 0);
+      tracker.shares += qty;
+      tracker.totalCost += qty * price;
+    } else if (tx.transaction_type === "sell") {
+      const qty = Number(tx.quantity ?? 0);
+      const avgCost = tracker.shares > 0 ? tracker.totalCost / tracker.shares : 0;
+      const computed = qty * avgCost;
+      if (Number(tx.cost_basis_amount ?? 0) === 0 && computed > 0) {
+        backfilledCostBasis.set(tx.id, computed);
+      }
+      tracker.shares = Math.max(0, tracker.shares - qty);
+      tracker.totalCost = Math.max(0, tracker.totalCost - computed);
+    }
+  }
+
   // Build realized lots
   const realizedLots: RealizedLot[] = (sellTx ?? []).map(tx => {
     const qty = Number(tx.quantity ?? 0);
     const salePrice = Number(tx.price_per_share ?? 0);
-    const costBasis = Number(tx.cost_basis_amount ?? 0);
+    const storedCostBasis = Number(tx.cost_basis_amount ?? 0);
+    const costBasis = storedCostBasis > 0 ? storedCostBasis : (backfilledCostBasis.get(tx.id) ?? 0);
     const proceeds = salePrice * qty;
     const gainLoss = proceeds - costBasis;
     const days = holdingDays(tx.acquired_at ?? null, tx.traded_at);
