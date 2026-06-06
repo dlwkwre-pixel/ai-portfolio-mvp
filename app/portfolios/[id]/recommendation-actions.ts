@@ -791,7 +791,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     { data: notes, error: notesError },
     { data: snapshots, error: snapshotsError },
     { data: activeAssignment, error: activeAssignmentError },
-    { data: recentRuns, error: recentRunsError },
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolioId).order("ticker", { ascending: true }),
     supabase.from("portfolio_transactions").select("ticker, transaction_type, quantity, price_per_share, traded_at, notes").eq("portfolio_id", portfolioId).order("traded_at", { ascending: false }).limit(20),
@@ -803,7 +802,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
       strategies (id, name, description, style, risk_level),
       strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)
     `).eq("portfolio_id", portfolioId).eq("is_active", true).is("ended_at", null).order("assigned_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("recommendation_runs").select("id, status, model_name, created_at").eq("portfolio_id", portfolioId).order("created_at", { ascending: false }).limit(10),
   ]);
 
   if (holdingsError) throw new Error(holdingsError.message);
@@ -812,23 +810,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
   if (notesError) throw new Error(notesError.message);
   if (snapshotsError) throw new Error(snapshotsError.message);
   if (activeAssignmentError) throw new Error(activeAssignmentError.message);
-  if (recentRunsError) throw new Error(recentRunsError.message);
-
-  const recentRunIds = (recentRuns ?? []).map((run) => run.id);
-  let recentRecommendationItems: any[] = [];
-
-  if (recentRunIds.length > 0) {
-    const { data: items, error: itemsError } = await supabase
-      .from("recommendation_items")
-      .select("action_type, ticker, conviction, recommendation_status, target_price_1, base_return_pct, bear_return_pct, bull_return_pct, time_horizon, target_horizon")
-      .eq("portfolio_id", portfolioId)
-      .in("recommendation_run_id", recentRunIds.slice(0, 1))
-      .order("created_at", { ascending: false })
-      .limit(15);
-
-    if (itemsError) throw new Error(itemsError.message);
-    recentRecommendationItems = items ?? [];
-  }
 
   // Position thesis memory — keyed by ticker, non-fatal (table may not exist yet)
   let positionThesisMemory: Record<string, unknown> = {};
@@ -1000,7 +981,6 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     recent_transactions: transactions ?? [],
     recent_cash_ledger: cashLedger ?? [],
     recent_snapshots: snapshots ?? [],
-    recent_recommendation_items: recentRecommendationItems,
     market_context: prunedMarketContext,
     reddit_sentiment: redditSentiment,
     portfolio_construction: portfolioConstruction,
@@ -1135,7 +1115,7 @@ HARD CONSTRAINTS:
    - probability_bear / probability_base / probability_bull = integer probabilities 0-100 summing to exactly 100. Reflect genuine conviction. Default 25/50/25 is unacceptable — assign based on asymmetry, catalyst quality, fundamental strength.
    - target_horizon = specific timeframe for the base case (e.g. "6-12 months", "1-2 earnings cycles", "2-3 years"). Write an actual range, not "short_term".
    - catalysts = array of 2-4 concise strings naming key drivers (e.g. "AI infrastructure demand", "earnings revisions", "margin expansion").
-   - target_change_reason = if recent_recommendation_items shows prior targets for this ticker and your new base_return_pct differs by more than 3 pct points, explain the change in 1-3 sentences (earnings revision, macro shift, new catalyst, etc.). Otherwise null.
+   - target_change_reason = null (no prior run data is provided — always set to null).
 
 3. TRIM/SELL QUANTITY: share_quantity must not exceed shares owned. Full sell = total shares. sizing_dollars = share_quantity × current_price.
 
@@ -1149,7 +1129,7 @@ RECOMMENDATION STRUCTURE — for each recommendation, structure the fields as fo
 Return this exact JSON shape:
 
 {
-  "summary": "3 sentences max. Sentence 1: portfolio's dominant factor bet and whether current conditions favor it. Sentence 2: what materially changed since last run (factor drift, new thesis developments, macro shift) — or 'No material change' if stable. Sentence 3: the single highest-priority action and why. Max 280 chars.",
+  "summary": "3 sentences max. Sentence 1: portfolio's dominant factor bet and whether current conditions favor it. Sentence 2: most notable current risk or opportunity based on factor drift, macro shift, or thesis developments. Sentence 3: the single highest-priority action and why. Max 280 chars.",
   "recommendations": [
     {
       "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",
