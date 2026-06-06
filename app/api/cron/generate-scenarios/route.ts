@@ -154,51 +154,50 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Already generated recently, skipping." });
   }
 
-  // Build AI client — Grok preferred, Groq as fallback
-  const grokKey  = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
+  // Groq is preferred (free, fast, sufficient with Finnhub context).
+  // Grok (xAI) is the fallback if no Groq keys are present.
   const groqKey  = process.env.GROQ_API_KEY;
-  const groq2Key = process.env.GROQ_API_KEY_2; // optional second Groq key for extra quota
+  const groq2Key = process.env.GROQ_API_KEY_2;
+  const grokKey  = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
 
-  const apiKey  = grokKey ?? groq2Key ?? groqKey;
-  if (!apiKey) {
+  const GROQ_URL = "https://api.groq.com/openai/v1";
+  const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+  if (!groqKey && !groq2Key && !grokKey) {
     return NextResponse.json({ error: "No AI key configured." }, { status: 500 });
   }
-  const isGrok  = Boolean(grokKey);
-  const isGroq2 = !isGrok && Boolean(groq2Key);
-  const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
-  const model   = isGrok ? "grok-3-fast" : "llama-3.3-70b-versatile";
-
-  const ai = new OpenAI({ apiKey, baseURL });
 
   // Fetch news headlines
   const headlines = await fetchGeneralNews();
-
-  // Run two parallel generation calls for more scenarios
-  // Second call uses a different key if available (Groq key 2) to avoid rate limits
   const prompt = buildPrompt(headlines);
+
+  // Build parallel calls: up to two Groq keys, or one Grok call as fallback
+  type CallSpec = { client: OpenAI; model: string; temperature: number };
+  const calls: CallSpec[] = [];
+
+  if (groqKey) {
+    calls.push({ client: new OpenAI({ apiKey: groqKey, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.7 });
+  }
+  if (groq2Key) {
+    calls.push({ client: new OpenAI({ apiKey: groq2Key, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.8 });
+  }
+  if (calls.length === 0 && grokKey) {
+    calls.push({ client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }), model: "grok-3-fast", temperature: 0.7 });
+  }
 
   let allScenarios: GeneratedScenario[] = [];
 
   try {
-    const results = await Promise.allSettled([
-      // Primary call
-      ai.chat.completions.create({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 4000,
-      }),
-      // Secondary call with second Groq key if available, else skip
-      groq2Key && !isGrok && !isGroq2
-        ? new OpenAI({ apiKey: groq2Key, baseURL: "https://api.groq.com/openai/v1" })
-            .chat.completions.create({
-              model: "llama-3.3-70b-versatile",
-              messages: [{ role: "user", content: prompt }],
-              temperature: 0.85, // slightly more creative
-              max_tokens: 4000,
-            })
-        : Promise.reject("no second key"),
-    ]);
+    const results = await Promise.allSettled(
+      calls.map(({ client, model, temperature }) =>
+        client.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          temperature,
+          max_tokens: 4000,
+        })
+      )
+    );
 
     for (const result of results) {
       if (result.status === "fulfilled") {
