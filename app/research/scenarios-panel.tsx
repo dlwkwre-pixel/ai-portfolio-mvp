@@ -780,6 +780,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   const [quotes, setQuotes]             = useState<ScenarioQuote[]>([]);
   const [loading, setLoading]           = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [signalFilter, setSignalFilter] = useState<"all" | "hot" | "signals">("all");
   const [aiScenarios, setAiScenarios]   = useState<AIGeneratedScenario[]>([]);
   const [aiIds, setAiIds]               = useState<Set<string>>(new Set());
 
@@ -843,9 +844,13 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   const aiMapped = aiScenarios.map(aiToMacro);
   const allScenarios = [...MACRO_SCENARIOS, ...aiMapped];
 
-  const filteredScenarios = allScenarios.filter(
-    (s) => activeCategory === "all" || s.category === activeCategory
-  );
+  const filteredScenarios = allScenarios.filter((s) => {
+    if (activeCategory !== "all" && s.category !== activeCategory) return false;
+    const cnt = signalById.get(s.id)?.count ?? 0;
+    if (signalFilter === "hot")     return cnt >= 4;
+    if (signalFilter === "signals") return cnt >= 1;
+    return true;
+  });
 
   const sorted = [...filteredScenarios].sort((a, b) => {
     // AI-generated scenarios with no signal still float above static cold ones
@@ -886,36 +891,48 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
           </p>
         </div>
 
-        {/* Signal summary */}
+        {/* Signal filter buttons */}
         {!loading && (
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {hotCount > 0 && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: "5px",
-                padding: "4px 10px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.25)",
-              }}>
+              <button
+                type="button"
+                onClick={() => setSignalFilter((f) => f === "hot" ? "all" : "hot")}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "4px 10px",
+                  borderRadius: "var(--radius-full)",
+                  background: signalFilter === "hot" ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.1)",
+                  border: signalFilter === "hot" ? "1px solid rgba(239,68,68,0.6)" : "1px solid rgba(239,68,68,0.25)",
+                  cursor: "pointer",
+                  transition: "background 0.12s, border-color 0.12s",
+                }}
+              >
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 5px #ef4444" }} />
                 <span style={{ fontSize: "10px", fontWeight: 700, color: "#ef4444" }}>
                   {hotCount} Hot
                 </span>
-              </div>
+              </button>
             )}
             {activeCount > 0 && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: "5px",
-                padding: "4px 10px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(59,130,246,0.1)",
-                border: "1px solid rgba(59,130,246,0.25)",
-              }}>
+              <button
+                type="button"
+                onClick={() => setSignalFilter((f) => f === "signals" ? "all" : "signals")}
+                style={{
+                  display: "flex", alignItems: "center", gap: "5px",
+                  padding: "4px 10px",
+                  borderRadius: "var(--radius-full)",
+                  background: signalFilter === "signals" ? "rgba(59,130,246,0.2)" : "rgba(59,130,246,0.1)",
+                  border: signalFilter === "signals" ? "1px solid rgba(59,130,246,0.6)" : "1px solid rgba(59,130,246,0.25)",
+                  cursor: "pointer",
+                  transition: "background 0.12s, border-color 0.12s",
+                }}
+              >
                 <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3b82f6" }} />
                 <span style={{ fontSize: "10px", fontWeight: 600, color: "#3b82f6" }}>
                   {activeCount} w/ Signals
                 </span>
-              </div>
+              </button>
             )}
           </div>
         )}
@@ -936,7 +953,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
             <button
               key={id}
               type="button"
-              onClick={() => setActiveCategory(id)}
+              onClick={() => { setActiveCategory(id); setSignalFilter("all"); }}
               style={{
                 flexShrink: 0,
                 padding: "5px 12px",
