@@ -24,6 +24,32 @@ const SERIES_CONFIG: Record<string, RangeCfg> = {
   "1Y": { fn: "TIME_SERIES_WEEKLY",                                         seriesKey: "Weekly Time Series",  limit: 53 },
 };
 
+export type AVNewsItem = {
+  title: string;
+  summary: string;
+  url: string;
+  time_published: string;
+  source: string;
+  topics: { topic: string; relevance_score: string }[];
+  overall_sentiment_label: string;
+};
+
+export async function getAlphaVantageNews(limit = 50): Promise<AVNewsItem[]> {
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!apiKey) return [];
+  try {
+    const topics = "financial_markets,economy_macro,economy_monetary,energy_transportation,technology";
+    const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=${topics}&sort=LATEST&limit=${limit}&apikey=${apiKey}`;
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) return [];
+    const data = await res.json() as { feed?: AVNewsItem[]; Information?: string };
+    if (data.Information) return []; // rate limited
+    return data.feed ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getAlphaVantageCandles(ticker: string, range: string): Promise<CandlePoint[] | null> {
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   if (!apiKey) return null;

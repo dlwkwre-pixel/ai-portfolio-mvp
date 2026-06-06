@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAggregatedHeadlines } from "@/lib/market-data/news-aggregator";
 
 // Existing static scenario titles — AI should not duplicate these
 const EXISTING_SCENARIOS = [
@@ -28,26 +29,6 @@ type GeneratedScenario = {
   time_horizon: "days" | "weeks" | "months" | "years";
   trigger_context: string;
 };
-
-async function fetchGeneralNews(): Promise<string[]> {
-  const key = process.env.FINNHUB_API_KEY;
-  if (!key) return [];
-  try {
-    const res = await fetch(
-      `https://finnhub.io/api/v1/news?category=general&minId=0&token=${key}`,
-      { next: { revalidate: 0 } }
-    );
-    if (!res.ok) return [];
-    const items = await res.json() as { headline: string; datetime: number }[];
-    // Most recent 40, sorted newest first
-    return items
-      .sort((a, b) => b.datetime - a.datetime)
-      .slice(0, 40)
-      .map((n) => n.headline);
-  } catch {
-    return [];
-  }
-}
 
 function expiresAt(horizon: string): string {
   const d = new Date();
@@ -172,8 +153,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "No AI key configured." }, { status: 500 });
   }
 
-  // Fetch news headlines
-  const headlines = await fetchGeneralNews();
+  // Fetch news headlines from all configured sources (Finnhub + Alpha Vantage + NewsAPI)
+  const headlines = await fetchAggregatedHeadlines(40);
   const prompt = buildPrompt(headlines);
 
   // Build parallel calls: up to two Groq keys, or one Grok call as fallback
