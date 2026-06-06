@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { EditHoldingForm, DeleteHoldingButton } from "./add-holding-form";
 import StockChart from "@/app/components/stock-chart";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type ValuedHolding = {
   id: string;
   ticker: string;
@@ -28,6 +30,8 @@ type MarketData = {
   priceTarget: {
     targetMean: number; targetLow: number; targetHigh: number;
   } | null;
+  profile: { name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null } | null;
+  metrics: { peRatio: number | null; weekHigh52: number | null; weekLow52: number | null } | null;
 };
 
 type InsiderTx = {
@@ -46,11 +50,64 @@ type InsiderData = {
   signal: "buy" | "sell" | "neutral";
 };
 
+type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
+
+type RawMetrics = {
+  netMarginTTM?: number | null;
+  revenueGrowth3Y?: number | null;
+  epsGrowth3Y?: number | null;
+  roeTTM?: number | null;
+  peBasicExclExtraTTM?: number | null;
+  currentRatioAnnual?: number | null;
+  debtToEquityAnnual?: number | null;
+};
+
+type RawRecommendation = {
+  buy: number; hold: number; sell: number; strongBuy: number; strongSell: number; period: string;
+};
+
+type CompanyProfile = {
+  finnhubIndustry?: string; country?: string; ipo?: string; name?: string;
+};
+
+type DigestResult = {
+  company_overview: string;
+  news_digest: string;
+  earnings_snapshot: string | null;
+  financial_snapshot: string | null;
+  market_outlook: string;
+  generated_at: string;
+  raw_earnings: RawEarning[];
+  raw_metrics: RawMetrics | null;
+  raw_recommendation: RawRecommendation | null;
+  profile: CompanyProfile | null;
+};
+
+type RedditPulse = {
+  source?: "reddit" | "apewisdom";
+  ticker: string; company_name: string; time_window: string;
+  fetched_at: string; expires_at: string;
+  post_count: number; mention_count: number;
+  bullish_pct: number; bearish_pct: number; neutral_pct: number;
+  sentiment_score: number; hype_score: number; conviction_score: number;
+  reddit_pulse_score: number; sentiment_label: string;
+  top_themes: string[]; top_bullish_themes: string[]; top_bearish_themes: string[];
+  top_risks: string[]; top_catalysts: string[];
+  subreddit_breakdown: { subreddit: string; post_count: number; sentiment: string; sentiment_label: string }[];
+  source_post_links: { subreddit: string; title: string; score: number; comment_count: number; created_utc: number; permalink: string }[];
+  summary: string; ai_powered: boolean; stale?: boolean;
+  mentions?: number; mentions_24h_ago?: number; mention_change_pct?: number;
+  upvotes?: number; rank?: number; rank_24h_ago?: number; rank_change?: number;
+  reddit_trend_score?: number;
+  status?: string; message?: string;
+};
 
 type HoldingsTableProps = {
   portfolioId: string;
   holdings: ValuedHolding[];
 };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -62,6 +119,11 @@ function formatPercent(value: number | null | undefined) {
   return `${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
+function formatPrice(n: number | null | undefined) {
+  if (n == null) return "—";
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function timeAgo(unixTimestamp: number): string {
   const now = Date.now() / 1000;
   const diff = now - unixTimestamp;
@@ -70,91 +132,157 @@ function timeAgo(unixTimestamp: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function MarketDataPanel({ ticker, currentPrice, data }: {
-  ticker: string;
-  currentPrice: number | null;
-  data: MarketData;
-}) {
-  const { news, recommendation, priceTarget } = data;
-  const totalAnalysts = recommendation
-    ? recommendation.strongBuy + recommendation.buy + recommendation.hold + recommendation.sell + recommendation.strongSell
-    : 0;
-  const bullish = recommendation ? recommendation.strongBuy + recommendation.buy : 0;
-  const bearish = recommendation ? recommendation.sell + recommendation.strongSell : 0;
-  const bullishPct = totalAnalysts > 0 ? Math.round((bullish / totalAnalysts) * 100) : null;
-  const upside = currentPrice && priceTarget?.targetMean
-    ? ((priceTarget.targetMean - currentPrice) / currentPrice) * 100
-    : null;
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const valid = [...earnings].reverse().filter((e) => e.actual != null || e.estimate != null);
+  if (valid.length === 0) return null;
+  const posVals = valid.flatMap((e) => [e.actual, e.estimate]).filter((v): v is number => v != null && v > 0);
+  if (posVals.length === 0) return null;
+  const maxVal = Math.max(...posVals) * 1.2;
+  const chartH = 72;
+  const yAxisW = 36;
+  const fmtEps = (n: number) => `$${n.toFixed(2)}`;
+  const gridLines = [0.5, 1.0].map((f) => ({ pct: f * 100, label: fmtEps(maxVal * f) }));
 
   return (
-    <div className="space-y-3 p-4 bg-blue-500/3 border-t border-white/5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-
-        {/* Analyst consensus */}
-        {recommendation && totalAnalysts > 0 && (
-          <div className="rounded-xl border border-white/6 bg-white/3 p-3">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-              Analyst Consensus · {totalAnalysts} analysts
-            </p>
-            <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-white/8 mb-2">
-              <div className="h-full bg-emerald-500" style={{ width: `${((recommendation.strongBuy + recommendation.buy) / totalAnalysts) * 100}%` }} />
-              <div className="h-full bg-slate-500" style={{ width: `${(recommendation.hold / totalAnalysts) * 100}%` }} />
-              <div className="h-full bg-red-500" style={{ width: `${((recommendation.sell + recommendation.strongSell) / totalAnalysts) * 100}%` }} />
-            </div>
-            <div className="flex gap-3 text-xs">
-              <span className="text-emerald-400">Buy {bullish}{bullishPct !== null && <span className="text-slate-600 ml-1">({bullishPct}%)</span>}</span>
-              <span className="text-slate-500">Hold {recommendation.hold}</span>
-              <span className="text-red-400">Sell {bearish}</span>
-            </div>
+    <>
+      <style>{`
+        @keyframes bt-bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+        .bt-bar-r { transform-origin: bottom center; animation: bt-bar-rise 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+      `}</style>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "rgba(255,255,255,0.22)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+          <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
+          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+        </div>
+      </div>
+      <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
+            {gridLines.map((g, gi) => (
+              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
+                {g.label}
+              </div>
+            ))}
           </div>
-        )}
-
-        {/* Price target */}
-        {priceTarget && priceTarget.targetMean > 0 && (
-          <div className="rounded-xl border border-white/6 bg-white/3 p-3">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Price Target</p>
-            <div className="flex items-center gap-2">
-              <p className="text-base font-semibold text-white">{formatMoney(priceTarget.targetMean)}</p>
-              {upside !== null && (
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                  upside > 0 ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-                  : "border-red-500/20 bg-red-500/10 text-red-400"
-                }`}>
-                  {upside > 0 ? "+" : ""}{upside.toFixed(1)}%
-                </span>
-              )}
-            </div>
-            <p className="text-[10px] text-slate-600 mt-1">
-              {formatMoney(priceTarget.targetLow)} – {formatMoney(priceTarget.targetHigh)} range
-            </p>
-          </div>
-        )}
-
-        {/* News */}
-        {news.length > 0 && (
-          <div className="rounded-xl border border-white/6 bg-white/3 p-3 sm:col-span-2 lg:col-span-1">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Recent News</p>
-            <div className="space-y-2">
-              {news.slice(0, 3).map((item) => (
-                <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-start gap-1.5 rounded-lg p-1.5 transition hover:bg-white/5">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium leading-4 text-slate-200 line-clamp-2">{item.headline}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-600">{item.source} · {timeAgo(item.datetime)}</p>
+          <div style={{ flex: 1, position: "relative", height: `${chartH}px` }}>
+            {gridLines.map((g, gi) => (
+              <div key={gi} style={{ position: "absolute", left: 0, right: 0, bottom: `${g.pct}%`, height: "1px", background: g.pct === 100 ? "var(--border-subtle)" : "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+            ))}
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-end", gap: "4px" }}>
+              {valid.map((e, i) => {
+                const actualH = e.actual != null && e.actual > 0 ? Math.max(3, (e.actual / maxVal) * chartH) : 0;
+                const estH = e.estimate != null && e.estimate > 0 ? Math.max(3, (e.estimate / maxVal) * chartH) : 0;
+                const barColor = e.beat === true ? "var(--green)" : e.beat === false ? "var(--red)" : "var(--brand-blue)";
+                const isHovered = hoverIdx === i;
+                const isDimmed = hoverIdx !== null && !isHovered;
+                return (
+                  <div key={i} style={{ flex: 1, height: "100%", position: "relative" }} onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}>
+                    {isHovered && (
+                      <div style={{ position: "absolute", bottom: `${Math.max(actualH, estH) + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 16px rgba(0,0,0,0.45)", pointerEvents: "none" }}>
+                        <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
+                        {e.estimate != null && <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>}
+                        {e.actual != null && <div style={{ fontSize: "10px", fontWeight: 600, color: barColor, fontFamily: "var(--font-mono)" }}>Act: {fmtEps(e.actual)}{e.beat === true ? " ✓" : e.beat === false ? " ✗" : ""}</div>}
+                      </div>
+                    )}
+                    <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, filter: isHovered ? "brightness(1.5) saturate(1.2)" : "none", transition: "opacity 180ms ease, filter 180ms ease" }}>
+                      {estH > 0 && <div className="bt-bar-r" style={{ width: "11px", height: `${estH}px`, background: "rgba(255,255,255,0.22)", borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07}s` }} />}
+                      {actualH > 0 && <div className="bt-bar-r" style={{ width: "11px", height: `${actualH}px`, background: barColor, borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07 + 0.05}s` }} />}
+                    </div>
                   </div>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 shrink-0 mt-0.5 text-slate-600">
-                    <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
-                    <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
-                  </svg>
-                </a>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+        </div>
+        <div style={{ display: "flex", gap: "4px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
+          {valid.map((e, i) => (
+            <div key={i} style={{ flex: 1, textAlign: "center" }}>
+              <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>{e.quarter}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 
-        {!recommendation && !priceTarget && news.length === 0 && (
-          <p className="text-xs text-slate-600">No market data available for {ticker}.</p>
-        )}
+function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
+  const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+  const fmtSignedPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
+  const items: { label: string; value: string; color: string }[] = [];
+
+  if (metrics.netMarginTTM != null) {
+    const v = metrics.netMarginTTM * 100;
+    items.push({ label: "Net Margin", value: fmtPct(v), color: v >= 20 ? "var(--green)" : v >= 8 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.revenueGrowth3Y != null) {
+    const v = metrics.revenueGrowth3Y;
+    items.push({ label: "Rev Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.epsGrowth3Y != null) {
+    const v = metrics.epsGrowth3Y;
+    items.push({ label: "EPS Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.roeTTM != null) {
+    const v = metrics.roeTTM;
+    items.push({ label: "ROE", value: fmtPct(v), color: v >= 15 ? "var(--green)" : v >= 5 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.currentRatioAnnual != null) {
+    const v = metrics.currentRatioAnnual;
+    items.push({ label: "Current Ratio", value: v.toFixed(2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--amber)" : "var(--red)" });
+  }
+  if (metrics.debtToEquityAnnual != null) {
+    const v = metrics.debtToEquityAnnual;
+    items.push({ label: "Debt/Equity", value: v.toFixed(2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--amber)" : "var(--red)" });
+  }
+
+  if (items.length === 0) return null;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+          <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{item.label}</div>
+          <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: item.color, lineHeight: 1 }}>{item.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AnalystConsensusBar({ rec }: { rec: RawRecommendation }) {
+  const sb = rec.strongBuy ?? 0;
+  const b  = rec.buy ?? 0;
+  const h  = rec.hold ?? 0;
+  const s  = rec.sell ?? 0;
+  const ss = rec.strongSell ?? 0;
+  const total = sb + b + h + s + ss;
+  if (total === 0) return null;
+
+  const bullCount = sb + b;
+  const bearCount = s + ss;
+  const consensusLabel = bullCount > h && bullCount > bearCount ? "Bullish" : bearCount > bullCount ? "Bearish" : "Neutral";
+  const consensusColor = bullCount > bearCount ? "var(--green)" : bearCount > bullCount ? "var(--red)" : "var(--amber)";
+  const segments = [
+    { count: sb, color: "#00d395" }, { count: b, color: "#4ade80" },
+    { count: h, color: "#f59e0b" }, { count: s, color: "#fb7185" }, { count: ss, color: "#ef4444" },
+  ].filter(seg => seg.count > 0);
+
+  return (
+    <div>
+      <div style={{ display: "flex", height: "7px", borderRadius: "4px", overflow: "hidden", gap: "1px" }}>
+        {segments.map((seg, i) => <div key={i} style={{ flex: seg.count, background: seg.color, minWidth: "2px" }} />)}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px", fontSize: "10px" }}>
+        <span style={{ color: "var(--green)" }}>{bullCount} Buy</span>
+        <span style={{ color: consensusColor, fontWeight: 600 }}>{consensusLabel} · {total} analysts</span>
+        <span style={{ color: "var(--red)" }}>{bearCount} Sell</span>
       </div>
     </div>
   );
@@ -165,89 +293,126 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
 
   if (transactions.length === 0) {
     return (
-      <div className="border-t border-white/5 bg-white/1 px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Insider Activity</p>
-        <p className="text-xs text-slate-600">No open-market transactions in the last 90 days for {ticker}.</p>
+      <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "12px 18px" }}>
+        <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "4px" }}>Insider Activity</p>
+        <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>No open-market transactions in the last 90 days for {ticker}.</p>
       </div>
     );
   }
 
-  const signalColor = signal === "buy" ? "text-emerald-400" : signal === "sell" ? "text-red-400" : "text-slate-400";
-  const signalBg    = signal === "buy" ? "bg-emerald-500/10 border-emerald-500/20" : signal === "sell" ? "bg-red-500/10 border-red-500/20" : "bg-white/3 border-white/8";
+  const signalColor = signal === "buy" ? "var(--green)" : signal === "sell" ? "var(--red)" : "var(--text-muted)";
+  const signalBg    = signal === "buy" ? "rgba(0,211,149,0.1)" : signal === "sell" ? "rgba(239,68,68,0.1)" : "var(--bg-surface)";
+  const signalBorder = signal === "buy" ? "rgba(0,211,149,0.25)" : signal === "sell" ? "rgba(239,68,68,0.25)" : "var(--card-border)";
   const signalLabel = signal === "buy" ? "Net Buying" : signal === "sell" ? "Net Selling" : "Mixed";
 
   return (
-    <div className="border-t border-white/5 bg-white/1 px-4 py-3">
-      <div className="flex items-center gap-3 mb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Insider Activity · 90 days</p>
-        <span className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${signalBg} ${signalColor}`}>
+    <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "12px 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>Insider Activity · 90 days</span>
+        <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 8px", borderRadius: "999px", background: signalBg, border: `1px solid ${signalBorder}`, color: signalColor }}>
           {signalLabel} · {netBuys}B / {netSells}S
         </span>
       </div>
-      <div className="space-y-1.5">
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {transactions.slice(0, 6).map((tx, i) => {
           const isBuy = tx.transactionCode === "P";
           const value = tx.transactionPrice > 0 ? Math.abs(tx.change) * tx.transactionPrice : null;
           return (
-            <div key={i} className="flex items-center gap-3 text-xs">
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isBuy ? "bg-emerald-500" : "bg-red-500"}`} />
-              <span className={`font-semibold w-8 flex-shrink-0 ${isBuy ? "text-emerald-400" : "text-red-400"}`}>
-                {isBuy ? "BUY" : "SELL"}
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "12px" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", flexShrink: 0, background: isBuy ? "var(--green)" : "var(--red)" }} />
+              <span style={{ fontWeight: 600, width: "32px", flexShrink: 0, color: isBuy ? "var(--green)" : "var(--red)" }}>{isBuy ? "BUY" : "SELL"}</span>
+              <span style={{ color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.name}</span>
+              <span style={{ color: "var(--text-muted)", flexShrink: 0 }}>
+                {Math.abs(tx.change).toLocaleString()} shares{value != null && ` · $${(value / 1000).toFixed(0)}k`}
               </span>
-              <span className="text-slate-300 flex-1 min-w-0 truncate">{tx.name}</span>
-              <span className="text-slate-500 flex-shrink-0">
-                {Math.abs(tx.change).toLocaleString()} shares
-                {value != null && ` · $${(value / 1000).toFixed(0)}k`}
-              </span>
-              <span className="text-slate-600 flex-shrink-0 hidden sm:block">{tx.transactionDate}</span>
+              <span style={{ color: "var(--text-muted)", flexShrink: 0, fontSize: "10px" }}>{tx.transactionDate}</span>
             </div>
           );
         })}
       </div>
       {transactions.length > 6 && (
-        <p className="mt-2 text-[10px] text-slate-600">+{transactions.length - 6} more transactions · SEC Form 4</p>
+        <p style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>+{transactions.length - 6} more transactions · SEC Form 4</p>
       )}
     </div>
   );
 }
+
+// ─── Main Table ───────────────────────────────────────────────────────────────
 
 export default function HoldingsTable({ portfolioId, holdings }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
   const [insiderData, setInsiderData] = useState<Record<string, InsiderData>>({});
+  const [digestData, setDigestData] = useState<Record<string, DigestResult>>({});
+  const [socialData, setSocialData] = useState<Record<string, RedditPulse | null>>({});
+  const [socialErrors, setSocialErrors] = useState<Record<string, string>>({});
+  const [socialShowSources, setSocialShowSources] = useState<Record<string, boolean>>({});
   const [loadingTicker, setLoadingTicker] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [digestLoadingTicker, setDigestLoadingTicker] = useState<string | null>(null);
+  const [socialLoadingTicker, setSocialLoadingTicker] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   async function handleExpand(holding: ValuedHolding) {
     if (expandedId === holding.id) {
       setExpandedId(null);
       return;
     }
-
     setExpandedId(holding.id);
 
-    const alreadyLoaded = marketData[holding.ticker];
-    if (!alreadyLoaded) {
-      setLoadingTicker(holding.ticker);
-      try {
-        const [mktRes, insRes] = await Promise.all([
-          fetch(`/api/market-data/${holding.ticker}`),
-          fetch(`/api/insider/${holding.ticker}`),
-        ]);
+    const ticker = holding.ticker;
+
+    if (!marketData[ticker]) {
+      setLoadingTicker(ticker);
+      Promise.all([
+        fetch(`/api/market-data/${ticker}`),
+        fetch(`/api/insider/${ticker}`),
+      ]).then(async ([mktRes, insRes]) => {
         if (mktRes.ok) {
           const data = await mktRes.json();
-          setMarketData((prev) => ({ ...prev, [holding.ticker]: data }));
+          setMarketData((prev) => ({ ...prev, [ticker]: data }));
         }
         if (insRes.ok) {
           const data = await insRes.json();
-          setInsiderData((prev) => ({ ...prev, [holding.ticker]: data }));
+          setInsiderData((prev) => ({ ...prev, [ticker]: data }));
         }
-      } catch {
-        // fail silently
-      } finally {
-        setLoadingTicker(null);
-      }
+      }).catch(() => {}).finally(() => setLoadingTicker(null));
+    }
+
+    if (!digestData[ticker]) {
+      setDigestLoadingTicker(ticker);
+      fetch("/api/research/digest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticker,
+          company_name: holding.company_name ?? ticker,
+          price: holding.current_price ?? 0,
+          change_pct: 0,
+        }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!d.error) setDigestData((prev) => ({ ...prev, [ticker]: d as DigestResult }));
+        })
+        .catch(() => {})
+        .finally(() => setDigestLoadingTicker(null));
+    }
+
+    if (!(ticker in socialData) && !socialErrors[ticker]) {
+      setSocialLoadingTicker(ticker);
+      const company = encodeURIComponent(holding.company_name ?? ticker);
+      fetch(`/api/social-pulse/${ticker}?company=${company}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.status === "unavailable" || d.status === "no_credentials" || d.status === "disabled" || d.error) {
+            setSocialErrors((prev) => ({ ...prev, [ticker]: d.message ?? d.error ?? "Reddit Pulse unavailable." }));
+          } else {
+            setSocialData((prev) => ({ ...prev, [ticker]: d as RedditPulse }));
+          }
+        })
+        .catch(() => setSocialErrors((prev) => ({ ...prev, [ticker]: "Failed to load Reddit Pulse." })))
+        .finally(() => setSocialLoadingTicker(null));
     }
   }
 
@@ -336,46 +501,428 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                 </td>
               </tr>
 
-              {/* Market data panel */}
+              {/* Detail panel */}
               {expandedId === holding.id && (
                 <tr key={`market-${holding.id}`}>
                   <td colSpan={9} className="p-0">
-                    {loadingTicker === holding.ticker ? (
-                      <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500 bg-white/2">
+                    {loadingTicker === holding.ticker && !marketData[holding.ticker] ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 18px", fontSize: "12px", color: "var(--text-muted)", background: "var(--bg-surface)" }}>
                         <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        Loading market data for {holding.ticker}...
+                        Loading data for {holding.ticker}...
                       </div>
                     ) : marketData[holding.ticker] ? (
-                      <MarketDataPanel
-                        ticker={holding.ticker}
-                        currentPrice={holding.current_price}
-                        data={marketData[holding.ticker]}
-                      />
+                      <div style={{ background: "var(--bg-elevated)", borderTop: "1px solid var(--border-subtle)" }}>
+
+                        {/* Key metrics grid */}
+                        {(() => {
+                          const md = marketData[holding.ticker];
+                          const hasMetrics = md.profile?.marketCap || md.profile?.industry || md.metrics?.peRatio || md.metrics?.weekHigh52;
+                          if (!hasMetrics) return null;
+                          return (
+                            <div style={{ padding: "14px 18px 0" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "1px", background: "var(--border-subtle)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: "14px" }}>
+                                {md.profile?.marketCap && (
+                                  <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
+                                    <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
+                                      {md.profile.marketCap >= 1_000_000
+                                        ? `$${(md.profile.marketCap / 1_000_000).toFixed(2)}T`
+                                        : md.profile.marketCap >= 1_000
+                                        ? `$${(md.profile.marketCap / 1_000).toFixed(1)}B`
+                                        : `$${Math.round(md.profile.marketCap)}M`}
+                                    </div>
+                                  </div>
+                                )}
+                                {md.metrics?.peRatio && md.metrics.peRatio > 0 && (
+                                  <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
+                                    <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{md.metrics.peRatio.toFixed(1)}x</div>
+                                  </div>
+                                )}
+                                {md.metrics?.weekHigh52 && md.metrics?.weekLow52 && (
+                                  <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
+                                    <div className="num" style={{ lineHeight: 1.45 }}>
+                                      <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)" }}>{formatPrice(md.metrics.weekLow52)}</div>
+                                      <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)" }}>{formatPrice(md.metrics.weekHigh52)}</div>
+                                    </div>
+                                  </div>
+                                )}
+                                {md.profile?.industry && (
+                                  <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
+                                    <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{md.profile.industry}</div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Analyst consensus + price target */}
+                        {(() => {
+                          const md = marketData[holding.ticker];
+                          if (!md.recommendation && !md.priceTarget) return null;
+                          const rec = md.recommendation;
+                          const total = rec ? rec.strongBuy + rec.buy + rec.hold + rec.sell + rec.strongSell : 0;
+                          const bullPct = total > 0 ? ((rec!.strongBuy + rec!.buy) / total) * 100 : 0;
+                          const holdPct = total > 0 ? (rec!.hold / total) * 100 : 0;
+                          const bearPct = total > 0 ? ((rec!.strongSell + rec!.sell) / total) * 100 : 0;
+                          const upside = holding.current_price && md.priceTarget?.targetMean
+                            ? ((md.priceTarget.targetMean - holding.current_price) / holding.current_price) * 100
+                            : null;
+                          return (
+                            <div style={{ padding: "0 18px 14px", display: "grid", gridTemplateColumns: rec && md.priceTarget ? "1fr 1fr" : "1fr", gap: "16px" }}>
+                              {rec && total > 0 && (
+                                <div>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
+                                  <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
+                                    <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
+                                    <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+                                    <div style={{ width: `${bearPct}%`, background: "var(--red)", flexShrink: 0 }} />
+                                  </div>
+                                  <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
+                                    <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
+                                    <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
+                                    <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
+                                  </div>
+                                </div>
+                              )}
+                              {md.priceTarget && (
+                                <div>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
+                                  <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(md.priceTarget.targetMean)}</div>
+                                  {upside !== null && (
+                                    <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
+                                      {upside >= 0 ? "+" : ""}{upside.toFixed(1)}% upside
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>
+                                    {formatPrice(md.priceTarget.targetLow)} — {formatPrice(md.priceTarget.targetHigh)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Price chart */}
+                        {holding.asset_type !== "cash" && (
+                          <div style={{ padding: "0 18px 14px" }}>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Chart</div>
+                            <StockChart key={holding.ticker} ticker={holding.ticker} height={160} defaultRange="1D" showRangeControls />
+                          </div>
+                        )}
+
+                        {/* AI Digest */}
+                        <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>AI Digest</span>
+                          <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+                        </div>
+                        <div style={{ padding: "10px 18px 20px" }}>
+                          {digestLoadingTicker === holding.ticker && !digestData[holding.ticker] && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-muted)" }}>
+                              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--brand-blue)", opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />
+                              Generating digest for {holding.ticker}...
+                            </div>
+                          )}
+                          {digestData[holding.ticker] && (() => {
+                            const dig = digestData[holding.ticker];
+                            return (
+                              <div>
+                                {dig.profile && (dig.profile.finnhubIndustry || dig.profile.country) && (
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
+                                    {dig.profile.finnhubIndustry && (
+                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                                        {dig.profile.finnhubIndustry}
+                                      </span>
+                                    )}
+                                    {dig.profile.country && (
+                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                                        {dig.profile.country}
+                                      </span>
+                                    )}
+                                    {dig.profile.ipo && (
+                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                                        IPO {dig.profile.ipo.slice(0, 4)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <div style={{ marginBottom: "11px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
+                                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.company_overview}</div>
+                                </div>
+                                <div style={{ marginBottom: "11px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
+                                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.news_digest}</div>
+                                </div>
+                                {dig.raw_earnings?.length > 0 && (
+                                  <div style={{ marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
+                                    <EarningsChart earnings={dig.raw_earnings} />
+                                    {dig.earnings_snapshot && (
+                                      <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{dig.earnings_snapshot}</div>
+                                    )}
+                                  </div>
+                                )}
+                                {dig.raw_metrics && (
+                                  <div style={{ marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
+                                    <FinancialMetricsGrid metrics={dig.raw_metrics} />
+                                    {dig.financial_snapshot && (
+                                      <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{dig.financial_snapshot}</div>
+                                    )}
+                                  </div>
+                                )}
+                                {dig.raw_recommendation && (
+                                  <div style={{ marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Consensus</div>
+                                    <AnalystConsensusBar rec={dig.raw_recommendation} />
+                                  </div>
+                                )}
+                                <div style={{ marginBottom: "8px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
+                                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.market_outlook}</div>
+                                </div>
+                                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
+                                  AI digest · {new Date(dig.generated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* News */}
+                        {marketData[holding.ticker]?.news?.length > 0 && (
+                          <>
+                            <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+                              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                                News · {marketData[holding.ticker].news.length}
+                              </span>
+                              <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+                            </div>
+                            {marketData[holding.ticker].news.slice(0, 6).map((item, i) => (
+                              <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+                                style={{ display: "block", padding: "12px 18px", borderBottom: i < Math.min(5, marketData[holding.ticker].news.length - 1) ? "1px solid var(--border-subtle)" : "none", textDecoration: "none", transition: "background 120ms ease" }}
+                                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--card-hover)")}
+                                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                              >
+                                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px" }}>{item.headline}</div>
+                                <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{item.source} · {timeAgo(item.datetime)}</div>
+                              </a>
+                            ))}
+                          </>
+                        )}
+
+                        {/* Reddit Pulse */}
+                        <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
+                          <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+                        </div>
+                        <div style={{ padding: "10px 18px 18px" }}>
+                          {socialLoadingTicker === holding.ticker && !socialData[holding.ticker] && !socialErrors[holding.ticker] && (
+                            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Fetching Reddit discussion for {holding.ticker}...</div>
+                          )}
+                          {socialErrors[holding.ticker] && (
+                            <div style={{ padding: "10px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-muted)" }}>
+                              {socialErrors[holding.ticker]}
+                            </div>
+                          )}
+                          {socialData[holding.ticker] && (() => {
+                            const sp = socialData[holding.ticker]!;
+
+                            if (sp.source === "apewisdom") {
+                              const trendScore = sp.reddit_trend_score ?? 0;
+                              const trendColor = trendScore >= 70 ? "var(--green)" : trendScore >= 45 ? "var(--amber)" : "var(--text-secondary)";
+                              const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "var(--green)" : "var(--red)";
+                              return (
+                                <div>
+                                  <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.08)", border: "1px solid var(--amber-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--amber)", marginBottom: "14px" }}>
+                                    Reddit Trend Data via ApeWisdom — full sentiment analysis available once Reddit API is approved
+                                  </div>
+                                  <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
+                                    <div style={{ textAlign: "center", flexShrink: 0 }}>
+                                      <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: trendColor, lineHeight: 1 }}>
+                                        {trendScore}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
+                                      </div>
+                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Trend Score</div>
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      {sp.rank != null && (
+                                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>
+                                          Rank #{sp.rank}
+                                          {sp.rank_change != null && sp.rank_change !== 0 && (
+                                            <span style={{ fontSize: "11px", color: sp.rank_change > 0 ? "var(--green)" : "var(--red)", marginLeft: "6px" }}>
+                                              {sp.rank_change > 0 ? `+${sp.rank_change}` : sp.rank_change}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes</div>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                                    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions (7d)</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{sp.mentions ?? 0}</div>
+                                    </div>
+                                    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: changeColor }}>
+                                        {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Data from ApeWisdom · Cached 30 min</div>
+                                </div>
+                              );
+                            }
+
+                            const scoreColor = sp.sentiment_score >= 15 ? "var(--green)" : sp.sentiment_score <= -15 ? "var(--red)" : "var(--text-secondary)";
+                            const subColor = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--amber)" : "var(--text-muted)";
+                            const showSrc = socialShowSources[holding.ticker] ?? false;
+                            return (
+                              <div>
+                                {sp.stale && (
+                                  <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.1)", border: "1px solid var(--amber-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--amber)", marginBottom: "12px" }}>
+                                    Showing cached data — Reddit unavailable
+                                  </div>
+                                )}
+                                <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
+                                  <div style={{ textAlign: "center", flexShrink: 0 }}>
+                                    <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: scoreColor, lineHeight: 1 }}>
+                                      {sp.reddit_pulse_score}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
+                                    </div>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Reddit Pulse</div>
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: "13px", fontWeight: 600, color: scoreColor, marginBottom: "3px" }}>{sp.sentiment_label}</div>
+                                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                      {sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword analysis"}
+                                    </div>
+                                    {sp.summary && (
+                                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.5 }}>{sp.summary}</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div style={{ marginBottom: "14px" }}>
+                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Sentiment</div>
+                                  <div style={{ display: "flex", gap: "2px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "5px" }}>
+                                    <div style={{ width: `${sp.bullish_pct}%`, background: "var(--green)", flexShrink: 0 }} />
+                                    <div style={{ width: `${sp.neutral_pct}%`, background: "var(--border-subtle)", flexShrink: 0 }} />
+                                    <div style={{ width: `${sp.bearish_pct}%`, background: "var(--red)", flexShrink: 0 }} />
+                                  </div>
+                                  <div style={{ display: "flex", gap: "12px", fontSize: "10px", fontFamily: "var(--font-mono)" }}>
+                                    <span style={{ color: "var(--green)" }}>Bull {sp.bullish_pct}%</span>
+                                    <span style={{ color: "var(--text-muted)" }}>Neutral {sp.neutral_pct}%</span>
+                                    <span style={{ color: "var(--red)" }}>Bear {sp.bearish_pct}%</span>
+                                  </div>
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                                  {[
+                                    { label: "Conviction", value: sp.conviction_score, color: sp.conviction_score >= 60 ? "var(--green)" : sp.conviction_score >= 35 ? "var(--amber)" : "var(--text-secondary)" },
+                                    { label: "Hype Risk", value: sp.hype_score, color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--amber)" : "var(--text-secondary)" },
+                                  ].map(({ label, value, color }) => (
+                                    <div key={label} style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color }}>{value}<span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/100</span></div>
+                                    </div>
+                                  ))}
+                                </div>
+                                {(sp.top_bullish_themes.length > 0 || sp.top_bearish_themes.length > 0) && (
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                                    {sp.top_bullish_themes.length > 0 && (
+                                      <div>
+                                        <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish</div>
+                                        {sp.top_bullish_themes.slice(0, 3).map((t, i) => (
+                                          <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {sp.top_bearish_themes.length > 0 && (
+                                      <div>
+                                        <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish</div>
+                                        {sp.top_bearish_themes.slice(0, 3).map((t, i) => (
+                                          <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {(sp.top_risks.length > 0 || sp.top_catalysts.length > 0) && (
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                                    {sp.top_risks.length > 0 && (
+                                      <div>
+                                        <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
+                                        {sp.top_risks.slice(0, 3).map((t, i) => (
+                                          <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {sp.top_catalysts.length > 0 && (
+                                      <div>
+                                        <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
+                                        {sp.top_catalysts.slice(0, 3).map((t, i) => (
+                                          <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {sp.subreddit_breakdown.length > 0 && (
+                                  <div style={{ marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
+                                    {sp.subreddit_breakdown.map((sub) => (
+                                      <div key={sub.subreddit} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>r/{sub.subreddit}</span>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub.post_count}p</span>
+                                          <span style={{ fontSize: "11px", color: subColor(sub.sentiment), fontWeight: 500 }}>{sub.sentiment_label}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {sp.source_post_links.length > 0 && (
+                                  <div style={{ marginBottom: "12px" }}>
+                                    <button
+                                      onClick={() => setSocialShowSources((prev) => ({ ...prev, [holding.ticker]: !showSrc }))}
+                                      style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0, marginBottom: "6px" }}
+                                    >
+                                      {showSrc ? "Hide sources" : `Show top ${sp.source_post_links.length} source posts`}
+                                    </button>
+                                    {showSrc && sp.source_post_links.map((link, i) => (
+                                      <a key={i} href={link.permalink} target="_blank" rel="noopener noreferrer"
+                                        style={{ display: "block", padding: "7px 0", borderBottom: i < sp.source_post_links.length - 1 ? "1px solid var(--border-subtle)" : "none", textDecoration: "none" }}>
+                                        <div style={{ fontSize: "12px", color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "2px" }}>{link.title}</div>
+                                        <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>r/{link.subreddit} · +{link.score} · {link.comment_count} comments</div>
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginTop: "6px" }}>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                                    {sp.ai_powered ? "AI-analyzed" : "Keyword analysis"} · Updated {new Date(sp.fetched_at).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Insider Activity */}
+                        {insiderData[holding.ticker] && (
+                          <InsiderPanel ticker={holding.ticker} data={insiderData[holding.ticker]} />
+                        )}
+                      </div>
                     ) : (
-                      <div className="px-4 py-3 text-xs text-slate-600 bg-white/2">
-                        Could not load market data for {holding.ticker}.
+                      <div style={{ padding: "12px 18px", fontSize: "12px", color: "var(--text-muted)", background: "var(--bg-surface)" }}>
+                        Could not load data for {holding.ticker}.
                       </div>
-                    )}
-                    {/* Chart — mounts only when expanded, lazy-loads its own data */}
-                    {holding.asset_type !== "cash" && (
-                      <div className="border-t border-white/5 bg-white/1 px-4 py-3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-                          Price Chart
-                        </p>
-                        <StockChart
-                          key={holding.ticker}
-                          ticker={holding.ticker}
-                          height={140}
-                          showRangeControls
-                        />
-                      </div>
-                    )}
-                    {/* Insider transactions */}
-                    {insiderData[holding.ticker] && (
-                      <InsiderPanel ticker={holding.ticker} data={insiderData[holding.ticker]} />
                     )}
                   </td>
                 </tr>

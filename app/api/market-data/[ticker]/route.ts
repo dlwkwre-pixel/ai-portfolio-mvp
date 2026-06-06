@@ -4,6 +4,7 @@ import {
   getFinnhubRecommendations,
   getFinnhubPriceTarget,
   getFinnhubProfile,
+  getFinnhubMetrics,
 } from "@/lib/market-data/finnhub";
 import { validateTicker } from "@/lib/validation";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
@@ -26,15 +27,16 @@ export async function GET(
   }
 
   try {
-    const [news, recommendation, priceTarget, profile] = await Promise.all([
+    const [news, recommendation, priceTarget, profile, metrics] = await Promise.all([
       getFinnhubNews(normalizedTicker, 7).catch(() => []),
       getFinnhubRecommendations(normalizedTicker).catch(() => null),
       getFinnhubPriceTarget(normalizedTicker).catch(() => null),
       getFinnhubProfile(normalizedTicker).catch(() => null),
+      getFinnhubMetrics(normalizedTicker).catch(() => null),
     ]);
 
     return NextResponse.json(
-      { news, recommendation, priceTarget, profile },
+      { news, recommendation, priceTarget, profile, metrics },
       {
         headers: {
           "Cache-Control": "s-maxage=1800, stale-while-revalidate=3600",
@@ -44,7 +46,7 @@ export async function GET(
   } catch (error) {
     console.error(`Market data fetch failed for ${normalizedTicker}:`, error);
     return NextResponse.json(
-      { news: [], recommendation: null, priceTarget: null, profile: null },
+      { news: [], recommendation: null, priceTarget: null, profile: null, metrics: null },
       { status: 200 }
     );
   }
