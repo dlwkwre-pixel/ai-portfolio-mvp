@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
+import ScenariosPanel from "./scenarios-panel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ type DigestResult = {
   profile: CompanyProfile | null;
 };
 
-type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular";
+type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular" | "scenarios";
 
 type InsiderTx = {
   name: string;
@@ -183,6 +184,7 @@ function sparkRelease() {
 
 const FILTER_CHIPS: { id: FilterId; label: string }[] = [
   { id: "all",          label: "All" },
+  { id: "scenarios",    label: "If/Then Plays" },
   { id: "trending",     label: "Trending" },
   { id: "daily_movers", label: "Movers" },
   { id: "growth",       label: "Growth" },
@@ -1786,8 +1788,9 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
   const nameMap = new Map<string, string>();
   for (const section of screener) for (const t of section.tickers) nameMap.set(t.ticker, t.name);
 
-  const showPopular      = activeFilter === "all" || activeFilter === "popular";
-  const screenerSections = activeFilter === "popular" ? [] : activeFilter === "all"
+  const showScenarios    = activeFilter === "scenarios";
+  const showPopular      = !showScenarios && (activeFilter === "all" || activeFilter === "popular");
+  const screenerSections = showScenarios || activeFilter === "popular" ? [] : activeFilter === "all"
     ? screener
     : screener.filter((s) => s.id === activeFilter);
 
@@ -1872,20 +1875,23 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
         ))}
       </div>
 
+      {/* If/Then Macro Plays */}
+      {showScenarios && <ScenariosPanel />}
+
       {/* Search feedback */}
-      {searching && (
+      {!showScenarios && searching && (
         <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "12px" }}>
           Searching {query}...
         </div>
       )}
-      {searchError && (
+      {!showScenarios && searchError && (
         <div style={{ padding: "11px 14px", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", color: "var(--red)", fontSize: "13px", marginBottom: "18px" }}>
           {searchError}
         </div>
       )}
 
       {/* Detail view + mobile backdrop */}
-      {searchResult && !searching && (
+      {!showScenarios && searchResult && !searching && (
         <>
           <div className="research-detail-backdrop" onClick={clearSearch} />
           <div
@@ -1939,7 +1945,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       )}
 
       {/* Portfolio news */}
-      {(activeFilter === "all" || activeFilter === "popular") && (
+      {!showScenarios && (activeFilter === "all" || activeFilter === "popular") && (
         <PortfolioNewsSection
           items={portfolioNews}
           loading={portfolioNewsLoading}
@@ -1948,7 +1954,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       )}
 
       {/* Screener sections */}
-      {screenerLoading ? (
+      {!showScenarios && screenerLoading ? (
         <>
           {[0, 1, 2].map((si) => (
             <div key={si} style={{ marginBottom: "28px" }}>

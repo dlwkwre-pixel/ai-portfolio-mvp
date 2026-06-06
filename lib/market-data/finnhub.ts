@@ -450,7 +450,7 @@ export async function getTickerMarketContext(tickers: string[]): Promise<
   return results;
 }
 
-export async function getFinnhubMarketNews(category = "general"): Promise<FinnhubNewsItem[]> {
+export async function getFinnhubMarketNews(category = "general", limit = 50): Promise<FinnhubNewsItem[]> {
   const apiKey = getApiKey();
   const url = new URL("https://finnhub.io/api/v1/news");
   url.searchParams.set("category", category);
@@ -464,7 +464,7 @@ export async function getFinnhubMarketNews(category = "general"): Promise<Finnhu
     if (!response.ok) return [];
     const data = await response.json();
     if (!Array.isArray(data)) return [];
-    return data.slice(0, 12).map((item: any) => ({
+    return data.slice(0, limit).map((item: any) => ({
       id: item.id ?? 0,
       headline: item.headline ?? "",
       summary: item.summary ?? "",
