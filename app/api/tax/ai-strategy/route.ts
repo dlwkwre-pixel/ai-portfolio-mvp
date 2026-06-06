@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
@@ -45,27 +46,34 @@ Please provide a focused, actionable tax strategy analysis covering:
 
 Keep the response practical, not overly long. Use clear section headers. End with a reminder that this is educational, not tax advice, and they should verify with a CPA.`;
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "AI service not configured." }, { status: 503 });
+  const groqKey = process.env.GROQ_API_KEY ?? process.env.GROQ_API_KEY_2;
+  const grokKey = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1200 },
-      }),
-    }
-  );
+  let client: OpenAI;
+  let model: string;
 
-  if (!response.ok) {
-    const errText = await response.text();
-    return NextResponse.json({ error: `AI error: ${errText}` }, { status: 502 });
+  if (groqKey) {
+    client = new OpenAI({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" });
+    model = "llama-3.3-70b-versatile";
+  } else if (grokKey) {
+    client = new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" });
+    model = "grok-3-fast";
+  } else {
+    return NextResponse.json({ error: "AI service not configured." }, { status: 503 });
   }
 
-  const json = await response.json();
-  const analysis = json.candidates?.[0]?.content?.parts?.[0]?.text ?? "No analysis generated.";
-  return NextResponse.json({ analysis });
+  try {
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1200,
+    });
+
+    const analysis = completion.choices[0]?.message?.content ?? "No analysis generated.";
+    return NextResponse.json({ analysis });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `AI error: ${msg}` }, { status: 502 });
+  }
 }
