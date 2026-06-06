@@ -4090,6 +4090,240 @@ function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
   return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${e - s > 180 ? 1 : 0} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
+// ── Balance Sheet OS ───────────────────────────────────────────────────────────
+
+const LIAB_CAT_COLORS: Record<string, string> = {
+  mortgage:        "oklch(0.65 0.18 260)",
+  auto_loan:       "oklch(0.62 0.20 306)",
+  student_loan:    "oklch(0.72 0.17 97)",
+  credit_card:     "oklch(0.65 0.18 25)",
+  personal_loan:   "oklch(0.60 0.18 55)",
+  other_liability: "oklch(0.58 0.06 260)",
+};
+const LIAB_CAT_LABELS: Record<string, string> = {
+  mortgage: "Mortgage", auto_loan: "Auto Loan", student_loan: "Student Loans",
+  credit_card: "Credit Cards", personal_loan: "Personal Loan", other_liability: "Other",
+};
+
+function BalanceSheetOS({
+  balanceItems, portfolioTotalValue, effectiveExpenses, netWorthHistory, isPrivate,
+}: {
+  balanceItems: BalanceSheetItem[];
+  portfolioTotalValue: number;
+  effectiveExpenses: number;
+  netWorthHistory: NetWorthSnapshot[];
+  isPrivate: boolean;
+}) {
+  const ph = (v: string) => isPrivate ? "••••" : v;
+
+  const assets      = balanceItems.filter(i => !i.is_liability);
+  const liabilities = balanceItems.filter(i => i.is_liability);
+  const manualAssets    = assets.reduce((s, i) => s + i.value, 0);
+  const totalLiabilities = liabilities.reduce((s, i) => s + i.value, 0);
+  const totalAssets = manualAssets + portfolioTotalValue;
+  const netWorth    = totalAssets - totalLiabilities;
+  const liquidAssets = assets.filter(i => i.category === "cash").reduce((s, i) => s + i.value, 0);
+  const debtRatio   = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
+  const emergencyMonths = effectiveExpenses > 0 ? liquidAssets / effectiveExpenses : 0;
+
+  const assetBuckets = useMemo(() => computeAssetBuckets(assets, portfolioTotalValue),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [manualAssets, portfolioTotalValue]);
+
+  const finnInsight = useMemo(() => computeBalanceFinnInsight({
+    liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets,
+  }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses]);
+
+  const liabBuckets = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of liabilities) map.set(l.category, (map.get(l.category) ?? 0) + l.value);
+    return [...map.entries()].map(([cat, val]) => ({
+      cat, val,
+      label: LIAB_CAT_LABELS[cat] ?? "Other",
+      color: LIAB_CAT_COLORS[cat] ?? "oklch(0.58 0.06 260)",
+    })).sort((a, b) => b.val - a.val);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalLiabilities]);
+
+  const efPct   = Math.min(100, (emergencyMonths / 6) * 100);
+  const efColor = emergencyMonths >= 3 ? "oklch(0.72 0.19 145)" : emergencyMonths >= 1 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)";
+  const drPct   = Math.min(100, (debtRatio / 60) * 100);
+  const drColor = debtRatio < 20 ? "oklch(0.72 0.19 145)" : debtRatio < 40 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)";
+  const nwColor = netWorth >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+      <style>{`
+        @keyframes bso-in  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bso-bar { from { transform: scaleX(0); } }
+        .bso-z { animation: bso-in 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .bso-b { animation: bso-bar 0.85s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+        @media (max-width: 640px) { .bso-kpis { grid-template-columns: repeat(2,1fr) !important; } }
+      `}</style>
+
+      {/* Zone 1 — KPI Strip */}
+      <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px 16px", marginBottom: "10px", animationDelay: "0ms" }}>
+        <div className="bso-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: totalAssets > 0 ? "16px" : 0 }}>
+          {([
+            { label: "Net Worth",    val: ph(fmt(netWorth)),         color: nwColor },
+            { label: "Total Assets", val: ph(fmt(totalAssets)),      color: "oklch(0.72 0.19 145)" },
+            { label: "Liabilities",  val: ph(fmt(totalLiabilities)), color: totalLiabilities > 0 ? "oklch(0.65 0.18 25)" : "var(--text-muted)" },
+            { label: "Debt Ratio",   val: totalAssets > 0 ? `${debtRatio.toFixed(0)}%` : "—", color: drColor },
+          ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
+            <div key={label}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {totalAssets > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {effectiveExpenses > 0 && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Emergency Fund</span>
+                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{isPrivate ? "••" : emergencyMonths.toFixed(1)}mo{emergencyMonths >= 3 ? " — on track" : " — target 3m"}</span>
+                </div>
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+                  <div style={{ position: "absolute", left: `${(3/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+                  <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${efColor})`, width: `${efPct}%` }} />
+                </div>
+              </div>
+            )}
+            {totalLiabilities > 0 && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Debt-to-Asset Ratio</span>
+                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: below 20%</span>
+                </div>
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: `${(20/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+                  <div style={{ position: "absolute", left: `${(40/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+                  <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, ${drColor}, ${drColor})`, width: `${drPct}%`, animationDelay: "80ms" }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* FINN strip */}
+      <div className="bso-z" style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
+        <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+          <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        </div>
+        <div>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnInsight}</p>
+        </div>
+      </div>
+
+      {/* Zone 2 — Asset Allocation + Liability Breakdown */}
+      {(assetBuckets.length > 0 || liabBuckets.length > 0) && (
+        <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px", animationDelay: "110ms" }}>
+          {assetBuckets.length > 0 && (
+            <div style={{ marginBottom: liabBuckets.length > 0 ? "20px" : 0 }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Asset Allocation</div>
+              {(() => {
+                const total = assetBuckets.reduce((s, b) => s + b.value, 0);
+                return (
+                  <>
+                    <div style={{ height: "14px", borderRadius: "7px", overflow: "hidden", display: "flex", marginBottom: "12px" }}>
+                      {assetBuckets.map(b => (
+                        <div key={b.label} className="bso-b" style={{ flex: `0 0 ${(b.value / total) * 100}%`, background: b.color }} title={`${b.label}: ${fmt(b.value)}`} />
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px 14px" }}>
+                      {assetBuckets.map(b => (
+                        <div key={b.label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                          <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: b.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{b.label}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)" }}>{ph(fmt(b.value))}</span>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>({total > 0 ? ((b.value / total) * 100).toFixed(0) : 0}%)</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+          {liabBuckets.length > 0 && (
+            <div>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Liability Breakdown</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                {liabBuckets.map((b, i) => {
+                  const w = totalLiabilities > 0 ? (b.val / totalLiabilities) * 100 : 0;
+                  return (
+                    <div key={b.cat}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
+                        <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: b.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1 }}>{b.label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: b.color }}>{ph(fmt(b.val))}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{w.toFixed(0)}%</span>
+                      </div>
+                      <div style={{ height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)" }}>
+                        <div className="bso-b" style={{ height: "100%", borderRadius: "2px", background: b.color + "88", width: `${w}%`, animationDelay: `${110 + i * 40}ms` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Portfolio auto-include notice */}
+      {portfolioTotalValue > 0 && (
+        <div className="bso-z" style={{ padding: "9px 14px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginBottom: "10px", animationDelay: "140ms" }}>
+          <strong style={{ color: "oklch(0.72 0.19 145)" }}>Portfolio auto-included:</strong> {ph(fmt(portfolioTotalValue))} from your active BuyTune portfolios is counted in Total Assets.
+        </div>
+      )}
+
+      {/* Zone 3 — Lists + Net Worth */}
+      <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", animationDelay: "160ms" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Assets</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "oklch(0.72 0.19 145)", fontWeight: 600 }}>{ph(fmt(totalAssets))}</span>
+          </div>
+          {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />)}
+          <div style={{ marginTop: "10px" }}><AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} /></div>
+        </div>
+        <div style={{ marginBottom: "20px", paddingTop: "4px", borderTop: "1px solid var(--border-subtle)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", paddingTop: "16px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Liabilities</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: totalLiabilities > 0 ? "oklch(0.65 0.18 25)" : "var(--text-muted)", fontWeight: 600 }}>{ph(fmt(totalLiabilities))}</span>
+          </div>
+          {liabilities.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />)}
+          <div style={{ marginTop: "10px" }}><AddItemRow type="balance" sectionType="liability" placeholder="e.g. Student loan" onAdd={addBalanceSheetItem} /></div>
+        </div>
+        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Net Worth</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: nwColor }}>{ph(fmt(netWorth))}</span>
+        </div>
+      </div>
+
+      {/* Net Worth History */}
+      {(netWorthHistory.length > 0 || netWorth !== 0) && (
+        <div className="bso-z" style={{ marginTop: "10px", animationDelay: "200ms" }}>
+          <NetWorthHistoryCard
+            history={netWorthHistory}
+            currentNW={netWorth}
+            currentAssets={totalAssets}
+            currentLiabilities={totalLiabilities}
+            isPrivate={isPrivate}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowItem[]; year: number; month: number }) {
   const [tip, setTip] = useState<string | null>(null);
   const itemsWithDay = cashFlowItems.filter(i => i.due_day != null);
@@ -4180,10 +4414,11 @@ function CashFlowOS({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
-  const [viewMode, setViewMode] = useState<"monthly" | "annual">("monthly");
+  const [viewMode, setViewMode] = useState<"monthly" | "annual" | "ytd">("monthly");
   const [showCal, setShowCal] = useState(false);
 
-  const mult = viewMode === "annual" ? 12 : 1;
+  const ytdMonths = selYear < now.getFullYear() ? 12 : now.getMonth() + 1;
+  const mult = viewMode === "annual" ? 12 : viewMode === "ytd" ? ytdMonths : 1;
   const ph = (v: string) => isPrivate ? "••••" : v;
   const expenseItems = cashFlowItems.filter(i => i.type === "expense");
   const incomeItems  = cashFlowItems.filter(i => i.type === "income");
@@ -4303,7 +4538,7 @@ function CashFlowOS({
       }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
           <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
-            {(["monthly", "annual"] as const).map(m => (
+            {(["monthly", "annual", "ytd"] as const).map(m => (
               <button key={m} type="button" onClick={() => setViewMode(m)} style={{
                 padding: "3px 10px", borderRadius: "4px", border: "none", cursor: "pointer",
                 fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "capitalize",
@@ -4317,9 +4552,9 @@ function CashFlowOS({
         </div>
         <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: "16px" }}>
           {([
-            { label: viewMode === "annual" ? "Annual Income"    : "Monthly Income",    val: ph(fmt(effectiveIncome * mult)),                                    color: "oklch(0.72 0.19 145)" },
-            { label: viewMode === "annual" ? "Annual Expenses"  : "Budgeted Expenses", val: ph(fmt(monthlyExpenses * mult)),                                    color: "oklch(0.65 0.18 25)"  },
-            { label: viewMode === "annual" ? "Annual Savings"   : "Monthly Savings",   val: ph(fmt(Math.abs(monthlySavings * mult))),                           color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+            { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income",       val: ph(fmt(effectiveIncome * mult)),       color: "oklch(0.72 0.19 145)" },
+            { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(monthlyExpenses * mult)),       color: "oklch(0.65 0.18 25)"  },
+            { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs(monthlySavings * mult))), color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
             { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—",           color: srColor },
           ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
             <div key={label}>
@@ -4477,7 +4712,7 @@ function CashFlowOS({
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
               <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "7px" }}>
-                {viewMode === "annual" ? `${selYear} Annual Projection` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
+                {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
               </div>
               {catData.map((cat, ci) => {
                 const isHl = highlightedCat === cat.label;
@@ -7385,141 +7620,13 @@ export default function PlanningClient({
 
       {/* ── Tab: Balance Sheet ── */}
       {tab === "balance" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <style>{`
-            @keyframes bs-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes bs-bar-grow { from { transform: scaleX(0); } }
-            .bs-section { animation: bs-fade-up 0.35s ease-out both; }
-            .bs-bar-seg { animation: bs-bar-grow 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
-          `}</style>
-
-          {/* Asset Allocation Intelligence */}
-          <div className="bs-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "0ms" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>Asset Allocation</div>
-            <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Where your wealth is held</div>
-
-            {assetBuckets.length > 0 ? (() => {
-              const total = assetBuckets.reduce((s, b) => s + b.value, 0);
-              const emergencyMonths = effectiveExpenses > 0 ? liquidAssets / effectiveExpenses : 0;
-              const debtRatio = totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0;
-              const sentences: string[] = [];
-              if (portfolioTotalValue > 0 && totalAssets > 0) sentences.push(`Investment portfolio: ${((portfolioTotalValue / totalAssets) * 100).toFixed(0)}% of total assets.`);
-              if (effectiveExpenses > 0) {
-                if (emergencyMonths >= 6) sentences.push(`Cash exceeds 6-month reserve by ${pHide(fmt(liquidAssets - effectiveExpenses * 6))}.`);
-                else sentences.push(`Cash covers ${isPrivate ? "••" : emergencyMonths.toFixed(1)} months of expenses${emergencyMonths < 3 ? " — target is 3 months." : "."}`);
-              }
-              if (totalLiabilities > 0) sentences.push(`Liabilities are ${debtRatio.toFixed(0)}% of total assets${debtRatio < 20 ? " — healthy." : debtRatio < 40 ? "." : " — elevated."}`);
-              return (
-                <>
-                  {/* Stacked bar */}
-                  <div style={{ height: "10px", borderRadius: "5px", overflow: "hidden", display: "flex", marginBottom: "12px" }}>
-                    {assetBuckets.map((b) => (
-                      <div key={b.label} className="bs-bar-seg"
-                        style={{ flex: `0 0 ${(b.value / total) * 100}%`, background: b.color }}
-                        title={`${b.label}: ${fmt(b.value)}`}
-                      />
-                    ))}
-                  </div>
-                  {/* Legend */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginBottom: sentences.length > 0 ? "14px" : 0 }}>
-                    {assetBuckets.map((b) => (
-                      <div key={b.label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: b.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{b.label}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)" }}>{pHide(fmt(b.value))}</span>
-                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>({((b.value / total) * 100).toFixed(0)}%)</span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Composition sentences */}
-                  {sentences.length > 0 && (
-                    <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {sentences.map((s, i) => (
-                        <div key={i} style={{ display: "flex", gap: "7px", alignItems: "flex-start" }}>
-                          <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "var(--text-muted)", flexShrink: 0, marginTop: "6px" }} />
-                          <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{s}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              );
-            })() : (
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>
-                Add assets below to see your allocation breakdown.
-              </p>
-            )}
-          </div>
-
-          {/* FINN Balance Insight */}
-          <div className="bs-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 18px", animationDelay: "40ms" }}>
-            <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
-              <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="11" height="11" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: 700, color: "oklch(0.65 0.18 260)", marginBottom: "5px" }}>FINN Balance Insight</div>
-                <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{balanceFinnInsight}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Portfolio integration notice */}
-          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-            <strong style={{ color: "var(--text-primary)" }}>Balance sheet vs. expenses:</strong> Only enter what you <em>own</em> (assets) and what you <em>owe as debt</em> (liabilities). Rent and regular bills are not liabilities — add those in the <strong>Cash Flow</strong> tab instead.
-          </div>
-
-          {portfolioTotalValue > 0 && (
-            <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--green-bg)", border: "1px solid var(--green-border)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-              <strong style={{ color: "var(--green)" }}>Portfolio auto-included:</strong> {pHide(fmt(portfolioTotalValue))} from your active BuyTune portfolios is counted in Total Assets.
-            </div>
-          )}
-
-          {/* Assets */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={sectionHeadStyle}>Assets</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{pHide(fmt(totalAssets))}</span>
-            </div>
-            {assets.map((item) => (
-              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />
-            ))}
-            <div style={{ marginTop: "10px" }}>
-              <AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} />
-            </div>
-          </div>
-
-          {/* Liabilities */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={sectionHeadStyle}>Liabilities</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{pHide(fmt(totalLiabilities))}</span>
-            </div>
-            {liabilities.map((item) => (
-              <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />
-            ))}
-            <div style={{ marginTop: "10px" }}>
-              <AddItemRow type="balance" sectionType="liability" placeholder="e.g. Student loan" onAdd={addBalanceSheetItem} />
-            </div>
-          </div>
-
-          {/* Net worth total */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Net Worth</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)" }}>{pHide(fmt(netWorth))}</span>
-          </div>
-
-          {/* Net Worth History */}
-          {(netWorthHistory.length > 0 || netWorth !== 0) && (
-            <NetWorthHistoryCard
-              history={netWorthHistory}
-              currentNW={netWorth}
-              currentAssets={totalAssets}
-              currentLiabilities={totalLiabilities}
-              isPrivate={isPrivate}
-            />
-          )}
-        </div>
+        <BalanceSheetOS
+          balanceItems={balanceItems}
+          portfolioTotalValue={portfolioTotalValue}
+          effectiveExpenses={effectiveExpenses}
+          netWorthHistory={netWorthHistory}
+          isPrivate={isPrivate}
+        />
       )}
 
       {/* ── Tab: Cash Flow ── */}
