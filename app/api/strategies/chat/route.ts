@@ -190,6 +190,19 @@ function getEnabledProviders(): ProviderConfig[] {
     });
   }
 
+  // Groq key 2 — automatic fallback when primary Groq is rate-limited
+  if (process.env.ENABLE_GROQ_STRATEGY_BUILDER === "true" && process.env.GROQ_API_KEY_2) {
+    providers.push({
+      provider: "groq-2",
+      client: new OpenAI({
+        apiKey: process.env.GROQ_API_KEY_2,
+        baseURL: "https://api.groq.com/openai/v1",
+        timeout: 45000,
+      }),
+      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || "llama-3.3-70b-versatile",
+    });
+  }
+
   // Gemini — optional fallback (disabled by default to preserve quota)
   if (process.env.ENABLE_GEMINI_STRATEGY_BUILDER === "true" && process.env.GEMINI_API_KEY) {
     providers.push({

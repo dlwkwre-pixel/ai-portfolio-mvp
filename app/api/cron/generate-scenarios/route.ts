@@ -136,6 +136,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(request.url);
+  const force = url.searchParams.get("force") === "1";
+
   let adminSupabase: ReturnType<typeof createAdminClient>;
   try {
     adminSupabase = createAdminClient();
@@ -143,15 +146,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Service role key not configured." }, { status: 500 });
   }
 
-  // Skip if generated in the past 20 hours
-  const { data: recent } = await adminSupabase
-    .from("ai_generated_scenarios")
-    .select("generated_at")
-    .gte("generated_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
-    .limit(1);
+  // Skip if generated in the past 20 hours (bypass with ?force=1)
+  if (!force) {
+    const { data: recent } = await adminSupabase
+      .from("ai_generated_scenarios")
+      .select("generated_at")
+      .gte("generated_at", new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString())
+      .limit(1);
 
-  if (recent && recent.length > 0) {
-    return NextResponse.json({ message: "Already generated recently, skipping." });
+    if (recent && recent.length > 0) {
+      return NextResponse.json({ message: "Already generated recently, skipping." });
+    }
   }
 
   // Groq is preferred (free, fast, sufficient with Finnhub context).
