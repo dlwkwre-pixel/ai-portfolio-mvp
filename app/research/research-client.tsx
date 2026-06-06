@@ -140,7 +140,7 @@ function timeAgo(unix: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-type TrackEventType = "ticker_search" | "stock_card_click" | "stock_detail_view" | "ai_analysis_requested";
+type TrackEventType = "ticker_search" | "stock_card_click" | "stock_detail_view" | "ai_analysis_requested" | "scenario_ticker_click";
 
 function trackEvent(ticker: string, eventType: TrackEventType) {
   fetch("/api/research/track", {
@@ -1729,8 +1729,12 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
 
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
 
-  const topRef     = useRef<HTMLDivElement>(null);
-  const inflightRef = useRef<string | null>(null);
+  const [scenarioOverlayResult, setScenarioOverlayResult]   = useState<SearchResult | null>(null);
+  const [scenarioOverlayLoading, setScenarioOverlayLoading] = useState(false);
+
+  const topRef          = useRef<HTMLDivElement>(null);
+  const inflightRef     = useRef<string | null>(null);
+  const overlayInflight = useRef<string | null>(null);
   const searchParams = useSearchParams();
 
   // Auto-search when navigated here with ?ticker=AAPL (e.g. from community portfolio pages)
@@ -1784,6 +1788,20 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       .then((d) => { setSearchResult(d); trackEvent(t, "stock_detail_view"); })
       .catch(() => setSearchError(`No data found for "${t}"`))
       .finally(() => { setSearching(false); inflightRef.current = null; });
+  }
+
+  function doScenarioSearch(ticker: string) {
+    const t = ticker.trim().toUpperCase();
+    if (!t || overlayInflight.current === t) return;
+    overlayInflight.current = t;
+    setScenarioOverlayLoading(true);
+    setScenarioOverlayResult(null);
+    trackEvent(t, "scenario_ticker_click");
+    fetch(`/api/research/search?ticker=${encodeURIComponent(t)}`)
+      .then((r) => { if (!r.ok) throw new Error("not found"); return r.json(); })
+      .then((d) => { setScenarioOverlayResult(d); trackEvent(t, "stock_detail_view"); })
+      .catch(() => { setScenarioOverlayResult(null); })
+      .finally(() => { setScenarioOverlayLoading(false); overlayInflight.current = null; });
   }
 
   function handleSubmit(e: React.FormEvent) { e.preventDefault(); doSearch(query); }
@@ -1886,14 +1904,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
 
       {/* If/Then Macro Plays */}
       {showScenarios && (
-        <ScenariosPanel
-          onTickerClick={(ticker) => {
-            setQuery(ticker);
-            trackEvent(ticker, "stock_card_click");
-            doSearch(ticker);
-            setActiveFilter("all");
-          }}
-        />
+        <ScenariosPanel onTickerClick={doScenarioSearch} />
       )}
 
       {/* Search feedback */}
@@ -1926,6 +1937,63 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
               portfolios={portfolios}
               onClose={clearSearch}
             />
+          </div>
+        </>
+      )}
+
+      {/* Scenario stock overlay — shown over the If/Then panel without leaving it */}
+      {(scenarioOverlayResult || scenarioOverlayLoading) && (
+        <>
+          <div
+            onClick={() => setScenarioOverlayResult(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              backdropFilter: "blur(2px)",
+              zIndex: 80,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "min(680px, calc(100vw - 32px))",
+              maxHeight: "calc(100dvh - 64px)",
+              overflowY: "auto",
+              background: "var(--card-bg)",
+              border: "1px solid var(--card-border)",
+              borderRadius: "var(--radius-lg)",
+              zIndex: 81,
+            }}
+          >
+            {scenarioOverlayLoading && (
+              <div style={{
+                padding: "48px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                color: "var(--text-muted)",
+                fontSize: "13px",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="28" strokeDashoffset="10">
+                    <animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="0.8s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+                Loading...
+              </div>
+            )}
+            {scenarioOverlayResult && (
+              <DetailView
+                result={scenarioOverlayResult}
+                portfolios={portfolios}
+                onClose={() => setScenarioOverlayResult(null)}
+              />
+            )}
           </div>
         </>
       )}
