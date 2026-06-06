@@ -1020,6 +1020,40 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </div>
             )}
 
+            {unknownLots.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-sm)" }}>
+                <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0 }}>
+                  ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s are" : " is"} missing an acquisition date — use the &quot;yr?&quot; dropdown per row, or set them all at once below.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Set all {unknownLots.length} to:</span>
+                  <select
+                    value={bulkAcqYear}
+                    onChange={e => setBulkAcqYear(Number(e.target.value))}
+                    style={{ padding: "3px 8px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: bulkAcqYear ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px", cursor: "pointer" }}
+                  >
+                    <option value={0}>pick year...</option>
+                    {Array.from({ length: 12 }, (_, i) => selectedYear - i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (!bulkAcqYear) return;
+                      setLotAcqYears(prev => ({
+                        ...prev,
+                        ...Object.fromEntries(unknownLots.map(l => [l.id, bulkAcqYear])),
+                      }));
+                    }}
+                    disabled={!bulkAcqYear}
+                    style={{ padding: "3px 12px", fontSize: "11px", fontWeight: 600, background: bulkAcqYear ? "var(--brand-blue)" : "var(--bg-elevated)", color: bulkAcqYear ? "#fff" : "var(--text-muted)", border: "none", borderRadius: "var(--radius-sm)", cursor: bulkAcqYear ? "pointer" : "not-allowed", opacity: bulkAcqYear ? 1 : 0.5 }}
+                  >
+                    Set all
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Realized G/L table */}
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
               <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" as const }}>
@@ -1093,39 +1127,6 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               )}
             </div>
 
-            {unknownLots.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-sm)" }}>
-                <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0 }}>
-                  ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s are" : " is"} missing an acquisition date — use the &quot;yr?&quot; dropdown per row, or set them all at once below.
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Set all {unknownLots.length} to:</span>
-                  <select
-                    value={bulkAcqYear}
-                    onChange={e => setBulkAcqYear(Number(e.target.value))}
-                    style={{ padding: "3px 8px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: bulkAcqYear ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px", cursor: "pointer" }}
-                  >
-                    <option value={0}>pick year...</option>
-                    {Array.from({ length: 12 }, (_, i) => selectedYear - i).map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      if (!bulkAcqYear) return;
-                      setLotAcqYears(prev => ({
-                        ...prev,
-                        ...Object.fromEntries(unknownLots.map(l => [l.id, bulkAcqYear])),
-                      }));
-                    }}
-                    disabled={!bulkAcqYear}
-                    style={{ padding: "3px 12px", fontSize: "11px", fontWeight: 600, background: bulkAcqYear ? "var(--brand-blue)" : "var(--bg-elevated)", color: bulkAcqYear ? "#fff" : "var(--text-muted)", border: "none", borderRadius: "var(--radius-sm)", cursor: bulkAcqYear ? "pointer" : "not-allowed", opacity: bulkAcqYear ? 1 : 0.5 }}
-                  >
-                    Set all
-                  </button>
-                </div>
-              </div>
-            )}
             {disclaimer}
           </div>
         )}
