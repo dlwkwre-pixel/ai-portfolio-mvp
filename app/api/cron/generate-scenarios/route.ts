@@ -44,7 +44,7 @@ function buildPrompt(headlines: string[]): string {
     ? headlines.map((h, i) => `${i + 1}. ${h}`).join("\n")
     : "No headlines available — use your knowledge of current macro conditions.";
 
-  return `You are a senior macro investment research analyst at a top hedge fund.
+  return `You are a senior macro investment research analyst at a top hedge fund. You write institutional-quality scenario cards read by sophisticated investors.
 
 Recent market headlines (past 48 hours):
 ${headlineBlock}
@@ -52,14 +52,21 @@ ${headlineBlock}
 Already-covered scenarios to AVOID duplicating:
 ${EXISTING_SCENARIOS.map((t) => `- ${t}`).join("\n")}
 
-Task: Generate 7 distinct macro investment scenario cards. Requirements:
-- Identify SPECIFIC events in the headlines above (or near-term macro catalysts you know about) that would move markets
-- Cover a deliberate MIX of time horizons: 1-2 scenarios for "days", 2 for "weeks", 2 for "months", 1 for "years"
-- "years" scenarios should capture multi-year structural shifts (e.g. demographic change, energy transition milestone, debt ceiling restructuring)
-- Each must have 3-6 long plays and 1-3 avoid plays with specific tickers
-- Tickers must be US-listed on NYSE or NASDAQ
-- thesis should be 2-3 sentences explaining cause → market effect → which stocks benefit and why
-- Do NOT generate scenarios that closely match the already-covered list above
+Task: Generate 7 distinct macro investment scenario cards.
+
+STRICT REQUIREMENTS:
+1. Time horizon mix: exactly 1-2 "days", 2 "weeks", 2 "months", 1 "years"
+2. Each scenario needs 5-8 long_plays and 2-4 avoid_plays
+3. CRITICAL — every stock reason must be mechanistically specific to THAT company:
+   BAD: "increased demand for travel services" (generic, same for all travel stocks)
+   GOOD: "Delta's fuel hedge expires Q3 — lower jet fuel prices directly expand operating margin by ~3pts"
+   GOOD: "Carnival's Caribbean itineraries were canceled due to port restrictions; reopening restores 18% of capacity"
+   Each reason must explain the SPECIFIC mechanism, exposure, or financial lever for that exact company.
+4. Cover diverse sectors across long_plays (do NOT list 3 hotels, or 4 energy companies — mix sectors)
+5. Avoid plays must explain the specific downside mechanism, not just "loses from X"
+6. thesis: 2-3 sentences — cause → market mechanism → which sector types benefit and the rough magnitude/speed
+7. keywords: 6-10 lowercase search terms that would appear in real headlines about this scenario
+8. Tickers must be US-listed on NYSE or NASDAQ
 
 Return ONLY a valid JSON array. No markdown fences, no commentary, just the raw JSON array:
 
@@ -67,19 +74,19 @@ Return ONLY a valid JSON array. No markdown fences, no commentary, just the raw 
   {
     "scenario_key": "unique-kebab-slug",
     "title": "5-8 word scenario title",
-    "thesis": "2-3 sentence explanation",
+    "thesis": "2-3 sentence explanation of cause, mechanism, and expected market impact",
     "emoji": "one relevant emoji",
     "category": "energy|monetary|geopolitical|tech|economy|policy|markets",
     "tags": ["Tag1", "Tag2"],
-    "keywords": ["lowercase", "keyword", "phrases"],
+    "keywords": ["lowercase keyword", "search phrase", "headline term"],
     "long_plays": [
-      { "ticker": "TICK", "name": "Company Name", "reason": "specific reason this stock benefits" }
+      { "ticker": "TICK", "name": "Company Name", "reason": "company-specific mechanistic reason with financial detail" }
     ],
     "avoid_plays": [
-      { "ticker": "TICK", "name": "Company Name", "reason": "specific reason this underperforms" }
+      { "ticker": "TICK", "name": "Company Name", "reason": "specific downside mechanism for this company" }
     ],
     "time_horizon": "days|weeks|months|years",
-    "trigger_context": "one sentence describing the specific triggering event"
+    "trigger_context": "one sentence naming the specific news event or catalyst"
   }
 ]`;
 }

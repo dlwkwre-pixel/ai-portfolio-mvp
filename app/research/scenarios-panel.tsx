@@ -166,9 +166,37 @@ function ScenarioCard({
   isAI?: boolean;
   triggerContext?: string | null;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]       = useState(false);
   const [quotesLoaded, setQuotesLoaded] = useState(false);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [showAllLong, setShowAllLong]     = useState(false);
+  const [showAllAvoid, setShowAllAvoid]   = useState(false);
+  const [likelihood, setLikelihood]       = useState<import("@/app/api/scenarios/likelihood/route").LikelihoodResult | null>(null);
+  const [likelihoodLoading, setLikelihoodLoading] = useState(false);
+
+  const PREVIEW_COUNT = 3;
+
+  async function fetchLikelihood() {
+    if (likelihood || likelihoodLoading) return;
+    setLikelihoodLoading(true);
+    try {
+      const res = await fetch("/api/scenarios/likelihood", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: scenario.id,
+          title: scenario.title,
+          thesis: scenario.thesis,
+          timeHorizon: scenario.timeHorizon,
+          signalCount: count,
+          headlines: signal?.headlines ?? [],
+        }),
+      });
+      if (res.ok) setLikelihood(await res.json());
+    } finally {
+      setLikelihoodLoading(false);
+    }
+  }
 
   const count = signal?.count ?? 0;
   const level = signalLevel(count);
@@ -402,13 +430,38 @@ function ScenarioCard({
           {/* Long plays */}
           <div style={{ marginBottom: "16px" }}>
             <div style={{
-              fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
-              letterSpacing: "0.1em", color: "var(--green)", marginBottom: "8px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: "8px",
             }}>
-              Stocks to Own Beforehand
+              <span style={{
+                fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: "0.1em", color: "var(--green)",
+              }}>
+                Stocks to Own Beforehand
+                <span style={{ fontWeight: 400, color: "var(--text-muted)", marginLeft: "5px" }}>
+                  ({scenario.long.length})
+                </span>
+              </span>
+              {scenario.long.length > PREVIEW_COUNT && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowAllLong((v) => !v); }}
+                  style={{
+                    fontSize: "10px", fontWeight: 600,
+                    color: "var(--green)",
+                    background: "rgba(16,185,129,0.08)",
+                    border: "1px solid rgba(16,185,129,0.2)",
+                    borderRadius: "var(--radius-full)",
+                    padding: "2px 9px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showAllLong ? "Show less" : `+${scenario.long.length - PREVIEW_COUNT} more`}
+                </button>
+              )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {scenario.long.map((play) => {
+              {(showAllLong ? scenario.long : scenario.long.slice(0, PREVIEW_COUNT)).map((play) => {
                 const q = quoteMap.get(play.ticker);
                 const pct = q?.changePct ?? null;
                 const pctStr = formatPct(pct);
@@ -480,13 +533,38 @@ function ScenarioCard({
           {scenario.avoid.length > 0 && (
             <div>
               <div style={{
-                fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
-                letterSpacing: "0.1em", color: "var(--red)", marginBottom: "8px",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                marginBottom: "8px",
               }}>
-                Likely to Underperform
+                <span style={{
+                  fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
+                  letterSpacing: "0.1em", color: "var(--red)",
+                }}>
+                  Likely to Underperform
+                  <span style={{ fontWeight: 400, color: "var(--text-muted)", marginLeft: "5px" }}>
+                    ({scenario.avoid.length})
+                  </span>
+                </span>
+                {scenario.avoid.length > PREVIEW_COUNT && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowAllAvoid((v) => !v); }}
+                    style={{
+                      fontSize: "10px", fontWeight: 600,
+                      color: "var(--red)",
+                      background: "rgba(239,68,68,0.08)",
+                      border: "1px solid rgba(239,68,68,0.2)",
+                      borderRadius: "var(--radius-full)",
+                      padding: "2px 9px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showAllAvoid ? "Show less" : `+${scenario.avoid.length - PREVIEW_COUNT} more`}
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {scenario.avoid.map((play) => {
+                {(showAllAvoid ? scenario.avoid : scenario.avoid.slice(0, PREVIEW_COUNT)).map((play) => {
                   const q = quoteMap.get(play.ticker);
                   const pct = q?.changePct ?? null;
                   const pctStr = formatPct(pct);
@@ -554,6 +632,124 @@ function ScenarioCard({
               </div>
             </div>
           )}
+
+          {/* Likelihood analysis */}
+          <div style={{ marginTop: "16px", borderTop: "1px solid var(--border-subtle)", paddingTop: "14px" }}>
+            {!likelihood && !likelihoodLoading && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); fetchLikelihood(); }}
+                style={{
+                  width: "100%",
+                  padding: "9px 14px",
+                  borderRadius: "var(--radius-md)",
+                  background: "rgba(139,92,246,0.07)",
+                  border: "1px solid rgba(139,92,246,0.2)",
+                  color: "#c4b5fd",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "7px",
+                  transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(139,92,246,0.14)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(139,92,246,0.07)"; }}
+              >
+                <span>✦</span>
+                Ask FINN — How likely is this scenario?
+              </button>
+            )}
+
+            {likelihoodLoading && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                padding: "12px", color: "#a78bfa", fontSize: "12px",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="5" stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="24" strokeDashoffset="8">
+                    <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
+                  </circle>
+                </svg>
+                Analyzing likelihood...
+              </div>
+            )}
+
+            {likelihood && (() => {
+              const RATING_COLOR: Record<string, string> = {
+                very_low: "#64748b", low: "#94a3b8", moderate: "#f59e0b",
+                high: "#3b82f6", very_high: "#ef4444",
+              };
+              const RATING_LABEL: Record<string, string> = {
+                very_low: "Very Low", low: "Low", moderate: "Moderate",
+                high: "High", very_high: "Very High",
+              };
+              const rColor = RATING_COLOR[likelihood.rating] ?? "#94a3b8";
+              const rLabel = RATING_LABEL[likelihood.rating] ?? likelihood.rating;
+              return (
+                <div style={{
+                  padding: "12px 14px",
+                  borderRadius: "var(--radius-md)",
+                  background: `${rColor}08`,
+                  border: `1px solid ${rColor}25`,
+                }}>
+                  {/* Header row */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
+                        ✦ FINN Analysis
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{
+                        fontSize: "11px", fontWeight: 700,
+                        color: rColor,
+                        padding: "2px 8px",
+                        borderRadius: "var(--radius-full)",
+                        background: `${rColor}15`,
+                        border: `1px solid ${rColor}30`,
+                      }}>
+                        {rLabel}
+                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: rColor }}>
+                        {likelihood.pct}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.55, marginBottom: "10px" }}>
+                    {likelihood.reasoning}
+                  </p>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                    {[
+                      { label: "Accelerators", items: likelihood.key_drivers, color: "var(--green)" },
+                      { label: "Blockers", items: likelihood.key_risks, color: "var(--red)" },
+                    ].map(({ label, items, color }) => (
+                      <div key={label}>
+                        <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color, marginBottom: "5px" }}>
+                          {label}
+                        </div>
+                        <ul style={{ margin: 0, padding: "0 0 0 12px" }}>
+                          {items.map((d, i) => (
+                            <li key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.4, marginBottom: "3px" }}>
+                              {d}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    {likelihood.timeframe}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>
