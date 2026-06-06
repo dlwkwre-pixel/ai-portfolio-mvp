@@ -1188,6 +1188,34 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
     ],
   } as any);
 
+  // Log search activity for analysis — visible in Vercel function logs
+  try {
+    const outputItems: unknown[] = (response as any).output ?? [];
+    const searches: { type: string; query: string }[] = [];
+    for (const item of outputItems) {
+      const it = item as any;
+      if (it?.type === "web_search_call" && it?.query) {
+        searches.push({ type: "web", query: it.query });
+      } else if (it?.type === "x_search_call" && it?.query) {
+        searches.push({ type: "x", query: it.query });
+      } else if (it?.type === "tool_call") {
+        const name = it?.name ?? "";
+        const query = it?.parameters?.query ?? it?.input?.query ?? "";
+        if (query) searches.push({ type: name, query });
+      }
+    }
+    const usage = (response as any).usage ?? null;
+    console.log("[GROK_SEARCH_LOG]", JSON.stringify({
+      model: "grok-4.20-0309-reasoning",
+      searches,
+      search_count: searches.length,
+      output_items: outputItems.length,
+      usage,
+    }));
+  } catch {
+    // non-fatal — logging should never break a run
+  }
+
   const outputText = response.output_text?.trim();
   if (!outputText) throw new Error("Grok returned an empty response.");
 
