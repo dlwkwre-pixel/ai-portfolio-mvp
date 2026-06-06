@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { MACRO_SCENARIOS, MacroScenario } from "@/lib/scenarios/macro-plays";
 import type { ScenarioSignal } from "@/app/api/scenarios/signals/route";
 import type { ScenarioQuote } from "@/app/api/scenarios/quotes/route";
@@ -33,6 +34,104 @@ const CATEGORY_COLORS: Record<string, string> = {
   policy:       "#6366f1",
   markets:      "#ec4899",
 };
+
+// ─── Signal badge with custom tooltip ────────────────────────────────────────
+
+function SignalBadge({ cfg, level, count }: {
+  cfg: typeof SIGNAL_CONFIG[SignalLevel];
+  level: SignalLevel;
+  count: number;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
+
+  function show() {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setTipPos({ top: r.top + window.scrollY, left: r.left + r.width / 2 });
+  }
+
+  const isDark = level !== "cold";
+
+  return (
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={show}
+        onMouseLeave={() => setTipPos(null)}
+        style={{
+          fontSize: "9px",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+          padding: "2px 7px",
+          borderRadius: "var(--radius-full)",
+          background: cfg.bg,
+          color: cfg.color,
+          border: `1px solid ${cfg.color}40`,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          cursor: "help",
+          userSelect: "none",
+        }}
+      >
+        <span style={{
+          width: "5px", height: "5px",
+          borderRadius: "50%",
+          background: cfg.dot,
+          flexShrink: 0,
+          ...(level === "hot" ? { boxShadow: `0 0 4px ${cfg.dot}` } : {}),
+        }} />
+        {cfg.label}
+        {count > 0 && ` · ${count}`}
+      </span>
+
+      {tipPos && typeof document !== "undefined" && createPortal(
+        <div
+          style={{
+            position: "absolute",
+            top: tipPos.top - 10,
+            left: tipPos.left,
+            transform: "translate(-50%, -100%)",
+            background: isDark
+              ? `color-mix(in srgb, ${cfg.color} 12%, var(--bg-elevated, #0d1120))`
+              : "var(--bg-elevated, #0d1120)",
+            border: `1px solid ${isDark ? cfg.color + "50" : "rgba(255,255,255,0.12)"}`,
+            color: cfg.color,
+            fontSize: "11px",
+            fontWeight: 500,
+            lineHeight: 1.45,
+            padding: "7px 11px",
+            borderRadius: "8px",
+            maxWidth: "220px",
+            whiteSpace: "normal",
+            textAlign: "center",
+            zIndex: 9999,
+            pointerEvents: "none",
+            boxShadow: isDark
+              ? `0 4px 16px ${cfg.color}20, 0 2px 6px rgba(0,0,0,0.4)`
+              : "0 4px 12px rgba(0,0,0,0.4)",
+          }}
+        >
+          {cfg.tooltip}
+          {/* Caret */}
+          <span style={{
+            position: "absolute",
+            bottom: -5,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "5px solid transparent",
+            borderRight: "5px solid transparent",
+            borderTop: `5px solid ${isDark ? cfg.color + "50" : "rgba(255,255,255,0.12)"}`,
+          }} />
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -144,34 +243,7 @@ function ScenarioCard({
             </span>
 
             {/* Signal badge */}
-            <span
-              title={cfg.tooltip}
-              style={{
-                fontSize: "9px",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-                padding: "2px 7px",
-                borderRadius: "var(--radius-full)",
-                background: cfg.bg,
-                color: cfg.color,
-                border: `1px solid ${cfg.color}40`,
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                cursor: "help",
-              }}
-            >
-              <span style={{
-                width: "5px", height: "5px",
-                borderRadius: "50%",
-                background: cfg.dot,
-                flexShrink: 0,
-                ...(level === "hot" ? { boxShadow: `0 0 4px ${cfg.dot}` } : {}),
-              }} />
-              {cfg.label}
-              {count > 0 && ` · ${count}`}
-            </span>
+            <SignalBadge cfg={cfg} level={level} count={count} />
 
             {/* AI-generated badge */}
             {isAI && (
