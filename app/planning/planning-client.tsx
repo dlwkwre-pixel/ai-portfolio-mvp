@@ -4308,18 +4308,6 @@ function BalanceSheetOS({
         </div>
       </div>
 
-      {/* Net Worth History */}
-      {(netWorthHistory.length > 0 || netWorth !== 0) && (
-        <div className="bso-z" style={{ marginTop: "10px", animationDelay: "200ms" }}>
-          <NetWorthHistoryCard
-            history={netWorthHistory}
-            currentNW={netWorth}
-            currentAssets={totalAssets}
-            currentLiabilities={totalLiabilities}
-            isPrivate={isPrivate}
-          />
-        </div>
-      )}
     </div>
   );
 }
