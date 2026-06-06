@@ -13,7 +13,7 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(searchParams.get("error") === "link_expired" ? "That reset link has expired. Request a new one." : "");
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -177,7 +177,10 @@ function LoginForm() {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" />
             </div>
             <div className="fu2">
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>Password</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 500, color: "#64748b" }}>Password</label>
+                <Link href="/forgot-password" style={{ fontSize: "11px", color: "#475569", textDecoration: "none" }}>Forgot password?</Link>
+              </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="ifield" />
             </div>
             {error && (
