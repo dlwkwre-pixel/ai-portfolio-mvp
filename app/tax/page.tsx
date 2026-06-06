@@ -331,7 +331,7 @@ export default async function TaxPage({
                 Realized gains, tax-loss harvesting, and strategy
               </p>
             </div>
-            <div style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "280px", textAlign: "right", lineHeight: 1.4 }}>
+            <div className="hidden sm:block" style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "260px", textAlign: "right", lineHeight: 1.4 }}>
               Estimates only. Not tax advice. Consult a CPA for filing decisions.
             </div>
           </div>
