@@ -4044,6 +4044,606 @@ function ForecastVarianceTrendCard({
   );
 }
 
+// ── Cash Flow OS ─────────────────────────────────────────────────────────────
+
+const CF_CAT_COLORS: Record<string, string> = {
+  "Housing":        "oklch(0.60 0.22 258)",
+  "Transportation": "oklch(0.62 0.20 306)",
+  "Food & Dining":  "oklch(0.74 0.19 56)",
+  "Healthcare":     "oklch(0.68 0.18 163)",
+  "Fitness":        "oklch(0.65 0.21 143)",
+  "Insurance":      "oklch(0.60 0.14 219)",
+  "Utilities":      "oklch(0.74 0.17 97)",
+  "Entertainment":  "oklch(0.62 0.24 328)",
+  "Travel":         "oklch(0.70 0.18 198)",
+  "Subscriptions":  "oklch(0.62 0.19 270)",
+  "Childcare":      "oklch(0.72 0.17 42)",
+  "Other":          "oklch(0.55 0.05 258)",
+};
+
+function cfPolarToCart(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
+  const gap = 2.0;
+  const s = startDeg + gap / 2;
+  const e = Math.min(endDeg - gap / 2, startDeg + 359.4);
+  if (e <= s + 0.1) return "";
+  const start = cfPolarToCart(cx, cy, r, s);
+  const end   = cfPolarToCart(cx, cy, r, e);
+  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${e - s > 180 ? 1 : 0} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+}
+
+function CashFlowOS({
+  cashFlowItems, expenseActuals, effectiveIncome, monthlyExpenses,
+  monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
+}: {
+  cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
+  effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
+  savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean;
+}) {
+  const router = useRouter();
+  const now = new Date();
+  const [selYear, setSelYear] = useState(now.getFullYear());
+  const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [highlightedCat, setHighlightedCat] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importSuccess, setImportSuccess] = useState<number | null>(null);
+  const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
+  const [movingKey, setMovingKey] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
+
+  const ph = (v: string) => isPrivate ? "••••" : v;
+  const expenseItems = cashFlowItems.filter(i => i.type === "expense");
+  const incomeItems  = cashFlowItems.filter(i => i.type === "income");
+  const yearOptions  = [now.getFullYear(), now.getFullYear() - 1];
+
+  function getActual(itemId: string) {
+    return expenseActuals.find(
+      a => a.cash_flow_item_id === itemId && a.period_year === selYear && a.period_month === selMonth
+    );
+  }
+  function getHistory(itemId: string) {
+    return expenseActuals
+      .filter(a => a.cash_flow_item_id === itemId)
+      .sort((a, b) => b.period_year !== a.period_year ? b.period_year - a.period_year : b.period_month - a.period_month)
+      .slice(0, 6);
+  }
+  function forecastedMonthly(item: CashFlowItem) {
+    return item.frequency === "annual" ? item.amount / 12 : item.amount;
+  }
+
+  const catData = useMemo(() => {
+    return EXPENSE_CATEGORIES.map(cat => {
+      const items = expenseItems.filter(i => getCategoryForExpense(i.label) === cat.label);
+      const budgeted = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+      const actualItems = expenseActuals.filter(a =>
+        items.some(ei => ei.id === a.cash_flow_item_id) && a.period_year === selYear && a.period_month === selMonth
+      );
+      const actual = actualItems.reduce((s, a) => s + a.actual_amount, 0);
+      return { ...cat, items, budgeted, actual };
+    }).filter(c => c.budgeted > 0).sort((a, b) => b.budgeted - a.budgeted);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cashFlowItems, expenseActuals, selYear, selMonth]);
+
+  const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
+
+  const donutSegments = useMemo(() => {
+    let deg = 0;
+    return catData.map(cat => {
+      const pct = totalBudgeted > 0 ? cat.budgeted / totalBudgeted : 0;
+      const start = deg;
+      const end = deg + pct * 360;
+      deg = end;
+      return { ...cat, startDeg: start, endDeg: end };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catData, totalBudgeted]);
+
+  const maxCatBudget = catData.length > 0 ? Math.max(...catData.map(c => c.budgeted)) : 1;
+
+  const srColor = savingsRate >= 20 ? "oklch(0.72 0.19 145)"
+    : savingsRate >= 10 ? "oklch(0.75 0.18 70)"
+    : savingsRate > 0  ? "oklch(0.65 0.18 25)"
+    : "var(--text-muted)";
+  const srBarPct = Math.min(100, Math.max(0, (savingsRate / 30) * 100));
+
+  async function handleSync(itemId: string) {
+    setSyncingId(itemId);
+    const result = await syncForecastToActuals(itemId);
+    if (result.error) {
+      setSyncMsg(m => ({ ...m, [itemId]: result.error! }));
+    } else {
+      setSyncMsg(m => ({ ...m, [itemId]: `Updated to ${fmt(result.newAmount ?? 0)}/mo` }));
+    }
+    setSyncingId(null);
+  }
+
+  const displayCenter = totalBudgeted >= 1000
+    ? `$${(totalBudgeted / 1000).toFixed(1)}k`
+    : fmt(totalBudgeted);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+      <style>{`
+        @keyframes cfo-fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cfo-bar    { from { transform: scaleX(0); } }
+        @keyframes cfo-sr     { from { width: 0; } }
+        @keyframes cfo-arc    { from { opacity: 0; } to { opacity: 1; } }
+        .cfo-zone  { animation: cfo-fadein 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .cfo-bar-a { animation: cfo-bar 0.85s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
+        .cfo-sr-a  { animation: cfo-sr  1.1s cubic-bezier(0.22,1,0.36,1) both; }
+        .cfo-arc-a { animation: cfo-arc 0.5s ease-out both; }
+        .cfo-catrow:hover     { background: rgba(255,255,255,0.025) !important; }
+        .cfo-catrow.cfo-hl   { background: rgba(255,255,255,0.04) !important; }
+        .cfo-actual input:focus { border-color: var(--brand-blue) !important; outline: none; }
+        @media (max-width: 640px) {
+          .cfo-z2grid { flex-direction: column !important; }
+          .cfo-donut  { width: 100% !important; display: flex; justify-content: center; }
+          .cfo-kpis   { grid-template-columns: repeat(2,1fr) !important; }
+        }
+      `}</style>
+
+      {/* Zone 1 — Status Strip */}
+      <div className="cfo-zone" style={{
+        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)", padding: "18px 20px 16px", marginBottom: "10px",
+        animationDelay: "0ms",
+      }}>
+        <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: "16px" }}>
+          {([
+            { label: "Monthly Income",    val: ph(fmt(effectiveIncome)),              color: "oklch(0.72 0.19 145)" },
+            { label: "Budgeted Expenses", val: ph(fmt(monthlyExpenses)),              color: "oklch(0.65 0.18 25)"  },
+            { label: "Monthly Savings",   val: ph(fmt(Math.abs(monthlySavings))),     color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+            { label: "Savings Rate",      val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—", color: srColor },
+          ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
+            <div key={label}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+        {effectiveIncome > 0 && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+              <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
+              <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
+            </div>
+            <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+              <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+              <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+              <div className="cfo-sr-a" style={{
+                height: "100%", borderRadius: "3px",
+                background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${srColor})`,
+                width: `${srBarPct}%`,
+              }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* FINN Insight Strip */}
+      {(effectiveIncome > 0 || monthlyExpenses > 0) && (
+        <div className="cfo-zone" style={{
+          background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)",
+          borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
+          animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start",
+        }}>
+          <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+            <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
+              <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Zone 2 — Donut + Category Bars */}
+      {catData.length > 0 && (
+        <div className="cfo-zone" style={{
+          background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px",
+          animationDelay: "110ms",
+        }}>
+          <div className="cfo-z2grid" style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+
+            {/* Donut */}
+            <div className="cfo-donut" style={{ flexShrink: 0, width: "196px" }}>
+              <svg width="196" height="196" viewBox="0 0 196 196">
+                <circle cx="98" cy="98" r="74" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="14" />
+                {donutSegments.map((seg, si) => {
+                  const isHl = highlightedCat === seg.label;
+                  const color = CF_CAT_COLORS[seg.label] ?? "oklch(0.55 0.05 258)";
+                  const d = cfArcPath(98, 98, 74, seg.startDeg, seg.endDeg);
+                  if (!d) return null;
+                  return (
+                    <path
+                      key={seg.label}
+                      className="cfo-arc-a"
+                      d={d}
+                      fill="none"
+                      stroke={color}
+                      strokeWidth={isHl ? 18 : 13}
+                      strokeLinecap="round"
+                      style={{
+                        animationDelay: `${si * 35}ms`,
+                        opacity: highlightedCat && !isHl ? 0.3 : 1,
+                        transition: "opacity 0.2s, stroke-width 0.15s",
+                        cursor: "pointer",
+                        filter: isHl ? `drop-shadow(0 0 7px ${color})` : "none",
+                      }}
+                      onClick={() => setHighlightedCat(isHl ? null : seg.label)}
+                    />
+                  );
+                })}
+                {/* Center label */}
+                <text x="98" y="90" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: "9px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  {highlightedCat ?? "Expenses"}
+                </text>
+                <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
+                  style={{ fontSize: "19px", fontWeight: 700, fill: highlightedCat ? (CF_CAT_COLORS[highlightedCat] ?? "var(--text-primary)") : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+                  {isPrivate ? "••••" : (highlightedCat
+                    ? (catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) >= 1000
+                      ? `$${((catData.find(c => c.label === highlightedCat)?.budgeted ?? 0) / 1000).toFixed(1)}k`
+                      : fmt(catData.find(c => c.label === highlightedCat)?.budgeted ?? 0)
+                    : displayCenter)}
+                </text>
+              </svg>
+            </div>
+
+            {/* Category bars */}
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "7px" }}>
+                {MONTH_NAMES[selMonth - 1]} {selYear} — Budget vs. Actual
+              </div>
+              {catData.map((cat, ci) => {
+                const isHl = highlightedCat === cat.label;
+                const color = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
+                const budgetW = maxCatBudget > 0 ? (cat.budgeted / maxCatBudget) * 100 : 0;
+                const actualW = cat.actual > 0 && maxCatBudget > 0 ? (cat.actual / maxCatBudget) * 100 : 0;
+                const variance = cat.actual > 0 ? cat.actual - cat.budgeted : null;
+                return (
+                  <div
+                    key={cat.label}
+                    className={`cfo-catrow${isHl ? " cfo-hl" : ""}`}
+                    style={{
+                      padding: "6px 8px", borderRadius: "6px",
+                      border: `1px solid ${isHl ? color + "40" : "transparent"}`,
+                      cursor: "pointer", transition: "background 0.15s, border-color 0.15s",
+                      opacity: highlightedCat && !isHl ? 0.5 : 1,
+                    }}
+                    onClick={() => setHighlightedCat(isHl ? null : cat.label)}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "5px" }}>
+                      <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: isHl ? 600 : 400, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isHl ? color : "var(--text-secondary)" }}>{ph(fmt(cat.budgeted))}</span>
+                        {variance !== null && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px" }}>
+                            {variance > 0 ? "+" : ""}{ph(fmt(variance))}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "rgba(255,255,255,0.06)" }}>
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${budgetW}%`, borderRadius: "2.5px", background: color + "44", animationDelay: `${110 + ci * 45}ms` }} />
+                      {cat.actual > 0 && (
+                        <div className="cfo-bar-a" style={{ position: "absolute", top: "-1px", left: 0, height: "7px", width: `${Math.min(actualW, 105)}%`, borderRadius: "3.5px", background: color, animationDelay: `${190 + ci * 45}ms` }} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zone 3 — Management */}
+      <div className="cfo-zone" style={{
+        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)", padding: "20px",
+        animationDelay: "170ms",
+      }}>
+        {/* Period + statement import */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
+          <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)" }}>Period</span>
+          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px" }}>
+            {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+          </select>
+          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px" }}>
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(37,99,235,0.1)" : "var(--card-bg)", color: showImport ? "#93c5fd" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
+            <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+            Log from Statement
+          </button>
+        </div>
+
+        {showImport && (
+          <div style={{ marginBottom: "14px" }}>
+            <StatementImportPanel expenseItems={expenseItems} selYear={selYear} selMonth={selMonth}
+              onClose={() => setShowImport(false)}
+              onDone={count => { setShowImport(false); setImportSuccess(count); router.refresh(); }}
+            />
+          </div>
+        )}
+        {importSuccess !== null && !showImport && (
+          <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "12px", color: "#22c55e", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
+            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}>×</button>
+          </div>
+        )}
+
+        {/* Income */}
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+            <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.72 0.19 145)", fontWeight: 600 }}>{ph(fmt(effectiveIncome))}/mo</span>
+          </div>
+          {incomeItems.map(item => (
+            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
+          ))}
+          <div style={{ marginTop: "8px" }}>
+            <AddItemRow type="cashflow" placeholder="e.g. Salary" onAdd={fd => { fd.set("type", "income"); return addCashFlowItem(fd); }} />
+          </div>
+        </div>
+
+        {/* Expenses with inline actuals */}
+        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <span style={sectionHeadStyle}>Expenses</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.65 0.18 25)", fontWeight: 600 }}>{ph(fmt(monthlyExpenses))}/mo</span>
+          </div>
+
+          {expenseItems.length === 0 ? (
+            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
+              No expenses yet. Add one below — FINN auto-groups by category.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "10px" }}>
+              {EXPENSE_CATEGORIES.map(cat => {
+                const items = expenseItems.filter(i => getCategoryForExpense(i.label) === cat.label);
+                if (items.length === 0) return null;
+                const catTotal = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+                const isExpanded = expandedCats.has(cat.label);
+                const catColor = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
+                const isHl = highlightedCat === cat.label;
+                const catActual = items.reduce((s, i) => { const a = getActual(i.id); return a ? s + a.actual_amount : s; }, 0);
+                const loggedInCat = items.filter(i => !!getActual(i.id)).length;
+                const catVariance = loggedInCat > 0 ? catActual - catTotal : null;
+
+                return (
+                  <div key={cat.label} style={{
+                    border: `1px solid ${isHl ? catColor + "44" : "var(--border-subtle)"}`,
+                    borderRadius: "var(--radius-md)", overflow: "hidden", transition: "border-color 0.15s",
+                  }}>
+                    <button type="button"
+                      onClick={() => setExpandedCats(prev => {
+                        const next = new Set(prev);
+                        next.has(cat.label) ? next.delete(cat.label) : next.add(cat.label);
+                        return next;
+                      })}
+                      style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 13px", background: isHl ? "rgba(255,255,255,0.022)" : "var(--bg-surface)", border: "none", cursor: "pointer", textAlign: "left", gap: "8px" }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, flex: 1 }}>
+                        <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: catColor, flexShrink: 0, boxShadow: isHl ? `0 0 6px ${catColor}` : "none", transition: "box-shadow 0.2s" }} />
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>({items.length})</span>
+                        {catVariance !== null && (
+                          <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                            {catVariance > 0 ? "+" : ""}{ph(fmt(Math.abs(catVariance)))}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(catTotal))}/mo</span>
+                        {loggedInCat > 0 && (
+                          <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{loggedInCat}/{items.length}</span>
+                        )}
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
+                          <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </button>
+
+                    {isExpanded && (
+                      <div style={{ background: "var(--card-bg)", padding: "0 13px 12px" }}>
+                        {items.map(item => {
+                          const actual = getActual(item.id);
+                          const fcast = forecastedMonthly(item);
+                          const variance = actual ? actual.actual_amount - fcast : null;
+                          const history = getHistory(item.id);
+                          const mKeyWhole = `${item.id}:whole`;
+
+                          return (
+                            <div key={item.id} style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "10px", marginBottom: "10px" }}>
+                              <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
+                              {/* Inline actual */}
+                              <div className="cfo-actual" style={{ marginTop: "5px", display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                                <form
+                                  action={fd => {
+                                    fd.set("cash_flow_item_id", item.id);
+                                    fd.set("label", item.label);
+                                    fd.set("period_year", String(selYear));
+                                    fd.set("period_month", String(selMonth));
+                                    startTransition(async () => { await logExpenseActual(fd); router.refresh(); });
+                                  }}
+                                  style={{ display: "flex", alignItems: "center", gap: "5px" }}
+                                >
+                                  <input
+                                    name="actual_amount" type="number" min="0" step="0.01"
+                                    key={`${item.id}-${selYear}-${selMonth}`}
+                                    defaultValue={actual?.actual_amount ?? ""}
+                                    placeholder={isPrivate ? "••••" : "Actual $"}
+                                    style={{ width: "88px", padding: "4px 7px", borderRadius: "6px", fontSize: "11px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", transition: "border-color 0.15s" }}
+                                  />
+                                  <button type="submit" disabled={pending}
+                                    style={{ padding: "4px 9px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, background: "var(--brand-blue)", color: "#fff", border: "none", cursor: "pointer" }}>
+                                    Log
+                                  </button>
+                                </form>
+                                {variance !== null && (
+                                  <span style={{ padding: "2px 7px", borderRadius: "3px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                                    {variance > 0 ? "+" : ""}{ph(fmt(variance))} {variance > 0 ? "over" : "under"}
+                                  </span>
+                                )}
+                                {history.length >= 3 && (
+                                  <button onClick={() => handleSync(item.id)} disabled={syncingId === item.id} title="Update forecast to 3-month avg"
+                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "9px", fontWeight: 500, background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)", cursor: "pointer" }}>
+                                    {syncingId === item.id ? "Syncing…" : "Sync"}
+                                  </button>
+                                )}
+                              </div>
+                              {syncMsg[item.id] && <div style={{ marginTop: "3px", fontSize: "10px", color: syncMsg[item.id].startsWith("Updated") ? "var(--green)" : "var(--red)" }}>{syncMsg[item.id]}</div>}
+                              {/* Sparkline history */}
+                              {history.length > 1 && (
+                                <div style={{ marginTop: "6px", display: "flex", gap: "3px", alignItems: "flex-end" }}>
+                                  {history.slice().reverse().map((h, hi) => {
+                                    const barH = Math.max(3, Math.min(22, (h.actual_amount / (fcast * 2 || 1)) * 18));
+                                    return (
+                                      <div key={hi} title={`${MONTH_NAMES[h.period_month - 1]} ${h.period_year}: $${h.actual_amount.toLocaleString()}`}
+                                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                                        <div style={{ width: "13px", height: `${barH}px`, borderRadius: "2px", background: h.actual_amount > fcast ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.45)" }} />
+                                        <span style={{ fontSize: "8px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1][0]}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  <div style={{ width: "1px", background: "var(--border-subtle)", height: "16px", margin: "0 1px" }} />
+                                  <div style={{ width: "13px", height: "14px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: ${fmt(fcast)}`}>
+                                    <span style={{ position: "absolute", bottom: "-11px", fontSize: "8px", color: "var(--text-muted)" }}>F</span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Move whole actual */}
+                              {actual && (!actual.breakdown || actual.breakdown.length === 0) && expenseItems.filter(ei => ei.id !== item.id).length > 0 && (() => {
+                                const isMoving = movingKey === mKeyWhole;
+                                const others = expenseItems.filter(ei => ei.id !== item.id);
+                                return (
+                                  <div style={{ marginTop: "5px" }}>
+                                    <button type="button" onClick={() => setMovingKey(isMoving ? null : mKeyWhole)}
+                                      style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "9px", padding: "2px 6px", lineHeight: 1, fontFamily: "var(--font-body)" }}>
+                                      → Move ${actual.actual_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </button>
+                                    {isMoving && (
+                                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                                        <span style={{ fontSize: "9px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
+                                        <select defaultValue="" onChange={e => {
+                                          const destId = e.target.value;
+                                          if (!destId) return;
+                                          setMovingKey(null);
+                                          startTransition(async () => { await moveMerchantActual(item.id, destId, item.label, actual.actual_amount, selYear, selMonth); router.refresh(); });
+                                        }} style={{ flex: 1, padding: "3px 5px", borderRadius: "5px", fontSize: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                                          <option value="" disabled>Select bucket...</option>
+                                          {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
+                                        </select>
+                                        <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}>×</button>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              {/* Breakdown */}
+                              {actual?.breakdown && actual.breakdown.length > 0 && (
+                                <>
+                                  <button type="button" onClick={() => setExpandedBreakdown(prev => {
+                                    const next = new Set(prev);
+                                    next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                    return next;
+                                  })} style={{ marginTop: "5px", background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "10px", padding: "0", display: "flex", alignItems: "center", gap: "4px" }}>
+                                    {expandedBreakdown.has(item.id) ? "▲" : "▼"} {actual.breakdown.length} merchant{actual.breakdown.length !== 1 ? "s" : ""}
+                                  </button>
+                                  {expandedBreakdown.has(item.id) && (
+                                    <div style={{ marginTop: "4px", paddingLeft: "8px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                      {actual.breakdown.map((m, mi) => {
+                                        const mKeyBreak = `${item.id}:${mi}`;
+                                        const isMov = movingKey === mKeyBreak;
+                                        const others = expenseItems.filter(ei => ei.id !== item.id);
+                                        return (
+                                          <div key={mi} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                                              <span style={{ fontSize: "10px", color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>↳ {m.label}</span>
+                                              <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                                                <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                {others.length > 0 && (
+                                                  <button type="button" onClick={() => setMovingKey(isMov ? null : mKeyBreak)} style={{ background: isMov ? "var(--bg-elevated)" : "none", border: isMov ? "1px solid var(--border-subtle)" : "none", borderRadius: "3px", cursor: "pointer", color: isMov ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "1px 4px", lineHeight: 1 }}>→</button>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {isMov && (
+                                              <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "10px" }}>
+                                                <span style={{ fontSize: "9px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
+                                                <select defaultValue="" onChange={e => {
+                                                  const destId = e.target.value;
+                                                  if (!destId) return;
+                                                  setMovingKey(null);
+                                                  startTransition(async () => { await moveMerchantActual(item.id, destId, m.label, m.amount, selYear, selMonth); router.refresh(); });
+                                                }} style={{ flex: 1, padding: "3px 5px", borderRadius: "5px", fontSize: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}>
+                                                  <option value="" disabled>Select bucket...</option>
+                                                  {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
+                                                </select>
+                                                <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}>×</button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div style={{ marginTop: "6px" }}>
+                          <AddItemRow type="cashflow" placeholder={`Add ${cat.label.toLowerCase()} expense`} onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
+        </div>
+
+        {/* AI Import */}
+        <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)" }}>
+          <AiImportPanel
+            existingItems={expenseItems}
+            onAdd={async rows => {
+              for (const row of rows) {
+                const fd = new FormData();
+                fd.set("label", row.label);
+                fd.set("amount", String(row.amount));
+                fd.set("frequency", "monthly");
+                fd.set("type", "expense");
+                await addCashFlowItem(fd);
+              }
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
@@ -6706,158 +7306,16 @@ export default function PlanningClient({
 
       {/* ── Tab: Cash Flow ── */}
       {tab === "cashflow" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <style>{`
-            @keyframes cf-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes cf-bar-grow { from { transform: scaleX(0); } }
-            .cf-section { animation: cf-fade-up 0.35s ease-out both; }
-            .cf-bar-seg { animation: cf-bar-grow 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
-          `}</style>
-
-          {/* Cash Flow Health + KPIs */}
-          {(effectiveIncome > 0 || monthlyExpenses > 0) && (
-            <CashFlowHealthCard
-              cashFlowHealth={cashFlowHealth}
-              savingsRate={savingsRate}
-              effectiveIncome={effectiveIncome}
-              monthlyExpenses={monthlyExpenses}
-              monthlySavings={monthlySavings}
-              cashFlowItems={cashFlowItems}
-              isPrivate={isPrivate}
-            />
-          )}
-
-          {/* FINN Cash Flow Insight */}
-          {(effectiveIncome > 0 || monthlyExpenses > 0) && (
-            <div className="cf-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 18px", animationDelay: "40ms" }}>
-              <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="11" height="11" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: 700, color: "oklch(0.65 0.18 260)", marginBottom: "5px" }}>FINN Cash Flow Insight</div>
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{cashFlowFinnInsight}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-            <strong style={{ color: "var(--text-primary)" }}>Set up once, review periodically.</strong> Add all recurring income and expenses here — salary, rent, subscriptions, utilities, loan payments. Update when something changes (new job, moved, cancelled a subscription).
-          </div>
-
-          {/* Income */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={sectionHeadStyle}>Income <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: "10px", color: "var(--text-muted)" }}>(net, after taxes)</span></span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{pHide(fmt(monthlyIncome))} / mo</span>
-            </div>
-            {cashFlowItems.filter((i) => i.type === "income").map((item) => (
-              <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
-            ))}
-            <div style={{ marginTop: "10px" }}>
-              <AddItemRow type="cashflow" placeholder="e.g. Salary" onAdd={(fd) => { fd.set("type", "income"); return addCashFlowItem(fd); }} />
-            </div>
-          </div>
-
-          {/* Expenses — grouped by category */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={sectionHeadStyle}>Expenses</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--red)", fontWeight: 500 }}>{pHide(fmt(monthlyExpenses))} / mo</span>
-            </div>
-
-            {cashFlowItems.filter((i) => i.type === "expense").length === 0 ? (
-              <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
-                No expenses added yet. Add one below — FINN auto-groups them by category.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "10px" }}>
-                {EXPENSE_CATEGORIES.map((cat) => {
-                  const items = cashFlowItems.filter(
-                    (i) => i.type === "expense" && getCategoryForExpense(i.label) === cat.label
-                  );
-                  if (items.length === 0) return null;
-                  const catTotal = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
-                  const isExpanded = expandedCategories.has(cat.label);
-                  return (
-                    <div key={cat.label} style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedCategories((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(cat.label)) next.delete(cat.label); else next.add(cat.label);
-                          return next;
-                        })}
-                        style={{
-                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                          padding: "9px 12px", background: "var(--bg-surface)", border: "none",
-                          cursor: "pointer", textAlign: "left",
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "14px", lineHeight: 1 }}>{cat.emoji}</span>
-                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
-                          <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>({items.length})</span>
-                        </span>
-                        <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{pHide(fmt(catTotal))}/mo</span>
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
-                            <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      </button>
-                      {isExpanded && (
-                        <div style={{ padding: "0 12px 10px", background: "var(--card-bg)" }}>
-                          {items.map((item) => (
-                            <LineItemRow key={item.id} item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} />
-                          ))}
-                          <div style={{ marginTop: "8px" }}>
-                            <AddItemRow
-                              type="cashflow"
-                              placeholder={`Add ${cat.label.toLowerCase()} expense`}
-                              onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={(fd) => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
-          </div>
-
-          {/* AI Import — builds budget from statement, grouped by category */}
-          <AiImportPanel
-            existingItems={cashFlowItems.filter((i) => i.type === "expense")}
-            onAdd={async (rows) => {
-              for (const row of rows) {
-                const fd = new FormData();
-                fd.set("label", row.label);
-                fd.set("amount", String(row.amount));
-                fd.set("frequency", "monthly");
-                fd.set("type", "expense");
-                await addCashFlowItem(fd);
-              }
-            }}
-          />
-
-          {/* Budget vs. Actuals (merged from Budget Tracker) */}
-          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px" }}>
-            <div style={{ marginBottom: "16px" }}>
-              <div style={sectionHeadStyle}>Budget vs. Actuals</div>
-              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "4px 0 0" }}>Log actual monthly spending and compare against your cash flow budget.</p>
-            </div>
-            <ForecastVarianceTrendCard cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
-            <div style={{ marginTop: "20px" }}>
-              <BudgetTrackerTab cashFlowItems={cashFlowItems} expenseActuals={expenseActuals} isPrivate={isPrivate} />
-            </div>
-          </div>
-
-        </div>
+        <CashFlowOS
+          cashFlowItems={cashFlowItems}
+          expenseActuals={expenseActuals}
+          effectiveIncome={effectiveIncome}
+          monthlyExpenses={monthlyExpenses}
+          monthlySavings={monthlySavings}
+          savingsRate={savingsRate}
+          cashFlowFinnInsight={cashFlowFinnInsight}
+          isPrivate={isPrivate}
+        />
       )}
 
       {/* ── Tab: Forecast ── */}
