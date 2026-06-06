@@ -185,10 +185,12 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [barMounted, setBarMounted] = useState(false);
   const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>(data.lotAcqYears ?? {});
   const [lotCostBasis, setLotCostBasis] = useState<Record<string, number>>(data.lotCostBasis ?? {});
+  const [tradesSaved, setTradesSaved] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialMount = useRef(true);
   const saveCbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialCbMount = useRef(true);
+  const savedFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
@@ -206,8 +208,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       return;
     }
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveLotAcqYears(lotAcqYears);
+    saveTimerRef.current = setTimeout(async () => {
+      await saveLotAcqYears(lotAcqYears);
+      setTradesSaved(true);
+      if (savedFadeRef.current) clearTimeout(savedFadeRef.current);
+      savedFadeRef.current = setTimeout(() => setTradesSaved(false), 2000);
     }, 800);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -220,8 +225,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       return;
     }
     if (saveCbTimerRef.current) clearTimeout(saveCbTimerRef.current);
-    saveCbTimerRef.current = setTimeout(() => {
-      saveLotCostBasis(lotCostBasis);
+    saveCbTimerRef.current = setTimeout(async () => {
+      await saveLotCostBasis(lotCostBasis);
+      setTradesSaved(true);
+      if (savedFadeRef.current) clearTimeout(savedFadeRef.current);
+      savedFadeRef.current = setTimeout(() => setTradesSaved(false), 2000);
     }, 800);
     return () => {
       if (saveCbTimerRef.current) clearTimeout(saveCbTimerRef.current);
@@ -1096,7 +1104,12 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {/* Realized G/L table */}
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
               <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" as const }}>
-                <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0, flex: 1 }}>Recorded Trades in {selectedYear}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Recorded Trades in {selectedYear}</p>
+                  {tradesSaved && (
+                    <span style={{ fontSize: "10px", color: "#22c55e", fontWeight: 600, opacity: 1, transition: "opacity 0.3s" }}>✓ Saved</span>
+                  )}
+                </div>
                 <div style={{ display: "flex", gap: "4px" }}>
                   {(["all", "gains", "losses"] as const).map(f => (
                     <button key={f} type="button" onClick={() => setRealizedFilter(f)} style={{ padding: "3px 10px", borderRadius: "var(--radius-full)", fontSize: "11px", cursor: "pointer", border: "1px solid", background: realizedFilter === f ? "var(--brand-blue)" : "var(--bg-elevated)", borderColor: realizedFilter === f ? "var(--brand-blue)" : "var(--border)", color: realizedFilter === f ? "#fff" : "var(--text-secondary)" }}>
