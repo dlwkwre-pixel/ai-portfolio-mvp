@@ -1885,7 +1885,16 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
       </div>
 
       {/* If/Then Macro Plays */}
-      {showScenarios && <ScenariosPanel />}
+      {showScenarios && (
+        <ScenariosPanel
+          onTickerClick={(ticker) => {
+            setQuery(ticker);
+            trackEvent(ticker, "stock_card_click");
+            doSearch(ticker);
+            setActiveFilter("all");
+          }}
+        />
+      )}
 
       {/* Search feedback */}
       {!showScenarios && searching && (

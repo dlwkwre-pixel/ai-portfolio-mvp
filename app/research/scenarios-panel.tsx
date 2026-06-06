@@ -55,10 +55,12 @@ function ScenarioCard({
   scenario,
   signal,
   quotes,
+  onTickerClick,
 }: {
   scenario: MacroScenario;
   signal: ScenarioSignal | null;
   quotes: ScenarioQuote[];
+  onTickerClick?: (ticker: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [quotesLoaded, setQuotesLoaded] = useState(false);
@@ -289,16 +291,28 @@ function ScenarioCard({
                 const q = quoteMap.get(play.ticker);
                 const pct = q?.changePct ?? null;
                 const pctStr = formatPct(pct);
+                const clickable = !!onTickerClick;
                 return (
-                  <div key={play.ticker} style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    padding: "8px 10px",
-                    borderRadius: "var(--radius-md)",
-                    background: "rgba(16,185,129,0.05)",
-                    border: "1px solid rgba(16,185,129,0.12)",
-                  }}>
+                  <button
+                    key={play.ticker}
+                    type="button"
+                    onClick={clickable ? () => onTickerClick!(play.ticker) : undefined}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "10px",
+                      padding: "8px 10px",
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(16,185,129,0.05)",
+                      border: "1px solid rgba(16,185,129,0.12)",
+                      width: "100%",
+                      textAlign: "left",
+                      cursor: clickable ? "pointer" : "default",
+                      transition: clickable ? "background 0.12s, border-color 0.12s" : undefined,
+                    }}
+                    onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(16,185,129,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(16,185,129,0.25)"; } : undefined}
+                    onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(16,185,129,0.05)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(16,185,129,0.12)"; } : undefined}
+                  >
                     <div style={{
                       width: "36px", flexShrink: 0,
                       fontFamily: "var(--font-mono)",
@@ -327,12 +341,15 @@ function ScenarioCard({
                             {pctStr}
                           </span>
                         )}
+                        {clickable && (
+                          <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)" }}>View →</span>
+                        )}
                       </div>
                       <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.4 }}>
                         {play.reason}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -352,16 +369,28 @@ function ScenarioCard({
                   const q = quoteMap.get(play.ticker);
                   const pct = q?.changePct ?? null;
                   const pctStr = formatPct(pct);
+                  const clickable = !!onTickerClick;
                   return (
-                    <div key={play.ticker} style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "10px",
-                      padding: "8px 10px",
-                      borderRadius: "var(--radius-md)",
-                      background: "rgba(239,68,68,0.05)",
-                      border: "1px solid rgba(239,68,68,0.12)",
-                    }}>
+                    <button
+                      key={play.ticker}
+                      type="button"
+                      onClick={clickable ? () => onTickerClick!(play.ticker) : undefined}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "10px",
+                        padding: "8px 10px",
+                        borderRadius: "var(--radius-md)",
+                        background: "rgba(239,68,68,0.05)",
+                        border: "1px solid rgba(239,68,68,0.12)",
+                        width: "100%",
+                        textAlign: "left",
+                        cursor: clickable ? "pointer" : "default",
+                        transition: clickable ? "background 0.12s, border-color 0.12s" : undefined,
+                      }}
+                      onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.25)"; } : undefined}
+                      onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.05)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.12)"; } : undefined}
+                    >
                       <div style={{
                         width: "36px", flexShrink: 0,
                         fontFamily: "var(--font-mono)",
@@ -390,12 +419,15 @@ function ScenarioCard({
                               {pctStr}
                             </span>
                           )}
+                          {clickable && (
+                            <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)" }}>View →</span>
+                          )}
                         </div>
                         <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.4 }}>
                           {play.reason}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -409,7 +441,7 @@ function ScenarioCard({
 
 // ─── ScenariosPanel ───────────────────────────────────────────────────────────
 
-export default function ScenariosPanel() {
+export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (ticker: string) => void }) {
   const [signals, setSignals] = useState<ScenarioSignal[]>([]);
   const [quotes, setQuotes] = useState<ScenarioQuote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -607,6 +639,7 @@ export default function ScenariosPanel() {
               scenario={scenario}
               signal={signalById.get(scenario.id) ?? null}
               quotes={quotes}
+              onTickerClick={onTickerClick}
             />
           ))}
         </div>
