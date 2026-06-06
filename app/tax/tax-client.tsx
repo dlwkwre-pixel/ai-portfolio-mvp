@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
-import { saveLotAcqYears } from "./tax-actions";
+import { saveLotAcqYears, saveLotCostBasis } from "./tax-actions";
 import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
@@ -184,8 +184,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [realizedFilter, setRealizedFilter] = useState<"all" | "gains" | "losses">("all");
   const [barMounted, setBarMounted] = useState(false);
   const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>(data.lotAcqYears ?? {});
+  const [lotCostBasis, setLotCostBasis] = useState<Record<string, number>>(data.lotCostBasis ?? {});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialMount = useRef(true);
+  const saveCbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialCbMount = useRef(true);
   const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
@@ -210,6 +213,20 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [lotAcqYears]);
+
+  useEffect(() => {
+    if (isInitialCbMount.current) {
+      isInitialCbMount.current = false;
+      return;
+    }
+    if (saveCbTimerRef.current) clearTimeout(saveCbTimerRef.current);
+    saveCbTimerRef.current = setTimeout(() => {
+      saveLotCostBasis(lotCostBasis);
+    }, 800);
+    return () => {
+      if (saveCbTimerRef.current) clearTimeout(saveCbTimerRef.current);
+    };
+  }, [lotCostBasis]);
 
   const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
 
@@ -249,13 +266,18 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     ? (activeEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : activeEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
     : ltcgRate;
 
-  // Apply user-supplied acquisition years to unclassified lots
+  // Apply user-supplied cost basis overrides and/or acquisition years
   const effectiveLots = realizedLots.map(lot => {
-    if (lot.acquiredAt || !lotAcqYears[lot.id]) return lot;
-    const acqYear = lotAcqYears[lot.id];
-    const sellYear = new Date(lot.soldAt).getFullYear();
-    const term: "short" | "long" = acqYear >= sellYear ? "short" : "long";
-    return { ...lot, termType: term };
+    const overriddenCostBasis = lotCostBasis[lot.id] !== undefined ? lotCostBasis[lot.id] : lot.costBasis;
+    const gainLoss = lot.proceeds - overriddenCostBasis;
+    let result = { ...lot, costBasis: overriddenCostBasis, gainLoss };
+    if (!lot.acquiredAt && lotAcqYears[lot.id]) {
+      const acqYear = lotAcqYears[lot.id];
+      const sellYear = new Date(lot.soldAt).getFullYear();
+      const term: "short" | "long" = acqYear >= sellYear ? "short" : "long";
+      result = { ...result, termType: term };
+    }
+    return result;
   });
 
   // Realized gains breakdown
@@ -1124,7 +1146,25 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{lot.holdingDays !== null ? `${lot.holdingDays}d` : lotAcqYears[lot.id] ? `~${(selectedYear - lotAcqYears[lot.id]) * 365}d` : "—"}</td>
                           <td style={{ padding: "8px 12px" }}><TermBadge term={(effectiveLots.find(e => e.id === lot.id)?.termType ?? lot.termType)} /></td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{lot.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                          <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.costBasis)}</td>
+                          <td style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                            {lot.costBasis === 0 ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={lotCostBasis[lot.id] !== undefined ? lotCostBasis[lot.id] : ""}
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    setLotCostBasis(prev => v === "" ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== lot.id)) : { ...prev, [lot.id]: Number(v) });
+                                  }}
+                                  style={{ width: "72px", padding: "2px 4px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: lotCostBasis[lot.id] !== undefined ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px" }}
+                                />
+                              </div>
+                            ) : fmtFull(lot.costBasis)}
+                          </td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.proceeds)}</td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 600, color: glColor(lot.gainLoss), whiteSpace: "nowrap" as const }}>{lot.gainLoss >= 0 ? "+" : ""}{fmt(lot.gainLoss)}</td>
                         </tr>
