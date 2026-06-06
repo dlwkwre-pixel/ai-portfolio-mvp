@@ -195,6 +195,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const isInitialProcMount = useRef(true);
   const savedFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
+  const [finnPanelOpen, setFinnPanelOpen] = useState(false);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
   const [pretax401k, setPretax401k] = useState<number>(0);
@@ -257,6 +258,23 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   }, [lotProceeds]);
 
   const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
+
+  // FINN localStorage persistence
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`finn-tax-${selectedYear}`);
+      setFinnOutput(stored ?? null);
+    } catch {
+      setFinnOutput(null);
+    }
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (!finnOutput) return;
+    try {
+      localStorage.setItem(`finn-tax-${selectedYear}`, finnOutput);
+    } catch {}
+  }, [finnOutput, selectedYear]);
 
   // Income tax estimate
   const incomeTaxEstimate = taxProfile?.grossMonthly
@@ -363,7 +381,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const potentialSavings = Math.abs(totalTLHAvailable) * cgStcgRateResolved;
 
   async function runFinnAnalysis() {
-    setFinnLoading(true); setFinnError(null); setFinnOutput(null);
+    setFinnLoading(true); setFinnError(null);
     try {
       const body = {
         year: selectedYear, stcgNet, ltcgNet, dividendIncome,
@@ -405,26 +423,110 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         .tax-card:nth-child(7) { animation-delay: 0.35s; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 1s linear infinite; }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .finn-panel { animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
       `}</style>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
 
-        {/* Year picker */}
-        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "14px" }}>
-          {data.years.map(y => (
-            <Link key={y} href={`/tax?year=${y}`} style={{ padding: "4px 12px", borderRadius: "var(--radius-full)", fontSize: "12px", fontWeight: 500, textDecoration: "none", background: y === selectedYear ? "var(--brand-blue)" : "var(--bg-elevated)", color: y === selectedYear ? "#fff" : "var(--text-secondary)", border: `1px solid ${y === selectedYear ? "var(--brand-blue)" : "var(--border)"}` }}>
-              {y}
-            </Link>
-          ))}
+        {/* ── HERO BAND ── */}
+        <div style={{ position: "relative", padding: "4px 0 22px", marginBottom: "2px", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% -10%, rgba(37,99,235,0.2) 0%, transparent 68%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+
+            {/* Year chips */}
+            <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" as const, marginBottom: "18px" }}>
+              {data.years.map(y => (
+                <Link key={y} href={`/tax?year=${y}`} style={{ padding: "3px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: y === selectedYear ? 700 : 400, textDecoration: "none", background: y === selectedYear ? "rgba(37,99,235,0.18)" : "transparent", color: y === selectedYear ? "oklch(0.75 0.18 265)" : "var(--text-muted)", border: `1px solid ${y === selectedYear ? "rgba(37,99,235,0.45)" : "rgba(255,255,255,0.07)"}`, transition: "all 0.12s" }}>
+                  {y}
+                </Link>
+              ))}
+            </div>
+
+            {/* Label */}
+            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "oklch(0.54 0.07 265)", margin: "0 0 5px", fontFamily: "var(--font-body)" }}>
+              Estimated {selectedYear} Tax Bill
+            </p>
+
+            {/* Main number */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "12px", flexWrap: "wrap" as const, marginBottom: grandTotal > 0 ? "10px" : "14px" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(38px, 10vw, 52px)", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1, letterSpacing: "-2px" }}>
+                ${displayTotal.toLocaleString()}
+              </span>
+              {effectiveRate && (
+                <span style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "5px" }}>{effectiveRate}% of income</span>
+              )}
+            </div>
+
+            {/* Segmented bar */}
+            {grandTotal > 0 && (
+              <div style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", height: "4px", borderRadius: "4px", overflow: "hidden", background: "rgba(255,255,255,0.06)", gap: "2px" }}>
+                  {incomeTaxTotal > 0 && <div style={{ width: barMounted ? `${incomeBarPct}%` : "0%", background: "linear-gradient(90deg,#3b82f6,#60a5fa)", borderRadius: "4px 0 0 4px", transition: "width 1s ease-out", flexShrink: 0 }} />}
+                  {propertyTaxTotal > 0 && <div style={{ width: barMounted ? `${propBarPct}%` : "0%", background: "#f59e0b", transition: "width 1s ease-out 0.1s", flexShrink: 0 }} />}
+                  {investTaxTotal > 0 && <div style={{ width: barMounted ? `${investBarPct}%` : "0%", background: "linear-gradient(90deg,#8b5cf6,#6d28d9)", borderRadius: "0 4px 4px 0", transition: "width 1s ease-out 0.2s", flexShrink: 0 }} />}
+                </div>
+                <div style={{ display: "flex", gap: "12px", marginTop: "7px", flexWrap: "wrap" as const }}>
+                  {incomeTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#3b82f6", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Income {fmt(incomeTaxTotal)}</span></div>}
+                  {propertyTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#f59e0b", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Property {fmt(propertyTaxTotal)}</span></div>}
+                  {investTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#8b5cf6", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Investing {fmt(investTaxTotal)}</span></div>}
+                </div>
+              </div>
+            )}
+
+            {/* Secondary stat row — wraps on mobile */}
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
+              {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Short-Term</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: stcgNet > 0 ? "var(--red)" : stcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{stcgNet !== 0 ? (stcgNet > 0 ? "+" : "") + fmt(stcgNet) : "—"}</p>
+                </div>
+              )}
+              {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Long-Term</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: ltcgNet > 0 ? "var(--red)" : ltcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{ltcgNet !== 0 ? (ltcgNet > 0 ? "+" : "") + fmt(ltcgNet) : "—"}</p>
+                </div>
+              )}
+              {washSaleWarnings.length > 0 && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Wash Sales</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{washSaleWarnings.length}</p>
+                </div>
+              )}
+              {totalTLHAvailable < 0 && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>TLH Available</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--green)", margin: 0 }}>{fmt(Math.abs(totalTLHAvailable))}</p>
+                </div>
+              )}
+              {dividendIncome > 0 && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Dividends</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", margin: 0 }}>{fmt(Math.round(dividendIncome))}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Pre-tax deductions note */}
+            {(taxProfile?.preTaxDeductionsAnnual ?? 0) > 0 && (
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                {fmt(taxProfile!.preTaxDeductionsAnnual)} in pre-tax contributions already reduce your taxable income.
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Tab bar */}
-        <div style={{ display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "18px", overflowX: "auto" }}>
+        {/* Pill tab switcher */}
+        <div style={{ display: "flex", padding: "3px", background: "var(--bg-elevated)", borderRadius: "var(--radius-full)", marginBottom: "20px", border: "1px solid var(--border-subtle)", gap: "2px" }}>
           {TABS.map(t => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{ padding: "8px 16px", fontSize: "12px", fontWeight: 500, background: "none", border: "none", cursor: "pointer", color: tab === t.id ? "var(--text-primary)" : "var(--text-tertiary)", borderBottom: `2px solid ${tab === t.id ? "var(--brand-blue)" : "transparent"}`, whiteSpace: "nowrap", transition: "color 0.12s" }}>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{ flex: 1, padding: "6px 10px", fontSize: "11px", fontWeight: tab === t.id ? 700 : 500, background: tab === t.id ? "linear-gradient(135deg,#2563eb,#4f46e5)" : "transparent", border: "none", borderRadius: "var(--radius-full)", cursor: "pointer", color: tab === t.id ? "#fff" : "var(--text-tertiary)", transition: "all 0.15s ease", whiteSpace: "nowrap" as const, position: "relative" as const }}>
               {t.label}
               {t.id === "trades" && washSaleWarnings.length > 0 && (
-                <span style={{ marginLeft: "5px", fontSize: "9px", padding: "1px 5px", borderRadius: "var(--radius-full)", background: "rgba(239,68,68,0.15)", color: "var(--red)" }}>{washSaleWarnings.length}</span>
+                <span style={{ marginLeft: "4px", fontSize: "9px", padding: "0 5px", borderRadius: "var(--radius-full)", background: tab === t.id ? "rgba(255,255,255,0.25)" : "rgba(239,68,68,0.15)", color: tab === t.id ? "#fff" : "var(--red)" }}>{washSaleWarnings.length}</span>
               )}
             </button>
           ))}
@@ -457,67 +559,6 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </Link>
               </div>
             )}
-
-            {/* Hero — total bill */}
-            <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "22px 20px 18px", overflow: "hidden" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
-                Estimated {selectedYear} Tax Bill
-              </p>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: "14px", flexWrap: "wrap" as const, marginBottom: "6px" }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "40px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1, letterSpacing: "-1px" }}>
-                  ${displayTotal.toLocaleString()}
-                </span>
-                {effectiveRate && (
-                  <div style={{ marginBottom: "6px" }}>
-                    <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{effectiveRate}% of your income</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Segmented bar */}
-              {grandTotal > 0 && (
-                <div style={{ marginTop: "10px" }}>
-                  <div style={{ display: "flex", height: "8px", borderRadius: "6px", overflow: "hidden", background: "var(--bg-elevated)", gap: "2px" }}>
-                    {incomeTaxTotal > 0 && (
-                      <div style={{ width: barMounted ? `${incomeBarPct}%` : "0%", background: "#3b82f6", borderRadius: "6px 0 0 6px", transition: "width 1s ease-out", flexShrink: 0 }} />
-                    )}
-                    {propertyTaxTotal > 0 && (
-                      <div style={{ width: barMounted ? `${propBarPct}%` : "0%", background: "#f59e0b", transition: "width 1s ease-out 0.1s", flexShrink: 0 }} />
-                    )}
-                    {investTaxTotal > 0 && (
-                      <div style={{ width: barMounted ? `${investBarPct}%` : "0%", background: "#8b5cf6", borderRadius: "0 6px 6px 0", transition: "width 1s ease-out 0.2s", flexShrink: 0 }} />
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: "14px", marginTop: "8px", flexWrap: "wrap" as const }}>
-                    {incomeTaxTotal > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6", flexShrink: 0 }} />
-                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Income {fmt(incomeTaxTotal)}</span>
-                      </div>
-                    )}
-                    {propertyTaxTotal > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#f59e0b", flexShrink: 0 }} />
-                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Property {fmt(propertyTaxTotal)}</span>
-                      </div>
-                    )}
-                    {investTaxTotal > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#8b5cf6", flexShrink: 0 }} />
-                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Investing {fmt(investTaxTotal)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Pre-tax deductions note */}
-              {(taxProfile?.preTaxDeductionsAnnual ?? 0) > 0 && (
-                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                  {fmt(taxProfile!.preTaxDeductionsAnnual)} in pre-tax contributions (401k, HSA, etc.) already reduce your taxable income.
-                </p>
-              )}
-            </div>
 
             {/* ── INCOME TAX ── */}
             <SectionCard
@@ -984,43 +1025,6 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </div>
             )}
 
-            {/* ── FINN ── */}
-            <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-              <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "linear-gradient(135deg,#2563eb,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="15" height="15" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Ask FINN for a deeper look</p>
-                    <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>AI-powered analysis of your full {selectedYear} tax situation</p>
-                  </div>
-                </div>
-                <button type="button" onClick={runFinnAnalysis} disabled={finnLoading} style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "8px", padding: "7px 16px", cursor: finnLoading ? "not-allowed" : "pointer", opacity: finnLoading ? 0.7 : 1, flexShrink: 0, fontFamily: "var(--font-body)" }}>
-                  {finnLoading ? "Analyzing…" : finnOutput ? "Re-run" : "Run analysis"}
-                </button>
-              </div>
-              <div style={{ padding: "14px 18px" }}>
-                {!finnOutput && !finnLoading && (
-                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
-                    FINN will review your income type, trading activity, realized gains, and opportunities to write a personalized tax strategy summary. Click &quot;Run analysis&quot; to start.
-                  </p>
-                )}
-                {finnLoading && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)", fontSize: "12px" }}>
-                    <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
-                    FINN is analyzing your tax situation…
-                  </div>
-                )}
-                {finnError && <p style={{ fontSize: "12px", color: "var(--red)", margin: 0 }}>{finnError}</p>}
-                {finnOutput && (
-                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.75, whiteSpace: "pre-wrap" as const }}>
-                    {finnOutput}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {disclaimer}
           </div>
         )}
@@ -1310,6 +1314,80 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
           </div>
         )}
       </div>
+
+      {/* ── FINN FLOATING PANEL ── */}
+      {finnPanelOpen && (
+        <div style={{ position: "fixed", bottom: "80px", right: "12px", left: "12px", maxWidth: "480px", marginLeft: "auto", zIndex: 60 }}>
+          <div className="finn-panel" style={{ background: "var(--card-bg)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(99,102,241,0.1)" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "linear-gradient(135deg,#2563eb,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
+                </div>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>FINN — Tax Analysis</p>
+                  <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>AI-powered {selectedYear} tax strategy</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setFinnPanelOpen(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", borderRadius: "6px" }}>
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+            <div style={{ padding: "14px 16px", maxHeight: "360px", overflowY: "auto" }}>
+              {!finnOutput && !finnLoading && (
+                <div style={{ textAlign: "center" as const, padding: "10px 0" }}>
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.6 }}>
+                    FINN will analyze your income type, gains, and trading activity to write a personalized tax strategy.
+                  </p>
+                  <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "10px", padding: "9px 22px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                    Run analysis
+                  </button>
+                </div>
+              )}
+              {finnLoading && !finnOutput && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)", fontSize: "12px", padding: "10px 0" }}>
+                  <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+                  FINN is analyzing your tax situation…
+                </div>
+              )}
+              {finnError && <p style={{ fontSize: "12px", color: "var(--red)", margin: "0 0 10px" }}>{finnError}</p>}
+              {finnOutput && (
+                <div>
+                  {finnLoading && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text-muted)", fontSize: "11px", marginBottom: "10px" }}>
+                      <svg className="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+                      Refreshing analysis…
+                    </div>
+                  )}
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.75, whiteSpace: "pre-wrap" as const, marginBottom: "12px" }}>
+                    {finnOutput}
+                  </div>
+                  {!finnLoading && (
+                    <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.65 0.15 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: "8px", padding: "5px 14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                      Re-run analysis
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── FINN FLOATING BUTTON ── */}
+      <button
+        type="button"
+        onClick={() => setFinnPanelOpen(v => !v)}
+        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: finnPanelOpen ? "1px solid rgba(99,102,241,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(37,99,235,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
+      >
+        {finnPanelOpen ? (
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" /></svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
+        )}
+        {finnPanelOpen ? "Close" : "Ask FINN"}
+        {finnOutput && !finnPanelOpen && <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(255,255,255,0.7)", flexShrink: 0 }} />}
+      </button>
     </>
   );
 }
