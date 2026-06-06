@@ -32,6 +32,8 @@ export type AVNewsItem = {
   source: string;
   topics: { topic: string; relevance_score: string }[];
   overall_sentiment_label: string;
+  banner_image?: string;
+  category_within_source?: string;
 };
 
 export async function getAlphaVantageNews(limit = 50): Promise<AVNewsItem[]> {
