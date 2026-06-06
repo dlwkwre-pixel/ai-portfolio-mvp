@@ -21,7 +21,7 @@ import {
   addFutureEvent,
   deleteFutureEvent,
 } from "./planning-actions";
-import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
+import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
@@ -47,6 +47,18 @@ function fmtPct(n: number) {
 }
 function toMonthly(amount: number, frequency: "monthly" | "annual") {
   return frequency === "annual" ? amount / 12 : amount;
+}
+function getEffectiveBudget(
+  budgetHistory: BudgetHistoryEntry[],
+  itemId: string,
+  year: number,
+  month: number
+): number | null {
+  const entries = budgetHistory
+    .filter(h => h.item_id === itemId &&
+      (h.effective_year < year || (h.effective_year === year && h.effective_month <= month)))
+    .sort((a, b) => b.effective_year !== a.effective_year ? b.effective_year - a.effective_year : b.effective_month - a.effective_month);
+  return entries.length > 0 ? entries[0].amount : null;
 }
 function fmtDate(dateStr: string) {
   const d = new Date(dateStr + "T12:00:00");
@@ -4078,10 +4090,11 @@ function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
 }
 
 function CashFlowOS({
-  cashFlowItems, expenseActuals, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
+  budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean;
 }) {
@@ -4122,7 +4135,10 @@ function CashFlowOS({
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
       const items = expenseItems.filter(i => getCategoryForExpense(i.label) === cat.label);
-      const budgeted = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+      const budgeted = items.reduce((s, i) => {
+        const hist = getEffectiveBudget(budgetHistory, i.id, selYear, selMonth);
+        return s + toMonthly(hist ?? i.amount, i.frequency);
+      }, 0);
       const actualItems = expenseActuals.filter(a =>
         items.some(ei => ei.id === a.cash_flow_item_id) && a.period_year === selYear && a.period_month === selMonth
       );
@@ -4130,7 +4146,7 @@ function CashFlowOS({
       return { ...cat, items, budgeted, actual };
     }).filter(c => c.budgeted > 0).sort((a, b) => b.budgeted - a.budgeted);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cashFlowItems, expenseActuals, selYear, selMonth]);
+  }, [cashFlowItems, expenseActuals, budgetHistory, selYear, selMonth]);
 
   const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
 
@@ -4675,6 +4691,7 @@ type Props = {
   educationScenarios: EducationScenario[];
   familyScenarios: FamilyScenario[];
   expenseActuals: ExpenseActual[];
+  budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
   initialTab?: string;
 };
@@ -4685,7 +4702,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  expenseActuals, estateProfile, initialTab,
+  expenseActuals, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -7325,6 +7342,7 @@ export default function PlanningClient({
         <CashFlowOS
           cashFlowItems={cashFlowItems}
           expenseActuals={expenseActuals}
+          budgetHistory={budgetHistory}
           effectiveIncome={effectiveIncome}
           monthlyExpenses={monthlyExpenses}
           monthlySavings={monthlySavings}

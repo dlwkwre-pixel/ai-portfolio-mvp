@@ -68,6 +68,17 @@ export type NetWorthSnapshot = {
   portfolio_value: number | null;
 };
 
+export type BudgetHistoryEntry = {
+  id: string;
+  user_id: string;
+  item_id: string;
+  amount: number;
+  frequency: "monthly" | "annual";
+  effective_year: number;
+  effective_month: number;
+  created_at: string;
+};
+
 // ── Profile ───────────────────────────────────────────────────────────────────
 
 export async function upsertFinancialProfile(formData: FormData): Promise<{ error?: string }> {
@@ -224,16 +235,28 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
 
   const sort_order = (existing?.sort_order ?? -1) + 1;
 
-  const { error } = await supabase.from("cash_flow_items").insert({
+  const { data: newItem, error } = await supabase.from("cash_flow_items").insert({
     user_id: user.id,
     label,
     type,
     frequency,
     amount,
     sort_order,
-  });
+  }).select("id").single();
 
   if (error) return { error: error.message };
+
+  if (newItem) {
+    await supabase.from("cash_flow_budget_history").insert({
+      user_id: user.id,
+      item_id: newItem.id,
+      amount,
+      frequency,
+      effective_year: 2000,
+      effective_month: 1,
+    });
+  }
+
   revalidatePath("/planning");
   return {};
 }
@@ -251,6 +274,13 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   const frequency = String(formData.get("frequency") || "monthly") as "monthly" | "annual";
   const amount = Number(formData.get("amount") || 0);
 
+  const { data: currentItem } = await supabase
+    .from("cash_flow_items")
+    .select("amount, frequency")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("cash_flow_items")
     .update({ label, type, frequency, amount, updated_at: new Date().toISOString() })
@@ -258,6 +288,38 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
+
+  const { data: existingHistory } = await supabase
+    .from("cash_flow_budget_history")
+    .select("id")
+    .eq("item_id", id)
+    .limit(1)
+    .maybeSingle();
+
+  if (!existingHistory && currentItem) {
+    await supabase.from("cash_flow_budget_history").insert({
+      user_id: user.id,
+      item_id: id,
+      amount: Number(currentItem.amount),
+      frequency: (currentItem.frequency ?? "monthly") as "monthly" | "annual",
+      effective_year: 2000,
+      effective_month: 1,
+    });
+  }
+
+  const editDate = new Date();
+  await supabase.from("cash_flow_budget_history").upsert(
+    {
+      user_id: user.id,
+      item_id: id,
+      amount,
+      frequency,
+      effective_year: editDate.getFullYear(),
+      effective_month: editDate.getMonth() + 1,
+    },
+    { onConflict: "item_id,effective_year,effective_month" }
+  );
+
   revalidatePath("/planning");
   return {};
 }

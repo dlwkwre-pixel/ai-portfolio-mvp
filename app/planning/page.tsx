@@ -4,7 +4,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
-import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount } from "./planning-actions";
+import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { ageFromDob } from "./planning-utils";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
@@ -36,6 +36,7 @@ export default async function PlanningPage({
     { data: familyScenariosData },
     { data: expenseActualsData },
     { data: estateProfileData },
+    { data: budgetHistoryData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -50,6 +51,7 @@ export default async function PlanningPage({
     supabase.from("family_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
     supabase.from("estate_profiles").select("*").eq("user_id", user.id).maybeSingle(),
+    supabase.from("cash_flow_budget_history").select("*").eq("user_id", user.id).order("effective_year").order("effective_month"),
   ]);
 
   // Aggregate portfolio value from all active portfolios
@@ -210,6 +212,17 @@ export default async function PlanningPage({
     created_at: r.created_at,
   }));
 
+  const typedBudgetHistory: BudgetHistoryEntry[] = (budgetHistoryData ?? []).map((r) => ({
+    id: r.id,
+    user_id: r.user_id,
+    item_id: r.item_id,
+    amount: Number(r.amount),
+    frequency: r.frequency as "monthly" | "annual",
+    effective_year: r.effective_year,
+    effective_month: r.effective_month,
+    created_at: r.created_at,
+  }));
+
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id,
     name: p.name,
@@ -238,6 +251,7 @@ export default async function PlanningPage({
           educationScenarios={typedEducationScenarios}
           familyScenarios={typedFamilyScenarios}
           expenseActuals={typedExpenseActuals}
+          budgetHistory={typedBudgetHistory}
           estateProfile={typedEstateProfile}
           initialTab={initialTab}
         />
