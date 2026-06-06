@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { MACRO_SCENARIOS, MacroScenario } from "@/lib/scenarios/macro-plays";
+import type { MacroScenario } from "@/lib/scenarios/macro-plays";
 import type { ScenarioSignal } from "@/app/api/scenarios/signals/route";
 import type { ScenarioQuote } from "@/app/api/scenarios/quotes/route";
 import type { AIGeneratedScenario } from "@/app/api/scenarios/generated/route";
@@ -437,7 +437,7 @@ function ScenarioCard({
                 fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
                 letterSpacing: "0.1em", color: "var(--green)",
               }}>
-                Stocks to Own Beforehand
+                Positioned to Benefit
                 <span style={{ fontWeight: 400, color: "var(--text-muted)", marginLeft: "5px" }}>
                   ({scenario.long.length})
                 </span>
@@ -782,7 +782,6 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<"all" | "hot" | "signals">("all");
   const [aiScenarios, setAiScenarios]   = useState<AIGeneratedScenario[]>([]);
-  const [aiIds, setAiIds]               = useState<Set<string>>(new Set());
 
   const loadSignals = useCallback(async () => {
     setLoading(true);
@@ -795,9 +794,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
         setSignals(await sigRes.value.json());
       }
       if (aiRes.status === "fulfilled" && aiRes.value.ok) {
-        const aiData: AIGeneratedScenario[] = await aiRes.value.json();
-        setAiScenarios(aiData);
-        setAiIds(new Set(aiData.map((s) => s.scenario_key)));
+        setAiScenarios(await aiRes.value.json());
       }
     } finally {
       setLoading(false);
@@ -806,18 +803,14 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
 
   useEffect(() => { loadSignals(); }, [loadSignals]);
 
-  // Preload quotes for the top visible tickers when signals arrive
+  // Preload quotes for top-signal AI scenarios
   useEffect(() => {
-    if (!signals.length) return;
-    const signalById = new Map(signals.map((s) => [s.scenarioId, s]));
-    const sorted = [...MACRO_SCENARIOS].sort((a, b) => {
-      const ca = signalById.get(a.id)?.count ?? 0;
-      const cb = signalById.get(b.id)?.count ?? 0;
-      return cb - ca;
-    });
-    const topTickers = sorted
+    if (!signals.length || !aiScenarios.length) return;
+    const sigMap = new Map(signals.map((s) => [s.scenarioId, s.count]));
+    const topTickers = [...aiScenarios]
+      .sort((a, b) => (sigMap.get(b.scenario_key) ?? 0) - (sigMap.get(a.scenario_key) ?? 0))
       .slice(0, 5)
-      .flatMap((s) => [...s.long, ...s.avoid].map((t) => t.ticker))
+      .flatMap((s) => [...(s.long_plays ?? []), ...(s.avoid_plays ?? [])].map((t) => t.ticker))
       .slice(0, 20)
       .join(",");
     if (!topTickers) return;
@@ -825,7 +818,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
       .then((r) => r.json())
       .then((data: ScenarioQuote[]) => setQuotes(data))
       .catch(() => {});
-  }, [signals]);
+  }, [signals, aiScenarios]);
 
   const signalById = new Map(signals.map((s) => [s.scenarioId, s]));
 
@@ -840,9 +833,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
     { id: "policy", label: "Policy" },
   ];
 
-  // Merge static + AI scenarios; AI scenarios appear at top if they have signals, else after static
-  const aiMapped = aiScenarios.map(aiToMacro);
-  const allScenarios = [...MACRO_SCENARIOS, ...aiMapped];
+  const allScenarios = aiScenarios.map(aiToMacro);
 
   const filteredScenarios = allScenarios.filter((s) => {
     if (activeCategory !== "all" && s.category !== activeCategory) return false;
@@ -853,11 +844,8 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   });
 
   const sorted = [...filteredScenarios].sort((a, b) => {
-    // AI-generated scenarios with no signal still float above static cold ones
-    const isAIa = aiIds.has(a.id) ? 0.5 : 0;
-    const isAIb = aiIds.has(b.id) ? 0.5 : 0;
-    const ca = (signalById.get(a.id)?.count ?? 0) + isAIa;
-    const cb = (signalById.get(b.id)?.count ?? 0) + isAIb;
+    const ca = signalById.get(a.id)?.count ?? 0;
+    const cb = signalById.get(b.id)?.count ?? 0;
     return cb - ca;
   });
 
@@ -970,7 +958,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
             >
               {label}
               {id !== "all" && (() => {
-                const cnt = MACRO_SCENARIOS.filter((s) => s.category === id && (signalById.get(s.id)?.count ?? 0) > 0).length;
+                const cnt = aiScenarios.filter((s) => s.category === id && (signalById.get(s.scenario_key)?.count ?? 0) > 0).length;
                 return cnt > 0 ? (
                   <span style={{
                     marginLeft: "4px",
@@ -1004,8 +992,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
       {!loading && (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {sorted.map((scenario) => {
-            const isAI = aiIds.has(scenario.id);
-            const aiRow = isAI ? aiScenarios.find((s) => s.scenario_key === scenario.id) : null;
+            const aiRow = aiScenarios.find((s) => s.scenario_key === scenario.id);
             return (
               <ScenarioCard
                 key={scenario.id}
@@ -1013,7 +1000,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
                 signal={signalById.get(scenario.id) ?? null}
                 quotes={quotes}
                 onTickerClick={onTickerClick}
-                isAI={isAI}
+                isAI
                 triggerContext={aiRow?.trigger_context ?? null}
               />
             );

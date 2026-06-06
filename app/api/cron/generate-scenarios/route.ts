@@ -3,18 +3,6 @@ import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAggregatedHeadlines } from "@/lib/market-data/news-aggregator";
 
-// Existing static scenario titles — AI should not duplicate these
-const EXISTING_SCENARIOS = [
-  "Strait of Hormuz Reopens", "Oil Supply Shock", "Nuclear Energy Revival",
-  "Fed Rate Cut Cycle Begins", "Inflation Reignites", "US Dollar Weakens Significantly",
-  "China-Taiwan Military Escalation", "Russia-Ukraine Peace Deal", "US Defense Budget Surge",
-  "AI Spending Acceleration Continues", "AI Capex Bubble Deflates", "Semiconductor Supply Glut",
-  "Major Cybersecurity Attack Wave", "US Recession Confirmed", "Soft Landing Confirmed",
-  "Consumer Spending Slowdown", "Housing Market Recovery", "Trade War Escalates",
-  "Renewable Energy Policy Boost", "Big Tech Antitrust Crackdown",
-  "Equity Market Correction (10%+)", "Banking Stress / Credit Crunch",
-  "China Unleashes Major Stimulus", "Commodity Supercycle Resumes",
-];
 
 type GeneratedScenario = {
   scenario_key: string;
@@ -48,9 +36,6 @@ function buildPrompt(headlines: string[]): string {
 
 Recent market headlines (past 48 hours):
 ${headlineBlock}
-
-Already-covered scenarios to AVOID duplicating:
-${EXISTING_SCENARIOS.map((t) => `- ${t}`).join("\n")}
 
 Task: Generate 7 distinct macro investment scenario cards.
 
