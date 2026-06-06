@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { MACRO_SCENARIOS, MacroScenario } from "@/lib/scenarios/macro-plays";
 import type { ScenarioSignal } from "@/app/api/scenarios/signals/route";
 import type { ScenarioQuote } from "@/app/api/scenarios/quotes/route";
+import type { AIGeneratedScenario } from "@/app/api/scenarios/generated/route";
 
 // ─── Signal level ────────────────────────────────────────────────────────────
 
@@ -56,11 +57,15 @@ function ScenarioCard({
   signal,
   quotes,
   onTickerClick,
+  isAI,
+  triggerContext,
 }: {
   scenario: MacroScenario;
   signal: ScenarioSignal | null;
   quotes: ScenarioQuote[];
   onTickerClick?: (ticker: string) => void;
+  isAI?: boolean;
+  triggerContext?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [quotesLoaded, setQuotesLoaded] = useState(false);
@@ -167,6 +172,27 @@ function ScenarioCard({
               {cfg.label}
               {count > 0 && ` · ${count}`}
             </span>
+
+            {/* AI-generated badge */}
+            {isAI && (
+              <span
+                title="Generated daily by AI based on current news headlines"
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  padding: "2px 6px",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(139,92,246,0.12)",
+                  color: "#a78bfa",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                  cursor: "help",
+                }}
+              >
+                AI
+              </span>
+            )}
           </div>
 
           {/* Tags row */}
@@ -232,6 +258,25 @@ function ScenarioCard({
       {expanded && (
         <div style={{ padding: "0 16px 16px" }}>
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
+
+          {/* AI trigger context */}
+          {isAI && triggerContext && (
+            <div style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "7px",
+              padding: "7px 10px",
+              borderRadius: "var(--radius-md)",
+              background: "rgba(139,92,246,0.06)",
+              border: "1px solid rgba(139,92,246,0.18)",
+              marginBottom: "12px",
+            }}>
+              <span style={{ fontSize: "11px", flexShrink: 0 }}>⚡</span>
+              <span style={{ fontSize: "11px", color: "#c4b5fd", lineHeight: 1.4 }}>
+                {triggerContext}
+              </span>
+            </div>
+          )}
 
           {/* Thesis */}
           <p style={{
@@ -445,17 +490,46 @@ function ScenarioCard({
 
 // ─── ScenariosPanel ───────────────────────────────────────────────────────────
 
+// Maps an AI-generated scenario row to the MacroScenario shape ScenarioCard expects
+function aiToMacro(s: AIGeneratedScenario): MacroScenario {
+  return {
+    id: s.scenario_key,
+    emoji: s.emoji,
+    title: s.title,
+    thesis: s.thesis,
+    tags: Array.isArray(s.tags) ? s.tags : [],
+    keywords: Array.isArray(s.keywords) ? s.keywords : [],
+    long:  Array.isArray(s.long_plays)  ? s.long_plays  : [],
+    avoid: Array.isArray(s.avoid_plays) ? s.avoid_plays : [],
+    timeHorizon: (["days","weeks","months","years"].includes(s.time_horizon)
+      ? s.time_horizon : "weeks") as MacroScenario["timeHorizon"],
+    category: (s.category as MacroScenario["category"]) || "markets",
+  };
+}
+
 export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (ticker: string) => void }) {
-  const [signals, setSignals] = useState<ScenarioSignal[]>([]);
-  const [quotes, setQuotes] = useState<ScenarioQuote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [signals, setSignals]           = useState<ScenarioSignal[]>([]);
+  const [quotes, setQuotes]             = useState<ScenarioQuote[]>([]);
+  const [loading, setLoading]           = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [aiScenarios, setAiScenarios]   = useState<AIGeneratedScenario[]>([]);
+  const [aiIds, setAiIds]               = useState<Set<string>>(new Set());
 
   const loadSignals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/scenarios/signals");
-      if (res.ok) setSignals(await res.json());
+      const [sigRes, aiRes] = await Promise.allSettled([
+        fetch("/api/scenarios/signals"),
+        fetch("/api/scenarios/generated"),
+      ]);
+      if (sigRes.status === "fulfilled" && sigRes.value.ok) {
+        setSignals(await sigRes.value.json());
+      }
+      if (aiRes.status === "fulfilled" && aiRes.value.ok) {
+        const aiData: AIGeneratedScenario[] = await aiRes.value.json();
+        setAiScenarios(aiData);
+        setAiIds(new Set(aiData.map((s) => s.scenario_key)));
+      }
     } finally {
       setLoading(false);
     }
@@ -497,13 +571,20 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
     { id: "policy", label: "Policy" },
   ];
 
-  const filteredScenarios = MACRO_SCENARIOS.filter(
+  // Merge static + AI scenarios; AI scenarios appear at top if they have signals, else after static
+  const aiMapped = aiScenarios.map(aiToMacro);
+  const allScenarios = [...MACRO_SCENARIOS, ...aiMapped];
+
+  const filteredScenarios = allScenarios.filter(
     (s) => activeCategory === "all" || s.category === activeCategory
   );
 
   const sorted = [...filteredScenarios].sort((a, b) => {
-    const ca = signalById.get(a.id)?.count ?? 0;
-    const cb = signalById.get(b.id)?.count ?? 0;
+    // AI-generated scenarios with no signal still float above static cold ones
+    const isAIa = aiIds.has(a.id) ? 0.5 : 0;
+    const isAIb = aiIds.has(b.id) ? 0.5 : 0;
+    const ca = (signalById.get(a.id)?.count ?? 0) + isAIa;
+    const cb = (signalById.get(b.id)?.count ?? 0) + isAIb;
     return cb - ca;
   });
 
@@ -637,15 +718,21 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
       {/* Scenario cards */}
       {!loading && (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {sorted.map((scenario) => (
-            <ScenarioCard
-              key={scenario.id}
-              scenario={scenario}
-              signal={signalById.get(scenario.id) ?? null}
-              quotes={quotes}
-              onTickerClick={onTickerClick}
-            />
-          ))}
+          {sorted.map((scenario) => {
+            const isAI = aiIds.has(scenario.id);
+            const aiRow = isAI ? aiScenarios.find((s) => s.scenario_key === scenario.id) : null;
+            return (
+              <ScenarioCard
+                key={scenario.id}
+                scenario={scenario}
+                signal={signalById.get(scenario.id) ?? null}
+                quotes={quotes}
+                onTickerClick={onTickerClick}
+                isAI={isAI}
+                triggerContext={aiRow?.trigger_context ?? null}
+              />
+            );
+          })}
         </div>
       )}
 
