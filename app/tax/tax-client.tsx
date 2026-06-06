@@ -183,6 +183,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
   const [realizedFilter, setRealizedFilter] = useState<"all" | "gains" | "losses">("all");
   const [barMounted, setBarMounted] = useState(false);
   const [lotAcqYears, setLotAcqYears] = useState<Record<string, number>>({});
+  const [bulkAcqYear, setBulkAcqYear] = useState<number>(0);
   const [quickAnnualIncome, setQuickAnnualIncome] = useState<number | null>(null);
   const [quickFilingStatus, setQuickFilingStatus] = useState<FilingStatus>("single");
   const [pretax401k, setPretax401k] = useState<number>(0);
@@ -1093,9 +1094,37 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             </div>
 
             {unknownLots.length > 0 && (
-              <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0, padding: "0 2px" }}>
-                ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s" : ""}{" "}are missing an acquisition date. Use the &quot;yr?&quot; dropdown in the Acquired column above to pick the purchase year — that&apos;s enough to classify short vs long-term.
-              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-sm)" }}>
+                <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0 }}>
+                  ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s are" : " is"} missing an acquisition date — use the &quot;yr?&quot; dropdown per row, or set them all at once below.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Set all {unknownLots.length} to:</span>
+                  <select
+                    value={bulkAcqYear}
+                    onChange={e => setBulkAcqYear(Number(e.target.value))}
+                    style={{ padding: "3px 8px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: bulkAcqYear ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px", cursor: "pointer" }}
+                  >
+                    <option value={0}>pick year...</option>
+                    {Array.from({ length: 12 }, (_, i) => selectedYear - i).map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (!bulkAcqYear) return;
+                      setLotAcqYears(prev => ({
+                        ...prev,
+                        ...Object.fromEntries(unknownLots.map(l => [l.id, bulkAcqYear])),
+                      }));
+                    }}
+                    disabled={!bulkAcqYear}
+                    style={{ padding: "3px 12px", fontSize: "11px", fontWeight: 600, background: bulkAcqYear ? "var(--brand-blue)" : "var(--bg-elevated)", color: bulkAcqYear ? "#fff" : "var(--text-muted)", border: "none", borderRadius: "var(--radius-sm)", cursor: bulkAcqYear ? "pointer" : "not-allowed", opacity: bulkAcqYear ? 1 : 0.5 }}
+                  >
+                    Set all
+                  </button>
+                </div>
+              </div>
             )}
             {disclaimer}
           </div>
@@ -1105,7 +1134,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         {tab === "reference" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div className="bt-card" style={{ padding: "18px 20px" }}>
-              <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "14px" }}>2025 Long-Term Capital Gains Rates</h2>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", gap: "6px" }}>
+                <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Long-Term Capital Gains Rates</h2>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference — verify at IRS.gov for current year</span>
+              </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
@@ -1127,7 +1159,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </table>
             </div>
             <div className="bt-card" style={{ padding: "18px 20px" }}>
-              <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "14px" }}>2025 Ordinary Income Rates (Short-Term Gains)</h2>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", gap: "6px" }}>
+                <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Ordinary Income Rates (Short-Term Gains)</h2>
+                <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference</span>
+              </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
