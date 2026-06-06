@@ -16,11 +16,11 @@ function signalLevel(count: number): SignalLevel {
   return "hot";
 }
 
-const SIGNAL_CONFIG: Record<SignalLevel, { label: string; color: string; bg: string; dot: string }> = {
-  cold:    { label: "No Signal",  color: "var(--text-muted)",    bg: "rgba(255,255,255,0.04)", dot: "var(--border)" },
-  warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b" },
-  active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6" },
-  hot:     { label: "Hot Signal", color: "#ef4444",              bg: "rgba(239,68,68,0.12)",  dot: "#ef4444" },
+const SIGNAL_CONFIG: Record<SignalLevel, { label: string; color: string; bg: string; dot: string; tooltip: string }> = {
+  cold:    { label: "No Signal",  color: "var(--text-muted)",    bg: "rgba(255,255,255,0.04)", dot: "var(--border)",  tooltip: "No news triggers detected. This scenario is not currently in play." },
+  warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b",        tooltip: "1 news trigger detected. Early signs this scenario may be developing — worth watching." },
+  active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6",        tooltip: "2–3 news triggers detected. Multiple signals confirm this scenario is building momentum." },
+  hot:     { label: "Hot Signal", color: "#ef4444",              bg: "rgba(239,68,68,0.12)",  dot: "#ef4444",        tooltip: "4+ news triggers detected. This scenario is actively playing out across headlines." },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -139,20 +139,24 @@ function ScenarioCard({
             </span>
 
             {/* Signal badge */}
-            <span style={{
-              fontSize: "9px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              padding: "2px 7px",
-              borderRadius: "var(--radius-full)",
-              background: cfg.bg,
-              color: cfg.color,
-              border: `1px solid ${cfg.color}40`,
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}>
+            <span
+              title={cfg.tooltip}
+              style={{
+                fontSize: "9px",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                padding: "2px 7px",
+                borderRadius: "var(--radius-full)",
+                background: cfg.bg,
+                color: cfg.color,
+                border: `1px solid ${cfg.color}40`,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                cursor: "help",
+              }}
+            >
               <span style={{
                 width: "5px", height: "5px",
                 borderRadius: "50%",
