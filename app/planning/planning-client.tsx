@@ -2057,6 +2057,87 @@ type ScenarioCfg = {
   returnRate: number; // percent e.g. 7
 };
 
+type ScenarioPanelProps = {
+  cfg: ScenarioCfg;
+  setCfg: React.Dispatch<React.SetStateAction<ScenarioCfg>>;
+  color: string;
+  result: { retPt: { baseline: number; annualExpenses: number } | undefined; prob: number | null; sr: number };
+  currentAge: number | null;
+  effectiveIncome: number;
+  defaultMonthlySavings: number;
+};
+
+function ScenarioPanel({ cfg, setCfg, color, result, currentAge, effectiveIncome, defaultMonthlySavings }: ScenarioPanelProps) {
+  const minAge = (currentAge ?? 25) + 2;
+  const savingsMax = Math.max(Math.round(effectiveIncome * 0.8), defaultMonthlySavings + 2000);
+
+  return (
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
+      {/* Label */}
+      <input
+        value={cfg.label}
+        onChange={(e) => setCfg((c) => ({ ...c, label: e.target.value }))}
+        style={{
+          background: "transparent", border: "none", borderBottom: `2px solid ${color}`,
+          color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "14px",
+          fontWeight: 600, padding: "2px 0", outline: "none", width: "100%",
+        }}
+      />
+      {/* Outcome badges */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ background: `${color}18`, border: `1px solid ${color}40`, borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>
+            {result.retPt ? fmt(result.retPt.baseline) : "—"}
+          </div>
+          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
+        </div>
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: result.prob != null && result.prob >= 70 ? "var(--green)" : "var(--amber)" }}>
+            {result.prob != null ? `${result.prob}%` : "—"}
+          </div>
+          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>retire prob.</div>
+        </div>
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
+            {result.sr.toFixed(0)}%
+          </div>
+          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>savings rate</div>
+        </div>
+      </div>
+      {/* Sliders */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Retire at</span>
+            <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.retirementAge}</span>
+          </div>
+          <input type="range" min={minAge} max={80} step={1} value={cfg.retirementAge}
+            onChange={(e) => setCfg((c) => ({ ...c, retirementAge: Number(e.target.value) }))}
+            style={{ width: "100%", accentColor: color }} />
+        </div>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Monthly savings</span>
+            <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{fmt(cfg.monthlySavings)}</span>
+          </div>
+          <input type="range" min={0} max={savingsMax} step={100} value={cfg.monthlySavings}
+            onChange={(e) => setCfg((c) => ({ ...c, monthlySavings: Number(e.target.value) }))}
+            style={{ width: "100%", accentColor: color }} />
+        </div>
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Return rate</span>
+            <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.returnRate.toFixed(1)}%</span>
+          </div>
+          <input type="range" min={2} max={14} step={0.5} value={cfg.returnRate}
+            onChange={(e) => setCfg((c) => ({ ...c, returnRate: Number(e.target.value) }))}
+            style={{ width: "100%", accentColor: color }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type CompareTabProps = {
   currentAge: number | null;
   netWorth: number;
@@ -2125,12 +2206,12 @@ function CompareTab({
   const resA = useMemo(() => scenarioResult(cfgA),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cfgA, currentAge, netWorth, effectiveIncome, effectiveExpenses,
-     defaultInflation, defaultSalaryGrowth, futureEvents, currentYear]);
+     defaultInflation, defaultSalaryGrowth, defaultMonthlySavings, futureEvents, currentYear]);
 
   const resB = useMemo(() => scenarioResult(cfgB),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cfgB, currentAge, netWorth, effectiveIncome, effectiveExpenses,
-     defaultInflation, defaultSalaryGrowth, futureEvents, currentYear]);
+     defaultInflation, defaultSalaryGrowth, defaultMonthlySavings, futureEvents, currentYear]);
 
   // Build combined chart — pad shorter series with nulls
   const combinedChart = useMemo(() => {
@@ -2157,86 +2238,6 @@ function CompareTab({
       <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color, padding: "6px 10px", textAlign: "right", fontWeight: 600 }}>
         {d > 0 ? "+" : ""}{fmtFn(d)}
       </td>
-    );
-  }
-
-  function ScenarioPanel({ cfg, setCfg, color, result }: {
-    cfg: ScenarioCfg;
-    setCfg: React.Dispatch<React.SetStateAction<ScenarioCfg>>;
-    color: string;
-    result: ReturnType<typeof scenarioResult>;
-  }) {
-    const minAge = (currentAge ?? 25) + 2;
-    const savingsMin = 0;
-    const savingsMax = Math.max(Math.round(effectiveIncome * 0.8), defaultMonthlySavings + 2000);
-    const savingsStep = 100;
-
-    return (
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
-        {/* Label */}
-        <input
-          value={cfg.label}
-          onChange={(e) => setCfg((c) => ({ ...c, label: e.target.value }))}
-          style={{
-            background: "transparent", border: "none", borderBottom: `2px solid ${color}`,
-            color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "14px",
-            fontWeight: 600, padding: "2px 0", outline: "none", width: "100%",
-          }}
-        />
-
-        {/* Outcome badges */}
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <div style={{ background: `${color}18`, border: `1px solid ${color}40`, borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>
-              {result.retPt ? fmt(result.retPt.baseline) : "—"}
-            </div>
-            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
-          </div>
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: result.prob != null && result.prob >= 70 ? "var(--green)" : "var(--amber)" }}>
-              {result.prob != null ? `${result.prob}%` : "—"}
-            </div>
-            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>retire prob.</div>
-          </div>
-          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "8px", padding: "6px 12px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-              {result.sr.toFixed(0)}%
-            </div>
-            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>savings rate</div>
-          </div>
-        </div>
-
-        {/* Sliders */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Retire at</span>
-              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.retirementAge}</span>
-            </div>
-            <input type="range" min={minAge} max={80} step={1} value={cfg.retirementAge}
-              onChange={(e) => setCfg((c) => ({ ...c, retirementAge: Number(e.target.value) }))}
-              style={{ width: "100%", accentColor: color }} />
-          </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Monthly savings</span>
-              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{fmt(cfg.monthlySavings)}</span>
-            </div>
-            <input type="range" min={savingsMin} max={savingsMax} step={savingsStep} value={cfg.monthlySavings}
-              onChange={(e) => setCfg((c) => ({ ...c, monthlySavings: Number(e.target.value) }))}
-              style={{ width: "100%", accentColor: color }} />
-          </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Return rate</span>
-              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color, fontWeight: 600 }}>{cfg.returnRate.toFixed(1)}%</span>
-            </div>
-            <input type="range" min={2} max={14} step={0.5} value={cfg.returnRate}
-              onChange={(e) => setCfg((c) => ({ ...c, returnRate: Number(e.target.value) }))}
-              style={{ width: "100%", accentColor: color }} />
-          </div>
-        </div>
-      </div>
     );
   }
 
@@ -2304,9 +2305,11 @@ function CompareTab({
 
       {/* Two panels */}
       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-        <ScenarioPanel cfg={cfgA} setCfg={setCfgA} color={BLUE} result={resA} />
+        <ScenarioPanel cfg={cfgA} setCfg={setCfgA} color={BLUE} result={resA}
+          currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
         <div style={{ width: "1px", background: "var(--border-subtle)", alignSelf: "stretch", flexShrink: 0 }} />
-        <ScenarioPanel cfg={cfgB} setCfg={setCfgB} color={VIOLET} result={resB} />
+        <ScenarioPanel cfg={cfgB} setCfg={setCfgB} color={VIOLET} result={resB}
+          currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
       </div>
 
       {/* Combined trajectory chart */}
