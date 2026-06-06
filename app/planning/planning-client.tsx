@@ -4350,6 +4350,23 @@ function CashFlowOS({
         </div>
       )}
 
+      {/* Build Budget from Statement — between Zone 2 and Zone 3 */}
+      <div className="cfo-zone" style={{ animationDelay: "155ms" }}>
+        <AiImportPanel
+          existingItems={expenseItems}
+          onAdd={async rows => {
+            for (const row of rows) {
+              const fd = new FormData();
+              fd.set("label", row.label);
+              fd.set("amount", String(row.amount));
+              fd.set("frequency", "monthly");
+              fd.set("type", "expense");
+              await addCashFlowItem(fd);
+            }
+          }}
+        />
+      </div>
+
       {/* Zone 3 — Management */}
       <div className="cfo-zone" style={{
         background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
@@ -4405,10 +4422,15 @@ function CashFlowOS({
 
         {/* Expenses with inline actuals */}
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "18px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
             <span style={sectionHeadStyle}>Expenses</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "oklch(0.65 0.18 25)", fontWeight: 600 }}>{ph(fmt(monthlyExpenses))}/mo</span>
           </div>
+          <p style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Expand a category to log actuals or edit amounts. Use the{" "}
+            <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ verticalAlign: "middle", color: "var(--text-tertiary)" }}><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+            {" "}pencil icon next to any item to edit its label or budgeted amount.
+          </p>
 
           {expenseItems.length === 0 ? (
             <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
@@ -4621,23 +4643,6 @@ function CashFlowOS({
           )}
 
           <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
-        </div>
-
-        {/* AI Import */}
-        <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)" }}>
-          <AiImportPanel
-            existingItems={expenseItems}
-            onAdd={async rows => {
-              for (const row of rows) {
-                const fd = new FormData();
-                fd.set("label", row.label);
-                fd.set("amount", String(row.amount));
-                fd.set("frequency", "monthly");
-                fd.set("type", "expense");
-                await addCashFlowItem(fd);
-              }
-            }}
-          />
         </div>
       </div>
     </div>
