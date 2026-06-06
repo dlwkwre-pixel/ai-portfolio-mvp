@@ -1963,7 +1963,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
               width: "min(680px, calc(100vw - 32px))",
               maxHeight: "calc(100dvh - 64px)",
               overflowY: "auto",
-              background: "var(--card-bg)",
+              background: "var(--bg-elevated)",
               border: "1px solid var(--card-border)",
               borderRadius: "var(--radius-lg)",
               zIndex: 81,
