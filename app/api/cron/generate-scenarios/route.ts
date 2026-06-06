@@ -67,6 +67,14 @@ STRICT REQUIREMENTS:
 6. thesis: 2-3 sentences — cause → market mechanism → which sector types benefit and the rough magnitude/speed
 7. keywords: 6-10 lowercase search terms that would appear in real headlines about this scenario
 8. Tickers must be US-listed on NYSE or NASDAQ
+9. CRITICAL — scenarios must describe FUTURE POSSIBILITIES, not ongoing current events:
+   BAD: "Iran War Drives Oil Prices Higher" — this is already happening, the entry window is closed
+   GOOD: "Iran Strait of Hormuz Closure" — a specific escalation that hasn't yet occurred
+   GOOD: "US-Iran Ceasefire Sparks Risk Rally" — a resolution that hasn't yet played out
+   GOOD: "Iran Conflict Spreads to Saudi Arabia" — a next-step scenario still ahead of the market
+   Use the headlines as CONTEXT about what is happening, then generate scenarios for what COULD HAPPEN NEXT.
+   The pre-positioning window must still be open — users need to be able to act before the move.
+10. Generate at most 2 scenarios rooted in the same underlying event (e.g., at most 2 Iran-related scenarios)
 
 Return ONLY a valid JSON array. No markdown fences, no commentary, just the raw JSON array:
 

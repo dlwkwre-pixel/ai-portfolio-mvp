@@ -12,17 +12,17 @@ import type { AIGeneratedScenario } from "@/app/api/scenarios/generated/route";
 type SignalLevel = "cold" | "warming" | "active" | "hot";
 
 function signalLevel(count: number): SignalLevel {
-  if (count === 0) return "cold";
-  if (count === 1) return "warming";
-  if (count <= 3) return "active";
+  if (count === 0)  return "cold";
+  if (count <= 4)   return "warming";
+  if (count <= 11)  return "active";
   return "hot";
 }
 
 const SIGNAL_CONFIG: Record<SignalLevel, { label: string; color: string; bg: string; dot: string; tooltip: string }> = {
   cold:    { label: "No Signal",  color: "var(--text-muted)",    bg: "rgba(255,255,255,0.04)", dot: "var(--border)",  tooltip: "No news triggers detected. This scenario is not currently in play." },
-  warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b",        tooltip: "1 news trigger detected. Early signs this scenario may be developing — worth watching." },
-  active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6",        tooltip: "2–3 news triggers detected. Multiple signals confirm this scenario is building momentum." },
-  hot:     { label: "Hot Signal", color: "#ef4444",              bg: "rgba(239,68,68,0.12)",  dot: "#ef4444",        tooltip: "4+ news triggers detected. This scenario is actively playing out across headlines." },
+  warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b",        tooltip: "1–4 headlines matched. Early signs this scenario may be developing — worth watching." },
+  active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6",        tooltip: "5–11 headlines matched. This scenario is building real momentum across the news cycle." },
+  hot:     { label: "Hot Signal", color: "#ef4444",              bg: "rgba(239,68,68,0.12)",  dot: "#ef4444",        tooltip: "12+ headlines matched. This scenario is dominating coverage and may be actively playing out." },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -847,7 +847,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   const filteredScenarios = allScenarios.filter((s) => {
     if (activeCategory !== "all" && s.category !== activeCategory) return false;
     const cnt = signalById.get(s.id)?.count ?? 0;
-    if (signalFilter === "hot")     return cnt >= 4;
+    if (signalFilter === "hot")     return cnt >= 12;
     if (signalFilter === "signals") return cnt >= 1;
     return true;
   });
@@ -861,7 +861,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
     return cb - ca;
   });
 
-  const hotCount = signals.filter((s) => s.count >= 4).length;
+  const hotCount = signals.filter((s) => s.count >= 12).length;
   const activeCount = signals.filter((s) => s.count >= 1).length;
 
   return (
