@@ -1177,7 +1177,7 @@ Portfolio context:
 ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time context for this run only)\n${contextNote}` : ""}`.trim();
 
   const response = await client.responses.create({
-    model: "grok-4.3",
+    model: "grok-4.20-0309-reasoning",
     input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -1385,8 +1385,8 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
       strategy_version_id: activeAssignment?.strategy_version_id ?? null,
       run_type: "ai_review",
       triggered_by: "manual",
-      model_name: "grok-4.3",
-      model_version: "grok-4.3",
+      model_name: "grok-4.20-0309-reasoning",
+      model_version: "grok-4.20-0309-reasoning",
       summary: "AI review in progress...",
       status: "pending",
     })
