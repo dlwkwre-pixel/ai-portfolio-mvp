@@ -780,7 +780,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
   const [quotes, setQuotes]             = useState<ScenarioQuote[]>([]);
   const [loading, setLoading]           = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [signalFilter, setSignalFilter] = useState<"all" | "hot" | "signals">("all");
+  const [signalFilter, setSignalFilter] = useState<"all" | "hot" | "active" | "warming" | "signals">("all");
   const [aiScenarios, setAiScenarios]   = useState<AIGeneratedScenario[]>([]);
 
   const loadSignals = useCallback(async () => {
@@ -839,6 +839,8 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
     if (activeCategory !== "all" && s.category !== activeCategory) return false;
     const cnt = signalById.get(s.id)?.count ?? 0;
     if (signalFilter === "hot")     return cnt >= 12;
+    if (signalFilter === "active")  return cnt >= 5 && cnt < 12;
+    if (signalFilter === "warming") return cnt >= 1 && cnt < 5;
     if (signalFilter === "signals") return cnt >= 1;
     return true;
   });
@@ -849,8 +851,10 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
     return cb - ca;
   });
 
-  const hotCount = signals.filter((s) => s.count >= 12).length;
-  const activeCount = signals.filter((s) => s.count >= 1).length;
+  const hotCount     = signals.filter((s) => s.count >= 12).length;
+  const activeCount  = signals.filter((s) => s.count >= 5 && s.count < 12).length;
+  const warmingCount = signals.filter((s) => s.count >= 1 && s.count < 5).length;
+  const signalCount  = signals.filter((s) => s.count >= 1).length;
 
   return (
     <div>
@@ -881,47 +885,43 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
 
         {/* Signal filter buttons */}
         {!loading && (
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {hotCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setSignalFilter((f) => f === "hot" ? "all" : "hot")}
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "4px 10px",
-                  borderRadius: "var(--radius-full)",
-                  background: signalFilter === "hot" ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.1)",
-                  border: signalFilter === "hot" ? "1px solid rgba(239,68,68,0.6)" : "1px solid rgba(239,68,68,0.25)",
-                  cursor: "pointer",
-                  transition: "background 0.12s, border-color 0.12s",
-                }}
-              >
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#ef4444", boxShadow: "0 0 5px #ef4444" }} />
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "#ef4444" }}>
-                  {hotCount} Hot
-                </span>
-              </button>
-            )}
-            {activeCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setSignalFilter((f) => f === "signals" ? "all" : "signals")}
-                style={{
-                  display: "flex", alignItems: "center", gap: "5px",
-                  padding: "4px 10px",
-                  borderRadius: "var(--radius-full)",
-                  background: signalFilter === "signals" ? "rgba(59,130,246,0.2)" : "rgba(59,130,246,0.1)",
-                  border: signalFilter === "signals" ? "1px solid rgba(59,130,246,0.6)" : "1px solid rgba(59,130,246,0.25)",
-                  cursor: "pointer",
-                  transition: "background 0.12s, border-color 0.12s",
-                }}
-              >
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3b82f6" }} />
-                <span style={{ fontSize: "10px", fontWeight: 600, color: "#3b82f6" }}>
-                  {activeCount} w/ Signals
-                </span>
-              </button>
-            )}
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {[
+              { key: "hot"     as const, label: "Hot",     count: hotCount,     color: "#ef4444", glow: true,  alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
+              { key: "active"  as const, label: "Active",  count: activeCount,  color: "#3b82f6", glow: false, alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
+              { key: "warming" as const, label: "Warming", count: warmingCount, color: "#f59e0b", glow: false, alpha: "0.08", alphaBold: "0.18", border: "0.22", borderBold: "0.55" },
+              { key: "signals" as const, label: "Any",     count: signalCount,  color: "#64748b", glow: false, alpha: "0.06", alphaBold: "0.14", border: "0.18", borderBold: "0.45" },
+            ].filter(({ count }) => count > 0).map(({ key, label, count, color, glow, alpha, alphaBold, border, borderBold }) => {
+              const active = signalFilter === key;
+              const hex = color.replace("#", "");
+              const r = parseInt(hex.slice(0, 2), 16);
+              const g = parseInt(hex.slice(2, 4), 16);
+              const b = parseInt(hex.slice(4, 6), 16);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSignalFilter((f) => f === key ? "all" : key)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "5px",
+                    padding: "4px 10px",
+                    borderRadius: "var(--radius-full)",
+                    background: active ? `rgba(${r},${g},${b},${alphaBold})` : `rgba(${r},${g},${b},${alpha})`,
+                    border: active ? `1px solid rgba(${r},${g},${b},${borderBold})` : `1px solid rgba(${r},${g},${b},${border})`,
+                    cursor: "pointer",
+                    transition: "background 0.12s, border-color 0.12s",
+                  }}
+                >
+                  <span style={{
+                    width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0,
+                    ...(glow ? { boxShadow: `0 0 5px ${color}` } : {}),
+                  }} />
+                  <span style={{ fontSize: "10px", fontWeight: active ? 700 : 600, color }}>
+                    {count} {label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
