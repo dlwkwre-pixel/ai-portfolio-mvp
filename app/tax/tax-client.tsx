@@ -1147,23 +1147,21 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                           <td style={{ padding: "8px 12px" }}><TermBadge term={(effectiveLots.find(e => e.id === lot.id)?.termType ?? lot.termType)} /></td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{lot.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                           <td style={{ padding: "6px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
-                            {lot.costBasis === 0 ? (
-                              <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-                                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  value={lotCostBasis[lot.id] !== undefined ? lotCostBasis[lot.id] : ""}
-                                  onChange={e => {
-                                    const v = e.target.value;
-                                    setLotCostBasis(prev => v === "" ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== lot.id)) : { ...prev, [lot.id]: Number(v) });
-                                  }}
-                                  style={{ width: "72px", padding: "2px 4px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: lotCostBasis[lot.id] !== undefined ? "var(--text-primary)" : "var(--text-muted)", fontSize: "11px" }}
-                                />
-                              </div>
-                            ) : fmtFull(lot.costBasis)}
+                            <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder={lot.costBasis > 0 ? lot.costBasis.toFixed(2) : "0.00"}
+                                value={lotCostBasis[lot.id] !== undefined ? lotCostBasis[lot.id] : (lot.costBasis > 0 ? lot.costBasis.toFixed(2) : "")}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setLotCostBasis(prev => v === "" ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== lot.id)) : { ...prev, [lot.id]: Number(v) });
+                                }}
+                                style={{ width: "80px", padding: "2px 4px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: "11px" }}
+                              />
+                            </div>
                           </td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmtFull(lot.proceeds)}</td>
                           <td style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontWeight: 600, color: glColor(lot.gainLoss), whiteSpace: "nowrap" as const }}>{lot.gainLoss >= 0 ? "+" : ""}{fmt(lot.gainLoss)}</td>
