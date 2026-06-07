@@ -6,6 +6,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/app/components/theme-provider";
+import SupportModal from "@/app/components/support-modal";
 
 type Portfolio = {
   id: string;
@@ -416,6 +417,9 @@ export default function Sidebar({
           </Link>
           <ThemeToggle />
         </div>
+
+        {/* Support */}
+        <SupportModal />
 
         {/* Sign out */}
         <button
