@@ -340,7 +340,7 @@ export default function TimeOffClient({
 
   function handleSave() {
     startTransition(async () => {
-      await saveSabbaticalScenario(form, activeScenario?.id);
+      await saveSabbaticalScenario(form, showNewForm ? undefined : activeScenario?.id);
       setIsEditing(false);
       setShowNewForm(false);
     });
@@ -408,7 +408,7 @@ export default function TimeOffClient({
           </div>
         </div>
         {scenarios.length > 0 && (
-          <button type="button" onClick={() => setShowNewForm((v) => !v)} style={{ padding: "6px 12px", borderRadius: "var(--radius-md)", background: "var(--accent)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
+          <button type="button" onClick={() => { setShowNewForm(true); setIsEditing(false); setForm(DEFAULT_FORM(effectiveExpenses, effectiveIncome, liquidAssets, defaultInvestmentReturn)); }} style={{ padding: "6px 12px", borderRadius: "var(--radius-md)", background: "var(--accent)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
             + New Scenario
           </button>
         )}
@@ -538,8 +538,8 @@ export default function TimeOffClient({
               )}
 
               <div style={{ display: "flex", gap: "8px" }}>
-                <button type="button" disabled={isPending} onClick={handleSave} style={{ flex: 1, padding: "8px 0", borderRadius: "var(--radius-md)", background: "var(--accent)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer", opacity: isPending ? 0.55 : 1 }}>
-                  {isPending ? "Saving…" : "Save"}
+                <button type="button" disabled={isPending} onClick={handleSave} style={{ flex: 1, padding: "9px 0", borderRadius: "var(--radius-md)", background: "oklch(0.62 0.22 295)", color: "#fff", border: "none", fontSize: "12px", fontWeight: 700, fontFamily: "var(--font-body)", cursor: "pointer", opacity: isPending ? 0.55 : 1, boxShadow: isPending ? "none" : "0 2px 12px oklch(0.62 0.22 295 / 0.4)", letterSpacing: "0.03em" }}>
+                  {isPending ? "Saving…" : "Save Scenario"}
                 </button>
                 {activeScenario && (
                   <button type="button" onClick={() => { setIsEditing(false); setShowNewForm(false); }} style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
@@ -778,6 +778,57 @@ export default function TimeOffClient({
               )}
             </>
           )}
+
+          {/* === VACATION: Opportunity cost + Recurring cost === */}
+          {showAnalysis && breakType === "vacation" && vacationResult && (() => {
+            const cost = vacationResult.totalCost;
+            const r = 0.07;
+            const fv10 = Math.round(cost * Math.pow(1 + r, 10));
+            const fv20 = Math.round(cost * Math.pow(1 + r, 20));
+            const annualCost = cost;
+            const fiveYearCost = cost * 5;
+            const tenYearCost = cost * 10;
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                {/* Opportunity cost */}
+                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+                  <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", marginBottom: "3px" }}>If Invested Instead</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "12px" }}>Opportunity cost at 7% annual return</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                    {[
+                      { label: "In 10 years", value: `$${(fv10 / 1000).toFixed(0)}k` },
+                      { label: "In 20 years", value: `$${(fv20 / 1000).toFixed(0)}k` },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-muted)" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                    The experience is the value. This is just the cost of choosing it.
+                  </div>
+                </div>
+                {/* Annual recurring cost */}
+                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+                  <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", marginBottom: "3px" }}>Recurring Cost</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "12px" }}>If this becomes an annual trip</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                    {[
+                      { label: "Per year", value: fmt(Math.round(annualCost)) },
+                      { label: "Over 5 years", value: fmt(Math.round(fiveYearCost)) },
+                      { label: "Over 10 years", value: fmt(Math.round(tenYearCost)) },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{label}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* === SABBATICAL: Runway chart + Ecosystem impact === */}
           {showAnalysis && breakType === "sabbatical" && sabbaticalResult && (
