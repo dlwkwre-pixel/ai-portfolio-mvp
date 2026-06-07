@@ -6205,7 +6205,7 @@ export default function PlanningClient({
         why: a.description,
         impact: a.recommendation,
       }));
-    return [...conflictItems, ...base].slice(0, 4);
+    return [...conflictItems, ...base].slice(0, 5);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savingsRate, monthlySavings, effectiveIncome, effectiveExpenses, liquidAssets, netWorth,
        totalAssets, totalLiabilities, retirementProb, yearsToRetire,
@@ -8669,7 +8669,46 @@ export default function PlanningClient({
               }
               items.sort((a, b) => a.year - b.year);
               if (items.length === 0) {
-                return <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0 }}>Add scenarios to any planner to see your Life Roadmap here.</p>;
+                type PH = { year: number; label: string; href: string; kind: "today" | "ghost" | "cta" };
+                const phs: PH[] = [{ year: currentYear, label: "Today", href: "", kind: "today" }];
+                if (homeScenarios.length === 0) phs.push({ year: currentYear + 3, label: "Model a home purchase", href: "/planning/home", kind: "cta" });
+                if (familyScenarios.length === 0) phs.push({ year: currentYear + 2, label: "Add a family scenario", href: "/planning/family", kind: "cta" });
+                if (careerScenarios.length === 0) phs.push({ year: currentYear + 1, label: "Model a career change", href: "/planning/career", kind: "cta" });
+                if (educationScenarios.length === 0) phs.push({ year: currentYear + 17, label: "Plan education costs", href: "/planning/education", kind: "cta" });
+                if (profile?.current_age != null && profile?.target_retirement_age != null) {
+                  phs.push({ year: currentYear + Math.max(1, profile.target_retirement_age - profile.current_age), label: `Retire at ${profile.target_retirement_age}`, href: "/planning?tab=forecast", kind: "ghost" });
+                }
+                phs.sort((a, b) => a.year - b.year);
+                return (
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    {phs.map((ph, pi) => {
+                      const isLast = pi === phs.length - 1;
+                      const isToday = ph.kind === "today";
+                      const isGhost = ph.kind === "ghost";
+                      return (
+                        <div key={pi} style={{ display: "flex", gap: "14px", opacity: isToday ? 1 : 0.45 }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "28px", flexShrink: 0 }}>
+                            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: isToday ? "var(--text-muted)" : "transparent", border: isToday ? "none" : `1.5px dashed ${isGhost ? "var(--green)" : "var(--border)"}`, flexShrink: 0, marginTop: "4px" }} />
+                            {!isLast && <div style={{ flex: 1, width: "1px", borderLeft: "1px dashed var(--border-subtle)", minHeight: "18px", margin: "4px 0" }} />}
+                          </div>
+                          <div style={{ flex: 1, paddingBottom: isLast ? "0" : "14px" }}>
+                            <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontWeight: 600, marginBottom: "4px" }}>{isToday ? "—" : ph.year}</div>
+                            {ph.kind === "cta" ? (
+                              <Link href={ph.href} style={{ textDecoration: "none" }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", border: "1px dashed var(--border)", padding: "2px 8px", borderRadius: "5px" }}>
+                                  <svg width="7" height="7" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M6 1v10M1 6h10"/></svg>
+                                  {ph.label}
+                                </span>
+                              </Link>
+                            ) : (
+                              <span style={{ fontSize: isGhost ? "12px" : "11px", fontFamily: "var(--font-body)", fontWeight: isGhost ? 700 : 400, color: isGhost ? "var(--green)" : "var(--text-secondary)" }}>{ph.label}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
               }
               const TYPE_COLOR: Record<string, string> = {
                 education: "var(--accent)",
