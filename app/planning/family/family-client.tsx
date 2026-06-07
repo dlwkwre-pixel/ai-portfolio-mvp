@@ -972,6 +972,47 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             {editingId && <button onClick={cancelEdit} style={{ padding: "9px 14px", background: "var(--bg-elevated, var(--bg-hover))", color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Cancel</button>}
           </div>
 
+          {/* At a Glance — live snapshot */}
+          <div style={{ height: "1px", background: "var(--border-subtle, rgba(255,255,255,0.08))", margin: "14px 0 14px" }} />
+          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            {[
+              {
+                label: "Readiness",
+                value: computed.readinessScore != null ? `${computed.readinessScore}/100` : "—",
+                color: computed.readinessScore != null
+                  ? computed.readinessScore >= 70 ? "var(--green)"
+                  : computed.readinessScore >= 40 ? "oklch(0.78 0.15 75)"
+                  : "var(--red)"
+                  : "var(--text-muted)",
+              },
+              {
+                label: "Monthly Impact",
+                value: fmt(computed.currentMonthlyImpact),
+                color: "var(--red)",
+              },
+              {
+                label: "Retire Prob.",
+                value: computed.retirProbBefore != null ? `${Math.round(computed.retirProbBefore)}%` : "—",
+                color: computed.retirProbBefore != null
+                  ? computed.retirProbBefore >= 70 ? "var(--green)"
+                  : computed.retirProbBefore >= 40 ? "oklch(0.78 0.15 75)"
+                  : "var(--red)"
+                  : "var(--text-muted)",
+              },
+              {
+                label: "Total to 18",
+                value: fmtK(computed.totalCostToAge18),
+                color: "var(--text-primary)",
+              },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--bg-card, var(--bg-elevated))", border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))" }}>
+                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
         </div>
 
         {/* ── Right panel: analysis ────────────────────────────────────── */}

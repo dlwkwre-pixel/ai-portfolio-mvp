@@ -1078,6 +1078,39 @@ export default function CareerClient({
             </div>
           </div>
 
+          {/* At a Glance — live snapshot */}
+          <div style={{ height: "1px", background: "var(--border-subtle)", margin: "6px 0 14px" }} />
+          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            {[
+              {
+                label: "Break-Even",
+                value: computed.breakEvenYear != null ? `Year ${computed.breakEvenYear}` : "Never",
+                color: computed.breakEvenYear != null && computed.breakEvenYear <= 7 ? "var(--green)" : computed.breakEvenYear != null ? "oklch(0.78 0.15 75)" : "var(--red)",
+              },
+              {
+                label: "Lifetime Edge",
+                value: (computed.lifetimeDelta >= 0 ? "+" : "") + fmtK(computed.lifetimeDelta),
+                color: computed.lifetimeDelta >= 0 ? "var(--green)" : "var(--red)",
+              },
+              {
+                label: "Retirement",
+                value: computed.retirDeltaPp !== 0 ? `${computed.retirDeltaPp >= 0 ? "+" : ""}${computed.retirDeltaPp}pp` : "No Change",
+                color: computed.retirDeltaPp > 0 ? "var(--green)" : computed.retirDeltaPp < 0 ? "var(--red)" : "var(--text-muted)",
+              },
+              {
+                label: "Trans. Risk",
+                value: computed.transitionRiskLevel,
+                color: computed.transitionRiskLevel === "LOW" ? "var(--green)" : computed.transitionRiskLevel === "HIGH" ? "var(--red)" : "oklch(0.78 0.15 75)",
+              },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
         </div>
 
         {/* Right panel: advisor analysis */}

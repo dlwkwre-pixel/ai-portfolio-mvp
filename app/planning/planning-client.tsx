@@ -7639,15 +7639,17 @@ export default function PlanningClient({
           {/* Confidence Narrative */}
           {retirementPoint && profile?.current_age != null && (
             <div style={{
-              background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--card-bg))",
-              border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 22%, transparent)",
-              borderRadius: "var(--radius-lg)", padding: "14px 18px",
+              background: "rgba(99,102,241,0.04)",
+              border: "1px solid rgba(99,102,241,0.22)",
+              borderRadius: "var(--radius-lg)", padding: "11px 15px",
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
-                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
-                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>FINN</span>
-              </div>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>
+              <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
+                <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+              <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>
                 {(() => {
                   const proj = retirementPoint.baseline;
                   const retAge = activeRetirementAge ?? 65;
@@ -7669,6 +7671,8 @@ export default function PlanningClient({
                   return text;
                 })()}
               </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -8270,9 +8274,10 @@ export default function PlanningClient({
             overflow: "hidden",
           }}>
             <div style={{ padding: "18px 24px 0", display: "flex", alignItems: "center", gap: "9px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-body)",
-                color: lifePlan.futureReadinessScore >= 75 ? "var(--green)" : lifePlan.futureReadinessScore >= 50 ? "oklch(0.78 0.17 70)" : "var(--red)"
-              }}>FINN</span>
+              <div style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="9" height="9" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </div>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase" }}>FINN</span>
               <div style={{ width: "1px", height: "10px", background: "var(--border-subtle)" }} />
               <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Life Plan Verdict</span>
             </div>
