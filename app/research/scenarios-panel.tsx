@@ -206,14 +206,17 @@ function ScenarioCard({
   async function handleExpand() {
     const next = !expanded;
     setExpanded(next);
-    if (next && !quotesLoaded && !loadingQuotes) {
-      setLoadingQuotes(true);
-      const allTickers = [...scenario.long, ...scenario.avoid].map((t) => t.ticker).join(",");
-      try {
-        await fetch(`/api/scenarios/quotes?tickers=${allTickers}`);
-        setQuotesLoaded(true);
-      } finally {
-        setLoadingQuotes(false);
+    if (next) {
+      fetchLikelihood();
+      if (!quotesLoaded && !loadingQuotes) {
+        setLoadingQuotes(true);
+        const allTickers = [...scenario.long, ...scenario.avoid].map((t) => t.ticker).join(",");
+        try {
+          await fetch(`/api/scenarios/quotes?tickers=${allTickers}`);
+          setQuotesLoaded(true);
+        } finally {
+          setLoadingQuotes(false);
+        }
       }
     }
   }
@@ -633,47 +636,19 @@ function ScenarioCard({
             </div>
           )}
 
-          {/* Likelihood analysis */}
+          {/* Likelihood analysis — auto-loaded on expand */}
           <div style={{ marginTop: "16px", borderTop: "1px solid var(--border-subtle)", paddingTop: "14px" }}>
-            {!likelihood && !likelihoodLoading && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); fetchLikelihood(); }}
-                style={{
-                  width: "100%",
-                  padding: "9px 14px",
-                  borderRadius: "var(--radius-md)",
-                  background: "rgba(139,92,246,0.07)",
-                  border: "1px solid rgba(139,92,246,0.2)",
-                  color: "#c4b5fd",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "7px",
-                  transition: "background 0.12s",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(139,92,246,0.14)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(139,92,246,0.07)"; }}
-              >
-                <span>✦</span>
-                Ask FINN — How likely is this scenario?
-              </button>
-            )}
-
             {likelihoodLoading && (
               <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                padding: "12px", color: "#a78bfa", fontSize: "12px",
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "8px 0", color: "#a78bfa", fontSize: "11px",
               }}>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <circle cx="7" cy="7" r="5" stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="24" strokeDashoffset="8">
                     <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
                   </circle>
                 </svg>
-                Analyzing likelihood...
+                FINN is assessing likelihood…
               </div>
             )}
 
