@@ -7,6 +7,13 @@ export type SabbaticalScenario = {
   id: string;
   user_id: string;
   name: string;
+  break_type: string;                    // "vacation" | "sabbatical"
+  // Vacation fields
+  vacation_duration_days: number;
+  vacation_daily_budget: number;
+  vacation_travel_costs: number;
+  vacation_target_date: string | null;
+  // Sabbatical fields
   sabbatical_months: number;
   monthly_expenses_during: number;
   monthly_stipend: number;

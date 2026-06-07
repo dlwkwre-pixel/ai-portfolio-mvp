@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
-import SabbaticalClient from "./sabbatical-client";
+import TimeOffClient from "./sabbatical-client";
 import type { SabbaticalScenario } from "./sabbatical-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
 import { ageFromDob } from "@/app/planning/planning-utils";
@@ -121,7 +121,7 @@ export default async function SabbaticalPlanningPage() {
       </div>
       <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <MobileNav />
-        <SabbaticalClient
+        <TimeOffClient
           scenarios={scenarios}
           profile={profile}
           defaultInvestmentReturn={investmentReturn}

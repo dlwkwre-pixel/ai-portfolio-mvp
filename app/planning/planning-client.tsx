@@ -5416,6 +5416,12 @@ export default function PlanningClient({
       })(),
       sabbatical: sabbaticalScenarios.length === 0 ? "not-started" : (() => {
         const s = sabbaticalScenarios[0];
+        if ((s.break_type ?? "sabbatical") === "vacation") {
+          const totalCost = Number(s.vacation_travel_costs ?? 500) + Number(s.vacation_daily_budget ?? 200) * Number(s.vacation_duration_days ?? 7);
+          const liquid = Number(s.liquid_assets_available) || 0;
+          const pct = liquid > 0 ? totalCost / liquid : 1;
+          return liquid >= totalCost && pct <= 0.30 ? "strong" : liquid >= totalCost ? "review" : "alert";
+        }
         const burn = Math.max(0, Number(s.monthly_expenses_during) - Number(s.monthly_stipend));
         const runway = burn > 0 ? Number(s.liquid_assets_available) / burn : 999;
         const canAfford = runway >= s.sabbatical_months;
@@ -5505,6 +5511,16 @@ export default function PlanningClient({
 
     const sabbaticalMetrics = sabbaticalScenarios.length > 0 ? (() => {
       const s = sabbaticalScenarios[0];
+      if ((s.break_type ?? "sabbatical") === "vacation") {
+        const totalCost = Number(s.vacation_travel_costs ?? 500) + Number(s.vacation_daily_budget ?? 200) * Number(s.vacation_duration_days ?? 7);
+        const liquid = Number(s.liquid_assets_available) || 0;
+        const isFunded = liquid >= totalCost;
+        const monthlySav = Math.max(0, effectiveIncome - effectiveExpenses);
+        const shortfall = Math.max(0, totalCost - liquid);
+        const monthsToSave = monthlySav > 0 && !isFunded ? Math.ceil(shortfall / monthlySav) : 0;
+        const verdict = isFunded ? "BOOK_IT" as const : monthlySav > 0 ? "SAVE_MORE" as const : "RECONSIDER" as const;
+        return { verdict, runwayMonths: isFunded ? 999 : monthsToSave, sabbaticalMonths: Number(s.vacation_duration_days ?? 7), recoveryMonths: Math.ceil(totalCost / Math.max(1, monthlySav)), name: s.name };
+      }
       const burn = Math.max(0, Number(s.monthly_expenses_during) - Number(s.monthly_stipend));
       const runway = burn > 0 ? Number(s.liquid_assets_available) / burn : 999;
       const canAfford = runway >= s.sabbatical_months;
@@ -8270,6 +8286,7 @@ export default function PlanningClient({
             .hub-card-family:hover { border-color: oklch(0.72 0.15 340 / 0.4) !important; }
             .hub-card-career:hover { border-color: oklch(0.75 0.16 55 / 0.4) !important; }
             .hub-card-edu:hover { border-color: oklch(0.65 0.18 260 / 0.4) !important; }
+            .hub-card-sabbatical:hover { border-color: oklch(0.72 0.19 145 / 0.4) !important; }
             .hub-ring-fill { animation: hub-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
             .hub-bar-fill { animation: hub-bar-scale 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: left; }
             .hub-section { animation: hub-fade-up 0.35s ease-out both; }
@@ -8582,24 +8599,26 @@ export default function PlanningClient({
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.19 145) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.19 145)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 2v6M10 18v-2M4.5 4.5l3 3M13 13l2.5 2.5M2 10h4M16 10h2M4.5 15.5l3-3M13 7l2.5-2.5" strokeLinecap="round"/></svg>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2" strokeLinecap="round"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" strokeLinecap="round"/></svg>
                     </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Sabbatical</span>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Time Off</span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
-                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.65 0.18 260)", background: "color-mix(in oklch, oklch(0.65 0.18 260) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>LIFE</span>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.72 0.19 145)", background: "color-mix(in oklch, oklch(0.72 0.19 145) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>LIFE</span>
                     {(() => {
                       const st = lifePlan.plannerHealth.sabbatical;
                       const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)";
-                      const l = st === "strong" ? "Go for it" : st === "alert" ? "Not yet" : st === "review" ? "Plan first" : "Not started";
+                      const l = st === "strong" ? "Funded" : st === "alert" ? "Save more" : st === "review" ? "Plan ahead" : "Not started";
                       return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>;
                     })()}
                   </div>
                 </div>
                 {lifePlan.sabbaticalMetrics ? (
                   <div style={{ marginBottom: "10px" }}>
-                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Runway vs. Needed</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: lifePlan.sabbaticalMetrics.verdict === "GO" ? "var(--green)" : lifePlan.sabbaticalMetrics.verdict === "PLAN" ? "oklch(0.78 0.17 70)" : "var(--red)" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>
+                      {lifePlan.sabbaticalMetrics.verdict === "GO" || lifePlan.sabbaticalMetrics.verdict === "PLAN" || lifePlan.sabbaticalMetrics.verdict === "NOT_YET" ? "Runway vs. Needed" : "Trip Cost"}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: (lifePlan.sabbaticalMetrics.verdict === "GO" || lifePlan.sabbaticalMetrics.verdict === "BOOK_IT") ? "var(--green)" : (lifePlan.sabbaticalMetrics.verdict === "PLAN" || lifePlan.sabbaticalMetrics.verdict === "SAVE_MORE") ? "oklch(0.78 0.17 70)" : "var(--red)" }}>
                       {lifePlan.sabbaticalMetrics.runwayMonths > 99 ? "∞" : `${Math.round(lifePlan.sabbaticalMetrics.runwayMonths)} mo`} of {lifePlan.sabbaticalMetrics.sabbaticalMonths} needed
                     </div>
                     {lifePlan.sabbaticalMetrics.recoveryMonths != null && (
@@ -8609,7 +8628,7 @@ export default function PlanningClient({
                     )}
                   </div>
                 ) : (
-                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>See if you can afford to take time off and when you&apos;d recover.</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Plan a vacation or career break — see what it costs and when you&apos;d recover.</p>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
                   Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
