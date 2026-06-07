@@ -1012,9 +1012,13 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           <div style={{ background: computed.contextVerdictBg, border: `1px solid ${computed.contextVerdictColor}40`, borderRadius: "var(--radius-lg, 12px)", padding: "20px 24px", animation: "edu-fade-up 0.4s ease-out both" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: computed.contextVerdictColor, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 5 }}>BuyTune Education Verdict</div>
-                <div style={{ fontSize: 26, fontWeight: 900, color: computed.contextVerdictColor, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{computed.contextVerdictLabel}</div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{computed.contextVerdictSubtitle}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
+                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${computed.contextVerdictColor}22`, color: computed.contextVerdictColor }}>
+                    {computed.contextVerdictSubtitle}
+                  </span>
+                </div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 46, fontWeight: 800, color: computed.contextVerdictColor, letterSpacing: "-1.5px", lineHeight: 1 }}>{computed.contextVerdictLabel}</div>
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Confidence</div>
@@ -1062,7 +1066,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rule-Based Analysis</div>
               </div>
             </div>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{computed.autoNarrative}</p>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${computed.contextVerdictColor} 40%, transparent)`, paddingLeft: "12px" }}>{computed.autoNarrative}</p>
           </div>
 
           {/* What Moves the Needle */}
@@ -1364,7 +1368,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "edu-fade-up 0.4s ease-out both" }}>{commentary}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "edu-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>Get personalized AI guidance on 529 strategy, tax advantages, investment allocation, and optimal funding timeline.</p>

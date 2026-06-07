@@ -983,15 +983,16 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           <div style={{ ...cardS, background: meta.bg, borderColor: meta.border }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 900, letterSpacing: "0.04em", color: meta.color }}>
-                    {computed.verdict === "WAIT" && computed.timingBestDelayLabel
-                      ? `WAIT ${computed.timingBestDelayLabel.toUpperCase()}`
-                      : meta.label}
-                  </span>
-                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "var(--radius-sm, 4px)", border: `1px solid ${meta.border}`, color: meta.color }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
+                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: meta.border, color: meta.color }}>
                     {computed.verdictConfidence} Conviction
                   </span>
+                </div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "46px", fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, color: meta.color, marginBottom: "12px" }}>
+                  {computed.verdict === "WAIT" && computed.timingBestDelayLabel
+                    ? `WAIT ${computed.timingBestDelayLabel.toUpperCase()}`
+                    : meta.label}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {computed.verdictReasons.map((reason, i) => (
@@ -1078,7 +1079,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 </svg>
                 <span style={{ fontSize: 12, fontWeight: 600, color: meta.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>FINN Assessment</span>
               </div>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${meta.color} 40%, transparent)`, paddingLeft: "12px" }}>
                 {computed.autoNarrative}
               </p>
             </div>
@@ -1374,7 +1375,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             {/* content area */}
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both" }}>{commentary}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14, padding: "16px 8px", textAlign: "center" }}>
                   <div style={{ fontSize: 28, animation: "bt-orb-pulse 3s ease-in-out infinite" }}>🤖</div>

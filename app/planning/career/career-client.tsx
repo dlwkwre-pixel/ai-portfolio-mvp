@@ -807,13 +807,19 @@ export default function CareerClient({
         display: "flex", alignItems: "center", justifyContent: "space-between",
         background: "var(--bg-base)", flexShrink: 0, gap: "12px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <Link href="/planning?tab=events" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Planning
-          </Link>
-          <span style={{ color: "var(--border)" }}>/</span>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Career Change</span>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "3px" }}>
+            <Link href="/planning?tab=events" style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-muted)", textDecoration: "none" }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Planning
+            </Link>
+            <span style={{ color: "var(--border)" }}>/</span>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Career Change</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+            <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Career Decision Engine</span>
+            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Model the financial impact of switching careers</span>
+          </div>
         </div>
         <div style={{ display: "flex", gap: "8px" }} data-print-hide>
           <button
@@ -1085,7 +1091,7 @@ export default function CareerClient({
                   <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
                   <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "99px", background: verdictMeta.border, color: verdictMeta.color }}>{verdictConfidence} Confidence</span>
                 </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: "30px", fontWeight: 800, color: verdictMeta.color, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{verdictMeta.label}</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "48px", fontWeight: 800, color: verdictMeta.color, letterSpacing: "-1.5px", lineHeight: 1 }}>{verdictMeta.label}</div>
 
                 {(verdict === "SWITCH" || verdict === "WAIT") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginTop: "10px" }}>
@@ -1175,16 +1181,16 @@ export default function CareerClient({
               <p style={{ ...sectionHead, margin: 0 }}>FINN&apos;s Take</p>
             </div>
             <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, #7c3aed 7%, transparent)", border: `1px solid ${verdictMeta.border}`, marginBottom: finnCommentary ? "12px" : "0" }}>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{computed.finnNarrative}</p>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{computed.finnNarrative}</p>
             </div>
             {finnCommentary ? (
               <div style={{ marginTop: "12px" }}>
                 <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", marginBottom: "6px" }}>Deep AI Analysis</p>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{finnCommentary}</p>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{finnCommentary}</p>
                 <button type="button" onClick={() => setFinnCommentary(null)} style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)" }}>Refresh</button>
               </div>
             ) : (
-              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#7c3aed", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}>
+              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.2 290 / 0.15)" : "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(124,58,237,0.35)" }}>
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                   <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
                   <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
