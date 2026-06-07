@@ -56,6 +56,15 @@ function makeUnsubToken(userId: string, portfolioId: string): string {
   return crypto.createHmac("sha256", secret).update(`${userId}:${portfolioId}`).digest("hex");
 }
 
+function obfuscateEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at < 0) return "***";
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const visible = Math.min(3, Math.floor(local.length / 2));
+  return `${local.slice(0, visible)}***@${domain}`;
+}
+
 async function fetchEarnings(tickers: string[], from: string, to: string): Promise<
   { ticker: string; company_name: string | null; report_date: string; estimate_eps: number | null }[]
 > {
@@ -265,7 +274,8 @@ export async function GET(request: Request) {
 
       // ── Build + send ──────────────────────────────────────────────────────────
       const token = makeUnsubToken(pref.user_id, pref.portfolio_id);
-      const portfolioUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}`;
+      const accountHint = authUser?.email ? encodeURIComponent(obfuscateEmail(authUser.email)) : null;
+      const portfolioUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}${accountHint ? `?account=${accountHint}` : ""}`;
       const reportUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}/report`;
       const manageUrl = `${SITE_URL}/portfolios/${pref.portfolio_id}?tab=emails`;
       const unsubscribeUrl = `${SITE_URL}/api/unsubscribe?userId=${pref.user_id}&portfolioId=${pref.portfolio_id}&token=${token}`;

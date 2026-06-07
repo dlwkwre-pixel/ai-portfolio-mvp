@@ -33,7 +33,7 @@ import { getDigestPrefs } from "./email-digest-actions";
 
 type PortfolioPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; account?: string }>;
 };
 
 function relativeTime(iso: string): string {
@@ -94,7 +94,7 @@ function accountPillStyle(v: string | null) {
 
 export default async function SinglePortfolioPage({ params, searchParams }: PortfolioPageProps) {
   const { id } = await params;
-  const { tab } = await searchParams;
+  const { tab, account } = await searchParams;
   const activeTab = tab || "overview";
 
   const supabase = await createClient();
@@ -103,7 +103,38 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios").select("*").eq("id", id).eq("user_id", user.id).single();
-  if (portfolioError || !portfolio) notFound();
+  if (portfolioError || !portfolio) {
+    if (account) {
+      const hint = decodeURIComponent(account);
+      return (
+        <main style={{ minHeight: "100vh", background: "#07090f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
+          <div style={{ maxWidth: "400px", width: "100%", textAlign: "center" }}>
+            <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Wrong account</h1>
+            <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.65, marginBottom: "6px" }}>
+              This portfolio link is for <strong style={{ color: "#94a3b8" }}>{hint}</strong>.
+            </p>
+            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.6, marginBottom: "28px" }}>
+              You&apos;re signed in as a different account. Sign out and sign back in as <strong style={{ color: "#94a3b8" }}>{hint}</strong> to view this portfolio.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <a href="/login" style={{ display: "block", padding: "12px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "10px", color: "#fff", textDecoration: "none", fontSize: "14px", fontWeight: 600 }}>
+                Switch accounts
+              </a>
+              <a href="/portfolios" style={{ display: "block", padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#94a3b8", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
+                Go to my portfolios
+              </a>
+            </div>
+          </div>
+        </main>
+      );
+    }
+    notFound();
+  }
 
   // Run all independent queries in parallel — previously sequential, each 100-200ms
   const [
