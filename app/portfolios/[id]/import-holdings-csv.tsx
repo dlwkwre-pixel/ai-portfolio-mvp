@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { importHoldingsCSV, type CSVHoldingRow, type ImportHoldingsResult } from "./actions";
 
 type ParsedRow = CSVHoldingRow & { _rowNum: number; _error?: string };
+type InputMode = "file" | "paste";
 
 const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "other"];
 
@@ -13,11 +14,11 @@ function normalizeHeader(h: string): string {
 
 function mapHeader(h: string): keyof CSVHoldingRow | null {
   const n = normalizeHeader(h);
-  if (["ticker", "symbol", "stock"].includes(n)) return "ticker";
-  if (["shares", "quantity", "qty", "share_count", "num_shares"].includes(n)) return "shares";
-  if (["average_cost_basis", "avg_cost", "cost_basis", "avg_cost_basis", "cost", "average_cost", "price_paid", "avg_price"].includes(n)) return "average_cost_basis";
-  if (["company_name", "company", "name"].includes(n)) return "company_name";
-  if (["asset_type", "type", "security_type"].includes(n)) return "asset_type";
+  if (["ticker", "symbol", "stock", "instrument", "security"].includes(n)) return "ticker";
+  if (["shares", "quantity", "qty", "share_count", "num_shares", "units", "amount"].includes(n)) return "shares";
+  if (["average_cost_basis", "avg_cost", "cost_basis", "avg_cost_basis", "cost", "average_cost", "price_paid", "avg_price", "purchase_price", "unit_cost", "book_value_per_share"].includes(n)) return "average_cost_basis";
+  if (["company_name", "company", "name", "description", "security_name", "stock_name"].includes(n)) return "company_name";
+  if (["asset_type", "type", "security_type", "instrument_type"].includes(n)) return "asset_type";
   if (["notes", "note", "comment", "comments"].includes(n)) return "notes";
   return null;
 }
@@ -79,14 +80,16 @@ function downloadTemplate() {
 
 export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<InputMode>("file");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState("");
+  const [pastedText, setPastedText] = useState("");
   const [result, setResult] = useState<ImportHoldingsResult | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
-    setRows([]); setFileName(""); setResult(null);
+    setRows([]); setFileName(""); setPastedText(""); setResult(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -98,6 +101,22 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
     const reader = new FileReader();
     reader.onload = ev => setRows(parseCSV(String(ev.target?.result ?? "")));
     reader.readAsText(file);
+  }
+
+  function handlePasteChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const text = e.target.value;
+    setPastedText(text);
+    setResult(null);
+    if (text.trim()) {
+      setRows(parseCSV(text));
+    } else {
+      setRows([]);
+    }
+  }
+
+  function switchMode(next: InputMode) {
+    setMode(next);
+    reset();
   }
 
   const validRows = rows.filter(r => !r._error);
@@ -122,6 +141,17 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
     });
   }
 
+  const hasText = mode === "file" ? !!fileName : !!pastedText.trim();
+  const buttonLabel = isPending
+    ? "Importing..."
+    : validRows.length > 0
+    ? `Import ${validRows.length} holding${validRows.length !== 1 ? "s" : ""}`
+    : hasText
+    ? "No valid rows found"
+    : mode === "file"
+    ? "Select a file first"
+    : "Paste CSV above first";
+
   return (
     <div>
       <button
@@ -144,6 +174,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-lg)",
         }}>
+          {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
             <div>
               <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>Import Holdings from CSV</div>
@@ -152,6 +183,27 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
             <button type="button" onClick={() => { setOpen(false); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px" }}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
+          </div>
+
+          {/* Mode tabs */}
+          <div style={{ display: "flex", gap: "4px", marginBottom: "14px", background: "var(--bg-surface)", padding: "3px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)" }}>
+            {(["file", "paste"] as InputMode[]).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                style={{
+                  flex: 1, padding: "5px 10px", borderRadius: "calc(var(--radius-md) - 2px)",
+                  border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 500,
+                  fontFamily: "var(--font-body)", transition: "all 0.15s",
+                  background: mode === m ? "var(--bg-elevated)" : "transparent",
+                  color: mode === m ? "var(--text-primary)" : "var(--text-muted)",
+                  boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
+                }}
+              >
+                {m === "file" ? "Upload File" : "Paste CSV"}
+              </button>
+            ))}
           </div>
 
           {/* Format info */}
@@ -172,7 +224,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
               ))}
             </div>
             <div style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)" }}>
-              Accepted asset_type values: stock, etf, crypto, bond, option, mutual_fund, cash_equivalent, other
+              Also accepts: symbol, quantity, cost_basis, avg_price, name, description
             </div>
             <button type="button" onClick={downloadTemplate} style={{ marginTop: "8px", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
@@ -181,32 +233,65 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
           </div>
 
           {/* File input */}
-          <label style={{ display: "block", marginBottom: "12px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px" }}>Select CSV file</div>
-            <div style={{
-              display: "flex", alignItems: "center", gap: "10px",
-              padding: "9px 12px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-strong)",
-              borderRadius: "var(--radius-sm)",
-              cursor: "pointer",
-            }}
-              onClick={() => fileRef.current?.click()}
-            >
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              <span style={{ fontSize: "12px", color: fileName ? "var(--text-primary)" : "var(--text-muted)" }}>
-                {fileName || "Click to choose .csv file"}
-              </span>
-              {fileName && (
-                <button type="button" onClick={e => { e.stopPropagation(); reset(); }} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px" }}>
-                  <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                </button>
+          {mode === "file" && (
+            <label style={{ display: "block", marginBottom: "12px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px" }}>Select CSV file</div>
+              <div style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "9px 12px",
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-strong)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+              }}
+                onClick={() => fileRef.current?.click()}
+              >
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+                <span style={{ fontSize: "12px", color: fileName ? "var(--text-primary)" : "var(--text-muted)" }}>
+                  {fileName || "Click to choose .csv file"}
+                </span>
+                {fileName && (
+                  <button type="button" onClick={e => { e.stopPropagation(); reset(); }} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "1px" }}>
+                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                  </button>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
+            </label>
+          )}
+
+          {/* Paste textarea */}
+          {mode === "paste" && (
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px" }}>Paste CSV contents</div>
+              <textarea
+                value={pastedText}
+                onChange={handlePasteChange}
+                placeholder={"ticker,shares,average_cost_basis\nAAPL,10,180.50\nMSFT,5,350.00"}
+                rows={6}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  padding: "10px 12px",
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-strong)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--text-primary)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  lineHeight: 1.6,
+                  resize: "vertical",
+                  outline: "none",
+                }}
+              />
+              {pastedText.trim() && rows.length === 0 && (
+                <p style={{ fontSize: "10px", color: "var(--amber)", marginTop: "4px" }}>
+                  Could not detect valid rows. Make sure the first line is a header row (e.g. ticker,shares,average_cost_basis).
+                </p>
               )}
             </div>
-            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
-          </label>
+          )}
 
           {/* Preview */}
           {rows.length > 0 && (
@@ -214,6 +299,11 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
               <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "6px" }}>
                 Preview — {validRows.length} valid, {invalidRows.length} error{invalidRows.length !== 1 ? "s" : ""}
               </div>
+              {validRows.length === 0 && (
+                <div style={{ padding: "10px 12px", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--red)", marginBottom: "8px" }}>
+                  All rows have errors. Check that your CSV includes the required columns: <span style={{ fontFamily: "var(--font-mono)" }}>ticker, shares, average_cost_basis</span>.
+                </div>
+              )}
               <div style={{ maxHeight: "220px", overflowY: "auto", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
                   <thead>
@@ -242,7 +332,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                   </tbody>
                 </table>
               </div>
-              {invalidRows.length > 0 && (
+              {invalidRows.length > 0 && validRows.length > 0 && (
                 <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "5px" }}>
                   {invalidRows.length} row{invalidRows.length !== 1 ? "s" : ""} with errors will be skipped.
                 </p>
@@ -293,7 +383,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                 transition: "all 0.15s",
               }}
             >
-              {isPending ? "Importing..." : validRows.length > 0 ? `Import ${validRows.length} holding${validRows.length !== 1 ? "s" : ""}` : "Select a file first"}
+              {buttonLabel}
             </button>
             <button type="button" onClick={() => { setOpen(false); reset(); }} style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "transparent", color: "var(--text-tertiary)", fontSize: "13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
               Cancel
