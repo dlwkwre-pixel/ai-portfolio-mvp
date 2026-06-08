@@ -28,6 +28,7 @@ import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
 import type { FamilyScenario } from "./family/family-actions";
 import type { SabbaticalScenario } from "./sabbatical/sabbatical-actions";
+import type { CarScenario } from "./car/car-actions";
 import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
@@ -5100,6 +5101,7 @@ type Props = {
   educationScenarios: EducationScenario[];
   familyScenarios: FamilyScenario[];
   sabbaticalScenarios: SabbaticalScenario[];
+  carScenarios: CarScenario[];
   expenseActuals: ExpenseActual[];
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
@@ -5112,7 +5114,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, expenseActuals, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, expenseActuals, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -5414,6 +5416,21 @@ export default function PlanningClient({
         const min = Math.min(...coverages);
         return min >= 80 ? "strong" : min >= 50 ? "review" : "alert";
       })(),
+      car: carScenarios.length === 0 ? "not-started" : (() => {
+        const s = carScenarios[0];
+        const isFinCar = s.purchase_type === "finance";
+        const rCar = Number(s.new_interest_rate) / 12;
+        const nCar = Number(s.new_loan_term_months);
+        const curEqCar = Math.max(0, Number(s.current_car_value) - Number(s.current_loan_balance));
+        const financedCar = isFinCar ? Math.max(0, Number(s.new_car_price) - Number(s.new_down_payment) - curEqCar) : 0;
+        const calcNewPmt = isFinCar && financedCar > 0 && rCar > 0 ? financedCar * rCar * Math.pow(1 + rCar, nCar) / (Math.pow(1 + rCar, nCar) - 1) : isFinCar ? financedCar / Math.max(1, nCar) : 0;
+        const moDelta = Number(s.new_car_price) > 0
+          ? calcNewPmt + Number(s.new_monthly_insurance) - Number(s.current_monthly_payment) - Number(s.current_monthly_insurance)
+          : 0;
+        const moDeltaPct = Number(s.current_monthly_payment) + Number(s.current_monthly_insurance) > 0
+          ? (moDelta / (Number(s.current_monthly_payment) + Number(s.current_monthly_insurance))) * 100 : 0;
+        return moDelta <= 0 ? "strong" : moDeltaPct <= 10 ? "review" : "alert";
+      })(),
       sabbatical: sabbaticalScenarios.length === 0 ? "not-started" : (() => {
         const s = sabbaticalScenarios[0];
         if ((s.break_type ?? "sabbatical") === "vacation") {
@@ -5530,6 +5547,22 @@ export default function PlanningClient({
       const depletion = s.sabbatical_months * burn;
       const recoveryMonths = netSavingsAfter > 0 ? Math.ceil(depletion / netSavingsAfter) : null;
       return { verdict, runwayMonths: runway, sabbaticalMonths: s.sabbatical_months, recoveryMonths, name: s.name };
+    })() : null;
+
+    const carMetrics = carScenarios.length > 0 ? (() => {
+      const s = carScenarios[0];
+      const isFinance = s.purchase_type === "finance";
+      const r = Number(s.new_interest_rate) / 12;
+      const n = Number(s.new_loan_term_months);
+      const curEquity = Math.max(0, Number(s.current_car_value) - Number(s.current_loan_balance));
+      const financed = isFinance ? Math.max(0, Number(s.new_car_price) - Number(s.new_down_payment) - curEquity) : 0;
+      const newPayment = isFinance && financed > 0 && r > 0 ? financed * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1) : isFinance ? financed / n : 0;
+      const curTotalMo = Number(s.current_monthly_payment) + Number(s.current_monthly_insurance);
+      const newTotalMo = newPayment + Number(s.new_monthly_insurance);
+      const moDelta = newTotalMo - curTotalMo;
+      const moDeltaPct = curTotalMo > 0 ? (moDelta / curTotalMo) * 100 : 0;
+      const verdict = moDelta <= -100 ? "SMART_MOVE" as const : moDeltaPct <= 10 ? "MANAGEABLE" as const : moDeltaPct <= 25 ? "BUDGET_STRETCH" as const : "KEEP_CURRENT" as const;
+      return { verdict, moDelta, moDeltaPct, newMonthlyPayment: newPayment, name: s.name };
     })() : null;
 
     // Timeline with placeholders (P5)
@@ -5686,6 +5719,7 @@ export default function PlanningClient({
       educationMetrics,
       familyMetrics,
       sabbaticalMetrics,
+      carMetrics,
       biggestDecisions,
       nearTermItems,
       roadmapItems,
@@ -5700,7 +5734,7 @@ export default function PlanningClient({
       projectedNWAtRetirement: retirementPoint?.baseline ?? null,
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeScenarios, familyScenarios, careerScenarios, educationScenarios, futureEvents,
+  }, [homeScenarios, familyScenarios, careerScenarios, educationScenarios, sabbaticalScenarios, carScenarios, futureEvents,
       retirementProb, retirementPoint, healthData.total, profile?.current_age,
       activeRetirementAge, currentYear, savingsRate, effectiveIncome, liquidAssets,
       monthlySavings, effectiveExpenses, netWorth, localAssumptions.return_rate]);
@@ -8287,6 +8321,7 @@ export default function PlanningClient({
             .hub-card-career:hover { border-color: oklch(0.75 0.16 55 / 0.4) !important; }
             .hub-card-edu:hover { border-color: oklch(0.65 0.18 260 / 0.4) !important; }
             .hub-card-sabbatical:hover { border-color: oklch(0.72 0.19 145 / 0.4) !important; }
+            .hub-card-car:hover { border-color: oklch(0.72 0.20 38 / 0.4) !important; }
             .hub-ring-fill { animation: hub-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
             .hub-bar-fill { animation: hub-bar-scale 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: left; }
             .hub-section { animation: hub-fade-up 0.35s ease-out both; }
@@ -8629,6 +8664,40 @@ export default function PlanningClient({
                   </div>
                 ) : (
                   <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Plan a vacation or career break — see what it costs and when you&apos;d recover.</p>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+              <Link href="/planning/car" className="hub-card hub-card-car" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.20 38) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.20 38)", flexShrink: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 17H3a2 2 0 01-2-2v-4a2 2 0 012-2h1l2-4h10l2 4h1a2 2 0 012 2v4a2 2 0 01-2 2h-2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Car Purchase</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
+                    <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.72 0.20 38)", background: "color-mix(in oklch, oklch(0.72 0.20 38) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>LIFE</span>
+                    {(() => {
+                      const st = lifePlan.plannerHealth.car;
+                      const c = st === "strong" ? "var(--green)" : st === "alert" ? "var(--red)" : st === "review" ? "oklch(0.78 0.17 70)" : "var(--text-tertiary)";
+                      const l = st === "strong" ? "Good deal" : st === "alert" ? "High cost" : st === "review" ? "Review" : "Not started";
+                      return <span style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: c }}>{l}</span>;
+                    })()}
+                  </div>
+                </div>
+                {lifePlan.carMetrics ? (
+                  <div style={{ marginBottom: "10px" }}>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "2px" }}>Monthly Cost Change</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: lifePlan.carMetrics.moDelta <= 0 ? "var(--green)" : lifePlan.carMetrics.moDeltaPct <= 10 ? "oklch(0.78 0.17 70)" : "var(--red)" }}>
+                      {lifePlan.carMetrics.moDelta >= 0 ? "+" : ""}{fmt(Math.round(lifePlan.carMetrics.moDelta))}/mo
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lifePlan.carMetrics.name}</div>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Compare your current car to a new one — payments, TCO, trade-in, break-even.</p>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
                   Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>

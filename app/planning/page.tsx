@@ -11,6 +11,7 @@ import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
 import type { FamilyScenario } from "./family/family-actions";
 import type { SabbaticalScenario } from "./sabbatical/sabbatical-actions";
+import type { CarScenario } from "./car/car-actions";
 
 export default async function PlanningPage({
   searchParams,
@@ -36,6 +37,7 @@ export default async function PlanningPage({
     { data: educationScenariosData },
     { data: familyScenariosData },
     { data: sabbaticalScenariosData },
+    { data: carScenariosData },
     { data: expenseActualsData },
     { data: estateProfileData },
     { data: budgetHistoryData },
@@ -52,6 +54,7 @@ export default async function PlanningPage({
     supabase.from("education_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("family_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("sabbatical_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("car_scenarios").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
     supabase.from("estate_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("cash_flow_budget_history").select("*").eq("user_id", user.id).order("effective_year").order("effective_month"),
@@ -176,6 +179,7 @@ export default async function PlanningPage({
   const typedEducationScenarios: EducationScenario[] = (educationScenariosData ?? []) as EducationScenario[];
   const typedFamilyScenarios: FamilyScenario[] = (familyScenariosData ?? []) as FamilyScenario[];
   const typedSabbaticalScenarios: SabbaticalScenario[] = (sabbaticalScenariosData ?? []) as SabbaticalScenario[];
+  const typedCarScenarios: CarScenario[] = (carScenariosData ?? []) as CarScenario[];
 
   const typedEstateProfile: EstateProfile | null = estateProfileData
     ? {
@@ -256,6 +260,7 @@ export default async function PlanningPage({
           educationScenarios={typedEducationScenarios}
           familyScenarios={typedFamilyScenarios}
           sabbaticalScenarios={typedSabbaticalScenarios}
+          carScenarios={typedCarScenarios}
           expenseActuals={typedExpenseActuals}
           budgetHistory={typedBudgetHistory}
           estateProfile={typedEstateProfile}
