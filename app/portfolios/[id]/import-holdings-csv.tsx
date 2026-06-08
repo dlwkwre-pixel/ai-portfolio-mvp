@@ -334,12 +334,16 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
             </div>
           </div>
 
-          {/* File input */}
+          {/* File input — plain div + hidden input; no <label> wrapper to avoid double-open */}
           {mode === "file" && (
-            <label style={{ display: "block", marginBottom: "12px" }}>
+            <div style={{ marginBottom: "12px" }}>
               <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px" }}>Select CSV file</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: "var(--bg-surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
+              <div
+                role="button"
+                tabIndex={0}
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", background: "var(--bg-surface)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", cursor: "pointer", userSelect: "none" }}
                 onClick={() => fileRef.current?.click()}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") fileRef.current?.click(); }}
               >
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
                   <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -353,8 +357,14 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                   </button>
                 )}
               </div>
-              <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} style={{ display: "none" }} />
-            </label>
+              {/* Hidden file input — not inside a label so clicking the div above is the only trigger */}
+              <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" onChange={handleFile} style={{ display: "none" }} tabIndex={-1} />
+              {fileName && rows.length === 0 && (
+                <p style={{ fontSize: "10px", color: "var(--amber)", marginTop: "5px" }}>
+                  File loaded but no rows detected. Check that your CSV has a header row with at least: <span style={{ fontFamily: "var(--font-mono)" }}>ticker, shares, average_cost_basis</span>.
+                </p>
+              )}
+            </div>
           )}
 
           {/* Paste textarea */}
