@@ -299,6 +299,41 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
             </div>
           </div>
 
+          {/* PDF / non-CSV tip */}
+          <div style={{
+            marginBottom: "14px",
+            padding: "9px 12px",
+            background: "rgba(245,158,11,0.05)",
+            border: "1px solid rgba(245,158,11,0.15)",
+            borderRadius: "var(--radius-sm)",
+            display: "flex",
+            gap: "9px",
+            alignItems: "flex-start",
+          }}>
+            <span style={{ fontSize: "13px", lineHeight: 1, marginTop: "1px", flexShrink: 0 }}>💡</span>
+            <div>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>Got a PDF from your brokerage?</strong>{" "}
+                Some brokerages (like Edward Jones) only export a large PDF. Open ChatGPT, paste your statement, and ask:
+              </div>
+              <div style={{
+                marginTop: "6px",
+                padding: "6px 10px",
+                background: "var(--bg-surface)",
+                borderRadius: "var(--radius-sm)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--text-tertiary)",
+                lineHeight: 1.5,
+              }}>
+                &ldquo;Convert my holdings to a CSV with columns: ticker, shares, average_cost_basis. Return only the CSV, no explanation.&rdquo;
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "5px" }}>
+                Then paste the result into the <strong style={{ color: "var(--text-secondary)" }}>Paste CSV</strong> tab above.
+              </div>
+            </div>
+          </div>
+
           {/* File input */}
           {mode === "file" && (
             <label style={{ display: "block", marginBottom: "12px" }}>
