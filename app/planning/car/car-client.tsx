@@ -9,6 +9,7 @@ import type { FinancialProfile } from "@/app/planning/planning-actions";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PurchaseType = "cash" | "finance";
+type ScenarioMode = "replace" | "add" | "track" | "first";
 type CarVerdict = "SMART_MOVE" | "MANAGEABLE" | "BUDGET_STRETCH" | "KEEP_CURRENT" | "FIRST_CAR";
 
 type VehicleData = {
@@ -86,25 +87,24 @@ type CarComputed = {
   breakEvenChart: { month: number; currentCumCost: number; newCumCost: number }[];
 };
 
-function computeCar(
-  inputs: CarScenario,
-  opts?: { noCurrentCar?: boolean; applyTradeIn?: boolean }
-): CarComputed {
-  const noCurrentCar = opts?.noCurrentCar ?? false;
-  const applyTradeIn = opts?.applyTradeIn ?? true;
+function computeCar(inputs: CarScenario, mode: ScenarioMode = "replace"): CarComputed {
   const gasPrice   = Number(inputs.gas_price_per_gallon);
   const miles      = Number(inputs.miles_per_month);
   const isFinance  = inputs.purchase_type === "finance";
+  const isFirst    = mode === "first";
+  const isAdd      = mode === "add";
+  const isTrack    = mode === "track";
 
-  // ── Current vehicle (zeroed when no current car) ──
-  const curPayment   = noCurrentCar ? 0 : Number(inputs.current_monthly_payment);
-  const curGas       = noCurrentCar ? 0 : gasPerMonth(Number(inputs.current_mpg), miles, gasPrice);
-  const curInsurance = noCurrentCar ? 0 : Number(inputs.current_monthly_insurance);
+  // ── Current vehicle ──
+  const curPayment   = isFirst ? 0 : Number(inputs.current_monthly_payment);
+  const curGas       = isFirst ? 0 : gasPerMonth(Number(inputs.current_mpg), miles, gasPrice);
+  const curInsurance = isFirst ? 0 : Number(inputs.current_monthly_insurance);
   const curTotalMo   = curPayment + curGas + curInsurance;
-  const curValue     = noCurrentCar ? 0 : Number(inputs.current_car_value);
-  const curLoan      = noCurrentCar ? 0 : Number(inputs.current_loan_balance);
+  const curValue     = isFirst ? 0 : Number(inputs.current_car_value);
+  const curLoan      = isFirst ? 0 : Number(inputs.current_loan_balance);
   const curEquity    = Math.max(0, curValue - curLoan);
-  const tradeIn      = (!noCurrentCar && applyTradeIn) ? curEquity : 0;
+  // Trade-in only applies when replacing
+  const tradeIn      = mode === "replace" ? curEquity : 0;
   const privateSale  = Math.round(curEquity * 1.12);
   const cur5yr       = curTotalMo * 60 + curValue * 0.005 * 5;
 
@@ -125,21 +125,22 @@ function computeCar(
     : newPrice + newGas * 60 + newInsurance * 60 + newPrice * 0.005 * 5;
 
   // ── Deltas ──
-  const moDelta      = newTotalMo - curTotalMo;
-  const moDeltaPct   = curTotalMo > 0 ? (moDelta / curTotalMo) * 100 : 0;
-  const tco5Delta    = new5yr - cur5yr;
+  // For "add", delta = full new car cost (added burden, not net vs replaced car)
+  const moDelta    = isAdd ? newTotalMo : newTotalMo - curTotalMo;
+  const moDeltaPct = (!isAdd && curTotalMo > 0) ? (moDelta / curTotalMo) * 100 : 0;
+  const tco5Delta  = new5yr - cur5yr;
 
-  // Break-even chart
-  const upfrontPremium = isFinance
-    ? Math.max(0, appliedDown - (applyTradeIn ? curEquity : 0))
-    : Math.max(0, newPrice - (applyTradeIn ? curEquity : 0));
+  // Break-even chart (replace mode only)
+  const upfrontPremium = mode === "replace"
+    ? (isFinance ? Math.max(0, appliedDown - curEquity) : Math.max(0, newPrice - curEquity))
+    : (isFinance ? Number(inputs.new_down_payment) : newPrice);
   let breakEvenMonth: number | null = null;
   const breakEvenChart: { month: number; currentCumCost: number; newCumCost: number }[] = [];
   let cumCur = 0, cumNew = upfrontPremium;
   for (let m = 1; m <= 84; m++) {
     cumCur += curTotalMo;
-    cumNew += newTotalMo;
-    breakEvenChart.push({ month: m, currentCumCost: Math.round(cumCur), newCumCost: Math.round(cumNew) });
+    cumNew += isAdd ? (curTotalMo + newTotalMo) : newTotalMo;
+    breakEvenChart.push({ month: m, currentCumCost: Math.round(cumCur), newCumCost: Math.round(isAdd ? cumNew - cumCur : cumNew) });
     if (breakEvenMonth == null && moDelta < 0 && cumNew <= cumCur) breakEvenMonth = m;
   }
 
@@ -148,11 +149,40 @@ function computeCar(
   let verdictConfidence: string;
   const conditions: string[] = [];
 
-  if (noCurrentCar) {
+  if (isTrack) {
+    // Evaluate health of current car only
+    const curLoanRatio = curValue > 0 ? curLoan / curValue : 0;
+    if (curLoanRatio < 0.3 && curEquity > 2000) {
+      verdict = "SMART_MOVE"; verdictConfidence = "Good Equity";
+      conditions.push(`${fmt(curEquity)} in equity — car is worth keeping`);
+    } else if (curLoanRatio < 0.7) {
+      verdict = "MANAGEABLE"; verdictConfidence = "Tracking";
+      conditions.push(`${fmt(curTotalMo)}/mo total transportation cost`);
+    } else {
+      verdict = "BUDGET_STRETCH"; verdictConfidence = "Upside Down";
+      conditions.push(`Loan balance exceeds value — limited equity`);
+    }
+    if (curPayment === 0) { verdict = "SMART_MOVE"; verdictConfidence = "Paid Off"; conditions.length = 0; conditions.push(`Paid off — ${fmt(curTotalMo)}/mo is gas + insurance only`); }
+  } else if (isFirst) {
     verdict = "FIRST_CAR";
     verdictConfidence = "First Purchase";
     conditions.push(`${fmt(newTotalMo)}/mo total transportation cost`);
     if (isFinance && totalInterest > 0) conditions.push(`${fmt(Math.round(totalInterest))} total interest over the ${term}-month loan`);
+  } else if (isAdd) {
+    // Verdict based on the added monthly cost
+    if (newTotalMo <= 500) {
+      verdict = "SMART_MOVE"; verdictConfidence = "Reasonable Addition";
+      conditions.push(`${fmt(newTotalMo)}/mo added — combined auto cost ${fmt(curTotalMo + newTotalMo)}/mo`);
+    } else if (newTotalMo <= 900) {
+      verdict = "MANAGEABLE"; verdictConfidence = "Manageable Addition";
+      conditions.push(`Adds ${fmt(newTotalMo)}/mo — combined household auto: ${fmt(curTotalMo + newTotalMo)}/mo`);
+    } else if (newTotalMo <= 1400) {
+      verdict = "BUDGET_STRETCH"; verdictConfidence = "High Addition";
+      conditions.push(`${fmt(newTotalMo)}/mo added on top of existing ${fmt(curTotalMo)}/mo`);
+    } else {
+      verdict = "KEEP_CURRENT"; verdictConfidence = "Very High Cost";
+      conditions.push(`Combined auto cost would be ${fmt(curTotalMo + newTotalMo)}/mo — significant commitment`);
+    }
   } else if (moDelta <= -100) {
     verdict = "SMART_MOVE";
     verdictConfidence = "Saves Money";
@@ -175,8 +205,14 @@ function computeCar(
 
   // ── FINN narrative ──
   let finnNarrative: string;
-  if (verdict === "FIRST_CAR") {
+  if (isTrack) {
+    finnNarrative = curPayment === 0
+      ? `Your car is paid off — at ${fmt(curTotalMo)}/mo you're only covering gas and insurance. That's ${fmtK(curTotalMo * 12)}/yr, and your ${fmt(curEquity)} in equity is working in your favor. This is a strong position to be in.`
+      : `You're spending ${fmt(curTotalMo)}/mo on this car — ${fmt(curPayment)} loan, ${fmt(Math.round(curGas))} gas, ${fmt(Math.round(curInsurance))} insurance. Your equity is ${fmt(curEquity)} (${fmtPct(curValue > 0 ? (curEquity / curValue) * 100 : 0)} of value). ${curEquity > 3000 ? "You're in a solid position to trade or keep." : "Equity is limited — consider whether keeping or trading makes more sense as the loan matures."}`;
+  } else if (isFirst) {
     finnNarrative = `At ${fmt(newTotalMo)}/mo, this is your baseline transportation cost${isFinance ? ` — ${fmt(Math.round(newPayment))} loan payment, ${fmt(Math.round(newGas))} in gas, and ${fmt(Math.round(newInsurance))} insurance` : ""}. Over 5 years, total ownership comes to ${fmtK(Math.round(new5yr))}${isFinance ? `, including ${fmt(Math.round(totalInterest))} in interest` : ""}. Make sure this fits comfortably within your monthly cash flow before signing.`;
+  } else if (isAdd) {
+    finnNarrative = `You're keeping your current car and adding a second. On top of the ${fmt(curTotalMo)}/mo you're already spending on transportation, this adds ${fmt(newTotalMo)}/mo — bringing your combined household auto cost to ${fmt(curTotalMo + newTotalMo)}/mo. Over 5 years that's ${fmtK(Math.round(cur5yr + new5yr))} total${isFinance ? `, including ${fmt(Math.round(totalInterest))} in interest on the new loan` : ""}. Make sure both payments fit comfortably in your budget before committing.`;
   } else if (verdict === "SMART_MOVE") {
     finnNarrative = `The math favors this switch. Your new car costs ${fmt(Math.abs(moDelta))}/mo less than what you're paying now — better loan terms, improved fuel economy, or both. Over 5 years that's ${fmtK(Math.abs(moDelta) * 60)} back in your pocket.${tradeIn > 0 ? ` The trade-in offsets ${fmtK(tradeIn)} of the purchase price.` : ""}`;
   } else if (verdict === "MANAGEABLE") {
@@ -289,8 +325,15 @@ export default function CarClient({
   const [newTrimOptions, setNewTrimOptions] = useState<{ id: string; text: string }[]>([]);
   const [currentCarData, setCurrentCarData] = useState<VehicleData | null>(null);
   const [newCarData, setNewCarData] = useState<VehicleData | null>(null);
-  const [noCurrentCar, setNoCurrentCar] = useState(false);
-  const [applyTradeIn, setApplyTradeIn] = useState(true);
+  const [scenarioMode, setScenarioMode] = useState<ScenarioMode>("replace");
+  const [currentMakeOptions, setCurrentMakeOptions] = useState<string[]>([]);
+  const [currentModelOptions, setCurrentModelOptions] = useState<string[]>([]);
+  const [newMakeOptions, setNewMakeOptions] = useState<string[]>([]);
+  const [newModelOptions, setNewModelOptions] = useState<string[]>([]);
+
+  const isFirst = scenarioMode === "first";
+  const isAdd   = scenarioMode === "add";
+  const isTrack = scenarioMode === "track";
 
   const activeScenario = scenarios.find((s) => s.id === activeId) ?? scenarios[0] ?? null;
   const showAnalysis = activeScenario != null || isEditing || showNewForm;
@@ -301,8 +344,8 @@ export default function CarClient({
 
   const result = useMemo(() => {
     const s = { ...form, id: "", user_id: "", created_at: "", updated_at: "" };
-    return computeCar(s, { noCurrentCar, applyTradeIn });
-  }, [form, noCurrentCar, applyTradeIn]);
+    return computeCar(s, scenarioMode);
+  }, [form, scenarioMode]);
 
   const meta = VERDICT_META[result.verdict];
 
@@ -389,6 +432,26 @@ export default function CarClient({
     const make  = target === "current" ? form.current_make  : form.new_make;
     const model = target === "current" ? form.current_model : form.new_model;
     if (year && make && model) lookupMpgDirect(target, year, make, model);
+  }
+
+  async function fetchMakes(target: "current" | "new", year: number) {
+    try {
+      const res = await fetch(`/api/car/vehicles?type=makes&year=${year}`);
+      const json = await res.json();
+      const opts: string[] = json.options ?? [];
+      if (target === "current") { setCurrentMakeOptions(opts); setCurrentModelOptions([]); }
+      else { setNewMakeOptions(opts); setNewModelOptions([]); }
+    } catch { /* silent */ }
+  }
+
+  async function fetchModels(target: "current" | "new", year: number, make: string) {
+    try {
+      const res = await fetch(`/api/car/vehicles?type=models&year=${year}&make=${encodeURIComponent(make)}`);
+      const json = await res.json();
+      const opts: string[] = json.options ?? [];
+      if (target === "current") setCurrentModelOptions(opts);
+      else setNewModelOptions(opts);
+    } catch { /* silent */ }
   }
 
   async function lookupVin(target: "current" | "new") {
@@ -519,18 +582,29 @@ export default function CarClient({
 
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
 
-              {/* No current car toggle */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "var(--radius-sm)", background: noCurrentCar ? `color-mix(in oklch, ${CAR_COLOR} 8%, transparent)` : "transparent", border: `1px solid ${noCurrentCar ? `color-mix(in oklch, ${CAR_COLOR} 25%, transparent)` : "var(--border-subtle)"}` }}>
-                <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>I don&apos;t have a current car</span>
-                <button type="button" onClick={() => setNoCurrentCar(v => !v)} style={{ width: "32px", height: "18px", borderRadius: "99px", background: noCurrentCar ? CAR_COLOR : "var(--border)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.15s", flexShrink: 0 }}>
-                  <span style={{ position: "absolute", top: "2px", left: noCurrentCar ? "16px" : "2px", width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s", display: "block" }} />
-                </button>
+              {/* Scenario mode selector */}
+              <div>
+                <label style={labelStyle}>Scenario</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                  {([
+                    { key: "replace", label: "Replace Car", sub: "trade in / sell" },
+                    { key: "add",     label: "Add a Car",   sub: "keep current too" },
+                    { key: "track",   label: "Track Car",   sub: "no purchase" },
+                    { key: "first",   label: "First Car",   sub: "no current car" },
+                  ] as { key: ScenarioMode; label: string; sub: string }[]).map(({ key, label, sub }) => (
+                    <button key={key} type="button" onClick={() => setScenarioMode(key)}
+                      style={{ padding: "7px 8px", borderRadius: "var(--radius-sm)", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer", textAlign: "left", border: `1px solid ${scenarioMode === key ? CAR_COLOR : "var(--border-subtle)"}`, background: scenarioMode === key ? `color-mix(in oklch, ${CAR_COLOR} 18%, transparent)` : "transparent", color: scenarioMode === key ? CAR_COLOR : "var(--text-secondary)" }}>
+                      <div>{label}</div>
+                      <div style={{ fontSize: "9px", fontWeight: 400, color: scenarioMode === key ? CAR_COLOR : "var(--text-muted)", marginTop: "1px", opacity: 0.8 }}>{sub}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Current vehicle */}
-              {!noCurrentCar && <p style={sectionLabel}>Current Vehicle</p>}
+              {!isFirst && <p style={sectionLabel}>{isTrack ? "Your Car" : "Current Vehicle"}</p>}
 
-              {!noCurrentCar && (<>
+              {!isFirst && (<>
               {/* VIN lookup for current */}
               <div>
                 <label style={labelStyle}>VIN lookup (optional)</label>
@@ -546,18 +620,22 @@ export default function CarClient({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
                   <label style={labelStyle}>Make</label>
-                  <input style={inputStyle} value={form.current_make ?? ""} onChange={(e) => setField("current_make", e.target.value || null)} placeholder="Toyota" />
+                  {currentMakeOptions.length > 0
+                    ? <select style={inputStyle} value={form.current_make ?? ""} onChange={(e) => { const m = e.target.value || null; setField("current_make", m); setField("current_model", null); if (m && form.current_year) fetchModels("current", form.current_year, m); }}><option value="">Select make…</option>{currentMakeOptions.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    : <input style={inputStyle} value={form.current_make ?? ""} onChange={(e) => setField("current_make", e.target.value || null)} placeholder="Toyota" />}
                 </div>
                 <div>
                   <label style={labelStyle}>Model</label>
-                  <input style={inputStyle} value={form.current_model ?? ""} onChange={(e) => setField("current_model", e.target.value || null)} placeholder="Camry" />
+                  {currentModelOptions.length > 0
+                    ? <select style={inputStyle} value={form.current_model ?? ""} onChange={(e) => { const m = e.target.value || null; setField("current_model", m); if (m && form.current_year && form.current_make) lookupMpgDirect("current", form.current_year, form.current_make, m); }}><option value="">Select model…</option>{currentModelOptions.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    : <input style={inputStyle} value={form.current_model ?? ""} onChange={(e) => setField("current_model", e.target.value || null)} placeholder="Camry" />}
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
                   <label style={labelStyle}>Year</label>
-                  <input style={inputStyle} type="number" min={1990} max={2030} value={form.current_year ?? ""} onChange={(e) => setField("current_year", e.target.value ? Number(e.target.value) : null)} placeholder="2020" />
+                  <input style={inputStyle} type="number" min={1984} max={2030} value={form.current_year ?? ""} onChange={(e) => { const y = e.target.value ? Number(e.target.value) : null; setField("current_year", y); setField("current_make", null); setField("current_model", null); setCurrentMakeOptions([]); setCurrentModelOptions([]); if (y && y >= 1984) fetchMakes("current", y); }} placeholder="2020" />
                 </div>
                 <div>
                   <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -580,7 +658,13 @@ export default function CarClient({
               <div>
                 <label style={labelStyle}>Market value</label>
                 <input style={inputStyle} type="number" min={0} value={form.current_car_value} onChange={(e) => setField("current_car_value", Number(e.target.value))} placeholder="Check KBB" />
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Use KBB or Carmax for an estimate</div>
+                <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>
+                  Check{" "}
+                  <a href="https://www.kbb.com" target="_blank" rel="noopener noreferrer" style={{ color: CAR_COLOR, textDecoration: "underline" }}>KBB</a>
+                  {" "}or{" "}
+                  <a href="https://www.carmax.com" target="_blank" rel="noopener noreferrer" style={{ color: CAR_COLOR, textDecoration: "underline" }}>Carmax</a>
+                  {" "}for an estimate
+                </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
@@ -614,8 +698,8 @@ export default function CarClient({
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
               </>)}
 
-              {/* New vehicle */}
-              <p style={sectionLabel}>New Vehicle</p>
+              {/* New vehicle — hidden in track mode */}
+              {!isTrack && <><p style={sectionLabel}>New Vehicle</p>
 
               {/* VIN lookup for new */}
               <div>
@@ -631,18 +715,22 @@ export default function CarClient({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
                   <label style={labelStyle}>Make</label>
-                  <input style={inputStyle} value={form.new_make ?? ""} onChange={(e) => setField("new_make", e.target.value || null)} placeholder="Honda" />
+                  {newMakeOptions.length > 0
+                    ? <select style={inputStyle} value={form.new_make ?? ""} onChange={(e) => { const m = e.target.value || null; setField("new_make", m); setField("new_model", null); if (m && form.new_year) fetchModels("new", form.new_year, m); }}><option value="">Select make…</option>{newMakeOptions.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    : <input style={inputStyle} value={form.new_make ?? ""} onChange={(e) => setField("new_make", e.target.value || null)} placeholder="Honda" />}
                 </div>
                 <div>
                   <label style={labelStyle}>Model</label>
-                  <input style={inputStyle} value={form.new_model ?? ""} onChange={(e) => setField("new_model", e.target.value || null)} placeholder="CR-V" />
+                  {newModelOptions.length > 0
+                    ? <select style={inputStyle} value={form.new_model ?? ""} onChange={(e) => { const m = e.target.value || null; setField("new_model", m); if (m && form.new_year && form.new_make) lookupMpgDirect("new", form.new_year, form.new_make, m); }}><option value="">Select model…</option>{newModelOptions.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                    : <input style={inputStyle} value={form.new_model ?? ""} onChange={(e) => setField("new_model", e.target.value || null)} placeholder="CR-V" />}
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
                   <label style={labelStyle}>Year</label>
-                  <input style={inputStyle} type="number" min={1990} max={2030} value={form.new_year ?? ""} onChange={(e) => setField("new_year", e.target.value ? Number(e.target.value) : null)} placeholder="2025" />
+                  <input style={inputStyle} type="number" min={1984} max={2030} value={form.new_year ?? ""} onChange={(e) => { const y = e.target.value ? Number(e.target.value) : null; setField("new_year", y); setField("new_make", null); setField("new_model", null); setNewMakeOptions([]); setNewModelOptions([]); if (y && y >= 1984) fetchMakes("new", y); }} placeholder="2025" />
                 </div>
                 <div>
                   <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -691,16 +779,10 @@ export default function CarClient({
                 <input style={inputStyle} type="number" min={0} value={form.new_monthly_insurance} onChange={(e) => setField("new_monthly_insurance", Number(e.target.value))} />
               </div>
 
-              {/* Apply trade-in toggle (only when keeping current car) */}
-              {!noCurrentCar && result.currentEquity > 0 && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "var(--radius-sm)", background: applyTradeIn ? `color-mix(in oklch, ${CAR_COLOR} 6%, transparent)` : "transparent", border: `1px solid ${applyTradeIn ? `color-mix(in oklch, ${CAR_COLOR} 20%, transparent)` : "var(--border-subtle)"}` }}>
-                  <div>
-                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Apply trade-in ({fmt(result.currentEquity)})</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>Keep current car instead</div>
-                  </div>
-                  <button type="button" onClick={() => setApplyTradeIn(v => !v)} style={{ width: "32px", height: "18px", borderRadius: "99px", background: applyTradeIn ? CAR_COLOR : "var(--border)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.15s", flexShrink: 0 }}>
-                    <span style={{ position: "absolute", top: "2px", left: applyTradeIn ? "16px" : "2px", width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s", display: "block" }} />
-                  </button>
+              {/* Info note for add mode — no trade-in applies */}
+              {isAdd && result.currentEquity > 0 && (
+                <div style={{ padding: "8px 10px", borderRadius: "var(--radius-sm)", background: `color-mix(in oklch, ${CAR_COLOR} 6%, transparent)`, border: `1px solid color-mix(in oklch, ${CAR_COLOR} 20%, transparent)`, fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                  You have {fmt(result.currentEquity)} in equity. Switch to <strong>Replace Car</strong> mode to apply it toward the new purchase.
                 </div>
               )}
 
@@ -717,6 +799,8 @@ export default function CarClient({
                   )}
                 </div>
               )}
+
+              </>}
 
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
               <p style={sectionLabel}>Driving Assumptions</p>
@@ -877,9 +961,9 @@ export default function CarClient({
           {showAnalysis && (currentCarData || newCarData) && (
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
               <div style={{ padding: "14px 20px 0", fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "12px" }}>Vehicle Specs</div>
-              <div style={{ display: "grid", gridTemplateColumns: noCurrentCar ? "1fr" : "1fr 1fr", gap: 0 }}>
-                {!noCurrentCar && currentCarData && (
-                  <div style={{ borderRight: noCurrentCar ? "none" : "1px solid var(--border-subtle)", padding: "0 16px 16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: (isFirst || isTrack) ? "1fr" : "1fr 1fr", gap: 0 }}>
+                {!isFirst && currentCarData && (
+                  <div style={{ borderRight: (isFirst || isTrack) ? "none" : "1px solid var(--border-subtle)", padding: "0 16px 16px" }}>
                     {currentCarData.photo_url && <img src={currentCarData.photo_url} alt="current car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
                     <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Current Car</div>
                     {([
@@ -896,7 +980,7 @@ export default function CarClient({
                     ))}
                   </div>
                 )}
-                {newCarData && (
+                {!isTrack && newCarData && (
                   <div style={{ padding: "0 16px 16px" }}>
                     {newCarData.photo_url && <img src={newCarData.photo_url} alt="new car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
                     <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: CAR_COLOR, marginBottom: "8px", fontFamily: "var(--font-body)" }}>New Car</div>
@@ -922,8 +1006,8 @@ export default function CarClient({
           {showAnalysis && (
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "14px" }}>Monthly Cost Breakdown</div>
-              <div style={{ display: "grid", gridTemplateColumns: noCurrentCar ? "1fr" : "1fr 1fr", gap: "12px" }}>
-                {(["current", "new"] as const).filter(s => s === "new" || !noCurrentCar).map((side) => {
+              <div style={{ display: "grid", gridTemplateColumns: (isFirst || isTrack) ? "1fr" : "1fr 1fr", gap: "12px" }}>
+                {(["current", "new"] as const).filter(s => isTrack ? s === "current" : (s === "new" || !isFirst)).map((side) => {
                   const payment = side === "current" ? result.currentMonthlyPayment : result.newMonthlyPayment;
                   const gas     = side === "current" ? result.currentGasPerMonth   : result.newGasPerMonth;
                   const ins     = side === "current" ? Number(form.current_monthly_insurance) : Number(form.new_monthly_insurance);
@@ -982,7 +1066,7 @@ export default function CarClient({
           )}
 
           {/* Trade-in & equity */}
-          {showAnalysis && !noCurrentCar && (
+          {showAnalysis && !isFirst && (
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "14px" }}>Trade-in & Equity</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
