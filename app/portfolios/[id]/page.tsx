@@ -23,6 +23,7 @@ import PortfolioShareSection from "./portfolio-share-section";
 import AuditPortfolioModal from "./audit-portfolio-modal";
 import ExportReportButton from "./export-report-button";
 import EarningsCalendarSection from "./earnings-calendar-section";
+import { CashActivityList } from "./cash-activity-list";
 import RebalancingCalculator from "./rebalancing-calculator";
 import StressTestSection from "./stress-test-section";
 import RecommendationOutcomesSection from "./recommendation-outcomes-section";
@@ -392,19 +393,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Cash Activity</h2>
                       <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
                       {cashLedger && cashLedger.length > 0 && (
-                        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {cashLedger.map((entry) => (
-                            <div key={entry.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                              <div>
-                                <p style={{ fontSize: "12px", color: "var(--text-primary)", textTransform: "capitalize" }}>{entry.reason.replaceAll("_", " ")}</p>
-                                <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>{new Date(entry.effective_at).toLocaleString()}</p>
-                              </div>
-                              <p style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 500, color: entry.direction === "IN" ? "var(--green)" : "var(--red)" }}>
-                                {entry.direction === "IN" ? "+" : "-"}{formatMoney(Number(entry.amount))}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                        <CashActivityList entries={cashLedger} portfolioId={portfolio.id} />
                       )}
                     </div>
 

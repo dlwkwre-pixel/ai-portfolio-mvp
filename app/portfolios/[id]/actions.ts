@@ -212,6 +212,71 @@ export async function createCashActivity(formData: FormData) {
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+export async function deleteCashActivity(entryId: string, portfolioId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
+
+  const { data: entry, error: entryError } = await supabase
+    .from("cash_ledger").select("id, amount, direction, portfolio_id").eq("id", entryId).eq("portfolio_id", portfolioId).single();
+  if (entryError || !entry) throw new Error("Cash activity entry not found.");
+
+  const reversal = entry.direction === "IN" ? -Number(entry.amount) : Number(entry.amount);
+  const newBalance = Number(portfolio.cash_balance) + reversal;
+  if (newBalance < 0) throw new Error("Deleting this entry would make cash balance negative. Edit or adjust other entries first.");
+
+  const { error: deleteError } = await supabase.from("cash_ledger").delete().eq("id", entryId).eq("portfolio_id", portfolioId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const { error: updateError } = await supabase.from("portfolios").update({ cash_balance: newBalance }).eq("id", portfolioId).eq("user_id", user.id);
+  if (updateError) throw new Error(updateError.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
+export async function updateCashActivity(entryId: string, portfolioId: string, newAmount: number, newReason: string, newEffectiveAt: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  if (!Number.isFinite(newAmount) || newAmount <= 0) throw new Error("Amount must be greater than 0.");
+  if (newAmount > 1_000_000_000) throw new Error("Amount exceeds maximum allowed value.");
+  validateEnum(newReason, CASH_REASONS, "activity type");
+  validateDate(newEffectiveAt, "Effective date");
+
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
+
+  const { data: entry, error: entryError } = await supabase
+    .from("cash_ledger").select("id, amount, direction, portfolio_id").eq("id", entryId).eq("portfolio_id", portfolioId).single();
+  if (entryError || !entry) throw new Error("Cash activity entry not found.");
+
+  const oldSigned = entry.direction === "IN" ? Number(entry.amount) : -Number(entry.amount);
+  const newDirection: "IN" | "OUT" = ["deposit", "dividend", "adjustment_in"].includes(newReason) ? "IN" : "OUT";
+  const newSigned = newDirection === "IN" ? newAmount : -newAmount;
+
+  const newBalance = Number(portfolio.cash_balance) - oldSigned + newSigned;
+  if (newBalance < 0) throw new Error("This change would make cash balance negative.");
+
+  const { error: updateLedgerError } = await supabase.from("cash_ledger").update({
+    amount: newAmount,
+    direction: newDirection,
+    reason: newReason,
+    effective_at: newEffectiveAt,
+  }).eq("id", entryId).eq("portfolio_id", portfolioId);
+  if (updateLedgerError) throw new Error(updateLedgerError.message);
+
+  const { error: updatePortfolioError } = await supabase.from("portfolios").update({ cash_balance: newBalance }).eq("id", portfolioId).eq("user_id", user.id);
+  if (updatePortfolioError) throw new Error(updatePortfolioError.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
 export async function createPortfolioSnapshot(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
