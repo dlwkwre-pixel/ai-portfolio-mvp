@@ -606,47 +606,56 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
   if (!portfolio) throw new Error("Portfolio not found.");
 
-  const { data: holdings } = await supabase
-    .from("holdings").select("ticker, shares, opened_at").eq("portfolio_id", portfolioId);
+  const [{ data: holdings }, { data: txData }] = await Promise.all([
+    supabase.from("holdings").select("id, ticker, shares, opened_at").eq("portfolio_id", portfolioId),
+    supabase.from("portfolio_transactions")
+      .select("ticker, traded_at, transaction_type, shares")
+      .eq("portfolio_id", portfolioId)
+      .order("traded_at", { ascending: true }),
+  ]);
 
-  const { data: transactions } = await supabase
-    .from("portfolio_transactions")
-    .select("ticker, traded_at, transaction_type")
-    .eq("portfolio_id", portfolioId)
-    .order("traded_at", { ascending: true });
-
-  const txMap = new Map<string, string>();
-  for (const tx of transactions ?? []) {
-    if (tx.transaction_type === "BUY" && tx.traded_at && !txMap.has(tx.ticker)) {
-      txMap.set(tx.ticker, tx.traded_at.slice(0, 10));
-    }
+  // Build per-ticker sorted transaction history for dynamic share calculation
+  type TxEntry = { date: string; shares: number; type: string };
+  const txByTicker = new Map<string, TxEntry[]>();
+  for (const tx of txData ?? []) {
+    if (!tx.traded_at || !tx.shares) continue;
+    const date = tx.traded_at.slice(0, 10);
+    if (!txByTicker.has(tx.ticker)) txByTicker.set(tx.ticker, []);
+    txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.shares), type: tx.transaction_type });
   }
 
-  const resolvedHoldings = (holdings ?? [])
-    .filter((h) => h.shares && Number(h.shares) > 0)
-    .map((h) => ({
-      ticker: h.ticker as string,
-      shares: Number(h.shares),
-      openedAt: h.opened_at
-        ? new Date(h.opened_at as string).toISOString().slice(0, 10)
-        : txMap.get(h.ticker as string) ?? null,
-    }))
-    .filter((h) => h.openedAt !== null) as { ticker: string; shares: number; openedAt: string }[];
+  // Earliest BUY per ticker, for holdings that have no opened_at
+  const firstBuyMap = new Map<string, string>();
+  for (const [ticker, txs] of txByTicker) {
+    const firstBuy = txs.find((t) => t.type === "BUY");
+    if (firstBuy) firstBuyMap.set(ticker, firstBuy.date);
+  }
 
-  if (resolvedHoldings.length === 0) throw new Error("No holdings found with purchase dates. Add a purchase date or transaction history first.");
+  // Resolve each holding to a start date (opened_at → first BUY tx → skip)
+  const holdingFallback = new Map<string, { shares: number; openedAt: string }>();
+  for (const h of holdings ?? []) {
+    if (!h.shares || Number(h.shares) <= 0) continue;
+    const openedAt = h.opened_at
+      ? new Date(h.opened_at as string).toISOString().slice(0, 10)
+      : firstBuyMap.get(h.ticker as string) ?? null;
+    if (openedAt) holdingFallback.set(h.ticker as string, { shares: Number(h.shares), openedAt });
+  }
 
-  const results = await Promise.allSettled(
-    resolvedHoldings.map(async (h) => ({
-      ticker: h.ticker,
-      shares: h.shares,
-      openedAt: h.openedAt,
-      bars: await getBenchmarkHistory(h.ticker, "MAX", false),
+  // All tickers to reconstruct: union of current holdings + tickers with transaction history
+  const allTickers = new Set([...holdingFallback.keys(), ...txByTicker.keys()]);
+  if (allTickers.size === 0) throw new Error("No holdings or transactions found.");
+
+  // Fetch price history for all tickers in parallel
+  const priceResults = await Promise.allSettled(
+    [...allTickers].map(async (ticker) => ({
+      ticker,
+      bars: await getBenchmarkHistory(ticker, "MAX", false),
     }))
   );
 
   const priceMap = new Map<string, Map<string, number>>();
   const successfulTickers: string[] = [];
-  for (const r of results) {
+  for (const r of priceResults) {
     if (r.status === "fulfilled" && r.value.bars.length > 0) {
       const m = new Map<string, number>();
       for (const bar of r.value.bars) {
@@ -662,15 +671,34 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
     for (let i = 0; i <= 7; i++) {
       const d = new Date(targetDate + "T12:00:00Z");
       d.setDate(d.getDate() - i);
-      const ds = d.toISOString().slice(0, 10);
-      if (m.has(ds)) return m.get(ds)!;
+      if (m.has(d.toISOString().slice(0, 10))) return m.get(d.toISOString().slice(0, 10))!;
     }
     return null;
   }
 
-  const earliest = resolvedHoldings.reduce((min, h) => {
-    return h.openedAt < min ? h.openedAt : min;
-  }, new Date().toISOString().slice(0, 10));
+  // sharesOnDate: use transaction history if available, otherwise static holding shares
+  function sharesOnDate(ticker: string, date: string): number {
+    const txs = txByTicker.get(ticker);
+    if (txs && txs.length > 0) {
+      return txs
+        .filter((t) => t.date <= date)
+        .reduce((acc, t) => (t.type === "BUY" ? acc + t.shares : acc - t.shares), 0);
+    }
+    const fb = holdingFallback.get(ticker);
+    if (fb && date >= fb.openedAt) return fb.shares;
+    return 0;
+  }
+
+  // Determine earliest date to start the chart
+  const allDates: string[] = [];
+  for (const [, txs] of txByTicker) {
+    const first = txs.find((t) => t.type === "BUY");
+    if (first) allDates.push(first.date);
+  }
+  for (const [, fb] of holdingFallback) allDates.push(fb.openedAt);
+  if (allDates.length === 0) throw new Error("No purchase dates found.");
+
+  const earliest = allDates.reduce((min, d) => (d < min ? d : min));
   const today = new Date().toISOString().slice(0, 10);
 
   const dates: string[] = [];
@@ -685,10 +713,9 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
   for (const date of dates) {
     let total = 0;
     let hasData = false;
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      const { ticker, shares, openedAt } = r.value;
-      if (date < openedAt) continue;
+    for (const ticker of successfulTickers) {
+      const shares = sharesOnDate(ticker, date);
+      if (shares <= 0) continue;
       const m = priceMap.get(ticker);
       if (!m) continue;
       const p = priceOn(m, date);
@@ -700,7 +727,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
         total_value: Math.round(total * 100) / 100,
         cash_balance: 0,
         snapshot_date: new Date(date + "T20:00:00Z").toISOString(),
-        notes: "Reconstructed from holding history",
+        notes: "Reconstructed from transaction history",
       });
     }
   }
@@ -715,4 +742,46 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
 
   revalidatePath(`/portfolios/${portfolioId}`);
   return { inserted: snapshotRows.length, tickers: successfulTickers };
+}
+
+export async function backfillOpenedAt(portfolioId: string): Promise<{ updated: number; skipped: string[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { data: holdings } = await supabase
+    .from("holdings").select("id, ticker, opened_at").eq("portfolio_id", portfolioId);
+
+  const needsDate = (holdings ?? []).filter((h) => !h.opened_at);
+  if (needsDate.length === 0) return { updated: 0, skipped: [] };
+
+  const { data: transactions } = await supabase
+    .from("portfolio_transactions")
+    .select("ticker, traded_at, transaction_type")
+    .eq("portfolio_id", portfolioId)
+    .order("traded_at", { ascending: true });
+
+  const txMap = new Map<string, string>();
+  for (const tx of transactions ?? []) {
+    if (tx.transaction_type === "BUY" && tx.traded_at && !txMap.has(tx.ticker)) {
+      txMap.set(tx.ticker, tx.traded_at.slice(0, 10));
+    }
+  }
+
+  const skipped: string[] = [];
+  let updated = 0;
+
+  for (const h of needsDate) {
+    const date = txMap.get(h.ticker as string);
+    if (!date) { skipped.push(h.ticker as string); continue; }
+    await supabase.from("holdings").update({ opened_at: date }).eq("id", h.id).eq("portfolio_id", portfolioId);
+    updated++;
+  }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { updated, skipped };
 }
