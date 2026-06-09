@@ -36,12 +36,12 @@ export default function ResetPerformanceButton({
   function handleReconstruct() {
     setError("");
     startTransition(async () => {
-      try {
-        const result = await reconstructPortfolioChart(portfolioId);
+      const result = await reconstructPortfolioChart(portfolioId);
+      if (result.success) {
         setSuccessMsg(`Rebuilt from ${result.inserted} weekly snapshots across ${result.tickers.join(", ")}.`);
         setMode("idle");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Reconstruction failed.");
+      } else {
+        setError(result.error);
       }
     });
   }
