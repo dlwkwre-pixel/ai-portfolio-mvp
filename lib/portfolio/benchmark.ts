@@ -208,8 +208,20 @@ export async function getBenchmarkComparison(args: {
   const firstPortfolioValue = firstSnapshot.total_value;
   const lastPortfolioValue = lastSnapshot.total_value;
 
-  // Simple return (includes deposits — good for total wealth tracking)
-  const portfolioReturnPct = firstPortfolioValue > 0
+  // Net invested capital = sum of IN cash flows minus OUT cash flows
+  // This is the "how much did you actually put in" baseline for Total Return.
+  const netInvested = cashFlows.reduce((sum, cf) => {
+    const amount = Number(cf.amount ?? 0);
+    const signed = (cf.direction ?? "").toUpperCase() === "OUT" ? -amount : amount;
+    return sum + signed;
+  }, 0);
+
+  // Total Return = return on invested capital.
+  // Uses netInvested when available so the baseline isn't distorted by the tiny
+  // first snapshot value (which only captures the earliest-purchased holding).
+  const portfolioReturnPct = netInvested > 0
+    ? ((lastPortfolioValue - netInvested) / netInvested) * 100
+    : firstPortfolioValue > 0
     ? ((lastPortfolioValue - firstPortfolioValue) / firstPortfolioValue) * 100
     : null;
 
@@ -238,11 +250,31 @@ export async function getBenchmarkComparison(args: {
       ? portfolioTwrPct - benchmarkReturnPct
       : null;
 
+  // Pre-sort cash flows for the per-point deployed-capital calculation
+  const sortedCashFlows = [...cashFlows].sort(
+    (a, b) => new Date(a.effective_at).getTime() - new Date(b.effective_at).getTime()
+  );
+
+  function deployedCapitalUpTo(targetDate: string): number {
+    let total = 0;
+    for (const cf of sortedCashFlows) {
+      if (toDateKey(cf.effective_at) <= targetDate) {
+        const amount = Number(cf.amount ?? 0);
+        total += (cf.direction ?? "").toUpperCase() === "OUT" ? -amount : amount;
+      }
+    }
+    return total;
+  }
+
   // Build chart data with both return series
   // For TWR chart we use running TWR up to each snapshot
   const chartData: BenchmarkChartPoint[] = snapshots.map((snapshot, idx) => {
-    // Simple return up to this point
-    const portfolioReturn = firstPortfolioValue > 0
+    // Return on invested capital up to this point in time
+    const snapshotDate = toDateKey(snapshot.snapshot_date);
+    const deployedUpTo = deployedCapitalUpTo(snapshotDate);
+    const portfolioReturn = deployedUpTo > 0
+      ? ((snapshot.total_value - deployedUpTo) / deployedUpTo) * 100
+      : firstPortfolioValue > 0
       ? ((snapshot.total_value - firstPortfolioValue) / firstPortfolioValue) * 100
       : 0;
 
