@@ -726,13 +726,23 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     const earliest = allDates.reduce((min, d) => (d < min ? d : min));
     const today = new Date().toISOString().slice(0, 10);
 
-    const dates: string[] = [];
+    // Build snapshot dates: every transaction date + weekly thereafter
+    // Transaction-date snapshots give the TWR formula accurate sub-period boundaries
+    // so each purchase is treated as a separate period, preventing Modified Dietz distortion
+    const dateSet = new Set<string>();
+    for (const tx of txData ?? []) {
+      if (tx.traded_at) {
+        const d = (tx.traded_at as string).slice(0, 10);
+        if (d >= earliest && d <= today) dateSet.add(d);
+      }
+    }
     const cur = new Date(earliest + "T12:00:00Z");
     while (cur.toISOString().slice(0, 10) <= today) {
-      dates.push(cur.toISOString().slice(0, 10));
+      dateSet.add(cur.toISOString().slice(0, 10));
       cur.setDate(cur.getDate() + 7);
     }
-    if (dates[dates.length - 1] !== today) dates.push(today);
+    dateSet.add(today);
+    const dates = [...dateSet].sort();
 
     const snapshotRows: { portfolio_id: string; total_value: number; cash_balance: number; snapshot_date: string; notes: string }[] = [];
     for (const date of dates) {
