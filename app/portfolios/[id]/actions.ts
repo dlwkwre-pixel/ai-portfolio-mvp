@@ -620,15 +620,15 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
         .eq("portfolio_id", portfolioId)
         .order("traded_at", { ascending: true }),
       supabase.from("holding_lots")
-        .select("id, holding_id, purchased_at, shares, price_per_share, ticker")
+        .select("id, holding_id, lot_type, purchased_at, shares, price_per_share, ticker")
         .eq("portfolio_id", portfolioId)
         .order("purchased_at", { ascending: true }),
     ]);
 
     if (holdingsErr) return { success: false, error: `Holdings query failed: ${holdingsErr.message}` };
 
-    // Group lots by holding_id
-    type LotEntry = { date: string; shares: number; price: number };
+    // Group lots by holding_id; preserve lot_type for sell-aware share/cash calculations
+    type LotEntry = { date: string; shares: number; price: number; type: "BUY" | "SELL" };
     const lotsByHoldingId = new Map<string, LotEntry[]>();
     for (const lot of lotsData ?? []) {
       const key = lot.holding_id as string;
@@ -637,6 +637,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
         date: (lot.purchased_at as string).slice(0, 10),
         shares: Number(lot.shares),
         price: Number(lot.price_per_share),
+        type: ((lot.lot_type as string | null) ?? "BUY").toUpperCase() as "BUY" | "SELL",
       });
     }
 
@@ -651,6 +652,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
 
     // Resolve each holding: lots (preferred) → opened_at → first BUY tx date → skip
     type HoldingEntry = { id: string; ticker: string; shares: number; openedAt: string; costBasis: number; lots: LotEntry[] };
+    // openedAt = earliest BUY lot date (or resolved from opened_at / transactions)
     const holdingEntries: HoldingEntry[] = [];
     const missingDate: string[] = [];
 
@@ -659,12 +661,17 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       const lots = lotsByHoldingId.get(h.id) ?? [];
 
       if (lots.length > 0) {
-        const earliestLot = lots.reduce((min, l) => (l.date < min.date ? l : min));
+        const buyLots = lots.filter((l) => l.type === "BUY");
+        if (buyLots.length === 0) {
+          missingDate.push(h.ticker as string);
+          continue;
+        }
+        const earliestBuy = buyLots.reduce((min, l) => (l.date < min.date ? l : min));
         holdingEntries.push({
           id: h.id,
           ticker: h.ticker as string,
           shares: Number(h.shares),
-          openedAt: earliestLot.date,
+          openedAt: earliestBuy.date,
           costBasis: Number(h.average_cost_basis ?? 0),
           lots,
         });
@@ -711,9 +718,17 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     for (const r of priceResults) {
       if (r.status === "fulfilled" && r.value.bars.length > 0) {
         const m = new Map<string, number>();
-        for (const bar of r.value.bars) m.set(bar.date, bar.adjClose > 0 ? bar.adjClose : bar.close);
-        priceMap.set(r.value.ticker, m);
-        successfulTickers.push(r.value.ticker);
+        for (const bar of r.value.bars) {
+          // Use adjClose only — it accounts for splits and dividends.
+          // Never fall back to close: unadjusted close is wrong for split stocks (e.g. NVDA 10:1).
+          if (bar.adjClose > 0) m.set(bar.date, bar.adjClose);
+        }
+        if (m.size > 0) {
+          priceMap.set(r.value.ticker, m);
+          successfulTickers.push(r.value.ticker);
+        } else {
+          failedTickers.push(r.value.ticker);
+        }
       } else {
         failedTickers.push(r.status === "fulfilled" ? r.value.ticker : "unknown");
       }
@@ -732,16 +747,18 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       return null;
     }
 
-    // Lot-aware shares on a given date:
-    // If holding has lots, accumulate lot shares up to that date.
-    // After the last lot date, use holdings.shares (captures any buys not entered as lots).
+    // Lot-aware shares on a given date: net buys minus sells up to that date.
+    // After the last recorded lot, snap to holdings.shares to capture any unlogged activity.
     function sharesOnDate(h: HoldingEntry, date: string): number {
       if (h.lots.length > 0) {
         const lotsOnDate = h.lots.filter((l) => l.date <= date);
         if (lotsOnDate.length === 0) return 0;
-        const accumulated = lotsOnDate.reduce((sum, l) => sum + l.shares, 0);
+        const netShares = lotsOnDate.reduce(
+          (sum, l) => (l.type === "SELL" ? sum - l.shares : sum + l.shares),
+          0
+        );
         const lastLotDate = h.lots[h.lots.length - 1].date;
-        return date >= lastLotDate ? h.shares : accumulated;
+        return date >= lastLotDate ? Math.max(0, Math.min(netShares, h.shares)) : Math.max(0, netShares);
       }
       return date >= h.openedAt ? h.shares : 0;
     }
@@ -795,7 +812,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
           cashLedgerRows.push({
             portfolio_id: portfolioId,
             amount,
-            direction: "IN",
+            direction: lot.type === "SELL" ? "OUT" : "IN",
             reason: `${h.ticker} (Reconstructed)`,
             effective_at: new Date(lot.date + "T12:00:00Z").toISOString(),
           });
@@ -897,11 +914,13 @@ export async function createHoldingLot(formData: FormData): Promise<void> {
   const purchasedAt = formData.get("purchased_at") as string;
   const shares = Number(formData.get("shares"));
   const pricePerShare = Number(formData.get("price_per_share"));
+  const lotType = (formData.get("lot_type") as string | null) ?? "BUY";
 
   if (!holdingId || !portfolioId || !purchasedAt || !shares || !pricePerShare) {
     throw new Error("Date, shares, and price per share are required.");
   }
   if (shares <= 0 || pricePerShare <= 0) throw new Error("Shares and price must be greater than 0.");
+  if (lotType !== "BUY" && lotType !== "SELL") throw new Error("Lot type must be BUY or SELL.");
 
   const { data: portfolio } = await supabase.from("portfolios")
     .select("id").eq("id", portfolioId).eq("user_id", user.id).single();
@@ -911,6 +930,7 @@ export async function createHoldingLot(formData: FormData): Promise<void> {
     holding_id: holdingId,
     portfolio_id: portfolioId,
     ticker,
+    lot_type: lotType,
     purchased_at: purchasedAt,
     shares,
     price_per_share: pricePerShare,

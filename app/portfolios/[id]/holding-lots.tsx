@@ -8,6 +8,7 @@ export type HoldingLot = {
   holding_id: string;
   portfolio_id: string;
   ticker: string;
+  lot_type: "BUY" | "SELL";
   purchased_at: string;
   shares: number;
   price_per_share: number;
@@ -27,13 +28,17 @@ function fmt(n: number) {
 
 export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
   const [adding, setAdding] = useState(false);
+  const [lotType, setLotType] = useState<"BUY" | "SELL">("BUY");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const totalShares = lots.reduce((s, l) => s + Number(l.shares), 0);
-  const totalCost = lots.reduce((s, l) => s + Number(l.shares) * Number(l.price_per_share), 0);
-  const avgCost = totalShares > 0 ? totalCost / totalShares : 0;
+  const sorted = lots.slice().sort((a, b) => a.purchased_at.localeCompare(b.purchased_at));
+  const totalBuyShares = lots.filter((l) => l.lot_type === "BUY").reduce((s, l) => s + Number(l.shares), 0);
+  const totalSellShares = lots.filter((l) => l.lot_type === "SELL").reduce((s, l) => s + Number(l.shares), 0);
+  const netShares = totalBuyShares - totalSellShares;
+  const totalCost = lots.filter((l) => l.lot_type === "BUY").reduce((s, l) => s + Number(l.shares) * Number(l.price_per_share), 0);
+  const avgCost = totalBuyShares > 0 ? totalCost / totalBuyShares : 0;
 
   function handleAdd(formData: FormData) {
     setError("");
@@ -69,6 +74,11 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
               {lots.length} lot{lots.length !== 1 ? "s" : ""}
             </span>
           )}
+          {lots.length > 0 && (
+            <span className="text-[10px] text-slate-500">
+              {netShares > 0 ? `${netShares.toLocaleString()} net shares` : "fully exited"}
+            </span>
+          )}
         </div>
         {!adding && (
           <button
@@ -83,7 +93,7 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
 
       {lots.length === 0 && !adding && (
         <p className="text-[11px] text-slate-600">
-          No lots recorded. Add purchase dates here to fix the chart — each lot gets its own cash flow entry.
+          No lots recorded. Add buy/sell entries here — the chart uses these for accurate share counts and cash flows.
         </p>
       )}
 
@@ -93,6 +103,7 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
             <thead>
               <tr className="border-b border-white/8 bg-white/3">
                 <th className="px-3 py-1.5 text-left font-medium text-slate-500">Date</th>
+                <th className="px-3 py-1.5 text-left font-medium text-slate-500">Type</th>
                 <th className="px-3 py-1.5 text-right font-medium text-slate-500">Shares</th>
                 <th className="px-3 py-1.5 text-right font-medium text-slate-500">$/share</th>
                 <th className="px-3 py-1.5 text-right font-medium text-slate-500">Total</th>
@@ -100,16 +111,22 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
               </tr>
             </thead>
             <tbody>
-              {lots
-                .slice()
-                .sort((a, b) => a.purchased_at.localeCompare(b.purchased_at))
-                .map((lot) => (
+              {sorted.map((lot) => {
+                const isSell = lot.lot_type === "SELL";
+                return (
                   <tr key={lot.id} className="border-b border-white/5 last:border-0 hover:bg-white/3 transition">
                     <td className="px-3 py-1.5 font-mono text-slate-300">{lot.purchased_at.slice(0, 10)}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-slate-300">{Number(lot.shares).toLocaleString()}</td>
+                    <td className="px-3 py-1.5">
+                      <span className={`rounded px-1 py-0.5 text-[10px] font-medium ${isSell ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400"}`}>
+                        {isSell ? "SELL" : "BUY"}
+                      </span>
+                    </td>
+                    <td className={`px-3 py-1.5 text-right font-mono ${isSell ? "text-red-400" : "text-slate-300"}`}>
+                      {isSell ? "-" : ""}{Number(lot.shares).toLocaleString()}
+                    </td>
                     <td className="px-3 py-1.5 text-right font-mono text-slate-300">{fmt(Number(lot.price_per_share))}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-slate-300">
-                      {fmt(Number(lot.shares) * Number(lot.price_per_share))}
+                    <td className={`px-3 py-1.5 text-right font-mono ${isSell ? "text-red-400" : "text-slate-300"}`}>
+                      {isSell ? "-" : ""}{fmt(Number(lot.shares) * Number(lot.price_per_share))}
                     </td>
                     <td className="px-3 py-1.5 text-right">
                       {deletingId === lot.id ? (
@@ -146,17 +163,20 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
             </tbody>
-            <tfoot>
-              <tr className="border-t border-white/8 bg-white/3">
-                <td className="px-3 py-1.5 text-slate-500">Total</td>
-                <td className="px-3 py-1.5 text-right font-mono text-slate-400">{totalShares.toLocaleString()}</td>
-                <td className="px-3 py-1.5 text-right font-mono text-slate-500 text-[10px]">avg {fmt(avgCost)}</td>
-                <td className="px-3 py-1.5 text-right font-mono text-slate-300 font-medium">{fmt(totalCost)}</td>
-                <td />
-              </tr>
-            </tfoot>
+            {lots.length > 1 && (
+              <tfoot>
+                <tr className="border-t border-white/8 bg-white/3">
+                  <td className="px-3 py-1.5 text-slate-500" colSpan={2}>Net position</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-slate-300">{netShares.toLocaleString()}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-slate-500 text-[10px]">avg {fmt(avgCost)}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-slate-300 font-medium">{fmt(totalCost)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
@@ -164,11 +184,32 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
       {adding && (
         <form
           action={handleAdd}
-          className="grid grid-cols-3 gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3"
+          className="grid grid-cols-2 gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 sm:grid-cols-4"
         >
           <input type="hidden" name="holding_id" value={holdingId} />
           <input type="hidden" name="portfolio_id" value={portfolioId} />
           <input type="hidden" name="ticker" value={ticker} />
+          <input type="hidden" name="lot_type" value={lotType} />
+
+          {/* Type toggle */}
+          <div className="col-span-2 sm:col-span-4">
+            <div className="flex w-fit rounded-lg border border-white/10 p-0.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setLotType("BUY")}
+                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "BUY" ? "bg-emerald-500/20 text-emerald-400" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => setLotType("SELL")}
+                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "SELL" ? "bg-red-500/20 text-red-400" : "text-slate-500 hover:text-slate-300"}`}
+              >
+                Sell
+              </button>
+            </div>
+          </div>
 
           <div>
             <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">Date</label>
@@ -192,7 +233,9 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">Price/share</label>
+            <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">
+              {lotType === "SELL" ? "Sell price/share" : "Buy price/share"}
+            </label>
             <input
               name="price_per_share"
               type="number"
@@ -205,18 +248,18 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
           </div>
 
           {error && (
-            <p className="col-span-3 rounded-lg border border-red-500/20 bg-red-500/8 px-2 py-1.5 text-[11px] text-red-400">
+            <p className="col-span-2 rounded-lg border border-red-500/20 bg-red-500/8 px-2 py-1.5 text-[11px] text-red-400 sm:col-span-4">
               {error}
             </p>
           )}
 
-          <div className="col-span-3 flex gap-2">
+          <div className="col-span-2 flex items-end gap-2 sm:col-span-4">
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60 hover:bg-blue-500 transition"
+              className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60 transition ${lotType === "SELL" ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"}`}
             >
-              {isPending ? "Saving…" : "Save lot"}
+              {isPending ? "Saving…" : `Save ${lotType === "SELL" ? "sell" : "buy"}`}
             </button>
             <button
               type="button"
