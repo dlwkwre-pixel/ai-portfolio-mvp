@@ -39,6 +39,7 @@ type PortfolioChartClientProps = {
   startDateLabel: string | null;
   endDateLabel: string | null;
   hasEnoughSnapshots: boolean;
+  netInvested: number | null;
   holdings: { ticker: string; opened_at: string | null }[];
 };
 
@@ -106,6 +107,7 @@ export default function PortfolioChartClient({
   startDateLabel,
   endDateLabel,
   hasEnoughSnapshots,
+  netInvested,
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
@@ -126,12 +128,17 @@ export default function PortfolioChartClient({
 
   const valueChange = useMemo(() => {
     if (filteredSnapshots.length < 2) return null;
-    const first = filteredSnapshots[0].total_value;
     const last = filteredSnapshots[filteredSnapshots.length - 1].total_value;
-    const change = last - first;
-    const pct = first > 0 ? (change / first) * 100 : 0;
+    // Use net invested capital as the baseline so the % reflects actual gain/loss
+    // on money deployed. Falls back to first-snapshot diff for sub-period timeframes.
+    const isAllTime = activeTimeframe === "All";
+    const baseline = isAllTime && netInvested != null && netInvested > 0
+      ? netInvested
+      : filteredSnapshots[0].total_value;
+    const change = last - baseline;
+    const pct = baseline > 0 ? (change / baseline) * 100 : 0;
     return { change, pct, isPositive: change >= 0 };
-  }, [filteredSnapshots]);
+  }, [filteredSnapshots, netInvested, activeTimeframe]);
 
   const currentValue = snapshots.length > 0
     ? snapshots[snapshots.length - 1].total_value
@@ -235,12 +242,12 @@ export default function PortfolioChartClient({
         <div className="mb-4 space-y-2">
           {chartMode === "twr" && (
             <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
-              <span className="font-semibold">Investment Return</span> strips out deposits and withdrawals — showing only how well your investments actually performed.
+              <span className="font-semibold">Inv. Return (TWR)</span> measures how well your picks performed, regardless of when you deposited money. Think of it as: "if I had timed everything perfectly, what would my return be?" Can be higher or lower than your actual gain on cash invested.
             </div>
           )}
           {chartMode === "return" && (
             <div className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-slate-500">
-              <span className="font-semibold text-slate-400">Total Return</span> includes deposits — good for tracking total wealth growth (e.g. Roth IRA contributions).
+              <span className="font-semibold text-slate-400">Total Return</span> is your actual gain on the money you put in — (current value − total invested) ÷ total invested. This is the number that answers "how much did I make on my cash?"
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">

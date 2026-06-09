@@ -23,7 +23,7 @@ export type BenchmarkComparisonResult = {
   benchmarkSymbol: string;
   startDateLabel: string | null;
   endDateLabel: string | null;
-  portfolioReturnPct: number | null;        // simple return
+  portfolioReturnPct: number | null;        // simple return on invested capital
   portfolioTwrPct: number | null;           // time-weighted return
   benchmarkReturnPct: number | null;
   excessReturnPct: number | null;
@@ -31,6 +31,7 @@ export type BenchmarkComparisonResult = {
   chartData: BenchmarkChartPoint[];
   hasEnoughSnapshots: boolean;
   benchmarkAvailable: boolean;
+  netInvested: number | null;               // total capital deployed (sum IN - sum OUT)
 };
 
 function toDateKey(dateString: string): string {
@@ -191,6 +192,7 @@ export async function getBenchmarkComparison(args: {
       chartData: [],
       hasEnoughSnapshots: false,
       benchmarkAvailable: false,
+      netInvested: null,
     };
   }
 
@@ -310,6 +312,7 @@ export async function getBenchmarkComparison(args: {
     chartData,
     hasEnoughSnapshots: true,
     benchmarkAvailable,
+    netInvested: netInvested > 0 ? netInvested : null,
   };
 }
 
