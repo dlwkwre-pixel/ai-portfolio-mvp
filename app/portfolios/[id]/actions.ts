@@ -611,10 +611,10 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
     if (!portfolio) return { success: false, error: "Portfolio not found." };
 
-    const [{ data: holdings, error: holdingsErr }, { data: txData, error: txErr }] = await Promise.all([
+    const [{ data: holdings, error: holdingsErr }, { data: txData }] = await Promise.all([
       supabase.from("holdings").select("id, ticker, shares, opened_at").eq("portfolio_id", portfolioId),
       supabase.from("portfolio_transactions")
-        .select("ticker, traded_at, transaction_type, quantity")
+        .select("ticker, traded_at, transaction_type, quantity, gross_amount, price_per_share")
         .eq("portfolio_id", portfolioId)
         .order("traded_at", { ascending: true }),
     ]);
@@ -758,9 +758,29 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     }
     if (snapshotRows.length === 0) return { success: false, error: "No price data found for the relevant dates. The tickers may not have FMP history coverage." };
 
+    // Build cash_ledger rows from actual transactions so TWR strips out new purchases
+    const cashLedgerRows: { portfolio_id: string; amount: number; direction: string; reason: string; effective_at: string }[] = [];
+    for (const tx of txData ?? []) {
+      if (!tx.traded_at) continue;
+      const amount = Number(tx.gross_amount ?? 0) || Number(tx.quantity ?? 0) * Number(tx.price_per_share ?? 0);
+      if (amount <= 0) continue;
+      const txType = (tx.transaction_type as string).toUpperCase();
+      cashLedgerRows.push({
+        portfolio_id: portfolioId,
+        amount: Math.round(amount * 100) / 100,
+        direction: txType === "BUY" ? "IN" : "OUT",
+        reason: `${tx.ticker} ${txType === "BUY" ? "purchase" : "sale"} (reconstructed)`,
+        effective_at: tx.traded_at,
+      });
+    }
+
     await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
     await supabase.from("cash_ledger").delete().eq("portfolio_id", portfolioId);
     await supabase.from("portfolios").update({ cash_balance: 0 }).eq("id", portfolioId).eq("user_id", user.id);
+
+    if (cashLedgerRows.length > 0) {
+      await supabase.from("cash_ledger").insert(cashLedgerRows).then(() => {});
+    }
 
     const { error: insertErr } = await supabase.from("portfolio_snapshots").insert(snapshotRows);
     if (insertErr) return { success: false, error: `Insert failed: ${insertErr.message}` };
