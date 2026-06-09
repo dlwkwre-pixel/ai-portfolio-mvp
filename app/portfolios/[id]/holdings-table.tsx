@@ -476,8 +476,25 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                   {holding.shares_number.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 })}
                 </td>
                 <td className="px-3 py-3 text-slate-300 hidden md:table-cell">{formatMoney(holding.average_cost_basis_number)}</td>
-                <td className="px-3 py-3 text-slate-300 hidden md:table-cell">{formatMoney(holding.current_price)}</td>
-                <td className="px-3 py-3 font-medium text-white">{formatMoney(holding.market_value)}</td>
+                <td className="px-3 py-3 text-slate-300 hidden md:table-cell">
+                  {holding.current_price !== null
+                    ? formatMoney(holding.current_price)
+                    : (
+                      <span
+                        title="BuyTune couldn't find a live price for this ticker. It's excluded from your portfolio total until a price is available. Check the ticker symbol is correct."
+                        style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "10px", fontWeight: 600, color: "var(--amber)", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "help", fontFamily: "var(--font-body)" }}
+                      >
+                        No price
+                      </span>
+                    )
+                  }
+                </td>
+                <td className="px-3 py-3 font-medium" style={{ color: holding.market_value === null ? "var(--text-muted)" : "var(--text-primary)" }}>
+                  {holding.market_value !== null
+                    ? formatMoney(holding.market_value)
+                    : <span title="Excluded from portfolio total — no live price" style={{ fontSize: "11px", color: "var(--text-muted)" }}>—</span>
+                  }
+                </td>
                 <td className={`px-3 py-3 font-medium ${
                   holding.unrealized_pl !== null && holding.unrealized_pl > 0 ? "text-emerald-400"
                   : holding.unrealized_pl !== null && holding.unrealized_pl < 0 ? "text-red-400"
