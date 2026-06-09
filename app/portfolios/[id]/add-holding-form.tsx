@@ -130,6 +130,7 @@ type EditHoldingFormProps = {
     shares: number;
     average_cost_basis: number | null;
     notes: string | null;
+    opened_at: string | null;
   };
   onClose: () => void;
 };
@@ -182,7 +183,17 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
         <input name="average_cost_basis" type="number" step="0.000001" min="0" defaultValue={holding.average_cost_basis ?? ""} className={inputClass} required />
       </div>
 
-      <div className="sm:col-span-2 lg:col-span-2">
+      <div>
+        <label className={labelClass}>Purchase Date</label>
+        <input
+          name="opened_at"
+          type="date"
+          defaultValue={holding.opened_at ? holding.opened_at.slice(0, 10) : ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="sm:col-span-2 lg:col-span-1">
         <label className={labelClass}>Notes</label>
         <input name="notes" type="text" defaultValue={holding.notes || ""} placeholder="Optional notes" className={inputClass} />
       </div>

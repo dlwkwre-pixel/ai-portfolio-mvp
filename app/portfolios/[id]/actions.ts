@@ -73,6 +73,7 @@ export async function updateHolding(formData: FormData) {
   const assetType = String(formData.get("asset_type") || "stock").trim();
   const sharesRaw = String(formData.get("shares") || "").trim();
   const averageCostBasisRaw = String(formData.get("average_cost_basis") || "").trim();
+  const openedAtRaw = String(formData.get("opened_at") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
 
   if (!holdingId) throw new Error("Holding ID is required.");
@@ -104,6 +105,7 @@ export async function updateHolding(formData: FormData) {
       shares,
       average_cost_basis: averageCostBasis,
       notes: notes || null,
+      opened_at: openedAtRaw || null,
     })
     .eq("id", holdingId);
 
@@ -607,15 +609,38 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
   const { data: holdings } = await supabase
     .from("holdings").select("ticker, shares, opened_at").eq("portfolio_id", portfolioId);
 
-  const validHoldings = (holdings ?? []).filter((h) => h.opened_at && h.shares && Number(h.shares) > 0);
-  if (validHoldings.length === 0) throw new Error("No holdings found. Add holdings with purchase dates first.");
+  const { data: transactions } = await supabase
+    .from("portfolio_transactions")
+    .select("ticker, traded_at, transaction_type")
+    .eq("portfolio_id", portfolioId)
+    .order("traded_at", { ascending: true });
 
-  const results = await Promise.allSettled(
-    validHoldings.map(async (h) => ({
+  const txMap = new Map<string, string>();
+  for (const tx of transactions ?? []) {
+    if (tx.transaction_type === "BUY" && tx.traded_at && !txMap.has(tx.ticker)) {
+      txMap.set(tx.ticker, tx.traded_at.slice(0, 10));
+    }
+  }
+
+  const resolvedHoldings = (holdings ?? [])
+    .filter((h) => h.shares && Number(h.shares) > 0)
+    .map((h) => ({
       ticker: h.ticker as string,
       shares: Number(h.shares),
-      openedAt: new Date(h.opened_at as string).toISOString().slice(0, 10),
-      bars: await getBenchmarkHistory(h.ticker as string, "MAX", false),
+      openedAt: h.opened_at
+        ? new Date(h.opened_at as string).toISOString().slice(0, 10)
+        : txMap.get(h.ticker as string) ?? null,
+    }))
+    .filter((h) => h.openedAt !== null) as { ticker: string; shares: number; openedAt: string }[];
+
+  if (resolvedHoldings.length === 0) throw new Error("No holdings found with purchase dates. Add a purchase date or transaction history first.");
+
+  const results = await Promise.allSettled(
+    resolvedHoldings.map(async (h) => ({
+      ticker: h.ticker,
+      shares: h.shares,
+      openedAt: h.openedAt,
+      bars: await getBenchmarkHistory(h.ticker, "MAX", false),
     }))
   );
 
@@ -643,9 +668,8 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
     return null;
   }
 
-  const earliest = validHoldings.reduce((min, h) => {
-    const d = new Date(h.opened_at as string).toISOString().slice(0, 10);
-    return d < min ? d : min;
+  const earliest = resolvedHoldings.reduce((min, h) => {
+    return h.openedAt < min ? h.openedAt : min;
   }, new Date().toISOString().slice(0, 10));
   const today = new Date().toISOString().slice(0, 10);
 

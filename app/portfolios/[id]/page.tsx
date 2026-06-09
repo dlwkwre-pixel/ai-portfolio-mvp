@@ -334,6 +334,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         holdings={valuation.valued_holdings.map((h) => ({
                           ...h,
                           notes: (holdings ?? []).find((raw) => raw.id === h.id)?.notes ?? null,
+                          opened_at: (holdings ?? []).find((raw) => raw.id === h.id)?.opened_at ?? null,
                         }))}
                       />
                     </div>

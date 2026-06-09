@@ -19,6 +19,7 @@ type ValuedHolding = {
   unrealized_pl_pct: number | null;
   weight_pct: number | null;
   notes?: string | null;
+  opened_at?: string | null;
 };
 
 type MarketData = {
@@ -959,6 +960,7 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                         shares: holding.shares_number,
                         average_cost_basis: holding.average_cost_basis_number,
                         notes: holding.notes ?? null,
+                        opened_at: holding.opened_at ?? null,
                       }}
                       onClose={() => setEditingId(null)}
                     />
