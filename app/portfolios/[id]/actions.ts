@@ -611,18 +611,36 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
     if (!portfolio) return { success: false, error: "Portfolio not found." };
 
-    // Use cost basis from holdings as source of truth; transactions are only for date resolution
-    const [{ data: holdings, error: holdingsErr }, { data: txData }] = await Promise.all([
+    // Lots take precedence over opened_at + cost_basis for multi-purchase holdings.
+    // Transactions are used only as a last-resort date resolver for holdings with neither.
+    const [{ data: holdings, error: holdingsErr }, { data: txData }, { data: lotsData }] = await Promise.all([
       supabase.from("holdings").select("id, ticker, shares, opened_at, average_cost_basis").eq("portfolio_id", portfolioId),
       supabase.from("portfolio_transactions")
         .select("ticker, traded_at, transaction_type")
         .eq("portfolio_id", portfolioId)
         .order("traded_at", { ascending: true }),
+      supabase.from("holding_lots")
+        .select("id, holding_id, purchased_at, shares, price_per_share, ticker")
+        .eq("portfolio_id", portfolioId)
+        .order("purchased_at", { ascending: true }),
     ]);
 
     if (holdingsErr) return { success: false, error: `Holdings query failed: ${holdingsErr.message}` };
 
-    // Build earliest BUY date per ticker from transactions — used only for date resolution
+    // Group lots by holding_id
+    type LotEntry = { date: string; shares: number; price: number };
+    const lotsByHoldingId = new Map<string, LotEntry[]>();
+    for (const lot of lotsData ?? []) {
+      const key = lot.holding_id as string;
+      if (!lotsByHoldingId.has(key)) lotsByHoldingId.set(key, []);
+      lotsByHoldingId.get(key)!.push({
+        date: (lot.purchased_at as string).slice(0, 10),
+        shares: Number(lot.shares),
+        price: Number(lot.price_per_share),
+      });
+    }
+
+    // Build earliest BUY date per ticker from transactions — used only when no lots and no opened_at
     const firstBuyMap = new Map<string, string>();
     for (const tx of txData ?? []) {
       if (!tx.traded_at) continue;
@@ -631,38 +649,53 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       if (!firstBuyMap.has(tx.ticker as string)) firstBuyMap.set(tx.ticker as string, date);
     }
 
-    // Resolve each holding: opened_at → first BUY tx date → skip
-    type HoldingEntry = { id: string; ticker: string; shares: number; openedAt: string; costBasis: number };
+    // Resolve each holding: lots (preferred) → opened_at → first BUY tx date → skip
+    type HoldingEntry = { id: string; ticker: string; shares: number; openedAt: string; costBasis: number; lots: LotEntry[] };
     const holdingEntries: HoldingEntry[] = [];
     const missingDate: string[] = [];
 
     for (const h of holdings ?? []) {
       if (!h.shares || Number(h.shares) <= 0) continue;
-      const resolvedDate = h.opened_at
-        ? (h.opened_at as string).slice(0, 10)
-        : firstBuyMap.get(h.ticker as string) ?? null;
+      const lots = lotsByHoldingId.get(h.id) ?? [];
 
-      if (!resolvedDate) {
-        missingDate.push(h.ticker as string);
-        continue;
+      if (lots.length > 0) {
+        const earliestLot = lots.reduce((min, l) => (l.date < min.date ? l : min));
+        holdingEntries.push({
+          id: h.id,
+          ticker: h.ticker as string,
+          shares: Number(h.shares),
+          openedAt: earliestLot.date,
+          costBasis: Number(h.average_cost_basis ?? 0),
+          lots,
+        });
+      } else {
+        const resolvedDate = h.opened_at
+          ? (h.opened_at as string).slice(0, 10)
+          : firstBuyMap.get(h.ticker as string) ?? null;
+
+        if (!resolvedDate) {
+          missingDate.push(h.ticker as string);
+          continue;
+        }
+        if (!h.opened_at) {
+          await supabase.from("holdings").update({ opened_at: resolvedDate })
+            .eq("id", h.id).eq("portfolio_id", portfolioId);
+        }
+        holdingEntries.push({
+          id: h.id,
+          ticker: h.ticker as string,
+          shares: Number(h.shares),
+          openedAt: resolvedDate,
+          costBasis: Number(h.average_cost_basis ?? 0),
+          lots: [],
+        });
       }
-      if (!h.opened_at) {
-        await supabase.from("holdings").update({ opened_at: resolvedDate })
-          .eq("id", h.id).eq("portfolio_id", portfolioId);
-      }
-      holdingEntries.push({
-        id: h.id,
-        ticker: h.ticker as string,
-        shares: Number(h.shares),
-        openedAt: resolvedDate,
-        costBasis: Number(h.average_cost_basis ?? 0),
-      });
     }
 
     if (holdingEntries.length === 0) {
       return {
         success: false,
-        error: `No holdings with purchase dates. Missing: ${missingDate.join(", ")}. Open each holding and set a purchase date.`,
+        error: `No holdings with purchase dates. Missing: ${missingDate.join(", ")}. Open each holding and set a purchase date or add lots via Purchase History.`,
       };
     }
 
@@ -699,7 +732,21 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       return null;
     }
 
-    // Date range: earliest opened_at → today, weekly snapshots only
+    // Lot-aware shares on a given date:
+    // If holding has lots, accumulate lot shares up to that date.
+    // After the last lot date, use holdings.shares (captures any buys not entered as lots).
+    function sharesOnDate(h: HoldingEntry, date: string): number {
+      if (h.lots.length > 0) {
+        const lotsOnDate = h.lots.filter((l) => l.date <= date);
+        if (lotsOnDate.length === 0) return 0;
+        const accumulated = lotsOnDate.reduce((sum, l) => sum + l.shares, 0);
+        const lastLotDate = h.lots[h.lots.length - 1].date;
+        return date >= lastLotDate ? h.shares : accumulated;
+      }
+      return date >= h.openedAt ? h.shares : 0;
+    }
+
+    // Date range: earliest openedAt across all holdings → today, weekly snapshots
     const earliest = holdingEntries.reduce((min, h) => (h.openedAt < min ? h.openedAt : min), holdingEntries[0].openedAt);
     const today = new Date().toISOString().slice(0, 10);
     const dates: string[] = [];
@@ -710,7 +757,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     }
     if (dates[dates.length - 1] !== today) dates.push(today);
 
-    // Build snapshots: static shares from holdings table, active from openedAt onwards
+    // Build snapshots using lot-aware share counts
     const snapshotRows: { portfolio_id: string; total_value: number; cash_balance: number; snapshot_date: string; notes: string }[] = [];
     for (const date of dates) {
       let total = 0;
@@ -718,10 +765,12 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       for (const h of holdingEntries) {
         if (!successfulTickers.includes(h.ticker)) continue;
         if (date < h.openedAt) continue;
+        const shares = sharesOnDate(h, date);
+        if (shares <= 0) continue;
         const m = priceMap.get(h.ticker);
         if (!m) continue;
         const p = priceOn(m, date);
-        if (p && p > 0) { total += h.shares * p; hasData = true; }
+        if (p && p > 0) { total += shares * p; hasData = true; }
       }
       if (hasData && total > 0) {
         snapshotRows.push({
@@ -735,21 +784,34 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     }
     if (snapshotRows.length === 0) return { success: false, error: "No price data found. Tickers may not have FMP history coverage." };
 
-    // Cash flows: one IN per holding = shares × average_cost_basis at purchase date
-    // This tells Modified Dietz how much capital was deployed, so TWR reflects performance not deposits
+    // Cash flows: one per lot (lots mode) OR one per holding via cost basis (fallback)
     const cashLedgerRows: { portfolio_id: string; amount: number; direction: string; reason: string; effective_at: string }[] = [];
     for (const h of holdingEntries) {
       if (!successfulTickers.includes(h.ticker)) continue;
-      if (h.costBasis <= 0) continue;
-      const amount = Math.round(h.shares * h.costBasis * 100) / 100;
-      if (amount <= 0) continue;
-      cashLedgerRows.push({
-        portfolio_id: portfolioId,
-        amount,
-        direction: "IN",
-        reason: `${h.ticker} (Reconstructed)`,
-        effective_at: new Date(h.openedAt + "T12:00:00Z").toISOString(),
-      });
+      if (h.lots.length > 0) {
+        for (const lot of h.lots) {
+          const amount = Math.round(lot.shares * lot.price * 100) / 100;
+          if (amount <= 0) continue;
+          cashLedgerRows.push({
+            portfolio_id: portfolioId,
+            amount,
+            direction: "IN",
+            reason: `${h.ticker} (Reconstructed)`,
+            effective_at: new Date(lot.date + "T12:00:00Z").toISOString(),
+          });
+        }
+      } else {
+        if (h.costBasis <= 0) continue;
+        const amount = Math.round(h.shares * h.costBasis * 100) / 100;
+        if (amount <= 0) continue;
+        cashLedgerRows.push({
+          portfolio_id: portfolioId,
+          amount,
+          direction: "IN",
+          reason: `${h.ticker} (Reconstructed)`,
+          effective_at: new Date(h.openedAt + "T12:00:00Z").toISOString(),
+        });
+      }
     }
 
     await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
@@ -822,4 +884,54 @@ export async function backfillOpenedAt(portfolioId: string): Promise<{ updated: 
 
   revalidatePath(`/portfolios/${portfolioId}`);
   return { updated, skipped };
+}
+
+export async function createHoldingLot(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const holdingId = formData.get("holding_id") as string;
+  const portfolioId = formData.get("portfolio_id") as string;
+  const ticker = formData.get("ticker") as string;
+  const purchasedAt = formData.get("purchased_at") as string;
+  const shares = Number(formData.get("shares"));
+  const pricePerShare = Number(formData.get("price_per_share"));
+
+  if (!holdingId || !portfolioId || !purchasedAt || !shares || !pricePerShare) {
+    throw new Error("Date, shares, and price per share are required.");
+  }
+  if (shares <= 0 || pricePerShare <= 0) throw new Error("Shares and price must be greater than 0.");
+
+  const { data: portfolio } = await supabase.from("portfolios")
+    .select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { error } = await supabase.from("holding_lots").insert({
+    holding_id: holdingId,
+    portfolio_id: portfolioId,
+    ticker,
+    purchased_at: purchasedAt,
+    shares,
+    price_per_share: pricePerShare,
+  });
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
+export async function deleteHoldingLot(lotId: string, portfolioId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase.from("portfolios")
+    .select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { error } = await supabase.from("holding_lots")
+    .delete().eq("id", lotId).eq("portfolio_id", portfolioId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
 }

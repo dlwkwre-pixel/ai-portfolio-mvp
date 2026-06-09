@@ -147,6 +147,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     { data: allPortfolios },
     { data: publicPortfolioData, error: pubPortfolioErr },
     digestPrefs,
+    { data: holdingLots },
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true }),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false }),
@@ -162,6 +163,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
       .eq("source_portfolio_id", portfolio.id).eq("owner_user_id", user.id).eq("is_public", true)
       .maybeSingle(),
     activeTab === "emails" ? getDigestPrefs(portfolio.id) : Promise.resolve(null),
+    supabase.from("holding_lots").select("*").eq("portfolio_id", portfolio.id).order("purchased_at", { ascending: true }),
   ]);
 
   // Archive query is optional — fails gracefully if table hasn't been created yet
@@ -336,6 +338,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                           notes: (holdings ?? []).find((raw) => raw.id === h.id)?.notes ?? null,
                           opened_at: (holdings ?? []).find((raw) => raw.id === h.id)?.opened_at ?? null,
                         }))}
+                        lots={holdingLots ?? []}
                       />
                     </div>
                     <PortfolioPerformanceSection portfolioId={portfolio.id} cashBalance={Number(portfolio.cash_balance ?? 0)} />

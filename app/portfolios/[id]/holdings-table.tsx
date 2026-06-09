@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { EditHoldingForm, DeleteHoldingButton } from "./add-holding-form";
+import { HoldingLots } from "./holding-lots";
+import type { HoldingLot } from "./holding-lots";
 import StockChart from "@/app/components/stock-chart";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,6 +108,7 @@ type RedditPulse = {
 type HoldingsTableProps = {
   portfolioId: string;
   holdings: ValuedHolding[];
+  lots?: HoldingLot[];
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -340,7 +343,7 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
 
 // ─── Main Table ───────────────────────────────────────────────────────────────
 
-export default function HoldingsTable({ portfolioId, holdings }: HoldingsTableProps) {
+export default function HoldingsTable({ portfolioId, holdings, lots = [] }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
@@ -963,6 +966,12 @@ export default function HoldingsTable({ portfolioId, holdings }: HoldingsTablePr
                         opened_at: holding.opened_at ?? null,
                       }}
                       onClose={() => setEditingId(null)}
+                    />
+                    <HoldingLots
+                      holdingId={holding.id}
+                      portfolioId={portfolioId}
+                      ticker={holding.ticker}
+                      lots={lots.filter((l) => l.holding_id === holding.id)}
                     />
                   </td>
                 </tr>
