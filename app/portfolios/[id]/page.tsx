@@ -142,6 +142,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     { data: holdings },
     { data: notes },
     { data: cashLedger },
+    { data: cashLedgerArchive },
     { data: strategies },
     { data: activeAssignment },
     { data: allPortfolios },
@@ -151,6 +152,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     supabase.from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true }),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false }),
     supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolio.id).order("effective_at", { ascending: false }).limit(8),
+    supabase.from("cash_ledger_archive").select("*").eq("portfolio_id", portfolio.id).order("deleted_at", { ascending: false }).limit(20),
     supabase.from("strategies").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
     supabase.from("portfolio_strategy_assignments")
       .select(`*, strategies (id, name, description, style, risk_level), strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)`)
@@ -392,9 +394,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                     <div className="bt-card">
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Cash Activity</h2>
                       <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
-                      {cashLedger && cashLedger.length > 0 && (
-                        <CashActivityList entries={cashLedger} portfolioId={portfolio.id} />
-                      )}
+                      <CashActivityList
+                        entries={cashLedger ?? []}
+                        archivedEntries={cashLedgerArchive ?? []}
+                        portfolioId={portfolio.id}
+                      />
                     </div>
 
                     {/* Portfolio Info */}

@@ -212,6 +212,63 @@ export async function createCashActivity(formData: FormData) {
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+function localCalculateTwr(
+  snapshots: { snapshot_date: string; total_value: number }[],
+  cashFlows: { effective_at: string; direction: string | null; amount: number | string }[]
+): number | null {
+  if (snapshots.length < 2) return null;
+  function toDateKey(d: string) { return new Date(d).toISOString().slice(0, 10); }
+  const flowByDate = new Map<string, number>();
+  for (const cf of cashFlows) {
+    const date = toDateKey(cf.effective_at);
+    const signed = ((cf.direction || "").toUpperCase() === "OUT" ? -1 : 1) * Number(cf.amount ?? 0);
+    flowByDate.set(date, (flowByDate.get(date) ?? 0) + signed);
+  }
+  let twr = 1;
+  for (let i = 1; i < snapshots.length; i++) {
+    const prevDate = toDateKey(snapshots[i - 1].snapshot_date);
+    const currDate = toDateKey(snapshots[i].snapshot_date);
+    let cf = 0;
+    for (const [d, v] of flowByDate) { if (d > prevDate && d <= currDate) cf += v; }
+    const denom = snapshots[i - 1].total_value + cf * 0.5;
+    if (denom <= 0) continue;
+    twr *= 1 + (snapshots[i].total_value - snapshots[i - 1].total_value - cf) / denom;
+  }
+  return (twr - 1) * 100;
+}
+
+export async function previewCashActivityDeletion(entryId: string, portfolioId: string): Promise<{
+  currentTwr: number | null;
+  simulatedTwr: number | null;
+  amount: number;
+  direction: string;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase.from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const [{ data: snapshotsRaw }, { data: allFlows }, { data: entry }] = await Promise.all([
+    supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: true }),
+    supabase.from("cash_ledger").select("id, effective_at, direction, amount").eq("portfolio_id", portfolioId),
+    supabase.from("cash_ledger").select("id, amount, direction").eq("id", entryId).eq("portfolio_id", portfolioId).single(),
+  ]);
+
+  const snapshots = (snapshotsRaw ?? []).map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) }));
+  const flows = allFlows ?? [];
+  const currentTwr = localCalculateTwr(snapshots, flows);
+  const simulatedTwr = localCalculateTwr(snapshots, flows.filter((f) => f.id !== entryId));
+
+  return {
+    currentTwr,
+    simulatedTwr,
+    amount: entry ? Number(entry.amount) : 0,
+    direction: entry?.direction ?? "IN",
+  };
+}
+
 export async function deleteCashActivity(entryId: string, portfolioId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -222,15 +279,59 @@ export async function deleteCashActivity(entryId: string, portfolioId: string) {
   if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
 
   const { data: entry, error: entryError } = await supabase
-    .from("cash_ledger").select("id, amount, direction, portfolio_id").eq("id", entryId).eq("portfolio_id", portfolioId).single();
+    .from("cash_ledger").select("id, amount, direction, reason, effective_at, portfolio_id").eq("id", entryId).eq("portfolio_id", portfolioId).single();
   if (entryError || !entry) throw new Error("Cash activity entry not found.");
 
   const reversal = entry.direction === "IN" ? -Number(entry.amount) : Number(entry.amount);
   const newBalance = Number(portfolio.cash_balance) + reversal;
   if (newBalance < 0) throw new Error("Deleting this entry would make cash balance negative. Edit or adjust other entries first.");
 
+  // Archive first so it can be restored
+  await supabase.from("cash_ledger_archive").insert({
+    original_id: entry.id,
+    portfolio_id: entry.portfolio_id,
+    amount: entry.amount,
+    direction: entry.direction,
+    reason: entry.reason,
+    effective_at: entry.effective_at,
+  });
+
   const { error: deleteError } = await supabase.from("cash_ledger").delete().eq("id", entryId).eq("portfolio_id", portfolioId);
   if (deleteError) throw new Error(deleteError.message);
+
+  const { error: updateError } = await supabase.from("portfolios").update({ cash_balance: newBalance }).eq("id", portfolioId).eq("user_id", user.id);
+  if (updateError) throw new Error(updateError.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
+export async function restoreCashActivity(archiveId: string, portfolioId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in.");
+
+  const { data: portfolio, error: portfolioError } = await supabase
+    .from("portfolios").select("id, cash_balance").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
+
+  const { data: archived, error: archiveError } = await supabase
+    .from("cash_ledger_archive").select("*").eq("id", archiveId).eq("portfolio_id", portfolioId).single();
+  if (archiveError || !archived) throw new Error("Archived entry not found.");
+
+  const reapply = archived.direction === "IN" ? Number(archived.amount) : -Number(archived.amount);
+  const newBalance = Number(portfolio.cash_balance) + reapply;
+  if (newBalance < 0) throw new Error("Restoring this entry would make cash balance negative.");
+
+  const { error: insertError } = await supabase.from("cash_ledger").insert({
+    portfolio_id: archived.portfolio_id,
+    amount: archived.amount,
+    direction: archived.direction,
+    reason: archived.reason,
+    effective_at: archived.effective_at,
+  });
+  if (insertError) throw new Error(insertError.message);
+
+  await supabase.from("cash_ledger_archive").delete().eq("id", archiveId).eq("portfolio_id", portfolioId);
 
   const { error: updateError } = await supabase.from("portfolios").update({ cash_balance: newBalance }).eq("id", portfolioId).eq("user_id", user.id);
   if (updateError) throw new Error(updateError.message);
