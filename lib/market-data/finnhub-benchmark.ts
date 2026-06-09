@@ -187,28 +187,66 @@ async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey, bu
   return bars.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-async function getStooqHistory(symbol: string): Promise<BenchmarkBar[]> {
-  try {
-    // Stooq uses SYMBOL.US for US-listed stocks; returns CSV newest-first
-    const stooqSymbol = `${symbol.trim().toUpperCase()}.US`;
-    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`;
+async function getTwelveDataHistory(symbol: string): Promise<BenchmarkBar[]> {
+  const apiKey = process.env.TWELVE_DATA_API_KEY;
+  if (!apiKey) return [];
 
-    const response = await fetch(url, { cache: "no-store" });
+  try {
+    const url = new URL("https://api.twelvedata.com/time_series");
+    url.searchParams.set("symbol", symbol.trim().toUpperCase());
+    url.searchParams.set("interval", "1day");
+    url.searchParams.set("outputsize", "5000");
+    url.searchParams.set("adjusted", "true");
+    url.searchParams.set("apikey", apiKey);
+    url.searchParams.set("format", "JSON");
+
+    const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
 
-    const csv = await response.text();
-    const lines = csv.trim().split("\n");
-    if (lines.length < 2) return [];
+    const data = await response.json() as { status?: string; values?: { datetime: string; close: string }[]; code?: number };
+    if (data.status !== "ok" || !Array.isArray(data.values) || data.values.length === 0) return [];
 
-    const bars: BenchmarkBar[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(",");
-      if (parts.length < 5) continue;
-      const date = parts[0].trim();
-      const close = Number(parts[4].trim());
-      if (!date || !Number.isFinite(close) || close <= 0) continue;
-      bars.push({ date, close, adjClose: close, source: "stooq" as const });
-    }
+    const bars: BenchmarkBar[] = data.values
+      .map((v) => {
+        const close = Number(v.close);
+        return { date: String(v.datetime).slice(0, 10), close, adjClose: close, source: "finnhub" as const };
+      })
+      .filter((b) => b.date.length > 0 && Number.isFinite(b.close) && b.close > 0);
+
+    return bars.sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}
+
+async function getAlphaVantageHistory(symbol: string): Promise<BenchmarkBar[]> {
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!apiKey) return [];
+
+  try {
+    const url = new URL("https://www.alphavantage.co/query");
+    url.searchParams.set("function", "TIME_SERIES_DAILY_ADJUSTED");
+    url.searchParams.set("symbol", symbol.trim().toUpperCase());
+    url.searchParams.set("outputsize", "full");
+    url.searchParams.set("apikey", apiKey);
+
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const data = await response.json() as Record<string, unknown>;
+    // Rate-limited or premium-only message
+    if (data["Information"] || data["Note"]) return [];
+
+    const series = data["Time Series (Daily)"] as Record<string, Record<string, string>> | undefined;
+    if (!series) return [];
+
+    const bars: BenchmarkBar[] = Object.entries(series)
+      .map(([date, vals]) => {
+        const adjClose = Number(vals["5. adjusted close"]);
+        const close = Number(vals["4. close"]);
+        return { date: date.slice(0, 10), close, adjClose, source: "fmp" as const };
+      })
+      .filter((b) => b.date.length > 0 && Number.isFinite(b.adjClose) && b.adjClose > 0);
 
     return bars.sort((a, b) => a.date.localeCompare(b.date));
   } catch {
@@ -235,9 +273,14 @@ export async function getBenchmarkHistory(
     bars = await getFinnhubCandleHistoryAsBars(symbol, range, bustCache);
   }
 
-  // Stooq fallback — free, no API key, covers all US-listed stocks
+  // Twelve Data fallback — 800 credits/day free, covers all US-listed stocks
   if (bars.length === 0) {
-    bars = filterRange(await getStooqHistory(symbol), range);
+    bars = filterRange(await getTwelveDataHistory(symbol), range);
+  }
+
+  // Alpha Vantage fallback — 25 req/day free, split-adjusted close
+  if (bars.length === 0) {
+    bars = filterRange(await getAlphaVantageHistory(symbol), range);
   }
 
   if (bars.length === 0) {

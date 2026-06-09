@@ -5,7 +5,7 @@ export type BenchmarkBar = {
   close: number;
   adjClose: number;
   volume?: number;
-  source: "fmp" | "finnhub" | "stooq";
+  source: "fmp" | "finnhub";
 };
 
 export type IndexedPoint = {

@@ -49,17 +49,44 @@ export async function GET(req: NextRequest) {
     results.finnhubCandle = { error: String(e) };
   }
 
-  // Stooq (no API key needed)
-  try {
-    const stooqSymbol = `${ticker}.US`;
-    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`;
-    const res = await fetch(url, { cache: "no-store" });
-    const csv = await res.text();
-    const lines = csv.trim().split("\n");
-    const dataLines = lines.slice(1).filter((l) => l.trim().length > 0);
-    results.stooq = { status: res.status, rows: dataLines.length, first: dataLines[dataLines.length - 1] ?? null, last: dataLines[0] ?? null };
-  } catch (e) {
-    results.stooq = { error: String(e) };
+  // Twelve Data
+  const twelveKey = process.env.TWELVE_DATA_API_KEY;
+  results.twelveDataKeySet = !!twelveKey;
+  if (twelveKey) {
+    try {
+      const url = new URL("https://api.twelvedata.com/time_series");
+      url.searchParams.set("symbol", ticker);
+      url.searchParams.set("interval", "1day");
+      url.searchParams.set("outputsize", "5");
+      url.searchParams.set("adjusted", "true");
+      url.searchParams.set("apikey", twelveKey);
+      url.searchParams.set("format", "JSON");
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      const body = await res.json() as { status?: string; values?: unknown[]; code?: number; message?: string };
+      results.twelveData = { status: res.status, apiStatus: body.status, rows: body.values?.length ?? 0, code: body.code, message: body.message };
+    } catch (e) {
+      results.twelveData = { error: String(e) };
+    }
+  }
+
+  // Alpha Vantage
+  const avKey = process.env.ALPHA_VANTAGE_API_KEY;
+  results.alphaVantageKeySet = !!avKey;
+  if (avKey) {
+    try {
+      const url = new URL("https://www.alphavantage.co/query");
+      url.searchParams.set("function", "TIME_SERIES_DAILY_ADJUSTED");
+      url.searchParams.set("symbol", ticker);
+      url.searchParams.set("outputsize", "compact");
+      url.searchParams.set("apikey", avKey);
+      const res = await fetch(url.toString(), { cache: "no-store" });
+      const body = await res.json() as Record<string, unknown>;
+      const series = body["Time Series (Daily)"] as Record<string, unknown> | undefined;
+      const note = body["Note"] ?? body["Information"];
+      results.alphaVantage = { status: res.status, rows: series ? Object.keys(series).length : 0, rateLimited: !!note, note: note ?? null };
+    } catch (e) {
+      results.alphaVantage = { error: String(e) };
+    }
   }
 
   return NextResponse.json(results);
