@@ -628,7 +628,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       if (!tx.traded_at || !tx.quantity) continue;
       const date = tx.traded_at.slice(0, 10);
       if (!txByTicker.has(tx.ticker)) txByTicker.set(tx.ticker, []);
-      txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.quantity), type: tx.transaction_type });
+      txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.quantity), type: (tx.transaction_type as string).toUpperCase() });
     }
 
     // Earliest BUY per ticker, for holdings that have no opened_at
