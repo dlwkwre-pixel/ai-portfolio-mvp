@@ -53,8 +53,8 @@ const TIMEFRAMES = [
 ];
 
 const CHART_MODES = [
-  { label: "Inv. Return", value: "twr" },
   { label: "Total Ret.", value: "return" },
+  { label: "Inv. Return", value: "twr" },
   { label: "Value $", value: "value" },
 ];
 
@@ -111,7 +111,7 @@ export default function PortfolioChartClient({
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("twr");
+  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("return");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
