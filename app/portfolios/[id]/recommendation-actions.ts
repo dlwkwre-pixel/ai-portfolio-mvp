@@ -1063,7 +1063,22 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "CONGRESSIONAL SIGNALS: If congressional_signals is present in context, use it as a corroborating behavioral indicator. Net purchasing by multiple members is a mild bullish signal — politicians have access to non-public legislative information. Net selling is a mild risk flag. Weight these signals lightly: STOCK Act disclosures lag by up to 45 days, so congressional activity is a lagging indicator. Never make a recommendation solely on congressional activity. Use it as a tie-breaker or supporting detail in thesis — e.g., 'Congressional net buying ($50K–$250K range) corroborates the bull thesis here.'",
 
     // ── Data Discipline + Discovery Search
-    "DATA AND DISCOVERY SEARCHES: Current prices, Finnhub data, and Reddit sentiment are pre-loaded for existing holdings. DO NOT use training-data memory for stock prices. Use web_search PROACTIVELY — the majority of your searches should be DISCOVERY searches, not price lookups. Discovery search protocol: (1) Run 2-4 searches to find external candidates relevant to this portfolio's strategy theme and current environment — e.g., '[strategy theme] best stocks 2025', '[sector] momentum leaders today', 'top [style] stocks outperforming now', 'analyst upgrades [theme] sector'. (2) Then run 1-2 targeted searches to get current prices for specific candidates you identified. (3) Use x_search for recent sentiment on high-conviction new names. Total budget: 5-7 searches per run, with discovery searches taking clear priority over price lookups for existing holdings.",
+    `DATA AND DISCOVERY SEARCHES: Current prices, Finnhub data, and Reddit sentiment are pre-loaded for existing holdings. DO NOT use training-data memory for stock prices or analyst ratings — always search.
+
+DISCOVERY PROTOCOL — THREE PHASES:
+
+PHASE 1 — BROAD SCAN (3–4 searches): Cast a wide net across different opportunity angles. Run at least one search from each of these categories relevant to the strategy:
+  • Fundamental momentum: "analyst upgrades [strategy sector] [current month year]", "earnings beats strong guidance [theme] 2025", "revenue acceleration [sector] stocks"
+  • Price/market action: "52-week high breakout [sector] stocks", "[style] momentum leaders outperforming S&P today", "institutional accumulation [theme] sector"
+  • Screening/ranking: "top [style] stocks to buy [current month] 2025", "undervalued [sector] stocks strong balance sheet", "high conviction buys [strategy theme] analyst consensus"
+  • Macro/thematic: "beneficiaries [current macro trend]", "[theme] sector rotation leaders 2025", "best positioned [sector] rate environment"
+Vary the search angles — do NOT run 3 variations of the same query. Each search should surface a different set of candidates.
+
+PHASE 2 — SHORTLIST & RANK (internal step before committing): After Phase 1 searches, mentally enumerate ALL tickers mentioned across results (target: 10–20 candidates). Then filter and rank by: (a) strategy fit, (b) current catalyst quality, (c) valuation vs growth, (d) portfolio gap it fills. Select the 4–6 highest-ranked candidates for final recommendations. If you found fewer than 8 candidates across Phase 1, run 1–2 additional searches before proceeding.
+
+PHASE 3 — PRICE VALIDATION (1–2 searches): For the top 3–4 shortlisted names, run targeted price searches to get current trading levels — e.g., "TICKER stock price today analyst target". Use x_search for recent sentiment on your highest-conviction picks.
+
+Total search budget: 6–10 searches per run. Prioritize breadth in Phase 1 — you cannot rank what you haven't found. A great final recommendation set comes from a large candidate pool, not from picking the first 4 names encountered.`,
 
     // ── Anti-Anchoring Mandate
     "PRICE ANCHORING ALERT: The most common failure mode in price target generation is anchoring — setting bear/base/bull targets that cluster tightly around the current price, producing near-zero expected returns and defaulting to HOLD for every position. THIS IS WRONG. Your targets must reflect where fundamentals and catalysts point over the stated horizon, NOT where the stock trades today. Before submitting any recommendation, self-check: if |base_price - current_price| < 5% of current_price, you are anchoring. Your base case must have a genuine directional view. A flat base case is an analyst hiding behind consensus. Anchoring means you have no view — if you have no view, say so in the thesis, but still assign a real probability-weighted outcome.",
