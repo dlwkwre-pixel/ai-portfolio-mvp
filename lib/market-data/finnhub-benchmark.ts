@@ -122,19 +122,19 @@ async function getFmpDividendAdjustedHistory(symbol: string, bustCache = false):
   url.searchParams.set("symbol", normalizedSymbol);
   url.searchParams.set("apikey", apiKey);
 
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    ...(bustCache ? { cache: "no-store" } : { next: { revalidate: 21600 } }),
-  });
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      ...(bustCache ? { cache: "no-store" } : { next: { revalidate: 21600 } }),
+    });
 
-  if (!response.ok) {
-    throw new Error(
-      `FMP benchmark history request failed for ${normalizedSymbol} with status ${response.status}.`
-    );
+    if (!response.ok) return [];
+
+    const payload = (await response.json()) as FmpHistoryResponse;
+    return parseFmpRows(extractFmpRows(payload));
+  } catch {
+    return [];
   }
-
-  const payload = (await response.json()) as FmpHistoryResponse;
-  return parseFmpRows(extractFmpRows(payload));
 }
 
 // FMP v3 endpoint — broader ticker coverage than the stable dividend-adjusted endpoint
@@ -164,14 +164,14 @@ async function getFmpV3History(symbol: string, bustCache = false): Promise<Bench
   }
 }
 
-async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey): Promise<BenchmarkBar[]> {
+async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey, bustCache = false): Promise<BenchmarkBar[]> {
   const toDate = new Date();
   // For MAX, go back 5 years; otherwise use the computed range start
   const fromDate = startDateForRange(range) ?? new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000);
   const fromUnix = Math.floor(fromDate.getTime() / 1000);
   const toUnix = Math.floor(toDate.getTime() / 1000);
 
-  const candles = await getFinnhubDailyCandles({ symbol, fromUnix, toUnix });
+  const candles = await getFinnhubDailyCandles({ symbol, fromUnix, toUnix, bustCache });
   if (!candles || candles.c.length === 0) return [];
 
   const bars: BenchmarkBar[] = [];
@@ -203,7 +203,7 @@ export async function getBenchmarkHistory(
 
   // Finnhub candle fallback — last resort when both FMP endpoints return nothing
   if (bars.length === 0) {
-    bars = await getFinnhubCandleHistoryAsBars(symbol, range);
+    bars = await getFinnhubCandleHistoryAsBars(symbol, range, bustCache);
   }
 
   if (bars.length === 0) {

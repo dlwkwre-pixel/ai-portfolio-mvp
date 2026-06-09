@@ -210,6 +210,7 @@ export async function getFinnhubDailyCandles(args: {
   symbol: string;
   fromUnix: number;
   toUnix: number;
+  bustCache?: boolean;
 }): Promise<FinnhubCandlesResponse | null> {
   const apiKey = getApiKey();
   const symbol = args.symbol.trim().toUpperCase();
@@ -231,7 +232,7 @@ export async function getFinnhubDailyCandles(args: {
   try {
     const response = await fetchWithRetry(url.toString(), {
       method: "GET",
-      next: { revalidate: 3600 },
+      ...(args.bustCache ? { cache: "no-store" } : { next: { revalidate: 3600 } }),
     });
     if (!response.ok) return null;
 
