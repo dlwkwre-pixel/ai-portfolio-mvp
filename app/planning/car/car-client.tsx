@@ -257,6 +257,9 @@ export default function CarClient({
   const [vinInput, setVinInput] = useState("");
   const [vinLoading, setVinLoading] = useState<"current" | "new" | null>(null);
   const [vinError, setVinError] = useState("");
+  const [mpgLoading, setMpgLoading] = useState<"current" | "new" | null>(null);
+  const [currentTrimOptions, setCurrentTrimOptions] = useState<{ text: string; mpg: number }[]>([]);
+  const [newTrimOptions, setNewTrimOptions] = useState<{ text: string; mpg: number }[]>([]);
 
   const activeScenario = scenarios.find((s) => s.id === activeId) ?? scenarios[0] ?? null;
   const showAnalysis = activeScenario != null || isEditing || showNewForm;
@@ -291,6 +294,33 @@ export default function CarClient({
     });
   }
 
+  async function lookupMpgDirect(target: "current" | "new", year: number, make: string, model: string) {
+    if (!year || !make || !model) return;
+    setMpgLoading(target);
+    try {
+      const res = await fetch(`/api/car/mpg?year=${year}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
+      const json = await res.json();
+      if (!res.ok || json.mpg == null) return;
+      const opts: { text: string; mpg: number }[] = Array.isArray(json.options) ? json.options : [];
+      if (target === "current") {
+        setField("current_mpg", Number(json.mpg));
+        setCurrentTrimOptions(opts.length > 1 ? opts : []);
+      } else {
+        setField("new_mpg", Number(json.mpg));
+        setNewTrimOptions(opts.length > 1 ? opts : []);
+      }
+    } catch { /* silent */ } finally {
+      setMpgLoading(null);
+    }
+  }
+
+  function lookupMpgFromForm(target: "current" | "new") {
+    const year  = target === "current" ? form.current_year  : form.new_year;
+    const make  = target === "current" ? form.current_make  : form.new_make;
+    const model = target === "current" ? form.current_model : form.new_model;
+    if (year && make && model) lookupMpgDirect(target, year, make, model);
+  }
+
   async function lookupVin(target: "current" | "new") {
     if (vinInput.length !== 17) { setVinError("VIN must be 17 characters"); return; }
     setVinLoading(target);
@@ -299,16 +329,21 @@ export default function CarClient({
       const res = await fetch(`/api/car/vin?vin=${encodeURIComponent(vinInput)}`);
       const json = await res.json();
       if (!res.ok) { setVinError(json.error ?? "Lookup failed"); return; }
+      const make  = json.make  ?? null;
+      const model = json.model ?? null;
+      const year  = json.year  ?? null;
       if (target === "current") {
-        if (json.make) setField("current_make", json.make);
-        if (json.model) setField("current_model", json.model);
-        if (json.year) setField("current_year", json.year);
+        if (make)  setField("current_make",  make);
+        if (model) setField("current_model", model);
+        if (year)  setField("current_year",  year);
       } else {
-        if (json.make) setField("new_make", json.make);
-        if (json.model) setField("new_model", json.model);
-        if (json.year) setField("new_year", json.year);
+        if (make)  setField("new_make",  make);
+        if (model) setField("new_model", model);
+        if (year)  setField("new_year",  year);
       }
       setVinInput("");
+      // Auto-fill MPG from EPA after VIN decode
+      if (make && model && year) lookupMpgDirect(target, year, make, model);
     } catch {
       setVinError("Lookup failed. Try again.");
     } finally {
@@ -421,12 +456,36 @@ export default function CarClient({
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
+                  <label style={labelStyle}>Make</label>
+                  <input style={inputStyle} value={form.current_make ?? ""} onChange={(e) => setField("current_make", e.target.value || null)} placeholder="Toyota" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Model</label>
+                  <input style={inputStyle} value={form.current_model ?? ""} onChange={(e) => setField("current_model", e.target.value || null)} placeholder="Camry" />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <div>
                   <label style={labelStyle}>Year</label>
                   <input style={inputStyle} type="number" min={1990} max={2030} value={form.current_year ?? ""} onChange={(e) => setField("current_year", e.target.value ? Number(e.target.value) : null)} placeholder="2020" />
                 </div>
                 <div>
-                  <label style={labelStyle}>MPG</label>
-                  <input style={inputStyle} type="number" min={1} max={200} value={form.current_mpg} onChange={(e) => setField("current_mpg", Number(e.target.value))} />
+                  <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>MPG</span>
+                    {form.current_year && form.current_make && form.current_model && (
+                      <button type="button" onClick={() => lookupMpgFromForm("current")} disabled={mpgLoading !== null} style={{ fontSize: "9px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
+                        {mpgLoading === "current" ? "Looking up…" : "Auto-fill"}
+                      </button>
+                    )}
+                  </label>
+                  <input style={inputStyle} type="number" min={1} max={200} value={form.current_mpg} onChange={(e) => { setField("current_mpg", Number(e.target.value)); setCurrentTrimOptions([]); }} />
+                  {currentTrimOptions.length > 0 && (
+                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { setField("current_mpg", Number(e.target.value)); setCurrentTrimOptions([]); }} defaultValue="">
+                      <option value="" disabled>Select trim…</option>
+                      {currentTrimOptions.map((o) => <option key={o.text} value={o.mpg}>{o.text} — {o.mpg} mpg</option>)}
+                    </select>
+                  )}
                 </div>
               </div>
               <div>
@@ -467,12 +526,36 @@ export default function CarClient({
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                 <div>
+                  <label style={labelStyle}>Make</label>
+                  <input style={inputStyle} value={form.new_make ?? ""} onChange={(e) => setField("new_make", e.target.value || null)} placeholder="Honda" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Model</label>
+                  <input style={inputStyle} value={form.new_model ?? ""} onChange={(e) => setField("new_model", e.target.value || null)} placeholder="CR-V" />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                <div>
                   <label style={labelStyle}>Year</label>
                   <input style={inputStyle} type="number" min={1990} max={2030} value={form.new_year ?? ""} onChange={(e) => setField("new_year", e.target.value ? Number(e.target.value) : null)} placeholder="2025" />
                 </div>
                 <div>
-                  <label style={labelStyle}>MPG</label>
-                  <input style={inputStyle} type="number" min={1} max={200} value={form.new_mpg} onChange={(e) => setField("new_mpg", Number(e.target.value))} />
+                  <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>MPG</span>
+                    {form.new_year && form.new_make && form.new_model && (
+                      <button type="button" onClick={() => lookupMpgFromForm("new")} disabled={mpgLoading !== null} style={{ fontSize: "9px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
+                        {mpgLoading === "new" ? "Looking up…" : "Auto-fill"}
+                      </button>
+                    )}
+                  </label>
+                  <input style={inputStyle} type="number" min={1} max={200} value={form.new_mpg} onChange={(e) => { setField("new_mpg", Number(e.target.value)); setNewTrimOptions([]); }} />
+                  {newTrimOptions.length > 0 && (
+                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { setField("new_mpg", Number(e.target.value)); setNewTrimOptions([]); }} defaultValue="">
+                      <option value="" disabled>Select trim…</option>
+                      {newTrimOptions.map((o) => <option key={o.text} value={o.mpg}>{o.text} — {o.mpg} mpg</option>)}
+                    </select>
+                  )}
                 </div>
               </div>
               <div>
