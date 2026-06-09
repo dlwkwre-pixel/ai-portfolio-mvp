@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS holding_lots (
   holding_id UUID NOT NULL REFERENCES holdings(id) ON DELETE CASCADE,
   portfolio_id UUID NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
   ticker TEXT NOT NULL,
-  lot_type TEXT NOT NULL DEFAULT 'BUY' CHECK (lot_type IN ('BUY', 'SELL')),
+  lot_type TEXT NOT NULL DEFAULT 'BUY' CHECK (lot_type IN ('BUY', 'SELL', 'DRIP')),
   purchased_at DATE NOT NULL,
   shares NUMERIC(18, 6) NOT NULL CHECK (shares > 0),
   price_per_share NUMERIC(18, 6) NOT NULL CHECK (price_per_share > 0),

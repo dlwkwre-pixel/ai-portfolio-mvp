@@ -8,7 +8,7 @@ export type HoldingLot = {
   holding_id: string;
   portfolio_id: string;
   ticker: string;
-  lot_type: "BUY" | "SELL";
+  lot_type: "BUY" | "SELL" | "DRIP";
   purchased_at: string;
   shares: number;
   price_per_share: number;
@@ -28,16 +28,16 @@ function fmt(n: number) {
 
 export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
   const [adding, setAdding] = useState(false);
-  const [lotType, setLotType] = useState<"BUY" | "SELL">("BUY");
+  const [lotType, setLotType] = useState<"BUY" | "SELL" | "DRIP">("BUY");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sorted = lots.slice().sort((a, b) => a.purchased_at.localeCompare(b.purchased_at));
-  const totalBuyShares = lots.filter((l) => l.lot_type === "BUY").reduce((s, l) => s + Number(l.shares), 0);
+  const totalBuyShares = lots.filter((l) => l.lot_type === "BUY" || l.lot_type === "DRIP").reduce((s, l) => s + Number(l.shares), 0);
   const totalSellShares = lots.filter((l) => l.lot_type === "SELL").reduce((s, l) => s + Number(l.shares), 0);
   const netShares = totalBuyShares - totalSellShares;
-  const totalCost = lots.filter((l) => l.lot_type === "BUY").reduce((s, l) => s + Number(l.shares) * Number(l.price_per_share), 0);
+  const totalCost = lots.filter((l) => l.lot_type === "BUY" || l.lot_type === "DRIP").reduce((s, l) => s + Number(l.shares) * Number(l.price_per_share), 0);
   const avgCost = totalBuyShares > 0 ? totalCost / totalBuyShares : 0;
 
   function handleAdd(formData: FormData) {
@@ -117,8 +117,12 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
                   <tr key={lot.id} className="border-b border-white/5 last:border-0 hover:bg-white/3 transition">
                     <td className="px-3 py-1.5 font-mono text-slate-300">{lot.purchased_at.slice(0, 10)}</td>
                     <td className="px-3 py-1.5">
-                      <span className={`rounded px-1 py-0.5 text-[10px] font-medium ${isSell ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400"}`}>
-                        {isSell ? "SELL" : "BUY"}
+                      <span className={`rounded px-1 py-0.5 text-[10px] font-medium ${
+                        isSell ? "bg-red-500/15 text-red-400"
+                        : lot.lot_type === "DRIP" ? "bg-blue-500/15 text-blue-400"
+                        : "bg-emerald-500/15 text-emerald-400"
+                      }`}>
+                        {lot.lot_type}
                       </span>
                     </td>
                     <td className={`px-3 py-1.5 text-right font-mono ${isSell ? "text-red-400" : "text-slate-300"}`}>
@@ -194,21 +198,24 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
           {/* Type toggle */}
           <div className="col-span-2 sm:col-span-4">
             <div className="flex w-fit rounded-lg border border-white/10 p-0.5 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setLotType("BUY")}
-                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "BUY" ? "bg-emerald-500/20 text-emerald-400" : "text-slate-500 hover:text-slate-300"}`}
-              >
+              <button type="button" onClick={() => setLotType("BUY")}
+                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "BUY" ? "bg-emerald-500/20 text-emerald-400" : "text-slate-500 hover:text-slate-300"}`}>
                 Buy
               </button>
-              <button
-                type="button"
-                onClick={() => setLotType("SELL")}
-                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "SELL" ? "bg-red-500/20 text-red-400" : "text-slate-500 hover:text-slate-300"}`}
-              >
+              <button type="button" onClick={() => setLotType("SELL")}
+                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "SELL" ? "bg-red-500/20 text-red-400" : "text-slate-500 hover:text-slate-300"}`}>
                 Sell
               </button>
+              <button type="button" onClick={() => setLotType("DRIP")}
+                className={`rounded-md px-3 py-1 font-medium transition ${lotType === "DRIP" ? "bg-blue-500/20 text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
+                Dividend
+              </button>
             </div>
+            {lotType === "DRIP" && (
+              <p className="mt-1 text-[10px] text-slate-500">
+                Dividend reinvested — adds shares at the reinvestment price. For cash dividends, use Add Cash Activity → Dividend.
+              </p>
+            )}
           </div>
 
           <div>
@@ -234,7 +241,7 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">
-              {lotType === "SELL" ? "Sell price/share" : "Buy price/share"}
+              {lotType === "SELL" ? "Sell price/share" : lotType === "DRIP" ? "Reinvestment price" : "Buy price/share"}
             </label>
             <input
               name="price_per_share"
@@ -257,9 +264,13 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
             <button
               type="submit"
               disabled={isPending}
-              className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60 transition ${lotType === "SELL" ? "bg-red-600 hover:bg-red-500" : "bg-blue-600 hover:bg-blue-500"}`}
+              className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-60 transition ${
+                lotType === "SELL" ? "bg-red-600 hover:bg-red-500"
+                : lotType === "DRIP" ? "bg-blue-600 hover:bg-blue-500"
+                : "bg-emerald-700 hover:bg-emerald-600"
+              }`}
             >
-              {isPending ? "Saving…" : `Save ${lotType === "SELL" ? "sell" : "buy"}`}
+              {isPending ? "Saving…" : `Save ${lotType === "SELL" ? "sell" : lotType === "DRIP" ? "dividend" : "buy"}`}
             </button>
             <button
               type="button"

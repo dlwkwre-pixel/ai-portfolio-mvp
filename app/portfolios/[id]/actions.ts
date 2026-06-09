@@ -628,7 +628,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     if (holdingsErr) return { success: false, error: `Holdings query failed: ${holdingsErr.message}` };
 
     // Group lots by holding_id; preserve lot_type for sell-aware share/cash calculations
-    type LotEntry = { date: string; shares: number; price: number; type: "BUY" | "SELL" };
+    type LotEntry = { date: string; shares: number; price: number; type: "BUY" | "SELL" | "DRIP" };
     const lotsByHoldingId = new Map<string, LotEntry[]>();
     for (const lot of lotsData ?? []) {
       const key = lot.holding_id as string;
@@ -637,7 +637,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
         date: (lot.purchased_at as string).slice(0, 10),
         shares: Number(lot.shares),
         price: Number(lot.price_per_share),
-        type: ((lot.lot_type as string | null) ?? "BUY").toUpperCase() as "BUY" | "SELL",
+        type: ((lot.lot_type as string | null) ?? "BUY").toUpperCase() as "BUY" | "SELL" | "DRIP",
       });
     }
 
@@ -661,7 +661,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       const lots = lotsByHoldingId.get(h.id) ?? [];
 
       if (lots.length > 0) {
-        const buyLots = lots.filter((l) => l.type === "BUY");
+        const buyLots = lots.filter((l) => l.type === "BUY" || l.type === "DRIP");
         if (buyLots.length === 0) {
           missingDate.push(h.ticker as string);
           continue;
@@ -754,7 +754,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
         const lotsOnDate = h.lots.filter((l) => l.date <= date);
         if (lotsOnDate.length === 0) return 0;
         const netShares = lotsOnDate.reduce(
-          (sum, l) => (l.type === "SELL" ? sum - l.shares : sum + l.shares),
+          (sum, l) => (l.type === "SELL" ? sum - l.shares : sum + l.shares), // DRIP adds shares same as BUY
           0
         );
         const lastLotDate = h.lots[h.lots.length - 1].date;
@@ -812,7 +812,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
           cashLedgerRows.push({
             portfolio_id: portfolioId,
             amount,
-            direction: lot.type === "SELL" ? "OUT" : "IN",
+            direction: lot.type === "SELL" ? "OUT" : "IN", // BUY and DRIP both treated as capital inflows
             reason: `${h.ticker} (Reconstructed)`,
             effective_at: new Date(lot.date + "T12:00:00Z").toISOString(),
           });
@@ -920,7 +920,7 @@ export async function createHoldingLot(formData: FormData): Promise<void> {
     throw new Error("Date, shares, and price per share are required.");
   }
   if (shares <= 0 || pricePerShare <= 0) throw new Error("Shares and price must be greater than 0.");
-  if (lotType !== "BUY" && lotType !== "SELL") throw new Error("Lot type must be BUY or SELL.");
+  if (!["BUY", "SELL", "DRIP"].includes(lotType)) throw new Error("Lot type must be BUY, SELL, or DRIP.");
 
   const { data: portfolio } = await supabase.from("portfolios")
     .select("id").eq("id", portfolioId).eq("user_id", user.id).single();
