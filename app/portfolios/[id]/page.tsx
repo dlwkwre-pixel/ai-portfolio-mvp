@@ -150,7 +150,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true }),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false }),
-    supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolio.id).order("effective_at", { ascending: false }).limit(8),
+    supabase.from("cash_ledger").select("*").eq("portfolio_id", portfolio.id).not("reason", "ilike", "%(Reconstructed)").order("effective_at", { ascending: false }).limit(8),
     supabase.from("strategies").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
     supabase.from("portfolio_strategy_assignments")
       .select(`*, strategies (id, name, description, style, risk_level), strategy_versions (id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct)`)

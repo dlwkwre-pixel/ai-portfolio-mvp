@@ -611,65 +611,65 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
     if (!portfolio) return { success: false, error: "Portfolio not found." };
 
+    // Use cost basis from holdings as source of truth; transactions are only for date resolution
     const [{ data: holdings, error: holdingsErr }, { data: txData }] = await Promise.all([
-      supabase.from("holdings").select("id, ticker, shares, opened_at").eq("portfolio_id", portfolioId),
+      supabase.from("holdings").select("id, ticker, shares, opened_at, average_cost_basis").eq("portfolio_id", portfolioId),
       supabase.from("portfolio_transactions")
-        .select("ticker, traded_at, transaction_type, quantity, gross_amount, price_per_share")
+        .select("ticker, traded_at, transaction_type")
         .eq("portfolio_id", portfolioId)
         .order("traded_at", { ascending: true }),
     ]);
 
     if (holdingsErr) return { success: false, error: `Holdings query failed: ${holdingsErr.message}` };
 
-    // Build per-ticker sorted transaction history for dynamic share calculation
-    type TxEntry = { date: string; shares: number; type: string };
-    const txByTicker = new Map<string, TxEntry[]>();
-    for (const tx of txData ?? []) {
-      if (!tx.traded_at || !tx.quantity) continue;
-      const date = tx.traded_at.slice(0, 10);
-      if (!txByTicker.has(tx.ticker)) txByTicker.set(tx.ticker, []);
-      txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.quantity), type: (tx.transaction_type as string).toUpperCase() });
-    }
-
-    // Earliest BUY per ticker, for holdings that have no opened_at
+    // Build earliest BUY date per ticker from transactions — used only for date resolution
     const firstBuyMap = new Map<string, string>();
-    for (const [ticker, txs] of txByTicker) {
-      const firstBuy = txs.find((t) => t.type === "BUY");
-      if (firstBuy) firstBuyMap.set(ticker, firstBuy.date);
+    for (const tx of txData ?? []) {
+      if (!tx.traded_at) continue;
+      if ((tx.transaction_type as string).toUpperCase() !== "BUY") continue;
+      const date = (tx.traded_at as string).slice(0, 10);
+      if (!firstBuyMap.has(tx.ticker as string)) firstBuyMap.set(tx.ticker as string, date);
     }
 
-    // Resolve each holding to a start date (opened_at → first BUY tx → skip)
-    // Also backfill opened_at on holdings that were missing it
-    const holdingFallback = new Map<string, { shares: number; openedAt: string }>();
+    // Resolve each holding: opened_at → first BUY tx date → skip
+    type HoldingEntry = { id: string; ticker: string; shares: number; openedAt: string; costBasis: number };
+    const holdingEntries: HoldingEntry[] = [];
+    const missingDate: string[] = [];
+
     for (const h of holdings ?? []) {
       if (!h.shares || Number(h.shares) <= 0) continue;
       const resolvedDate = h.opened_at
-        ? new Date(h.opened_at as string).toISOString().slice(0, 10)
+        ? (h.opened_at as string).slice(0, 10)
         : firstBuyMap.get(h.ticker as string) ?? null;
-      if (!resolvedDate) continue;
-      if (!h.opened_at) {
-        await supabase.from("holdings").update({ opened_at: resolvedDate }).eq("id", h.id).eq("portfolio_id", portfolioId).then(() => {});
+
+      if (!resolvedDate) {
+        missingDate.push(h.ticker as string);
+        continue;
       }
-      holdingFallback.set(h.ticker as string, { shares: Number(h.shares), openedAt: resolvedDate });
+      if (!h.opened_at) {
+        await supabase.from("holdings").update({ opened_at: resolvedDate })
+          .eq("id", h.id).eq("portfolio_id", portfolioId);
+      }
+      holdingEntries.push({
+        id: h.id,
+        ticker: h.ticker as string,
+        shares: Number(h.shares),
+        openedAt: resolvedDate,
+        costBasis: Number(h.average_cost_basis ?? 0),
+      });
     }
 
-    // All tickers to reconstruct: union of current holdings + tickers with transaction history
-    const allTickers = new Set([...holdingFallback.keys(), ...txByTicker.keys()]);
-    const holdingsCount = (holdings ?? []).filter((h) => h.shares && Number(h.shares) > 0).length;
-    const txCount = txData?.length ?? 0;
-    if (allTickers.size === 0) {
+    if (holdingEntries.length === 0) {
       return {
         success: false,
-        error: `No purchase dates found. Holdings: ${holdingsCount}, transactions: ${txCount}. Open each holding and set a purchase date, or log transactions via the transaction history tab.`,
+        error: `No holdings with purchase dates. Missing: ${missingDate.join(", ")}. Open each holding and set a purchase date.`,
       };
     }
 
-    // Fetch price history for all tickers in parallel
+    // Fetch price history for all resolved tickers
+    const tickers = [...new Set(holdingEntries.map((h) => h.ticker))];
     const priceResults = await Promise.allSettled(
-      [...allTickers].map(async (ticker) => ({
-        ticker,
-        bars: await getBenchmarkHistory(ticker, "MAX", false),
-      }))
+      tickers.map(async (ticker) => ({ ticker, bars: await getBenchmarkHistory(ticker, "MAX", false) }))
     );
 
     const priceMap = new Map<string, Map<string, number>>();
@@ -678,83 +678,50 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     for (const r of priceResults) {
       if (r.status === "fulfilled" && r.value.bars.length > 0) {
         const m = new Map<string, number>();
-        for (const bar of r.value.bars) {
-          m.set(bar.date, bar.adjClose > 0 ? bar.adjClose : bar.close);
-        }
+        for (const bar of r.value.bars) m.set(bar.date, bar.adjClose > 0 ? bar.adjClose : bar.close);
         priceMap.set(r.value.ticker, m);
         successfulTickers.push(r.value.ticker);
       } else {
-        const ticker = r.status === "fulfilled" ? r.value.ticker : "unknown";
-        failedTickers.push(ticker);
+        failedTickers.push(r.status === "fulfilled" ? r.value.ticker : "unknown");
       }
     }
     if (successfulTickers.length === 0) {
-      return { success: false, error: `No price history available. Failed tickers: ${failedTickers.join(", ")}. Check that FMP_API_KEY is set in Vercel environment variables.` };
+      return { success: false, error: `No price history available. Failed: ${failedTickers.join(", ")}. Check FMP_API_KEY.` };
     }
 
     function priceOn(m: Map<string, number>, targetDate: string): number | null {
       for (let i = 0; i <= 7; i++) {
         const d = new Date(targetDate + "T12:00:00Z");
         d.setDate(d.getDate() - i);
-        if (m.has(d.toISOString().slice(0, 10))) return m.get(d.toISOString().slice(0, 10))!;
+        const key = d.toISOString().slice(0, 10);
+        if (m.has(key)) return m.get(key)!;
       }
       return null;
     }
 
-    // sharesOnDate: use transaction history if available, otherwise static holding shares
-    function sharesOnDate(ticker: string, date: string): number {
-      const txs = txByTicker.get(ticker);
-      if (txs && txs.length > 0) {
-        return txs
-          .filter((t) => t.date <= date)
-          .reduce((acc, t) => (t.type === "BUY" ? acc + t.shares : acc - t.shares), 0);
-      }
-      const fb = holdingFallback.get(ticker);
-      if (fb && date >= fb.openedAt) return fb.shares;
-      return 0;
-    }
-
-    // Determine earliest date to start the chart
-    const allDates: string[] = [];
-    for (const [, txs] of txByTicker) {
-      const first = txs.find((t) => t.type === "BUY");
-      if (first) allDates.push(first.date);
-    }
-    for (const [, fb] of holdingFallback) allDates.push(fb.openedAt);
-    if (allDates.length === 0) return { success: false, error: "No purchase dates found after resolving all sources." };
-
-    const earliest = allDates.reduce((min, d) => (d < min ? d : min));
+    // Date range: earliest opened_at → today, weekly snapshots only
+    const earliest = holdingEntries.reduce((min, h) => (h.openedAt < min ? h.openedAt : min), holdingEntries[0].openedAt);
     const today = new Date().toISOString().slice(0, 10);
-
-    // Build snapshot dates: every transaction date + weekly thereafter
-    // Transaction-date snapshots give the TWR formula accurate sub-period boundaries
-    // so each purchase is treated as a separate period, preventing Modified Dietz distortion
-    const dateSet = new Set<string>();
-    for (const tx of txData ?? []) {
-      if (tx.traded_at) {
-        const d = (tx.traded_at as string).slice(0, 10);
-        if (d >= earliest && d <= today) dateSet.add(d);
-      }
-    }
+    const dates: string[] = [];
     const cur = new Date(earliest + "T12:00:00Z");
     while (cur.toISOString().slice(0, 10) <= today) {
-      dateSet.add(cur.toISOString().slice(0, 10));
+      dates.push(cur.toISOString().slice(0, 10));
       cur.setDate(cur.getDate() + 7);
     }
-    dateSet.add(today);
-    const dates = [...dateSet].sort();
+    if (dates[dates.length - 1] !== today) dates.push(today);
 
+    // Build snapshots: static shares from holdings table, active from openedAt onwards
     const snapshotRows: { portfolio_id: string; total_value: number; cash_balance: number; snapshot_date: string; notes: string }[] = [];
     for (const date of dates) {
       let total = 0;
       let hasData = false;
-      for (const ticker of successfulTickers) {
-        const shares = sharesOnDate(ticker, date);
-        if (shares <= 0) continue;
-        const m = priceMap.get(ticker);
+      for (const h of holdingEntries) {
+        if (!successfulTickers.includes(h.ticker)) continue;
+        if (date < h.openedAt) continue;
+        const m = priceMap.get(h.ticker);
         if (!m) continue;
         const p = priceOn(m, date);
-        if (p && p > 0) { total += shares * p; hasData = true; }
+        if (p && p > 0) { total += h.shares * p; hasData = true; }
       }
       if (hasData && total > 0) {
         snapshotRows.push({
@@ -762,37 +729,26 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
           total_value: Math.round(total * 100) / 100,
           cash_balance: 0,
           snapshot_date: new Date(date + "T20:00:00Z").toISOString(),
-          notes: "Reconstructed from transaction history",
+          notes: "Reconstructed from holdings",
         });
       }
     }
-    if (snapshotRows.length === 0) return { success: false, error: "No price data found for the relevant dates. The tickers may not have FMP history coverage." };
+    if (snapshotRows.length === 0) return { success: false, error: "No price data found. Tickers may not have FMP history coverage." };
 
-    // Build cash_ledger rows from actual transactions so TWR strips out new purchases.
-    // Amount priority: gross_amount → price_per_share × quantity → FMP price on trade date
+    // Cash flows: one IN per holding = shares × average_cost_basis at purchase date
+    // This tells Modified Dietz how much capital was deployed, so TWR reflects performance not deposits
     const cashLedgerRows: { portfolio_id: string; amount: number; direction: string; reason: string; effective_at: string }[] = [];
-    for (const tx of txData ?? []) {
-      if (!tx.traded_at) continue;
-      const txType = (tx.transaction_type as string).toUpperCase();
-      const qty = Number(tx.quantity ?? 0);
-      if (qty <= 0) continue;
-
-      let amount = Number(tx.gross_amount ?? 0) || qty * Number(tx.price_per_share ?? 0);
-      if (amount <= 0) {
-        const pm = priceMap.get(tx.ticker as string);
-        if (pm) {
-          const p = priceOn(pm, (tx.traded_at as string).slice(0, 10));
-          if (p) amount = qty * p;
-        }
-      }
+    for (const h of holdingEntries) {
+      if (!successfulTickers.includes(h.ticker)) continue;
+      if (h.costBasis <= 0) continue;
+      const amount = Math.round(h.shares * h.costBasis * 100) / 100;
       if (amount <= 0) continue;
-
       cashLedgerRows.push({
         portfolio_id: portfolioId,
-        amount: Math.round(amount * 100) / 100,
-        direction: txType === "BUY" ? "IN" : "OUT",
-        reason: `${tx.ticker} ${txType === "BUY" ? "purchase" : "sale"} (reconstructed)`,
-        effective_at: tx.traded_at as string,
+        amount,
+        direction: "IN",
+        reason: `${h.ticker} (Reconstructed)`,
+        effective_at: new Date(h.openedAt + "T12:00:00Z").toISOString(),
       });
     }
 
@@ -802,21 +758,22 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
 
     if (cashLedgerRows.length > 0) {
       const { error: cashErr } = await supabase.from("cash_ledger").insert(cashLedgerRows);
-      if (cashErr) return { success: false, error: `Cash flow insert failed: ${cashErr.message}. Schema may be missing a required field.` };
+      if (cashErr) return { success: false, error: `Cash flow insert failed: ${cashErr.message}` };
     }
 
     const { error: insertErr } = await supabase.from("portfolio_snapshots").insert(snapshotRows);
     if (insertErr) return { success: false, error: `Insert failed: ${insertErr.message}` };
 
-    // Report which current holdings were excluded (no date + no transactions)
-    const allHoldingTickers = (holdings ?? []).map((h) => (h.ticker as string));
-    const missingFromChart = allHoldingTickers.filter((t) => !successfulTickers.includes(t));
+    const allHoldingTickers = (holdings ?? []).map((h) => h.ticker as string);
+    const missingFromChart = allHoldingTickers.filter(
+      (t) => missingDate.includes(t) || !successfulTickers.includes(t)
+    );
 
     revalidatePath(`/portfolios/${portfolioId}`);
     return {
       success: true,
       inserted: snapshotRows.length,
-      tickers: successfulTickers,
+      tickers: successfulTickers.filter((t) => holdingEntries.some((h) => h.ticker === t)),
       cashFlows: cashLedgerRows.length,
       missingFromChart,
     };
