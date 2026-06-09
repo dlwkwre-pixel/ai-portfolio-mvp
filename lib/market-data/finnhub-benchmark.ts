@@ -1,4 +1,4 @@
-import { getFinnhubQuote } from "./finnhub";
+import { getFinnhubQuote, getFinnhubDailyCandles } from "./finnhub";
 import type { BenchmarkBar, IndexedPoint, RangeKey } from "./type";
 
 type FmpHistoryRow = {
@@ -147,6 +147,29 @@ async function getFmpDividendAdjustedHistory(symbol: string): Promise<BenchmarkB
   return bars;
 }
 
+async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey): Promise<BenchmarkBar[]> {
+  const toDate = new Date();
+  // For MAX, go back 5 years; otherwise use the computed range start
+  const fromDate = startDateForRange(range) ?? new Date(Date.now() - 5 * 365.25 * 24 * 60 * 60 * 1000);
+  const fromUnix = Math.floor(fromDate.getTime() / 1000);
+  const toUnix = Math.floor(toDate.getTime() / 1000);
+
+  const candles = await getFinnhubDailyCandles({ symbol, fromUnix, toUnix });
+  if (!candles || candles.c.length === 0) return [];
+
+  const bars: BenchmarkBar[] = [];
+  for (let i = 0; i < candles.t.length; i++) {
+    const close = candles.c[i];
+    if (!Number.isFinite(close) || close <= 0) continue;
+    const date = new Date(candles.t[i] * 1000).toISOString().slice(0, 10);
+    // Finnhub candles don't provide split-adjusted prices; use close as both fields.
+    // Acceptable for reconstruction purposes since we're computing relative returns.
+    bars.push({ date, close, adjClose: close, source: "finnhub" as const });
+  }
+
+  return bars.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function getBenchmarkHistory(
   symbol: string = "SPY",
   range: RangeKey = "1Y",
@@ -154,6 +177,11 @@ export async function getBenchmarkHistory(
 ): Promise<BenchmarkBar[]> {
   let bars = await getFmpDividendAdjustedHistory(symbol);
   bars = filterRange(bars, range);
+
+  // Fallback to Finnhub candles when FMP has no coverage for the ticker
+  if (bars.length === 0) {
+    bars = await getFinnhubCandleHistoryAsBars(symbol, range);
+  }
 
   if (bars.length === 0) {
     return bars;
