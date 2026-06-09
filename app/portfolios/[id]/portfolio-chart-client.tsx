@@ -39,6 +39,7 @@ type PortfolioChartClientProps = {
   startDateLabel: string | null;
   endDateLabel: string | null;
   hasEnoughSnapshots: boolean;
+  holdings: { ticker: string; opened_at: string | null }[];
 };
 
 const TIMEFRAMES = [
@@ -105,6 +106,7 @@ export default function PortfolioChartClient({
   startDateLabel,
   endDateLabel,
   hasEnoughSnapshots,
+  holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
   const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("twr");
@@ -368,7 +370,7 @@ export default function PortfolioChartClient({
           </>
         )}
         <span className="ml-auto">
-          <ResetPerformanceButton portfolioId={portfolioId} />
+          <ResetPerformanceButton portfolioId={portfolioId} holdings={holdings} />
         </span>
       </div>
     </div>

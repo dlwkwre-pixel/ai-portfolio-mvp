@@ -55,8 +55,8 @@ export default async function PortfolioChartSection({
     }
   }
 
-  // Fetch snapshots and cash flows in parallel
-  const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
+  // Fetch snapshots, cash flows, and holdings metadata in parallel
+  const [{ data: snapshots }, { data: cashFlows }, { data: holdingsMeta }] = await Promise.all([
     supabase
       .from("portfolio_snapshots")
       .select("snapshot_date, total_value")
@@ -67,6 +67,10 @@ export default async function PortfolioChartSection({
       .select("effective_at, direction, amount")
       .eq("portfolio_id", portfolioId)
       .order("effective_at", { ascending: true }),
+    supabase
+      .from("holdings")
+      .select("ticker, opened_at")
+      .eq("portfolio_id", portfolioId),
   ]);
 
   const comparison = await getBenchmarkComparison({
@@ -96,6 +100,7 @@ export default async function PortfolioChartSection({
       startDateLabel={comparison.startDateLabel}
       endDateLabel={comparison.endDateLabel}
       hasEnoughSnapshots={comparison.hasEnoughSnapshots}
+      holdings={(holdingsMeta ?? []).map((h) => ({ ticker: String(h.ticker), opened_at: h.opened_at as string | null }))}
     />
   );
 }
