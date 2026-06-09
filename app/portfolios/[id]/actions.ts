@@ -722,7 +722,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     // Fetch price history for all resolved tickers
     const tickers = [...new Set(holdingEntries.map((h) => h.ticker))];
     const priceResults = await Promise.allSettled(
-      tickers.map(async (ticker) => ({ ticker, bars: await getBenchmarkHistory(ticker, "MAX", false) }))
+      tickers.map(async (ticker) => ({ ticker, bars: await getBenchmarkHistory(ticker, "MAX", false, true) }))
     );
 
     const priceMap = new Map<string, Map<string, number>>();

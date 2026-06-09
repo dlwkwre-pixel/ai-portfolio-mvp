@@ -80,7 +80,33 @@ function extractFmpRows(payload: FmpHistoryResponse): FmpHistoryRow[] {
   return [];
 }
 
-async function getFmpDividendAdjustedHistory(symbol: string): Promise<BenchmarkBar[]> {
+function parseFmpRows(rows: FmpHistoryRow[]): BenchmarkBar[] {
+  return rows
+    .map((row) => {
+      const adjClose = toNumber(
+        row.adjClose ?? row.adjustedClose ?? row.close ?? row.price ?? 0
+      );
+      const close = toNumber(
+        row.close ?? row.price ?? row.adjClose ?? row.adjustedClose ?? 0
+      );
+      const volumeValue = row.volume == null ? undefined : toNumber(row.volume);
+      return {
+        date: String(row.date ?? "").slice(0, 10),
+        close,
+        adjClose,
+        volume: volumeValue,
+        source: "fmp" as const,
+      };
+    })
+    .filter((bar) => (
+      bar.date.length > 0 &&
+      Number.isFinite(bar.close) && bar.close > 0 &&
+      Number.isFinite(bar.adjClose) && bar.adjClose > 0
+    ))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function getFmpDividendAdjustedHistory(symbol: string, bustCache = false): Promise<BenchmarkBar[]> {
   const apiKey = process.env.FMP_API_KEY;
 
   if (!apiKey) {
@@ -88,10 +114,7 @@ async function getFmpDividendAdjustedHistory(symbol: string): Promise<BenchmarkB
   }
 
   const normalizedSymbol = symbol.trim().toUpperCase();
-
-  if (!normalizedSymbol) {
-    return [];
-  }
+  if (!normalizedSymbol) return [];
 
   const url = new URL(
     "https://financialmodelingprep.com/stable/historical-price-eod/dividend-adjusted"
@@ -101,7 +124,7 @@ async function getFmpDividendAdjustedHistory(symbol: string): Promise<BenchmarkB
 
   const response = await fetch(url.toString(), {
     method: "GET",
-    next: { revalidate: 21600 },
+    ...(bustCache ? { cache: "no-store" } : { next: { revalidate: 21600 } }),
   });
 
   if (!response.ok) {
@@ -111,40 +134,34 @@ async function getFmpDividendAdjustedHistory(symbol: string): Promise<BenchmarkB
   }
 
   const payload = (await response.json()) as FmpHistoryResponse;
-  const rows = extractFmpRows(payload);
+  return parseFmpRows(extractFmpRows(payload));
+}
 
-  const bars: BenchmarkBar[] = rows
-    .map((row) => {
-      const adjClose = toNumber(
-        row.adjClose ?? row.adjustedClose ?? row.close ?? row.price ?? 0
-      );
+// FMP v3 endpoint — broader ticker coverage than the stable dividend-adjusted endpoint
+async function getFmpV3History(symbol: string, bustCache = false): Promise<BenchmarkBar[]> {
+  const apiKey = process.env.FMP_API_KEY;
+  if (!apiKey) return [];
 
-      const close = toNumber(
-        row.close ?? row.price ?? row.adjClose ?? row.adjustedClose ?? 0
-      );
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  if (!normalizedSymbol) return [];
 
-      const volumeValue = row.volume == null ? undefined : toNumber(row.volume);
+  const url = new URL(
+    `https://financialmodelingprep.com/api/v3/historical-price-full/${encodeURIComponent(normalizedSymbol)}`
+  );
+  url.searchParams.set("apikey", apiKey);
 
-      return {
-        date: String(row.date ?? "").slice(0, 10),
-        close,
-        adjClose,
-        volume: volumeValue,
-        source: "fmp" as const,
-      };
-    })
-    .filter((bar) => {
-      return (
-        bar.date.length > 0 &&
-        Number.isFinite(bar.close) &&
-        bar.close > 0 &&
-        Number.isFinite(bar.adjClose) &&
-        bar.adjClose > 0
-      );
-    })
-    .sort((a, b) => a.date.localeCompare(b.date));
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      ...(bustCache ? { cache: "no-store" } : { next: { revalidate: 21600 } }),
+    });
+    if (!response.ok) return [];
 
-  return bars;
+    const payload = (await response.json()) as FmpHistoryResponse;
+    return parseFmpRows(extractFmpRows(payload));
+  } catch {
+    return [];
+  }
 }
 
 async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey): Promise<BenchmarkBar[]> {
@@ -173,12 +190,18 @@ async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey): P
 export async function getBenchmarkHistory(
   symbol: string = "SPY",
   range: RangeKey = "1Y",
-  includeLivePoint: boolean = true
+  includeLivePoint: boolean = true,
+  bustCache: boolean = false
 ): Promise<BenchmarkBar[]> {
-  let bars = await getFmpDividendAdjustedHistory(symbol);
+  let bars = await getFmpDividendAdjustedHistory(symbol, bustCache);
   bars = filterRange(bars, range);
 
-  // Fallback to Finnhub candles when FMP has no coverage for the ticker
+  // FMP v3 fallback — wider ticker coverage than the stable endpoint
+  if (bars.length === 0) {
+    bars = filterRange(await getFmpV3History(symbol, bustCache), range);
+  }
+
+  // Finnhub candle fallback — last resort when both FMP endpoints return nothing
   if (bars.length === 0) {
     bars = await getFinnhubCandleHistoryAsBars(symbol, range);
   }
