@@ -940,6 +940,33 @@ export async function createHoldingLot(formData: FormData): Promise<void> {
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+export async function updateHoldingLot(
+  lotId: string,
+  portfolioId: string,
+  lotType: string,
+  purchasedAt: string,
+  shares: number,
+  pricePerShare: number,
+): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  if (!["BUY", "SELL", "DRIP"].includes(lotType)) throw new Error("Invalid lot type.");
+  if (shares <= 0 || pricePerShare <= 0) throw new Error("Shares and price must be greater than 0.");
+
+  const { data: portfolio } = await supabase.from("portfolios")
+    .select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { error } = await supabase.from("holding_lots")
+    .update({ lot_type: lotType, purchased_at: purchasedAt, shares, price_per_share: pricePerShare })
+    .eq("id", lotId).eq("portfolio_id", portfolioId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
 export async function deleteHoldingLot(lotId: string, portfolioId: string): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
