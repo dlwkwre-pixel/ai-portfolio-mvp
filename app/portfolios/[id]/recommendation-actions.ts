@@ -1362,6 +1362,19 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   const context = await buildPortfolioAiContext(portfolioId, user.id);
   const activeAssignment = (context as any).strategy?.assignment ?? null;
 
+  // Empty portfolio — no existing holdings, all cash. Override the context note to focus on
+  // first-allocation construction rather than the default portfolio-management framing.
+  const holdingCount: number = (context as any).current_valuation?.total_positions ?? 0;
+  const firstPortfolioNote: string | null = holdingCount === 0
+    ? `FIRST PORTFOLIO BUILD: This portfolio has zero existing positions — it is entirely cash. Your entire mandate is building an initial allocation from scratch. Do NOT generate HOLD, TRIM, SELL, or scale_in recommendations — the user has no holdings to hold or trim.
+
+Output a starting portfolio of 4–8 BUY recommendations that together form a coherent first allocation. For each pick, justify: (a) why this security fits the assigned strategy style and risk level, (b) suggested initial sizing as a percentage of total capital (aim for 10–20% per position to leave room to scale into winners), and (c) how it contributes to diversification across sectors or factors.
+
+Your summary field should describe the portfolio construction rationale — what kind of portfolio you are building, what factors it bets on, and why the current macro regime supports this allocation. Do NOT reference "dominant factor bet" or "factor drift" (no history exists). Frame it as: "Building a [style] portfolio of [N] positions targeting [theme/thesis]. Initial allocation concentrates on [key factor]. Key risk is [X]."
+
+Run 3–4 discovery searches to identify the best current opportunities for this strategy. Do not default to obvious mega-cap names without checking whether there are higher-conviction opportunities available right now.`
+    : null;
+
   // Rate limit: 4 hours per portfolio, with bypass for meaningful changes
   const { data: lastCompletedRun } = await supabase
     .from("recommendation_runs")
@@ -1454,6 +1467,7 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
   })();
 
   const regimePrefixedNote = [
+    firstPortfolioNote,
     regimeContextStr,
     contextNote || null,
   ].filter(Boolean).join("\n\n") || undefined;
