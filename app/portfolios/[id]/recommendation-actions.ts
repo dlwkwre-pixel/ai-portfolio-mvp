@@ -1375,6 +1375,28 @@ Your summary field should describe the portfolio construction rationale — what
 Run 3–4 discovery searches to identify the best current opportunities for this strategy. Do not default to obvious mega-cap names without checking whether there are higher-conviction opportunities available right now.`
     : null;
 
+  // Sparse portfolio — 1–5 holdings with significant idle cash. The default prompt leaves
+  // discovery obligation vague; inject hard numbers so Grok actually rounds out the portfolio.
+  const totalValue: number = (context as any).current_valuation?.total_portfolio_value ?? 0;
+  const cashBalance: number = (context as any).current_valuation?.cash_balance ?? 0;
+  const cashPct: number = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
+  const strategyVersion = (context as any).strategy?.strategy_version ?? null;
+  const maxPosPct: number = strategyVersion?.max_position_pct ?? 20;
+  const minPosPct: number = strategyVersion?.min_position_pct ?? 5;
+  // How many positions does the strategy call for?
+  const impliedMinPositions = maxPosPct > 0 ? Math.floor(100 / maxPosPct) : 5;
+  const impliedMaxPositions = minPosPct > 0 ? Math.floor(100 / minPosPct) : 20;
+  const positionsNeeded = Math.max(0, impliedMinPositions - holdingCount);
+
+  const sparsePortfolioNote: string | null =
+    holdingCount >= 1 && holdingCount <= 5 && cashPct > 20 && positionsNeeded > 0
+      ? `SPARSE PORTFOLIO — ACTIVE BUILD PHASE: This portfolio has only ${holdingCount} position${holdingCount !== 1 ? "s" : ""} but ${cashPct.toFixed(0)}% of capital is idle in cash ($${Math.round(cashBalance).toLocaleString()}). The assigned strategy implies a target range of ${impliedMinPositions}–${impliedMaxPositions} positions (max_position_pct=${maxPosPct}%, min_position_pct=${minPosPct}%). The portfolio needs at least ${positionsNeeded} more position${positionsNeeded !== 1 ? "s" : ""} to be properly deployed.
+
+MANDATORY: You MUST recommend at least ${Math.min(positionsNeeded + 1, 4)} new BUY positions (in addition to covering existing holdings). These must be genuinely distinct names found through discovery searches, not vague placeholders. Run 3–4 discovery searches to identify the best current candidates for this strategy before finalizing new picks.
+
+For each new position, state: (a) specific sizing in dollars and percentage of total portfolio, (b) how it diversifies the existing holdings (different sector, factor, or geographic exposure), and (c) why this specific security ranks above cash in the current environment. Distributing idle cash across ${positionsNeeded}+ new positions is not optional — it is the primary action this run.`
+      : null;
+
   // Rate limit: 4 hours per portfolio, with bypass for meaningful changes
   const { data: lastCompletedRun } = await supabase
     .from("recommendation_runs")
@@ -1468,6 +1490,7 @@ Run 3–4 discovery searches to identify the best current opportunities for this
 
   const regimePrefixedNote = [
     firstPortfolioNote,
+    sparsePortfolioNote,
     regimeContextStr,
     contextNote || null,
   ].filter(Boolean).join("\n\n") || undefined;
