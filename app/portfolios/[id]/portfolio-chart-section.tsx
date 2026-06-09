@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 import PortfolioChartClient from "./portfolio-chart-client";
 
@@ -9,16 +8,21 @@ type PortfolioChartSectionProps = {
   portfolioId: string;
   benchmarkSymbol: string;
   cashBalance: number;
+  /** Pre-computed total portfolio value from the parent page — avoids a duplicate Finnhub batch. */
+  totalPortfolioValue?: number;
 };
 
 export default async function PortfolioChartSection({
   portfolioId,
   benchmarkSymbol,
   cashBalance,
+  totalPortfolioValue,
 }: PortfolioChartSectionProps) {
   const supabase = await createClient();
 
-  // Auto-snapshot: at most once every 4 hours per portfolio (free — valuation is already fetched for the page)
+  // Auto-snapshot: at most once every 4 hours.
+  // Use the totalPortfolioValue passed from the parent (already fetched via Finnhub) so we
+  // never make a second batch of Finnhub calls on the same page load.
   const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
   const { data: recentSnapshot } = await supabase
     .from("portfolio_snapshots")
@@ -29,21 +33,8 @@ export default async function PortfolioChartSection({
     .maybeSingle();
 
   if (!recentSnapshot) {
-    const { data: holdings } = await supabase
-      .from("holdings")
-      .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
-      .eq("portfolio_id", portfolioId);
-
-    const valuation = await getPortfolioValuation({
-      holdings: (holdings ?? []).map((h) => ({
-        id: h.id, ticker: h.ticker, company_name: h.company_name,
-        asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
-      })),
-      cashBalance,
-    });
-
-    // Skip snapshot if valuation is zero or invalid (e.g. all Finnhub prices missing)
-    const snapshotValue = valuation.total_portfolio_value;
+    // Use the pre-computed value if available; otherwise skip (avoids duplicate Finnhub batch)
+    const snapshotValue = totalPortfolioValue ?? 0;
     if (snapshotValue > 0 && Number.isFinite(snapshotValue)) {
       await supabase.from("portfolio_snapshots").insert({
         portfolio_id: portfolioId,
