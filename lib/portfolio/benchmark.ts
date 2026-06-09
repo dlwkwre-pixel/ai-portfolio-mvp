@@ -65,7 +65,12 @@ function sanitizeSnapshots(
 
   const ratio = first.total_value / median;
 
-  // Only flag extreme outliers (≥5× or ≤1/5× the subsequent median)
+  // Drop partial first snapshots where only a small slice of the portfolio
+  // existed yet (< 10% of the eventual median) — these are typically the
+  // first weekly reconstruction point when only 1-2 holdings had been purchased.
+  if (ratio < 0.1) return snapshots.slice(1);
+
+  // Drop extreme outliers (≥5× or ≤1/5× the subsequent median)
   if (ratio < 5 && ratio > 0.2) return snapshots;
 
   // Check whether a large cash flow explains the gap
@@ -299,6 +304,24 @@ export async function getBenchmarkComparison(args: {
       benchmark_return_pct: benchmarkReturn,
     };
   });
+
+  // Normalize both return lines to start at 0% so the chart always begins flat.
+  // The raw first-point return can be non-zero when the earliest snapshot's value
+  // doesn't exactly match the deployed capital (e.g. price differences between
+  // purchase dates and weekly reconstruction points).
+  if (chartData.length > 0) {
+    const returnOffset = chartData[0].portfolio_return_pct;
+    const twrOffset = chartData[0].portfolio_twr_pct;
+    if (Math.abs(returnOffset) > 0.001 || Math.abs(twrOffset) > 0.001) {
+      for (let i = 0; i < chartData.length; i++) {
+        chartData[i] = {
+          ...chartData[i],
+          portfolio_return_pct: chartData[i].portfolio_return_pct - returnOffset,
+          portfolio_twr_pct: chartData[i].portfolio_twr_pct - twrOffset,
+        };
+      }
+    }
+  }
 
   return {
     benchmarkSymbol,
