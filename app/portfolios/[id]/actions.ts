@@ -609,7 +609,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
   const [{ data: holdings }, { data: txData }] = await Promise.all([
     supabase.from("holdings").select("id, ticker, shares, opened_at").eq("portfolio_id", portfolioId),
     supabase.from("portfolio_transactions")
-      .select("ticker, traded_at, transaction_type, shares")
+      .select("ticker, traded_at, transaction_type, quantity")
       .eq("portfolio_id", portfolioId)
       .order("traded_at", { ascending: true }),
   ]);
@@ -618,10 +618,10 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
   type TxEntry = { date: string; shares: number; type: string };
   const txByTicker = new Map<string, TxEntry[]>();
   for (const tx of txData ?? []) {
-    if (!tx.traded_at || !tx.shares) continue;
+    if (!tx.traded_at || !tx.quantity) continue;
     const date = tx.traded_at.slice(0, 10);
     if (!txByTicker.has(tx.ticker)) txByTicker.set(tx.ticker, []);
-    txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.shares), type: tx.transaction_type });
+    txByTicker.get(tx.ticker)!.push({ date, shares: Number(tx.quantity), type: tx.transaction_type });
   }
 
   // Earliest BUY per ticker, for holdings that have no opened_at
@@ -641,7 +641,7 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
       : firstBuyMap.get(h.ticker as string) ?? null;
     if (!resolvedDate) continue;
     if (!h.opened_at) {
-      await supabase.from("holdings").update({ opened_at: resolvedDate }).eq("id", h.id).eq("portfolio_id", portfolioId);
+      await supabase.from("holdings").update({ opened_at: resolvedDate }).eq("id", h.id).eq("portfolio_id", portfolioId).then(() => {});
     }
     holdingFallback.set(h.ticker as string, { shares: Number(h.shares), openedAt: resolvedDate });
   }
