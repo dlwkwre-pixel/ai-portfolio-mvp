@@ -49,5 +49,18 @@ export async function GET(req: NextRequest) {
     results.finnhubCandle = { error: String(e) };
   }
 
+  // Stooq (no API key needed)
+  try {
+    const stooqSymbol = `${ticker}.US`;
+    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`;
+    const res = await fetch(url, { cache: "no-store" });
+    const csv = await res.text();
+    const lines = csv.trim().split("\n");
+    const dataLines = lines.slice(1).filter((l) => l.trim().length > 0);
+    results.stooq = { status: res.status, rows: dataLines.length, first: dataLines[dataLines.length - 1] ?? null, last: dataLines[0] ?? null };
+  } catch (e) {
+    results.stooq = { error: String(e) };
+  }
+
   return NextResponse.json(results);
 }

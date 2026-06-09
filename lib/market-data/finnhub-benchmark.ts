@@ -187,6 +187,35 @@ async function getFinnhubCandleHistoryAsBars(symbol: string, range: RangeKey, bu
   return bars.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+async function getStooqHistory(symbol: string): Promise<BenchmarkBar[]> {
+  try {
+    // Stooq uses SYMBOL.US for US-listed stocks; returns CSV newest-first
+    const stooqSymbol = `${symbol.trim().toUpperCase()}.US`;
+    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`;
+
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const csv = await response.text();
+    const lines = csv.trim().split("\n");
+    if (lines.length < 2) return [];
+
+    const bars: BenchmarkBar[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(",");
+      if (parts.length < 5) continue;
+      const date = parts[0].trim();
+      const close = Number(parts[4].trim());
+      if (!date || !Number.isFinite(close) || close <= 0) continue;
+      bars.push({ date, close, adjClose: close, source: "stooq" as const });
+    }
+
+    return bars.sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}
+
 export async function getBenchmarkHistory(
   symbol: string = "SPY",
   range: RangeKey = "1Y",
@@ -201,9 +230,14 @@ export async function getBenchmarkHistory(
     bars = filterRange(await getFmpV3History(symbol, bustCache), range);
   }
 
-  // Finnhub candle fallback — last resort when both FMP endpoints return nothing
+  // Finnhub candle fallback
   if (bars.length === 0) {
     bars = await getFinnhubCandleHistoryAsBars(symbol, range, bustCache);
+  }
+
+  // Stooq fallback — free, no API key, covers all US-listed stocks
+  if (bars.length === 0) {
+    bars = filterRange(await getStooqHistory(symbol), range);
   }
 
   if (bars.length === 0) {
