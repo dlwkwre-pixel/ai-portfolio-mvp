@@ -598,7 +598,7 @@ export async function resetPerformanceHistory(portfolioId: string): Promise<void
 }
 
 type ReconstructResult =
-  | { success: true; inserted: number; tickers: string[] }
+  | { success: true; inserted: number; tickers: string[]; cashFlows: number; missingFromChart: string[] }
   | { success: false; error: string };
 
 export async function reconstructPortfolioChart(portfolioId: string): Promise<ReconstructResult> {
@@ -758,19 +758,31 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     }
     if (snapshotRows.length === 0) return { success: false, error: "No price data found for the relevant dates. The tickers may not have FMP history coverage." };
 
-    // Build cash_ledger rows from actual transactions so TWR strips out new purchases
+    // Build cash_ledger rows from actual transactions so TWR strips out new purchases.
+    // Amount priority: gross_amount → price_per_share × quantity → FMP price on trade date
     const cashLedgerRows: { portfolio_id: string; amount: number; direction: string; reason: string; effective_at: string }[] = [];
     for (const tx of txData ?? []) {
       if (!tx.traded_at) continue;
-      const amount = Number(tx.gross_amount ?? 0) || Number(tx.quantity ?? 0) * Number(tx.price_per_share ?? 0);
-      if (amount <= 0) continue;
       const txType = (tx.transaction_type as string).toUpperCase();
+      const qty = Number(tx.quantity ?? 0);
+      if (qty <= 0) continue;
+
+      let amount = Number(tx.gross_amount ?? 0) || qty * Number(tx.price_per_share ?? 0);
+      if (amount <= 0) {
+        const pm = priceMap.get(tx.ticker as string);
+        if (pm) {
+          const p = priceOn(pm, (tx.traded_at as string).slice(0, 10));
+          if (p) amount = qty * p;
+        }
+      }
+      if (amount <= 0) continue;
+
       cashLedgerRows.push({
         portfolio_id: portfolioId,
         amount: Math.round(amount * 100) / 100,
         direction: txType === "BUY" ? "IN" : "OUT",
         reason: `${tx.ticker} ${txType === "BUY" ? "purchase" : "sale"} (reconstructed)`,
-        effective_at: tx.traded_at,
+        effective_at: tx.traded_at as string,
       });
     }
 
@@ -779,14 +791,25 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
     await supabase.from("portfolios").update({ cash_balance: 0 }).eq("id", portfolioId).eq("user_id", user.id);
 
     if (cashLedgerRows.length > 0) {
-      await supabase.from("cash_ledger").insert(cashLedgerRows).then(() => {});
+      const { error: cashErr } = await supabase.from("cash_ledger").insert(cashLedgerRows);
+      if (cashErr) return { success: false, error: `Cash flow insert failed: ${cashErr.message}. Schema may be missing a required field.` };
     }
 
     const { error: insertErr } = await supabase.from("portfolio_snapshots").insert(snapshotRows);
     if (insertErr) return { success: false, error: `Insert failed: ${insertErr.message}` };
 
+    // Report which current holdings were excluded (no date + no transactions)
+    const allHoldingTickers = (holdings ?? []).map((h) => (h.ticker as string));
+    const missingFromChart = allHoldingTickers.filter((t) => !successfulTickers.includes(t));
+
     revalidatePath(`/portfolios/${portfolioId}`);
-    return { success: true, inserted: snapshotRows.length, tickers: successfulTickers };
+    return {
+      success: true,
+      inserted: snapshotRows.length,
+      tickers: successfulTickers,
+      cashFlows: cashLedgerRows.length,
+      missingFromChart,
+    };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : "Unexpected error during reconstruction." };
   }

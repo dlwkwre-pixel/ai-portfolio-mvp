@@ -38,7 +38,10 @@ export default function ResetPerformanceButton({
     startTransition(async () => {
       const result = await reconstructPortfolioChart(portfolioId);
       if (result.success) {
-        setSuccessMsg(`Rebuilt from ${result.inserted} weekly snapshots across ${result.tickers.join(", ")}.`);
+        const missing = result.missingFromChart.length > 0
+          ? ` Missing (no purchase date): ${result.missingFromChart.join(", ")}.`
+          : "";
+        setSuccessMsg(`Rebuilt: ${result.inserted} snapshots, ${result.cashFlows} cash flows, tickers: ${result.tickers.join(", ")}.${missing}`);
         setMode("idle");
       } else {
         setError(result.error);
