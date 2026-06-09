@@ -14,6 +14,7 @@ type CashFlowRow = {
 
 export type BenchmarkChartPoint = {
   date: string;
+  portfolio_value: number;            // absolute portfolio value in dollars
   portfolio_return_pct: number;       // simple return (includes deposits)
   portfolio_twr_pct: number;          // time-weighted return (excludes deposits)
   benchmark_return_pct: number | null;
@@ -299,29 +300,12 @@ export async function getBenchmarkComparison(args: {
 
     return {
       date: toDisplayDate(snapshot.snapshot_date),
+      portfolio_value: snapshot.total_value,
       portfolio_return_pct: portfolioReturn,
       portfolio_twr_pct: twrUpToHere,
       benchmark_return_pct: benchmarkReturn,
     };
   });
-
-  // Normalize both return lines to start at 0% so the chart always begins flat.
-  // The raw first-point return can be non-zero when the earliest snapshot's value
-  // doesn't exactly match the deployed capital (e.g. price differences between
-  // purchase dates and weekly reconstruction points).
-  if (chartData.length > 0) {
-    const returnOffset = chartData[0].portfolio_return_pct;
-    const twrOffset = chartData[0].portfolio_twr_pct;
-    if (Math.abs(returnOffset) > 0.001 || Math.abs(twrOffset) > 0.001) {
-      for (let i = 0; i < chartData.length; i++) {
-        chartData[i] = {
-          ...chartData[i],
-          portfolio_return_pct: chartData[i].portfolio_return_pct - returnOffset,
-          portfolio_twr_pct: chartData[i].portfolio_twr_pct - twrOffset,
-        };
-      }
-    }
-  }
 
   return {
     benchmarkSymbol,

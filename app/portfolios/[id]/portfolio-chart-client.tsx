@@ -8,13 +8,9 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis, Area, AreaChart,
 } from "recharts";
 
-type Snapshot = {
-  date: string;
-  total_value: number;
-};
-
 type ChartDataPoint = {
   date: string;
+  portfolio_value: number;
   portfolio_return_pct: number;
   portfolio_twr_pct: number;
   benchmark_return_pct: number | null;
@@ -28,7 +24,6 @@ type StatItem = {
 
 type PortfolioChartClientProps = {
   portfolioId: string;
-  snapshots: Snapshot[];
   chartData: ChartDataPoint[];
   benchmarkSymbol: string;
   portfolioReturnPct: number | null;
@@ -96,7 +91,6 @@ const tooltipStyle = {
 
 export default function PortfolioChartClient({
   portfolioId,
-  snapshots,
   chartData,
   benchmarkSymbol,
   portfolioReturnPct,
@@ -116,32 +110,25 @@ export default function PortfolioChartClient({
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
 
-  const filteredSnapshots = useMemo(
-    () => filterByTimeframe(snapshots, selectedDays),
-    [snapshots, selectedDays]
-  );
-
   const filteredChartData = useMemo(
     () => filterByTimeframe(chartData, selectedDays),
     [chartData, selectedDays]
   );
 
   const valueChange = useMemo(() => {
-    if (filteredSnapshots.length < 2) return null;
-    const last = filteredSnapshots[filteredSnapshots.length - 1].total_value;
-    // Use net invested capital as the baseline so the % reflects actual gain/loss
-    // on money deployed. Falls back to first-snapshot diff for sub-period timeframes.
+    if (filteredChartData.length < 2) return null;
+    const last = filteredChartData[filteredChartData.length - 1].portfolio_value;
     const isAllTime = activeTimeframe === "All";
     const baseline = isAllTime && netInvested != null && netInvested > 0
       ? netInvested
-      : filteredSnapshots[0].total_value;
+      : filteredChartData[0].portfolio_value;
     const change = last - baseline;
     const pct = baseline > 0 ? (change / baseline) * 100 : 0;
     return { change, pct, isPositive: change >= 0 };
-  }, [filteredSnapshots, netInvested, activeTimeframe]);
+  }, [filteredChartData, netInvested, activeTimeframe]);
 
-  const currentValue = snapshots.length > 0
-    ? snapshots[snapshots.length - 1].total_value
+  const currentValue = chartData.length > 0
+    ? chartData[chartData.length - 1].portfolio_value
     : null;
 
   const isPositive = valueChange ? valueChange.isPositive : (portfolioReturnPct ?? 0) >= 0;
@@ -264,11 +251,11 @@ export default function PortfolioChartClient({
       )}
 
       {/* Charts */}
-      {snapshots.length < 2 ? (
+      {chartData.length < 2 ? (
         <div className="flex h-48 items-center justify-center rounded-xl border border-white/5 bg-white/2">
           <div className="text-center">
             <p className="text-sm text-slate-400">
-              {snapshots.length === 0
+              {chartData.length === 0
                 ? "Portfolio is being tracked. Check back tomorrow for your first data point."
                 : "Need at least 2 snapshots to show the chart. Come back tomorrow!"}
             </p>
@@ -277,8 +264,13 @@ export default function PortfolioChartClient({
         </div>
       ) : chartMode === "value" ? (
         <div className="h-56 min-w-0">
+          {filteredChartData.length < 2 ? (
+            <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
+              <p className="text-sm text-slate-400">No data for this timeframe.</p>
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={filteredSnapshots} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={isPositive ? "#34d399" : "#f87171"} stopOpacity={0.15} />
@@ -293,9 +285,10 @@ export default function PortfolioChartClient({
                 labelFormatter={(label) => compactDate(label)}
                 contentStyle={tooltipStyle}
               />
-              <Area type="monotone" dataKey="total_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+              <Area type="monotone" dataKey="portfolio_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </div>
       ) : chartMode === "return" ? (
         <div className="h-56 min-w-0">

@@ -77,10 +77,6 @@ export default async function PortfolioChartSection({
   return (
     <PortfolioChartClient
       portfolioId={portfolioId}
-      snapshots={(snapshots ?? []).map((s) => ({
-        date: s.snapshot_date,
-        total_value: Number(s.total_value),
-      }))}
       chartData={comparison.chartData}
       benchmarkSymbol={comparison.benchmarkSymbol}
       portfolioReturnPct={comparison.portfolioReturnPct}
