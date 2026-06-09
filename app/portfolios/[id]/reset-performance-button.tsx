@@ -72,18 +72,15 @@ export default function ResetPerformanceButton({
       <div style={{ maxWidth: "340px" }} className="flex flex-col gap-2 text-[11px]">
         <p className="text-slate-300 font-medium">Rebuild chart from purchase history</p>
 
-        {withDate.length > 0 && (
-          <div>
-            <p className="text-slate-400 mb-0.5">Will reconstruct weekly:</p>
-            <p className="text-emerald-400 font-mono">{withDate.map((h) => h.ticker).join(", ")}</p>
-          </div>
-        )}
+        <div>
+          <p className="text-slate-400 mb-0.5">Holdings to reconstruct:</p>
+          <p className="text-emerald-400 font-mono">{holdings.map((h) => h.ticker).join(", ")}</p>
+        </div>
 
         {missingDate.length > 0 && (
-          <div className="p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
-            <p className="text-yellow-400 font-medium mb-0.5">Missing purchase date:</p>
-            <p className="text-yellow-300 font-mono">{missingDate.map((h) => h.ticker).join(", ")}</p>
-            <p className="text-slate-400 mt-1">These won&apos;t appear in history. Edit each holding and set a purchase date to include them.</p>
+          <div className="p-2 rounded bg-slate-500/10 border border-slate-500/20">
+            <p className="text-slate-400 mb-0.5">No purchase date on file for: <span className="text-white font-mono">{missingDate.map((h) => h.ticker).join(", ")}</span></p>
+            <p className="text-slate-500">Purchase dates will be auto-filled from your transaction history. If there are no transactions for a ticker it will be skipped.</p>
           </div>
         )}
 

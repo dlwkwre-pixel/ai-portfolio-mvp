@@ -632,13 +632,18 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<{ 
   }
 
   // Resolve each holding to a start date (opened_at → first BUY tx → skip)
+  // Also backfill opened_at on holdings that were missing it
   const holdingFallback = new Map<string, { shares: number; openedAt: string }>();
   for (const h of holdings ?? []) {
     if (!h.shares || Number(h.shares) <= 0) continue;
-    const openedAt = h.opened_at
+    const resolvedDate = h.opened_at
       ? new Date(h.opened_at as string).toISOString().slice(0, 10)
       : firstBuyMap.get(h.ticker as string) ?? null;
-    if (openedAt) holdingFallback.set(h.ticker as string, { shares: Number(h.shares), openedAt });
+    if (!resolvedDate) continue;
+    if (!h.opened_at) {
+      await supabase.from("holdings").update({ opened_at: resolvedDate }).eq("id", h.id).eq("portfolio_id", portfolioId);
+    }
+    holdingFallback.set(h.ticker as string, { shares: Number(h.shares), openedAt: resolvedDate });
   }
 
   // All tickers to reconstruct: union of current holdings + tickers with transaction history
