@@ -9,7 +9,21 @@ import type { FinancialProfile } from "@/app/planning/planning-actions";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type PurchaseType = "cash" | "finance";
-type CarVerdict = "SMART_MOVE" | "MANAGEABLE" | "BUDGET_STRETCH" | "KEEP_CURRENT";
+type CarVerdict = "SMART_MOVE" | "MANAGEABLE" | "BUDGET_STRETCH" | "KEEP_CURRENT" | "FIRST_CAR";
+
+type VehicleData = {
+  photo_url?: string | null;
+  city_mpg?: number | null;
+  hwy_mpg?: number | null;
+  annual_fuel_cost?: number | null;
+  co2?: number | null;
+  drive?: string | null;
+  trany?: string | null;
+  fuel?: string | null;
+  engine?: string | null;
+  body_class?: string | null;
+  drive_type?: string | null;
+};
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -72,27 +86,32 @@ type CarComputed = {
   breakEvenChart: { month: number; currentCumCost: number; newCumCost: number }[];
 };
 
-function computeCar(inputs: CarScenario): CarComputed {
+function computeCar(
+  inputs: CarScenario,
+  opts?: { noCurrentCar?: boolean; applyTradeIn?: boolean }
+): CarComputed {
+  const noCurrentCar = opts?.noCurrentCar ?? false;
+  const applyTradeIn = opts?.applyTradeIn ?? true;
   const gasPrice   = Number(inputs.gas_price_per_gallon);
   const miles      = Number(inputs.miles_per_month);
   const isFinance  = inputs.purchase_type === "finance";
 
-  // ── Current vehicle ──
-  const curPayment   = Number(inputs.current_monthly_payment);
-  const curGas       = gasPerMonth(Number(inputs.current_mpg), miles, gasPrice);
-  const curInsurance = Number(inputs.current_monthly_insurance);
+  // ── Current vehicle (zeroed when no current car) ──
+  const curPayment   = noCurrentCar ? 0 : Number(inputs.current_monthly_payment);
+  const curGas       = noCurrentCar ? 0 : gasPerMonth(Number(inputs.current_mpg), miles, gasPrice);
+  const curInsurance = noCurrentCar ? 0 : Number(inputs.current_monthly_insurance);
   const curTotalMo   = curPayment + curGas + curInsurance;
-  const curValue     = Number(inputs.current_car_value);
-  const curLoan      = Number(inputs.current_loan_balance);
+  const curValue     = noCurrentCar ? 0 : Number(inputs.current_car_value);
+  const curLoan      = noCurrentCar ? 0 : Number(inputs.current_loan_balance);
   const curEquity    = Math.max(0, curValue - curLoan);
-  const tradeIn      = curEquity;
-  const privateSale  = Math.round(curEquity * 1.12); // ~12% premium over trade-in
-  const cur5yr       = curTotalMo * 60 + curValue * 0.005 * 5; // TCO: payments + 0.5%/yr maintenance
+  const tradeIn      = (!noCurrentCar && applyTradeIn) ? curEquity : 0;
+  const privateSale  = Math.round(curEquity * 1.12);
+  const cur5yr       = curTotalMo * 60 + curValue * 0.005 * 5;
 
   // ── New vehicle ──
   const newPrice     = Number(inputs.new_car_price);
-  const newDown      = isFinance ? Number(inputs.new_down_payment) : newPrice; // cash = full price down
-  const appliedDown  = newDown + tradeIn; // trade-in credit added to down
+  const newDown      = isFinance ? Number(inputs.new_down_payment) : newPrice;
+  const appliedDown  = newDown + tradeIn;
   const financedAmt  = isFinance ? Math.max(0, newPrice - appliedDown) : 0;
   const term         = Number(inputs.new_loan_term_months);
   const newRate      = Number(inputs.new_interest_rate);
@@ -110,10 +129,10 @@ function computeCar(inputs: CarScenario): CarComputed {
   const moDeltaPct   = curTotalMo > 0 ? (moDelta / curTotalMo) * 100 : 0;
   const tco5Delta    = new5yr - cur5yr;
 
-  // Break-even: month when cumulative new-car costs >= cumulative current-car costs (including upfront cost premium)
+  // Break-even chart
   const upfrontPremium = isFinance
-    ? Math.max(0, appliedDown - curEquity) // extra cash out of pocket vs. trade-in credit
-    : Math.max(0, newPrice - curEquity);
+    ? Math.max(0, appliedDown - (applyTradeIn ? curEquity : 0))
+    : Math.max(0, newPrice - (applyTradeIn ? curEquity : 0));
   let breakEvenMonth: number | null = null;
   const breakEvenChart: { month: number; currentCumCost: number; newCumCost: number }[] = [];
   let cumCur = 0, cumNew = upfrontPremium;
@@ -129,10 +148,15 @@ function computeCar(inputs: CarScenario): CarComputed {
   let verdictConfidence: string;
   const conditions: string[] = [];
 
-  if (moDelta <= -100) {
+  if (noCurrentCar) {
+    verdict = "FIRST_CAR";
+    verdictConfidence = "First Purchase";
+    conditions.push(`${fmt(newTotalMo)}/mo total transportation cost`);
+    if (isFinance && totalInterest > 0) conditions.push(`${fmt(Math.round(totalInterest))} total interest over the ${term}-month loan`);
+  } else if (moDelta <= -100) {
     verdict = "SMART_MOVE";
     verdictConfidence = "Saves Money";
-    conditions.push(`New car saves ${fmt(Math.abs(moDelta))}/mo — more efficient financing or lower running costs`);
+    conditions.push(`New car saves ${fmt(Math.abs(moDelta))}/mo — better loan terms or fuel economy`);
   } else if (moDeltaPct <= 10) {
     verdict = "MANAGEABLE";
     verdictConfidence = "Within Budget";
@@ -151,12 +175,14 @@ function computeCar(inputs: CarScenario): CarComputed {
 
   // ── FINN narrative ──
   let finnNarrative: string;
-  if (verdict === "SMART_MOVE") {
-    finnNarrative = `The math favors this switch. Your new car costs ${fmt(Math.abs(moDelta))}/mo less than what you're paying now — better loan terms, improved fuel economy, or both. Over 5 years that's ${fmtK(Math.abs(moDelta) * 60)} back in your pocket. The trade-in offsets ${fmtK(tradeIn)} of the purchase price.`;
+  if (verdict === "FIRST_CAR") {
+    finnNarrative = `At ${fmt(newTotalMo)}/mo, this is your baseline transportation cost${isFinance ? ` — ${fmt(Math.round(newPayment))} loan payment, ${fmt(Math.round(newGas))} in gas, and ${fmt(Math.round(newInsurance))} insurance` : ""}. Over 5 years, total ownership comes to ${fmtK(Math.round(new5yr))}${isFinance ? `, including ${fmt(Math.round(totalInterest))} in interest` : ""}. Make sure this fits comfortably within your monthly cash flow before signing.`;
+  } else if (verdict === "SMART_MOVE") {
+    finnNarrative = `The math favors this switch. Your new car costs ${fmt(Math.abs(moDelta))}/mo less than what you're paying now — better loan terms, improved fuel economy, or both. Over 5 years that's ${fmtK(Math.abs(moDelta) * 60)} back in your pocket.${tradeIn > 0 ? ` The trade-in offsets ${fmtK(tradeIn)} of the purchase price.` : ""}`;
   } else if (verdict === "MANAGEABLE") {
     finnNarrative = `This is a workable upgrade. Monthly costs increase by ${fmt(Math.abs(moDelta))} (${fmtPct(Math.abs(moDeltaPct))})${isFinance && totalInterest > 0 ? `, with ${fmt(Math.round(totalInterest))} in total interest over the ${term}-month loan` : ""}. The 5-year total cost of ownership is ${tco5Delta > 0 ? fmt(tco5Delta) + " more" : fmt(Math.abs(tco5Delta)) + " less"} than keeping your current car. Make sure the increase fits your cash flow before committing.`;
   } else if (verdict === "BUDGET_STRETCH") {
-    finnNarrative = `This purchase stretches your budget by ${fmtPct(moDeltaPct)}/mo. It's not impossible, but at ${fmt(newTotalMo)}/mo for the new car vs. ${fmt(curTotalMo)} today, you're taking on real cash flow risk. A larger down payment${tradeIn > 0 ? ` (your ${fmtK(tradeIn)} trade-in is already applied)` : ""} or a shorter loan term would change the picture. Run it with a lower price point to see what's comfortable.`;
+    finnNarrative = `This purchase stretches your budget by ${fmtPct(moDeltaPct)}/mo. It's not impossible, but at ${fmt(newTotalMo)}/mo for the new car vs. ${fmt(curTotalMo)} today, you're taking on real cash flow risk. A larger down payment${tradeIn > 0 ? ` (your ${fmtK(tradeIn)} trade-in is already applied)` : ""} or a shorter loan term would change the picture.`;
   } else {
     finnNarrative = `At ${fmt(newTotalMo)}/mo vs. ${fmt(curTotalMo)} today, this is a ${fmtPct(moDeltaPct)} jump in monthly transportation cost. Unless there's a specific need driving the upgrade, keeping your current vehicle is the stronger financial decision right now. If you do buy, consider waiting until your current loan is paid off — that ${fmtK(curPayment * 12)}/yr freed up changes the math significantly.`;
   }
@@ -189,6 +215,7 @@ const VERDICT_META: Record<CarVerdict, { label: string; color: string; bg: strin
   MANAGEABLE:     { label: "Manageable",    color: "oklch(0.72 0.20 38)",  bg: "color-mix(in oklch, oklch(0.72 0.20 38) 9%, transparent)",   border: "color-mix(in oklch, oklch(0.72 0.20 38) 25%, transparent)" },
   BUDGET_STRETCH: { label: "Budget Stretch",color: "oklch(0.78 0.17 70)",  bg: "color-mix(in oklch, oklch(0.78 0.17 70) 9%, transparent)",   border: "color-mix(in oklch, oklch(0.78 0.17 70) 22%, transparent)" },
   KEEP_CURRENT:   { label: "Keep Current",  color: "oklch(0.65 0.18 25)",  bg: "color-mix(in oklch, oklch(0.50 0.15 25) 10%, transparent)",  border: "color-mix(in oklch, oklch(0.50 0.15 25) 28%, transparent)" },
+  FIRST_CAR:      { label: "First Car",     color: "oklch(0.72 0.20 260)", bg: "color-mix(in oklch, oklch(0.55 0.18 260) 9%, transparent)",  border: "color-mix(in oklch, oklch(0.55 0.18 260) 28%, transparent)" },
 };
 
 const CAR_COLOR = "oklch(0.72 0.20 38)";
@@ -258,8 +285,12 @@ export default function CarClient({
   const [vinLoading, setVinLoading] = useState<"current" | "new" | null>(null);
   const [vinError, setVinError] = useState("");
   const [mpgLoading, setMpgLoading] = useState<"current" | "new" | null>(null);
-  const [currentTrimOptions, setCurrentTrimOptions] = useState<{ text: string; mpg: number }[]>([]);
-  const [newTrimOptions, setNewTrimOptions] = useState<{ text: string; mpg: number }[]>([]);
+  const [currentTrimOptions, setCurrentTrimOptions] = useState<{ id: string; text: string }[]>([]);
+  const [newTrimOptions, setNewTrimOptions] = useState<{ id: string; text: string }[]>([]);
+  const [currentCarData, setCurrentCarData] = useState<VehicleData | null>(null);
+  const [newCarData, setNewCarData] = useState<VehicleData | null>(null);
+  const [noCurrentCar, setNoCurrentCar] = useState(false);
+  const [applyTradeIn, setApplyTradeIn] = useState(true);
 
   const activeScenario = scenarios.find((s) => s.id === activeId) ?? scenarios[0] ?? null;
   const showAnalysis = activeScenario != null || isEditing || showNewForm;
@@ -270,8 +301,8 @@ export default function CarClient({
 
   const result = useMemo(() => {
     const s = { ...form, id: "", user_id: "", created_at: "", updated_at: "" };
-    return computeCar(s);
-  }, [form]);
+    return computeCar(s, { noCurrentCar, applyTradeIn });
+  }, [form, noCurrentCar, applyTradeIn]);
 
   const meta = VERDICT_META[result.verdict];
 
@@ -301,14 +332,53 @@ export default function CarClient({
       const res = await fetch(`/api/car/mpg?year=${year}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
       const json = await res.json();
       if (!res.ok || json.mpg == null) return;
-      const opts: { text: string; mpg: number }[] = Array.isArray(json.options) ? json.options : [];
+      const opts: { id: string; text: string }[] = Array.isArray(json.options) ? json.options : [];
+      const vdata: VehicleData = {
+        photo_url: json.photo_url ?? null,
+        city_mpg: json.city_mpg ?? null,
+        hwy_mpg: json.hwy_mpg ?? null,
+        annual_fuel_cost: json.annual_fuel_cost ?? null,
+        co2: json.co2 ?? null,
+        drive: json.drive ?? null,
+        trany: json.trany ?? null,
+        fuel: json.fuel ?? null,
+        engine: json.engine ?? null,
+      };
       if (target === "current") {
         setField("current_mpg", Number(json.mpg));
         setCurrentTrimOptions(opts.length > 1 ? opts : []);
+        setCurrentCarData(vdata);
       } else {
         setField("new_mpg", Number(json.mpg));
         setNewTrimOptions(opts.length > 1 ? opts : []);
+        setNewCarData(vdata);
       }
+    } catch { /* silent */ } finally {
+      setMpgLoading(null);
+    }
+  }
+
+  async function lookupMpgById(target: "current" | "new", id: string, text: string) {
+    setMpgLoading(target);
+    try {
+      const res = await fetch(`/api/car/mpg?vid=${id}`);
+      const json = await res.json();
+      if (!res.ok || json.mpg == null) return;
+      const vdata: VehicleData = {
+        photo_url: json.photo_url ?? null, city_mpg: json.city_mpg ?? null, hwy_mpg: json.hwy_mpg ?? null,
+        annual_fuel_cost: json.annual_fuel_cost ?? null, co2: json.co2 ?? null,
+        drive: json.drive ?? null, trany: json.trany ?? null, fuel: json.fuel ?? null, engine: json.engine ?? null,
+      };
+      if (target === "current") {
+        setField("current_mpg", Number(json.mpg));
+        setCurrentTrimOptions([]);
+        setCurrentCarData({ ...vdata });
+      } else {
+        setField("new_mpg", Number(json.mpg));
+        setNewTrimOptions([]);
+        setNewCarData({ ...vdata });
+      }
+      void text; // used in option label
     } catch { /* silent */ } finally {
       setMpgLoading(null);
     }
@@ -342,7 +412,17 @@ export default function CarClient({
         if (year)  setField("new_year",  year);
       }
       setVinInput("");
-      // Auto-fill MPG from EPA after VIN decode
+      // Store NHTSA meta; photo + MPG data filled after EPA chain
+      const vinData: VehicleData = {
+        body_class: json.body_class ?? null,
+        drive_type: json.drive_type ?? null,
+        engine: json.engine ?? null,
+        fuel: json.fuel_type ?? null,
+        trany: json.trany ?? null,
+      };
+      if (target === "current") setCurrentCarData(vinData);
+      else setNewCarData(vinData);
+      // Chain EPA MPG lookup
       if (make && model && year) lookupMpgDirect(target, year, make, model);
     } catch {
       setVinError("Lookup failed. Try again.");
@@ -439,9 +519,18 @@ export default function CarClient({
 
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
 
-              {/* Current vehicle */}
-              <p style={sectionLabel}>Current Vehicle</p>
+              {/* No current car toggle */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "var(--radius-sm)", background: noCurrentCar ? `color-mix(in oklch, ${CAR_COLOR} 8%, transparent)` : "transparent", border: `1px solid ${noCurrentCar ? `color-mix(in oklch, ${CAR_COLOR} 25%, transparent)` : "var(--border-subtle)"}` }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>I don&apos;t have a current car</span>
+                <button type="button" onClick={() => setNoCurrentCar(v => !v)} style={{ width: "32px", height: "18px", borderRadius: "99px", background: noCurrentCar ? CAR_COLOR : "var(--border)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.15s", flexShrink: 0 }}>
+                  <span style={{ position: "absolute", top: "2px", left: noCurrentCar ? "16px" : "2px", width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s", display: "block" }} />
+                </button>
+              </div>
 
+              {/* Current vehicle */}
+              {!noCurrentCar && <p style={sectionLabel}>Current Vehicle</p>}
+
+              {!noCurrentCar && (<>
               {/* VIN lookup for current */}
               <div>
                 <label style={labelStyle}>VIN lookup (optional)</label>
@@ -481,9 +570,9 @@ export default function CarClient({
                   </label>
                   <input style={inputStyle} type="number" min={1} max={200} value={form.current_mpg} onChange={(e) => { setField("current_mpg", Number(e.target.value)); setCurrentTrimOptions([]); }} />
                   {currentTrimOptions.length > 0 && (
-                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { setField("current_mpg", Number(e.target.value)); setCurrentTrimOptions([]); }} defaultValue="">
+                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { const opt = currentTrimOptions.find(o => o.id === e.target.value); if (opt) lookupMpgById("current", opt.id, opt.text); }} defaultValue="">
                       <option value="" disabled>Select trim…</option>
-                      {currentTrimOptions.map((o) => <option key={o.text} value={o.mpg}>{o.text} — {o.mpg} mpg</option>)}
+                      {currentTrimOptions.map((o) => <option key={o.id} value={o.id}>{o.text}</option>)}
                     </select>
                   )}
                 </div>
@@ -508,7 +597,22 @@ export default function CarClient({
                 <input style={inputStyle} type="number" min={0} value={form.current_monthly_insurance} onChange={(e) => setField("current_monthly_insurance", Number(e.target.value))} />
               </div>
 
+              {/* Car photo for current */}
+              {currentCarData?.photo_url && (
+                <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--border-subtle)", background: "var(--bg-elevated)" }}>
+                  <img src={currentCarData.photo_url} alt={[form.current_year, form.current_make, form.current_model].filter(Boolean).join(" ")} style={{ width: "100%", height: "110px", objectFit: "cover", display: "block" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {(currentCarData.engine || currentCarData.drive || currentCarData.drive_type) && (
+                    <div style={{ padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {[currentCarData.engine, currentCarData.drive ?? currentCarData.drive_type, currentCarData.fuel].filter(Boolean).map((v) => (
+                        <span key={v} style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
+              </>)}
 
               {/* New vehicle */}
               <p style={sectionLabel}>New Vehicle</p>
@@ -551,9 +655,9 @@ export default function CarClient({
                   </label>
                   <input style={inputStyle} type="number" min={1} max={200} value={form.new_mpg} onChange={(e) => { setField("new_mpg", Number(e.target.value)); setNewTrimOptions([]); }} />
                   {newTrimOptions.length > 0 && (
-                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { setField("new_mpg", Number(e.target.value)); setNewTrimOptions([]); }} defaultValue="">
+                    <select style={{ ...inputStyle, marginTop: "4px", fontSize: "11px" }} onChange={(e) => { const opt = newTrimOptions.find(o => o.id === e.target.value); if (opt) lookupMpgById("new", opt.id, opt.text); }} defaultValue="">
                       <option value="" disabled>Select trim…</option>
-                      {newTrimOptions.map((o) => <option key={o.text} value={o.mpg}>{o.text} — {o.mpg} mpg</option>)}
+                      {newTrimOptions.map((o) => <option key={o.id} value={o.id}>{o.text}</option>)}
                     </select>
                   )}
                 </div>
@@ -586,6 +690,33 @@ export default function CarClient({
                 <label style={labelStyle}>Monthly insurance (estimate)</label>
                 <input style={inputStyle} type="number" min={0} value={form.new_monthly_insurance} onChange={(e) => setField("new_monthly_insurance", Number(e.target.value))} />
               </div>
+
+              {/* Apply trade-in toggle (only when keeping current car) */}
+              {!noCurrentCar && result.currentEquity > 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "var(--radius-sm)", background: applyTradeIn ? `color-mix(in oklch, ${CAR_COLOR} 6%, transparent)` : "transparent", border: `1px solid ${applyTradeIn ? `color-mix(in oklch, ${CAR_COLOR} 20%, transparent)` : "var(--border-subtle)"}` }}>
+                  <div>
+                    <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Apply trade-in ({fmt(result.currentEquity)})</div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>Keep current car instead</div>
+                  </div>
+                  <button type="button" onClick={() => setApplyTradeIn(v => !v)} style={{ width: "32px", height: "18px", borderRadius: "99px", background: applyTradeIn ? CAR_COLOR : "var(--border)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.15s", flexShrink: 0 }}>
+                    <span style={{ position: "absolute", top: "2px", left: applyTradeIn ? "16px" : "2px", width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s", display: "block" }} />
+                  </button>
+                </div>
+              )}
+
+              {/* Car photo for new */}
+              {newCarData?.photo_url && (
+                <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--border-subtle)", background: "var(--bg-elevated)" }}>
+                  <img src={newCarData.photo_url} alt={[form.new_year, form.new_make, form.new_model].filter(Boolean).join(" ")} style={{ width: "100%", height: "110px", objectFit: "cover", display: "block" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  {(newCarData.engine || newCarData.drive || newCarData.drive_type) && (
+                    <div style={{ padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {[newCarData.engine, newCarData.drive ?? newCarData.drive_type, newCarData.fuel].filter(Boolean).map((v) => (
+                        <span key={v} style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ height: "1px", background: "var(--border-subtle)" }} />
               <p style={sectionLabel}>Driving Assumptions</p>
@@ -742,12 +873,57 @@ export default function CarClient({
             </div>
           )}
 
+          {/* Vehicle specs comparison */}
+          {showAnalysis && (currentCarData || newCarData) && (
+            <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px 0", fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "12px" }}>Vehicle Specs</div>
+              <div style={{ display: "grid", gridTemplateColumns: noCurrentCar ? "1fr" : "1fr 1fr", gap: 0 }}>
+                {!noCurrentCar && currentCarData && (
+                  <div style={{ borderRight: noCurrentCar ? "none" : "1px solid var(--border-subtle)", padding: "0 16px 16px" }}>
+                    {currentCarData.photo_url && <img src={currentCarData.photo_url} alt="current car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Current Car</div>
+                    {([
+                      { label: "City MPG", value: currentCarData.city_mpg ? `${currentCarData.city_mpg} mpg` : null },
+                      { label: "Hwy MPG", value: currentCarData.hwy_mpg ? `${currentCarData.hwy_mpg} mpg` : null },
+                      { label: "Annual Fuel", value: currentCarData.annual_fuel_cost ? fmt(currentCarData.annual_fuel_cost) : null },
+                      { label: "Drive", value: currentCarData.drive ?? currentCarData.drive_type },
+                      { label: "Engine", value: currentCarData.engine },
+                    ] as { label: string; value: string | null | undefined }[]).filter(r => r.value).map(({ label, value }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{label}</span>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {newCarData && (
+                  <div style={{ padding: "0 16px 16px" }}>
+                    {newCarData.photo_url && <img src={newCarData.photo_url} alt="new car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: CAR_COLOR, marginBottom: "8px", fontFamily: "var(--font-body)" }}>New Car</div>
+                    {([
+                      { label: "City MPG", value: newCarData.city_mpg ? `${newCarData.city_mpg} mpg` : null },
+                      { label: "Hwy MPG", value: newCarData.hwy_mpg ? `${newCarData.hwy_mpg} mpg` : null },
+                      { label: "Annual Fuel", value: newCarData.annual_fuel_cost ? fmt(newCarData.annual_fuel_cost) : null },
+                      { label: "Drive", value: newCarData.drive ?? newCarData.drive_type },
+                      { label: "Engine", value: newCarData.engine },
+                    ] as { label: string; value: string | null | undefined }[]).filter(r => r.value).map(({ label, value }) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{label}</span>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Monthly cost side-by-side */}
           {showAnalysis && (
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "14px" }}>Monthly Cost Breakdown</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                {(["current", "new"] as const).map((side) => {
+              <div style={{ display: "grid", gridTemplateColumns: noCurrentCar ? "1fr" : "1fr 1fr", gap: "12px" }}>
+                {(["current", "new"] as const).filter(s => s === "new" || !noCurrentCar).map((side) => {
                   const payment = side === "current" ? result.currentMonthlyPayment : result.newMonthlyPayment;
                   const gas     = side === "current" ? result.currentGasPerMonth   : result.newGasPerMonth;
                   const ins     = side === "current" ? Number(form.current_monthly_insurance) : Number(form.new_monthly_insurance);
@@ -806,7 +982,7 @@ export default function CarClient({
           )}
 
           {/* Trade-in & equity */}
-          {showAnalysis && (
+          {showAnalysis && !noCurrentCar && (
             <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "14px" }}>Trade-in & Equity</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>

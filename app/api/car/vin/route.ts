@@ -14,10 +14,20 @@ export async function GET(req: NextRequest) {
   const r = json?.Results?.[0];
   if (!r) return NextResponse.json({ error: "No result." }, { status: 404 });
 
+  const displ = r.DisplacementL ? parseFloat(r.DisplacementL) : null;
+  const cyls  = r.EngineCylinders ? parseInt(r.EngineCylinders, 10) : null;
+  const engine = [displ ? `${displ}L` : null, cyls ? `${cyls}-cyl` : null].filter(Boolean).join(" ") || null;
+
   return NextResponse.json({
-    make:  r.Make  ?? null,
-    model: r.Model ?? null,
-    year:  r.ModelYear ? Number(r.ModelYear) : null,
-    trim:  r.Trim  ?? null,
+    make:       r.Make       ?? null,
+    model:      r.Model      ?? null,
+    year:       r.ModelYear  ? Number(r.ModelYear) : null,
+    trim:       r.Trim       ?? null,
+    body_class: r.BodyClass  ?? null,
+    drive_type: r.DriveType  ?? null,
+    fuel_type:  r.FuelTypePrimary ?? null,
+    engine,
+    doors:      r.Doors      ? Number(r.Doors) : null,
+    trany:      [r.TransmissionStyle, r.TransmissionSpeeds ? `${r.TransmissionSpeeds}-spd` : null].filter(Boolean).join(" ") || null,
   });
 }
