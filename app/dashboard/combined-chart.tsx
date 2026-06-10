@@ -78,5 +78,5 @@ export default async function CombinedChart({
 
   if (trimmed.length < 2) return null;
 
-  return <CombinedChartClient data={trimmed} />;
+  return <CombinedChartClient data={trimmed} portfolioIds={portfolioIds} />;
 }

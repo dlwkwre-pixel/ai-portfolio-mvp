@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { trimSnapshotsBefore } from "@/app/portfolios/[id]/actions";
 
 export type CombinedChartPoint = { date: string; total: number };
 
@@ -70,12 +71,29 @@ function ChartTooltip({ active, payload, label, isPrivate, startVal }: TooltipPr
   );
 }
 
-export default function CombinedChartClient({ data }: { data: CombinedChartPoint[] }) {
+export default function CombinedChartClient({ data, portfolioIds = [] }: { data: CombinedChartPoint[]; portfolioIds?: string[] }) {
   const [tfDays, setTfDays] = useState(0);
   const [isPrivate, setIsPrivate] = useState(() => {
     if (typeof window === "undefined") return false;
     try { return localStorage.getItem("bt-privacy-mode") === "true"; } catch { return false; }
   });
+  const [showTrim, setShowTrim] = useState(false);
+  const [trimDate, setTrimDate] = useState("");
+  const [trimStatus, setTrimStatus] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleTrim() {
+    if (!trimDate || portfolioIds.length === 0) return;
+    startTransition(async () => {
+      let total = 0;
+      for (const pid of portfolioIds) {
+        const result = await trimSnapshotsBefore(pid, trimDate);
+        total += result.deleted;
+      }
+      setTrimStatus(`Removed ${total} snapshot${total !== 1 ? "s" : ""} before ${new Date(trimDate + "T12:00:00").toLocaleDateString()}. Refresh to see the updated chart.`);
+      setShowTrim(false);
+    });
+  }
 
   useEffect(() => {
     const onPrivacyChange = () => {
@@ -125,7 +143,7 @@ export default function CombinedChartClient({ data }: { data: CombinedChartPoint
             <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>this period</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "4px" }}>
+        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
           {TIMEFRAMES.map(tf => (
             <button
               key={tf.label}
@@ -146,8 +164,47 @@ export default function CombinedChartClient({ data }: { data: CombinedChartPoint
               {tf.label}
             </button>
           ))}
+          <button
+            onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
+            style={{ marginLeft: "6px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
+          >
+            Fix chart
+          </button>
         </div>
       </div>
+
+      {trimStatus && (
+        <div style={{ fontSize: "11px", color: "var(--green)", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>{trimStatus}</span>
+          <button onClick={() => { setTrimStatus(null); window.location.reload(); }} style={{ color: "var(--text-muted)", fontSize: "10px", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Refresh now</button>
+        </div>
+      )}
+
+      {showTrim && (
+        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", fontSize: "11px" }}>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
+            Remove all chart history before this date across all portfolios.
+          </p>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="date"
+              value={trimDate}
+              onChange={(e) => setTrimDate(e.target.value)}
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
+            />
+            <button
+              onClick={handleTrim}
+              disabled={isPending || !trimDate}
+              style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", background: "none", border: "none", cursor: "pointer", opacity: isPending || !trimDate ? 0.4 : 1 }}
+            >
+              {isPending ? "Trimming…" : "Remove those snapshots"}
+            </button>
+            <button onClick={() => setShowTrim(false)} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <ResponsiveContainer width="100%" height={160}>
         <AreaChart data={filtered} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
