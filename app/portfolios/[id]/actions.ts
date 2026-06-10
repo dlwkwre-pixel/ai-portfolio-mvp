@@ -41,7 +41,7 @@ export async function createHolding(formData: FormData) {
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
   if (portfolioError || !portfolio) throw new Error("Portfolio not found.");
 
-  const { error } = await supabase.from("holdings").insert({
+  const { data: newHolding, error } = await supabase.from("holdings").insert({
     portfolio_id: portfolioId,
     ticker,
     company_name: companyName || null,
@@ -50,13 +50,27 @@ export async function createHolding(formData: FormData) {
     average_cost_basis: averageCostBasis,
     opened_at: openedAtRaw || null,
     notes: notes || null,
-  });
+  }).select("id").single();
 
   if (error) {
     if (error.message.toLowerCase().includes("duplicate")) {
       throw new Error("That ticker already exists in this portfolio.");
     }
     throw new Error(error.message);
+  }
+
+  // Auto-create a BUY lot so chart reconstruction works without manual lot entry.
+  // Only when both purchase date and cost basis are known.
+  if (newHolding && openedAtRaw && averageCostBasis > 0) {
+    await supabase.from("holding_lots").insert({
+      holding_id: newHolding.id,
+      portfolio_id: portfolioId,
+      ticker,
+      lot_type: "BUY",
+      purchased_at: openedAtRaw,
+      shares,
+      price_per_share: averageCostBasis,
+    });
   }
 
   revalidatePath(`/portfolios/${portfolioId}`);
@@ -1003,6 +1017,55 @@ export type AutoImportResult = {
   alreadyHaveLots: string[];
   errors: string[];
 };
+
+export async function getHoldingsForChartSetup(portfolioId: string): Promise<{
+  id: string;
+  ticker: string;
+  shares: number;
+  average_cost_basis: number | null;
+  opened_at: string | null;
+  lots: { id: string; lot_type: string; purchased_at: string; shares: number; price_per_share: number }[];
+}[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase.from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const [{ data: holdings }, { data: lots }] = await Promise.all([
+    supabase.from("holdings")
+      .select("id, ticker, shares, average_cost_basis, opened_at")
+      .eq("portfolio_id", portfolioId)
+      .order("ticker"),
+    supabase.from("holding_lots")
+      .select("id, holding_id, lot_type, purchased_at, shares, price_per_share")
+      .eq("portfolio_id", portfolioId)
+      .order("purchased_at", { ascending: true }),
+  ]);
+
+  const lotsByHolding = new Map<string, { id: string; lot_type: string; purchased_at: string; shares: number; price_per_share: number }[]>();
+  for (const lot of lots ?? []) {
+    const key = lot.holding_id as string;
+    if (!lotsByHolding.has(key)) lotsByHolding.set(key, []);
+    lotsByHolding.get(key)!.push({
+      id: lot.id as string,
+      lot_type: lot.lot_type as string,
+      purchased_at: String(lot.purchased_at).slice(0, 10),
+      shares: Number(lot.shares),
+      price_per_share: Number(lot.price_per_share),
+    });
+  }
+
+  return (holdings ?? []).map((h) => ({
+    id: h.id as string,
+    ticker: h.ticker as string,
+    shares: Number(h.shares),
+    average_cost_basis: h.average_cost_basis != null ? Number(h.average_cost_basis) : null,
+    opened_at: h.opened_at as string | null,
+    lots: lotsByHolding.get(h.id as string) ?? [],
+  }));
+}
 
 export async function autoImportLots(portfolioId: string): Promise<AutoImportResult> {
   const supabase = await createClient();

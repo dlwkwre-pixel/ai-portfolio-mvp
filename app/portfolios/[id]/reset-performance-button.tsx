@@ -1,58 +1,43 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { resetPerformanceHistory, reconstructPortfolioChart, autoImportLots } from "./actions";
-
-type Holding = { ticker: string; opened_at: string | null };
+import { resetPerformanceHistory } from "./actions";
+import ChartSetupModal from "./chart-setup-modal";
 
 export default function ResetPerformanceButton({
   portfolioId,
   holdings = [],
 }: {
   portfolioId: string;
-  holdings?: Holding[];
+  holdings?: { ticker: string; opened_at: string | null }[];
 }) {
   const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState<"rebuild" | "reset" | null>(null);
+  const [showSetup, setShowSetup] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleRebuild() {
-    setStatus(null);
-    startTransition(async () => {
-      try {
-        // Auto-import lots first for any holdings that are missing them
-        await autoImportLots(portfolioId);
-        const result = await reconstructPortfolioChart(portfolioId);
-        if (result.success) {
-          const parts: string[] = [`${result.inserted} data points rebuilt`];
-          if (result.missingFromChart.length > 0) {
-            parts.push(`no price data for: ${result.missingFromChart.join(", ")}`);
-          }
-          setStatus({ ok: true, msg: parts.join(" · ") });
-        } else {
-          setStatus({ ok: false, msg: result.error });
-        }
-      } catch (e) {
-        setStatus({ ok: false, msg: e instanceof Error ? e.message : "Rebuild failed." });
-      }
-      setOpen(false);
-      setConfirm(null);
-    });
-  }
-
   function handleReset() {
-    setStatus(null);
     startTransition(async () => {
       try {
         await resetPerformanceHistory(portfolioId);
-        setStatus({ ok: true, msg: "Chart reset. BuyTune will start tracking your portfolio value going forward." });
+        setStatus({ ok: true, msg: "Chart cleared. BuyTune will track your portfolio value going forward." });
       } catch (e) {
         setStatus({ ok: false, msg: e instanceof Error ? e.message : "Reset failed." });
       }
       setOpen(false);
-      setConfirm(null);
+      setConfirmReset(false);
     });
+  }
+
+  if (showSetup) {
+    return (
+      <ChartSetupModal
+        portfolioId={portfolioId}
+        onClose={() => { setShowSetup(false); setOpen(false); }}
+        onDone={(msg) => { setShowSetup(false); setOpen(false); setStatus({ ok: true, msg }); }}
+      />
+    );
   }
 
   if (status) {
@@ -66,42 +51,17 @@ export default function ResetPerformanceButton({
     );
   }
 
-  if (confirm === "rebuild") {
+  if (confirmReset) {
     return (
-      <div className="flex flex-col gap-2 text-[11px]" style={{ maxWidth: 360 }}>
-        <p className="text-slate-300 font-medium">Rebuild chart history</p>
-        <p className="text-slate-500">
-          Recalculates your chart using your purchase lots and live price history.
-          Replaces all existing chart data.
-        </p>
-        <div className="flex gap-3">
-          <button type="button" onClick={handleRebuild} disabled={isPending}
-            className="font-semibold text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition">
-            {isPending ? "Rebuilding…" : "Confirm rebuild"}
-          </button>
-          <button type="button" onClick={() => setConfirm(null)} disabled={isPending}
-            className="text-slate-500 hover:text-slate-400 transition">
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (confirm === "reset") {
-    return (
-      <div className="flex flex-col gap-2 text-[11px]" style={{ maxWidth: 360 }}>
-        <p className="text-slate-300 font-medium">Start tracking from today</p>
-        <p className="text-slate-500">
-          Clears all historical chart data and starts fresh with today's portfolio value.
-          Use this only if your chart history is completely wrong and you want a clean slate.
-        </p>
+      <div className="flex flex-col gap-2 text-[11px]" style={{ maxWidth: 340 }}>
+        <p className="text-slate-300 font-medium">Clear all chart history?</p>
+        <p className="text-slate-500">Removes all historical data and starts tracking from today. This cannot be undone.</p>
         <div className="flex gap-3">
           <button type="button" onClick={handleReset} disabled={isPending}
             className="font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 transition">
             {isPending ? "Clearing…" : "Yes, clear history"}
           </button>
-          <button type="button" onClick={() => setConfirm(null)} disabled={isPending}
+          <button type="button" onClick={() => setConfirmReset(false)} disabled={isPending}
             className="text-slate-500 hover:text-slate-400 transition">
             Cancel
           </button>
@@ -112,23 +72,23 @@ export default function ResetPerformanceButton({
 
   if (open) {
     return (
-      <div className="flex flex-col gap-1 text-[11px]" style={{ maxWidth: 300 }}>
-        <p className="text-slate-400 font-medium mb-0.5">Chart data options</p>
+      <div className="flex flex-col gap-1 text-[11px]" style={{ maxWidth: 280 }}>
+        <p className="text-slate-400 font-medium mb-1">Chart data</p>
 
-        <button type="button" onClick={() => setConfirm("rebuild")}
-          className="text-left text-slate-400 hover:text-white transition">
-          Rebuild history from purchase lots
+        <button type="button" onClick={() => setShowSetup(true)}
+          className="text-left text-slate-300 hover:text-white transition font-medium">
+          Set up purchase history →
         </button>
-        <p className="text-[10px] text-slate-600 mb-1">
-          Re-generates the chart from your purchase dates and prices. Run this after adding or editing lots.
+        <p className="text-[10px] text-slate-600 mb-2">
+          Opens a form with all your holdings. Confirm dates and prices, then rebuild the chart in one click.
         </p>
 
-        <button type="button" onClick={() => setConfirm("reset")}
-          className="text-left text-slate-500 hover:text-slate-300 transition">
+        <button type="button" onClick={() => setConfirmReset(true)}
+          className="text-left text-slate-500 hover:text-slate-400 transition">
           Start fresh from today
         </button>
         <p className="text-[10px] text-slate-600 mb-1">
-          Wipes chart history and begins tracking from now. Only use this as a last resort.
+          Wipes chart history and begins tracking now. Use only as a last resort.
         </p>
 
         <button type="button" onClick={() => setOpen(false)}
