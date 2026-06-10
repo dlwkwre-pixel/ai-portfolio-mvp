@@ -40,13 +40,18 @@ function toDateKey(dateString: string): string {
 }
 
 /**
- * Remove an outlier first snapshot that would corrupt TWR.
+ * Trim the "capital deployment ramp-up" from the start of reconstructed snapshots.
  *
- * If the earliest snapshot's value is 5× or more than the median of the
- * next 1–4 snapshots, and there is no large cash flow in the ledger that
- * explains the gap, it was almost certainly captured while the user was
- * still setting up their portfolio (wrong shares / cost basis / cash).
- * Dropping it makes the chart start from the first "sane" data point.
+ * When holdings were purchased at different dates over several weeks, reconstruction
+ * builds weekly snapshots starting from the earliest purchase. Early snapshots capture
+ * only a subset of holdings, so the portfolio value appears to ramp from near-$0 to
+ * its full value. That ramp is not market performance — it's just incomplete data.
+ *
+ * Strategy: compute a "mature portfolio" median from the latter 60% of snapshots
+ * (past the ramp-up). Drop leading snapshots whose value is below 40% of that median,
+ * keeping at least 2 snapshots. This eliminates the ramp-up while preserving all data
+ * for users who deployed capital all at once (their first snapshot will be close to
+ * the mature median and won't be trimmed).
  */
 function sanitizeSnapshots(
   snapshots: { snapshot_date: string; total_value: number }[],
@@ -54,27 +59,43 @@ function sanitizeSnapshots(
 ): { snapshot_date: string; total_value: number }[] {
   if (snapshots.length < 2) return snapshots;
 
+  // Compute mature-portfolio median from the latter 60% of snapshots
+  const matureStart = Math.max(1, Math.floor(snapshots.length * 0.4));
+  const matureValues = snapshots
+    .slice(matureStart)
+    .map((s) => s.total_value)
+    .filter((v) => v > 0);
+
+  let trimStart = 0;
+
+  if (matureValues.length > 0) {
+    const sortedMature = [...matureValues].sort((a, b) => a - b);
+    const matureMedian = sortedMature[Math.floor(sortedMature.length / 2)];
+
+    if (matureMedian > 0) {
+      const threshold = matureMedian * 0.40;
+      while (trimStart < snapshots.length - 2 && snapshots[trimStart].total_value < threshold) {
+        trimStart++;
+      }
+    }
+  }
+
+  if (trimStart > 0) return snapshots.slice(trimStart);
+
+  // Secondary pass: drop a single extreme outlier first snapshot (≥5× or ≤1/5× median
+  // of the next 4 snapshots) unless a large cash flow explains the gap.
   const first = snapshots[0];
-  // Build comparison set from the next 1-4 snapshots
   const peers = snapshots.slice(1, Math.min(5, snapshots.length));
   const peerValues = peers.map((s) => s.total_value).filter((v) => v > 0);
   if (peerValues.length === 0) return snapshots;
 
-  const sorted = [...peerValues].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-  if (median <= 0) return snapshots;
+  const sortedPeers = [...peerValues].sort((a, b) => a - b);
+  const peerMedian = sortedPeers[Math.floor(sortedPeers.length / 2)];
+  if (peerMedian <= 0) return snapshots;
 
-  const ratio = first.total_value / median;
+  const ratio = first.total_value / peerMedian;
+  if (ratio >= 0.2 && ratio < 5) return snapshots;
 
-  // Drop partial first snapshots where only a small slice of the portfolio
-  // existed yet (< 10% of the eventual median) — these are typically the
-  // first weekly reconstruction point when only 1-2 holdings had been purchased.
-  if (ratio < 0.1) return snapshots.slice(1);
-
-  // Drop extreme outliers (≥5× or ≤1/5× the subsequent median)
-  if (ratio < 5 && ratio > 0.2) return snapshots;
-
-  // Check whether a large cash flow explains the gap
   const firstDate = toDateKey(first.snapshot_date);
   const secondDate = toDateKey(snapshots[1].snapshot_date);
   let windowFlow = 0;
@@ -86,11 +107,9 @@ function sanitizeSnapshots(
     }
   }
 
-  // If cash flows explain most of the gap, keep the snapshot
-  const gap = Math.abs(first.total_value - median);
+  const gap = Math.abs(first.total_value - peerMedian);
   if (Math.abs(windowFlow) >= gap * 0.7) return snapshots;
 
-  // Drop the outlier first snapshot
   return snapshots.slice(1);
 }
 
