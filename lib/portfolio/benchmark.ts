@@ -40,18 +40,17 @@ function toDateKey(dateString: string): string {
 }
 
 /**
- * Trim the "capital deployment ramp-up" from the start of reconstructed snapshots.
+ * Determine the chart start date: the first snapshot on or after the date
+ * when at least 75% of total invested capital had been deployed.
  *
- * When holdings were purchased at different dates over several weeks, reconstruction
- * builds weekly snapshots starting from the earliest purchase. Early snapshots capture
- * only a subset of holdings, so the portfolio value appears to ramp from near-$0 to
- * its full value. That ramp is not market performance — it's just incomplete data.
+ * Why: reconstruction builds weekly snapshots from the earliest lot purchase
+ * date. If holdings were bought at different times, early snapshots only
+ * capture a fraction of the portfolio, making the chart look like it started
+ * near $0 and ramped up. That ramp is capital deployment, not market return.
  *
- * Strategy: compute a "mature portfolio" median from the latter 60% of snapshots
- * (past the ramp-up). Drop leading snapshots whose value is below 40% of that median,
- * keeping at least 2 snapshots. This eliminates the ramp-up while preserving all data
- * for users who deployed capital all at once (their first snapshot will be close to
- * the mature median and won't be trimmed).
+ * By anchoring the start to when most capital was in, the chart begins at a
+ * meaningful point. For lump-sum investors (all capital deployed at once),
+ * the threshold is crossed on day 1 and nothing is trimmed.
  */
 function sanitizeSnapshots(
   snapshots: { snapshot_date: string; total_value: number }[],
@@ -59,58 +58,37 @@ function sanitizeSnapshots(
 ): { snapshot_date: string; total_value: number }[] {
   if (snapshots.length < 2) return snapshots;
 
-  // Compute mature-portfolio median from the latter 60% of snapshots
-  const matureStart = Math.max(1, Math.floor(snapshots.length * 0.4));
-  const matureValues = snapshots
-    .slice(matureStart)
-    .map((s) => s.total_value)
-    .filter((v) => v > 0);
+  // Total invested capital (sum of all IN flows)
+  const totalIn = cashFlows.reduce((sum, cf) => {
+    if ((cf.direction ?? "").toUpperCase() === "IN") {
+      return sum + Number(cf.amount ?? 0);
+    }
+    return sum;
+  }, 0);
 
-  let trimStart = 0;
+  if (totalIn > 0) {
+    const threshold = totalIn * 0.75;
+    const sortedFlows = [...cashFlows]
+      .filter((cf) => (cf.direction ?? "").toUpperCase() === "IN")
+      .sort((a, b) => new Date(a.effective_at).getTime() - new Date(b.effective_at).getTime());
 
-  if (matureValues.length > 0) {
-    const sortedMature = [...matureValues].sort((a, b) => a - b);
-    const matureMedian = sortedMature[Math.floor(sortedMature.length / 2)];
-
-    if (matureMedian > 0) {
-      const threshold = matureMedian * 0.40;
-      while (trimStart < snapshots.length - 2 && snapshots[trimStart].total_value < threshold) {
-        trimStart++;
+    let cumulative = 0;
+    let deployedDate: string | null = null;
+    for (const cf of sortedFlows) {
+      cumulative += Number(cf.amount ?? 0);
+      if (cumulative >= threshold) {
+        deployedDate = toDateKey(cf.effective_at);
+        break;
       }
     }
-  }
 
-  if (trimStart > 0) return snapshots.slice(trimStart);
-
-  // Secondary pass: drop a single extreme outlier first snapshot (≥5× or ≤1/5× median
-  // of the next 4 snapshots) unless a large cash flow explains the gap.
-  const first = snapshots[0];
-  const peers = snapshots.slice(1, Math.min(5, snapshots.length));
-  const peerValues = peers.map((s) => s.total_value).filter((v) => v > 0);
-  if (peerValues.length === 0) return snapshots;
-
-  const sortedPeers = [...peerValues].sort((a, b) => a - b);
-  const peerMedian = sortedPeers[Math.floor(sortedPeers.length / 2)];
-  if (peerMedian <= 0) return snapshots;
-
-  const ratio = first.total_value / peerMedian;
-  if (ratio >= 0.2 && ratio < 5) return snapshots;
-
-  const firstDate = toDateKey(first.snapshot_date);
-  const secondDate = toDateKey(snapshots[1].snapshot_date);
-  let windowFlow = 0;
-  for (const cf of cashFlows) {
-    const d = toDateKey(cf.effective_at);
-    if (d >= firstDate && d <= secondDate) {
-      const amt = Number(cf.amount ?? 0);
-      windowFlow += (cf.direction || "").toUpperCase() === "OUT" ? -amt : amt;
+    if (deployedDate) {
+      const trimmed = snapshots.filter((s) => toDateKey(s.snapshot_date) >= deployedDate!);
+      if (trimmed.length >= 2) return trimmed;
     }
   }
 
-  const gap = Math.abs(first.total_value - peerMedian);
-  if (Math.abs(windowFlow) >= gap * 0.7) return snapshots;
-
-  return snapshots.slice(1);
+  return snapshots;
 }
 
 function toDisplayDate(dateString: string): string {
