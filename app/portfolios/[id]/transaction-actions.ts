@@ -286,6 +286,22 @@ export async function createPortfolioTransaction(formData: FormData) {
     throw new Error(insertTransactionError.message);
   }
 
+  // Auto-create a holding lot so chart reconstruction stays accurate.
+  // BUY → adds shares; SELL with a still-existing holding → records the reduction.
+  // Full sells (holding deleted) can't have a lot since the FK would be violated.
+  if (linkedHoldingId && isTrade && quantity !== null && pricePerShare !== null) {
+    const lotDate = (tradedAt || new Date().toISOString()).slice(0, 10);
+    await supabase.from("holding_lots").insert({
+      holding_id: linkedHoldingId,
+      portfolio_id: portfolioId,
+      ticker,
+      lot_type: transactionType === "sell" ? "SELL" : "BUY",
+      purchased_at: lotDate,
+      shares: quantity,
+      price_per_share: pricePerShare,
+    });
+  }
+
   const newCashBalance = Number(portfolio.cash_balance ?? 0) + netCashImpact;
 
   const { error: updatePortfolioError } = await supabase
