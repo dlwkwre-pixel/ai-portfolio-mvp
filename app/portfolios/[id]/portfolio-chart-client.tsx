@@ -117,12 +117,19 @@ export default function PortfolioChartClient({
 
   const valueChange = useMemo(() => {
     if (filteredChartData.length < 2) return null;
-    const first = filteredChartData[0].portfolio_value;
     const last = filteredChartData[filteredChartData.length - 1].portfolio_value;
+    // For "All" time, use cost basis (passed as netInvested) so the % isn't
+    // distorted by a near-zero first snapshot from reconstruction ramp-up.
+    if (activeTimeframe === "All" && netInvested != null && netInvested > 0) {
+      const change = last - netInvested;
+      const pct = (change / netInvested) * 100;
+      return { change, pct, isPositive: change >= 0 };
+    }
+    const first = filteredChartData[0].portfolio_value;
     const change = last - first;
     const pct = first > 0 ? (change / first) * 100 : 0;
     return { change, pct, isPositive: change >= 0 };
-  }, [filteredChartData]);
+  }, [filteredChartData, netInvested, activeTimeframe]);
 
   const currentValue = chartData.length > 0
     ? chartData[chartData.length - 1].portfolio_value

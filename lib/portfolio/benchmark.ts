@@ -54,24 +54,24 @@ function toDateKey(dateString: string): string {
  * portfolio. From there, every current holding is represented in every
  * snapshot, so comparisons are apples-to-apples.
  *
- * holdingEarliestDates: one date string per current holding (YYYY-MM-DD or ISO).
- * When absent we fall back to the first snapshot (no trimming).
+ * totalCostBasis: if provided, snapshots with value < 10% of cost basis are
+ * treated as reconstruction noise and trimmed. This catches the case where
+ * reconstructPortfolioChart generated early near-zero snapshots before all
+ * holdings had price data.
  */
 function sanitizeSnapshots(
   snapshots: { snapshot_date: string; total_value: number }[],
-  holdingEarliestDates: string[]
+  totalCostBasis?: number
 ): { snapshot_date: string; total_value: number }[] {
   if (snapshots.length < 2) return snapshots;
 
-  if (holdingEarliestDates.length === 0) return snapshots;
+  if (totalCostBasis && totalCostBasis > 0) {
+    const noiseFloor = totalCostBasis * 0.1;
+    const trimmed = snapshots.filter((s) => s.total_value >= noiseFloor);
+    if (trimmed.length >= 2) return trimmed;
+  }
 
-  // Chart starts from the earliest purchase across all holdings — full history shown
-  const firstEntryDate = holdingEarliestDates
-    .map((d) => toDateKey(d))
-    .reduce((min, d) => (d < min ? d : min));
-
-  const trimmed = snapshots.filter((s) => toDateKey(s.snapshot_date) >= firstEntryDate);
-  return trimmed.length >= 2 ? trimmed : snapshots;
+  return snapshots;
 }
 
 function toDisplayDate(dateString: string): string {
@@ -151,8 +151,6 @@ export async function getBenchmarkComparison(args: {
   snapshots: SnapshotRow[];
   benchmarkSymbol: string;
   cashFlows?: CashFlowRow[];
-  /** Earliest purchase date per current holding — used to trim the chart start to the first purchase. */
-  holdingEarliestDates?: string[];
   /** Total cost basis from holdings (shares × avg cost basis). Most reliable return baseline. */
   totalCostBasis?: number;
 }): Promise<BenchmarkComparisonResult> {
@@ -167,7 +165,7 @@ export async function getBenchmarkComparison(args: {
     .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0)
     .sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
 
-  const snapshots = sanitizeSnapshots(rawSnapshots, args.holdingEarliestDates ?? []);
+  const snapshots = sanitizeSnapshots(rawSnapshots, args.totalCostBasis);
 
   if (snapshots.length < 2) {
     return {
@@ -264,11 +262,12 @@ export async function getBenchmarkComparison(args: {
   // Build chart data with both return series
   // For TWR chart we use running TWR up to each snapshot
   const chartData: BenchmarkChartPoint[] = snapshots.map((snapshot, idx) => {
-    // Chart line is period-relative: starts at 0% at the first snapshot and shows
-    // how the portfolio moved from there. The headline % (portfolioReturnPct) is
-    // independently calculated from cost basis — they answer different questions.
-    const portfolioReturn = firstPortfolioValue > 0
-      ? ((snapshot.total_value - firstPortfolioValue) / firstPortfolioValue) * 100
+    // Chart line uses cost basis as the denominator (same as the headline) so the
+    // line ends at exactly portfolioReturnPct. Falls back to first snapshot when
+    // cost basis is unavailable.
+    const chartBaseline = costBasis > 0 ? costBasis : firstPortfolioValue;
+    const portfolioReturn = chartBaseline > 0
+      ? ((snapshot.total_value - chartBaseline) / chartBaseline) * 100
       : 0;
 
     // TWR up to this point
@@ -304,7 +303,7 @@ export async function getBenchmarkComparison(args: {
     chartData,
     hasEnoughSnapshots: true,
     benchmarkAvailable,
-    netInvested: netInvested > 0 ? netInvested : null,
+    netInvested: costBasis > 0 ? costBasis : (netInvested > 0 ? netInvested : null),
   };
 }
 
