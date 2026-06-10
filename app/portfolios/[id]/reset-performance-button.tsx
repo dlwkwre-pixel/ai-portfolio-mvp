@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { resetPerformanceHistory } from "./actions";
+import { resetPerformanceHistory, trimSnapshotsBefore } from "./actions";
 import ChartSetupModal from "./chart-setup-modal";
 
 export default function ResetPerformanceButton({
@@ -14,6 +14,8 @@ export default function ResetPerformanceButton({
   const [open, setOpen] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showTrim, setShowTrim] = useState(false);
+  const [trimDate, setTrimDate] = useState("");
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -27,6 +29,20 @@ export default function ResetPerformanceButton({
       }
       setOpen(false);
       setConfirmReset(false);
+    });
+  }
+
+  function handleTrim() {
+    if (!trimDate) return;
+    startTransition(async () => {
+      try {
+        const result = await trimSnapshotsBefore(portfolioId, trimDate);
+        setStatus({ ok: true, msg: `Removed ${result.deleted} snapshot${result.deleted !== 1 ? "s" : ""} before ${new Date(trimDate + "T12:00:00").toLocaleDateString()}. Chart now starts from that date.` });
+      } catch (e) {
+        setStatus({ ok: false, msg: e instanceof Error ? e.message : "Trim failed." });
+      }
+      setShowTrim(false);
+      setOpen(false);
     });
   }
 
@@ -47,6 +63,38 @@ export default function ResetPerformanceButton({
         <button type="button" onClick={() => setStatus(null)} className="text-[10px] text-slate-600 hover:text-slate-400 transition text-left">
           Dismiss
         </button>
+      </div>
+    );
+  }
+
+  if (showTrim) {
+    return (
+      <div className="flex flex-col gap-2 text-[11px]" style={{ maxWidth: 320 }}>
+        <p className="text-slate-300 font-medium">Remove history before…</p>
+        <p className="text-slate-500">
+          Deletes all snapshots before this date. Use this when you added a new account mid-way and the early data skews your returns.
+        </p>
+        <input
+          type="date"
+          value={trimDate}
+          onChange={(e) => setTrimDate(e.target.value)}
+          className="rounded-lg px-2 py-1.5 text-xs text-white w-full"
+          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }}
+        />
+        <div className="flex gap-3 mt-1">
+          <button
+            type="button"
+            onClick={handleTrim}
+            disabled={isPending || !trimDate}
+            className="font-semibold text-amber-400 hover:text-amber-300 disabled:opacity-40 transition"
+          >
+            {isPending ? "Trimming…" : "Remove those snapshots"}
+          </button>
+          <button type="button" onClick={() => { setShowTrim(false); }} disabled={isPending}
+            className="text-slate-500 hover:text-slate-400 transition">
+            Cancel
+          </button>
+        </div>
       </div>
     );
   }
@@ -81,6 +129,14 @@ export default function ResetPerformanceButton({
         </button>
         <p className="text-[10px] text-slate-600 mb-2">
           Opens a form with all your holdings. Confirm dates and prices, then rebuild the chart in one click.
+        </p>
+
+        <button type="button" onClick={() => setShowTrim(true)}
+          className="text-left text-slate-300 hover:text-white transition font-medium">
+          Remove history before a date →
+        </button>
+        <p className="text-[10px] text-slate-600 mb-2">
+          Added a new account mid-way and it's skewing your returns? Pick the date to start from.
         </p>
 
         <button type="button" onClick={() => setConfirmReset(true)}

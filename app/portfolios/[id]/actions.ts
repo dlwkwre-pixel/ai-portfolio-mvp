@@ -611,6 +611,38 @@ export async function resetPerformanceHistory(portfolioId: string): Promise<void
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+export async function trimSnapshotsBefore(portfolioId: string, cutoffDate: string): Promise<{ deleted: number }> {
+  "use server";
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  // Normalize to ISO date string (YYYY-MM-DD) for comparison
+  const cutoff = new Date(cutoffDate).toISOString().slice(0, 10);
+
+  const { data: toDelete } = await supabase
+    .from("portfolio_snapshots")
+    .select("id")
+    .eq("portfolio_id", portfolioId)
+    .lt("snapshot_date", cutoff + "T00:00:00");
+
+  const count = toDelete?.length ?? 0;
+  if (count > 0) {
+    await supabase
+      .from("portfolio_snapshots")
+      .delete()
+      .eq("portfolio_id", portfolioId)
+      .lt("snapshot_date", cutoff + "T00:00:00");
+  }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { deleted: count };
+}
+
 type ReconstructResult =
   | { success: true; inserted: number; tickers: string[]; cashFlows: number; missingFromChart: string[]; guessedDates: string[] }
   | { success: false; error: string };
