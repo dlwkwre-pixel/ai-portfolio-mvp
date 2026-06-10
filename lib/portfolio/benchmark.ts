@@ -259,11 +259,10 @@ export async function getBenchmarkComparison(args: {
   // Build chart data with both return series
   // For TWR chart we use running TWR up to each snapshot
   const chartData: BenchmarkChartPoint[] = snapshots.map((snapshot, idx) => {
-    // Return on invested capital up to this point in time
-    const snapshotDate = toDateKey(snapshot.snapshot_date);
-    const deployedUpTo = deployedCapitalUpTo(snapshotDate);
-    const portfolioReturn = deployedUpTo > 0
-      ? ((snapshot.total_value - deployedUpTo) / deployedUpTo) * 100
+    // Return on invested capital — uses netInvested as the denominator at every point
+    // so the chart line ends at exactly the same value as the headline portfolioReturnPct.
+    const portfolioReturn = netInvested > 0
+      ? ((snapshot.total_value - netInvested) / netInvested) * 100
       : firstPortfolioValue > 0
       ? ((snapshot.total_value - firstPortfolioValue) / firstPortfolioValue) * 100
       : 0;

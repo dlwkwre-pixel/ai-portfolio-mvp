@@ -48,9 +48,9 @@ const TIMEFRAMES = [
 ];
 
 const CHART_MODES = [
+  { label: "Value $", value: "value" },
   { label: "Total Ret.", value: "return" },
   { label: "Inv. Return", value: "twr" },
-  { label: "Value $", value: "value" },
 ];
 
 function filterByTimeframe<T extends { date: string }>(data: T[], days: number): T[] {
@@ -105,7 +105,7 @@ export default function PortfolioChartClient({
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("return");
+  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
@@ -117,15 +117,12 @@ export default function PortfolioChartClient({
 
   const valueChange = useMemo(() => {
     if (filteredChartData.length < 2) return null;
+    const first = filteredChartData[0].portfolio_value;
     const last = filteredChartData[filteredChartData.length - 1].portfolio_value;
-    const isAllTime = activeTimeframe === "All";
-    const baseline = isAllTime && netInvested != null && netInvested > 0
-      ? netInvested
-      : filteredChartData[0].portfolio_value;
-    const change = last - baseline;
-    const pct = baseline > 0 ? (change / baseline) * 100 : 0;
+    const change = last - first;
+    const pct = first > 0 ? (change / first) * 100 : 0;
     return { change, pct, isPositive: change >= 0 };
-  }, [filteredChartData, netInvested, activeTimeframe]);
+  }, [filteredChartData]);
 
   const currentValue = chartData.length > 0
     ? chartData[chartData.length - 1].portfolio_value
