@@ -46,8 +46,8 @@ export default async function PortfolioChartSection({
     }
   }
 
-  // Fetch snapshots, cash flows, and holdings metadata in parallel
-  const [{ data: snapshots }, { data: cashFlows }, { data: holdingsMeta }] = await Promise.all([
+  // Fetch snapshots, cash flows, holdings metadata, and lot dates in parallel
+  const [{ data: snapshots }, { data: cashFlows }, { data: holdingsMeta }, { data: lotsData }] = await Promise.all([
     supabase
       .from("portfolio_snapshots")
       .select("snapshot_date, total_value")
@@ -62,7 +62,22 @@ export default async function PortfolioChartSection({
       .from("holdings")
       .select("ticker, opened_at")
       .eq("portfolio_id", portfolioId),
+    supabase
+      .from("holding_lots")
+      .select("holding_id, purchased_at, lot_type")
+      .eq("portfolio_id", portfolioId),
   ]);
+
+  // One earliest BUY/DRIP date per holding — used to anchor chart start
+  const earliestByHolding = new Map<string, string>();
+  for (const lot of lotsData ?? []) {
+    const t = ((lot.lot_type as string | null) ?? "BUY").toUpperCase();
+    if (t !== "BUY" && t !== "DRIP") continue;
+    const date = (lot.purchased_at as string).slice(0, 10);
+    const prev = earliestByHolding.get(lot.holding_id as string);
+    if (!prev || date < prev) earliestByHolding.set(lot.holding_id as string, date);
+  }
+  const holdingEarliestDates = [...earliestByHolding.values()];
 
   const comparison = await getBenchmarkComparison({
     snapshots: snapshots ?? [],
@@ -72,6 +87,7 @@ export default async function PortfolioChartSection({
       direction: cf.direction,
       amount: cf.amount,
     })),
+    holdingEarliestDates,
   });
 
   return (

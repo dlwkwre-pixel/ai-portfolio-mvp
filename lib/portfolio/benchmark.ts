@@ -41,54 +41,37 @@ function toDateKey(dateString: string): string {
 
 /**
  * Determine the chart start date: the first snapshot on or after the date
- * when at least 75% of total invested capital had been deployed.
+ * when every current holding had been purchased at least once.
  *
  * Why: reconstruction builds weekly snapshots from the earliest lot purchase
  * date. If holdings were bought at different times, early snapshots only
- * capture a fraction of the portfolio, making the chart look like it started
- * near $0 and ramped up. That ramp is capital deployment, not market return.
+ * capture a fraction of the portfolio — MSFT is missing until you bought it,
+ * AAPL is missing until you bought it, etc. The chart ramps up not because of
+ * market returns but because capital is still being deployed.
  *
- * By anchoring the start to when most capital was in, the chart begins at a
- * meaningful point. For lump-sum investors (all capital deployed at once),
- * the threshold is crossed on day 1 and nothing is trimmed.
+ * The fix: each holding contributes its earliest purchase date. The chart
+ * starts at max(those dates) — the point when the last holding entered the
+ * portfolio. From there, every current holding is represented in every
+ * snapshot, so comparisons are apples-to-apples.
+ *
+ * holdingEarliestDates: one date string per current holding (YYYY-MM-DD or ISO).
+ * When absent we fall back to the first snapshot (no trimming).
  */
 function sanitizeSnapshots(
   snapshots: { snapshot_date: string; total_value: number }[],
-  cashFlows: CashFlowRow[]
+  holdingEarliestDates: string[]
 ): { snapshot_date: string; total_value: number }[] {
   if (snapshots.length < 2) return snapshots;
 
-  // Total invested capital (sum of all IN flows)
-  const totalIn = cashFlows.reduce((sum, cf) => {
-    if ((cf.direction ?? "").toUpperCase() === "IN") {
-      return sum + Number(cf.amount ?? 0);
-    }
-    return sum;
-  }, 0);
+  if (holdingEarliestDates.length === 0) return snapshots;
 
-  if (totalIn > 0) {
-    const threshold = totalIn * 0.75;
-    const sortedFlows = [...cashFlows]
-      .filter((cf) => (cf.direction ?? "").toUpperCase() === "IN")
-      .sort((a, b) => new Date(a.effective_at).getTime() - new Date(b.effective_at).getTime());
+  // Chart starts from the earliest purchase across all holdings — full history shown
+  const firstEntryDate = holdingEarliestDates
+    .map((d) => toDateKey(d))
+    .reduce((min, d) => (d < min ? d : min));
 
-    let cumulative = 0;
-    let deployedDate: string | null = null;
-    for (const cf of sortedFlows) {
-      cumulative += Number(cf.amount ?? 0);
-      if (cumulative >= threshold) {
-        deployedDate = toDateKey(cf.effective_at);
-        break;
-      }
-    }
-
-    if (deployedDate) {
-      const trimmed = snapshots.filter((s) => toDateKey(s.snapshot_date) >= deployedDate!);
-      if (trimmed.length >= 2) return trimmed;
-    }
-  }
-
-  return snapshots;
+  const trimmed = snapshots.filter((s) => toDateKey(s.snapshot_date) >= firstEntryDate);
+  return trimmed.length >= 2 ? trimmed : snapshots;
 }
 
 function toDisplayDate(dateString: string): string {
@@ -168,6 +151,8 @@ export async function getBenchmarkComparison(args: {
   snapshots: SnapshotRow[];
   benchmarkSymbol: string;
   cashFlows?: CashFlowRow[];
+  /** Earliest purchase date per current holding — used to trim the chart start to the first purchase. */
+  holdingEarliestDates?: string[];
 }): Promise<BenchmarkComparisonResult> {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
   const cashFlows = args.cashFlows ?? [];
@@ -180,7 +165,7 @@ export async function getBenchmarkComparison(args: {
     .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0)
     .sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
 
-  const snapshots = sanitizeSnapshots(rawSnapshots, cashFlows);
+  const snapshots = sanitizeSnapshots(rawSnapshots, args.holdingEarliestDates ?? []);
 
   if (snapshots.length < 2) {
     return {
