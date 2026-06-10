@@ -153,6 +153,8 @@ export async function getBenchmarkComparison(args: {
   cashFlows?: CashFlowRow[];
   /** Earliest purchase date per current holding — used to trim the chart start to the first purchase. */
   holdingEarliestDates?: string[];
+  /** Total cost basis from holdings (shares × avg cost basis). Most reliable return baseline. */
+  totalCostBasis?: number;
 }): Promise<BenchmarkComparisonResult> {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
   const cashFlows = args.cashFlows ?? [];
@@ -207,9 +209,12 @@ export async function getBenchmarkComparison(args: {
   }, 0);
 
   // Total Return = return on invested capital.
-  // Uses netInvested when available so the baseline isn't distorted by the tiny
-  // first snapshot value (which only captures the earliest-purchased holding).
-  const portfolioReturnPct = netInvested > 0
+  // Priority: cost basis (most reliable) → netInvested from cash flows → first snapshot fallback.
+  // Cost basis from holdings is always accurate regardless of snapshot quality.
+  const costBasis = args.totalCostBasis ?? 0;
+  const portfolioReturnPct = costBasis > 0
+    ? ((lastPortfolioValue - costBasis) / costBasis) * 100
+    : netInvested > 0
     ? ((lastPortfolioValue - netInvested) / netInvested) * 100
     : firstPortfolioValue > 0
     ? ((lastPortfolioValue - firstPortfolioValue) / firstPortfolioValue) * 100
@@ -259,11 +264,10 @@ export async function getBenchmarkComparison(args: {
   // Build chart data with both return series
   // For TWR chart we use running TWR up to each snapshot
   const chartData: BenchmarkChartPoint[] = snapshots.map((snapshot, idx) => {
-    // Return on invested capital — uses netInvested as the denominator at every point
-    // so the chart line ends at exactly the same value as the headline portfolioReturnPct.
-    const portfolioReturn = netInvested > 0
-      ? ((snapshot.total_value - netInvested) / netInvested) * 100
-      : firstPortfolioValue > 0
+    // Chart line is period-relative: starts at 0% at the first snapshot and shows
+    // how the portfolio moved from there. The headline % (portfolioReturnPct) is
+    // independently calculated from cost basis — they answer different questions.
+    const portfolioReturn = firstPortfolioValue > 0
       ? ((snapshot.total_value - firstPortfolioValue) / firstPortfolioValue) * 100
       : 0;
 

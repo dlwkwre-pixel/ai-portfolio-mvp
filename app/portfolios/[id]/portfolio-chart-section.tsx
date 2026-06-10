@@ -60,7 +60,7 @@ export default async function PortfolioChartSection({
       .order("effective_at", { ascending: true }),
     supabase
       .from("holdings")
-      .select("ticker, opened_at")
+      .select("ticker, opened_at, shares, average_cost_basis")
       .eq("portfolio_id", portfolioId),
     supabase
       .from("holding_lots")
@@ -79,6 +79,13 @@ export default async function PortfolioChartSection({
   }
   const holdingEarliestDates = [...earliestByHolding.values()];
 
+  // Cost basis from actual holdings — most reliable baseline for % return
+  const totalCostBasis = (holdingsMeta ?? []).reduce((sum, h) => {
+    const shares = Number(h.shares ?? 0);
+    const cb = Number(h.average_cost_basis ?? 0);
+    return sum + (shares > 0 && cb > 0 ? shares * cb : 0);
+  }, 0);
+
   const comparison = await getBenchmarkComparison({
     snapshots: snapshots ?? [],
     benchmarkSymbol: benchmarkSymbol || "SPY",
@@ -88,6 +95,7 @@ export default async function PortfolioChartSection({
       amount: cf.amount,
     })),
     holdingEarliestDates,
+    totalCostBasis: totalCostBasis > 0 ? totalCostBasis : undefined,
   });
 
   return (
