@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { searchRedditPosts } from "@/lib/market-data/reddit";
+import { searchRedditPosts, searchRedditPostsPublic } from "@/lib/market-data/reddit";
 import { buildRedditPulse, type RedditPulseData } from "@/lib/market-data/reddit-pulse";
 import { fetchApeWisdomData, type ApeWisdomTicker } from "@/lib/market-data/apewisdom";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
@@ -65,9 +65,14 @@ export async function GET(
       }
     }
 
-    // 1b. Guard: credentials required
+    // 1b. No OAuth credentials → try public Reddit JSON (no auth needed, gives sentiment)
     if (!process.env.REDDIT_CLIENT_ID || !process.env.REDDIT_CLIENT_SECRET) {
-      // No credentials — fall through to ApeWisdom below
+      const publicPosts = await searchRedditPostsPublic(t, companyName, { timeWindow });
+      if (publicPosts.length > 0) {
+        const pulse = await buildRedditPulse(t, companyName, publicPosts, timeWindow, CACHE_TTL_MINUTES);
+        return NextResponse.json({ ...pulse, source: "reddit", public_api: true });
+      }
+      // No results from public API — fall through to ApeWisdom
     } else {
       // 1c. Fetch live Reddit data
       const posts = await searchRedditPosts(t, companyName, { timeWindow });

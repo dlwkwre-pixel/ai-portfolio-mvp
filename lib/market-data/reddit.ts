@@ -190,6 +190,52 @@ function normalizePost(raw: Record<string, unknown>): RedditPost {
   };
 }
 
+// ─── Public (no-auth) search ───────────────────────────────────────────────────
+// Uses Reddit's public JSON API — no OAuth required. Gives post titles/text for
+// keyword sentiment analysis even while waiting for API approval.
+
+export async function searchRedditPostsPublic(
+  ticker: string,
+  companyName: string,
+  options: { timeWindow?: "week" | "month"; limit?: number } = {}
+): Promise<RedditPost[]> {
+  const { timeWindow = "week", limit = 25 } = options;
+  const ua = "BuyTuneSocialPulse/0.2 (buytune.io portfolio tracker)";
+  const seenIds = new Set<string>();
+  const allPosts: RedditPost[] = [];
+
+  const queries = buildSearchQueries(ticker, companyName).slice(0, 2);
+
+  for (const query of queries) {
+    try {
+      const url =
+        `https://www.reddit.com/search.json` +
+        `?q=${encodeURIComponent(query)}&limit=${Math.ceil(limit / queries.length)}&t=${timeWindow}&sort=relevance&type=link`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": ua },
+        signal: AbortSignal.timeout(6000),
+        next: { revalidate: 3600 },
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as { data?: { children?: { data: Record<string, unknown> }[] } };
+      const children = json?.data?.children ?? [];
+      for (const child of children) {
+        const post = normalizePost(child.data ?? {});
+        const combined = `${post.title} ${post.text}`;
+        if (post.id && !seenIds.has(post.id) && verifyTickerMention(combined, ticker, companyName)) {
+          seenIds.add(post.id);
+          allPosts.push(post);
+        }
+      }
+    } catch {
+      // non-fatal per query
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  return allPosts;
+}
+
 // ─── Main search ───────────────────────────────────────────────────────────────
 
 export async function searchRedditPosts(

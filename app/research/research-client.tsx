@@ -1336,40 +1336,25 @@ function DetailView({
           const sp = socialPulse;
 
             if (sp.source === "apewisdom") {
-              const trendScore  = sp.reddit_trend_score ?? 0;
-              const trendColor  = trendScore >= 70 ? "var(--green)" : trendScore >= 45 ? "var(--amber)" : "var(--text-secondary)";
               const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "var(--green)" : "var(--red)";
+              const trendLabel = (sp.mention_change_pct ?? 0) >= 10 ? "Trending Up" : (sp.mention_change_pct ?? 0) <= -10 ? "Trending Down" : "Stable";
+              const trendColor = (sp.mention_change_pct ?? 0) >= 10 ? "var(--green)" : (sp.mention_change_pct ?? 0) <= -10 ? "var(--red)" : "var(--text-secondary)";
               return (
                 <div>
-                  <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.08)", border: "1px solid var(--amber-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--amber)", marginBottom: "14px" }}>
-                    Reddit Trend Data via ApeWisdom — full sentiment analysis available once Reddit API is approved
-                  </div>
-                  <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
-                    <div style={{ textAlign: "center", flexShrink: 0 }}>
-                      <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: trendColor, lineHeight: 1 }}>
-                        {trendScore}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
-                      </div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Trend Score</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                    <div style={{ padding: "5px 12px", borderRadius: "6px", border: `1px solid ${trendColor}`, background: `color-mix(in srgb, ${trendColor} 10%, transparent)`, fontSize: "12px", fontWeight: 700, color: trendColor, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                      {trendLabel}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      {sp.rank != null && (
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>
-                          Rank #{sp.rank}
-                          {sp.rank_change != null && sp.rank_change !== 0 && (
-                            <span style={{ fontSize: "11px", color: sp.rank_change > 0 ? "var(--green)" : "var(--red)", marginLeft: "6px" }}>
-                              {sp.rank_change > 0 ? `+${sp.rank_change}` : sp.rank_change}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                        {sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes
-                      </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      {sp.mentions ?? 0} mentions this week
+                      <span style={{ color: changeColor, marginLeft: "6px" }}>
+                        {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}% vs yesterday
+                      </span>
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "12px" }}>
                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions (7d)</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions</div>
                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{sp.mentions ?? 0}</div>
                     </div>
                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
@@ -1378,14 +1363,23 @@ function DetailView({
                         {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
                       </div>
                     </div>
+                    {sp.rank != null && (
+                      <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Rank</div>
+                        <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>#{sp.rank}</div>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Data from ApeWisdom · Cached 30 min</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Sentiment analysis requires Reddit API approval · Trend data via ApeWisdom</div>
                 </div>
               );
             }
 
             const scoreColor  = sp.sentiment_score >= 15 ? "var(--green)" : sp.sentiment_score <= -15 ? "var(--red)" : "var(--text-secondary)";
             const subColor    = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--amber)" : "var(--text-muted)";
+            const bullishCount = Math.round(sp.post_count * sp.bullish_pct / 100);
+            const bearishCount = Math.round(sp.post_count * sp.bearish_pct / 100);
+            const neutralCount = sp.post_count - bullishCount - bearishCount;
             return (
               <div>
                 {sp.stale && (
@@ -1393,36 +1387,39 @@ function DetailView({
                     Showing cached data — Reddit unavailable
                   </div>
                 )}
-                <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "16px" }}>
-                  <div style={{ textAlign: "center", flexShrink: 0 }}>
-                    <div className="num" style={{ fontSize: "26px", fontWeight: 700, color: scoreColor, lineHeight: 1 }}>
-                      {sp.reddit_pulse_score}<span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/100</span>
-                    </div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "2px" }}>Reddit Pulse</div>
+                {/* Sentiment badge — lead visual */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                  <div style={{ padding: "5px 12px", borderRadius: "6px", border: `1px solid ${scoreColor}`, background: `color-mix(in srgb, ${scoreColor} 10%, transparent)`, fontSize: "12px", fontWeight: 700, color: scoreColor, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    {sp.sentiment_label}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: scoreColor, marginBottom: "3px" }}>{sp.sentiment_label}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                      {sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword analysis"}
-                    </div>
-                    {sp.summary && (
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.5 }}>{sp.summary}</div>
-                    )}
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                    {sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword"}
                   </div>
                 </div>
+                {/* Positive / negative count */}
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "10px", fontFamily: "var(--font-mono)" }}>
+                  <span style={{ color: "var(--green)" }}>{bullishCount} positive</span>
+                  {" · "}
+                  <span style={{ color: "var(--red)" }}>{bearishCount} negative</span>
+                  {" · "}
+                  <span style={{ color: "var(--text-muted)" }}>{neutralCount} neutral</span>
+                </div>
+                {/* Sentiment bar */}
                 <div style={{ marginBottom: "14px" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Sentiment</div>
-                  <div style={{ display: "flex", gap: "2px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "5px" }}>
+                  <div style={{ display: "flex", gap: "2px", height: "6px", borderRadius: "3px", overflow: "hidden", marginBottom: "5px" }}>
                     <div style={{ width: `${sp.bullish_pct}%`, background: "var(--green)", flexShrink: 0 }} />
                     <div style={{ width: `${sp.neutral_pct}%`, background: "var(--border-subtle)", flexShrink: 0 }} />
                     <div style={{ width: `${sp.bearish_pct}%`, background: "var(--red)", flexShrink: 0 }} />
                   </div>
                   <div style={{ display: "flex", gap: "12px", fontSize: "10px", fontFamily: "var(--font-mono)" }}>
-                    <span style={{ color: "var(--green)" }}>Bull {sp.bullish_pct}%</span>
-                    <span style={{ color: "var(--text-muted)" }}>Neutral {sp.neutral_pct}%</span>
-                    <span style={{ color: "var(--red)" }}>Bear {sp.bearish_pct}%</span>
+                    <span style={{ color: "var(--green)" }}>{sp.bullish_pct}% bull</span>
+                    <span style={{ color: "var(--text-muted)" }}>{sp.neutral_pct}% neutral</span>
+                    <span style={{ color: "var(--red)" }}>{sp.bearish_pct}% bear</span>
                   </div>
                 </div>
+                {sp.summary && (
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>{sp.summary}</div>
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                   {[
                     { label: "Conviction", value: sp.conviction_score, color: sp.conviction_score >= 60 ? "var(--green)" : sp.conviction_score >= 35 ? "var(--amber)" : "var(--text-secondary)" },
@@ -1481,7 +1478,7 @@ function DetailView({
                       <div key={sub.subreddit} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                         <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>r/{sub.subreddit}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub.post_count}p</span>
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub.post_count} posts</span>
                           <span style={{ fontSize: "11px", color: subColor(sub.sentiment), fontWeight: 500 }}>{sub.sentiment_label}</span>
                         </div>
                       </div>

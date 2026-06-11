@@ -368,10 +368,11 @@ ${postTexts}
 export type CompactRedditPulse = {
   ticker: string;
   post_count: number;
-  sentiment: string;
-  score: number;
-  bullish_pct: number;
-  bearish_pct: number;
+  sentiment: string;       // e.g. "Bullish", "Bearish", "Neutral"
+  score: number;           // -100 to +100
+  bullish_pct: number;     // % of posts classified positive
+  neutral_pct: number;
+  bearish_pct: number;     // % of posts classified negative
   hype_score: number;
   conviction_score: number;
   catalysts: string[];
@@ -393,6 +394,7 @@ export function buildCompactRedditPulse(
     sentiment: basic.sentiment_label,
     score: basic.sentiment_score,
     bullish_pct: basic.bullish_pct,
+    neutral_pct: basic.neutral_pct,
     bearish_pct: basic.bearish_pct,
     hype_score: hype,
     conviction_score: conviction,

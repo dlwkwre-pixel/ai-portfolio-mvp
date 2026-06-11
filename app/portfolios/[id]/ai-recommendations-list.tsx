@@ -446,35 +446,21 @@ export default function AIRecommendationsList({
 
                       // ── ApeWisdom compact view ──────────────────────────────
                       if (sp.source === "apewisdom") {
-                        const trendScore = sp.reddit_trend_score ?? 0;
-                        const trendColor = trendScore >= 70 ? "text-emerald-400" : trendScore >= 45 ? "text-amber-400" : "text-slate-300";
                         const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "text-emerald-400" : "text-red-400";
+                        const trendLabel = (sp.mention_change_pct ?? 0) >= 10 ? "Trending Up" : (sp.mention_change_pct ?? 0) <= -10 ? "Trending Down" : "Stable";
+                        const trendBorder = (sp.mention_change_pct ?? 0) >= 10 ? "border-emerald-500 text-emerald-400" : (sp.mention_change_pct ?? 0) <= -10 ? "border-red-500 text-red-400" : "border-slate-500 text-slate-400";
                         return (
                           <div>
-                            <p className="mb-3 text-xs text-amber-400">Reddit Trend Data via ApeWisdom — full sentiment requires Reddit API approval</p>
-                            <div className="mb-3 flex items-center gap-4">
-                              <div>
-                                <span className={`text-2xl font-bold tabular-nums ${trendColor}`}>{trendScore}</span>
-                                <span className="ml-0.5 text-xs text-slate-500">/100</span>
-                                <p className="text-xs text-slate-500">Trend Score</p>
-                              </div>
-                              <div className="flex-1">
-                                {sp.rank != null && (
-                                  <p className="text-sm font-semibold text-slate-200">
-                                    Rank #{sp.rank}
-                                    {sp.rank_change != null && sp.rank_change !== 0 && (
-                                      <span className={`ml-2 text-xs ${sp.rank_change > 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                        {sp.rank_change > 0 ? `▲${sp.rank_change}` : `▼${Math.abs(sp.rank_change)}`}
-                                      </span>
-                                    )}
-                                  </p>
-                                )}
-                                <p className="text-xs text-slate-500">{sp.mentions ?? 0} mentions · {sp.upvotes ?? 0} upvotes</p>
-                              </div>
+                            <div className="mb-3 flex items-center gap-3">
+                              <span className={`rounded-md border px-3 py-1 text-xs font-bold uppercase tracking-wide ${trendBorder}`}>{trendLabel}</span>
+                              <span className="text-xs text-slate-500">
+                                {sp.mentions ?? 0} mentions
+                                <span className={`ml-1.5 ${changeColor}`}>{(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}% vs yesterday</span>
+                              </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="mb-3 grid grid-cols-3 gap-2">
                               <div className="rounded-xl border border-slate-700 p-2">
-                                <p className="text-xs text-slate-500">Mentions (7d)</p>
+                                <p className="text-xs text-slate-500">Mentions</p>
                                 <p className="text-base font-semibold tabular-nums text-slate-200">{sp.mentions ?? 0}</p>
                               </div>
                               <div className="rounded-xl border border-slate-700 p-2">
@@ -483,31 +469,42 @@ export default function AIRecommendationsList({
                                   {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
                                 </p>
                               </div>
+                              {sp.rank != null && (
+                                <div className="rounded-xl border border-slate-700 p-2">
+                                  <p className="text-xs text-slate-500">Rank</p>
+                                  <p className="text-base font-semibold tabular-nums text-slate-200">#{sp.rank}</p>
+                                </div>
+                              )}
                             </div>
-                            <p className="mt-2 text-xs text-slate-600">Data from ApeWisdom · Cached 30 min</p>
+                            <p className="text-xs text-slate-600">Sentiment analysis requires Reddit API approval · Trend via ApeWisdom</p>
                           </div>
                         );
                       }
 
                       // ── Full Reddit Pulse view ──────────────────────────────
                       const scoreColor = sp.sentiment_score >= 15 ? "text-emerald-400" : sp.sentiment_score <= -15 ? "text-red-400" : "text-slate-200";
+                      const scoreBorder = sp.sentiment_score >= 15 ? "border-emerald-500 text-emerald-400" : sp.sentiment_score <= -15 ? "border-red-500 text-red-400" : "border-slate-500 text-slate-400";
+                      const bullishCount = Math.round(sp.post_count * sp.bullish_pct / 100);
+                      const bearishCount = Math.round(sp.post_count * sp.bearish_pct / 100);
+                      const neutralCount = sp.post_count - bullishCount - bearishCount;
                       return (
                         <div>
                           {sp.stale && (
                             <p className="mb-2 text-xs text-amber-400">Using cached data — Reddit currently unavailable</p>
                           )}
-                          {/* Score row */}
-                          <div className="mb-3 flex items-center gap-4">
-                            <div>
-                              <span className={`text-2xl font-bold tabular-nums ${scoreColor}`}>{sp.reddit_pulse_score}</span>
-                              <span className="ml-0.5 text-xs text-slate-500">/100</span>
-                              <p className="text-xs text-slate-500">Reddit Pulse</p>
-                            </div>
-                            <div className="flex-1">
-                              <p className={`text-sm font-semibold ${scoreColor}`}>{sp.sentiment_label}</p>
-                              <p className="text-xs text-slate-500">{sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword analysis"}</p>
-                            </div>
+                          {/* Sentiment badge — lead visual */}
+                          <div className="mb-2 flex items-center gap-3">
+                            <span className={`rounded-md border px-3 py-1 text-xs font-bold uppercase tracking-wide ${scoreBorder}`}>{sp.sentiment_label}</span>
+                            <span className="text-xs text-slate-500 tabular-nums">{sp.post_count} posts · {sp.ai_powered ? "AI analyzed" : "Keyword"}</span>
                           </div>
+                          {/* Positive / negative counts */}
+                          <p className="mb-3 text-xs tabular-nums text-slate-400">
+                            <span className="text-emerald-400">{bullishCount} positive</span>
+                            {" · "}
+                            <span className="text-red-400">{bearishCount} negative</span>
+                            {" · "}
+                            <span className="text-slate-500">{neutralCount} neutral</span>
+                          </p>
                           {/* Sentiment bar */}
                           <div className="mb-3">
                             <div className="mb-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
@@ -516,11 +513,13 @@ export default function AIRecommendationsList({
                               <div className="bg-red-500" style={{ width: `${sp.bearish_pct}%` }} />
                             </div>
                             <div className="flex gap-3 text-xs">
-                              <span className="text-emerald-400">Bull {sp.bullish_pct}%</span>
-                              <span className="text-slate-500">Neutral {sp.neutral_pct}%</span>
-                              <span className="text-red-400">Bear {sp.bearish_pct}%</span>
+                              <span className="text-emerald-400">{sp.bullish_pct}% bull</span>
+                              <span className="text-slate-500">{sp.neutral_pct}% neutral</span>
+                              <span className="text-red-400">{sp.bearish_pct}% bear</span>
                             </div>
                           </div>
+                          {/* Summary */}
+                          {sp.summary && <p className="mb-3 text-xs text-slate-400">{sp.summary}</p>}
                           {/* Conviction + Hype */}
                           <div className="mb-3 grid grid-cols-2 gap-2">
                             <div className="rounded-xl border border-slate-700 p-2">
@@ -536,20 +535,18 @@ export default function AIRecommendationsList({
                               </p>
                             </div>
                           </div>
-                          {/* Summary */}
-                          {sp.summary && <p className="mb-3 text-sm text-slate-400">{sp.summary}</p>}
                           {/* Themes */}
                           {(sp.top_bullish_themes.length > 0 || sp.top_bearish_themes.length > 0) && (
                             <div className="mb-3 grid grid-cols-2 gap-2">
                               {sp.top_bullish_themes.length > 0 && (
                                 <div>
-                                  <p className="mb-1 text-xs font-medium text-emerald-400">Bullish Themes</p>
+                                  <p className="mb-1 text-xs font-medium text-emerald-400">Bullish</p>
                                   {sp.top_bullish_themes.slice(0, 3).map((t, i) => <p key={i} className="text-xs text-slate-400">· {t}</p>)}
                                 </div>
                               )}
                               {sp.top_bearish_themes.length > 0 && (
                                 <div>
-                                  <p className="mb-1 text-xs font-medium text-red-400">Bearish Themes</p>
+                                  <p className="mb-1 text-xs font-medium text-red-400">Bearish</p>
                                   {sp.top_bearish_themes.slice(0, 3).map((t, i) => <p key={i} className="text-xs text-slate-400">· {t}</p>)}
                                 </div>
                               )}
@@ -558,12 +555,12 @@ export default function AIRecommendationsList({
                           {/* Subreddit breakdown */}
                           {sp.subreddit_breakdown.length > 0 && (
                             <div className="mb-3">
-                              <p className="mb-1 text-xs text-slate-500 uppercase tracking-wider">By Subreddit</p>
+                              <p className="mb-1 text-xs uppercase tracking-wider text-slate-500">By Subreddit</p>
                               {sp.subreddit_breakdown.map((sub) => (
                                 <div key={sub.subreddit} className="flex items-center justify-between border-b border-slate-800 py-1 last:border-0">
                                   <span className="text-xs text-slate-400">r/{sub.subreddit}</span>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-600">{sub.post_count}p</span>
+                                    <span className="text-xs text-slate-600">{sub.post_count} posts</span>
                                     <span className={`text-xs font-medium ${sub.sentiment === "bullish" ? "text-emerald-400" : sub.sentiment === "bearish" ? "text-red-400" : sub.sentiment === "mixed" ? "text-amber-400" : "text-slate-400"}`}>{sub.sentiment_label}</span>
                                   </div>
                                 </div>
@@ -573,7 +570,7 @@ export default function AIRecommendationsList({
                           {/* Source links */}
                           {sp.source_post_links.length > 0 && (
                             <div>
-                              <p className="mb-1 text-xs text-slate-500 uppercase tracking-wider">Top Posts</p>
+                              <p className="mb-1 text-xs uppercase tracking-wider text-slate-500">Top Posts</p>
                               {sp.source_post_links.slice(0, 3).map((link, i) => (
                                 <a key={i} href={link.permalink} target="_blank" rel="noopener noreferrer"
                                   className="block border-b border-slate-800 py-1.5 last:border-0 hover:opacity-75">
