@@ -194,6 +194,16 @@ export async function getBenchmarkComparison(args: {
   const firstSnapshot = snapshots[0];
   const lastSnapshot = snapshots[snapshots.length - 1];
 
+  const costBasis = args.totalCostBasis ?? 0;
+
+  // If the first snapshot is a reconstruction artifact (value well below cost basis),
+  // anchor the chart start at cost basis — the app already knows this from holdings data.
+  // Only affects the chart visual; TWR still uses real snapshot values.
+  const chartStartValue =
+    costBasis > 0 && firstSnapshot.total_value < costBasis * 0.9
+      ? costBasis
+      : firstSnapshot.total_value;
+
   let benchmarkBars: BenchmarkBar[] = [];
   try {
     benchmarkBars = await getBenchmarkHistory(benchmarkSymbol, "MAX", true);
@@ -216,7 +226,6 @@ export async function getBenchmarkComparison(args: {
   // Total Return = return on invested capital.
   // Priority: cost basis (most reliable) → netInvested from cash flows → first snapshot fallback.
   // Cost basis from holdings is always accurate regardless of snapshot quality.
-  const costBasis = args.totalCostBasis ?? 0;
   const portfolioReturnPct = costBasis > 0
     ? ((lastPortfolioValue - costBasis) / costBasis) * 100
     : netInvested > 0
@@ -269,12 +278,13 @@ export async function getBenchmarkComparison(args: {
   // Build chart data with both return series
   // For TWR chart we use running TWR up to each snapshot
   const chartData: BenchmarkChartPoint[] = snapshots.map((snapshot, idx) => {
-    // Chart line uses cost basis as the denominator (same as the headline) so the
-    // line ends at exactly portfolioReturnPct. Falls back to first snapshot when
-    // cost basis is unavailable.
+    // For the first point, use chartStartValue (cost basis if reconstruction artifacts
+    // were detected) so the chart anchors at the correct starting portfolio value.
+    const displayValue = idx === 0 ? chartStartValue : snapshot.total_value;
+
     const chartBaseline = costBasis > 0 ? costBasis : firstPortfolioValue;
     const portfolioReturn = chartBaseline > 0
-      ? ((snapshot.total_value - chartBaseline) / chartBaseline) * 100
+      ? ((displayValue - chartBaseline) / chartBaseline) * 100
       : 0;
 
     // TWR up to this point
@@ -291,7 +301,7 @@ export async function getBenchmarkComparison(args: {
 
     return {
       date: toDisplayDate(snapshot.snapshot_date),
-      portfolio_value: snapshot.total_value,
+      portfolio_value: displayValue,
       portfolio_return_pct: portfolioReturn,
       portfolio_twr_pct: twrUpToHere,
       benchmark_return_pct: benchmarkReturn,
