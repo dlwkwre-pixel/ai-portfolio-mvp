@@ -611,6 +611,28 @@ export async function resetPerformanceHistory(portfolioId: string): Promise<void
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+export async function setDirectCashBalance(portfolioId: string, newBalance: number): Promise<void> {
+  "use server";
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+  if (!Number.isFinite(newBalance) || newBalance < 0) throw new Error("Cash balance must be a non-negative number.");
+  if (newBalance > 1_000_000_000) throw new Error("Amount exceeds maximum allowed value.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { error } = await supabase
+    .from("portfolios")
+    .update({ cash_balance: newBalance })
+    .eq("id", portfolioId)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
 export async function trimSnapshotsBefore(portfolioId: string, cutoffDate: string): Promise<{ deleted: number }> {
   "use server";
   const supabase = await createClient();

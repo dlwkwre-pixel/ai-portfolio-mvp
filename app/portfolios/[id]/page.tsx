@@ -8,6 +8,7 @@ import ImportHoldingsCSV from "./import-holdings-csv";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
+import EditCashBalanceButton from "./edit-cash-balance-button";
 import AssignStrategyForm from "./assign-strategy-form";
 import UpgradeStrategyVersionButton from "./upgrade-strategy-version-button";
 import AIRecommendationsSection from "./ai-recommendations-section";
@@ -407,7 +408,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                     {/* Cash Activity */}
                     <div className="bt-card">
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Cash Activity</h2>
-                      <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                        <AddCashActivityForm portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
+                        <EditCashBalanceButton portfolioId={portfolio.id} currentCashBalance={Number(portfolio.cash_balance ?? 0)} />
+                      </div>
                       <CashActivityList
                         entries={cashLedger ?? []}
                         archivedEntries={cashLedgerArchive ?? []}

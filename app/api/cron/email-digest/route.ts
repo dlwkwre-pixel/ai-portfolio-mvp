@@ -162,13 +162,26 @@ export async function GET(request: Request) {
       // ── Performance ──────────────────────────────────────────────────────────
       let performance: DigestTemplateData["performance"] = null;
       if (pref.include_performance) {
-        const [{ data: recentSnaps }, { data: oldestSnap }] = await Promise.all([
+        // Three dedicated queries — avoids limit(30) failing when many snapshots exist
+        const [{ data: latestSnap }, { data: weekOldSnap }, { data: oldestSnap }] = await Promise.all([
+          // Most recent snapshot
           adminSupabase
             .from("portfolio_snapshots")
             .select("total_value, snapshot_date")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: false })
-            .limit(30),
+            .limit(1)
+            .maybeSingle(),
+          // Most recent snapshot that is at least 7 days old
+          adminSupabase
+            .from("portfolio_snapshots")
+            .select("total_value, snapshot_date")
+            .eq("portfolio_id", pref.portfolio_id)
+            .lte("snapshot_date", `${sevenDaysAgo}T23:59:59`)
+            .order("snapshot_date", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          // Oldest snapshot (inception)
           adminSupabase
             .from("portfolio_snapshots")
             .select("total_value, snapshot_date")
@@ -178,13 +191,11 @@ export async function GET(request: Request) {
             .maybeSingle(),
         ]);
 
-        if (recentSnaps && recentSnaps.length >= 1) {
-          const latest = recentSnaps[0];
-          const weekOld = recentSnaps.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo);
-          const latestVal = Number(latest.total_value);
-          const weekOldVal = weekOld ? Number(weekOld.total_value) : null;
+        if (latestSnap) {
+          const latestVal = Number(latestSnap.total_value);
+          const weekOldVal = weekOldSnap ? Number(weekOldSnap.total_value) : null;
           const inceptionVal = oldestSnap ? Number(oldestSnap.total_value) : null;
-          const isFirstSnap = oldestSnap?.snapshot_date === latest.snapshot_date;
+          const isFirstSnap = oldestSnap?.snapshot_date === latestSnap.snapshot_date;
 
           performance = {
             totalValue: latestVal,
