@@ -49,7 +49,6 @@ const TIMEFRAMES = [
 
 const CHART_MODES = [
   { label: "Value $", value: "value" },
-  { label: "Total Ret.", value: "return" },
   { label: "Inv. Return", value: "twr" },
 ];
 
@@ -105,7 +104,7 @@ export default function PortfolioChartClient({
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "return" | "twr">("value");
+  const [chartMode, setChartMode] = useState<"value" | "twr">("value");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
@@ -167,16 +166,6 @@ export default function PortfolioChartClient({
                 Deposits excluded · {activeTimeframe}
               </p>
             </>
-          ) : chartMode === "return" ? (
-            <>
-              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Total Return</p>
-              <p className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: (portfolioReturnPct ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}>
-                {isPrivate ? "••••••" : formatPercent(portfolioReturnPct)}
-              </p>
-              <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                Includes deposits · {activeTimeframe}
-              </p>
-            </>
           ) : (
             <>
               <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
@@ -201,7 +190,7 @@ export default function PortfolioChartClient({
               <button
                 key={mode.value}
                 type="button"
-                onClick={() => setChartMode(mode.value as "value" | "return" | "twr")}
+                onClick={() => setChartMode(mode.value as "value" | "twr")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
                   chartMode === mode.value ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
@@ -228,17 +217,12 @@ export default function PortfolioChartClient({
         </div>
       </div>
 
-      {/* Stats row for return/twr modes */}
-      {hasEnoughSnapshots && (chartMode === "return" || chartMode === "twr") && (
+      {/* Stats row */}
+      {hasEnoughSnapshots && (
         <div className="mb-4 space-y-2">
           {chartMode === "twr" && (
             <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
               <span className="font-semibold">Inv. Return (TWR)</span> measures how well your picks performed, regardless of when you deposited money. Think of it as: "if I had timed everything perfectly, what would my return be?" Can be higher or lower than your actual gain on cash invested.
-            </div>
-          )}
-          {chartMode === "return" && (
-            <div className="rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-slate-500">
-              <span className="font-semibold text-slate-400">Total Return</span> is your actual gain on the money you put in — (current value − total invested) ÷ total invested. This is the number that answers "how much did I make on my cash?"
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
@@ -290,34 +274,6 @@ export default function PortfolioChartClient({
                 contentStyle={tooltipStyle}
               />
               <Area type="monotone" dataKey="portfolio_value" stroke={isPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#portfolioGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
-            </AreaChart>
-          </ResponsiveContainer>
-          )}
-        </div>
-      ) : chartMode === "return" ? (
-        <div className="h-56 min-w-0">
-          {filteredChartData.length < 2 ? (
-            <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
-              <p className="text-sm text-slate-400">No return data for this timeframe.</p>
-            </div>
-          ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="returnValueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
-              <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={60} tickFormatter={formatMoney} />
-              <Tooltip
-                formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Portfolio Value"]}
-                labelFormatter={(label) => compactDate(label)}
-                contentStyle={tooltipStyle}
-              />
-              <Area type="monotone" dataKey="portfolio_value" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnValueGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
             </AreaChart>
           </ResponsiveContainer>
           )}
