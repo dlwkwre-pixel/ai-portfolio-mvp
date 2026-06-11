@@ -301,27 +301,25 @@ export default function PortfolioChartClient({
               <p className="text-sm text-slate-400">No return data for this timeframe.</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="returnGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-                <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
-                <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
-                <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={56} tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
-                <Tooltip
-                  formatter={(value, name) => [formatPercent(Number(value)), name === "portfolio_return_pct" ? "Total Return" : benchmarkSymbol]}
-                  labelFormatter={(label) => compactDate(label)}
-                  contentStyle={tooltipStyle}
-                />
-                <Area type="monotone" dataKey="portfolio_return_pct" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
-                <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="returnValueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
+              <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={60} tickFormatter={formatMoney} />
+              <Tooltip
+                formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Portfolio Value"]}
+                labelFormatter={(label) => compactDate(label)}
+                contentStyle={tooltipStyle}
+              />
+              <Area type="monotone" dataKey="portfolio_value" stroke="#38bdf8" strokeWidth={2.5} fill="url(#returnValueGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+            </AreaChart>
+          </ResponsiveContainer>
           )}
         </div>
       ) : (
@@ -358,11 +356,11 @@ export default function PortfolioChartClient({
 
       {/* Legend + Reset */}
       <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
-        {(chartMode === "return" || chartMode === "twr") && hasEnoughSnapshots && (
+        {chartMode === "twr" && hasEnoughSnapshots && (
           <>
             <span className="flex items-center gap-1.5">
-              <span className={`h-2 w-4 rounded ${chartMode === "twr" ? "bg-violet-400" : "bg-sky-400"}`} />
-              {chartMode === "twr" ? "Inv. Return (TWR)" : "Total Return"}
+              <span className="h-2 w-4 rounded bg-violet-400" />
+              Inv. Return (TWR)
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-4 rounded bg-slate-500" />
