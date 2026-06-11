@@ -29,6 +29,7 @@ import type { EducationScenario } from "./education/education-actions";
 import type { FamilyScenario } from "./family/family-actions";
 import type { SabbaticalScenario } from "./sabbatical/sabbatical-actions";
 import type { CarScenario } from "./car/car-actions";
+import type { ApartmentListing } from "./apartment/apartment-actions";
 import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
@@ -5102,6 +5103,7 @@ type Props = {
   familyScenarios: FamilyScenario[];
   sabbaticalScenarios: SabbaticalScenario[];
   carScenarios: CarScenario[];
+  apartmentListings: ApartmentListing[];
   expenseActuals: ExpenseActual[];
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
@@ -5114,7 +5116,7 @@ type FinnChatEntry = { role: "user" | "finn"; text: string };
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, expenseActuals, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -8322,6 +8324,7 @@ export default function PlanningClient({
             .hub-card-edu:hover { border-color: oklch(0.65 0.18 260 / 0.4) !important; }
             .hub-card-sabbatical:hover { border-color: oklch(0.72 0.19 145 / 0.4) !important; }
             .hub-card-car:hover { border-color: oklch(0.72 0.20 38 / 0.4) !important; }
+            .hub-card-apartment:hover { border-color: oklch(0.68 0.16 280 / 0.4) !important; }
             .hub-ring-fill { animation: hub-ring-draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
             .hub-bar-fill { animation: hub-bar-scale 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: left; }
             .hub-section { animation: hub-fade-up 0.35s ease-out both; }
@@ -8698,6 +8701,44 @@ export default function PlanningClient({
                   </div>
                 ) : (
                   <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Compare your current car to a new one — payments, TCO, trade-in, break-even.</p>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
+              <Link href="/planning/apartment" className="hub-card hub-card-apartment" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.68 0.16 280) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.68 0.16 280)", flexShrink: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="8" width="14" height="10" rx="1"/><path d="M1 8l9-6 9 6" strokeLinecap="round" strokeLinejoin="round"/><rect x="7" y="12" width="6" height="6" rx="0.5"/></svg>
+                    </div>
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Apartment</span>
+                  </div>
+                  <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)",
+                    color: apartmentListings.length === 0 ? "var(--text-muted)" : "oklch(0.68 0.16 280)",
+                    background: apartmentListings.length === 0 ? "rgba(255,255,255,0.04)" : "color-mix(in oklch, oklch(0.68 0.16 280) 12%, transparent)" }}>
+                    {apartmentListings.length === 0 ? "Not Started" : `${apartmentListings.length} listing${apartmentListings.length !== 1 ? "s" : ""}`}
+                  </span>
+                </div>
+                {apartmentListings.length > 0 ? (() => {
+                  const cheapest = [...apartmentListings].sort((a, b) => {
+                    const ta = Math.max(0, a.base_rent - a.concession_monthly_savings) + (a.has_pets ? a.pet_rent_monthly * a.pet_count : 0) + a.parking_monthly;
+                    const tb = Math.max(0, b.base_rent - b.concession_monthly_savings) + (b.has_pets ? b.pet_rent_monthly * b.pet_count : 0) + b.parking_monthly;
+                    return ta - tb;
+                  })[0];
+                  const trueMonthly = Math.max(0, cheapest.base_rent - cheapest.concession_monthly_savings) + (cheapest.has_pets ? cheapest.pet_rent_monthly * cheapest.pet_count : 0) + cheapest.parking_monthly;
+                  return (
+                    <div style={{ marginBottom: "10px" }}>
+                      <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 3px", fontFamily: "var(--font-body)" }}>Best effective rent</p>
+                      <p style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)", margin: 0 }}>
+                        {"$" + Math.round(trueMonthly).toLocaleString("en-US") + "/mo"}
+                      </p>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0", fontFamily: "var(--font-body)" }}>{cheapest.name}</p>
+                    </div>
+                  );
+                })() : (
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Compare apartments with AI concession parsing, true monthly cost, and rent burden analysis.</p>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
                   Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
