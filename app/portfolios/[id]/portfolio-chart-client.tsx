@@ -58,7 +58,7 @@ function filterByTimeframe<T extends { date: string }>(data: T[], days: number):
   const cutoff = days === -1
     ? new Date(now.getFullYear(), 0, 1)
     : new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  return data.filter((d) => new Date(d.date) >= cutoff);
+  return data.filter((d) => new Date(d.date.slice(0, 10) + "T12:00:00") >= cutoff);
 }
 
 function formatMoney(value: number) {
@@ -75,7 +75,7 @@ function formatPercent(value: number | null | undefined) {
 }
 
 function compactDate(value: string) {
-  const d = new Date(value);
+  const d = new Date(value.slice(0, 10) + "T12:00:00");
   if (isNaN(d.getTime())) return value;
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

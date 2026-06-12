@@ -82,7 +82,9 @@ function sanitizeSnapshots(
 }
 
 function toDisplayDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString();
+  // Use toDateKey (YYYY-MM-DD) — avoids locale-format parsing issues in the client
+  // and prevents UTC midnight from shifting to the previous day in US timezones.
+  return toDateKey(dateString);
 }
 
 function findAdjCloseOnOrBefore(targetDate: string, bars: BenchmarkBar[]): number | null {
@@ -164,13 +166,19 @@ export async function getBenchmarkComparison(args: {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
   const cashFlows = args.cashFlows ?? [];
 
-  const rawSnapshots = [...args.snapshots]
-    .map((s) => ({
-      snapshot_date: s.snapshot_date,
-      total_value: Number(s.total_value),
-    }))
+  // Sort then deduplicate: keep the last snapshot per calendar day.
+  // Multiple auto-snapshots on the same day (e.g. page visited several times)
+  // produce repeated date labels and misleading chart points.
+  const sorted = [...args.snapshots]
+    .map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) }))
     .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0)
     .sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
+
+  const dayMap = new Map<string, { snapshot_date: string; total_value: number }>();
+  for (const s of sorted) {
+    dayMap.set(toDateKey(s.snapshot_date), s); // last entry per day wins
+  }
+  const rawSnapshots = [...dayMap.values()];
 
   const snapshots = sanitizeSnapshots(rawSnapshots, args.totalCostBasis);
 
