@@ -280,7 +280,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
             {/* Stat cards — rendered below topbar, animated */}
 
             {/* Stat cards — full-width section below topbar, never inside the topbar flex row */}
-            <PortfolioStatCards statCards={statCards} />
+            <PortfolioStatCards
+              statCards={statCards}
+              editCash={{ portfolioId: portfolio.id, cashBalance: Number(portfolio.cash_balance ?? 0) }}
+            />
 
             {/* Reconciliation metadata — shown only after first audit */}
             {portfolio.last_reconciled_at && (

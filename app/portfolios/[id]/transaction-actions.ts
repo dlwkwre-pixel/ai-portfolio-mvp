@@ -291,7 +291,7 @@ export async function createPortfolioTransaction(formData: FormData) {
   // Full sells (holding deleted) can't have a lot since the FK would be violated.
   if (linkedHoldingId && isTrade && quantity !== null && pricePerShare !== null) {
     const lotDate = (tradedAt || new Date().toISOString()).slice(0, 10);
-    await supabase.from("holding_lots").insert({
+    const { error: lotErr } = await supabase.from("holding_lots").insert({
       holding_id: linkedHoldingId,
       portfolio_id: portfolioId,
       ticker,
@@ -300,6 +300,7 @@ export async function createPortfolioTransaction(formData: FormData) {
       shares: quantity,
       price_per_share: pricePerShare,
     });
+    if (lotErr) console.error("Lot insert failed (non-fatal):", lotErr.message);
   }
 
   const newCashBalance = Number(portfolio.cash_balance ?? 0) + netCashImpact;
@@ -429,6 +430,30 @@ export async function updateTransaction(formData: FormData) {
     }
   }
 
+  // Sync the holding lot so chart reconstruction stays accurate
+  if ((transactionType === "buy" || transactionType === "sell") && existingTx.ticker) {
+    const oldDate = (existingTx.traded_at as string).slice(0, 10);
+    const newDate = tradedAt ? new Date(tradedAt).toISOString().slice(0, 10) : oldDate;
+    const lotType = (transactionType as string).toUpperCase();
+    const oldShares = Number(existingTx.quantity);
+    const { data: lots } = await supabase
+      .from("holding_lots")
+      .select("id")
+      .eq("portfolio_id", portfolioId)
+      .eq("ticker", existingTx.ticker.toUpperCase())
+      .eq("lot_type", lotType)
+      .eq("purchased_at", oldDate)
+      .gte("shares", oldShares - 0.00001)
+      .lte("shares", oldShares + 0.00001)
+      .limit(1);
+    if (lots && lots.length > 0) {
+      await supabase
+        .from("holding_lots")
+        .update({ shares: quantity, price_per_share: pricePerShare, purchased_at: newDate })
+        .eq("id", lots[0].id);
+    }
+  }
+
   revalidatePath(`/portfolios/${portfolioId}`);
   revalidatePath("/dashboard");
 }
@@ -531,6 +556,26 @@ export async function deleteTransaction(formData: FormData) {
         average_cost_basis: tx.price_per_share ?? null,
         asset_type: "stock",
       });
+    }
+  }
+
+  // Delete the holding lot so chart reconstruction doesn't count phantom shares
+  if ((tx.transaction_type === "buy" || tx.transaction_type === "sell") && tx.ticker && tx.quantity) {
+    const lotDate = (tx.traded_at as string).slice(0, 10);
+    const lotType = (tx.transaction_type as string).toUpperCase();
+    const txShares = Number(tx.quantity);
+    const { data: lots } = await supabase
+      .from("holding_lots")
+      .select("id")
+      .eq("portfolio_id", portfolioId)
+      .eq("ticker", tx.ticker.toUpperCase())
+      .eq("lot_type", lotType)
+      .eq("purchased_at", lotDate)
+      .gte("shares", txShares - 0.00001)
+      .lte("shares", txShares + 0.00001)
+      .limit(1);
+    if (lots && lots.length > 0) {
+      await supabase.from("holding_lots").delete().eq("id", lots[0].id);
     }
   }
 
