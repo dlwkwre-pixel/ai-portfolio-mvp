@@ -48,6 +48,7 @@ const TIMEFRAMES = [
 ];
 
 const CHART_MODES = [
+  { label: "Net Return", value: "net" },
   { label: "Value $", value: "value" },
   { label: "% Ret.", value: "pct" },
   { label: "Inv. Return", value: "twr" },
@@ -105,7 +106,7 @@ export default function PortfolioChartClient({
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
-  const [chartMode, setChartMode] = useState<"value" | "pct" | "twr">("value");
+  const [chartMode, setChartMode] = useState<"net" | "value" | "pct" | "twr">("net");
   const { isPrivate } = usePortfolioPrivacy();
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
@@ -128,6 +129,47 @@ export default function PortfolioChartClient({
     const pct = first > 0 ? (change / first) * 100 : 0;
     return { change, pct, isPositive: change >= 0 };
   }, [filteredChartData, netInvested, activeTimeframe]);
+
+  // Net Return chart data: TWR-normalized dollar value so deposits/withdrawals
+  // don't move the line. Anchored to period start value for the selected timeframe.
+  const netChartData = useMemo(() => {
+    if (filteredChartData.length < 2) return [];
+    const startValue = filteredChartData[0].portfolio_value;
+    const startTwr = filteredChartData[0].portfolio_twr_pct; // cumulative TWR at period start
+    return filteredChartData.map((d) => {
+      // Period-relative TWR: how much did investing skill contribute since period start
+      const periodTwr = ((1 + d.portfolio_twr_pct / 100) / (1 + startTwr / 100) - 1) * 100;
+      return {
+        date: d.date,
+        net_value: startValue * (1 + periodTwr / 100),
+        benchmark_return_pct: d.benchmark_return_pct,
+        // keep actual portfolio value for tooltip context
+        actual_value: d.portfolio_value,
+      };
+    });
+  }, [filteredChartData]);
+
+  const netTwrStats = useMemo(() => {
+    if (activeTimeframe === "All") {
+      return {
+        twrPct: portfolioTwrPct,
+        benchPct: benchmarkReturnPct,
+        excess: excessTwrPct,
+      };
+    }
+    if (netChartData.length < 2) return { twrPct: null, benchPct: null, excess: null };
+    const firstTwr = filteredChartData[0].portfolio_twr_pct;
+    const lastTwr = filteredChartData[filteredChartData.length - 1].portfolio_twr_pct;
+    const periodTwr = ((1 + lastTwr / 100) / (1 + firstTwr / 100) - 1) * 100;
+    const firstBench = filteredChartData[0].benchmark_return_pct;
+    const lastBench = filteredChartData[filteredChartData.length - 1].benchmark_return_pct;
+    const periodBench = firstBench !== null && lastBench !== null ? lastBench - firstBench : null;
+    return {
+      twrPct: periodTwr,
+      benchPct: periodBench,
+      excess: periodBench !== null ? periodTwr - periodBench : null,
+    };
+  }, [netChartData, filteredChartData, activeTimeframe, portfolioTwrPct, benchmarkReturnPct, excessTwrPct]);
 
   // Period-relative % chart data: starts at 0% for every timeframe.
   // "All" uses server-computed portfolio_return_pct (anchored to cost basis).
@@ -181,6 +223,7 @@ export default function PortfolioChartClient({
 
   const isPositive = valueChange ? valueChange.isPositive : (portfolioReturnPct ?? 0) >= 0;
   const isPctPositive = (periodPctStats.portfolioPct ?? 0) >= 0;
+  const isNetPositive = (netTwrStats.twrPct ?? 0) >= 0;
 
   const returnStats: StatItem[] = [
     { label: "Portfolio", value: formatPercent(portfolioReturnPct), positive: (portfolioReturnPct ?? 0) >= 0 },
@@ -200,7 +243,13 @@ export default function PortfolioChartClient({
     { label: "Excess", value: formatPercent(excessTwrPct), positive: (excessTwrPct ?? 0) >= 0 },
   ];
 
-  const activeStats = chartMode === "twr" ? twrStats : chartMode === "pct" ? periodReturnStats : returnStats;
+  const netStats: StatItem[] = [
+    { label: "Net Return", value: formatPercent(netTwrStats.twrPct), positive: (netTwrStats.twrPct ?? 0) >= 0 },
+    { label: benchmarkSymbol, value: formatPercent(netTwrStats.benchPct), positive: (netTwrStats.benchPct ?? 0) >= 0 },
+    { label: "Excess", value: formatPercent(netTwrStats.excess), positive: (netTwrStats.excess ?? 0) >= 0 },
+  ];
+
+  const activeStats = chartMode === "net" ? netStats : chartMode === "twr" ? twrStats : chartMode === "pct" ? periodReturnStats : returnStats;
 
   return (
     <div className="mb-6 rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
@@ -208,7 +257,20 @@ export default function PortfolioChartClient({
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">
         <div>
-          {chartMode === "twr" ? (
+          {chartMode === "net" ? (
+            <>
+              <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Portfolio Value</p>
+              {currentValue !== null && (
+                <p className="mt-1 text-3xl font-semibold tracking-tight text-white">
+                  {isPrivate ? "$••••••" : `$${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                </p>
+              )}
+              <p className={`mt-0.5 text-sm font-medium ${isNetPositive ? "text-emerald-400" : "text-red-400"}`}>
+                {isPrivate ? "••••••" : formatPercent(netTwrStats.twrPct)}
+                <span className="ml-2 text-xs text-slate-500">net return · {activeTimeframe}</span>
+              </p>
+            </>
+          ) : chartMode === "twr" ? (
             <>
               <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Investment Return</p>
               <p className="mt-1 text-3xl font-semibold tracking-tight" style={{ color: (portfolioTwrPct ?? 0) >= 0 ? "var(--green)" : "var(--red)" }}>
@@ -252,7 +314,7 @@ export default function PortfolioChartClient({
               <button
                 key={mode.value}
                 type="button"
-                onClick={() => setChartMode(mode.value as "value" | "pct" | "twr")}
+                onClick={() => setChartMode(mode.value as "net" | "value" | "pct" | "twr")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
                   chartMode === mode.value ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
@@ -282,9 +344,12 @@ export default function PortfolioChartClient({
       {/* Stats row */}
       {hasEnoughSnapshots && (
         <div className="mb-4 space-y-2">
-          {chartMode === "twr" && (
+          {(chartMode === "net" || chartMode === "twr") && (
             <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 px-3 py-2 text-xs text-blue-300">
-              <span className="font-semibold">Inv. Return (TWR)</span> measures how well your picks performed, regardless of when you deposited money. Think of it as: &ldquo;if I had timed everything perfectly, what would my return be?&rdquo; Can be higher or lower than your actual gain on cash invested.
+              {chartMode === "net"
+                ? <><span className="font-semibold">Net Return</span> — deposits and withdrawals are invisible to the chart line. Only your investing decisions move the needle, just like Robinhood.</>
+                : <><span className="font-semibold">Inv. Return (TWR)</span> measures how well your picks performed, regardless of when you deposited money. Think of it as: &ldquo;if I had timed everything perfectly, what would my return be?&rdquo; Can be higher or lower than your actual gain on cash invested.</>
+              }
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
@@ -311,6 +376,37 @@ export default function PortfolioChartClient({
             </p>
             <p className="mt-1 text-xs text-slate-600">Snapshots are recorded automatically each day.</p>
           </div>
+        </div>
+      ) : chartMode === "net" ? (
+        <div className="h-56 min-w-0">
+          {netChartData.length < 2 ? (
+            <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
+              <p className="text-sm text-slate-400">No data for this timeframe.</p>
+            </div>
+          ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={netChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="netGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={isNetPositive ? "#34d399" : "#f87171"} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={isNetPositive ? "#34d399" : "#f87171"} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
+              <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={60} tickFormatter={formatMoney} />
+              <Tooltip
+                formatter={(value, name) => name === "net_value"
+                  ? [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Net Return"]
+                  : [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Actual Value"]
+                }
+                labelFormatter={(label) => compactDate(label)}
+                contentStyle={tooltipStyle}
+              />
+              <Area type="monotone" dataKey="net_value" stroke={isNetPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#netGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+            </AreaChart>
+          </ResponsiveContainer>
+          )}
         </div>
       ) : chartMode === "value" ? (
         <div className="h-56 min-w-0">
@@ -431,17 +527,19 @@ export default function PortfolioChartClient({
 
       {/* Legend + Reset */}
       <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
-        {(chartMode === "twr" || chartMode === "pct") && hasEnoughSnapshots && (
+        {(chartMode === "net" || chartMode === "twr" || chartMode === "pct") && hasEnoughSnapshots && (
           <>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#a78bfa" : (isPctPositive ? "#34d399" : "#f87171") }} />
-              {chartMode === "twr" ? "Inv. Return (TWR)" : "Portfolio %"}
+              <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#a78bfa" : (chartMode === "net" ? (isNetPositive ? "#34d399" : "#f87171") : (isPctPositive ? "#34d399" : "#f87171")) }} />
+              {chartMode === "twr" ? "Inv. Return (TWR)" : chartMode === "net" ? "Net Return" : "Portfolio %"}
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />
-              {benchmarkSymbol}
-            </span>
-            {chartMode === "twr" && startDateLabel && endDateLabel && (
+            {(chartMode === "twr" || chartMode === "pct") && (
+              <span className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />
+                {benchmarkSymbol}
+              </span>
+            )}
+            {(chartMode === "twr" || chartMode === "net") && startDateLabel && endDateLabel && (
               <span className="text-slate-600">{startDateLabel} → {endDateLabel}</span>
             )}
           </>
