@@ -980,11 +980,19 @@ function NetWorthHistoryCard({
   const isUp = change == null || change >= 0;
   const accentColor = isUp ? "#00d395" : "#f59e0b";
 
-  const useShortDates = allPoints.length > 8;
-  const chartData = allPoints.map((p) => ({
-    label: useShortDates ? fmtDateShort(p.date) : fmtDate(p.date),
-    value: p.net_worth,
-  }));
+  const chartData = allPoints.map((p) => ({ date: p.date.slice(0, 10), value: p.net_worth }));
+
+  const n = chartData.length;
+  const spanDays = n >= 2
+    ? (new Date(chartData[n - 1].date + "T12:00:00").getTime() - new Date(chartData[0].date + "T12:00:00").getTime()) / 86400000
+    : 0;
+  const tickInterval = n <= 5 ? 0 : Math.max(1, Math.floor((n - 1) / 4));
+  function nwTickFmt(dateStr: string) {
+    const d = new Date(dateStr.slice(0, 10) + "T12:00:00");
+    if (spanDays > 300) return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    if (spanDays > 60) return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 
   function handleTrim() {
     if (!trimDate) return;
@@ -1082,7 +1090,7 @@ function NetWorthHistoryCard({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+            <XAxis dataKey="date" tickFormatter={nwTickFmt} interval={tickInterval} tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} />
             <YAxis
               tickFormatter={(v) => isPrivate ? "•••" : "$" + (Math.abs(v) >= 1000000 ? (v / 1000000).toFixed(1) + "M" : Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + "k" : v)}
               tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }}
@@ -1091,6 +1099,7 @@ function NetWorthHistoryCard({
             <Tooltip
               contentStyle={{ background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
               labelStyle={{ color: "var(--text-secondary)" }}
+              labelFormatter={(label) => nwTickFmt(String(label))}
               formatter={(value) => [isPrivate ? "••••••" : fmt(typeof value === "number" ? value : 0), "Net Worth"]}
             />
             <Area type="monotone" dataKey="value" stroke={accentColor} strokeWidth={2} fill="url(#nwHistGrad)" dot={false} />
