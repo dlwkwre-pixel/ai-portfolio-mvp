@@ -11,6 +11,7 @@ import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 import StreakBadge from "./streak-badge";
 import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
+import MacroStrip from "./macro-strip";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -290,6 +291,9 @@ export default async function DashboardPage({
                 </Suspense>
               </div>
             )}
+            <Suspense fallback={null}>
+              <MacroStrip />
+            </Suspense>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               <RegimeShiftAlert />
               <MarketRegimeCard />
