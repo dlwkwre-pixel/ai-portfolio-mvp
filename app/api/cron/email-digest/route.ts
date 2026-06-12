@@ -167,7 +167,7 @@ export async function GET(request: Request) {
           // Most recent snapshot
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date")
+            .select("total_value, snapshot_date, portfolio_twr_pct")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: false })
             .limit(1)
@@ -175,7 +175,7 @@ export async function GET(request: Request) {
           // Most recent snapshot that is at least 7 days old
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date")
+            .select("total_value, snapshot_date, portfolio_twr_pct")
             .eq("portfolio_id", pref.portfolio_id)
             .lte("snapshot_date", `${sevenDaysAgo}T23:59:59`)
             .order("snapshot_date", { ascending: false })
@@ -184,7 +184,7 @@ export async function GET(request: Request) {
           // Oldest snapshot (inception)
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date")
+            .select("total_value, snapshot_date, portfolio_twr_pct")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: true })
             .limit(1)
@@ -194,14 +194,29 @@ export async function GET(request: Request) {
         if (latestSnap) {
           const latestVal = Number(latestSnap.total_value);
           const weekOldVal = weekOldSnap ? Number(weekOldSnap.total_value) : null;
-          const inceptionVal = oldestSnap ? Number(oldestSnap.total_value) : null;
           const isFirstSnap = oldestSnap?.snapshot_date === latestSnap.snapshot_date;
+
+          // Use TWR for returns — same math as the chart's period-rebase so deposits don't distort the numbers
+          const latestTwr = Number(latestSnap.portfolio_twr_pct ?? 0);
+          const weekOldTwr = weekOldSnap != null ? Number(weekOldSnap.portfolio_twr_pct ?? 0) : null;
+          const inceptionTwr = oldestSnap != null ? Number(oldestSnap.portfolio_twr_pct ?? 0) : null;
+
+          const weekTwr = weekOldTwr != null
+            ? ((1 + latestTwr / 100) / (1 + weekOldTwr / 100) - 1) * 100
+            : null;
+          const allTimeTwr = inceptionTwr != null && !isFirstSnap
+            ? ((1 + latestTwr / 100) / (1 + inceptionTwr / 100) - 1) * 100
+            : null;
+          // Dollar gain from investing this week (excludes new deposits)
+          const weekReturnAbsTwr = weekTwr != null && weekOldVal != null
+            ? weekOldVal * (weekTwr / 100)
+            : null;
 
           performance = {
             totalValue: latestVal,
-            weekReturnPct: weekOldVal && weekOldVal > 0 ? Math.round(((latestVal - weekOldVal) / weekOldVal) * 1000) / 10 : null,
-            weekReturnAbs: weekOldVal != null ? Math.round(latestVal - weekOldVal) : null,
-            allTimeReturnPct: inceptionVal && inceptionVal > 0 && !isFirstSnap ? Math.round(((latestVal - inceptionVal) / inceptionVal) * 1000) / 10 : null,
+            weekReturnPct: weekTwr != null ? Math.round(weekTwr * 10) / 10 : null,
+            weekReturnAbs: weekReturnAbsTwr != null ? Math.round(weekReturnAbsTwr) : null,
+            allTimeReturnPct: allTimeTwr != null ? Math.round(allTimeTwr * 10) / 10 : null,
             inceptionDate: oldestSnap?.snapshot_date ?? null,
           };
         }
