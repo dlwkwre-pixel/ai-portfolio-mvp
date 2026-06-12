@@ -5,6 +5,7 @@ import { EditHoldingForm, DeleteHoldingButton } from "./add-holding-form";
 import { HoldingLots } from "./holding-lots";
 import type { HoldingLot } from "./holding-lots";
 import StockChart from "@/app/components/stock-chart";
+import FundamentalsPanel from "./fundamentals-panel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -346,6 +347,7 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
 export default function HoldingsTable({ portfolioId, holdings, lots = [] }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [lotsId, setLotsId] = useState<string | null>(null);
+  const [fundamentalsId, setFundamentalsId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
   const [insiderData, setInsiderData] = useState<Record<string, InsiderData>>({});
@@ -530,6 +532,20 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                           title="View and edit purchase lots"
                         >
                           Lots{holdingLotCount > 0 ? ` (${holdingLotCount})` : ""}
+                        </button>
+                      );
+                    })()}
+                    {(holding.asset_type === "stock" || holding.asset_type == null) && (() => {
+                      const isOpen = fundamentalsId === holding.id;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setFundamentalsId(isOpen ? null : holding.id)}
+                          className="text-xs transition"
+                          style={{ color: isOpen ? "var(--brand-blue)" : "var(--text-muted)", opacity: isOpen ? 1 : 0.6 }}
+                          title="View SEC EDGAR financial data"
+                        >
+                          Financials
                         </button>
                       );
                     })()}
@@ -1002,6 +1018,18 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                       portfolioId={portfolioId}
                       ticker={holding.ticker}
                       lots={lots.filter((l) => l.holding_id === holding.id)}
+                    />
+                  </td>
+                </tr>
+              )}
+
+              {/* SEC EDGAR fundamentals row */}
+              {fundamentalsId === holding.id && editingId !== holding.id && (
+                <tr key={`fundamentals-${holding.id}`}>
+                  <td colSpan={9} style={{ padding: 0 }}>
+                    <FundamentalsPanel
+                      ticker={holding.ticker}
+                      currentPrice={holding.current_price ?? null}
                     />
                   </td>
                 </tr>

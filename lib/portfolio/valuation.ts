@@ -1,4 +1,6 @@
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
+import { getCryptoPrices } from "@/lib/market-data/coingecko";
+import type { CryptoQuote } from "@/lib/market-data/coingecko";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -38,14 +40,25 @@ export async function getPortfolioValuation(args: {
 }): Promise<PortfolioValuation> {
   const { holdings, cashBalance } = args;
 
+  // Separate crypto holdings from stock/ETF holdings
+  const cryptoHoldings = holdings.filter((h) => h.asset_type === "crypto");
+  const stockHoldings = holdings.filter((h) => h.asset_type !== "crypto");
+
+  // Fetch crypto prices from CoinGecko (single batched call, non-fatal on failure)
+  const cryptoTickers = cryptoHoldings.map((h) => h.ticker);
+  const cryptoPriceMap: Map<string, CryptoQuote> =
+    cryptoTickers.length > 0
+      ? await getCryptoPrices(cryptoTickers)
+      : new Map();
+
   // Batch Finnhub calls to avoid hitting the free-tier rate limit (60 req/min).
   // Promise.all on large portfolios fires everything at once and gets 429s back.
   const BATCH_SIZE = 5;
   const BATCH_DELAY_MS = 300;
   const quoteResults: { holdingId: string; quote: Awaited<ReturnType<typeof getFinnhubQuote>> }[] = [];
 
-  for (let i = 0; i < holdings.length; i += BATCH_SIZE) {
-    const batch = holdings.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < stockHoldings.length; i += BATCH_SIZE) {
+    const batch = stockHoldings.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.all(
       batch.map(async (holding) => {
         try {
@@ -58,7 +71,7 @@ export async function getPortfolioValuation(args: {
       })
     );
     quoteResults.push(...batchResults);
-    if (i + BATCH_SIZE < holdings.length) {
+    if (i + BATCH_SIZE < stockHoldings.length) {
       await sleep(BATCH_DELAY_MS);
     }
   }
@@ -71,12 +84,30 @@ export async function getPortfolioValuation(args: {
   const prelimValuedHoldings: ValuedHolding[] = holdings.map((holding) => {
     const sharesNumber = Number(holding.shares ?? 0);
     const averageCostBasisNumber = Number(holding.average_cost_basis ?? 0);
-    const quote = quoteMap.get(holding.id) ?? null;
 
-    const currentPrice = quote?.c ?? null;
-    const hasLivePrice = currentPrice !== null;
+    let currentPrice: number | null = null;
+    let dayChange: number | null = null;
+    let dayChangePct: number | null = null;
 
-    const marketValue = hasLivePrice ? sharesNumber * currentPrice : null;
+    if (holding.asset_type === "crypto") {
+      // Use CoinGecko price for crypto holdings
+      const cryptoQuote = cryptoPriceMap.get(holding.ticker.toUpperCase());
+      currentPrice = cryptoQuote?.priceUsd ?? null;
+      dayChangePct = cryptoQuote?.change24hPct ?? null;
+      // day_change in dollar terms: price * change% / 100
+      dayChange =
+        currentPrice !== null && dayChangePct !== null
+          ? (currentPrice * dayChangePct) / 100
+          : null;
+    } else {
+      // Use Finnhub for stocks/ETFs
+      const quote = quoteMap.get(holding.id) ?? null;
+      currentPrice = quote?.c ?? null;
+      dayChange = quote?.d ?? null;
+      dayChangePct = quote?.dp ?? null;
+    }
+
+    const marketValue = currentPrice !== null ? sharesNumber * currentPrice : null;
     const costBasisTotal = sharesNumber * averageCostBasisNumber;
     const unrealizedPL =
       marketValue !== null ? marketValue - costBasisTotal : null;
@@ -94,10 +125,10 @@ export async function getPortfolioValuation(args: {
       cost_basis_total: costBasisTotal,
       unrealized_pl: unrealizedPL,
       unrealized_pl_pct: unrealizedPLPct,
-      day_change: quote?.d ?? null,
-      day_change_pct: quote?.dp ?? null,
+      day_change: dayChange,
+      day_change_pct: dayChangePct,
       weight_pct: null,
-      has_live_price: hasLivePrice,
+      has_live_price: currentPrice !== null,
     };
   });
 
