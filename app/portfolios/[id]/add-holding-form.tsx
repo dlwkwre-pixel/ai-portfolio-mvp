@@ -15,6 +15,7 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
+  const [assetType, setAssetType] = useState("stock");
 
   function toggleOpen() {
     setErrorMessage("");
@@ -54,17 +55,40 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
 
             <div>
               <label className={labelClass}>Ticker *</label>
-              <input name="ticker" type="text" placeholder="AAPL" className={inputClass} required />
+              <input
+                name="ticker"
+                type="text"
+                placeholder={assetType === "crypto" ? "BTC" : "AAPL"}
+                className={inputClass}
+                required
+                onChange={(e) => {
+                  if (assetType === "crypto") {
+                    const pos = e.target.selectionStart;
+                    e.target.value = e.target.value.toUpperCase();
+                    e.target.setSelectionRange(pos, pos);
+                  }
+                }}
+              />
+              {assetType === "crypto" && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Enter the ticker symbol (e.g. BTC, ETH, SOL)
+                </p>
+              )}
             </div>
 
             <div>
               <label className={labelClass}>Company Name</label>
-              <input name="company_name" type="text" placeholder="Apple Inc." className={inputClass} />
+              <input name="company_name" type="text" placeholder={assetType === "crypto" ? "Bitcoin" : "Apple Inc."} className={inputClass} />
             </div>
 
             <div>
               <label className={labelClass}>Asset Type</label>
-              <select name="asset_type" defaultValue="stock" className={selectClass}>
+              <select
+                name="asset_type"
+                defaultValue="stock"
+                className={selectClass}
+                onChange={(e) => setAssetType(e.target.value)}
+              >
                 <option value="stock">Stock</option>
                 <option value="etf">ETF</option>
                 <option value="mutual_fund">Mutual Fund</option>
