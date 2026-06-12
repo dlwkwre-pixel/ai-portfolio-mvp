@@ -1914,6 +1914,25 @@ export async function updateRecommendationStatus(formData: FormData) {
           notes: `Auto-created from AI recommendation. Edit if actual price differs.`,
           traded_at: new Date().toISOString(),
         });
+
+        // Create a holding lot for chart reconstruction
+        if (quantity && pricePerShare) {
+          try {
+            const { data: lotHolding } = await supabase
+              .from("holdings").select("id").eq("portfolio_id", portfolioId).eq("ticker", ticker).maybeSingle();
+            if (lotHolding) {
+              await supabase.from("holding_lots").insert({
+                holding_id: lotHolding.id,
+                portfolio_id: portfolioId,
+                ticker,
+                lot_type: isBuy ? "BUY" : "SELL",
+                purchased_at: new Date().toISOString().slice(0, 10),
+                shares: quantity,
+                price_per_share: pricePerShare,
+              });
+            }
+          } catch { /* non-fatal */ }
+        }
       }
     }
 

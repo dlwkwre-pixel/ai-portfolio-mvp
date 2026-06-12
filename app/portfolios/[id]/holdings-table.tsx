@@ -345,6 +345,7 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
 
 export default function HoldingsTable({ portfolioId, holdings, lots = [] }: HoldingsTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [lotsId, setLotsId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
   const [insiderData, setInsiderData] = useState<Record<string, InsiderData>>({});
@@ -517,6 +518,21 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                     >
                       {editingId === holding.id ? "Cancel" : "Edit"}
                     </button>
+                    {(() => {
+                      const holdingLotCount = lots.filter((l) => l.holding_id === holding.id).length;
+                      const isOpen = lotsId === holding.id;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setLotsId(isOpen ? null : holding.id)}
+                          className="text-xs transition"
+                          style={{ color: isOpen ? "var(--brand-blue)" : "var(--text-muted)", opacity: isOpen ? 1 : 0.6 }}
+                          title="View and edit purchase lots"
+                        >
+                          Lots{holdingLotCount > 0 ? ` (${holdingLotCount})` : ""}
+                        </button>
+                      );
+                    })()}
                     <DeleteHoldingButton holdingId={holding.id} portfolioId={portfolioId} ticker={holding.ticker} />
                   </div>
                 </td>
@@ -967,6 +983,20 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                       }}
                       onClose={() => setEditingId(null)}
                     />
+                    <HoldingLots
+                      holdingId={holding.id}
+                      portfolioId={portfolioId}
+                      ticker={holding.ticker}
+                      lots={lots.filter((l) => l.holding_id === holding.id)}
+                    />
+                  </td>
+                </tr>
+              )}
+
+              {/* Lots-only row — opened via the Lots (N) quick button */}
+              {lotsId === holding.id && editingId !== holding.id && (
+                <tr key={`lots-${holding.id}`}>
+                  <td colSpan={9} style={{ padding: "4px 16px 12px", background: "var(--bg-surface)", borderTop: "1px solid var(--border-subtle)" }}>
                     <HoldingLots
                       holdingId={holding.id}
                       portfolioId={portfolioId}
