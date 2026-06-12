@@ -111,13 +111,39 @@ export default function PortfolioChartClient({
     [chartData, selectedDays]
   );
 
+  // For long timeframes, collapse to one point per day (last snapshot wins).
+  // For short views (≤7 days), keep all intraday points to show volatility.
+  const displayChartData = useMemo(() => {
+    const isShort = selectedDays !== 0 && selectedDays <= 7;
+    if (isShort) return filteredChartData;
+    const seen = new Map<string, ChartDataPoint>();
+    for (const d of filteredChartData) {
+      seen.set(d.date.slice(0, 10), d);
+    }
+    return [...seen.values()];
+  }, [filteredChartData, selectedDays]);
+
+  // Context-aware x-axis formatter: short views show date+time, long views show date.
+  const dateTick = useMemo(() => {
+    const isShort = selectedDays !== 0 && selectedDays <= 7;
+    if (isShort) {
+      return (value: string) => {
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return value;
+        return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+          " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      };
+    }
+    return compactDate;
+  }, [selectedDays]);
+
   // Net Return: TWR-normalized dollar line. Deposits/withdrawals are invisible.
   // Anchored to period start value so each timeframe starts flat.
   const netChartData = useMemo(() => {
-    if (filteredChartData.length < 2) return [];
-    const startValue = filteredChartData[0].portfolio_value;
-    const startTwr = filteredChartData[0].portfolio_twr_pct;
-    return filteredChartData.map((d) => {
+    if (displayChartData.length < 2) return [];
+    const startValue = displayChartData[0].portfolio_value;
+    const startTwr = displayChartData[0].portfolio_twr_pct;
+    return displayChartData.map((d) => {
       const periodTwr = ((1 + d.portfolio_twr_pct / 100) / (1 + startTwr / 100) - 1) * 100;
       return {
         date: d.date,
@@ -125,7 +151,7 @@ export default function PortfolioChartClient({
         actual_value: d.portfolio_value,
       };
     });
-  }, [filteredChartData]);
+  }, [displayChartData]);
 
   const netTwrStats = useMemo(() => {
     if (activeTimeframe === "All") {
@@ -267,14 +293,14 @@ export default function PortfolioChartClient({
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
+                <XAxis dataKey="date" tickFormatter={dateTick} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={50} />
                 <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={60} tickFormatter={formatMoney} />
                 <Tooltip
                   formatter={(value, name) => [
                     `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                     name === "net_value" ? "Net Return" : "Actual Value",
                   ]}
-                  labelFormatter={(label) => compactDate(label)}
+                  labelFormatter={(label) => dateTick(String(label))}
                   contentStyle={tooltipStyle}
                 />
                 <Area type="monotone" dataKey="net_value" stroke={isNetPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#netGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
@@ -284,13 +310,13 @@ export default function PortfolioChartClient({
         </div>
       ) : (
         <div className="h-56 min-w-0">
-          {filteredChartData.length < 2 ? (
+          {displayChartData.length < 2 ? (
             <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
               <p className="text-sm text-slate-400">No data for this timeframe.</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <AreaChart data={displayChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="twrGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
@@ -299,11 +325,11 @@ export default function PortfolioChartClient({
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
                 <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
-                <XAxis dataKey="date" tickFormatter={compactDate} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={40} />
+                <XAxis dataKey="date" tickFormatter={dateTick} stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} minTickGap={50} />
                 <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={56} tickFormatter={(v) => `${Number(v).toFixed(1)}%`} />
                 <Tooltip
                   formatter={(value, name) => [formatPercent(Number(value)), name === "portfolio_twr_pct" ? "Inv. Return" : benchmarkSymbol]}
-                  labelFormatter={(label) => compactDate(label)}
+                  labelFormatter={(label) => dateTick(String(label))}
                   contentStyle={tooltipStyle}
                 />
                 <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />

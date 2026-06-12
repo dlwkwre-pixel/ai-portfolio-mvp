@@ -166,19 +166,10 @@ export async function getBenchmarkComparison(args: {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
   const cashFlows = args.cashFlows ?? [];
 
-  // Sort then deduplicate: keep the last snapshot per calendar day.
-  // Multiple auto-snapshots on the same day (e.g. page visited several times)
-  // produce repeated date labels and misleading chart points.
-  const sorted = [...args.snapshots]
+  const rawSnapshots = [...args.snapshots]
     .map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) }))
     .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0)
     .sort((a, b) => new Date(a.snapshot_date).getTime() - new Date(b.snapshot_date).getTime());
-
-  const dayMap = new Map<string, { snapshot_date: string; total_value: number }>();
-  for (const s of sorted) {
-    dayMap.set(toDateKey(s.snapshot_date), s); // last entry per day wins
-  }
-  const rawSnapshots = [...dayMap.values()];
 
   const snapshots = sanitizeSnapshots(rawSnapshots, args.totalCostBasis);
 
@@ -308,7 +299,7 @@ export async function getBenchmarkComparison(args: {
         : null;
 
     return {
-      date: toDisplayDate(snapshot.snapshot_date),
+      date: snapshot.snapshot_date, // full timestamp — client deduplicates per timeframe
       portfolio_value: displayValue,
       portfolio_return_pct: portfolioReturn,
       portfolio_twr_pct: twrUpToHere,
