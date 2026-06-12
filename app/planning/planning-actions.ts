@@ -758,3 +758,24 @@ export async function saveNetWorthSnapshot(
   if (error) return { error: error.message };
   return {};
 }
+
+export async function trimNetWorthHistoryBefore(
+  beforeDate: string
+): Promise<{ deleted: number; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { deleted: 0, error: "Not authenticated." };
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(beforeDate)) return { deleted: 0, error: "Invalid date format." };
+
+  const { data, error } = await supabase
+    .from("net_worth_history")
+    .delete()
+    .eq("user_id", user.id)
+    .lt("snapshot_date", beforeDate)
+    .select("id");
+
+  if (error) return { deleted: 0, error: error.message };
+  revalidatePath("/planning");
+  return { deleted: (data ?? []).length };
+}

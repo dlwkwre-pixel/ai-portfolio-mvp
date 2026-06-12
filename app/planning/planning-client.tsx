@@ -17,6 +17,7 @@ import {
   updateCashFlowItem,
   deleteCashFlowItem,
   saveNetWorthSnapshot,
+  trimNetWorthHistoryBefore,
   upsertPlanningAssumptions,
   addFutureEvent,
   deleteFutureEvent,
@@ -961,6 +962,11 @@ function NetWorthHistoryCard({
   isPrivate?: boolean;
 }) {
   const hide = isPrivate ? "••••••" : null;
+  const [showTrim, setShowTrim] = useState(false);
+  const [trimDate, setTrimDate] = useState("");
+  const [trimStatus, setTrimStatus] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
   const today = new Date().toISOString().split("T")[0];
   const allPoints: { date: string; net_worth: number }[] = [
     ...history
@@ -980,6 +986,19 @@ function NetWorthHistoryCard({
     value: p.net_worth,
   }));
 
+  function handleTrim() {
+    if (!trimDate) return;
+    startTransition(async () => {
+      const result = await trimNetWorthHistoryBefore(trimDate);
+      if (result.error) {
+        setTrimStatus(`Error: ${result.error}`);
+      } else {
+        setTrimStatus(`Removed ${result.deleted} snapshot${result.deleted !== 1 ? "s" : ""} before ${new Date(trimDate + "T12:00:00").toLocaleDateString()}. Refresh to update the chart.`);
+        setShowTrim(false);
+      }
+    });
+  }
+
   return (
     <div style={{
       background: "var(--card-bg)", border: "1px solid var(--card-border)",
@@ -997,7 +1016,7 @@ function NetWorthHistoryCard({
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
           {[
             { label: "Total Assets",      value: hide ?? fmt(currentAssets),      color: "var(--green)" },
             { label: "Total Liabilities", value: hide ?? fmt(currentLiabilities), color: currentLiabilities > 0 ? "var(--red)" : "var(--text-secondary)" },
@@ -1007,8 +1026,51 @@ function NetWorthHistoryCard({
               <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "16px", color }}>{value}</div>
             </div>
           ))}
+          {allPoints.length >= 2 && (
+            <button
+              onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
+              style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px", padding: "0", marginTop: "18px" }}
+            >
+              Fix chart
+            </button>
+          )}
         </div>
       </div>
+
+      {trimStatus && (
+        <div style={{ fontSize: "11px", color: trimStatus.startsWith("Error") ? "var(--red)" : "var(--green)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>{trimStatus}</span>
+          {!trimStatus.startsWith("Error") && (
+            <button onClick={() => { setTrimStatus(null); window.location.reload(); }} style={{ color: "var(--text-muted)", fontSize: "10px", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Refresh now</button>
+          )}
+        </div>
+      )}
+
+      {showTrim && (
+        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", fontSize: "11px" }}>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
+            Remove all net worth history before this date.
+          </p>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="date"
+              value={trimDate}
+              onChange={(e) => setTrimDate(e.target.value)}
+              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
+            />
+            <button
+              onClick={handleTrim}
+              disabled={isPending || !trimDate}
+              style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", background: "none", border: "none", cursor: "pointer", opacity: isPending || !trimDate ? 0.4 : 1 }}
+            >
+              {isPending ? "Removing…" : "Remove those snapshots"}
+            </button>
+            <button onClick={() => setShowTrim(false)} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {allPoints.length >= 2 ? (
         <ResponsiveContainer width="100%" height={150}>
