@@ -1,5 +1,6 @@
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { getCryptoPrices } from "@/lib/market-data/coingecko";
+import { getFmpQuotes } from "@/lib/market-data/fmp";
 import type { CryptoQuote } from "@/lib/market-data/coingecko";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -79,6 +80,27 @@ export async function getPortfolioValuation(args: {
   const quoteMap = new Map<string, Awaited<(typeof quoteResults)[number]>["quote"]>();
   for (const result of quoteResults) {
     quoteMap.set(result.holdingId, result.quote);
+  }
+
+  // FMP fallback: collect any stock holdings where Finnhub returned null and retry in one batch
+  const nullHoldings = stockHoldings.filter((h) => quoteMap.get(h.id) == null);
+  if (nullHoldings.length > 0) {
+    const fmpMap = await getFmpQuotes(nullHoldings.map((h) => h.ticker));
+    for (const holding of nullHoldings) {
+      const fmp = fmpMap.get(holding.ticker.toUpperCase());
+      if (fmp) {
+        quoteMap.set(holding.id, {
+          c: fmp.price,
+          d: fmp.change,
+          dp: fmp.changesPercentage,
+          h: 0,
+          l: 0,
+          o: 0,
+          pc: 0,
+          t: 0,
+        });
+      }
+    }
   }
 
   const prelimValuedHoldings: ValuedHolding[] = holdings.map((holding) => {
