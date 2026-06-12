@@ -71,7 +71,18 @@ function ChartTooltip({ active, payload, label, isPrivate, startVal }: TooltipPr
   );
 }
 
-export default function CombinedChartClient({ data, portfolioIds = [] }: { data: CombinedChartPoint[]; portfolioIds?: string[] }) {
+type View = "portfolio" | "networth";
+
+export default function CombinedChartClient({
+  data,
+  portfolioIds = [],
+  netWorthData = [],
+}: {
+  data: CombinedChartPoint[];
+  portfolioIds?: string[];
+  netWorthData?: CombinedChartPoint[];
+}) {
+  const [view, setView] = useState<View>("portfolio");
   const [tfDays, setTfDays] = useState(0);
   const [isPrivate, setIsPrivate] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -81,6 +92,9 @@ export default function CombinedChartClient({ data, portfolioIds = [] }: { data:
   const [trimDate, setTrimDate] = useState("");
   const [trimStatus, setTrimStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const hasNetWorth = netWorthData.length >= 2;
+  const activeData = view === "networth" && hasNetWorth ? netWorthData : data;
 
   function handleTrim() {
     if (!trimDate || portfolioIds.length === 0) return;
@@ -103,7 +117,7 @@ export default function CombinedChartClient({ data, portfolioIds = [] }: { data:
     return () => window.removeEventListener("bt-privacy-change", onPrivacyChange);
   }, []);
 
-  const filtered = useMemo(() => filterByDays(data, tfDays), [data, tfDays]);
+  const filtered = useMemo(() => filterByDays(activeData, tfDays), [activeData, tfDays]);
 
   const startVal   = filtered[0]?.total ?? 0;
   const endVal     = filtered[filtered.length - 1]?.total ?? 0;
@@ -116,16 +130,70 @@ export default function CombinedChartClient({ data, portfolioIds = [] }: { data:
   const maxVal  = Math.max(...filtered.map(d => d.total));
   const padding = (maxVal - minVal) * 0.08 || maxVal * 0.05;
 
+  // View toggle pill
+  const viewToggle = hasNetWorth ? (
+    <div style={{
+      display: "flex",
+      background: "rgba(255,255,255,0.05)",
+      border: "1px solid var(--border-subtle)",
+      borderRadius: "8px",
+      padding: "2px",
+      gap: "2px",
+    }}>
+      {(["portfolio", "networth"] as View[]).map((v) => {
+        const active = view === v;
+        return (
+          <button
+            key={v}
+            onClick={() => { setView(v); setShowTrim(false); setTrimStatus(null); }}
+            style={{
+              padding: "3px 10px",
+              borderRadius: "6px",
+              fontSize: "10px",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+              transition: "all 120ms",
+              background: active ? "rgba(37,99,235,0.20)" : "transparent",
+              color: active ? "var(--brand-blue)" : "var(--text-muted)",
+            }}
+          >
+            {v === "portfolio" ? "Portfolio" : "Net Worth"}
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
+
   if (filtered.length < 2) {
     return (
-      <div style={{ padding: "20px 0", textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
-        Not enough snapshots yet — more data will appear as you use the app.
+      <div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+          <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+            {view === "networth" ? "Net Worth" : "Total Portfolio Value"}
+          </div>
+          {viewToggle}
+        </div>
+        <div style={{ padding: "20px 0", textAlign: "center", fontSize: "12px", color: "var(--text-muted)" }}>
+          {view === "networth"
+            ? "No net worth history yet — update your balance sheet in Planning to start tracking."
+            : "Not enough snapshots yet — more data will appear as you use the app."}
+        </div>
       </div>
     );
   }
 
   return (
     <div>
+      {/* Header row: label + view toggle */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          {view === "networth" ? "Net Worth" : "Total Portfolio Value"}
+        </div>
+        {viewToggle}
+      </div>
+
+      {/* Value + timeframe row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
         <div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
@@ -164,12 +232,14 @@ export default function CombinedChartClient({ data, portfolioIds = [] }: { data:
               {tf.label}
             </button>
           ))}
-          <button
-            onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
-            style={{ marginLeft: "6px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
-          >
-            Fix chart
-          </button>
+          {view === "portfolio" && (
+            <button
+              onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
+              style={{ marginLeft: "6px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
+            >
+              Fix chart
+            </button>
+          )}
         </div>
       </div>
 
@@ -180,7 +250,7 @@ export default function CombinedChartClient({ data, portfolioIds = [] }: { data:
         </div>
       )}
 
-      {showTrim && (
+      {showTrim && view === "portfolio" && (
         <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", fontSize: "11px" }}>
           <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
             Remove all chart history before this date across all portfolios.

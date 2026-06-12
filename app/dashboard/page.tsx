@@ -281,9 +281,6 @@ export default async function DashboardPage({
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
             {portfolioIds.length > 0 && (
               <div style={{ marginBottom: "16px", padding: "16px 20px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "14px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>
-                  Total Portfolio Value
-                </div>
                 <Suspense fallback={
                   <div style={{ height: "190px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--brand-blue)", opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />

@@ -62,7 +62,6 @@ export default async function CombinedChart({
   const chartData: CombinedChartPoint[] = allDates.map(date => {
     let total = 0;
     for (const [, dateMap] of byPortfolio) {
-      // Last known value at or before this date
       let lastVal: number | null = null;
       for (const [d, v] of dateMap) {
         if (d <= date) lastVal = v;
@@ -78,5 +77,33 @@ export default async function CombinedChart({
 
   if (trimmed.length < 2) return null;
 
-  return <CombinedChartClient data={trimmed} portfolioIds={portfolioIds} />;
+  // Fetch net worth history for the toggle view
+  let netWorthData: CombinedChartPoint[] = [];
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: nwHistory } = await supabase
+        .from("net_worth_history")
+        .select("snapshot_date, net_worth")
+        .eq("user_id", user.id)
+        .order("snapshot_date", { ascending: true });
+
+      if (nwHistory && nwHistory.length >= 2) {
+        netWorthData = nwHistory.map(row => ({
+          date: String(row.snapshot_date),
+          total: Number(row.net_worth),
+        }));
+      }
+    }
+  } catch {
+    // non-fatal — net worth toggle just won't appear
+  }
+
+  return (
+    <CombinedChartClient
+      data={trimmed}
+      portfolioIds={portfolioIds}
+      netWorthData={netWorthData}
+    />
+  );
 }
