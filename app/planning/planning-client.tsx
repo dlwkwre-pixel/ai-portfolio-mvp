@@ -6753,7 +6753,7 @@ export default function PlanningClient({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ padding: "24px", maxWidth: "900px" }}>
+    <div className="bt-mobile-nav-pad" style={{ padding: "24px", maxWidth: "900px" }}>
 
       {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
 

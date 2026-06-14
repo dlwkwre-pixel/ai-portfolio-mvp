@@ -293,7 +293,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "20px 16px 60px" }}>
+    <div className="bt-mobile-nav-pad" style={{ maxWidth: "900px", margin: "0 auto", padding: "20px 16px 60px" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
         <div>

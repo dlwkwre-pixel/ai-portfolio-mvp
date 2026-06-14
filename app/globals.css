@@ -450,6 +450,13 @@ body {
     padding-right: 16px !important;
   }
 
+  /* Align every page's sticky topbar to the 16px content gutter so the title
+     lines up with the content below it (headers ship inline 24px padding). */
+  .bt-main-col > div[style*="position: sticky"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
 
   /* Portfolio header — stack buttons below title */
   .portfolio-header-actions {
@@ -562,7 +569,8 @@ body {
      behind the nav. The inner `flex:1; overflowY:auto` scroller — not the
      body — is what actually scrolls on each page, so padding must live here. */
   .bt-page-content,
-  .bt-main-col > div[style*="overflow-y: auto"] {
+  .bt-main-col > div[style*="overflow-y: auto"],
+  .bt-mobile-nav-pad {
     padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
   }
 }
