@@ -684,6 +684,7 @@ body {
 
   /* Estate: stack "Last reviewed" date over the Notes field (was 1fr 2fr) */
   .estate-review-grid { grid-template-columns: 1fr !important; }
+}
 
 /* Research detail panel */
 .research-detail-panel {
