@@ -246,6 +246,36 @@ function StrategyPreviewModal({
   const [posting, setPosting] = useState(false);
   const [copiedTicker, setCopiedTicker] = useState<string | null>(null);
 
+  // Phase 3b: "How would I have done?" comparison
+  type PortfolioOption = { id: string; name: string; account_type: string | null };
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [comparePortfolios, setComparePortfolios] = useState<PortfolioOption[]>([]);
+  const [comparePortfolioId, setComparePortfolioId] = useState<string>("");
+  const [compareResult, setCompareResult] = useState<{ returnPct: number | null; startDate: string; endDate: string } | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  useEffect(() => {
+    if (!compareOpen || comparePortfolios.length > 0) return;
+    fetch("/api/portfolio/list")
+      .then(r => r.json())
+      .then(d => {
+        setComparePortfolios(d.portfolios ?? []);
+        if (d.portfolios?.length > 0) setComparePortfolioId(d.portfolios[0].id);
+      })
+      .catch(() => {});
+  }, [compareOpen, comparePortfolios.length]);
+
+  useEffect(() => {
+    if (!comparePortfolioId || !strategy.return_since) return;
+    setCompareLoading(true);
+    setCompareResult(null);
+    fetch(`/api/portfolio/${comparePortfolioId}/return-since?date=${strategy.return_since}`)
+      .then(r => r.json())
+      .then(d => setCompareResult({ returnPct: d.returnPct ?? null, startDate: d.startDate, endDate: d.endDate }))
+      .catch(() => setCompareResult(null))
+      .finally(() => setCompareLoading(false));
+  }, [comparePortfolioId, strategy.return_since]);
+
   useEffect(() => {
     setUpdatesLoading(true);
     fetch(`/api/strategies/${strategy.id}/updates`)
@@ -402,6 +432,87 @@ function StrategyPreviewModal({
               </div>
             )}
           </div>
+
+          {/* Phase 3b: How would I have done? */}
+          {strategy.return_pct != null && strategy.return_since != null && (
+            <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setCompareOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#60a5fa", flexShrink: 0 }}>
+                  <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
+                </svg>
+                How would I have done?
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", transform: compareOpen ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }}>
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {compareOpen && (
+                <div style={{ marginTop: "10px", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {comparePortfolios.length === 0 ? (
+                    <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>No portfolios found.</p>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <label style={{ fontSize: "11px", color: "var(--text-muted)", flexShrink: 0 }}>Compare with</label>
+                        <select
+                          value={comparePortfolioId}
+                          onChange={(e) => setComparePortfolioId(e.target.value)}
+                          style={{ flex: 1, fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "rgba(255,255,255,0.06)", border: "1px solid var(--card-border)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}
+                        >
+                          {comparePortfolios.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {compareLoading ? (
+                        <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>Loading…</p>
+                      ) : compareResult ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                            <div style={{ padding: "8px 10px", borderRadius: "8px", background: strategy.return_pct >= 0 ? "rgba(16,185,129,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${strategy.return_pct >= 0 ? "rgba(16,185,129,0.18)" : "rgba(239,68,68,0.18)"}` }}>
+                              <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", textTransform: "uppercase", letterSpacing: "0.05em" }}>This strategy</p>
+                              <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: strategy.return_pct >= 0 ? "#34d399" : "#f87171", margin: 0 }}>
+                                {strategy.return_pct >= 0 ? "+" : ""}{strategy.return_pct.toFixed(2)}%
+                              </p>
+                            </div>
+                            <div style={{ padding: "8px 10px", borderRadius: "8px", background: (compareResult.returnPct ?? 0) >= 0 ? "rgba(16,185,129,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${(compareResult.returnPct ?? 0) >= 0 ? "rgba(16,185,129,0.18)" : "rgba(239,68,68,0.18)"}` }}>
+                              <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Your portfolio</p>
+                              <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: (compareResult.returnPct ?? 0) >= 0 ? "#34d399" : "#f87171", margin: 0 }}>
+                                {compareResult.returnPct != null ? `${compareResult.returnPct >= 0 ? "+" : ""}${compareResult.returnPct.toFixed(2)}%` : "—"}
+                              </p>
+                            </div>
+                          </div>
+                          {compareResult.returnPct != null && (() => {
+                            const diff = strategy.return_pct! - compareResult.returnPct;
+                            const strategyWon = diff > 0;
+                            return (
+                              <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
+                                {strategyWon
+                                  ? <><span style={{ color: "#34d399", fontWeight: 600 }}>Strategy outperformed</span> your portfolio by <span style={{ fontFamily: "var(--font-mono)", color: "#34d399" }}>+{Math.abs(diff).toFixed(2)}%</span></>
+                                  : diff === 0
+                                  ? "Tied — identical returns over this period."
+                                  : <><span style={{ color: "#f59e0b", fontWeight: 600 }}>You outperformed</span> this strategy by <span style={{ fontFamily: "var(--font-mono)", color: "#f59e0b" }}>+{Math.abs(diff).toFixed(2)}%</span></>
+                                }
+                                {" "}since {new Date(strategy.return_since! + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}.
+                              </p>
+                            );
+                          })()}
+                          {!compareResult.returnPct && (
+                            <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Not enough snapshot history since {new Date(strategy.return_since! + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })} to compare.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           {!strategy.is_own && (
