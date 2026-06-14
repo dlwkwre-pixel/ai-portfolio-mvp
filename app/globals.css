@@ -557,8 +557,8 @@ body {
     border-top: 1px solid var(--border-subtle);
     /* Floor the bottom padding with max() — env(safe-area) is 0 on most
        devices, which made the bar too short and buttons hug the edge. */
-    padding-top: 10px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-top: 14px;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
     z-index: 50;
     justify-content: space-around;
     align-items: center;
@@ -574,7 +574,7 @@ body {
   .bt-page-content,
   .bt-main-col > div[style*="overflow-y: auto"],
   .bt-mobile-nav-pad {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
   }
 }
 

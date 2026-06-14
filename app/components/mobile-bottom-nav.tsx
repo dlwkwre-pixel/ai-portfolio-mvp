@@ -91,44 +91,90 @@ function IconTax({ active }: { active: boolean }) {
 
 // ── Nav config ─────────────────────────────────────────────────────────────────
 
-const PRIMARY_NAV = [
-  { href: "/dashboard",   label: "Home",       Icon: IconHome },
-  { href: "/portfolios",  label: "Portfolio",  Icon: IconPortfolios },
-  { href: "/research",    label: "Research",   Icon: IconResearch },
-  { href: "/strategies",  label: "Strategies", Icon: IconStrategies },
+type NavItem = { href: string; label: string; Icon: (p: { active: boolean }) => React.ReactElement };
+
+// Master list of every destination available to the bottom bar / More sheet.
+const ALL_ITEMS: NavItem[] = [
+  { href: "/dashboard",        label: "Home",       Icon: IconHome },
+  { href: "/portfolios",       label: "Portfolio",  Icon: IconPortfolios },
+  { href: "/research",         label: "Research",   Icon: IconResearch },
+  { href: "/strategies",       label: "Strategies", Icon: IconStrategies },
+  { href: "/planning",         label: "Planning",   Icon: IconPlanning },
+  { href: "/tax",              label: "Tax",        Icon: IconTax },
+  { href: "/community",        label: "Community",  Icon: IconCommunity },
+  { href: "/learn",            label: "Learn",      Icon: IconLearn },
+  { href: "/settings/profile", label: "Profile",    Icon: IconProfile },
 ];
 
-const MORE_ITEMS = [
-  { href: "/planning",         label: "Planning",  Icon: IconPlanning },
-  { href: "/tax",              label: "Tax",       Icon: IconTax },
-  { href: "/community",        label: "Community", Icon: IconCommunity },
-  { href: "/learn",            label: "Learn",     Icon: IconLearn },
-  { href: "/settings/profile", label: "Profile",   Icon: IconProfile },
-];
+const DEFAULT_BAR = ["/dashboard", "/portfolios", "/research", "/strategies"];
+const STORAGE_KEY = "bt-bottom-nav-v1";
+const BAR_SLOTS = 4; // 4 destinations + the More button = 5 total
 
 const PUBLIC_PAGES = ["/", "/login", "/signup", "/setup-username"];
+
+function itemFor(href: string): NavItem | undefined {
+  return ALL_ITEMS.find((i) => i.href === href);
+}
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [barHrefs, setBarHrefs] = useState<string[]>(DEFAULT_BAR);
 
-  // Close sheet on route change
-  useEffect(() => { setMoreOpen(false); }, [pathname]);
+  // Load saved bar layout after mount (avoids SSR hydration mismatch).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter((h) => typeof h === "string" && itemFor(h));
+          if (valid.length === BAR_SLOTS) setBarHrefs(valid);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Close sheet + exit edit mode on route change
+  useEffect(() => { setMoreOpen(false); setEditing(false); }, [pathname]);
 
   if (PUBLIC_PAGES.includes(pathname)) return null;
 
-  const isMoreActive = MORE_ITEMS.some(
+  const barItems = barHrefs.map(itemFor).filter(Boolean) as NavItem[];
+  const moreItems = ALL_ITEMS.filter((i) => !barHrefs.includes(i.href));
+
+  const isMoreActive = moreItems.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
   );
+
+  function persist(next: string[]) {
+    setBarHrefs(next);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+
+  // Toggle an item's membership in the bar. Keeps exactly BAR_SLOTS:
+  // adding a 5th drops the last-added; removing keeps a minimum of 1.
+  function toggleBarItem(href: string) {
+    if (barHrefs.includes(href)) {
+      if (barHrefs.length <= 1) return;
+      persist(barHrefs.filter((h) => h !== href));
+    } else {
+      const next = barHrefs.length >= BAR_SLOTS
+        ? [...barHrefs.slice(0, BAR_SLOTS - 1), href]
+        : [...barHrefs, href];
+      persist(next);
+    }
+  }
 
   return (
     <>
       {/* ── More backdrop ───────────────────────────────────────────────────── */}
       {moreOpen && (
         <div
-          onClick={() => setMoreOpen(false)}
+          onClick={() => { setMoreOpen(false); setEditing(false); }}
           style={{
             position: "fixed", inset: 0, zIndex: 58,
             background: "rgba(4,13,26,0.6)",
@@ -147,8 +193,10 @@ export default function MobileBottomNav() {
             background: "var(--sidebar-bg)",
             borderTop: "1px solid var(--border-subtle)",
             borderRadius: "18px 18px 0 0",
-            paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
             boxShadow: "0 -12px 40px rgba(0,0,0,0.5)",
+            maxHeight: "80dvh",
+            overflowY: "auto",
           }}
         >
           {/* Drag handle */}
@@ -159,53 +207,135 @@ export default function MobileBottomNav() {
             }} />
           </div>
 
-          {/* Notifications + support row */}
+          {/* Notifications + customize row */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             gap: "12px", padding: "8px 20px 12px",
             borderBottom: "1px solid var(--border-subtle)",
           }}>
-            <span style={{
-              fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em",
-              textTransform: "uppercase", color: "var(--text-tertiary)",
-              fontFamily: "var(--font-body)",
-            }}>
-              Notifications
-            </span>
-            <NotificationCenter placement="up" />
+            {editing ? (
+              <span style={{
+                fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: "var(--text-tertiary)",
+                fontFamily: "var(--font-body)",
+              }}>
+                Pick up to {BAR_SLOTS} for your bar
+              </span>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{
+                  fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em",
+                  textTransform: "uppercase", color: "var(--text-tertiary)",
+                  fontFamily: "var(--font-body)",
+                }}>
+                  Notifications
+                </span>
+                <NotificationCenter placement="up" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setEditing((e) => !e)}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "6px 11px", borderRadius: "var(--radius-full)",
+                background: editing ? "var(--brand-blue)" : "var(--card-bg)",
+                border: `1px solid ${editing ? "var(--brand-blue)" : "var(--card-border)"}`,
+                color: editing ? "#fff" : "var(--text-secondary)",
+                fontSize: "11px", fontWeight: 600, cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              {editing ? (
+                "Done"
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  Edit bar
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Sheet items */}
-          {MORE_ITEMS.map(({ href, label, Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setMoreOpen(false)}
-                style={{
-                  display: "flex", alignItems: "center", gap: "16px",
-                  padding: "15px 24px",
-                  textDecoration: "none",
-                  color: active ? "var(--brand-blue)" : "var(--text-secondary)",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "15px",
-                  fontWeight: active ? 600 : 400,
-                  borderBottom: "1px solid var(--border-subtle)",
-                  transition: "background 0.12s",
-                }}
-              >
-                <Icon active={active} />
-                {label}
-                {active && (
-                  <div style={{
-                    marginLeft: "auto", width: "6px", height: "6px",
-                    borderRadius: "50%", background: "var(--brand-blue)",
-                  }} />
-                )}
-              </Link>
-            );
-          })}
+          {/* ── Edit mode: choose which destinations live on the bar ── */}
+          {editing ? (
+            <div style={{ padding: "12px 16px 4px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
+                {ALL_ITEMS.map(({ href, label, Icon }) => {
+                  const onBar = barHrefs.includes(href);
+                  return (
+                    <button
+                      key={href}
+                      type="button"
+                      onClick={() => toggleBarItem(href)}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        gap: "6px", padding: "12px 6px",
+                        borderRadius: "var(--radius-md)",
+                        background: onBar ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+                        border: `1px solid ${onBar ? "var(--nav-active-border)" : "var(--card-border)"}`,
+                        color: onBar ? "var(--brand-blue)" : "var(--text-secondary)",
+                        cursor: "pointer", position: "relative",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      <Icon active={onBar} />
+                      <span style={{ fontSize: "11px", fontWeight: onBar ? 600 : 400 }}>{label}</span>
+                      {onBar && (
+                        <span style={{
+                          position: "absolute", top: "6px", right: "6px",
+                          width: "14px", height: "14px", borderRadius: "50%",
+                          background: "var(--brand-blue)", color: "#fff",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "center", padding: "12px 0 4px", fontFamily: "var(--font-body)" }}>
+                Tap to add or remove. Home stays reachable from the bar or here.
+              </p>
+            </div>
+          ) : (
+            /* ── Normal mode: navigate to the off-bar destinations ── */
+            moreItems.map(({ href, label, Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMoreOpen(false)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "16px",
+                    padding: "15px 24px",
+                    textDecoration: "none",
+                    color: active ? "var(--brand-blue)" : "var(--text-secondary)",
+                    fontFamily: "var(--font-body)",
+                    fontSize: "15px",
+                    fontWeight: active ? 600 : 400,
+                    borderBottom: "1px solid var(--border-subtle)",
+                    transition: "background 0.12s",
+                  }}
+                >
+                  <Icon active={active} />
+                  {label}
+                  {active && (
+                    <div style={{
+                      marginLeft: "auto", width: "6px", height: "6px",
+                      borderRadius: "50%", background: "var(--brand-blue)",
+                    }} />
+                  )}
+                </Link>
+              );
+            })
+          )}
         </div>
       )}
 
@@ -215,7 +345,7 @@ export default function MobileBottomNav() {
         style={{ display: "none" }}
         aria-label="Main navigation"
       >
-        {PRIMARY_NAV.map(({ href, label, Icon }) => {
+        {barItems.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
