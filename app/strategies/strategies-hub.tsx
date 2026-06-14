@@ -168,7 +168,7 @@ const HOLDING_BIASES = ["Short-term","Swing","Medium-term","Long-term","Very Lon
 
 const inp = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const sel = "w-full rounded-xl border border-white/10 bg-[#07090f] px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
-const lbl = "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500";
+const lbl = "mb-2 block text-[11px] font-medium uppercase tracking-wide text-slate-500 leading-tight";
 
 function badgeStyle(badge: string | null) {
   if (!badge) return null;
@@ -210,6 +210,11 @@ const KEYFRAMES = `
   .strategies-hub-grid { grid-template-columns: 1fr !important; }
   .templates-grid { grid-template-columns: 1fr !important; }
   .manual-form-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 768px) {
+  /* Popular starting points stack vertically instead of horizontal scroll */
+  .featured-templates-scroll { flex-direction: column !important; overflow-x: visible !important; }
+  .featured-templates-scroll > * { width: 100% !important; flex-shrink: 1 !important; }
 }
 `;
 
@@ -661,7 +666,7 @@ export default function StrategiesHub() {
             <div className="bt-card" style={{ padding: "18px" }}>
               <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "14px" }}>Build a custom strategy</p>
               <form
-                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "11px" }}
+                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "16px 12px" }}
                 className="manual-form-grid"
                 action={(fd) => {
                   setManualError("");
