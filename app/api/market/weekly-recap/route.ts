@@ -58,7 +58,7 @@ export async function GET() {
     .from("portfolios")
     .select("id, name, cash_balance")
     .eq("user_id", user.id)
-    .eq("status", "active")
+    .eq("is_active", true)
     .limit(5);
 
   if (!portfolios?.length) {
@@ -76,11 +76,11 @@ export async function GET() {
       .gte("snapshot_date", monday.toISOString())
       .order("snapshot_date", { ascending: true }),
     supabase
-      .from("transactions")
-      .select("ticker, transaction_type, shares, price_per_share, total_value, transacted_at")
+      .from("portfolio_transactions")
+      .select("ticker, transaction_type, quantity, price_per_share, traded_at")
       .in("portfolio_id", portfolioIds)
-      .gte("transacted_at", monday.toISOString())
-      .order("transacted_at", { ascending: false })
+      .gte("traded_at", monday.toISOString())
+      .order("traded_at", { ascending: false })
       .limit(20),
     supabase
       .from("holdings")
@@ -108,7 +108,7 @@ export async function GET() {
   const totalValue = (holdings ?? []).reduce((s, h) => s + (h.total_value ?? 0), 0);
   const txnSummary = (thisWeekTxns ?? [])
     .slice(0, 5)
-    .map((t) => `${t.transaction_type} ${t.shares} ${t.ticker} @ $${t.price_per_share}`)
+    .map((t) => `${t.transaction_type} ${t.quantity} ${t.ticker} @ $${t.price_per_share}`)
     .join("; ");
 
   const holdingsSummary = (holdings ?? [])
