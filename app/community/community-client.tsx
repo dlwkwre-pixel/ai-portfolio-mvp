@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useLayoutEffect, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate } from "./social-actions";
+import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate, postStrategyUpdate, deleteStrategyUpdate } from "./social-actions";
 import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +28,8 @@ type StrategyRow = {
   finn_confidence: number | null;
   return_pct: number | null;
   return_since: string | null;
+  is_official: boolean;
+  monthly_return_pct: number | null;
   created_at: string;
   is_own: boolean;
   is_liked: boolean;
@@ -47,6 +49,8 @@ type StrategyPreview = {
   finn_confidence: number | null;
   return_pct: number | null;
   return_since: string | null;
+  is_official: boolean;
+  monthly_return_pct: number | null;
   is_liked: boolean;
   is_saved: boolean;
   is_own: boolean;
@@ -207,6 +211,19 @@ function OwnBadge() {
   );
 }
 
+function OfficialBadge() {
+  return (
+    <span title="BuyTune Official Strategy" style={{
+      fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em",
+      padding: "2px 8px", borderRadius: "var(--radius-full)",
+      background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.3)",
+      color: "#fbbf24", flexShrink: 0, textTransform: "uppercase",
+    }}>
+      BuyTune
+    </span>
+  );
+}
+
 // ─── Strategy preview modal ───────────────────────────────────────────────────
 
 function StrategyPreviewModal({
@@ -220,6 +237,47 @@ function StrategyPreviewModal({
   onCopy: (id: string) => Promise<void>;
 }) {
   const [copying, setCopying] = useState(false);
+
+  type UpdateRow = { id: string; update_text: string; change_type: string | null; tickers_mentioned: string[]; created_at: string };
+  const [updates, setUpdates] = useState<UpdateRow[]>([]);
+  const [updatesLoading, setUpdatesLoading] = useState(true);
+  const [updateText, setUpdateText] = useState("");
+  const [changeType, setChangeType] = useState<"add" | "remove" | "rebalance" | "note">("note");
+  const [posting, setPosting] = useState(false);
+  const [copiedTicker, setCopiedTicker] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUpdatesLoading(true);
+    fetch(`/api/strategies/${strategy.id}/updates`)
+      .then(r => r.json())
+      .then(d => setUpdates(d.updates ?? []))
+      .catch(() => setUpdates([]))
+      .finally(() => setUpdatesLoading(false));
+  }, [strategy.id]);
+
+  async function handlePostUpdate() {
+    if (!updateText.trim() || posting) return;
+    setPosting(true);
+    try {
+      await postStrategyUpdate(strategy.id, updateText, changeType);
+      const res = await fetch(`/api/strategies/${strategy.id}/updates`);
+      const d = await res.json();
+      setUpdates(d.updates ?? []);
+      setUpdateText("");
+    } catch { /* non-fatal */ }
+    finally { setPosting(false); }
+  }
+
+  async function handleDeleteUpdate(updateId: string) {
+    await deleteStrategyUpdate(updateId);
+    setUpdates(prev => prev.filter(u => u.id !== updateId));
+  }
+
+  function handleCopyTicker(ticker: string) {
+    navigator.clipboard.writeText(ticker).catch(() => {});
+    setCopiedTicker(ticker);
+    setTimeout(() => setCopiedTicker(null), 1500);
+  }
 
   return (
     <>
@@ -411,6 +469,116 @@ function StrategyPreviewModal({
               </button>
             </div>
           )}
+
+          {/* ── Update feed ───────────────────────────────────────────────── */}
+          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>Updates</span>
+              {updates.length > 0 && <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{updates.length}</span>}
+            </div>
+
+            {/* Post form — owner only */}
+            {strategy.is_own && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+                <textarea
+                  value={updateText}
+                  onChange={e => setUpdateText(e.target.value)}
+                  placeholder="What changed? Mention tickers in CAPS (e.g. Added NVDA, trimmed MSFT…)"
+                  maxLength={500}
+                  rows={2}
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: "var(--radius-md)",
+                    background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                    color: "var(--text-primary)", fontSize: "12px", fontFamily: "var(--font-body)",
+                    resize: "none", outline: "none", boxSizing: "border-box",
+                    lineHeight: 1.5,
+                  }}
+                />
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  {(["add", "remove", "rebalance", "note"] as const).map(ct => (
+                    <button key={ct} type="button" onClick={() => setChangeType(ct)}
+                      style={{
+                        padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "10px", fontWeight: changeType === ct ? 700 : 400,
+                        background: changeType === ct ? "rgba(37,99,235,0.12)" : "transparent",
+                        border: `1px solid ${changeType === ct ? "rgba(37,99,235,0.35)" : "var(--card-border)"}`,
+                        color: changeType === ct ? "#93c5fd" : "var(--text-muted)",
+                        cursor: "pointer", fontFamily: "var(--font-body)", textTransform: "capitalize",
+                      }}
+                    >{ct}</button>
+                  ))}
+                  <div style={{ flex: 1 }} />
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{updateText.length}/500</span>
+                  <button type="button" onClick={handlePostUpdate} disabled={!updateText.trim() || posting}
+                    style={{
+                      padding: "4px 12px", borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 600,
+                      background: updateText.trim() && !posting ? "var(--brand-gradient)" : "var(--card-bg)",
+                      border: "none", color: updateText.trim() && !posting ? "#fff" : "var(--text-muted)",
+                      cursor: updateText.trim() && !posting ? "pointer" : "default",
+                      fontFamily: "var(--font-body)", transition: "opacity 150ms ease",
+                    }}
+                  >{posting ? "Posting…" : "Post"}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Update list */}
+            {updatesLoading ? (
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "8px 0" }}>Loading…</div>
+            ) : updates.length === 0 ? (
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", padding: "4px 0" }}>
+                {strategy.is_own ? "No updates yet. Post one above." : "No updates posted yet."}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {updates.map(u => (
+                  <div key={u.id} style={{
+                    padding: "9px 11px", borderRadius: "var(--radius-md)",
+                    background: "var(--card-bg)", border: "1px solid var(--card-border)",
+                    display: "flex", flexDirection: "column", gap: "6px",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {u.change_type && (
+                        <span style={{
+                          fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                          padding: "1px 6px", borderRadius: "var(--radius-full)",
+                          background: u.change_type === "add" ? "rgba(16,185,129,0.1)" : u.change_type === "remove" ? "rgba(239,68,68,0.1)" : u.change_type === "rebalance" ? "rgba(234,179,8,0.1)" : "rgba(255,255,255,0.06)",
+                          color: u.change_type === "add" ? "#34d399" : u.change_type === "remove" ? "#f87171" : u.change_type === "rebalance" ? "#fbbf24" : "var(--text-tertiary)",
+                          border: `1px solid ${u.change_type === "add" ? "rgba(16,185,129,0.2)" : u.change_type === "remove" ? "rgba(239,68,68,0.2)" : u.change_type === "rebalance" ? "rgba(234,179,8,0.2)" : "var(--card-border)"}`,
+                        }}>{u.change_type}</span>
+                      )}
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
+                        {new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                      {strategy.is_own && (
+                        <button type="button" onClick={() => handleDeleteUpdate(u.id)}
+                          style={{ background: "none", border: "none", padding: "0 2px", cursor: "pointer", color: "var(--text-muted)", fontSize: "10px", fontFamily: "var(--font-body)" }}
+                          onMouseEnter={e => { e.currentTarget.style.color = "#f87171"; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                        >✕</button>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{u.update_text}</p>
+                    {u.tickers_mentioned && u.tickers_mentioned.length > 0 && (
+                      <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                        {u.tickers_mentioned.map(t => (
+                          <button key={t} type="button" onClick={() => handleCopyTicker(t)}
+                            title={copiedTicker === t ? "Copied!" : "Copy ticker"}
+                            style={{
+                              padding: "2px 7px", borderRadius: "var(--radius-full)",
+                              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)",
+                              color: copiedTicker === t ? "#34d399" : "#93c5fd",
+                              fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
+                              cursor: "pointer", transition: "color 120ms ease",
+                            }}
+                          >{copiedTicker === t ? "✓" : ""}{t}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -624,6 +792,7 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
           )}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+          {s.is_official && <OfficialBadge />}
           <RiskBadge risk={s.risk_level} />
           <StyleBadge style={s.style} />
           {s.is_own && <OwnBadge />}
@@ -707,6 +876,19 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
             color: "#8b5cf6", flexShrink: 0,
           }}>
             {s.finn_confidence}
+          </div>
+        )}
+
+        {s.monthly_return_pct != null && (
+          <div title="30-day return" style={{
+            display: "flex", alignItems: "center", gap: "2px",
+            padding: "2px 6px", borderRadius: "5px",
+            background: s.monthly_return_pct >= 0 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+            border: `1px solid ${s.monthly_return_pct >= 0 ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+            fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
+            color: s.monthly_return_pct >= 0 ? "#34d399" : "#f87171", flexShrink: 0,
+          }}>
+            {s.monthly_return_pct >= 0 ? "+" : ""}{s.monthly_return_pct.toFixed(1)}% 30d
           </div>
         )}
 
@@ -1380,6 +1562,7 @@ export default function CommunityClient({
       likes_count: s.likes_count, copies_count: s.copies_count,
       finn_confidence: s.finn_confidence,
       return_pct: s.return_pct, return_since: s.return_since,
+      is_official: s.is_official, monthly_return_pct: s.monthly_return_pct,
       is_liked: s.is_liked, is_saved: s.is_saved, is_own: s.is_own,
       author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: s.author.is_following },
     });
@@ -1395,6 +1578,7 @@ export default function CommunityClient({
       likes_count: item.likes_count, copies_count: item.copies_count,
       finn_confidence: null,
       return_pct: null, return_since: null,
+      is_official: false, monthly_return_pct: null,
       is_liked: item.is_liked, is_saved: item.is_saved, is_own: item.is_own,
       author: { user_id: item.author.user_id, username: item.author.username, display_name: item.author.display_name, avatar_color: item.author.avatar_color, is_following: item.author.is_following },
     });
@@ -1547,6 +1731,7 @@ export default function CommunityClient({
                 <FilterChip active={initialSort === "copied"} label="Most copied" onClick={() => updateUrl({ sort: "copied" })} />
                 <FilterChip active={initialSort === "finn"} label="FINN Score" onClick={() => updateUrl({ sort: "finn" })} />
                 <FilterChip active={initialSort === "return"} label="Best Return" onClick={() => updateUrl({ sort: "return" })} />
+                <FilterChip active={initialSort === "monthly"} label="Monthly" onClick={() => updateUrl({ sort: "monthly" })} />
               </>
             )}
             {section === "portfolios" && (
@@ -1588,6 +1773,7 @@ export default function CommunityClient({
             likes_count: s.likes_count, copies_count: s.copies_count,
             finn_confidence: s.finn_confidence,
             return_pct: null, return_since: null,
+            is_official: false, monthly_return_pct: null,
             is_liked: false, is_saved: false, is_own: false,
             author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: false },
           })}

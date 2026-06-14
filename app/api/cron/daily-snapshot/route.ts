@@ -230,11 +230,31 @@ export async function GET(request: Request) {
               const returnSince = pubPortfolioFull.created_at
                 ? new Date(pubPortfolioFull.created_at).toISOString().slice(0, 10)
                 : today;
+
+              // Calculate rolling 30-day return from portfolio performance snapshots
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              const { data: monthlyPerf } = await adminSupabase
+                .from("public_portfolio_performance")
+                .select("snapshot_date, return_pct")
+                .eq("public_portfolio_id", pubPortfolio.id)
+                .gte("snapshot_date", thirtyDaysAgo.toISOString().slice(0, 10))
+                .order("snapshot_date", { ascending: true })
+                .limit(31);
+
+              let monthlyReturnPct: number | null = null;
+              if (monthlyPerf && monthlyPerf.length >= 2) {
+                const first = monthlyPerf[0];
+                const last = monthlyPerf[monthlyPerf.length - 1];
+                monthlyReturnPct = Math.round((last.return_pct - first.return_pct) * 100) / 100;
+              }
+
               await adminSupabase
                 .from("strategies")
                 .update({
                   return_pct: Math.round(returnPctAlltime * 100) / 100,
                   return_since: returnSince,
+                  ...(monthlyReturnPct != null ? { monthly_return_pct: monthlyReturnPct } : {}),
                 })
                 .eq("id", pubPortfolioFull.linked_strategy_id);
             }

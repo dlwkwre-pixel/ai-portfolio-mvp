@@ -65,7 +65,7 @@ export default async function CommunityPage({
   // ── Public strategies ─────────────────────────────────────────────────────────
   let stratQuery = supabase
     .from("strategies")
-    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id, finn_confidence, return_pct, return_since")
+    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id, finn_confidence, return_pct, return_since, is_official, monthly_return_pct")
     .eq("is_public", true)
     .eq("is_active", true);
 
@@ -77,7 +77,8 @@ export default async function CommunityPage({
   else if (sort === "newest") stratQuery = stratQuery.order("created_at", { ascending: false });
   else if (sort === "copied") stratQuery = stratQuery.order("copies_count", { ascending: false });
   else if (sort === "finn")   stratQuery = stratQuery.order("finn_confidence", { ascending: false, nullsFirst: false });
-  else if (sort === "return") stratQuery = stratQuery.order("return_pct", { ascending: false, nullsFirst: false });
+  else if (sort === "return")  stratQuery = stratQuery.order("return_pct", { ascending: false, nullsFirst: false });
+  else if (sort === "monthly") stratQuery = stratQuery.order("monthly_return_pct", { ascending: false, nullsFirst: false });
 
   const { data: strategiesRaw } = await stratQuery.limit(PAGE_SIZE);
 
@@ -98,6 +99,8 @@ export default async function CommunityPage({
     finn_confidence: (s as { finn_confidence?: number | null }).finn_confidence ?? null,
     return_pct: (s as { return_pct?: number | null }).return_pct ?? null,
     return_since: (s as { return_since?: string | null }).return_since ?? null,
+    is_official: (s as { is_official?: boolean | null }).is_official ?? false,
+    monthly_return_pct: (s as { monthly_return_pct?: number | null }).monthly_return_pct ?? null,
     created_at: s.created_at,
     is_own: s.user_id === user.id,
     is_liked: likedIds.has(s.id),

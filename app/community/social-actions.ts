@@ -116,6 +116,68 @@ export async function followUser(targetUserId: string) {
   revalidatePath("/community");
 }
 
+const TICKER_RE = /\b([A-Z]{1,5})\b/g;
+
+function extractTickers(text: string): string[] {
+  const matches = text.matchAll(TICKER_RE);
+  const found = new Set<string>();
+  for (const m of matches) found.add(m[1]);
+  // Filter out common English words that look like tickers
+  const stopWords = new Set(["I", "A", "AN", "IN", "ON", "AT", "TO", "OF", "IS", "IT", "MY", "WE", "US", "BE", "DO", "GO", "UP", "OR", "SO", "IF", "BY", "AS", "NO"]);
+  return [...found].filter((t) => !stopWords.has(t) && t.length >= 2);
+}
+
+export async function postStrategyUpdate(
+  strategyId: string,
+  updateText: string,
+  changeType: "add" | "remove" | "rebalance" | "note"
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const trimmed = updateText.trim();
+  if (!trimmed || trimmed.length > 500) throw new Error("Update must be 1–500 characters");
+
+  // Verify ownership and public status
+  const { data: strategy } = await supabase
+    .from("strategies")
+    .select("user_id, is_public")
+    .eq("id", strategyId)
+    .single();
+
+  if (!strategy || strategy.user_id !== user.id) throw new Error("Strategy not found or not yours");
+  if (!strategy.is_public) throw new Error("Strategy must be public to post updates");
+
+  const tickers = extractTickers(trimmed);
+
+  const { error } = await supabase.from("strategy_updates").insert({
+    strategy_id: strategyId,
+    author_id: user.id,
+    update_text: trimmed,
+    change_type: changeType,
+    tickers_mentioned: tickers,
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/community");
+}
+
+export async function deleteStrategyUpdate(updateId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("strategy_updates")
+    .delete()
+    .eq("id", updateId)
+    .eq("author_id", user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/community");
+}
+
 export async function copyStrategyAsTemplate(strategyId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
