@@ -74,6 +74,19 @@ type DigestResult = {
   profile: CompanyProfile | null;
 };
 
+type AiAnalysis = {
+  verdict: "BUY" | "HOLD" | "SELL";
+  conviction: "Low" | "Medium" | "High";
+  price_target: number | null;
+  timeframe: string;
+  bull_case: string;
+  bear_case: string;
+  key_catalysts: string;
+  key_risks: string;
+  takeaway: string;
+  cached_at: string;
+};
+
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular" | "scenarios";
 
 type InsiderTx = {
@@ -893,6 +906,8 @@ function DetailView({
   const [digest, setDigest]               = useState<DigestResult | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [digestError, setDigestError]     = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis]           = useState<AiAnalysis | null>(null);
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
   const [buyOpen, setBuyOpen]             = useState(false);
   const [socialPulse, setSocialPulse]         = useState<RedditPulse | null>(null);
   const [socialLoading, setSocialLoading]     = useState(false);
@@ -910,6 +925,27 @@ function DetailView({
       ? ((result.priceTarget.targetMean - result.quote.c) / result.quote.c) * 100
       : null;
   const isUp = result.quote.dp >= 0;
+
+  // Auto-load AI verdict on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setAiAnalysisLoading(true);
+    setAiAnalysis(null);
+    fetch("/api/research/ai-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticker: result.ticker,
+        company_name: result.profile?.name ?? result.ticker,
+        price: result.quote.c,
+        change_pct: result.quote.dp,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setAiAnalysis(d as AiAnalysis); })
+      .catch(() => {})
+      .finally(() => setAiAnalysisLoading(false));
+  }, [result.ticker]);
 
   // Auto-load digest on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1165,6 +1201,92 @@ function DetailView({
           </div>
         )}
       </div>
+
+      {/* AI Verdict */}
+      {(aiAnalysisLoading || aiAnalysis) && (() => {
+        const verdictColor = aiAnalysis?.verdict === "BUY" ? "var(--green)" : aiAnalysis?.verdict === "SELL" ? "var(--red)" : "var(--amber)";
+        const verdictBg    = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)";
+        const verdictBorder = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(245,158,11,0.22)";
+        const upside = aiAnalysis?.price_target && result.quote.c > 0
+          ? ((aiAnalysis.price_target - result.quote.c) / result.quote.c) * 100
+          : null;
+        return (
+          <div style={{ padding: "10px 18px 16px" }}>
+            <div style={{ border: `1px solid ${aiAnalysisLoading ? "var(--border-subtle)" : verdictBorder}`, borderRadius: "var(--radius-lg)", background: aiAnalysisLoading ? "var(--bg-surface)" : verdictBg, overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ padding: "12px 16px 0", display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)" }}>Grok Analysis</span>
+                {aiAnalysis && (
+                  <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                    {new Date(aiAnalysis.cached_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {aiAnalysisLoading ? (
+                <div style={{ padding: "10px 16px 14px", display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)", fontSize: "12px" }}>
+                  <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.65 0.18 260)", opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />
+                  Analyzing {result.ticker}...
+                </div>
+              ) : aiAnalysis && (
+                <div style={{ padding: "0 16px 14px" }}>
+                  {/* Verdict row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <div style={{ padding: "4px 12px", borderRadius: "var(--radius-full)", background: verdictBg, border: `1px solid ${verdictBorder}`, fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: verdictColor, letterSpacing: "0.04em" }}>
+                      {aiAnalysis.verdict}
+                    </div>
+                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                      {aiAnalysis.conviction} conviction
+                    </span>
+                    {aiAnalysis.price_target && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
+                        <div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{aiAnalysis.timeframe} target</div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
+                            <span className="num" style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{formatPrice(aiAnalysis.price_target)}</span>
+                            {upside !== null && (
+                              <span className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
+                                {upside >= 0 ? "+" : ""}{upside.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Takeaway */}
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{aiAnalysis.takeaway}</p>
+                  {/* Bull / Bear */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <div>
+                      <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bull case</div>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.bull_case}</p>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bear case</div>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.bear_case}</p>
+                    </div>
+                  </div>
+                  {/* Catalysts + Risks */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
+                    <div>
+                      <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Catalysts</div>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_catalysts}</p>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_risks}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* AI Digest */}
       <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>

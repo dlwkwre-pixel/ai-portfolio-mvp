@@ -8416,6 +8416,8 @@ export default function PlanningClient({
               .hub-decisions-grid { grid-template-columns: 1fr !important; }
               .hub-verdict-grid { grid-template-columns: 1fr !important; }
               .hub-verdict-ring { display: none !important; }
+              .hub-verdict-stats { padding: 12px 24px 20px !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 16px !important; }
+              .hub-verdict-stats > div { min-width: 120px; flex: 1; }
             }
           `}</style>
 
@@ -8517,7 +8519,7 @@ export default function PlanningClient({
                   </div>
                 </div>
               </div>
-              <div style={{ padding: "0 24px 0 0", display: "flex", flexDirection: "column", justifyContent: "center", gap: "14px" }}>
+              <div className="hub-verdict-stats" style={{ padding: "0 24px 0 0", display: "flex", flexDirection: "column", justifyContent: "center", gap: "14px" }}>
                 {lifePlan.projectedNWAtRetirement != null && (
                   <div>
                     <div style={{ fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", marginBottom: "3px" }}>At Retirement</div>

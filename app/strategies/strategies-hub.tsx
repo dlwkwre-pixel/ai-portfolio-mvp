@@ -488,6 +488,96 @@ export default function StrategiesHub() {
           </button>
         </div>
 
+        {/* ── Custom expand — directly under cards ─────────────────── */}
+        <div style={{ display: "grid", gridTemplateRows: activeSection === "custom" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "custom" ? "10px" : "0" }}>
+          <div style={{ overflow: "hidden" }}>
+            <div className="bt-card" style={{ padding: "18px" }}>
+              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "14px" }}>Build a custom strategy</p>
+              <form
+                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "16px 12px" }}
+                className="manual-form-grid"
+                action={(fd) => {
+                  setManualError("");
+                  startManual(async () => {
+                    try {
+                      const name = fd.get("name") as string;
+                      await createStrategy(fd);
+                      triggerFlyAnimation(name || "New Strategy");
+                    } catch (err) {
+                      setManualError(err instanceof Error ? err.message : "Something went wrong.");
+                    }
+                  });
+                }}
+              >
+                <div>
+                  <label className={lbl}>Strategy name *</label>
+                  <input name="name" type="text" placeholder="My Strategy" className={inp} required />
+                </div>
+                <div>
+                  <label className={lbl}>Style</label>
+                  <select name="style" defaultValue="Growth" className={sel}>
+                    {STRATEGY_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Risk level</label>
+                  <select name="risk_level" defaultValue="Moderate" className={sel}>
+                    {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Trading frequency</label>
+                  <select name="turnover_preference" defaultValue="Moderate" className={sel}>
+                    {TURNOVER_PREFS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Time horizon</label>
+                  <select name="holding_period_bias" defaultValue="Long-term" className={sel}>
+                    {HOLDING_BIASES.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Max single holding %</label>
+                  <input name="max_position_pct" type="number" step="1" min="0" max="100" placeholder="15" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Keep in cash (min) %</label>
+                  <input name="cash_min_pct" type="number" step="1" min="0" placeholder="5" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Keep in cash (max) %</label>
+                  <input name="cash_max_pct" type="number" step="1" min="0" placeholder="20" className={inp} />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className={lbl}>Description</label>
+                  <textarea name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[56px]`} />
+                </div>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label className={lbl}>AI instructions</label>
+                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "5px" }}>
+                    Sent to the AI when analyzing portfolios using this strategy.
+                  </p>
+                  <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats..." className={`${inp} min-h-[72px]`} />
+                </div>
+                {manualError && (
+                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{manualError}</div>
+                )}
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: "8px" }}>
+                  <button type="submit" disabled={isManualPending}
+                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}>
+                    {isManualPending ? "Creating..." : "Create strategy"}
+                  </button>
+                  <button type="button" onClick={() => setActiveSection(null)}
+                    style={{ padding: "8px 14px", borderRadius: "var(--radius-xl)", fontSize: "13px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
         {/* ── Featured templates — inline preview, always visible ───── */}
         <div style={{ marginTop: "12px" }}>
           <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
@@ -660,95 +750,6 @@ export default function StrategiesHub() {
           </div>
         </div>
 
-        {/* ── Custom expand (was Manual) ────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateRows: activeSection === "custom" ? "1fr" : "0fr", transition: "grid-template-rows 0.36s cubic-bezier(0.16,1,0.3,1)", marginTop: activeSection === "custom" ? "10px" : "0" }}>
-          <div style={{ overflow: "hidden" }}>
-            <div className="bt-card" style={{ padding: "18px" }}>
-              <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "14px" }}>Build a custom strategy</p>
-              <form
-                style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "16px 12px" }}
-                className="manual-form-grid"
-                action={(fd) => {
-                  setManualError("");
-                  startManual(async () => {
-                    try {
-                      const name = fd.get("name") as string;
-                      await createStrategy(fd);
-                      triggerFlyAnimation(name || "New Strategy");
-                    } catch (err) {
-                      setManualError(err instanceof Error ? err.message : "Something went wrong.");
-                    }
-                  });
-                }}
-              >
-                <div>
-                  <label className={lbl}>Strategy name *</label>
-                  <input name="name" type="text" placeholder="My Strategy" className={inp} required />
-                </div>
-                <div>
-                  <label className={lbl}>Style</label>
-                  <select name="style" defaultValue="Growth" className={sel}>
-                    {STRATEGY_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Risk level</label>
-                  <select name="risk_level" defaultValue="Moderate" className={sel}>
-                    {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Trading frequency</label>
-                  <select name="turnover_preference" defaultValue="Moderate" className={sel}>
-                    {TURNOVER_PREFS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Time horizon</label>
-                  <select name="holding_period_bias" defaultValue="Long-term" className={sel}>
-                    {HOLDING_BIASES.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Max single holding %</label>
-                  <input name="max_position_pct" type="number" step="1" min="0" max="100" placeholder="15" className={inp} />
-                </div>
-                <div>
-                  <label className={lbl}>Keep in cash (min) %</label>
-                  <input name="cash_min_pct" type="number" step="1" min="0" placeholder="5" className={inp} />
-                </div>
-                <div>
-                  <label className={lbl}>Keep in cash (max) %</label>
-                  <input name="cash_max_pct" type="number" step="1" min="0" placeholder="20" className={inp} />
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label className={lbl}>Description</label>
-                  <textarea name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[56px]`} />
-                </div>
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <label className={lbl}>AI instructions</label>
-                  <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "5px" }}>
-                    Sent to the AI when analyzing portfolios using this strategy.
-                  </p>
-                  <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats..." className={`${inp} min-h-[72px]`} />
-                </div>
-                {manualError && (
-                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{manualError}</div>
-                )}
-                <div style={{ gridColumn: "1 / -1", display: "flex", gap: "8px" }}>
-                  <button type="submit" disabled={isManualPending}
-                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}>
-                    {isManualPending ? "Creating..." : "Create strategy"}
-                  </button>
-                  <button type="button" onClick={() => setActiveSection(null)}
-                    style={{ padding: "8px 14px", borderRadius: "var(--radius-xl)", fontSize: "13px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", cursor: "pointer" }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ── How strategies work ───────────────────────────────────────── */}

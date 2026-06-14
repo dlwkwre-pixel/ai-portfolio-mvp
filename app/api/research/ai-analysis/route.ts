@@ -4,9 +4,9 @@ import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
 import OpenAI from "openai";
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
-const SYSTEM_PROMPT = `You are a concise institutional financial analyst. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
+const SYSTEM_PROMPT = `You are a concise institutional equity analyst with deep fundamental and technical expertise. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
 
 function buildPrompt(
   ticker: string,
@@ -21,14 +21,19 @@ function buildPrompt(
   return `Analyze ${ticker} (${company}).
 Current price: $${price.toFixed(2)} (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)${insiderLine}
 
+Use your training data and web knowledge about this company's fundamentals, recent earnings, competitive position, and macro context.
+
 Return this exact JSON shape:
 {
+  "verdict": "<BUY or HOLD or SELL>",
+  "conviction": "<Low or Medium or High>",
+  "price_target": "<your 12-month price target as a number, e.g. 215.00, or null if uncertain>",
+  "timeframe": "12 months",
   "bull_case": "<2-3 key bullish arguments, 1-2 sentences, cite specific fundamentals or catalysts>",
   "bear_case": "<2-3 key bearish arguments, 1-2 sentences, cite specific risks or headwinds>",
   "key_catalysts": "<near-term events or trends that could move the stock, 1-2 sentences>",
   "key_risks": "<main downside risks, 1-2 sentences, be specific>",
-  "takeaway": "<one sentence summary for a long-term investor>",
-  "confidence": "<Low or Medium or High>"
+  "takeaway": "<one sentence summary — state your directional view clearly>"
 }`;
 }
 
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
     const t = String(ticker).trim().toUpperCase();
     const supabase = await createClient();
 
-    // Check Supabase cache first
+    // Check Supabase cache
     const { data: cached } = await supabase
       .from("stock_ai_analyses")
       .select("analysis_text, created_at")
@@ -66,19 +71,19 @@ export async function POST(req: NextRequest) {
 
     if (cached?.analysis_text) {
       try {
-        const parsed = JSON.parse(cached.analysis_text) as Record<string, string>;
+        const parsed = JSON.parse(cached.analysis_text) as Record<string, unknown>;
         return NextResponse.json({ ...parsed, cached_at: cached.created_at });
       } catch {
         // Corrupted cache — fall through to regenerate
       }
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
-    // Fetch insider data to enrich the prompt (fire and don't block on failure)
+    // Enrich with insider data
     let insiderSummary: string | undefined;
     try {
       const insider = await getFinnhubInsiderTransactions(t);
@@ -91,22 +96,22 @@ export async function POST(req: NextRequest) {
         insiderSummary = parts.join(", ") + ` (signal: ${insider.signal})`;
       }
     } catch {
-      // Non-fatal — proceed without insider data
+      // Non-fatal
     }
 
     const client = new OpenAI({
       apiKey,
-      baseURL: "https://api.groq.com/openai/v1",
+      baseURL: "https://api.x.ai/v1",
     });
 
     const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "grok-3-fast",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary) },
       ],
-      max_tokens: 600,
-      temperature: 0.3,
+      max_tokens: 700,
+      temperature: 0.2,
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "";
@@ -116,16 +121,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "AI returned an unexpected response. Please try again." }, { status: 502 });
     }
 
-    let analysis: Record<string, string>;
+    let analysis: Record<string, unknown>;
     try {
-      analysis = JSON.parse(jsonMatch[0]) as Record<string, string>;
+      analysis = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
     } catch {
       return NextResponse.json({ error: "Failed to parse AI response. Please try again." }, { status: 502 });
     }
 
     const now = new Date().toISOString();
 
-    // Upsert into cache — fire and forget, failure doesn't affect response
     void supabase.from("stock_ai_analyses").upsert(
       { ticker: t, analysis_text: JSON.stringify(analysis), created_at: now },
       { onConflict: "ticker" }
