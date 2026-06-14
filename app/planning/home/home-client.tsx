@@ -4661,6 +4661,103 @@ export default function HomeClient({
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
+            {/* ── You at Purchase snapshot card ── */}
+            {goalMetrics.hasProfile && goalMetrics.yearsUntilPurchase >= 0 && (() => {
+              const ageAtPurchase = (profile?.current_age ?? 0) > 0
+                ? (profile!.current_age! + goalMetrics.yearsUntilPurchase)
+                : null;
+              const cashOk = goalMetrics.cashSurplus >= 0;
+              const efMonths = goalMetrics.emergencyMonths;
+              const efOk = efMonths === null || efMonths >= 3;
+              const probColor = goalMetrics.prob >= 75 ? "oklch(0.70 0.18 155)" : goalMetrics.prob >= 50 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)";
+              return (
+                <div data-card style={{ ...cardS, position: "relative", overflow: "hidden" }}>
+                  {/* header row */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                    <div>
+                      <p style={{ ...sectionHead, margin: 0 }}>You at Purchase</p>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginTop: "2px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{targetPurchaseYear}</span>
+                        {goalMetrics.yearsUntilPurchase > 0 && (
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                            in {goalMetrics.yearsUntilPurchase} {goalMetrics.yearsUntilPurchase === 1 ? "year" : "years"}
+                            {ageAtPurchase ? ` · age ${ageAtPurchase}` : ""}
+                          </span>
+                        )}
+                        {goalMetrics.yearsUntilPurchase === 0 && (
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                            this year{ageAtPurchase ? ` · age ${ageAtPurchase}` : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Goal prob.</div>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: probColor, lineHeight: 1 }}>{goalMetrics.prob}%</span>
+                    </div>
+                  </div>
+
+                  {/* stat grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                    {/* Projected income */}
+                    <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Income</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(goalMetrics.projectedAnnualIncome)}/yr</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>projected gross</div>
+                    </div>
+                    {/* Cash available */}
+                    <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Cash ready</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(goalMetrics.projectedCash)}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>need {fmtK(goalMetrics.totalNeeded)}</div>
+                    </div>
+                    {/* Surplus / deficit */}
+                    <div style={{ background: cashOk ? "rgba(0,211,149,0.06)" : "rgba(239,68,68,0.06)", borderRadius: "10px", padding: "10px 12px", border: `1px solid ${cashOk ? "rgba(0,211,149,0.15)" : "rgba(239,68,68,0.15)"}` }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{cashOk ? "Surplus" : "Deficit"}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: cashOk ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" }}>
+                        {cashOk ? "+" : ""}{fmtK(goalMetrics.cashSurplus)}
+                      </div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>after down pmt</div>
+                    </div>
+                  </div>
+
+                  {/* second row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
+                    {/* Emergency fund after purchase */}
+                    <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Emergency fund after</div>
+                      {efMonths !== null ? (
+                        <>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: efOk ? "var(--text-primary)" : "oklch(0.68 0.18 25)" }}>
+                            {efMonths > 0 ? `${efMonths.toFixed(1)} mo` : "depleted"}
+                          </div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>{efOk ? "healthy buffer" : "below 3-mo min"}</div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>add expenses to calc</div>
+                      )}
+                    </div>
+                    {/* Future DTI */}
+                    <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Housing DTI</div>
+                      {goalMetrics.futureDTI !== null ? (
+                        <>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: goalMetrics.futureDTI <= 36 ? "oklch(0.70 0.18 155)" : goalMetrics.futureDTI <= 43 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>
+                            {goalMetrics.futureDTI.toFixed(0)}%
+                          </div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>
+                            {goalMetrics.dtiStatus === "excellent" ? "well within limit" : goalMetrics.dtiStatus === "good" ? "within limit" : goalMetrics.dtiStatus === "caution" ? "caution zone" : "exceeds limit"}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>add income to calc</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Affordability + Readiness — side by side */}
             {(computed.affordabilityScore || computed.readinessScore) && (
               <div style={{ display: "grid", gridTemplateColumns: computed.affordabilityScore && computed.readinessScore ? "1fr 1fr" : "1fr", gap: "14px", alignItems: "start" }}>
