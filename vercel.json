@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/cron/intraday-snapshot",
-      "schedule": "*/30 13-21 * * 1-5"
+      "schedule": "*/30 * * * 1-5"
     },
     {
       "path": "/api/cron/email-digest",
