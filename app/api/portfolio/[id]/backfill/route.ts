@@ -25,18 +25,22 @@ export async function POST(
     .maybeSingle();
   if (!portfolio) return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
 
-  // Load stock holdings (skip crypto — CoinGecko handles those live)
+  // Load all holdings — stocks and crypto (Polygon supports X:BTCUSD format)
   const { data: holdingsRaw } = await supabase
     .from("holdings")
     .select("ticker, shares, asset_type, opened_at")
     .eq("portfolio_id", portfolioId);
 
-  const holdings = (holdingsRaw ?? []).filter(
-    (h) => h.asset_type !== "crypto" && Number(h.shares ?? 0) > 0
-  );
+  const holdings = (holdingsRaw ?? []).filter((h) => Number(h.shares ?? 0) > 0);
 
   if (holdings.length === 0) {
-    return NextResponse.json({ message: "No stock holdings to backfill.", inserted: 0 });
+    return NextResponse.json({ message: "No holdings to backfill.", inserted: 0 });
+  }
+
+  // Polygon uses X:BTCUSD format for crypto
+  function toPolygonTicker(ticker: string, assetType: string): string {
+    if (assetType === "crypto") return `X:${ticker.toUpperCase()}USD`;
+    return ticker.toUpperCase();
   }
 
   // Date range: earliest holding purchase → yesterday
@@ -62,9 +66,9 @@ export async function POST(
     (existingSnaps ?? []).map((s) => s.snapshot_date.slice(0, 10))
   );
 
-  // Fetch Polygon EOD for all stock tickers
-  const tickers = [...new Set(holdings.map((h) => h.ticker.toUpperCase()))];
-  const priceTable = await getPolygonEODBatch(tickers, earliestOpenedAt, yesterday);
+  // Fetch Polygon EOD for all tickers — crypto uses X:BTCUSD format
+  const polygonTickers = [...new Set(holdings.map((h) => toPolygonTicker(h.ticker, h.asset_type)))];
+  const priceTable = await getPolygonEODBatch(polygonTickers, earliestOpenedAt, yesterday);
 
   // Build set of tradeable days (dates where at least one ticker has a price)
   const tradingDays = new Set<string>();
@@ -84,10 +88,10 @@ export async function POST(
 
     let holdingsValue = cashBalance;
     for (const holding of holdings) {
-      const ticker = holding.ticker.toUpperCase();
+      const polygonTicker = toPolygonTicker(holding.ticker, holding.asset_type);
       const openedDate = holding.opened_at ? holding.opened_at.slice(0, 10) : earliestOpenedAt;
-      if (date < openedDate) continue; // holding didn't exist yet
-      const price = priceTable.get(ticker)?.get(date);
+      if (date < openedDate) continue;
+      const price = priceTable.get(polygonTicker)?.get(date);
       if (!price) continue;
       holdingsValue += Number(holding.shares) * price;
     }
@@ -112,7 +116,7 @@ export async function POST(
 
   return NextResponse.json({
     message: `Backfill complete.`,
-    tickers: tickers.length,
+    tickers: polygonTickers.length,
     tradingDays: tradingDays.size,
     inserted,
     skipped: tradingDays.size - snapshots.length,

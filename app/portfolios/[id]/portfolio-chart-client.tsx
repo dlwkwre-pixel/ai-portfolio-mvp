@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePortfolioPrivacy } from "./portfolio-privacy-context";
 import ResetPerformanceButton from "./reset-performance-button";
@@ -106,6 +106,15 @@ export default function PortfolioChartClient({
   const [backfilling, setBackfilling] = useState(false);
   const [backfillDone, setBackfillDone] = useState(false);
   const [removingBackfill, setRemovingBackfill] = useState(false);
+  const [marketOpen, setMarketOpen] = useState<boolean | null>(null);
+  const [marketSession, setMarketSession] = useState<string>("closed");
+
+  useEffect(() => {
+    fetch("/api/market/status")
+      .then((r) => r.json())
+      .then((d) => { setMarketOpen(d.isOpen); setMarketSession(d.session ?? "closed"); })
+      .catch(() => {});
+  }, []);
   const { isPrivate } = usePortfolioPrivacy();
   const router = useRouter();
 
@@ -407,6 +416,20 @@ export default function PortfolioChartClient({
 
       {/* Legend + Reset */}
       <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+        {marketOpen !== null && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                background: marketOpen ? "#34d399" : marketSession === "after_hours" || marketSession === "pre_market" ? "#f59e0b" : "#475569",
+                boxShadow: marketOpen ? "0 0 4px #34d399" : "none",
+              }}
+            />
+            <span style={{ color: marketOpen ? "#34d399" : marketSession === "after_hours" ? "#f59e0b" : marketSession === "pre_market" ? "#f59e0b" : "#475569" }}>
+              {marketOpen ? "Market open" : marketSession === "after_hours" ? "After hours" : marketSession === "pre_market" ? "Pre-market" : "Market closed"}
+            </span>
+          </span>
+        )}
         {hasEnoughSnapshots && (
           <>
             <span className="flex items-center gap-1.5">
@@ -425,7 +448,7 @@ export default function PortfolioChartClient({
           </>
         )}
         <span className="ml-auto flex items-center gap-3">
-          {backfillDone && (
+          {backfillDone ? (
             <button
               type="button"
               onClick={handleRemoveBackfill}
@@ -433,6 +456,15 @@ export default function PortfolioChartClient({
               className="text-[11px] text-amber-500/70 hover:text-amber-400 underline underline-offset-2 transition disabled:opacity-50"
             >
               {removingBackfill ? "Removing…" : "Undo backfill"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleBackfill}
+              disabled={backfilling}
+              className="text-[11px] text-blue-400/70 hover:text-blue-400 underline underline-offset-2 transition disabled:opacity-50"
+            >
+              {backfilling ? "Fetching…" : "Build chart history"}
             </button>
           )}
           <ResetPerformanceButton portfolioId={portfolioId} holdings={holdings} />
