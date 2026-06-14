@@ -1247,7 +1247,8 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Long-Term Capital Gains Rates</h2>
                 <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference — verify at IRS.gov for current year</span>
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "440px" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
                     {["Rate", "Single Filers", "Married Filing Jointly", "Head of Household"].map(h => (
@@ -1266,13 +1267,15 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
             <div className="bt-card" style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px", flexWrap: "wrap", gap: "6px" }}>
                 <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Ordinary Income Rates (Short-Term Gains)</h2>
                 <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>2025 reference</span>
               </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "340px" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
                     {["Rate","Single","Married Filing Jointly"].map(h => (
@@ -1290,6 +1293,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
             <div className="bt-card" style={{ padding: "18px 20px" }}>
               <h2 style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "12px" }}>Key Rules to Know</h2>

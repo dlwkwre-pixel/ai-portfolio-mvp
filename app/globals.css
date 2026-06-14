@@ -556,6 +556,15 @@ body {
   main {
     padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
   }
+
+  /* Reserve space for the fixed bottom nav inside every in-page scroll
+     container, so the last rows of content are reachable and not hidden
+     behind the nav. The inner `flex:1; overflowY:auto` scroller — not the
+     body — is what actually scrolls on each page, so padding must live here. */
+  .bt-page-content,
+  .bt-main-col > div[style*="overflow-y: auto"] {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 @supports (padding: max(0px)) {
