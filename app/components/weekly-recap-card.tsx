@@ -19,12 +19,15 @@ export default function WeeklyRecapCard() {
   const [data, setData] = useState<RecapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [show, setShow] = useState(false);
 
-  // Only show Sat/Sun
-  if (typeof window !== "undefined" && !isSatOrSun()) return null;
-
+  // ALL hooks first — then conditional return below
   useEffect(() => {
-    if (!isSatOrSun()) { setLoading(false); return; }
+    if (!isSatOrSun()) {
+      setLoading(false);
+      return;
+    }
+    setShow(true);
     fetch("/api/market/weekly-recap")
       .then((r) => r.json())
       .then((d) => {
@@ -35,8 +38,7 @@ export default function WeeklyRecapCard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (!isSatOrSun() && typeof window !== "undefined") return null;
-  if (error) return null;
+  if (!show || error) return null;
 
   const ret = data?.week_return_pct;
   const retColor = ret == null ? "var(--text-primary)" : ret >= 0 ? "var(--green)" : "var(--red)";
@@ -51,7 +53,6 @@ export default function WeeklyRecapCard() {
         padding: "14px 16px",
       }}
     >
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: loading ? "0" : "10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <svg width="13" height="13" viewBox="0 0 20 20" fill="rgba(74,222,128,0.85)">
@@ -80,7 +81,6 @@ export default function WeeklyRecapCard() {
           <p style={{ fontSize: "12px", lineHeight: 1.65, color: "var(--text-secondary)", marginBottom: "10px" }}>
             {data.narrative}
           </p>
-
           {(data.best_ticker || data.worst_ticker) && (
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               {data.best_ticker && (

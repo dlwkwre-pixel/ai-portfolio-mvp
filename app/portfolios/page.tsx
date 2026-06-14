@@ -54,12 +54,15 @@ export default async function PortfoliosPage() {
   const activePortfolios = portfolios.filter((p) => p.is_active);
   const archivedPortfolios = portfolios.filter((p) => !p.is_active);
 
-  // Get live valuations for each active portfolio
+  // Get live valuations and position counts for each active portfolio
   const valuations: Record<string, number> = {};
+  let totalPositions = 0;
   for (const p of activePortfolios) {
     const { data: holdings } = await supabase
       .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis")
       .eq("portfolio_id", p.id);
+    const activeHoldings = (holdings ?? []).filter((h) => Number(h.shares) > 0);
+    totalPositions += activeHoldings.length;
     const val = await getPortfolioValuation({
       holdings: (holdings ?? []).map((h) => ({
         id: h.id, ticker: h.ticker, company_name: h.company_name,
@@ -110,7 +113,7 @@ export default async function PortfoliosPage() {
               {[
                 { label: "Total Value", value: formatMoney(totalValue) },
                 { label: "Active Portfolios", value: String(activePortfolios.length) },
-                { label: "Total Positions", value: "—" },
+                { label: "Total Positions", value: String(totalPositions) },
               ].map((stat) => (
                 <div key={stat.label} className="bt-card" style={{ padding: "14px 16px" }}>
                   <div className="label" style={{ marginBottom: "6px" }}>{stat.label}</div>
