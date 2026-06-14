@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { resetPerformanceHistory, trimSnapshotsBefore, removePolygonBackfill } from "./actions";
 import ChartSetupModal from "./chart-setup-modal";
 
@@ -17,8 +18,10 @@ export default function ResetPerformanceButton({
   const [showTrim, setShowTrim] = useState(false);
   const [trimDate, setTrimDate] = useState("");
   const [confirmRemoveBackfill, setConfirmRemoveBackfill] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleReset() {
     startTransition(async () => {
@@ -63,6 +66,36 @@ export default function ResetPerformanceButton({
       setConfirmRemoveBackfill(false);
       setOpen(false);
     });
+  }
+
+  async function handleBackfillFromMenu() {
+    setBackfilling(true);
+    setOpen(false);
+    try {
+      const res = await fetch(`/api/portfolio/${portfolioId}/backfill`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setStatus({ ok: true, msg: data.inserted > 0 ? `Built ${data.inserted} historical snapshots from Polygon.` : "History already complete — no new snapshots needed." });
+        router.refresh();
+      } else {
+        setStatus({ ok: false, msg: data.error ?? "Backfill failed." });
+      }
+    } catch {
+      setStatus({ ok: false, msg: "Backfill request failed." });
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
+  if (backfilling) {
+    return (
+      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83" />
+        </svg>
+        Fetching history from Polygon… (may take a minute)
+      </div>
+    );
   }
 
   if (showSetup) {
@@ -160,6 +193,14 @@ export default function ResetPerformanceButton({
     return (
       <div className="flex flex-col gap-1 text-[11px]" style={{ maxWidth: 280 }}>
         <p className="text-slate-400 font-medium mb-1">Chart data</p>
+
+        <button type="button" onClick={handleBackfillFromMenu}
+          className="text-left text-slate-300 hover:text-white transition font-medium">
+          Build full chart history →
+        </button>
+        <p className="text-[10px] text-slate-600 mb-2">
+          Fetch historical prices from Polygon.io for all holdings. Fills in missing days going back to your first purchase.
+        </p>
 
         <button type="button" onClick={() => setShowSetup(true)}
           className="text-left text-slate-300 hover:text-white transition font-medium">
