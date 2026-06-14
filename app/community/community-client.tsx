@@ -26,6 +26,8 @@ type StrategyRow = {
   likes_count: number;
   copies_count: number;
   finn_confidence: number | null;
+  return_pct: number | null;
+  return_since: string | null;
   created_at: string;
   is_own: boolean;
   is_liked: boolean;
@@ -43,6 +45,8 @@ type StrategyPreview = {
   likes_count: number;
   copies_count: number;
   finn_confidence: number | null;
+  return_pct: number | null;
+  return_since: string | null;
   is_liked: boolean;
   is_saved: boolean;
   is_own: boolean;
@@ -321,6 +325,24 @@ function StrategyPreviewModal({
                 <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>FINN score</span>
               </div>
             )}
+            {strategy.return_pct != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{
+                  padding: "2px 9px", borderRadius: "6px",
+                  background: strategy.return_pct >= 0 ? "rgba(16,185,129,0.09)" : "rgba(239,68,68,0.09)",
+                  border: `1px solid ${strategy.return_pct >= 0 ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.22)"}`,
+                  fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700,
+                  color: strategy.return_pct >= 0 ? "#34d399" : "#f87171",
+                }}>
+                  {strategy.return_pct >= 0 ? "+" : ""}{strategy.return_pct.toFixed(2)}%
+                </div>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  {strategy.return_since
+                    ? `since ${new Date(strategy.return_since + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+                    : "verified return"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -567,27 +589,40 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
     >
       {/* Name + badges */}
       <div>
-        <button
-          type="button"
-          onClick={() => onPreview(s)}
-          aria-label={`Open strategy: ${s.name}`}
-          style={{
-            background: "none", border: "none", padding: 0, cursor: "pointer",
-            textAlign: "left", fontFamily: "inherit", width: "100%",
-            marginBottom: "6px",
-          }}
-        >
-          <h3 style={{
-            fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
-            color: "var(--text-primary)", lineHeight: 1.25,
-            transition: "color 120ms ease",
-          }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#93c5fd"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
+          <button
+            type="button"
+            onClick={() => onPreview(s)}
+            aria-label={`Open strategy: ${s.name}`}
+            style={{
+              background: "none", border: "none", padding: 0, cursor: "pointer",
+              textAlign: "left", fontFamily: "inherit", flex: 1, minWidth: 0,
+            }}
           >
-            {s.name}
-          </h3>
-        </button>
+            <h3 style={{
+              fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600,
+              color: "var(--text-primary)", lineHeight: 1.25,
+              transition: "color 120ms ease",
+            }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#93c5fd"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+            >
+              {s.name}
+            </h3>
+          </button>
+          {s.return_pct != null && (
+            <div title={s.return_since ? `Since ${new Date(s.return_since + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}` : "Verified return"} style={{
+              display: "flex", alignItems: "center", gap: "3px", flexShrink: 0,
+              padding: "3px 7px", borderRadius: "var(--radius-full)",
+              background: s.return_pct >= 0 ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+              border: `1px solid ${s.return_pct >= 0 ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+              color: s.return_pct >= 0 ? "#34d399" : "#f87171",
+              fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700,
+            }}>
+              {s.return_pct >= 0 ? "↑" : "↓"}{Math.abs(s.return_pct).toFixed(1)}%
+            </div>
+          )}
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
           <RiskBadge risk={s.risk_level} />
           <StyleBadge style={s.style} />
@@ -1344,6 +1379,7 @@ export default function CommunityClient({
       style: s.style, risk_level: s.risk_level,
       likes_count: s.likes_count, copies_count: s.copies_count,
       finn_confidence: s.finn_confidence,
+      return_pct: s.return_pct, return_since: s.return_since,
       is_liked: s.is_liked, is_saved: s.is_saved, is_own: s.is_own,
       author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: s.author.is_following },
     });
@@ -1358,6 +1394,7 @@ export default function CommunityClient({
       style: item.style, risk_level: item.risk_level,
       likes_count: item.likes_count, copies_count: item.copies_count,
       finn_confidence: null,
+      return_pct: null, return_since: null,
       is_liked: item.is_liked, is_saved: item.is_saved, is_own: item.is_own,
       author: { user_id: item.author.user_id, username: item.author.username, display_name: item.author.display_name, avatar_color: item.author.avatar_color, is_following: item.author.is_following },
     });
@@ -1509,6 +1546,7 @@ export default function CommunityClient({
                 <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
                 <FilterChip active={initialSort === "copied"} label="Most copied" onClick={() => updateUrl({ sort: "copied" })} />
                 <FilterChip active={initialSort === "finn"} label="FINN Score" onClick={() => updateUrl({ sort: "finn" })} />
+                <FilterChip active={initialSort === "return"} label="Best Return" onClick={() => updateUrl({ sort: "return" })} />
               </>
             )}
             {section === "portfolios" && (
@@ -1549,6 +1587,7 @@ export default function CommunityClient({
             style: s.style, risk_level: s.risk_level,
             likes_count: s.likes_count, copies_count: s.copies_count,
             finn_confidence: s.finn_confidence,
+            return_pct: null, return_since: null,
             is_liked: false, is_saved: false, is_own: false,
             author: { user_id: s.author.user_id, username: s.author.username, display_name: s.author.display_name, avatar_color: s.author.avatar_color, is_following: false },
           })}

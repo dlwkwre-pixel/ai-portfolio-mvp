@@ -218,6 +218,26 @@ export async function GET(request: Request) {
                   : {}),
               })
               .eq("id", pubPortfolio.id);
+
+            // 5. Sync return_pct back to the linked strategy (for community sort + display)
+            const { data: pubPortfolioFull } = await adminSupabase
+              .from("public_portfolios")
+              .select("linked_strategy_id, created_at")
+              .eq("id", pubPortfolio.id)
+              .maybeSingle();
+
+            if (pubPortfolioFull?.linked_strategy_id && returnPctAlltime != null) {
+              const returnSince = pubPortfolioFull.created_at
+                ? new Date(pubPortfolioFull.created_at).toISOString().slice(0, 10)
+                : today;
+              await adminSupabase
+                .from("strategies")
+                .update({
+                  return_pct: Math.round(returnPctAlltime * 100) / 100,
+                  return_since: returnSince,
+                })
+                .eq("id", pubPortfolioFull.linked_strategy_id);
+            }
           }
         } catch (pubErr) {
           console.error(`Public portfolio sync failed for ${portfolio.id}:`, pubErr);

@@ -65,7 +65,7 @@ export default async function CommunityPage({
   // ── Public strategies ─────────────────────────────────────────────────────────
   let stratQuery = supabase
     .from("strategies")
-    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id, finn_confidence")
+    .select("id, name, description, style, risk_level, is_public, likes_count, copies_count, created_at, user_id, finn_confidence, return_pct, return_since")
     .eq("is_public", true)
     .eq("is_active", true);
 
@@ -77,6 +77,7 @@ export default async function CommunityPage({
   else if (sort === "newest") stratQuery = stratQuery.order("created_at", { ascending: false });
   else if (sort === "copied") stratQuery = stratQuery.order("copies_count", { ascending: false });
   else if (sort === "finn")   stratQuery = stratQuery.order("finn_confidence", { ascending: false, nullsFirst: false });
+  else if (sort === "return") stratQuery = stratQuery.order("return_pct", { ascending: false, nullsFirst: false });
 
   const { data: strategiesRaw } = await stratQuery.limit(PAGE_SIZE);
 
@@ -95,6 +96,8 @@ export default async function CommunityPage({
     likes_count: s.likes_count ?? 0,
     copies_count: s.copies_count ?? 0,
     finn_confidence: (s as { finn_confidence?: number | null }).finn_confidence ?? null,
+    return_pct: (s as { return_pct?: number | null }).return_pct ?? null,
+    return_since: (s as { return_since?: string | null }).return_since ?? null,
     created_at: s.created_at,
     is_own: s.user_id === user.id,
     is_liked: likedIds.has(s.id),
