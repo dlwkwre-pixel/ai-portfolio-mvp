@@ -515,11 +515,27 @@ body {
   /* Planning page tab bar — horizontal scroll so all 7 tabs are reachable */
   .planning-tabs-bar {
     overflow-x: auto !important;
+    overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     flex-wrap: nowrap !important;
   }
   .planning-tabs-bar::-webkit-scrollbar { display: none; }
+
+  /* Scroll affordance: fade + chevron on the right edge of the tab bar */
+  .planning-tabs-fade {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    position: absolute;
+    top: 0;
+    bottom: 1px;
+    right: 0;
+    width: 40px;
+    padding-right: 4px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--bg-base) 60%);
+  }
 
   /* Planning two-panel layouts → single column on mobile */
   [data-home-grid],
@@ -528,6 +544,23 @@ body {
   [data-family-grid] {
     grid-template-columns: 1fr !important;
   }
+
+  /* Planning layout containers + their children: min-width:0 so a wide inner
+     element (table, long label, nested grid) can't push the whole column past
+     the viewport and clip the page. This is the main "falls off the right"
+     fix for the home planner and the career/education/family sub-planners. */
+  [data-home-grid], [data-home-sticky],
+  [data-career-cols], [data-career-analysis],
+  [data-edu-cols], [data-edu-analysis],
+  [data-family-cols], [data-family-analysis] { min-width: 0 !important; }
+  [data-home-grid] > *,
+  [data-home-sticky] > *,
+  [data-career-cols] > *,
+  [data-career-analysis] > *,
+  [data-edu-cols] > *,
+  [data-edu-analysis] > *,
+  [data-family-cols] > *,
+  [data-family-analysis] > * { min-width: 0 !important; max-width: 100%; }
 
   /* Catch inline "300px 1fr" variants not covered by data attributes */
   [style*="grid-template-columns: 300px 1fr"] {
@@ -554,6 +587,9 @@ body {
 /* Portfolio tabs / any horizontal scroll container — hide scrollbar */
 .bt-tabs-scroll { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .bt-tabs-scroll::-webkit-scrollbar { display: none; }
+
+/* Planning tab-bar scroll affordance is mobile-only (shown via media query) */
+.planning-tabs-fade { display: none; }
 
 /* ── Mobile bottom nav ── */
 @media (max-width: 768px) {
@@ -641,7 +677,13 @@ body {
     flex-wrap: wrap !important;
     overflow-x: visible !important;
   }
-}
+
+  /* Compare Paths: stack the two scenario panels and drop the vertical divider */
+  .compare-paths-row { flex-direction: column !important; }
+  .compare-paths-divider { display: none !important; }
+
+  /* Estate: stack "Last reviewed" date over the Notes field (was 1fr 2fr) */
+  .estate-review-grid { grid-template-columns: 1fr !important; }
 
 /* Research detail panel */
 .research-detail-panel {

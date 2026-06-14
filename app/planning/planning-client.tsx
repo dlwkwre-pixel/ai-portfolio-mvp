@@ -2392,10 +2392,10 @@ function CompareTab({
       </div>
 
       {/* Two panels */}
-      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+      <div className="compare-paths-row" style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
         <ScenarioPanel cfg={cfgA} setCfg={setCfgA} color={BLUE} result={resA}
           currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
-        <div style={{ width: "1px", background: "var(--border-subtle)", alignSelf: "stretch", flexShrink: 0 }} />
+        <div className="compare-paths-divider" style={{ width: "1px", background: "var(--border-subtle)", alignSelf: "stretch", flexShrink: 0 }} />
         <ScenarioPanel cfg={cfgB} setCfg={setCfgB} color={VIOLET} result={resB}
           currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
       </div>
@@ -2836,7 +2836,7 @@ function EstatePlanningTab({
             </div>
 
             {/* Last reviewed + notes */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
+            <div className="estate-review-grid" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "10px" }}>
               <div>
                 <div style={labelStyle}>Last reviewed</div>
                 <input type="date" name="last_reviewed_at" defaultValue={estateProfile?.last_reviewed_at ?? ""} style={inputStyle} />
@@ -4586,8 +4586,11 @@ function CashFlowOS({
         .cfo-catrow.cfo-hl   { background: rgba(255,255,255,0.04) !important; }
         .cfo-actual input:focus { border-color: var(--brand-blue) !important; outline: none; }
         @media (max-width: 640px) {
-          .cfo-z2grid { flex-direction: column !important; }
+          /* Stack donut over bars; align-items:stretch so the bars span full
+             width (inline alignItems:flex-start otherwise shrinks them). */
+          .cfo-z2grid { flex-direction: column !important; align-items: stretch !important; }
           .cfo-donut  { width: 100% !important; display: flex; justify-content: center; }
+          .cfo-z2grid > div:last-child { width: 100% !important; }
           .cfo-kpis   { grid-template-columns: repeat(2,1fr) !important; }
         }
       `}</style>
@@ -6805,25 +6808,33 @@ export default function PlanningClient({
       />
 
       {/* Tabs */}
-      <div className="planning-tabs-bar" style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)", marginBottom: "20px" }}>
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            style={{
-              padding: "9px 14px", background: "none", border: "none",
-              borderBottom: tab === id ? "2px solid var(--brand-blue)" : "2px solid transparent",
-              color: tab === id ? "var(--text-primary)" : "var(--text-tertiary)",
-              fontSize: "13px", fontWeight: tab === id ? 600 : 400,
-              fontFamily: "var(--font-body)", cursor: "pointer",
-              transition: "color 0.15s",
-              marginBottom: "-1px", whiteSpace: "nowrap", flexShrink: 0,
-            }}
-          >
-            {label}
-          </button>
-        ))}
+      <div style={{ position: "relative", marginBottom: "20px" }}>
+        <div className="planning-tabs-bar" style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)" }}>
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              style={{
+                padding: "9px 14px", background: "none", border: "none",
+                borderBottom: tab === id ? "2px solid var(--brand-blue)" : "2px solid transparent",
+                color: tab === id ? "var(--text-primary)" : "var(--text-tertiary)",
+                fontSize: "13px", fontWeight: tab === id ? 600 : 400,
+                fontFamily: "var(--font-body)", cursor: "pointer",
+                transition: "color 0.15s",
+                marginBottom: "-1px", whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {/* Mobile-only scroll affordance: fade + chevron hinting horizontal swipe */}
+        <div className="planning-tabs-fade" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="var(--text-tertiary)">
+            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+          </svg>
+        </div>
       </div>
 
       {/* ── Tab: Overview ── */}
