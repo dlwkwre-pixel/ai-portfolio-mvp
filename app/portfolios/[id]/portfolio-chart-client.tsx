@@ -415,7 +415,7 @@ export default function PortfolioChartClient({
       )}
 
       {/* Legend + Reset */}
-      <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
         {marketOpen !== null && (
           <span className="flex items-center gap-1.5">
             <span
