@@ -2,6 +2,9 @@
   "functions": {
     "app/portfolios/[id]/recommendation-actions.ts": {
       "maxDuration": 300
+    },
+    "app/api/portfolio/[id]/backfill/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [

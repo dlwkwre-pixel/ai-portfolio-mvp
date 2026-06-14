@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { usePortfolioPrivacy } from "./portfolio-privacy-context";
 import ResetPerformanceButton from "./reset-performance-button";
 import {
@@ -102,7 +103,25 @@ export default function PortfolioChartClient({
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
   const [chartMode, setChartMode] = useState<"net" | "twr">("net");
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillDone, setBackfillDone] = useState(false);
   const { isPrivate } = usePortfolioPrivacy();
+  const router = useRouter();
+
+  async function handleBackfill() {
+    setBackfilling(true);
+    try {
+      const res = await fetch(`/api/portfolio/${portfolioId}/backfill`, { method: "POST" });
+      if (res.ok) {
+        setBackfillDone(true);
+        router.refresh();
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setBackfilling(false);
+    }
+  }
 
   const selectedDays = TIMEFRAMES.find((t) => t.label === activeTimeframe)?.days ?? 0;
 
@@ -267,17 +286,47 @@ export default function PortfolioChartClient({
 
       {/* Charts */}
       {chartData.length < 2 ? (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-white/5 bg-white/2">
-          <div className="text-center">
-            <p className="text-sm text-slate-400">
-              {chartData.length === 0
-                ? "Portfolio is being tracked. Check back tomorrow for your first data point."
-                : "Need at least 2 snapshots to show the chart. Come back tomorrow!"}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">Snapshots are recorded automatically each day.</p>
-          </div>
+        <div className="flex h-48 flex-col items-center justify-center gap-4 rounded-xl border border-white/5 bg-white/2 px-6 text-center">
+          {backfillDone ? (
+            <p className="text-sm text-slate-400">History loaded — refreshing chart…</p>
+          ) : (
+            <>
+              <div>
+                <p className="text-sm text-slate-300 font-medium">Build your chart history</p>
+                <p className="mt-1 text-xs text-slate-500">Fetch historical prices from Polygon.io for all holdings back to your first purchase date.</p>
+              </div>
+              <button
+                onClick={handleBackfill}
+                disabled={backfilling}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {backfilling ? (
+                  <>
+                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83" />
+                    </svg>
+                    Fetching history… (may take a minute)
+                  </>
+                ) : "Build chart history"}
+              </button>
+              <p className="text-[10px] text-slate-600">Snapshots also record automatically each day.</p>
+            </>
+          )}
         </div>
-      ) : chartMode === "net" ? (
+      ) : chartData.length < 5 && !backfillDone ? (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-white/5 bg-white/2 px-4 py-2.5">
+          <p className="text-xs text-slate-500">Chart history is sparse — only {chartData.length} snapshot{chartData.length !== 1 ? "s" : ""}.</p>
+          <button
+            onClick={handleBackfill}
+            disabled={backfilling}
+            className="flex items-center gap-1.5 rounded-md bg-blue-600/20 px-3 py-1.5 text-xs font-medium text-blue-400 transition hover:bg-blue-600/30 disabled:opacity-60"
+          >
+            {backfilling ? "Fetching…" : "Backfill history"}
+          </button>
+        </div>
+      ) : null}
+
+      {chartData.length >= 2 && chartMode === "net" ? (
         <div className="h-56 min-w-0">
           {netChartData.length < 2 ? (
             <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
