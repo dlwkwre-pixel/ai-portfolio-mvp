@@ -413,8 +413,8 @@ export default function DashboardClient({
             </div>
           </div>
 
-          {/* Quick links */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
+          {/* Quick links — desktop only (bottom nav covers these on mobile) */}
+          <div className="hidden sm:grid" style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
             <Link href="/research" className="bt-btn bt-btn-ghost bt-btn-sm" style={{ justifyContent: "center", fontSize: "11px" }}>Research</Link>
             <Link href="/community" className="bt-btn bt-btn-ghost bt-btn-sm" style={{ justifyContent: "center", fontSize: "11px" }}>Community</Link>
             <Link href="/strategies" className="bt-btn bt-btn-ghost bt-btn-sm" style={{ justifyContent: "center", fontSize: "11px" }}>Strategies</Link>

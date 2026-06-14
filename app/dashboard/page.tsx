@@ -12,6 +12,7 @@ import StreakBadge from "./streak-badge";
 import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
+import NotificationCenter from "@/app/components/notification-center";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -240,10 +241,41 @@ export default async function DashboardPage({
         <div className="bt-main-col" style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <MobileNav />
 
-          <div style={{
+          {/* ── Mobile header (two rows: title+bell, then value/change+streak) ── */}
+          <div className="sm:hidden" style={{
+            padding: "12px 16px",
+            borderBottom: "1px solid var(--border-subtle)",
+            background: "var(--bg-base)",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+              <div style={{ minWidth: 0 }}>
+                <h1 style={{ fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>
+                  Dashboard
+                </h1>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  Welcome back, {user.email?.split("@")[0]}
+                </p>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <NotificationCenter />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+              <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
+              <StreakBadge initialStreak={initialStreak} />
+            </div>
+          </div>
+
+          {/* ── Desktop header (single row) ── */}
+          <div className="hidden sm:flex" style={{
             padding: "12px 24px",
             borderBottom: "1px solid var(--border-subtle)",
-            display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             background: "var(--bg-base)",

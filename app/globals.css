@@ -474,6 +474,14 @@ body {
   .portfolio-notes-grid    { grid-template-columns: 1fr !important; }
   .portfolio-stat-grid     { grid-template-columns: repeat(2, 1fr) !important; }
 
+  /* Grid/flex tracks default to min-width:auto, which lets long content (AI
+     summaries, activity rows, tables) push a column wider than the screen.
+     Force children to shrink so content wraps/clips instead of overflowing. */
+  .dashboard-main-grid > *,
+  .dashboard-stats-grid > *,
+  .portfolio-overview-grid > *,
+  .portfolio-notes-grid > * { min-width: 0 !important; }
+
   /* Dashboard portfolio row: stack name on top, value+button below on mobile */
   .portfolio-row-wrap { flex-direction: column; align-items: stretch; gap: 0; }
   .portfolio-row-actions { flex-shrink: 1; justify-content: flex-start; gap: 12px; margin-top: 6px; padding-left: 17px; }

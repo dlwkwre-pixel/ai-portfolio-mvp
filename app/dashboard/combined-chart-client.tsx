@@ -194,7 +194,7 @@ export default function CombinedChartClient({
       </div>
 
       {/* Value + timeframe row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
         <div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
             {isPrivate ? "••••••" : formatMoney(endVal)}
@@ -235,6 +235,7 @@ export default function CombinedChartClient({
           {view === "portfolio" && (
             <button
               onClick={() => { setShowTrim(t => !t); setTrimStatus(null); }}
+              className="hidden sm:inline-block"
               style={{ marginLeft: "6px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" }}
             >
               Fix chart
