@@ -114,9 +114,9 @@ export default function StockChart({
   const gradId = `scg-${uid}`;
 
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
       {showRangeControls && (
-        <div style={{ display: "flex", gap: "4px", marginBottom: "10px" }}>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "10px", flexWrap: "wrap" }}>
           {RANGES.map((r) => (
             <button
               key={r}

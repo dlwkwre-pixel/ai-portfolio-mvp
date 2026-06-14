@@ -883,45 +883,6 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
   );
 }
 
-function AnalystConsensusBar({ rec }: { rec: RawRecommendation }) {
-  const sb = rec.strongBuy ?? 0;
-  const b  = rec.buy ?? 0;
-  const h  = rec.hold ?? 0;
-  const s  = rec.sell ?? 0;
-  const ss = rec.strongSell ?? 0;
-  const total = sb + b + h + s + ss;
-  if (total === 0) return null;
-
-  const bullCount = sb + b;
-  const bearCount = s + ss;
-  const consensusLabel = bullCount > h && bullCount > bearCount ? "Bullish"
-    : bearCount > bullCount ? "Bearish" : "Neutral";
-  const consensusColor = bullCount > bearCount ? "var(--green)" : bearCount > bullCount ? "var(--red)" : "var(--amber)";
-
-  const segments = [
-    { count: sb, color: "#00d395" },
-    { count: b,  color: "#4ade80" },
-    { count: h,  color: "#f59e0b" },
-    { count: s,  color: "#fb7185" },
-    { count: ss, color: "#ef4444" },
-  ].filter(seg => seg.count > 0);
-
-  return (
-    <div>
-      <div style={{ display: "flex", height: "7px", borderRadius: "4px", overflow: "hidden", gap: "1px" }}>
-        {segments.map((seg, i) => (
-          <div key={i} style={{ flex: seg.count, background: seg.color, minWidth: "2px" }} />
-        ))}
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px", fontSize: "10px" }}>
-        <span style={{ color: "var(--green)" }}>{bullCount} Buy</span>
-        <span style={{ color: consensusColor, fontWeight: 600 }}>{consensusLabel} · {total} analysts</span>
-        <span style={{ color: "var(--red)" }}>{bearCount} Sell</span>
-      </div>
-    </div>
-  );
-}
-
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
 function DetailView({
@@ -1157,7 +1118,7 @@ function DetailView({
             {result.profile?.industry && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
-                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{result.profile.industry}</div>
+                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3, overflowWrap: "anywhere", wordBreak: "break-word" }}>{result.profile.industry}</div>
               </div>
             )}
           </div>
@@ -1267,12 +1228,8 @@ function DetailView({
                 )}
               </div>
             )}
-            {digest.raw_recommendation && (
-              <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Consensus</div>
-                <AnalystConsensusBar rec={digest.raw_recommendation} />
-              </div>
-            )}
+            {/* Analyst consensus removed here — the "Analyst Ratings" breakdown
+                above (next to Price Target) already covers this. */}
             <div style={{ marginBottom: "8px" }}>
               <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.market_outlook}</div>
@@ -1886,7 +1843,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
 
       {/* Filter chips */}
       <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "6px", marginBottom: "24px" }}
-        className="bt-tabs-scroll"
+        className="bt-tabs-scroll research-filter-chips"
       >
         {FILTER_CHIPS.map((chip) => (
           <FilterChip

@@ -635,6 +635,12 @@ body {
     gap: 8px;
   }
   .research-card-item { width: auto; flex-shrink: unset; }
+
+  /* Category filter chips stack/wrap instead of scrolling horizontally */
+  .research-filter-chips {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
 }
 
 /* Research detail panel */
