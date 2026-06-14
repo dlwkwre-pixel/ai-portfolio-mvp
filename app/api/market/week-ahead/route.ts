@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote, getFinnhubEconomicCalendar, getFinnhubEarningsWeek, getFinnhubMarketNews } from "@/lib/market-data/finnhub";
 import crypto from "crypto";
 
@@ -80,8 +80,8 @@ export async function GET() {
 
     const hash = crypto.createHash("sha256").update(JSON.stringify(inputData)).digest("hex").slice(0, 16);
 
-    // Check Supabase cache
-    const supabase = await createClient();
+    // Use admin client — this is server-only market data, no user context needed
+    const supabase = createAdminClient();
     const { data: cached } = await supabase
       .from("market_week_ahead")
       .select("*")
