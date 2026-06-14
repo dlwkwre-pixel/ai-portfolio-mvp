@@ -555,7 +555,10 @@ body {
     bottom: 0; left: 0; right: 0;
     background: var(--sidebar-bg);
     border-top: 1px solid var(--border-subtle);
-    padding: 8px 0 env(safe-area-inset-bottom);
+    /* Floor the bottom padding with max() — env(safe-area) is 0 on most
+       devices, which made the bar too short and buttons hug the edge. */
+    padding-top: 10px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
     z-index: 50;
     justify-content: space-around;
     align-items: center;
