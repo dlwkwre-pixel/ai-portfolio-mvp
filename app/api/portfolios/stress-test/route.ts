@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import OpenAI from "openai";
 
 const SCENARIOS = [
   { id: "tech_crash", label: "Tech selloff" },
@@ -51,33 +50,43 @@ JSON format:
 Scenarios: 1) Tech selloff: growth stocks -25% 2) Rate spike: yields +100bps, rate-sensitive -15% 3) Recession: market -30%, defensives outperform 4) Stagflation: equities -20%, inflation spike`;
 
   try {
-    const client = new OpenAI({
-      apiKey: process.env.GROK_API_KEY ?? process.env.XAI_API_KEY,
-      baseURL: "https://api.x.ai/v1",
-    });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "AI not configured" }, { status: 503 });
+    }
 
-    const completion = await client.chat.completions.create({
-      model: "grok-4.3",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
-      max_tokens: 700,
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 800 },
+        }),
+      }
+    );
 
-    const rawText = completion.choices[0]?.message?.content ?? "";
+    if (!res.ok) {
+      return NextResponse.json({ error: "AI request failed" }, { status: 500 });
+    }
+
+    const geminiData = await res.json();
+    const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
     let parsed: { scenarios: typeof SCENARIOS; overallRisk?: string };
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      console.error("[stress-test] Failed to parse Grok JSON:", cleaned.slice(0, 300));
+      console.error("[stress-test] Failed to parse Gemini JSON:", cleaned.slice(0, 300));
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
     return NextResponse.json(parsed);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Internal error";
-    console.error("[stress-test] Grok error:", msg);
+    console.error("[stress-test] error:", msg);
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });
   }
 }

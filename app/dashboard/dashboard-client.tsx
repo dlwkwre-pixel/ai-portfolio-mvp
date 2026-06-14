@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
 import TermsAcceptModal from "@/app/components/terms-accept-modal";
+import WeekAheadCard from "@/app/components/week-ahead-card";
+import WeeklyRecapCard from "@/app/components/weekly-recap-card";
+import MondayPrepCard from "@/app/components/monday-prep-card";
 
 type PortfolioRow = {
   id: string;
@@ -243,6 +246,11 @@ export default function DashboardClient({
           </div>
         </div>
       )}
+
+      {/* ── Weekend / Market context cards ── */}
+      <WeekAheadCard />
+      <WeeklyRecapCard />
+      <MondayPrepCard />
 
       {/* ── Main grid ── */}
       <div className="dashboard-main-grid">

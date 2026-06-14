@@ -541,6 +541,81 @@ export async function getFinnhubMetrics(symbol: string): Promise<{ peRatio: numb
   }
 }
 
+export type FinnhubEconomicEvent = {
+  time: string;
+  event: string;
+  country: string;
+  actual: string | null;
+  previous: string | null;
+  estimate: string | null;
+  unit: string;
+  impact: string;
+};
+
+export type FinnhubEarningsItem = {
+  date: string;
+  symbol: string;
+  name: string;
+  epsEstimate: number | null;
+  revenueEstimate: number | null;
+  hour: string;
+};
+
+export async function getFinnhubEconomicCalendar(from: string, to: string): Promise<FinnhubEconomicEvent[]> {
+  const apiKey = getApiKey();
+  const url = new URL("https://finnhub.io/api/v1/calendar/economic");
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+  url.searchParams.set("token", apiKey);
+  try {
+    const response = await fetchWithRetry(url.toString(), { method: "GET", next: { revalidate: 3600 } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const events = data?.economicCalendar;
+    if (!Array.isArray(events)) return [];
+    return events
+      .filter((e: any) => e.country === "US")
+      .slice(0, 20)
+      .map((e: any) => ({
+        time: e.time ?? "",
+        event: e.event ?? "",
+        country: e.country ?? "US",
+        actual: e.actual ?? null,
+        previous: e.previous ?? null,
+        estimate: e.estimate ?? null,
+        unit: e.unit ?? "",
+        impact: e.impact ?? "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getFinnhubEarningsWeek(from: string, to: string): Promise<FinnhubEarningsItem[]> {
+  const apiKey = getApiKey();
+  const url = new URL("https://finnhub.io/api/v1/calendar/earnings");
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+  url.searchParams.set("token", apiKey);
+  try {
+    const response = await fetchWithRetry(url.toString(), { method: "GET", next: { revalidate: 3600 } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    const cal = data?.earningsCalendar;
+    if (!Array.isArray(cal)) return [];
+    return cal.slice(0, 30).map((e: any) => ({
+      date: e.date ?? "",
+      symbol: e.symbol ?? "",
+      name: e.name ?? e.symbol ?? "",
+      epsEstimate: e.epsEstimate ?? null,
+      revenueEstimate: e.revenueEstimate ?? null,
+      hour: e.hour ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getFinnhubInsiderTransactions(symbol: string): Promise<InsiderSummary | null> {
   if (isCryptoTicker(symbol)) return null; // Crypto has no insider filings
 

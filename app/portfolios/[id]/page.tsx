@@ -31,6 +31,8 @@ import RecommendationOutcomesSection from "./recommendation-outcomes-section";
 import MarketRegimeCard from "@/app/components/market-regime-card";
 import EmailDigestSettings from "./email-digest-settings";
 import { getDigestPrefs } from "./email-digest-actions";
+import FinnInsightCard from "@/app/components/finn-insight-card";
+import { detectFinnInsights } from "@/lib/portfolio/insights";
 
 
 type PortfolioPageProps = {
@@ -204,6 +206,20 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
 
+  const totalValue = valuation.total_portfolio_value;
+  const cashBalance = Number(portfolio.cash_balance ?? 0);
+  const cashPct = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
+  const finnInsights = detectFinnInsights({
+    holdings: valuation.valued_holdings.map((h) => ({
+      ticker: h.ticker,
+      weight_pct: totalValue > 0 ? ((h.market_value ?? 0) / totalValue) * 100 : 0,
+      sector: null,
+    })),
+    cashPct,
+    hasStrategy: !!activeAssignment?.strategies,
+    totalValue,
+  });
+
   const statCards = [
     { label: "Holdings Value", value: formatMoney(valuation.holdings_value), isMoney: true },
     { label: "Cash", value: formatMoney(Number(portfolio.cash_balance)), isMoney: true },
@@ -322,7 +338,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
               {/* OVERVIEW */}
               {activeTab === "overview" && (
-                <div className="bt-tab-enter portfolio-overview-grid" style={{ gap: "16px" }}>
+                <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {finnInsights.length > 0 && (
+                    <FinnInsightCard insights={finnInsights} portfolioId={portfolio.id} />
+                  )}
+                <div className="portfolio-overview-grid" style={{ gap: "16px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div className="bt-card">
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
@@ -458,6 +478,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       } : null}
                     />
                   </div>
+                </div>
                 </div>
               )}
 
