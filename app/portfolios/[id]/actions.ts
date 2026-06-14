@@ -665,6 +665,34 @@ export async function trimSnapshotsBefore(portfolioId: string, cutoffDate: strin
   return { deleted: count };
 }
 
+export async function removePolygonBackfill(portfolioId: string): Promise<{ deleted: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
+  if (!portfolio) throw new Error("Portfolio not found.");
+
+  const { data: toDelete } = await supabase
+    .from("portfolio_snapshots")
+    .select("id")
+    .eq("portfolio_id", portfolioId)
+    .eq("notes", "Polygon backfill");
+
+  const count = toDelete?.length ?? 0;
+  if (count > 0) {
+    await supabase
+      .from("portfolio_snapshots")
+      .delete()
+      .eq("portfolio_id", portfolioId)
+      .eq("notes", "Polygon backfill");
+  }
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { deleted: count };
+}
+
 type ReconstructResult =
   | { success: true; inserted: number; tickers: string[]; cashFlows: number; missingFromChart: string[]; guessedDates: string[] }
   | { success: false; error: string };

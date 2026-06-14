@@ -105,6 +105,7 @@ export default function PortfolioChartClient({
   const [chartMode, setChartMode] = useState<"net" | "twr">("net");
   const [backfilling, setBackfilling] = useState(false);
   const [backfillDone, setBackfillDone] = useState(false);
+  const [removingBackfill, setRemovingBackfill] = useState(false);
   const { isPrivate } = usePortfolioPrivacy();
   const router = useRouter();
 
@@ -120,6 +121,21 @@ export default function PortfolioChartClient({
       // non-fatal
     } finally {
       setBackfilling(false);
+    }
+  }
+
+  async function handleRemoveBackfill() {
+    setRemovingBackfill(true);
+    try {
+      const res = await fetch(`/api/portfolio/${portfolioId}/backfill`, { method: "DELETE" });
+      if (res.ok) {
+        setBackfillDone(false);
+        router.refresh();
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setRemovingBackfill(false);
     }
   }
 
@@ -408,7 +424,17 @@ export default function PortfolioChartClient({
             )}
           </>
         )}
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-3">
+          {backfillDone && (
+            <button
+              type="button"
+              onClick={handleRemoveBackfill}
+              disabled={removingBackfill}
+              className="text-[11px] text-amber-500/70 hover:text-amber-400 underline underline-offset-2 transition disabled:opacity-50"
+            >
+              {removingBackfill ? "Removing…" : "Undo backfill"}
+            </button>
+          )}
           <ResetPerformanceButton portfolioId={portfolioId} holdings={holdings} />
         </span>
       </div>

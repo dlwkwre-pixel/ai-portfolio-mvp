@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { resetPerformanceHistory, trimSnapshotsBefore } from "./actions";
+import { resetPerformanceHistory, trimSnapshotsBefore, removePolygonBackfill } from "./actions";
 import ChartSetupModal from "./chart-setup-modal";
 
 export default function ResetPerformanceButton({
@@ -16,6 +16,7 @@ export default function ResetPerformanceButton({
   const [confirmReset, setConfirmReset] = useState(false);
   const [showTrim, setShowTrim] = useState(false);
   const [trimDate, setTrimDate] = useState("");
+  const [confirmRemoveBackfill, setConfirmRemoveBackfill] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -46,6 +47,24 @@ export default function ResetPerformanceButton({
     });
   }
 
+  function handleRemoveBackfill() {
+    startTransition(async () => {
+      try {
+        const result = await removePolygonBackfill(portfolioId);
+        setStatus({
+          ok: true,
+          msg: result.deleted > 0
+            ? `Removed ${result.deleted} Polygon backfill snapshot${result.deleted !== 1 ? "s" : ""}. You can re-run Build chart history anytime.`
+            : "No Polygon backfill data found — nothing to remove.",
+        });
+      } catch (e) {
+        setStatus({ ok: false, msg: e instanceof Error ? e.message : "Remove failed." });
+      }
+      setConfirmRemoveBackfill(false);
+      setOpen(false);
+    });
+  }
+
   if (showSetup) {
     return (
       <ChartSetupModal
@@ -63,6 +82,25 @@ export default function ResetPerformanceButton({
         <button type="button" onClick={() => setStatus(null)} className="text-[10px] text-slate-600 hover:text-slate-400 transition text-left">
           Dismiss
         </button>
+      </div>
+    );
+  }
+
+  if (confirmRemoveBackfill) {
+    return (
+      <div className="flex flex-col gap-2 text-[11px]" style={{ maxWidth: 340 }}>
+        <p className="text-slate-300 font-medium">Remove Polygon backfill data?</p>
+        <p className="text-slate-500">Deletes all snapshots created by Build chart history. You can re-run backfill at any time to restore this data.</p>
+        <div className="flex gap-3">
+          <button type="button" onClick={handleRemoveBackfill} disabled={isPending}
+            className="font-semibold text-amber-400 hover:text-amber-300 disabled:opacity-50 transition">
+            {isPending ? "Removing…" : "Yes, remove backfill"}
+          </button>
+          <button type="button" onClick={() => setConfirmRemoveBackfill(false)} disabled={isPending}
+            className="text-slate-500 hover:text-slate-400 transition">
+            Cancel
+          </button>
+        </div>
       </div>
     );
   }
@@ -137,6 +175,14 @@ export default function ResetPerformanceButton({
         </button>
         <p className="text-[10px] text-slate-600 mb-2">
           Added a new account mid-way and it's skewing your returns? Pick the date to start from.
+        </p>
+
+        <button type="button" onClick={() => setConfirmRemoveBackfill(true)}
+          className="text-left text-slate-300 hover:text-white transition font-medium">
+          Remove backfill history →
+        </button>
+        <p className="text-[10px] text-slate-600 mb-2">
+          Undo the Polygon backfill. Removes those snapshots — you can re-run Build chart history anytime.
         </p>
 
         <button type="button" onClick={() => setConfirmReset(true)}

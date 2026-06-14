@@ -118,3 +118,39 @@ export async function POST(
     skipped: tradingDays.size - snapshots.length,
   });
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: portfolioId } = await params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data: portfolio } = await supabase
+    .from("portfolios")
+    .select("id")
+    .eq("id", portfolioId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!portfolio) return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
+
+  const { data: toDelete } = await supabase
+    .from("portfolio_snapshots")
+    .select("id")
+    .eq("portfolio_id", portfolioId)
+    .eq("notes", "Polygon backfill");
+
+  const count = toDelete?.length ?? 0;
+  if (count > 0) {
+    await supabase
+      .from("portfolio_snapshots")
+      .delete()
+      .eq("portfolio_id", portfolioId)
+      .eq("notes", "Polygon backfill");
+  }
+
+  return NextResponse.json({ deleted: count });
+}
