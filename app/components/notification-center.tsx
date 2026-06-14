@@ -10,7 +10,7 @@ type Notification = {
   created_at: string;
 };
 
-export default function NotificationCenter() {
+export default function NotificationCenter({ placement = "down" }: { placement?: "up" | "down" }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -136,9 +136,11 @@ export default function NotificationCenter() {
       {open && (
         <div style={{
           position: "absolute",
-          top: "calc(100% + 8px)",
+          ...(placement === "up"
+            ? { bottom: "calc(100% + 8px)", top: "auto" }
+            : { top: "calc(100% + 8px)" }),
           right: 0,
-          width: "300px",
+          width: "min(300px, calc(100vw - 32px))",
           background: "var(--sidebar-bg)",
           border: "1px solid var(--card-border)",
           borderRadius: "12px",

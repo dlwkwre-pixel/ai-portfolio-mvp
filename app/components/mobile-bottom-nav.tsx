@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NotificationCenter from "./notification-center";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,22 @@ export default function MobileBottomNav() {
               width: "36px", height: "4px", borderRadius: "2px",
               background: "var(--border)",
             }} />
+          </div>
+
+          {/* Notifications + support row */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: "12px", padding: "8px 20px 12px",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}>
+            <span style={{
+              fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em",
+              textTransform: "uppercase", color: "var(--text-tertiary)",
+              fontFamily: "var(--font-body)",
+            }}>
+              Notifications
+            </span>
+            <NotificationCenter placement="up" />
           </div>
 
           {/* Sheet items */}
