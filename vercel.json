@@ -5,19 +5,12 @@
     },
     "app/api/portfolio/[id]/backfill/route.ts": {
       "maxDuration": 300
-    },
-    "app/api/cron/intraday-snapshot/route.ts": {
-      "maxDuration": 60
     }
   },
   "crons": [
     {
       "path": "/api/cron/daily-snapshot",
       "schedule": "0 20 * * *"
-    },
-    {
-      "path": "/api/cron/intraday-snapshot",
-      "schedule": "*/30 * * * 1-5"
     },
     {
       "path": "/api/cron/email-digest",
