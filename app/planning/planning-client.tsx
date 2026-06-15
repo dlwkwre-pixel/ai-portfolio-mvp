@@ -1406,6 +1406,29 @@ function getCategoryForExpense(label: string): string {
   return "Other";
 }
 
+// ── 50/30/20 framework ──────────────────────────────────────────────────────
+// Maps each expense category into Needs vs Wants. Savings is the residual
+// (income − needs − wants). Heuristic by design — Food & Dining leans grocery
+// (a need); "Other" is treated as discretionary.
+type SpendBucket = "needs" | "wants";
+const CATEGORY_BUCKET: Record<string, SpendBucket> = {
+  Housing: "needs",
+  Transportation: "needs",
+  "Food & Dining": "needs",
+  Healthcare: "needs",
+  Insurance: "needs",
+  Utilities: "needs",
+  Childcare: "needs",
+  Entertainment: "wants",
+  Travel: "wants",
+  Fitness: "wants",
+  Subscriptions: "wants",
+  Other: "wants",
+};
+function bucketForCategory(category: string): SpendBucket {
+  return CATEGORY_BUCKET[category] ?? "wants";
+}
+
 // ── Assumption presets ─────────────────────────────────────────────────────────
 
 const ASSUMPTION_PRESETS = {
@@ -4454,6 +4477,93 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
   );
 }
 
+function FiftyThirtyTwenty({
+  needsMonthly, wantsMonthly, incomeMonthly, isPrivate,
+}: {
+  needsMonthly: number; wantsMonthly: number; incomeMonthly: number; isPrivate: boolean;
+}) {
+  const ph = (v: string) => (isPrivate ? "••••" : v);
+  const savingsMonthly = incomeMonthly - needsMonthly - wantsMonthly;
+  const pctOf = (v: number) => (incomeMonthly > 0 ? (v / incomeMonthly) * 100 : 0);
+
+  const rows = [
+    {
+      key: "needs", label: "Needs", target: 50, value: needsMonthly, pct: pctOf(needsMonthly),
+      good: (p: number) => p <= 52, warn: (p: number) => p <= 60,
+      hint: "Housing, food, transport, insurance, utilities, healthcare, childcare",
+    },
+    {
+      key: "wants", label: "Wants", target: 30, value: wantsMonthly, pct: pctOf(wantsMonthly),
+      good: (p: number) => p <= 32, warn: (p: number) => p <= 40,
+      hint: "Entertainment, travel, fitness, subscriptions, other discretionary",
+    },
+    {
+      key: "savings", label: "Savings", target: 20, value: savingsMonthly, pct: pctOf(savingsMonthly),
+      good: (p: number) => p >= 20, warn: (p: number) => p >= 10,
+      hint: "What's left after needs and wants — invest it or pay down debt",
+    },
+  ];
+
+  function statusColor(r: typeof rows[number]): string {
+    if (r.good(r.pct)) return "oklch(0.72 0.19 145)";   // green
+    if (r.warn(r.pct)) return "oklch(0.75 0.18 70)";    // amber
+    return "oklch(0.65 0.18 25)";                        // red
+  }
+
+  if (incomeMonthly <= 0) return null;
+
+  const onTrack = rows.filter((r) => r.good(r.pct)).length;
+  const verdict = onTrack === 3
+    ? "Textbook balance — you're hitting all three targets."
+    : onTrack === 0
+    ? "Your split is off the 50/30/20 guide on every front. Start with the largest gap."
+    : `${onTrack} of 3 on target. ${rows.find((r) => !r.good(r.pct))?.label} is the one to work on.`;
+
+  return (
+    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg, 14px)", padding: "16px 18px", marginBottom: "14px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>50 / 30 / 20 Balance</span>
+        </div>
+        <span style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>% of income</span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
+        {rows.map((r) => {
+          const color = statusColor(r);
+          const barPct = Math.min(100, Math.max(0, r.pct));
+          const targetMarker = Math.min(100, r.target);
+          return (
+            <div key={r.key}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "5px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>{r.label}</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>target {r.target}%</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{ph(`${r.pct.toFixed(0)}%`)}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>{ph(fmt(Math.round(r.value)))}/mo</span>
+                </div>
+              </div>
+              {/* Bar with target marker */}
+              <div style={{ position: "relative", height: "7px", background: "var(--bg-elevated, rgba(255,255,255,0.05))", borderRadius: "4px", overflow: "hidden" }}>
+                <div style={{ position: "absolute", inset: 0, width: `${barPct}%`, background: color, borderRadius: "4px", transition: "width 0.4s ease" }} />
+              </div>
+              <div style={{ position: "relative", height: "0" }}>
+                <div style={{ position: "absolute", top: "-9px", left: `calc(${targetMarker}% - 1px)`, width: "2px", height: "11px", background: "var(--text-secondary)", opacity: 0.55 }} title={`Target ${r.target}%`} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: "13px", paddingTop: "11px", borderTop: "1px solid var(--border-subtle)", fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+        {verdict}
+      </div>
+    </div>
+  );
+}
+
 function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
@@ -4522,6 +4632,10 @@ function CashFlowOS({
   }, [cashFlowItems, expenseActuals, budgetHistory, selYear, selMonth]);
 
   const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
+
+  // 50/30/20 buckets — monthly needs vs wants from the categorized budget
+  const needsMonthly = catData.filter((c) => bucketForCategory(c.label) === "needs").reduce((s, c) => s + c.budgeted, 0);
+  const wantsMonthly = catData.filter((c) => bucketForCategory(c.label) === "wants").reduce((s, c) => s + c.budgeted, 0);
 
   const donutSegments = useMemo(() => {
     let deg = 0;
@@ -4594,6 +4708,14 @@ function CashFlowOS({
           .cfo-kpis   { grid-template-columns: repeat(2,1fr) !important; }
         }
       `}</style>
+
+      {/* 50/30/20 balance */}
+      <FiftyThirtyTwenty
+        needsMonthly={needsMonthly}
+        wantsMonthly={wantsMonthly}
+        incomeMonthly={effectiveIncome}
+        isPrivate={isPrivate}
+      />
 
       {/* Zone 1 — Status Strip */}
       <div className="cfo-zone" style={{
