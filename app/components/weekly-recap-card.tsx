@@ -127,7 +127,7 @@ export default function WeeklyRecapCard() {
               <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
                 Positions — Tap to Research
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              <div className="bt-stagger" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {data.top_movers.map((m) => {
                   const chg = m.day_change_pct;
                   const chgColor = chg == null ? "var(--text-tertiary)" : chg >= 0 ? "var(--green)" : "var(--red)";
@@ -138,6 +138,7 @@ export default function WeeklyRecapCard() {
                       type="button"
                       key={m.ticker}
                       onClick={() => open(m.ticker)}
+                      className="bt-chip"
                       style={{
                         display: "inline-flex",
                         alignItems: "center",

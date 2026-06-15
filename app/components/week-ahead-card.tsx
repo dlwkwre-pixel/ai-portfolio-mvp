@@ -2,9 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useTickerLookup } from "@/app/components/ticker-quick-look";
+import InfoTooltip from "@/app/components/info-tooltip";
 
 type IndexQuote = { symbol: string; label: string; price: number | null; change_pct: number | null };
 type EarningsItem = { symbol: string; date: string; hour: string | null };
+
+const INDEX_INFO: Record<string, string> = {
+  SPY: "S&P 500 — the 500 largest US companies. The broad benchmark for the overall US stock market.",
+  QQQ: "Nasdaq 100 — the 100 biggest non-financial Nasdaq names. Tech and growth heavy, so it swings more than the S&P.",
+  IWM: "Russell 2000 — about 2,000 small-cap US companies. A read on smaller, domestic businesses and risk appetite.",
+  VIXY: "Market volatility (VIX proxy) — measures how much investors expect prices to swing, i.e. fear. FALLING is calmer and usually bullish; RISING signals stress.",
+};
 
 type WeekAheadData = {
   volatility: string;
@@ -142,37 +150,35 @@ export default function WeekAheadCard() {
                 marginBottom: "12px",
               }}
             >
-              {data.indices.map((idx) => {
+              {data.indices.map((idx, i) => {
                 const chg = idx.change_pct;
                 // Volatility is an inverse indicator: a FALLING VIX means calmer,
                 // more bullish conditions, so green = down, red = up for that tile.
                 const isVol = idx.symbol === "VIXY";
                 const positive = chg == null ? null : isVol ? chg < 0 : chg >= 0;
                 const chgColor = positive == null ? "var(--text-tertiary)" : positive ? "var(--green)" : "var(--red)";
-                const tooltip = isVol
-                  ? "Market volatility (VIX proxy). Measures expected swings / investor fear. FALLING is calmer and usually bullish; RISING signals stress."
-                  : `${idx.label} index level and today's move.`;
+                const align = i === 0 ? "start" : i === data.indices.length - 1 ? "end" : "center";
                 return (
                   <div
                     key={idx.symbol}
-                    title={tooltip}
+                    className="bt-wa-tile"
                     style={{
                       background: "rgba(255,255,255,0.03)",
                       border: "1px solid rgba(255,255,255,0.06)",
                       borderRadius: "var(--radius-md)",
                       padding: "7px 8px",
-                      cursor: "help",
+                      animation: `bt-fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.05}s both`,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "3px", marginBottom: "2px" }}>
                       <span style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                         {idx.label}
                       </span>
-                      {isVol && (
-                        <svg width="9" height="9" viewBox="0 0 20 20" fill="var(--text-muted)" style={{ flexShrink: 0 }}>
+                      <InfoTooltip text={INDEX_INFO[idx.symbol] ?? `${idx.label} index level and today's move.`} align={align} width={220}>
+                        <svg width="9" height="9" viewBox="0 0 20 20" fill="var(--text-muted)" style={{ flexShrink: 0, cursor: "help" }}>
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
                         </svg>
-                      )}
+                      </InfoTooltip>
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.1 }}>
                       {idx.price != null ? idx.price.toFixed(2) : "—"}
@@ -227,12 +233,13 @@ export default function WeekAheadCard() {
               <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
                 Notable Earnings
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+              <div className="bt-stagger" style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                 {data.earnings.map((e) => (
                   <button
                     type="button"
                     key={`${e.symbol}-${e.date}`}
                     onClick={() => open(e.symbol)}
+                    className="bt-chip"
                     style={{
                       display: "inline-flex",
                       alignItems: "center",

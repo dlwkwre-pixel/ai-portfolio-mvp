@@ -342,6 +342,39 @@ body {
 
 .bt-tab-enter { animation: bt-fade-up 0.3s ease both; }
 
+/* ── Weekend / market cards: hover + entrance polish ── */
+.bt-wa-tile {
+  transition: transform 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.18s ease, background 0.18s ease;
+}
+.bt-wa-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96,165,250,0.28) !important;
+  background: rgba(96,165,250,0.05) !important;
+}
+.bt-chip {
+  transition: transform 0.15s cubic-bezier(0.16,1,0.3,1), border-color 0.15s ease, background 0.15s ease;
+}
+.bt-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(96,165,250,0.35) !important;
+  background: rgba(96,165,250,0.09) !important;
+}
+.bt-chip:active { transform: translateY(0) scale(0.97); }
+.bt-prep-row {
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.bt-prep-row:hover { border-color: rgba(96,165,250,0.18) !important; }
+@keyframes bt-stagger-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.bt-stagger > * { animation: bt-stagger-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+.bt-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.bt-stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.bt-stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.bt-stagger > *:nth-child(4) { animation-delay: 0.17s; }
+.bt-stagger > *:nth-child(5) { animation-delay: 0.22s; }
+.bt-stagger > *:nth-child(6) { animation-delay: 0.27s; }
+.bt-stagger > *:nth-child(7) { animation-delay: 0.32s; }
+.bt-stagger > *:nth-child(8) { animation-delay: 0.37s; }
+
 .bt-lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .bt-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
 

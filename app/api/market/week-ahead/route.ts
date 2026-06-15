@@ -69,8 +69,8 @@ export async function GET() {
     // Live market data returned fresh on every call (these are cheap, cached fetches).
     const indices: IndexQuote[] = [
       { symbol: "SPY", label: "S&P 500", price: spy?.c ?? null, change_pct: spy?.dp ?? null },
-      { symbol: "QQQ", label: "Nasdaq", price: qqq?.c ?? null, change_pct: qqq?.dp ?? null },
-      { symbol: "IWM", label: "Russell", price: iwm?.c ?? null, change_pct: iwm?.dp ?? null },
+      { symbol: "QQQ", label: "Nasdaq 100", price: qqq?.c ?? null, change_pct: qqq?.dp ?? null },
+      { symbol: "IWM", label: "Russell 2000", price: iwm?.c ?? null, change_pct: iwm?.dp ?? null },
       { symbol: "VIXY", label: "Volatility", price: vixy?.c ?? null, change_pct: vixy?.dp ?? null },
     ];
     const earningsList: EarningsItem[] = earnings.slice(0, 8).map((e) => ({

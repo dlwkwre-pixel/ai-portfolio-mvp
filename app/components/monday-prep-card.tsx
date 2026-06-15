@@ -25,8 +25,8 @@ type PrepItem = {
 type PrepData = {
   checklist: PrepItem[];
   holdings: PrepHolding[];
-  vix_level: number;
-  vix_label: string;
+  total_value: number;
+  cash_pct: number;
   open_recs_count: number;
   earnings_count: number;
   week_of: string;
@@ -156,12 +156,13 @@ export default function MondayPrepCard() {
               <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
                 Your Positions — Tap for Quick Look
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              <div className="bt-stagger" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {data.holdings.map((h) => (
                   <button
                     type="button"
                     key={h.ticker}
                     onClick={() => open(h.ticker)}
+                    className="bt-chip"
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -171,7 +172,6 @@ export default function MondayPrepCard() {
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.07)",
                       cursor: "pointer",
-                      transition: "background 0.15s, border-color 0.15s",
                     }}
                   >
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -197,7 +197,7 @@ export default function MondayPrepCard() {
           )}
 
           {/* Contextual checklist */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+          <div className="bt-stagger" style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
             {data.checklist.map((item) => {
               const done = checked.has(item.id);
               const isExpanded = expanded === item.id;
@@ -207,12 +207,12 @@ export default function MondayPrepCard() {
               return (
                 <div
                   key={item.id}
+                  className="bt-prep-row"
                   style={{
                     borderRadius: "var(--radius-md)",
                     background: done ? "rgba(34,197,94,0.04)" : "rgba(255,255,255,0.02)",
                     border: `1px solid ${done ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.04)"}`,
                     overflow: "hidden",
-                    transition: "background 0.2s, border-color 0.2s",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "9px", padding: "8px 10px" }}>

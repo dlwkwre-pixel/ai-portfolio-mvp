@@ -7,7 +7,14 @@ import ResearchClient from "./research-client";
 import NewsSidebar from "./news-sidebar";
 import PageIntro from "@/app/components/page-intro";
 
-export default async function ResearchPage() {
+export default async function ResearchPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ ticker?: string; embed?: string }>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const embed = params?.embed === "1";
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
@@ -17,6 +24,24 @@ export default async function ResearchPage() {
     .select("id, name, cash_balance, account_type")
     .eq("user_id", user.id)
     .eq("is_active", true);
+
+  // Embedded mode: no sidebar / nav / intro / news rail. Rendered inside the
+  // dashboard quick-look modal iframe so the full research experience loads
+  // over the dashboard without navigating away.
+  if (embed) {
+    return (
+      <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+        <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
+        <div className="bt-page-content" style={{ position: "relative", zIndex: 1, padding: "20px 24px 80px", maxWidth: "760px", margin: "0 auto" }}>
+          <Suspense>
+            <ResearchClient
+              portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
+            />
+          </Suspense>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main style={{
