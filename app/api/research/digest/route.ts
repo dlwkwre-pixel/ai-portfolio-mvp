@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubNews } from "@/lib/market-data/finnhub";
+import { callGemini } from "@/lib/ai/gemini";
 
 type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
 
@@ -157,15 +157,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(cached.data);
   }
 
-  const grokKey = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-  const apiKey = grokKey ?? groqKey;
-  if (!apiKey) return NextResponse.json({ error: "AI not configured." }, { status: 503 });
-
-  const isGrok = Boolean(grokKey);
-  const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
-  const model = isGrok ? "grok-4.3" : "llama-3.3-70b-versatile";
-
   const [news, earningsResult, metricsResult, recommendation, profile] = await Promise.all([
     getFinnhubNews(ticker, 3),
     fetchEarnings(ticker),
@@ -204,15 +195,9 @@ Return this exact JSON:
 }`;
 
   try {
-    const client = new OpenAI({ apiKey, baseURL });
-    const completion = await client.chat.completions.create({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-      max_tokens: 650,
-    });
-
-    const raw = (completion.choices[0]?.message?.content ?? "").trim();
+    // Free AI chain: Gemini keys → Groq (no Grok tokens spent).
+    const raw = ((await callGemini(prompt, { temperature: 0.3, maxOutputTokens: 650 })) ?? "").trim();
+    if (!raw) return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
 

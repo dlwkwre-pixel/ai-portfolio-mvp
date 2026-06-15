@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
-import OpenAI from "openai";
+import { callGemini } from "@/lib/ai/gemini";
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
@@ -78,11 +78,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const apiKey = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "AI not configured." }, { status: 503 });
-    }
-
     // Enrich with insider data
     let insiderSummary: string | undefined;
     try {
@@ -99,22 +94,12 @@ export async function POST(req: NextRequest) {
       // Non-fatal
     }
 
-    const client = new OpenAI({
-      apiKey,
-      baseURL: "https://api.x.ai/v1",
-    });
-
-    const completion = await client.chat.completions.create({
-      model: "grok-3-fast",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary) },
-      ],
-      max_tokens: 700,
-      temperature: 0.2,
-    });
-
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    // Free AI chain: Gemini keys → Groq (no Grok tokens spent).
+    const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary)}`;
+    const raw = (await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 700 }))?.trim() ?? "";
+    if (!raw) {
+      return NextResponse.json({ error: "AI not configured." }, { status: 503 });
+    }
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
