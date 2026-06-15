@@ -145,38 +145,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json() as {
-    ticker?: string; company_name?: string; price?: number; change_pct?: number;
-  };
+  try {
+    const body = await req.json().catch(() => ({})) as {
+      ticker?: string; company_name?: string; price?: number; change_pct?: number;
+    };
 
-  if (!body.ticker) return NextResponse.json({ error: "Ticker required." }, { status: 400 });
-  const ticker = String(body.ticker).trim().toUpperCase();
+    if (!body.ticker) return NextResponse.json({ error: "Ticker required." }, { status: 400 });
+    const ticker = String(body.ticker).trim().toUpperCase();
 
-  const cached = cache.get(ticker);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json(cached.data);
-  }
+    const cached = cache.get(ticker);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return NextResponse.json(cached.data);
+    }
 
-  const [news, earningsResult, metricsResult, recommendation, profile] = await Promise.all([
-    getFinnhubNews(ticker, 3),
-    fetchEarnings(ticker),
-    fetchFinnhubMetrics(ticker),
-    fetchAnalystRecommendation(ticker),
-    fetchCompanyProfile(ticker),
-  ]);
+    const [news, earningsResult, metricsResult, recommendation, profile] = await Promise.all([
+      getFinnhubNews(ticker, 3),
+      fetchEarnings(ticker),
+      fetchFinnhubMetrics(ticker),
+      fetchAnalystRecommendation(ticker),
+      fetchCompanyProfile(ticker),
+    ]);
 
-  const newsLines = news.length > 0
-    ? news.map((n) => `- ${n.headline} (${n.source})`).join("\n")
-    : "No recent news.";
+    const newsLines = news.length > 0
+      ? news.map((n) => `- ${n.headline} (${n.source})`).join("\n")
+      : "No recent news.";
 
-  const companyName = body.company_name ?? ticker;
-  const price = body.price;
-  const changePct = body.change_pct;
-  const priceStr = price != null
-    ? `$${price.toFixed(2)}${changePct != null ? ` (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)` : ""}`
-    : "price unknown";
+    const companyName = body.company_name ?? ticker;
+    const price = body.price;
+    const changePct = body.change_pct;
+    const priceStr = price != null
+      ? `$${price.toFixed(2)}${changePct != null ? ` (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}% today)` : ""}`
+      : "price unknown";
 
-  const prompt = `You are a financial analyst writing a concise stock digest for retail investors. Respond ONLY with valid JSON — no markdown, no fences, no explanation.
+    const prompt = `You are a financial analyst writing a concise stock digest for retail investors. Respond ONLY with valid JSON — no markdown, no fences, no explanation.
 
 Company: ${companyName} (${ticker}) — ${priceStr}
 
@@ -194,7 +195,6 @@ Return this exact JSON:
   "market_outlook": "One sentence on the key catalyst or risk to watch near-term"
 }`;
 
-  try {
     // Research uses Groq only (Gemini free keys are maxed). No Grok tokens.
     const raw = await callGemini(prompt, { temperature: 0.3, maxOutputTokens: 1100, groqOnly: true });
     if (!raw) return NextResponse.json({ error: "AI not configured." }, { status: 503 });
