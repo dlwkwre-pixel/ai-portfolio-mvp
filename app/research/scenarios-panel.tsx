@@ -143,10 +143,11 @@ function timeAgo(unix: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function formatPct(n: number | null) {
-  if (n == null) return null;
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+function formatPct(n: number | string | null) {
+  const v = typeof n === "number" ? n : Number(n);
+  if (!Number.isFinite(v)) return null;
+  const sign = v >= 0 ? "+" : "";
+  return `${sign}${v.toFixed(2)}%`;
 }
 
 // ─── ScenarioCard ─────────────────────────────────────────────────────────────
@@ -506,7 +507,7 @@ function ScenarioCard({
                         </span>
                         {q?.price != null && (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-secondary)" }}>
-                            ${q.price.toFixed(2)}
+                            ${Number(q.price).toFixed(2)}
                           </span>
                         )}
                         {pctStr && (
@@ -609,7 +610,7 @@ function ScenarioCard({
                           </span>
                           {q?.price != null && (
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-secondary)" }}>
-                              ${q.price.toFixed(2)}
+                              ${Number(q.price).toFixed(2)}
                             </span>
                           )}
                           {pctStr && (

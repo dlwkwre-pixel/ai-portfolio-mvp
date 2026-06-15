@@ -138,11 +138,14 @@ function analystLabel(rec: SearchResult["recommendation"]) {
   return { label: "Hold", color: "var(--amber)", bg: "var(--amber-bg)" };
 }
 
-function formatPrice(p: number | undefined) {
-  if (p == null || isNaN(p) || p === 0) return "—";
-  return p >= 1000
-    ? `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : `$${p.toFixed(2)}`;
+function formatPrice(p: number | string | undefined | null) {
+  // Coerce first: isNaN("5") is false, so a string price would slip past a
+  // naive guard and then "5".toFixed() throws "toFixed is not a function".
+  const n = typeof p === "number" ? p : Number(p);
+  if (!Number.isFinite(n) || n === 0) return "—";
+  return n >= 1000
+    ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${n.toFixed(2)}`;
 }
 
 // Safe fixed-decimal formatter — never throws on null/undefined/string inputs
