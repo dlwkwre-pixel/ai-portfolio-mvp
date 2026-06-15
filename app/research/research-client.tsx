@@ -135,7 +135,7 @@ function analystLabel(rec: SearchResult["recommendation"]) {
   if (total === 0) return null;
   if (bullish / total >= 0.5) return { label: "Buy", color: "var(--green)", bg: "var(--green-bg)" };
   if (bearish / total >= 0.4) return { label: "Sell", color: "var(--red)", bg: "var(--red-bg)" };
-  return { label: "Hold", color: "var(--amber)", bg: "var(--amber-bg)" };
+  return { label: "Hold", color: "var(--violet)", bg: "var(--violet-bg)" };
 }
 
 function formatPrice(p: number | string | undefined | null) {
@@ -223,7 +223,7 @@ const SECTION_COLORS: Record<string, string> = {
   daily_movers: "var(--brand-blue)",
   growth:       "var(--violet)",
   momentum:     "var(--brand-blue)",
-  dividend:     "var(--amber)",
+  dividend:     "var(--violet)",
   defensive:    "var(--green)",
   popular:      "var(--violet)",
 };
@@ -331,12 +331,12 @@ function AnalystBar({ rec }: { rec: ScreenerTicker["analystRec"] }) {
     <div>
       <div style={{ display: "flex", gap: "2px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "5px" }}>
         <div style={{ width: `${buyPct}%`,  background: "var(--green)", flexShrink: 0 }} />
-        <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+        <div style={{ width: `${holdPct}%`, background: "var(--violet)", flexShrink: 0 }} />
         <div style={{ width: `${sellPct}%`, background: "var(--red)",   flexShrink: 0 }} />
       </div>
       <div style={{ display: "flex", gap: "7px", fontSize: "9px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
         <span style={{ color: "var(--green)" }}>B {rec.buy}</span>
-        <span style={{ color: "var(--amber)" }}>H {rec.hold}</span>
+        <span style={{ color: "var(--violet)" }}>H {rec.hold}</span>
         <span style={{ color: "var(--red)" }}>S {rec.sell}</span>
       </div>
     </div>
@@ -866,27 +866,27 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
 
   if (metrics.netMarginTTM != null) {
     const v = metrics.netMarginTTM * 100;
-    items.push({ label: "Net Margin", value: fmtPct(v), color: v >= 20 ? "var(--green)" : v >= 8 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Net Margin", value: fmtPct(v), color: v >= 20 ? "var(--green)" : v >= 8 ? "var(--violet)" : "var(--red)" });
   }
   if (metrics.revenueGrowth3Y != null) {
     const v = metrics.revenueGrowth3Y;
-    items.push({ label: "Rev Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Rev Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--violet)" : "var(--red)" });
   }
   if (metrics.epsGrowth3Y != null) {
     const v = metrics.epsGrowth3Y;
-    items.push({ label: "EPS Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "EPS Growth 3Y", value: fmtSignedPct(v), color: v >= 10 ? "var(--green)" : v >= 0 ? "var(--violet)" : "var(--red)" });
   }
   if (metrics.roeTTM != null) {
     const v = metrics.roeTTM;
-    items.push({ label: "ROE", value: fmtPct(v), color: v >= 15 ? "var(--green)" : v >= 5 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "ROE", value: fmtPct(v), color: v >= 15 ? "var(--green)" : v >= 5 ? "var(--violet)" : "var(--red)" });
   }
   if (metrics.currentRatioAnnual != null) {
     const v = metrics.currentRatioAnnual;
-    items.push({ label: "Current Ratio", value: safeFixed(v, 2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Current Ratio", value: safeFixed(v, 2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--violet)" : "var(--red)" });
   }
   if (metrics.debtToEquityAnnual != null) {
     const v = metrics.debtToEquityAnnual;
-    items.push({ label: "Debt/Equity", value: safeFixed(v, 2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Debt/Equity", value: safeFixed(v, 2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--violet)" : "var(--red)" });
   }
 
   if (items.length === 0) return null;
@@ -1184,12 +1184,12 @@ function DetailView({
                   <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
                   <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
                     <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
-                    <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
+                    <div style={{ width: `${holdPct}%`, background: "var(--violet)", flexShrink: 0 }} />
                     <div style={{ width: `${bearPct}%`, background: "var(--red)",   flexShrink: 0 }} />
                   </div>
                   <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
                     <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
-                    <span style={{ color: "var(--amber)" }}>Hold {rec.hold}</span>
+                    <span style={{ color: "var(--violet)" }}>Hold {rec.hold}</span>
                     <span style={{ color: "var(--red)" }}>Sell {rec.strongSell + rec.sell}</span>
                   </div>
                 </div>
@@ -1215,9 +1215,9 @@ function DetailView({
 
       {/* AI Verdict */}
       {(aiAnalysisLoading || aiAnalysis) && (() => {
-        const verdictColor = aiAnalysis?.verdict === "BUY" ? "var(--green)" : aiAnalysis?.verdict === "SELL" ? "var(--red)" : "var(--amber)";
-        const verdictBg    = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)";
-        const verdictBorder = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(245,158,11,0.22)";
+        const verdictColor = aiAnalysis?.verdict === "BUY" ? "var(--green)" : aiAnalysis?.verdict === "SELL" ? "var(--red)" : "var(--violet)";
+        const verdictBg    = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
+        const verdictBorder = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
         const upside = aiAnalysis?.price_target && result.quote.c > 0
           ? ((aiAnalysis.price_target - result.quote.c) / result.quote.c) * 100
           : null;
@@ -1288,7 +1288,7 @@ function DetailView({
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_catalysts}</p>
                     </div>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
+                      <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_risks}</p>
                     </div>
                   </div>
@@ -1354,7 +1354,7 @@ function DetailView({
             )}
             {digest.raw_metrics && (
               <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
+                <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
                 <FinancialMetricsGrid metrics={digest.raw_metrics} />
                 {digest.financial_snapshot && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.financial_snapshot}</div>
@@ -1466,14 +1466,14 @@ function DetailView({
             }
 
             const scoreColor  = sp.sentiment_score >= 15 ? "var(--green)" : sp.sentiment_score <= -15 ? "var(--red)" : "var(--text-secondary)";
-            const subColor    = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--amber)" : "var(--text-muted)";
+            const subColor    = (s: string) => s === "bullish" ? "var(--green)" : s === "bearish" ? "var(--red)" : s === "mixed" ? "var(--violet)" : "var(--text-muted)";
             const bullishCount = Math.round(sp.post_count * sp.bullish_pct / 100);
             const bearishCount = Math.round(sp.post_count * sp.bearish_pct / 100);
             const neutralCount = sp.post_count - bullishCount - bearishCount;
             return (
               <div>
                 {sp.stale && (
-                  <div style={{ padding: "5px 10px", background: "rgba(245,158,11,0.1)", border: "1px solid var(--amber-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--amber)", marginBottom: "12px" }}>
+                  <div style={{ padding: "5px 10px", background: "rgba(124,58,237,0.12)", border: "1px solid var(--violet-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--violet)", marginBottom: "12px" }}>
                     Showing cached data — Reddit unavailable
                   </div>
                 )}
@@ -1512,8 +1512,8 @@ function DetailView({
                 )}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                   {[
-                    { label: "Conviction", value: sp.conviction_score, color: sp.conviction_score >= 60 ? "var(--green)" : sp.conviction_score >= 35 ? "var(--amber)" : "var(--text-secondary)" },
-                    { label: "Hype Risk",  value: sp.hype_score,       color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--amber)" : "var(--text-secondary)" },
+                    { label: "Conviction", value: sp.conviction_score, color: sp.conviction_score >= 60 ? "var(--green)" : sp.conviction_score >= 35 ? "var(--violet)" : "var(--text-secondary)" },
+                    { label: "Hype Risk",  value: sp.hype_score,       color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--violet)" : "var(--text-secondary)" },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
                       <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
@@ -1545,7 +1545,7 @@ function DetailView({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                     {sp.top_risks.length > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
+                        <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
                         {sp.top_risks.slice(0, 3).map((t, i) => (
                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
                         ))}
