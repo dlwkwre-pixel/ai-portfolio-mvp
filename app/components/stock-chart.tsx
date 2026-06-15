@@ -71,11 +71,15 @@ export default function StockChart({
       const json = await res.json();
       const raw  = (json.candles ?? []) as { timestamp: number; close: number }[];
 
-      const data: ChartPoint[] = raw.map((c) => ({
-        t:     c.timestamp,
-        c:     c.close,
-        label: fmtLabel(c.timestamp, r),
-      }));
+      // Coerce to numbers and drop any malformed points — recharts' tick/tooltip
+      // formatters call .toFixed and crash if a value is a string or NaN.
+      const data: ChartPoint[] = raw
+        .map((c) => ({
+          t:     Number(c.timestamp),
+          c:     Number(c.close),
+          label: fmtLabel(Number(c.timestamp), r),
+        }))
+        .filter((p) => Number.isFinite(p.c) && Number.isFinite(p.t));
 
       _clientCache.set(key, { data, ts: Date.now() });
 
@@ -183,7 +187,11 @@ export default function StockChart({
               tickLine={false}
               axisLine={false}
               width={46}
-              tickFormatter={(v: number) => `$${v >= 1000 ? (v / 1000).toFixed(1) + "k" : v.toFixed(0)}`}
+              tickFormatter={(v) => {
+                const n = Number(v);
+                if (!Number.isFinite(n)) return "";
+                return `$${n >= 1000 ? (n / 1000).toFixed(1) + "k" : n.toFixed(0)}`;
+              }}
             />
             <Tooltip
               contentStyle={{

@@ -145,6 +145,14 @@ function formatPrice(p: number | undefined) {
     : `$${p.toFixed(2)}`;
 }
 
+// Safe fixed-decimal formatter — never throws on null/undefined/string inputs
+// (thin stocks return null for change/PE/target fields).
+function safeFixed(v: unknown, digits = 2, withSign = false): string {
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return `${withSign && n >= 0 ? "+" : ""}${n.toFixed(digits)}`;
+}
+
 function timeAgo(unix: number) {
   if (!unix) return "";
   const diff = Date.now() / 1000 - unix;
@@ -848,8 +856,8 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
 
 function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
   // netMarginTTM comes as decimal (0.241); growth/ROE come as already-percentage (1.81, 146.69)
-  const fmtPct = (n: number) => `${n.toFixed(1)}%`;
-  const fmtSignedPct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
+  const fmtPct = (n: number) => `${safeFixed(n, 1)}%`;
+  const fmtSignedPct = (n: number) => `${safeFixed(n, 1, true)}%`;
 
   const items: { label: string; value: string; color: string }[] = [];
 
@@ -871,11 +879,11 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
   }
   if (metrics.currentRatioAnnual != null) {
     const v = metrics.currentRatioAnnual;
-    items.push({ label: "Current Ratio", value: v.toFixed(2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Current Ratio", value: safeFixed(v, 2), color: v >= 1.5 ? "var(--green)" : v >= 1 ? "var(--amber)" : "var(--red)" });
   }
   if (metrics.debtToEquityAnnual != null) {
     const v = metrics.debtToEquityAnnual;
-    items.push({ label: "Debt/Equity", value: v.toFixed(2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--amber)" : "var(--red)" });
+    items.push({ label: "Debt/Equity", value: safeFixed(v, 2), color: v <= 1 ? "var(--green)" : v <= 2 ? "var(--amber)" : "var(--red)" });
   }
 
   if (items.length === 0) return null;
@@ -1087,7 +1095,7 @@ function DetailView({
               {formatPrice(result.quote.c)}
             </div>
             <div className="num" style={{ fontSize: "12px", color: isUp ? "var(--green)" : "var(--red)", marginTop: "3px" }}>
-              {isUp ? "+" : ""}{result.quote.d.toFixed(2)} ({isUp ? "+" : ""}{result.quote.dp.toFixed(2)}%)
+              {safeFixed(result.quote.d, 2, true)} ({safeFixed(result.quote.dp, 2, true)}%)
             </div>
           </div>
           <button
@@ -1128,18 +1136,18 @@ function DetailView({
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
                 <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
-                  {result.profile.marketCap >= 1_000_000
-                    ? `$${(result.profile.marketCap / 1_000_000).toFixed(2)}T`
-                    : result.profile.marketCap >= 1_000
-                    ? `$${(result.profile.marketCap / 1_000).toFixed(1)}B`
-                    : `$${Math.round(result.profile.marketCap)}M`}
+                  {Number(result.profile.marketCap) >= 1_000_000
+                    ? `$${safeFixed(Number(result.profile.marketCap) / 1_000_000, 2)}T`
+                    : Number(result.profile.marketCap) >= 1_000
+                    ? `$${safeFixed(Number(result.profile.marketCap) / 1_000, 1)}B`
+                    : `$${Math.round(Number(result.profile.marketCap))}M`}
                 </div>
               </div>
             )}
             {result.metrics?.peRatio && result.metrics.peRatio > 0 && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
                 <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
-                <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{result.metrics.peRatio.toFixed(1)}x</div>
+                <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{safeFixed(result.metrics.peRatio, 1)}x</div>
               </div>
             )}
             {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
@@ -1218,7 +1226,7 @@ function DetailView({
                 <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)" }}>Grok Analysis</span>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)" }}>AI Analysis</span>
                 {aiAnalysis && (
                   <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                     {new Date(aiAnalysis.cached_at).toLocaleDateString()}
