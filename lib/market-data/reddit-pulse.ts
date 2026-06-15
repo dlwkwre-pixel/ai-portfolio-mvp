@@ -4,6 +4,7 @@
 // analysis is the fallback so the feature always returns something useful.
 
 import type { RedditPost } from "./reddit";
+import { callGemini } from "@/lib/ai/gemini";
 
 // ─── Public types ──────────────────────────────────────────────────────────────
 
@@ -306,8 +307,7 @@ async function getGeminiRedditSummary(
   companyName: string,
   posts: RedditPost[]
 ): Promise<GeminiRedditResult | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || posts.length === 0) return null;
+  if (posts.length === 0) return null;
 
   // Send top 15 posts by score; compact format to stay within token budget
   const topPosts = [...posts].sort((a, b) => b.score - a.score).slice(0, 15);
@@ -339,22 +339,8 @@ ${postTexts}
 }`;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 900, temperature: 0.2 },
-        }),
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    const raw: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw = await callGemini(prompt, { maxOutputTokens: 900, temperature: 0.2 });
+    if (!raw) return null;
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]) as GeminiRedditResult;

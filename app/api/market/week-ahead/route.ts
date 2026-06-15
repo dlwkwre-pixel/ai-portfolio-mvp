@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote, getFinnhubEconomicCalendar, getFinnhubEarningsWeek, getFinnhubMarketNews } from "@/lib/market-data/finnhub";
+import { callGemini } from "@/lib/ai/gemini";
 import crypto from "crypto";
 
 // Re-fetch market data every 2 hours. Gemini only fires when hash changes.
@@ -30,26 +31,6 @@ function getWeekBounds(): { weekStart: string; from: string; to: string } {
 
   const fmt = (d: Date) => d.toISOString().split("T")[0];
   return { weekStart: fmt(monday), from: fmt(monday), to: fmt(friday) };
-}
-
-async function callGemini(prompt: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 600 },
-      }),
-    }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }
 
 export async function GET() {
@@ -133,7 +114,7 @@ Analyze this data and return ONLY valid JSON (no markdown, no code fences):
 
 Rules: volatility = Low if VIXY<15, Medium if 15-22, High if 22-30, Extreme if >30. key_events = 3 specific things to watch (earnings names, economic reports, macro themes). Be direct, not generic.`;
 
-    const raw = await callGemini(prompt);
+    const raw = await callGemini(prompt, { temperature: 0.3, maxOutputTokens: 600 });
     if (!raw) {
       return NextResponse.json({ error: "AI unavailable" }, { status: 503 });
     }

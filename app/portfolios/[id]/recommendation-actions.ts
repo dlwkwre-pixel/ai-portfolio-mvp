@@ -1,6 +1,7 @@
 "use server";
 
 import OpenAI from "openai";
+import { callGemini } from "@/lib/ai/gemini";
 import { getTickerMarketContext, getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -1283,12 +1284,6 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
 
 // --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
 async function callGeminiForHealthReport(context: unknown): Promise<HealthReport> {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return { overall_score: null, risk_assessment: null, concentration_analysis: null, gaps_and_weaknesses: null, strengths: null, suggested_focus: null };
-  }
-
   const prompt = `You are a portfolio health analyst. Analyze this investment portfolio and return ONLY a valid JSON object (no markdown, no preamble):
 
 {
@@ -1304,20 +1299,7 @@ Portfolio context:
 ${JSON.stringify(context)}`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 1500 },
-        }),
-      }
-    );
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const text = await callGemini(prompt, { temperature: 0.1, maxOutputTokens: 1500 });
     if (!text) throw new Error("Gemini returned empty response.");
 
     const parsed = JSON.parse(extractJsonText(text)) as HealthReport;

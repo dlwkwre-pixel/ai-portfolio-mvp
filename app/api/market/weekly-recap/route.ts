@@ -1,24 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-async function callGemini(prompt: string): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 400 },
-      }),
-    }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-}
+import { callGemini } from "@/lib/ai/gemini";
 
 export async function GET() {
   const supabase = await createClient();
@@ -128,7 +110,7 @@ Portfolio data for week of ${weekStart}:
 
 Write a concise, direct recap. Acknowledge specific wins or losses. End with one practical thought for next week. Do not use em dashes. Return plain text only, no JSON or markdown.`;
 
-  const narrative = await callGemini(prompt);
+  const narrative = await callGemini(prompt, { temperature: 0.4, maxOutputTokens: 400 });
   if (!narrative) {
     return NextResponse.json({ error: "AI unavailable" }, { status: 503 });
   }

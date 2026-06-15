@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { callGemini } from "@/lib/ai/gemini";
 
 const SCENARIOS = [
   { id: "tech_crash", label: "Tech selloff" },
@@ -50,29 +51,10 @@ JSON format:
 Scenarios: 1) Tech selloff: growth stocks -25% 2) Rate spike: yields +100bps, rate-sensitive -15% 3) Recession: market -30%, defensives outperform 4) Stagflation: equities -20%, inflation spike`;
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const rawText = await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 800 });
+    if (!rawText) {
       return NextResponse.json({ error: "AI not configured" }, { status: 503 });
     }
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 800 },
-        }),
-      }
-    );
-
-    if (!res.ok) {
-      return NextResponse.json({ error: "AI request failed" }, { status: 500 });
-    }
-
-    const geminiData = await res.json();
-    const rawText: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
     let parsed: { scenarios: typeof SCENARIOS; overallRisk?: string };

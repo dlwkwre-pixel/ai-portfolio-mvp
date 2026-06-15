@@ -204,16 +204,18 @@ function getEnabledProviders(): ProviderConfig[] {
   }
 
   // Gemini — optional fallback (disabled by default to preserve quota)
-  if (process.env.ENABLE_GEMINI_STRATEGY_BUILDER === "true" && process.env.GEMINI_API_KEY) {
-    providers.push({
-      provider: "gemini",
-      client: new OpenAI({
-        apiKey: process.env.GEMINI_API_KEY,
-        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-        timeout: 30000,
-      }),
-      model: process.env.GEMINI_STRATEGY_BUILDER_MODEL || "gemini-2.0-flash",
-    });
+  if (process.env.ENABLE_GEMINI_STRATEGY_BUILDER === "true") {
+    for (const key of [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean)) {
+      providers.push({
+        provider: "gemini",
+        client: new OpenAI({
+          apiKey: key as string,
+          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+          timeout: 30000,
+        }),
+        model: process.env.GEMINI_STRATEGY_BUILDER_MODEL || "gemini-2.0-flash",
+      });
+    }
   }
 
   // xAI — opt-in only
