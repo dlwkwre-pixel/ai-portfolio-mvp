@@ -67,14 +67,18 @@ export default function MondayPrepCard() {
       setChecked(new Set(stored));
     } catch {}
 
-    fetch("/api/market/monday-prep")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.checklist) setData(d);
-        else setError(true);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    // Stagger 3s after week-ahead to avoid simultaneous Gemini calls
+    const t = setTimeout(() => {
+      fetch("/api/market/monday-prep")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.checklist) setData(d);
+          else setError(true);
+        })
+        .catch(() => setError(true))
+        .finally(() => setLoading(false));
+    }, 3000);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

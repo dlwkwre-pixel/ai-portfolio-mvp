@@ -28,14 +28,18 @@ export default function WeeklyRecapCard() {
       return;
     }
     setShow(true);
-    fetch("/api/market/weekly-recap")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.narrative) setData(d);
-        else setError(true);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    // Stagger 1.5s after week-ahead to avoid simultaneous Gemini calls hitting rate limits
+    const t = setTimeout(() => {
+      fetch("/api/market/weekly-recap")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.narrative) setData(d);
+          else setError(true);
+        })
+        .catch(() => setError(true))
+        .finally(() => setLoading(false));
+    }, 1500);
+    return () => clearTimeout(t);
   }, []);
 
   if (!show || error) return null;
