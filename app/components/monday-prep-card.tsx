@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useTickerLookup } from "@/app/components/ticker-quick-look";
 
 type PrepHolding = {
   ticker: string;
@@ -18,6 +19,7 @@ type PrepItem = {
   type: "earnings" | "risk" | "action" | "info";
   href: string | null;
   cta: string | null;
+  ticker: string | null;
 };
 
 type PrepData = {
@@ -55,6 +57,7 @@ export default function MondayPrepCard() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [show, setShow] = useState(false);
+  const { open } = useTickerLookup();
 
   const STORAGE_KEY = `bt-monday-prep-${new Date().toISOString().split("T")[0]}`;
 
@@ -147,17 +150,18 @@ export default function MondayPrepCard() {
 
       {data && !loading && (
         <>
-          {/* Holdings grid — clickable research links */}
+          {/* Holdings grid — tap to open quick-look */}
           {data.holdings.length > 0 && (
             <div style={{ marginBottom: "14px" }}>
               <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
-                Your Positions — Click to Research
+                Your Positions — Tap for Quick Look
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {data.holdings.map((h) => (
-                  <Link
+                  <button
+                    type="button"
                     key={h.ticker}
-                    href={`/research?q=${h.ticker}`}
+                    onClick={() => open(h.ticker)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -166,7 +170,7 @@ export default function MondayPrepCard() {
                       borderRadius: "var(--radius-md)",
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.07)",
-                      textDecoration: "none",
+                      cursor: "pointer",
                       transition: "background 0.15s, border-color 0.15s",
                     }}
                   >
@@ -181,7 +185,7 @@ export default function MondayPrepCard() {
                         {h.weight_pct.toFixed(0)}%
                       </span>
                     )}
-                  </Link>
+                  </button>
                 ))}
               </div>
             </div>
@@ -196,8 +200,9 @@ export default function MondayPrepCard() {
           <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
             {data.checklist.map((item) => {
               const done = checked.has(item.id);
-              const open = expanded === item.id;
+              const isExpanded = expanded === item.id;
               const accent = TYPE_ACCENT[item.type] ?? TYPE_ACCENT.info;
+              const hasAction = !!item.ticker || !!item.href;
 
               return (
                 <div
@@ -242,7 +247,7 @@ export default function MondayPrepCard() {
 
                     {/* Label */}
                     <span
-                      onClick={() => setExpanded(open ? null : item.id)}
+                      onClick={() => setExpanded(isExpanded ? null : item.id)}
                       style={{
                         flex: 1,
                         fontSize: "12px",
@@ -257,40 +262,51 @@ export default function MondayPrepCard() {
                       {item.label}
                     </span>
 
-                    {/* Quick nav arrow */}
-                    {item.href && !done && (
-                      <Link
-                        href={item.href}
-                        onClick={() => toggle(item.id)}
-                        style={{
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: "22px",
-                          height: "22px",
-                          borderRadius: "var(--radius-sm)",
-                          background: "rgba(96,165,250,0.08)",
-                          color: "rgba(96,165,250,0.8)",
-                          textDecoration: "none",
-                          transition: "background 0.15s",
-                        }}
-                        title={item.cta ?? ""}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
-                        </svg>
-                      </Link>
+                    {/* Quick action — modal for tickers, link otherwise */}
+                    {hasAction && !done && (
+                      item.ticker ? (
+                        <button
+                          type="button"
+                          onClick={() => { open(item.ticker!); toggle(item.id); }}
+                          title={item.cta ?? ""}
+                          style={{
+                            flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "22px", height: "22px", borderRadius: "var(--radius-sm)",
+                            background: "rgba(96,165,250,0.08)", color: "rgba(96,165,250,0.8)",
+                            border: "none", cursor: "pointer", transition: "background 0.15s",
+                          }}
+                        >
+                          <svg width="8" height="8" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href!}
+                          onClick={() => toggle(item.id)}
+                          title={item.cta ?? ""}
+                          style={{
+                            flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "22px", height: "22px", borderRadius: "var(--radius-sm)",
+                            background: "rgba(96,165,250,0.08)", color: "rgba(96,165,250,0.8)",
+                            textDecoration: "none", transition: "background 0.15s",
+                          }}
+                        >
+                          <svg width="8" height="8" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" />
+                          </svg>
+                        </Link>
+                      )
                     )}
 
                     {/* Expand chevron */}
                     {item.detail && (
                       <button
                         type="button"
-                        onClick={() => setExpanded(open ? null : item.id)}
+                        onClick={() => setExpanded(isExpanded ? null : item.id)}
                         style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "2px", display: "flex", alignItems: "center" }}
                       >
-                        <svg width="8" height="8" viewBox="0 0 20 20" fill="currentColor" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                        <svg width="8" height="8" viewBox="0 0 20 20" fill="currentColor" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                           <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
                         </svg>
                       </button>
@@ -298,31 +314,40 @@ export default function MondayPrepCard() {
                   </div>
 
                   {/* Expanded detail */}
-                  {open && (
+                  {isExpanded && (
                     <div style={{ padding: "0 10px 10px 34px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6, paddingTop: "8px", marginBottom: item.href && item.cta ? "8px" : "0" }}>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6, paddingTop: "8px", marginBottom: hasAction && item.cta ? "8px" : "0" }}>
                         {item.detail}
                       </p>
-                      {item.href && item.cta && (
-                        <Link
-                          href={item.href}
-                          onClick={() => toggle(item.id)}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: accent,
-                            textDecoration: "none",
-                            padding: "4px 10px",
-                            borderRadius: "var(--radius-sm)",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.07)",
-                          }}
-                        >
-                          {item.cta}
-                        </Link>
+                      {hasAction && item.cta && (
+                        item.ticker ? (
+                          <button
+                            type="button"
+                            onClick={() => { open(item.ticker!); toggle(item.id); }}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: "4px",
+                              fontSize: "11px", fontWeight: 600, color: accent,
+                              padding: "4px 10px", borderRadius: "var(--radius-sm)",
+                              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {item.cta}
+                          </button>
+                        ) : (
+                          <Link
+                            href={item.href!}
+                            onClick={() => toggle(item.id)}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: "4px",
+                              fontSize: "11px", fontWeight: 600, color: accent, textDecoration: "none",
+                              padding: "4px 10px", borderRadius: "var(--radius-sm)",
+                              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                            }}
+                          >
+                            {item.cta}
+                          </Link>
+                        )
                       )}
                     </div>
                   )}

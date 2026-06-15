@@ -7,6 +7,7 @@ import TermsAcceptModal from "@/app/components/terms-accept-modal";
 import WeekAheadCard from "@/app/components/week-ahead-card";
 import WeeklyRecapCard from "@/app/components/weekly-recap-card";
 import MondayPrepCard from "@/app/components/monday-prep-card";
+import { TickerLookupProvider } from "@/app/components/ticker-quick-look";
 
 type PortfolioRow = {
   id: string;
@@ -248,9 +249,11 @@ export default function DashboardClient({
       )}
 
       {/* ── Weekend / Market context cards ── */}
-      <WeekAheadCard />
-      <WeeklyRecapCard />
-      <MondayPrepCard />
+      <TickerLookupProvider>
+        <WeekAheadCard />
+        <WeeklyRecapCard />
+        <MondayPrepCard />
+      </TickerLookupProvider>
 
       {/* ── Main grid ── */}
       <div className="dashboard-main-grid">

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useTickerLookup } from "@/app/components/ticker-quick-look";
 
 type Mover = {
   ticker: string;
@@ -38,6 +38,7 @@ export default function WeeklyRecapCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [show, setShow] = useState(false);
+  const { open } = useTickerLookup();
 
   useEffect(() => {
     if (!isSatOrSun()) {
@@ -133,9 +134,10 @@ export default function WeeklyRecapCard() {
                   const isBest = data.best?.ticker === m.ticker;
                   const isWorst = data.worst?.ticker === m.ticker;
                   return (
-                    <Link
+                    <button
+                      type="button"
                       key={m.ticker}
-                      href={`/research?q=${m.ticker}`}
+                      onClick={() => open(m.ticker)}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
@@ -144,7 +146,7 @@ export default function WeeklyRecapCard() {
                         borderRadius: "var(--radius-md)",
                         background: "rgba(255,255,255,0.04)",
                         border: `1px solid ${isBest ? "rgba(34,197,94,0.25)" : isWorst ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.07)"}`,
-                        textDecoration: "none",
+                        cursor: "pointer",
                       }}
                     >
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -156,7 +158,7 @@ export default function WeeklyRecapCard() {
                           {chg >= 0 ? "+" : ""}{chg.toFixed(1)}%
                         </span>
                       )}
-                    </Link>
+                    </button>
                   );
                 })}
               </div>

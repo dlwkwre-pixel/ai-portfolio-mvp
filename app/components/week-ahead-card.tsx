@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useTickerLookup } from "@/app/components/ticker-quick-look";
 
 type IndexQuote = { symbol: string; label: string; price: number | null; change_pct: number | null };
 type EarningsItem = { symbol: string; date: string; hour: string | null };
@@ -80,6 +80,7 @@ export default function WeekAheadCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const { open } = useTickerLookup();
 
   useEffect(() => {
     fetch("/api/market/week-ahead")
@@ -143,26 +144,49 @@ export default function WeekAheadCard() {
             >
               {data.indices.map((idx) => {
                 const chg = idx.change_pct;
-                const chgColor = chg == null ? "var(--text-tertiary)" : chg >= 0 ? "var(--green)" : "var(--red)";
+                // Volatility is an inverse indicator: a FALLING VIX means calmer,
+                // more bullish conditions, so green = down, red = up for that tile.
+                const isVol = idx.symbol === "VIXY";
+                const positive = chg == null ? null : isVol ? chg < 0 : chg >= 0;
+                const chgColor = positive == null ? "var(--text-tertiary)" : positive ? "var(--green)" : "var(--red)";
+                const tooltip = isVol
+                  ? "Market volatility (VIX proxy). Measures expected swings / investor fear. FALLING is calmer and usually bullish; RISING signals stress."
+                  : `${idx.label} index level and today's move.`;
                 return (
                   <div
                     key={idx.symbol}
+                    title={tooltip}
                     style={{
                       background: "rgba(255,255,255,0.03)",
                       border: "1px solid rgba(255,255,255,0.06)",
                       borderRadius: "var(--radius-md)",
                       padding: "7px 8px",
+                      cursor: "help",
                     }}
                   >
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "2px" }}>
-                      {idx.label}
+                    <div style={{ display: "flex", alignItems: "center", gap: "3px", marginBottom: "2px" }}>
+                      <span style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        {idx.label}
+                      </span>
+                      {isVol && (
+                        <svg width="9" height="9" viewBox="0 0 20 20" fill="var(--text-muted)" style={{ flexShrink: 0 }}>
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.1 }}>
                       {idx.price != null ? idx.price.toFixed(2) : "—"}
                     </div>
                     {chg != null && (
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600, color: chgColor, marginTop: "1px" }}>
-                        {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
+                      <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "1px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600, color: chgColor }}>
+                          {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
+                        </span>
+                        {isVol && positive != null && (
+                          <span style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                            {positive ? "calmer" : "fear"}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -205,9 +229,10 @@ export default function WeekAheadCard() {
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                 {data.earnings.map((e) => (
-                  <Link
+                  <button
+                    type="button"
                     key={`${e.symbol}-${e.date}`}
-                    href={`/research?q=${e.symbol}`}
+                    onClick={() => open(e.symbol)}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -216,7 +241,7 @@ export default function WeekAheadCard() {
                       borderRadius: "var(--radius-md)",
                       background: "rgba(96,165,250,0.06)",
                       border: "1px solid rgba(96,165,250,0.15)",
-                      textDecoration: "none",
+                      cursor: "pointer",
                     }}
                   >
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "rgba(147,197,253,0.95)" }}>
@@ -225,7 +250,7 @@ export default function WeekAheadCard() {
                     <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>
                       {dayLabel(e.date)}{e.hour === "bmo" ? " AM" : e.hour === "amc" ? " PM" : ""}
                     </span>
-                  </Link>
+                  </button>
                 ))}
               </div>
             </div>

@@ -17,6 +17,7 @@ export type PrepItem = {
   type: "earnings" | "risk" | "action" | "info";
   href: string | null;
   cta: string | null;
+  ticker: string | null; // when set, opening this item shows the quick-look modal
 };
 
 export async function GET() {
@@ -106,8 +107,9 @@ export async function GET() {
         ? `EPS estimate: $${e.epsEstimate.toFixed(2)}. Decide whether to hold or trim before the report.`
         : "Decide whether to hold or trim your position before the report.",
       type: "earnings",
-      href: `/research?q=${e.symbol}`,
-      cta: `Research ${e.symbol} →`,
+      href: null,
+      cta: `View ${e.symbol} →`,
+      ticker: e.symbol,
     });
   }
 
@@ -119,6 +121,7 @@ export async function GET() {
       type: "info",
       href: null,
       cta: null,
+      ticker: null,
     });
   }
 
@@ -135,6 +138,7 @@ export async function GET() {
     type: vixLevel > 25 ? "risk" : "info",
     href: vixLevel > 25 && firstPortfolioId ? `/portfolios/${firstPortfolioId}?tab=ai` : null,
     cta: vixLevel > 25 ? "Run stress test →" : null,
+    ticker: null,
   });
 
   // AI recs — only if there are open ones
@@ -146,6 +150,7 @@ export async function GET() {
       type: "action",
       href: firstPortfolioId ? `/portfolios/${firstPortfolioId}?tab=ai` : "/portfolios",
       cta: "Go to AI tab →",
+      ticker: null,
     });
   }
 
@@ -158,6 +163,7 @@ export async function GET() {
       type: "risk",
       href: null,
       cta: null,
+      ticker: null,
     });
   }
 
