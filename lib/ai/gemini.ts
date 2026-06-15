@@ -7,7 +7,7 @@ export type GeminiOptions = {
   model?: string;
 };
 
-function getKeys(): string[] {
+function getGeminiKeys(): string[] {
   const keys: string[] = [];
   if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
   if (process.env.GEMINI_API_KEY_2) keys.push(process.env.GEMINI_API_KEY_2);
@@ -15,7 +15,7 @@ function getKeys(): string[] {
   return keys;
 }
 
-async function tryKey(key: string, prompt: string, opts: GeminiOptions): Promise<string | null> {
+async function tryGeminiKey(key: string, prompt: string, opts: GeminiOptions): Promise<string | null> {
   try {
     const res = await fetch(GEMINI_ENDPOINT(key, opts.model), {
       method: "POST",
@@ -40,19 +40,50 @@ async function tryKey(key: string, prompt: string, opts: GeminiOptions): Promise
   }
 }
 
-export async function callGemini(prompt: string, opts: GeminiOptions = {}): Promise<string | null> {
-  const keys = getKeys();
-  if (keys.length === 0) return null;
+async function tryGroq(prompt: string, opts: GeminiOptions): Promise<string | null> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: opts.temperature ?? 0.4,
+        max_tokens: opts.maxOutputTokens ?? 800,
+      }),
+    });
+    if (!res.ok) {
+      console.warn(`[groq] → HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? null;
+  } catch (err) {
+    console.warn("[groq] fetch error:", err);
+    return null;
+  }
+}
 
-  for (const key of keys) {
-    const result = await tryKey(key, prompt, opts);
+export async function callGemini(prompt: string, opts: GeminiOptions = {}): Promise<string | null> {
+  // Try Gemini keys in order
+  for (const key of getGeminiKeys()) {
+    const result = await tryGeminiKey(key, prompt, opts);
     if (result !== null) return result;
   }
 
-  console.error("[gemini] all keys exhausted — no response");
+  // All Gemini keys exhausted — fall back to Groq (free, 14,400 RPD)
+  const groqResult = await tryGroq(prompt, opts);
+  if (groqResult !== null) return groqResult;
+
+  console.error("[ai] all providers exhausted — no response");
   return null;
 }
 
 export function geminiApiKeys(): string[] {
-  return getKeys();
+  return getGeminiKeys();
 }
