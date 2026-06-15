@@ -110,7 +110,7 @@ export default function WeekAheadCard() {
         border: "1px solid rgba(37,99,235,0.12)",
         borderRadius: "var(--radius-lg)",
         padding: "14px 16px",
-        overflow: "hidden",
+        overflow: "visible",
       }}
     >
       {/* Header */}
