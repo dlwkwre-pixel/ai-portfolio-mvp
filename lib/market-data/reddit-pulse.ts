@@ -4,7 +4,7 @@
 // analysis is the fallback so the feature always returns something useful.
 
 import type { RedditPost } from "./reddit";
-import { callGemini } from "@/lib/ai/gemini";
+import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
 
 // ─── Public types ──────────────────────────────────────────────────────────────
 
@@ -339,11 +339,9 @@ ${postTexts}
 }`;
 
   try {
-    const raw = await callGemini(prompt, { maxOutputTokens: 900, temperature: 0.2 });
-    if (!raw) return null;
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    return JSON.parse(match[0]) as GeminiRedditResult;
+    // Research social pulse uses Groq only (Gemini free keys are maxed).
+    const raw = await callGemini(prompt, { maxOutputTokens: 1100, temperature: 0.2, groqOnly: true });
+    return extractJsonObject<GeminiRedditResult>(raw);
   } catch {
     return null;
   }

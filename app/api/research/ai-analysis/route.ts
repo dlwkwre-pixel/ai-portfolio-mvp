@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubInsiderTransactions } from "@/lib/market-data/finnhub";
-import { callGemini } from "@/lib/ai/gemini";
+import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
 
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
@@ -94,23 +94,17 @@ export async function POST(req: NextRequest) {
       // Non-fatal
     }
 
-    // Free AI chain: Gemini keys → Groq (no Grok tokens spent).
+    // Research uses Groq only (Gemini free keys are maxed). No Grok tokens.
     const prompt = `${SYSTEM_PROMPT}\n\n${buildPrompt(t, company_name ?? t, price ?? 0, change_pct ?? 0, insiderSummary)}`;
-    const raw = (await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 700 }))?.trim() ?? "";
+    const raw = await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 1100, groqOnly: true });
     if (!raw) {
       return NextResponse.json({ error: "AI not configured." }, { status: 503 });
     }
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const analysis = extractJsonObject<Record<string, unknown>>(raw);
+    if (!analysis) {
+      console.error("[ai-analysis] unparseable AI response:", raw.slice(0, 200));
       return NextResponse.json({ error: "AI returned an unexpected response. Please try again." }, { status: 502 });
-    }
-
-    let analysis: Record<string, unknown>;
-    try {
-      analysis = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-    } catch {
-      return NextResponse.json({ error: "Failed to parse AI response. Please try again." }, { status: 502 });
     }
 
     const now = new Date().toISOString();

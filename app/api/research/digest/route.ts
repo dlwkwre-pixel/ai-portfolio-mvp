@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubNews } from "@/lib/market-data/finnhub";
-import { callGemini } from "@/lib/ai/gemini";
+import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
 
 type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
 
@@ -195,17 +195,15 @@ Return this exact JSON:
 }`;
 
   try {
-    // Free AI chain: Gemini keys → Groq (no Grok tokens spent).
-    const raw = ((await callGemini(prompt, { temperature: 0.3, maxOutputTokens: 650 })) ?? "").trim();
+    // Research uses Groq only (Gemini free keys are maxed). No Grok tokens.
+    const raw = await callGemini(prompt, { temperature: 0.3, maxOutputTokens: 1100, groqOnly: true });
     if (!raw) return NextResponse.json({ error: "AI not configured." }, { status: 503 });
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
 
-    let parsed: Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_metrics" | "raw_recommendation" | "profile">;
-    try {
-      parsed = JSON.parse(match[0]) as typeof parsed;
-    } catch {
-      return NextResponse.json({ error: "Failed to parse AI response." }, { status: 502 });
+    type Parsed = Omit<DigestResult, "generated_at" | "raw_earnings" | "raw_metrics" | "raw_recommendation" | "profile">;
+    const parsed = extractJsonObject<Parsed>(raw);
+    if (!parsed) {
+      console.error("[research-digest] unparseable AI response:", raw.slice(0, 200));
+      return NextResponse.json({ error: "AI returned an unexpected response." }, { status: 502 });
     }
 
     const result: DigestResult = {
