@@ -11,6 +11,7 @@ function getKeys(): string[] {
   const keys: string[] = [];
   if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
   if (process.env.GEMINI_API_KEY_2) keys.push(process.env.GEMINI_API_KEY_2);
+  if (process.env.GEMINI_API_KEY_3) keys.push(process.env.GEMINI_API_KEY_3);
   return keys;
 }
 
