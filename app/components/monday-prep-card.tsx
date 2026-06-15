@@ -267,7 +267,7 @@ export default function MondayPrepCard() {
                       item.ticker ? (
                         <button
                           type="button"
-                          onClick={() => { open(item.ticker!); toggle(item.id); }}
+                          onClick={() => open(item.ticker!)}
                           title={item.cta ?? ""}
                           style={{
                             flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
@@ -283,7 +283,6 @@ export default function MondayPrepCard() {
                       ) : (
                         <Link
                           href={item.href!}
-                          onClick={() => toggle(item.id)}
                           title={item.cta ?? ""}
                           style={{
                             flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
@@ -323,7 +322,7 @@ export default function MondayPrepCard() {
                         item.ticker ? (
                           <button
                             type="button"
-                            onClick={() => { open(item.ticker!); toggle(item.id); }}
+                            onClick={() => open(item.ticker!)}
                             style={{
                               display: "inline-flex", alignItems: "center", gap: "4px",
                               fontSize: "11px", fontWeight: 600, color: accent,
@@ -337,7 +336,6 @@ export default function MondayPrepCard() {
                         ) : (
                           <Link
                             href={item.href!}
-                            onClick={() => toggle(item.id)}
                             style={{
                               display: "inline-flex", alignItems: "center", gap: "4px",
                               fontSize: "11px", fontWeight: 600, color: accent, textDecoration: "none",
