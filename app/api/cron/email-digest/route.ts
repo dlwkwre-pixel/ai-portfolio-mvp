@@ -7,7 +7,7 @@ import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytuneio.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
 
 // Get the current hour (0-23) in the user's local timezone
 function getLocalHour(date: Date, timezone: string): number {
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
           // Most recent snapshot
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date, portfolio_twr_pct")
+            .select("total_value, snapshot_date")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: false })
             .limit(1)
@@ -175,7 +175,7 @@ export async function GET(request: Request) {
           // Most recent snapshot that is at least 7 days old
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date, portfolio_twr_pct")
+            .select("total_value, snapshot_date")
             .eq("portfolio_id", pref.portfolio_id)
             .lte("snapshot_date", `${sevenDaysAgo}T23:59:59`)
             .order("snapshot_date", { ascending: false })
@@ -184,7 +184,7 @@ export async function GET(request: Request) {
           // Oldest snapshot (inception)
           adminSupabase
             .from("portfolio_snapshots")
-            .select("total_value, snapshot_date, portfolio_twr_pct")
+            .select("total_value, snapshot_date")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: true })
             .limit(1)
@@ -194,29 +194,27 @@ export async function GET(request: Request) {
         if (latestSnap) {
           const latestVal = Number(latestSnap.total_value);
           const weekOldVal = weekOldSnap ? Number(weekOldSnap.total_value) : null;
+          const oldestVal = oldestSnap ? Number(oldestSnap.total_value) : null;
           const isFirstSnap = oldestSnap?.snapshot_date === latestSnap.snapshot_date;
 
-          // Use TWR for returns — same math as the chart's period-rebase so deposits don't distort the numbers
-          const latestTwr = Number(latestSnap.portfolio_twr_pct ?? 0);
-          const weekOldTwr = weekOldSnap != null ? Number(weekOldSnap.portfolio_twr_pct ?? 0) : null;
-          const inceptionTwr = oldestSnap != null ? Number(oldestSnap.portfolio_twr_pct ?? 0) : null;
-
-          const weekTwr = weekOldTwr != null
-            ? ((1 + latestTwr / 100) / (1 + weekOldTwr / 100) - 1) * 100
+          // Value-based returns from the stored snapshot totals. (TWR isn't stored
+          // on snapshots, so the previous TWR math always resolved to null/0 and
+          // the weekly return silently dropped out of the email.)
+          const weekReturnPct = weekOldVal != null && weekOldVal > 0
+            ? ((latestVal - weekOldVal) / weekOldVal) * 100
             : null;
-          const allTimeTwr = inceptionTwr != null && !isFirstSnap
-            ? ((1 + latestTwr / 100) / (1 + inceptionTwr / 100) - 1) * 100
+          const weekReturnAbs = weekOldVal != null && weekOldVal > 0
+            ? latestVal - weekOldVal
             : null;
-          // Dollar gain from investing this week (excludes new deposits)
-          const weekReturnAbsTwr = weekTwr != null && weekOldVal != null
-            ? weekOldVal * (weekTwr / 100)
+          const allTimeReturnPct = oldestVal != null && oldestVal > 0 && !isFirstSnap
+            ? ((latestVal - oldestVal) / oldestVal) * 100
             : null;
 
           performance = {
             totalValue: latestVal,
-            weekReturnPct: weekTwr != null ? Math.round(weekTwr * 10) / 10 : null,
-            weekReturnAbs: weekReturnAbsTwr != null ? Math.round(weekReturnAbsTwr) : null,
-            allTimeReturnPct: allTimeTwr != null ? Math.round(allTimeTwr * 10) / 10 : null,
+            weekReturnPct: weekReturnPct != null ? Math.round(weekReturnPct * 10) / 10 : null,
+            weekReturnAbs: weekReturnAbs != null ? Math.round(weekReturnAbs) : null,
+            allTimeReturnPct: allTimeReturnPct != null ? Math.round(allTimeReturnPct * 10) / 10 : null,
             inceptionDate: oldestSnap?.snapshot_date ?? null,
           };
         }
