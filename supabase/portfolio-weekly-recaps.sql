@@ -9,9 +9,13 @@ create table if not exists portfolio_weekly_recaps (
   week_return_pct numeric,
   best_ticker text,
   worst_ticker text,
+  payload jsonb,
   generated_at timestamptz not null default now(),
   unique(user_id, week_start)
 );
+
+-- Richer movers / values blob (added 2026-06). Safe to run on existing tables.
+alter table portfolio_weekly_recaps add column if not exists payload jsonb;
 
 alter table portfolio_weekly_recaps enable row level security;
 

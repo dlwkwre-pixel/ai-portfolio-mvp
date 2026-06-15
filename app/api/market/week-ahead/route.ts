@@ -7,12 +7,17 @@ import crypto from "crypto";
 // Re-fetch market data every 2 hours. Gemini only fires when hash changes.
 export const revalidate = 7200;
 
+type IndexQuote = { symbol: string; label: string; price: number | null; change_pct: number | null };
+type EarningsItem = { symbol: string; date: string; hour: string | null };
+
 type WeekAheadResult = {
   volatility: string;
   lean: string;
   headline: string;
   key_events: string[];
   summary: string;
+  indices: IndexQuote[];
+  earnings: EarningsItem[];
   generated_at: string;
   data_fetched_at: string;
 };
@@ -61,6 +66,19 @@ export async function GET() {
 
     const hash = crypto.createHash("sha256").update(JSON.stringify(inputData)).digest("hex").slice(0, 16);
 
+    // Live market data returned fresh on every call (these are cheap, cached fetches).
+    const indices: IndexQuote[] = [
+      { symbol: "SPY", label: "S&P 500", price: spy?.c ?? null, change_pct: spy?.dp ?? null },
+      { symbol: "QQQ", label: "Nasdaq", price: qqq?.c ?? null, change_pct: qqq?.dp ?? null },
+      { symbol: "IWM", label: "Russell", price: iwm?.c ?? null, change_pct: iwm?.dp ?? null },
+      { symbol: "VIXY", label: "Volatility", price: vixy?.c ?? null, change_pct: vixy?.dp ?? null },
+    ];
+    const earningsList: EarningsItem[] = earnings.slice(0, 8).map((e) => ({
+      symbol: e.symbol,
+      date: e.date,
+      hour: e.hour ?? null,
+    }));
+
     // Use admin client — this is server-only market data, no user context needed
     const supabase = createAdminClient();
     const { data: cached } = await supabase
@@ -70,7 +88,8 @@ export async function GET() {
       .maybeSingle();
 
     if (cached?.data_hash === hash) {
-      // Data unchanged — update data_fetched_at timestamp and return cached result
+      // Data unchanged — update data_fetched_at timestamp and return cached AI text
+      // plus fresh live indices/earnings.
       void supabase
         .from("market_week_ahead")
         .update({ data_fetched_at: new Date().toISOString() })
@@ -82,6 +101,8 @@ export async function GET() {
         headline: cached.headline,
         key_events: cached.key_events,
         summary: cached.summary,
+        indices,
+        earnings: earningsList,
         generated_at: cached.generated_at,
         data_fetched_at: new Date().toISOString(),
       } satisfies WeekAheadResult);
@@ -154,6 +175,8 @@ Rules: volatility = Low if VIXY<15, Medium if 15-22, High if 22-30, Extreme if >
       headline: result.headline,
       key_events: result.key_events,
       summary: result.summary,
+      indices,
+      earnings: earningsList,
       generated_at: now,
       data_fetched_at: now,
     } satisfies WeekAheadResult);

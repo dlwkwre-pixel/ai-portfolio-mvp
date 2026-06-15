@@ -1,6 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
+
+type IndexQuote = { symbol: string; label: string; price: number | null; change_pct: number | null };
+type EarningsItem = { symbol: string; date: string; hour: string | null };
 
 type WeekAheadData = {
   volatility: string;
@@ -8,6 +12,8 @@ type WeekAheadData = {
   headline: string;
   key_events: string[];
   summary: string;
+  indices: IndexQuote[];
+  earnings: EarningsItem[];
   generated_at: string;
   data_fetched_at: string;
 };
@@ -64,6 +70,11 @@ function LeanBadge({ lean }: { lean: string }) {
   );
 }
 
+function dayLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  return d.toLocaleDateString(undefined, { weekday: "short" });
+}
+
 export default function WeekAheadCard() {
   const [data, setData] = useState<WeekAheadData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +105,7 @@ export default function WeekAheadCard() {
       }}
     >
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: loading ? "0" : "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: loading ? "0" : "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <svg width="13" height="13" viewBox="0 0 20 20" fill="rgba(96,165,250,0.9)">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
@@ -120,6 +131,46 @@ export default function WeekAheadCard() {
 
       {data && !loading && (
         <>
+          {/* Market snapshot strip */}
+          {data.indices?.some((i) => i.price != null) && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: "6px",
+                marginBottom: "12px",
+              }}
+            >
+              {data.indices.map((idx) => {
+                const chg = idx.change_pct;
+                const chgColor = chg == null ? "var(--text-tertiary)" : chg >= 0 ? "var(--green)" : "var(--red)";
+                return (
+                  <div
+                    key={idx.symbol}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "7px 8px",
+                    }}
+                  >
+                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "2px" }}>
+                      {idx.label}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.1 }}>
+                      {idx.price != null ? idx.price.toFixed(2) : "—"}
+                    </div>
+                    {chg != null && (
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600, color: chgColor, marginTop: "1px" }}>
+                        {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Headline */}
           <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", lineHeight: 1.45, marginBottom: "10px" }}>
             {data.headline}
@@ -143,6 +194,40 @@ export default function WeekAheadCard() {
                   {evt}
                 </span>
               ))}
+            </div>
+          )}
+
+          {/* Earnings this week — clickable to research */}
+          {data.earnings?.length > 0 && (
+            <div style={{ marginBottom: "10px" }}>
+              <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
+                Notable Earnings
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                {data.earnings.map((e) => (
+                  <Link
+                    key={`${e.symbol}-${e.date}`}
+                    href={`/research?q=${e.symbol}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "4px 9px",
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(96,165,250,0.06)",
+                      border: "1px solid rgba(96,165,250,0.15)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "rgba(147,197,253,0.95)" }}>
+                      {e.symbol}
+                    </span>
+                    <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>
+                      {dayLabel(e.date)}{e.hour === "bmo" ? " AM" : e.hour === "amc" ? " PM" : ""}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 

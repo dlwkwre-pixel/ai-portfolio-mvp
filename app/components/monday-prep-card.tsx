@@ -93,9 +93,10 @@ export default function MondayPrepCard() {
     });
   };
 
-  const actionableItems = data?.checklist.filter((i) => i.type !== "info" || i.id === "no-earnings") ?? [];
-  const doneCount = actionableItems.filter((i) => checked.has(i.id)).length;
-  const totalCount = actionableItems.length;
+  // Every rendered checklist item is checkable, so the progress counts them all.
+  const allItems = data?.checklist ?? [];
+  const doneCount = allItems.filter((i) => checked.has(i.id)).length;
+  const totalCount = allItems.length;
   const allDone = totalCount > 0 && doneCount === totalCount;
 
   const accentColor = allDone ? "rgba(74,222,128,0.85)" : "rgba(96,165,250,0.85)";
