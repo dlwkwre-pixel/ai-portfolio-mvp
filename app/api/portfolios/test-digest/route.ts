@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
+import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
 
 export const maxDuration = 60;
 
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
   // Verify ownership
   const { data: portfolio } = await supabase
     .from("portfolios")
-    .select("id, name, cash_balance")
+    .select("id, name, cash_balance, benchmark_symbol")
     .eq("id", portfolioId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -196,6 +197,22 @@ export async function POST(request: Request) {
     }
   }
 
+  // Optional "design your email" sections — same engine the scheduled digest uses
+  const extra = await buildExtraDigestSections(
+    adminSupabase,
+    {
+      include_top_movers:   prefs?.include_top_movers   ?? true,
+      include_benchmark:    prefs?.include_benchmark    ?? false,
+      include_ai_recs:      prefs?.include_ai_recs      ?? false,
+      include_week_ahead:   prefs?.include_week_ahead   ?? false,
+      include_news:         prefs?.include_news         ?? false,
+      include_transactions: prefs?.include_transactions ?? false,
+      include_cash:         prefs?.include_cash         ?? false,
+    },
+    portfolio,
+    now,
+  );
+
   const token = makeUnsubToken(user.id, portfolioId);
   const unsubscribeUrl = `${SITE_URL}/api/unsubscribe?userId=${user.id}&portfolioId=${portfolioId}&token=${token}`;
   const templateData: DigestTemplateData = {
@@ -208,6 +225,7 @@ export async function POST(request: Request) {
     holdings,
     earnings,
     aiScore,
+    ...extra,
     sentAt: now.toISOString(),
   };
 
@@ -219,10 +237,12 @@ export async function POST(request: Request) {
   const dateSlug = now.toISOString().slice(0, 10);
   const safePortfolioName = portfolio.name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
   let pdfBuffer: Buffer | null = null;
-  try {
-    pdfBuffer = await generateDigestPDF(templateData);
-  } catch (pdfErr) {
-    console.error("PDF generation failed (non-fatal):", pdfErr);
+  if ((prefs?.attach_pdf ?? true) !== false) {
+    try {
+      pdfBuffer = await generateDigestPDF(templateData);
+    } catch (pdfErr) {
+      console.error("PDF generation failed (non-fatal):", pdfErr);
+    }
   }
 
   const { error: sendError } = await resend.emails.send({

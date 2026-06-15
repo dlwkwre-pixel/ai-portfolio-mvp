@@ -11,12 +11,41 @@ const FREQUENCIES = [
 ] as const;
 
 
-const CONTENT_OPTIONS = [
-  { key: "include_performance", label: "Performance",      description: "All-time return and this week's change" },
-  { key: "include_holdings",    label: "Top Holdings",     description: "Your top 5 positions with allocation %" },
-  { key: "include_earnings",    label: "Upcoming Earnings","description": "Earnings reports in the next 7 days" },
-  { key: "include_ai_score",    label: "AI Health Score",  description: "Portfolio health score from the last AI run" },
-] as const satisfies { key: keyof Pick<DigestPrefs, "include_performance" | "include_holdings" | "include_earnings" | "include_ai_score">; label: string; description: string }[];
+type ContentKey =
+  | "include_performance" | "include_holdings" | "include_earnings" | "include_ai_score"
+  | "include_top_movers" | "include_benchmark" | "include_ai_recs" | "include_week_ahead"
+  | "include_news" | "include_transactions" | "include_cash";
+
+type ContentGroup = { group: string; options: { key: ContentKey; label: string; description: string }[] };
+
+const CONTENT_GROUPS: ContentGroup[] = [
+  {
+    group: "Your Portfolio",
+    options: [
+      { key: "include_performance", label: "Performance",   description: "All-time return and this week's change" },
+      { key: "include_top_movers",  label: "Top Movers",     description: "This week's biggest gainer and biggest drag" },
+      { key: "include_benchmark",   label: "vs. S&P 500",    description: "How you did against your benchmark this week" },
+      { key: "include_holdings",    label: "Top Holdings",   description: "Your largest positions with allocation %" },
+      { key: "include_cash",        label: "Cash Position",  description: "How much you're holding in cash, with context" },
+    ],
+  },
+  {
+    group: "Activity & Signals",
+    options: [
+      { key: "include_transactions", label: "Trades This Week", description: "A recap of the buys and sells you made" },
+      { key: "include_ai_recs",      label: "AI Recommendations", description: "Pending buy/sell signals awaiting your call" },
+      { key: "include_ai_score",     label: "AI Health Score",  description: "Portfolio health score from the last AI run" },
+    ],
+  },
+  {
+    group: "Market Context",
+    options: [
+      { key: "include_earnings",   label: "Upcoming Earnings", description: "Earnings reports for your holdings in the next 7 days" },
+      { key: "include_week_ahead", label: "The Week Ahead",    description: "Market outlook: lean, volatility, and key events" },
+      { key: "include_news",       label: "Top Headlines",     description: "Recent news for your largest holding" },
+    ],
+  },
+];
 
 export default function EmailDigestSettings({
   portfolioId,
@@ -38,12 +67,20 @@ export default function EmailDigestSettings({
   const [frequency, setFrequency] = useState<DigestPrefs["frequency"]>(
     initialPrefs?.frequency ?? "weekly_friday"
   );
-  const [content, setContent] = useState({
-    include_performance: initialPrefs?.include_performance ?? true,
-    include_holdings:    initialPrefs?.include_holdings    ?? true,
-    include_earnings:    initialPrefs?.include_earnings    ?? true,
-    include_ai_score:    initialPrefs?.include_ai_score    ?? false,
+  const [content, setContent] = useState<Record<ContentKey, boolean>>({
+    include_performance:  initialPrefs?.include_performance  ?? true,
+    include_holdings:     initialPrefs?.include_holdings     ?? true,
+    include_earnings:     initialPrefs?.include_earnings     ?? true,
+    include_ai_score:     initialPrefs?.include_ai_score     ?? false,
+    include_top_movers:   initialPrefs?.include_top_movers   ?? true,
+    include_benchmark:    initialPrefs?.include_benchmark    ?? false,
+    include_ai_recs:      initialPrefs?.include_ai_recs      ?? false,
+    include_week_ahead:   initialPrefs?.include_week_ahead   ?? false,
+    include_news:         initialPrefs?.include_news         ?? false,
+    include_transactions: initialPrefs?.include_transactions ?? false,
+    include_cash:         initialPrefs?.include_cash         ?? false,
   });
+  const [attachPdf, setAttachPdf] = useState(initialPrefs?.attach_pdf ?? true);
   const [emailOverride, setEmailOverride] = useState(initialPrefs?.email_override ?? "");
   const [sendHour] = useState(initialPrefs?.send_hour ?? 16);
   const [timezone] = useState(initialPrefs?.timezone ?? "America/Chicago");
@@ -70,6 +107,7 @@ export default function EmailDigestSettings({
         enabled,
         frequency,
         ...content,
+        attach_pdf: attachPdf,
         email_override: emailOverride || null,
         send_hour: sendHour,
         timezone,
@@ -247,7 +285,7 @@ export default function EmailDigestSettings({
             )}
           </div>
 
-          {/* Content */}
+          {/* Content — grouped, "design your email" */}
           <div
             style={{
               padding: "20px",
@@ -257,54 +295,94 @@ export default function EmailDigestSettings({
               marginBottom: "16px",
             }}
           >
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "14px" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: "6px" }}>
               Email Content
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {CONTENT_OPTIONS.map((opt) => (
-                <label
-                  key={opt.key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "12px 14px",
-                    borderRadius: "9px",
-                    border: `1px solid ${content[opt.key] ? "rgba(37,99,235,0.3)" : "var(--border-subtle)"}`,
-                    background: content[opt.key] ? "rgba(37,99,235,0.06)" : "var(--bg-base)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    onClick={() => toggleContent(opt.key)}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "4px",
-                      border: `1.5px solid ${content[opt.key] ? "#2563eb" : "var(--border-default)"}`,
-                      background: content[opt.key] ? "#2563eb" : "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                    }}
-                  >
-                    {content[opt.key] && (
-                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                        <path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <div style={{ flex: 1 }} onClick={() => toggleContent(opt.key)}>
-                    <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{opt.label}</div>
-                    <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>{opt.description}</div>
-                  </div>
-                </label>
-              ))}
+            <div style={{ fontSize: "12px", color: "var(--text-tertiary)", marginBottom: "16px" }}>
+              Pick the sections you want. Sections with no data that week are skipped automatically.
             </div>
+
+            {CONTENT_GROUPS.map((grp) => (
+              <div key={grp.group} style={{ marginBottom: "18px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "8px" }}>
+                  {grp.group}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {grp.options.map((opt) => (
+                    <label
+                      key={opt.key}
+                      onClick={() => toggleContent(opt.key)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "11px 14px",
+                        borderRadius: "9px",
+                        border: `1px solid ${content[opt.key] ? "rgba(37,99,235,0.3)" : "var(--border-subtle)"}`,
+                        background: content[opt.key] ? "rgba(37,99,235,0.06)" : "var(--bg-base)",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "16px", height: "16px", borderRadius: "4px",
+                          border: `1.5px solid ${content[opt.key] ? "#2563eb" : "var(--border-default)"}`,
+                          background: content[opt.key] ? "#2563eb" : "transparent",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0, transition: "all 0.15s",
+                        }}
+                      >
+                        {content[opt.key] && (
+                          <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                            <path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{opt.label}</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>{opt.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Delivery: PDF attachment */}
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "8px" }}>
+              Delivery
+            </div>
+            <label
+              onClick={() => setAttachPdf((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px",
+                borderRadius: "9px",
+                border: `1px solid ${attachPdf ? "rgba(37,99,235,0.3)" : "var(--border-subtle)"}`,
+                background: attachPdf ? "rgba(37,99,235,0.06)" : "var(--bg-base)",
+                cursor: "pointer", transition: "all 0.15s",
+              }}
+            >
+              <div
+                style={{
+                  width: "16px", height: "16px", borderRadius: "4px",
+                  border: `1.5px solid ${attachPdf ? "#2563eb" : "var(--border-default)"}`,
+                  background: attachPdf ? "#2563eb" : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, transition: "all 0.15s",
+                }}
+              >
+                {attachPdf && (
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                    <path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Attach PDF report</div>
+                <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>Include a printable investor-update PDF with each email</div>
+              </div>
+            </label>
           </div>
 
           {/* Email address */}

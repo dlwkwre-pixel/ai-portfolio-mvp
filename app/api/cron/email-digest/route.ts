@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/lib/email/digest-template";
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
+import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
 
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
@@ -126,7 +127,7 @@ export async function GET(request: Request) {
   // Load all enabled preferences whose frequency matches today
   const { data: allPrefs, error: prefsError } = await adminSupabase
     .from("portfolio_digest_preferences")
-    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, email_override, send_hour, timezone")
+    .select("id, portfolio_id, user_id, frequency, include_performance, include_holdings, include_earnings, include_ai_score, include_top_movers, include_benchmark, include_ai_recs, include_week_ahead, include_news, include_transactions, include_cash, attach_pdf, email_override, send_hour, timezone")
     .eq("enabled", true);
 
   if (prefsError) {
@@ -154,7 +155,7 @@ export async function GET(request: Request) {
       // Get portfolio name
       const { data: portfolio } = await adminSupabase
         .from("portfolios")
-        .select("id, name, cash_balance")
+        .select("id, name, cash_balance, benchmark_symbol")
         .eq("id", pref.portfolio_id)
         .maybeSingle();
       if (!portfolio) continue;
@@ -295,6 +296,9 @@ export async function GET(request: Request) {
         }
       }
 
+      // ── Optional "design your email" sections (shared with test-digest) ───────
+      const extra = await buildExtraDigestSections(adminSupabase, pref, portfolio, now);
+
 
       // ── Build + send ──────────────────────────────────────────────────────────
       const token = makeUnsubToken(pref.user_id, pref.portfolio_id);
@@ -314,6 +318,7 @@ export async function GET(request: Request) {
         holdings,
         earnings,
         aiScore,
+        ...extra,
         sentAt: now.toISOString(),
       };
 
@@ -324,10 +329,12 @@ export async function GET(request: Request) {
       const dateSlug = now.toISOString().slice(0, 10);
       const safePortfolioName = portfolio.name.replace(/[^a-z0-9]/gi, "-").toLowerCase();
       let pdfBuffer: Buffer | null = null;
-      try {
-        pdfBuffer = await generateDigestPDF(templateData);
-      } catch (pdfErr) {
-        console.error("PDF generation failed (non-fatal):", pdfErr);
+      if (pref.attach_pdf !== false) {
+        try {
+          pdfBuffer = await generateDigestPDF(templateData);
+        } catch (pdfErr) {
+          console.error("PDF generation failed (non-fatal):", pdfErr);
+        }
       }
 
       const { error: sendError } = await resend.emails.send({

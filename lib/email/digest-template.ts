@@ -33,6 +33,46 @@ export type DigestTemplateData = {
     label: string;
   } | null;
 
+  topMovers: {
+    best: { ticker: string; change_pct: number } | null;
+    worst: { ticker: string; change_pct: number } | null;
+  } | null;
+
+  benchmark: {
+    symbol: string;
+    portfolioPct: number;
+    benchmarkPct: number;
+  } | null;
+
+  aiRecs: {
+    count: number;
+    items: { action: string; ticker: string }[];
+  } | null;
+
+  weekAhead: {
+    lean: string;
+    volatility: string;
+    headline: string;
+  } | null;
+
+  news: {
+    headline: string;
+    source: string;
+    url: string;
+  }[] | null;
+
+  transactions: {
+    type: string;
+    ticker: string;
+    quantity: number;
+    price: number;
+  }[] | null;
+
+  cash: {
+    cashPct: number;
+    cashValue: number;
+  } | null;
+
   sentAt: string;
 };
 
@@ -300,6 +340,161 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
+  // ── Section header helper ───────────────────────────────────────────────────
+  function sectionHead(label: string, rightLabel?: string): string {
+    return `
+      <div style="border-bottom:2px solid ${NAV};padding-bottom:8px;margin-bottom:16px;">
+        <span style="font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${NAV};font-family:Helvetica Neue,Arial,sans-serif;">${label}</span>
+        ${rightLabel ? `<span style="float:right;font-size:9px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;letter-spacing:0.04em;text-transform:uppercase;">${rightLabel}</span>` : ""}
+      </div>`;
+  }
+
+  // ── Top Movers ──────────────────────────────────────────────────────────────
+  function topMoversSection(): string {
+    if (!data.topMovers || (!data.topMovers.best && !data.topMovers.worst)) return "";
+    const cell = (label: string, m: { ticker: string; change_pct: number } | null, isGain: boolean) => {
+      if (!m) return `<td width="50%" style="vertical-align:top;padding:0 12px;">&nbsp;</td>`;
+      const c = isGain ? "#15803d" : "#b91c1c";
+      return `
+        <td width="50%" style="vertical-align:top;padding:0 12px;">
+          <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:6px;">${label}</div>
+          <div style="font-size:18px;font-weight:700;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;">${m.ticker}</div>
+          <div style="font-size:13px;font-weight:700;color:${c};font-family:Georgia,'Times New Roman',serif;margin-top:3px;">${m.change_pct >= 0 ? "+" : ""}${m.change_pct.toFixed(1)}%</div>
+        </td>`;
+    };
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("This Week's Movers")}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        ${cell("Top Gainer", data.topMovers.best, true)}
+        ${cell("Biggest Drag", data.topMovers.worst, false)}
+      </tr></table>
+    </td></tr>`;
+  }
+
+  // ── Benchmark ───────────────────────────────────────────────────────────────
+  function benchmarkSection(): string {
+    if (!data.benchmark) return "";
+    const b = data.benchmark;
+    const diff = b.portfolioPct - b.benchmarkPct;
+    const beat = diff >= 0;
+    const verb = beat ? "ahead of" : "behind";
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead(`vs. ${b.symbol}`)}
+      <div style="font-size:13px;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.5;">
+        Your portfolio is <strong style="color:${beat ? "#15803d" : "#b91c1c"};">${Math.abs(diff).toFixed(1)}% ${verb}</strong> the ${b.symbol} this week.
+      </div>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;"><tr>
+        <td width="50%" style="padding-right:12px;border-right:1px solid ${RULE};">
+          <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:6px;">Your Portfolio</div>
+          <div style="font-size:20px;font-weight:700;color:${retColor(b.portfolioPct)};font-family:Georgia,serif;">${fmtPct(b.portfolioPct)}</div>
+        </td>
+        <td width="50%" style="padding-left:24px;">
+          <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:6px;">${b.symbol}</div>
+          <div style="font-size:20px;font-weight:700;color:${retColor(b.benchmarkPct)};font-family:Georgia,serif;">${fmtPct(b.benchmarkPct)}</div>
+        </td>
+      </tr></table>
+    </td></tr>`;
+  }
+
+  // ── Pending AI recommendations ──────────────────────────────────────────────
+  function aiRecsSection(): string {
+    if (!data.aiRecs || data.aiRecs.count === 0) return "";
+    const rows = data.aiRecs.items.slice(0, 5).map((r, i) => {
+      const rowBg = i % 2 === 0 ? WHITE : RULE2;
+      const a = r.action.toUpperCase();
+      const c = a.includes("BUY") || a === "ADD" ? "#15803d" : a === "SELL" || a === "TRIM" ? "#b91c1c" : NAV;
+      return `
+        <tr style="background-color:${rowBg};">
+          <td style="padding:9px 16px 9px 0;width:64px;"><span style="font-size:11px;font-weight:700;color:${c};font-family:Helvetica Neue,Arial,sans-serif;text-transform:uppercase;">${a}</span></td>
+          <td style="padding:9px 0;"><span style="font-size:12px;font-weight:600;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;">${r.ticker}</span></td>
+        </tr>`;
+    }).join("");
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("AI Recommendations", `${data.aiRecs.count} pending`)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+      <a href="${data.portfolioUrl}" style="display:inline-block;margin-top:12px;font-size:11px;font-weight:600;color:${NAV};font-family:Helvetica Neue,Arial,sans-serif;text-decoration:none;">Review in BuyTune →</a>
+    </td></tr>`;
+  }
+
+  // ── Week Ahead ──────────────────────────────────────────────────────────────
+  function weekAheadSection(): string {
+    if (!data.weekAhead) return "";
+    const w = data.weekAhead;
+    const leanColor = w.lean === "Bullish" ? "#15803d" : w.lean === "Bearish" ? "#b91c1c" : "#b45309";
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("The Week Ahead")}
+      <div style="margin-bottom:10px;">
+        <span style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${leanColor};background-color:${RULE2};padding:3px 10px;border-radius:3px;font-family:Helvetica Neue,Arial,sans-serif;">${w.lean}</span>
+        <span style="font-size:11px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-left:8px;">${w.volatility} volatility expected</span>
+      </div>
+      <div style="font-size:13px;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.55;">${w.headline}</div>
+    </td></tr>`;
+  }
+
+  // ── News headlines ──────────────────────────────────────────────────────────
+  function newsSection(): string {
+    if (!data.news || data.news.length === 0) return "";
+    const rows = data.news.slice(0, 4).map((n) => `
+      <tr><td style="padding:8px 0;border-bottom:1px solid ${RULE2};">
+        <a href="${n.url}" style="font-size:12px;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;text-decoration:none;line-height:1.45;font-weight:500;">${n.headline}</a>
+        <div style="font-size:10px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-top:3px;">${n.source}</div>
+      </td></tr>`).join("");
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("Top Headlines")}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+    </td></tr>`;
+  }
+
+  // ── Transactions recap ──────────────────────────────────────────────────────
+  function transactionsSection(): string {
+    if (!data.transactions || data.transactions.length === 0) return "";
+    const rows = data.transactions.slice(0, 8).map((t, i) => {
+      const rowBg = i % 2 === 0 ? WHITE : RULE2;
+      const a = t.type.toUpperCase();
+      const c = a.includes("BUY") ? "#15803d" : a.includes("SELL") ? "#b91c1c" : NAV;
+      return `
+        <tr style="background-color:${rowBg};">
+          <td style="padding:9px 16px 9px 0;width:54px;"><span style="font-size:11px;font-weight:700;color:${c};font-family:Helvetica Neue,Arial,sans-serif;text-transform:uppercase;">${a.replace("_", " ")}</span></td>
+          <td style="padding:9px 0;"><span style="font-size:12px;font-weight:600;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;">${t.ticker}</span></td>
+          <td align="right" style="padding:9px 0 9px 16px;"><span style="font-size:11px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;">${t.quantity} @ $${t.price.toFixed(2)}</span></td>
+        </tr>`;
+    }).join("");
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("This Week's Activity")}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+    </td></tr>`;
+  }
+
+  // ── Cash position ───────────────────────────────────────────────────────────
+  function cashSection(): string {
+    if (!data.cash) return "";
+    const { cashPct, cashValue } = data.cash;
+    const note = cashPct >= 25
+      ? "A sizable cash position is dry powder for opportunities, but uninvested cash can be a drag in a rising market."
+      : cashPct < 3
+      ? "You are nearly fully invested, leaving little buffer to act on a dip without selling first."
+      : "A balanced cash buffer for flexibility.";
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("Cash Position")}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td width="40%" style="vertical-align:top;">
+          <div style="font-size:28px;font-weight:700;color:${TEXT};font-family:Georgia,serif;line-height:1;">${cashPct.toFixed(1)}%</div>
+          <div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">${fmt$(cashValue)} in cash</div>
+        </td>
+        <td width="60%" style="vertical-align:top;padding-left:20px;">
+          <div style="font-size:12px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.5;">${note}</div>
+        </td>
+      </tr></table>
+    </td></tr>`;
+  }
+
   // ── No-data placeholder ─────────────────────────────────────────────────────
   function noDataSection(): string {
     return `
@@ -310,7 +505,9 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
-  const hasContent = data.performance || data.holdings || data.earnings || data.aiScore;
+  const hasContent = data.performance || data.holdings || data.earnings || data.aiScore
+    || data.topMovers || data.benchmark || data.aiRecs || data.weekAhead || data.news
+    || data.transactions || data.cash;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
@@ -388,7 +585,19 @@ export function buildDigestHtml(data: DigestTemplateData): string {
             <table width="100%" cellpadding="0" cellspacing="0" border="0">
 
               ${hasContent
-                ? [perfSection(), holdingsSection(), earningsSection(), aiScoreSection()].join("")
+                ? [
+                    perfSection(),
+                    topMoversSection(),
+                    benchmarkSection(),
+                    holdingsSection(),
+                    cashSection(),
+                    transactionsSection(),
+                    aiRecsSection(),
+                    aiScoreSection(),
+                    earningsSection(),
+                    weekAheadSection(),
+                    newsSection(),
+                  ].join("")
                 : noDataSection()
               }
 
