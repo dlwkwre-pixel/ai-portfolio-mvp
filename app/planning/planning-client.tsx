@@ -23,7 +23,7 @@ import {
   deleteFutureEvent,
 } from "./planning-actions";
 import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
-import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions } from "./planning-actions";
+import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions, setCashFlowItemCategory } from "./planning-actions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -802,12 +802,12 @@ function computeCashFlowHealth(p: {
   const dir = (s: number, hi: number): "strength" | "neutral" | "weakness" =>
     s >= hi * 0.75 ? "strength" : s >= hi * 0.4 ? "neutral" : "weakness";
   const srScore = Math.min(30, (Math.max(0, p.savingsRate) / 20) * 30);
-  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && categoryOf(i) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
   const hPct = p.monthlyExpenses > 0 ? housing / p.monthlyExpenses : 0;
   const housingScore = hPct <= 0 ? 12 : Math.min(25, Math.max(0, (0.5 - hPct) / 0.5 * 25 + 12));
   const catMax = p.monthlyExpenses > 0
     ? Math.max(0, ...EXPENSE_CATEGORIES.map((c) =>
-        p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === c.label)
+        p.cashFlowItems.filter((i) => i.type === "expense" && categoryOf(i) === c.label)
           .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0) / p.monthlyExpenses))
     : 0;
   const concScore = Math.min(25, Math.max(0, (1 - catMax) * 25));
@@ -829,7 +829,7 @@ function computeCashFlowFinnInsight(p: {
   effectiveIncome: number; cashFlowItems: CashFlowItem[]; localReturn: number;
 }): string {
   if (p.effectiveIncome === 0) return "Add income and expense items to unlock cash flow analysis and personalized insights.";
-  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && getCategoryForExpense(i.label) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
+  const housing = p.cashFlowItems.filter((i) => i.type === "expense" && categoryOf(i) === "Housing").reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
   const hPct = p.monthlyExpenses > 0 ? (housing / p.monthlyExpenses) * 100 : 0;
   if (p.savingsRate < 0) return `Expenses exceed income by ${fmt(Math.abs(p.monthlySavings))}/month. This deficit is compounding in reverse — closing it is the most urgent financial action.`;
   if (hPct > 40) return `Housing consumes ${hPct.toFixed(0)}% of monthly expenses — above the 30% guideline. This single category is likely the primary constraint on your savings rate.`;
@@ -1406,6 +1406,11 @@ function getCategoryForExpense(label: string): string {
   return "Other";
 }
 
+// Resolve an item's category: user-assigned wins, else infer from the label.
+function categoryOf(item: { label: string; category?: string | null }): string {
+  return item.category ?? getCategoryForExpense(item.label);
+}
+
 // ── 50/30/20 framework ──────────────────────────────────────────────────────
 // Maps each expense category into Needs vs Wants. Savings is the residual
 // (income − needs − wants). Heuristic by design — Food & Dining leans grocery
@@ -1794,7 +1799,7 @@ function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): B
   for (const item of items) {
     if (item.type === "income") continue;
     const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
-    const cat = item.category ?? getCategoryForExpense(item.label);
+    const cat = categoryOf(item);
     if (cat === "Subscriptions") {
       const norm = normLabel(item.label);
       const prev = subMap.get(norm);
@@ -1813,7 +1818,7 @@ function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): B
       const byLabel = existingItems.find((i) => normLabel(i.label) === n);
       if (byLabel) return byLabel;
     }
-    return existingItems.find((i) => getCategoryForExpense(i.label) === cat);
+    return existingItems.find((i) => categoryOf(i) === cat);
   }
 
   const catRows: BudgetGroupRow[] = Array.from(catMap.entries()).map(([cat, { amount, merchants }]) => {
@@ -1861,7 +1866,7 @@ function groupForActuals(items: ImportedItem[], expenseItems: CashFlowItem[]): A
   for (const item of items) {
     if (item.type === "income") continue;
     const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
-    const cat = item.category ?? getCategoryForExpense(item.label);
+    const cat = categoryOf(item);
     if (cat === "Subscriptions") {
       const norm = normLabel(item.label);
       const prev = subMap.get(norm);
@@ -1882,7 +1887,7 @@ function groupForActuals(items: ImportedItem[], expenseItems: CashFlowItem[]): A
     }
     const exact = expenseItems.find((i) => i.label === cat);
     if (exact) return exact.id;
-    const catMatch = expenseItems.find((i) => getCategoryForExpense(i.label) === cat);
+    const catMatch = expenseItems.find((i) => categoryOf(i) === cat);
     return catMatch?.id ?? null;
   }
 
@@ -3175,14 +3180,14 @@ function CashFlowHealthCard({
   const pHide = (v: string) => isPrivate ? "••••" : v;
 
   const housing = cashFlowItems
-    .filter(i => i.type === "expense" && getCategoryForExpense(i.label) === "Housing")
+    .filter(i => i.type === "expense" && categoryOf(i) === "Housing")
     .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
   const housingPct = monthlyExpenses > 0 ? (housing / monthlyExpenses) * 100 : 0;
   const incomeCount = cashFlowItems.filter(i => i.type === "income").length;
   const catBreakdown = EXPENSE_CATEGORIES
     .map(c => ({
       name: c.label,
-      amount: cashFlowItems.filter(i => i.type === "expense" && getCategoryForExpense(i.label) === c.label)
+      amount: cashFlowItems.filter(i => i.type === "expense" && categoryOf(i) === c.label)
         .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0),
     }))
     .filter(c => c.amount > 0)
@@ -4090,7 +4095,7 @@ function ForecastVarianceTrendCard({
   const categoryDelta = new Map<string, number>();
   for (const item of expenseItems) {
     const budget = toMonthly(item.amount, item.frequency);
-    const cat = getCategoryForExpense(item.label);
+    const cat = categoryOf(item);
     for (const { year, month } of months) {
       const act = expenseActuals.find(
         (a) => a.cash_flow_item_id === item.id && a.period_year === year && a.period_month === month
@@ -4617,7 +4622,7 @@ function CashFlowOS({
 
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
-      const items = expenseItems.filter(i => getCategoryForExpense(i.label) === cat.label);
+      const items = expenseItems.filter(i => categoryOf(i) === cat.label);
       const budgeted = items.reduce((s, i) => {
         const hist = getEffectiveBudget(budgetHistory, i.id, selYear, selMonth);
         return s + toMonthly(hist ?? i.amount, i.frequency);
@@ -4956,6 +4961,7 @@ function CashFlowOS({
               fd.set("amount", String(row.amount));
               fd.set("frequency", "monthly");
               fd.set("type", "expense");
+              if (row.category) fd.set("category", row.category);
               await addCashFlowItem(fd);
             }
           }}
@@ -5058,7 +5064,7 @@ function CashFlowOS({
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "10px" }}>
               {EXPENSE_CATEGORIES.map(cat => {
-                const items = expenseItems.filter(i => getCategoryForExpense(i.label) === cat.label);
+                const items = expenseItems.filter(i => categoryOf(i) === cat.label);
                 if (items.length === 0) return null;
                 const catTotal = items.reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
                 const isExpanded = expandedCats.has(cat.label);
@@ -5124,6 +5130,30 @@ function CashFlowOS({
                                 <span style={{ ...rowLabel, color: "oklch(0.60 0.22 258)" }}>Budget</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} editTitle="Edit budget amount" />
+                                  {/* Category override — corrects the auto-classification */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "4px" }}>
+                                    <select
+                                      value={item.category ?? "__auto__"}
+                                      onChange={(e) => {
+                                        const v = e.target.value;
+                                        startTransition(async () => { await setCashFlowItemCategory(item.id, v); router.refresh(); });
+                                      }}
+                                      title={item.category ? "Category set manually" : `Auto-detected: ${categoryOf(item)}`}
+                                      style={{
+                                        fontSize: "10px", padding: "2px 6px", borderRadius: "5px",
+                                        background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
+                                        color: "var(--text-tertiary)", fontFamily: "var(--font-body)", cursor: "pointer", maxWidth: "160px",
+                                      }}
+                                    >
+                                      <option value="__auto__">Auto: {getCategoryForExpense(item.label)}</option>
+                                      {EXPENSE_CATEGORIES.map((c) => (
+                                        <option key={c.label} value={c.label}>{c.emoji} {c.label}</option>
+                                      ))}
+                                    </select>
+                                    {item.category && (
+                                      <span style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>manual</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               {/* Actual row */}
@@ -5266,7 +5296,7 @@ function CashFlowOS({
                           );
                         })}
                         <div style={{ marginTop: "6px" }}>
-                          <AddItemRow type="cashflow" placeholder={`Add ${cat.label.toLowerCase()} expense`} onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
+                          <AddItemRow type="cashflow" placeholder={`Add ${cat.label.toLowerCase()} expense`} onAdd={fd => { fd.set("type", "expense"); fd.set("category", cat.label); return addCashFlowItem(fd); }} />
                         </div>
                       </div>
                     )}

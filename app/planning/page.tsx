@@ -145,6 +145,7 @@ export default async function PlanningPage({
     amount: Number(item.amount),
     due_day: item.due_day ?? null,
     sort_order: item.sort_order,
+    category: item.category ?? null,
   }));
 
   const typedNetWorthHistory: NetWorthSnapshot[] = (netWorthHistory ?? []).map((s) => ({

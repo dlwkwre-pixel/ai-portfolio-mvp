@@ -58,6 +58,7 @@ export type CashFlowItem = {
   amount: number;
   due_day: number | null;
   sort_order: number;
+  category: string | null; // user-assigned; null = infer from label
 };
 
 export type NetWorthSnapshot = {
@@ -227,6 +228,8 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
   const amount = Number(formData.get("amount") || 0);
   const dueDayRaw = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRaw !== "" ? Math.min(31, Math.max(1, Number(dueDayRaw))) : null;
+  const categoryRaw = String(formData.get("category") ?? "").trim();
+  const category = categoryRaw !== "" ? categoryRaw : null;
 
   const { data: existing } = await supabase
     .from("cash_flow_items")
@@ -246,6 +249,7 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
     amount,
     due_day,
     sort_order,
+    category,
   }).select("id").single();
 
   if (error) return { error: error.message };
@@ -279,6 +283,12 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   const amount = Number(formData.get("amount") || 0);
   const dueDayRawU = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRawU !== "" ? Math.min(31, Math.max(1, Number(dueDayRawU))) : null;
+  // category: present + non-empty sets it; the literal "__auto__" clears it back to inference
+  const hasCategory = formData.has("category");
+  const categoryRawU = String(formData.get("category") ?? "").trim();
+  const categoryUpdate: { category?: string | null } = hasCategory
+    ? { category: categoryRawU === "" || categoryRawU === "__auto__" ? null : categoryRawU }
+    : {};
 
   const { data: currentItem } = await supabase
     .from("cash_flow_items")
@@ -289,7 +299,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
 
   const { error } = await supabase
     .from("cash_flow_items")
-    .update({ label, type, frequency, amount, due_day, updated_at: new Date().toISOString() })
+    .update({ label, type, frequency, amount, due_day, ...categoryUpdate, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
@@ -338,6 +348,24 @@ export async function deleteCashFlowItem(id: string): Promise<{ error?: string }
   const { error } = await supabase
     .from("cash_flow_items")
     .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// One-click re-categorize. Pass null/"__auto__" to clear back to label inference.
+export async function setCashFlowItemCategory(id: string, category: string | null): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const value = !category || category === "__auto__" ? null : category;
+  const { error } = await supabase
+    .from("cash_flow_items")
+    .update({ category: value, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
