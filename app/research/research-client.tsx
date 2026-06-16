@@ -1182,10 +1182,10 @@ function DetailView({
               return (
                 <div>
                   <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
-                  <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
-                    <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
-                    <div style={{ width: `${holdPct}%`, background: "var(--violet)", flexShrink: 0 }} />
-                    <div style={{ width: `${bearPct}%`, background: "var(--red)",   flexShrink: 0 }} />
+                  <div style={{ display: "flex", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px", background: "var(--bg-elevated, rgba(255,255,255,0.06))" }}>
+                    <div style={{ width: `${bullPct}%`, background: "var(--green)" }} />
+                    <div style={{ width: `${holdPct}%`, background: "var(--violet)" }} />
+                    <div style={{ width: `${bearPct}%`, background: "var(--red)" }} />
                   </div>
                   <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
                     <span style={{ color: "var(--green)" }}>Buy {rec.strongBuy + rec.buy}</span>
