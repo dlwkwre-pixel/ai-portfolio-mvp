@@ -49,16 +49,30 @@ export type BalanceSheetItem = {
   sort_order: number;
 };
 
+// Recurring cadences. weekly/biweekly/semimonthly support real pay cycles;
+// quarterly rounds out the set. Stored as text; normalized via toMonthly().
+export type CashFlowFrequency =
+  | "weekly" | "biweekly" | "semimonthly" | "monthly" | "quarterly" | "annual";
+
+const CASH_FLOW_FREQUENCIES: CashFlowFrequency[] = [
+  "weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual",
+];
+
+function normalizeFrequency(v: unknown): CashFlowFrequency {
+  return (CASH_FLOW_FREQUENCIES as string[]).includes(String(v)) ? (v as CashFlowFrequency) : "monthly";
+}
+
 export type CashFlowItem = {
   id: string;
   user_id: string;
   label: string;
   type: "income" | "expense";
-  frequency: "monthly" | "annual";
+  frequency: CashFlowFrequency;
   amount: number;
   due_day: number | null;
   sort_order: number;
   category: string | null; // user-assigned; null = infer from label
+  is_variable?: boolean;    // income that fluctuates (freelance/commission)
 };
 
 export type NetWorthSnapshot = {
@@ -75,7 +89,7 @@ export type BudgetHistoryEntry = {
   user_id: string;
   item_id: string;
   amount: number;
-  frequency: "monthly" | "annual";
+  frequency: CashFlowFrequency;
   effective_year: number;
   effective_month: number;
   created_at: string;
@@ -224,12 +238,13 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
   if (!label) return { error: "Label is required." };
 
   const type = String(formData.get("type") || "expense") as "income" | "expense";
-  const frequency = String(formData.get("frequency") || "monthly") as "monthly" | "annual";
+  const frequency = normalizeFrequency(formData.get("frequency"));
   const amount = Number(formData.get("amount") || 0);
   const dueDayRaw = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRaw !== "" ? Math.min(31, Math.max(1, Number(dueDayRaw))) : null;
   const categoryRaw = String(formData.get("category") ?? "").trim();
   const category = categoryRaw !== "" ? categoryRaw : null;
+  const is_variable = formData.get("is_variable") === "1" || formData.get("is_variable") === "true";
 
   const { data: existing } = await supabase
     .from("cash_flow_items")
@@ -250,6 +265,7 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
     due_day,
     sort_order,
     category,
+    is_variable,
   }).select("id").single();
 
   if (error) return { error: error.message };
@@ -279,7 +295,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   if (!id || !label) return { error: "ID and label are required." };
 
   const type = String(formData.get("type") || "expense") as "income" | "expense";
-  const frequency = String(formData.get("frequency") || "monthly") as "monthly" | "annual";
+  const frequency = normalizeFrequency(formData.get("frequency"));
   const amount = Number(formData.get("amount") || 0);
   const dueDayRawU = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRawU !== "" ? Math.min(31, Math.max(1, Number(dueDayRawU))) : null;
@@ -288,6 +304,9 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   const categoryRawU = String(formData.get("category") ?? "").trim();
   const categoryUpdate: { category?: string | null } = hasCategory
     ? { category: categoryRawU === "" || categoryRawU === "__auto__" ? null : categoryRawU }
+    : {};
+  const variableUpdate: { is_variable?: boolean } = formData.has("is_variable")
+    ? { is_variable: formData.get("is_variable") === "1" || formData.get("is_variable") === "true" }
     : {};
 
   const { data: currentItem } = await supabase
@@ -299,7 +318,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
 
   const { error } = await supabase
     .from("cash_flow_items")
-    .update({ label, type, frequency, amount, due_day, ...categoryUpdate, updated_at: new Date().toISOString() })
+    .update({ label, type, frequency, amount, due_day, ...categoryUpdate, ...variableUpdate, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
@@ -317,7 +336,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
       user_id: user.id,
       item_id: id,
       amount: Number(currentItem.amount),
-      frequency: (currentItem.frequency ?? "monthly") as "monthly" | "annual",
+      frequency: normalizeFrequency(currentItem.frequency),
       effective_year: 2000,
       effective_month: 1,
     });

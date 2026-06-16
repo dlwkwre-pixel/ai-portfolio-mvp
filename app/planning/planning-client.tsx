@@ -49,8 +49,28 @@ function fmtFull(n: number) {
 function fmtPct(n: number) {
   return n.toFixed(1) + "%";
 }
-function toMonthly(amount: number, frequency: "monthly" | "annual") {
-  return frequency === "annual" ? amount / 12 : amount;
+const FREQ_TO_MONTHLY: Record<string, number> = {
+  weekly: 52 / 12,
+  biweekly: 26 / 12,
+  semimonthly: 2,
+  monthly: 1,
+  quarterly: 1 / 3,
+  annual: 1 / 12,
+};
+const FREQ_SUFFIX: Record<string, string> = {
+  weekly: "wk", biweekly: "2wk", semimonthly: "½mo", monthly: "mo", quarterly: "qtr", annual: "yr",
+};
+const FREQ_LABEL: Record<string, string> = {
+  weekly: "Weekly", biweekly: "Every 2 weeks", semimonthly: "Twice a month",
+  monthly: "Monthly", quarterly: "Quarterly", annual: "Annual",
+};
+const FREQ_OPTIONS = ["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "annual"] as const;
+
+function toMonthly(amount: number, frequency: string) {
+  return amount * (FREQ_TO_MONTHLY[frequency] ?? 1);
+}
+function freqSuffix(frequency: string): string {
+  return FREQ_SUFFIX[frequency] ?? "mo";
 }
 function getEffectiveBudget(
   budgetHistory: BudgetHistoryEntry[],
@@ -1234,8 +1254,7 @@ function AddItemRow({
             <option value="expense">Expense</option>
           </select>
           <select name="frequency" style={selectStyle} defaultValue="monthly">
-            <option value="monthly">Monthly</option>
-            <option value="annual">Annual</option>
+            {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
           </select>
           <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" required style={{ ...inputStyle, width: "120px" }} />
         </>
@@ -1263,12 +1282,13 @@ function LineItemRow({
   const isBalance = type === "balance";
   const bal = item as BalanceSheetItem;
   const cf = item as CashFlowItem;
+  const [isVar, setIsVar] = useState(!!(cf as CashFlowItem).is_variable);
 
   const displayValue = isPrivate
     ? "••••••"
     : isBalance
       ? fmtFull(bal.value)
-      : fmtFull(cf.amount) + " / " + (cf.frequency === "annual" ? "yr" : "mo");
+      : fmtFull(cf.amount) + " / " + (freqSuffix(cf.frequency));
 
   const accentColor = isBalance
     ? (bal.is_liability ? "var(--red)" : "var(--green)")
@@ -1310,11 +1330,22 @@ function LineItemRow({
               <option value="expense">Expense</option>
             </select>
             <select name="frequency" defaultValue={cf.frequency} style={selectStyle}>
-              <option value="monthly">Monthly</option>
-              <option value="annual">Annual</option>
+              {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
             </select>
             <input name="amount" type="number" min="0" step="0.01" defaultValue={cf.amount} style={{ ...inputStyle, width: "120px" }} />
             <input name="due_day" type="number" min="1" max="31" defaultValue={cf.due_day ?? ""} placeholder="Due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
+            {cf.type === "income" && (
+              <>
+                <input type="hidden" name="is_variable" value={isVar ? "1" : "0"} />
+                <button type="button" onClick={() => setIsVar((v) => !v)} title="Income that fluctuates month to month"
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 10px", height: "34px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isVar ? "var(--brand-blue)" : "var(--border-subtle)"}`, background: isVar ? "rgba(37,99,235,0.1)" : "var(--bg-base)", color: isVar ? "var(--brand-blue)" : "var(--text-secondary)" }}>
+                  <span style={{ width: "14px", height: "14px", borderRadius: "4px", border: `1.5px solid ${isVar ? "var(--brand-blue)" : "var(--border-default)"}`, background: isVar ? "var(--brand-blue)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {isVar && <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  </span>
+                  Variable
+                </button>
+              </>
+            )}
           </>
         )}
         <button type="submit" disabled={pending} style={btnPrimaryStyle}>{pending ? "Saving…" : "Save"}</button>
@@ -1329,7 +1360,12 @@ function LineItemRow({
       padding: "10px 0", borderBottom: "1px solid var(--border-subtle)",
     }}>
       <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
-      <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
+      <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+        {!isBalance && (cf as CashFlowItem).is_variable && (
+          <span style={{ fontSize: "9px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
+        )}
+      </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: accentColor, fontWeight: 500 }}>{displayValue}</span>
       <button type="button" onClick={() => setEditing(true)} style={iconBtnStyle} title={editTitle ?? "Edit"}>
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
@@ -1625,7 +1661,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
                 {wizardIncome.map((item, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                     <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)" }}>+{fmt(item.amount)} / {item.frequency === "annual" ? "yr" : "mo"}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--green)" }}>+{fmt(item.amount)} / {freqSuffix(item.frequency)}</span>
                   </div>
                 ))}
               </div>
@@ -1636,8 +1672,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <div style={{ display: "flex", gap: "8px" }}>
                 <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
                 <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="annual">Annual</option>
+                  {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
                 </select>
                 <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, whiteSpace: "nowrap" }}>Add</button>
               </div>
@@ -1661,7 +1696,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
                 {wizardExpenses.map((item, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                     <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{item.label}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{fmt(item.amount)} / {item.frequency === "annual" ? "yr" : "mo"}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--red)" }}>{fmt(item.amount)} / {freqSuffix(item.frequency)}</span>
                   </div>
                 ))}
               </div>
@@ -1672,8 +1707,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <div style={{ display: "flex", gap: "8px" }}>
                 <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
                 <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
-                  <option value="monthly">Monthly</option>
-                  <option value="annual">Annual</option>
+                  {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
                 </select>
                 <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, whiteSpace: "nowrap" }}>Add</button>
               </div>
@@ -1798,7 +1832,7 @@ function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): B
 
   for (const item of items) {
     if (item.type === "income") continue;
-    const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
+    const monthly = toMonthly(item.amount, item.frequency);
     const cat = categoryOf(item);
     if (cat === "Subscriptions") {
       const norm = normLabel(item.label);
@@ -1865,7 +1899,7 @@ function groupForActuals(items: ImportedItem[], expenseItems: CashFlowItem[]): A
 
   for (const item of items) {
     if (item.type === "income") continue;
-    const monthly = item.frequency === "annual" ? item.amount / 12 : item.amount;
+    const monthly = toMonthly(item.amount, item.frequency);
     const cat = categoryOf(item);
     if (cat === "Subscriptions") {
       const norm = normLabel(item.label);
@@ -3670,7 +3704,7 @@ function BudgetTrackerTab({
   }
 
   function forecastedMonthly(item: CashFlowItem): number {
-    return item.frequency === "annual" ? item.amount / 12 : item.amount;
+    return toMonthly(item.amount, item.frequency);
   }
 
   const totalForecasted = expenseItems.reduce((s, i) => s + forecastedMonthly(i), 0);
@@ -3823,7 +3857,7 @@ function BudgetTrackerTab({
                   <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", marginBottom: "2px" }}>{item.label}</div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                     {fmt(fcast)}/mo forecasted
-                    {item.frequency === "annual" && <span style={{ marginLeft: "4px", color: "var(--text-tertiary)" }}>(÷12)</span>}
+                    {item.frequency !== "monthly" && <span style={{ marginLeft: "4px", color: "var(--text-tertiary)" }}>(/{freqSuffix(item.frequency)})</span>}
                   </div>
                 </div>
 
@@ -4613,7 +4647,7 @@ function CashFlowOS({
       .slice(0, 6);
   }
   function forecastedMonthly(item: CashFlowItem) {
-    return item.frequency === "annual" ? item.amount / 12 : item.amount;
+    return toMonthly(item.amount, item.frequency);
   }
 
   const isCurrentMonth = selYear === now.getFullYear() && selMonth === (now.getMonth() + 1);
