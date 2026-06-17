@@ -1814,13 +1814,25 @@ export async function updateRecommendationStatus(formData: FormData) {
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
 
-    // Capture execution price for outcome tracking: target_price_1 first, then live Finnhub quote
-    let executedPrice: number | null = item.target_price_1 ? Number(item.target_price_1) : null;
+    // User-confirmed values from the accept dialog (optional overrides)
+    const overridePrice = formData.get("executed_price") ? Number(formData.get("executed_price")) : null;
+    const overrideQty = formData.get("executed_quantity") ? Number(formData.get("executed_quantity")) : null;
+
+    // Execution price = what the user actually pays NOW, which becomes cost basis.
+    // Priority: user-confirmed price → live current quote → rec's implied current
+    // price (sizing_dollars / share_quantity). NEVER target_price_1: that's a
+    // forward analyst target (deliberately above current price for buys), so using
+    // it as cost basis booked an instant ~20% paper loss on day one.
+    let executedPrice: number | null = overridePrice && overridePrice > 0 ? overridePrice : null;
     if (!executedPrice) {
       try {
         const liveQuote = await getFinnhubQuote(item.ticker);
         if (liveQuote && liveQuote.c > 0) executedPrice = liveQuote.c;
       } catch { /* non-fatal */ }
+    }
+    if (!executedPrice && item.sizing_dollars && item.share_quantity) {
+      const implied = Number(item.sizing_dollars) / Number(item.share_quantity);
+      if (Number.isFinite(implied) && implied > 0) executedPrice = implied;
     }
     if (executedPrice) {
       // Fire-and-forget — column may not exist yet until migration is applied
@@ -1834,7 +1846,9 @@ export async function updateRecommendationStatus(formData: FormData) {
 
     if (isBuy || isSell) {
       const transactionType = isBuy ? "buy" : "sell";
-      const quantity = item.share_quantity ? Number(item.share_quantity) : null;
+      const quantity = overrideQty && overrideQty > 0
+        ? overrideQty
+        : item.share_quantity ? Number(item.share_quantity) : null;
 
       const pricePerShare = executedPrice;
 

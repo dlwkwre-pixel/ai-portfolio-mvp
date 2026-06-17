@@ -593,6 +593,10 @@ export default function AIRecommendationsList({
                   portfolioId={portfolioId}
                   recommendationItemId={item.id}
                   currentStatus={item.recommendation_status}
+                  actionType={item.action_type}
+                  ticker={item.ticker}
+                  shareQuantity={item.share_quantity}
+                  sizingDollars={item.sizing_dollars}
                 />
 
                 <div className="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
