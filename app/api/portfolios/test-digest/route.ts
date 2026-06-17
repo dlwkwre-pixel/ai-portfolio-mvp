@@ -7,6 +7,7 @@ import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
+import { calculateTwr } from "@/lib/portfolio/twr";
 
 export const maxDuration = 60;
 
@@ -86,37 +87,61 @@ export async function POST(request: Request) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  // Performance
+  // Period framing follows the saved frequency (default weekly)
+  const period: "day" | "week" | "month" =
+    prefs?.frequency === "daily_close" ? "day" : prefs?.frequency === "monthly_first" ? "month" : "week";
+  const periodDays = period === "day" ? 1 : period === "month" ? 30 : 7;
+  const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+  const dayLabel = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const periodLabel = period === "day" ? "Today" : period === "month" ? "This Month" : "This Week";
+  const periodWord = period === "day" ? "today" : period === "month" ? "this month" : "this week";
+  const periodHeading = period === "day"
+    ? dayLabel
+    : period === "month"
+    ? now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : `Week ending ${dayLabel}`;
+
+  // Performance — net (TWR) return, deposit-neutral like the charts
   let performance: DigestTemplateData["performance"] = null;
   if (include_performance) {
-    const [{ data: recentSnaps }, { data: oldestSnap }] = await Promise.all([
-      adminSupabase
-        .from("portfolio_snapshots")
-        .select("total_value, snapshot_date")
-        .eq("portfolio_id", portfolioId)
-        .order("snapshot_date", { ascending: false })
-        .limit(30),
+    const [{ data: snapsRaw }, { data: flowsRaw }] = await Promise.all([
       adminSupabase
         .from("portfolio_snapshots")
         .select("total_value, snapshot_date")
         .eq("portfolio_id", portfolioId)
         .order("snapshot_date", { ascending: true })
-        .limit(1)
-        .maybeSingle(),
+        .limit(1000),
+      adminSupabase
+        .from("cash_ledger")
+        .select("amount, direction, effective_at")
+        .eq("portfolio_id", portfolioId),
     ]);
-    if (recentSnaps && recentSnaps.length >= 1) {
-      const latest = recentSnaps[0];
-      const weekOld = recentSnaps.find((s) => s.snapshot_date.slice(0, 10) <= sevenDaysAgo);
-      const latestVal = Number(latest.total_value);
-      const weekOldVal = weekOld ? Number(weekOld.total_value) : null;
-      const inceptionVal = oldestSnap ? Number(oldestSnap.total_value) : null;
-      const isFirstSnap = oldestSnap?.snapshot_date === latest.snapshot_date;
+    const snaps = (snapsRaw ?? [])
+      .map((s) => ({ snapshot_date: s.snapshot_date as string, total_value: Number(s.total_value) }))
+      .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0);
+    const cashFlows = (flowsRaw ?? []).map((f) => ({
+      effective_at: f.effective_at as string,
+      direction: (f.direction as string | null) ?? "IN",
+      amount: Number(f.amount ?? 0),
+    }));
+    if (snaps.length > 0) {
+      const latestVal = snaps[snaps.length - 1].total_value;
+      const allTimeReturnPct = calculateTwr(snaps, cashFlows);
+      let baselineIdx = -1;
+      for (let i = 0; i < snaps.length; i++) {
+        if (new Date(snaps[i].snapshot_date) <= periodStart) baselineIdx = i; else break;
+      }
+      if (baselineIdx < 0) baselineIdx = 0;
+      const periodSnaps = snaps.slice(baselineIdx);
+      const baselineVal = periodSnaps[0]?.total_value ?? null;
+      const periodTwr = calculateTwr(periodSnaps, cashFlows);
+      const periodReturnAbs = baselineVal != null && periodTwr != null ? baselineVal * (periodTwr / 100) : null;
       performance = {
         totalValue: latestVal,
-        weekReturnPct: weekOldVal && weekOldVal > 0 ? Math.round(((latestVal - weekOldVal) / weekOldVal) * 1000) / 10 : null,
-        weekReturnAbs: weekOldVal != null ? Math.round(latestVal - weekOldVal) : null,
-        allTimeReturnPct: inceptionVal && inceptionVal > 0 && !isFirstSnap ? Math.round(((latestVal - inceptionVal) / inceptionVal) * 1000) / 10 : null,
-        inceptionDate: oldestSnap?.snapshot_date ?? null,
+        weekReturnPct: periodTwr != null ? Math.round(periodTwr * 10) / 10 : null,
+        weekReturnAbs: periodReturnAbs != null ? Math.round(periodReturnAbs) : null,
+        allTimeReturnPct: allTimeReturnPct != null ? Math.round(allTimeReturnPct * 10) / 10 : null,
+        inceptionDate: snaps[0].snapshot_date,
       };
     }
   }
@@ -221,6 +246,9 @@ export async function POST(request: Request) {
     reportUrl: `${SITE_URL}/portfolios/${portfolioId}/report`,
     manageUrl: `${SITE_URL}/portfolios/${portfolioId}?tab=emails`,
     unsubscribeUrl,
+    periodLabel,
+    periodWord,
+    periodHeading,
     performance,
     holdings,
     earnings,
@@ -230,7 +258,7 @@ export async function POST(request: Request) {
   };
 
   const html = buildDigestHtml(templateData);
-  const subject = `[TEST] ${buildDigestSubject(portfolio.name, performance)}`;
+  const subject = `[TEST] ${buildDigestSubject(portfolio.name, performance, periodWord)}`;
   const resend = new Resend(resendKey);
   const fromAddress = process.env.RESEND_FROM_EMAIL ?? "digest@buytune.io";
 

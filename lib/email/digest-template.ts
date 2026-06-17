@@ -7,6 +7,13 @@ export type DigestTemplateData = {
   manageUrl: string;
   unsubscribeUrl: string;
 
+  // Frequency-aware framing. periodLabel = "Today" | "This Week" | "This Month",
+  // periodWord = "today" | "this week" | "this month", periodHeading = the dated
+  // header line. Optional so older callers still type-check (default to weekly).
+  periodLabel?: string;
+  periodWord?: string;
+  periodHeading?: string;
+
   performance: {
     allTimeReturnPct: number | null;
     weekReturnPct: number | null;
@@ -122,11 +129,11 @@ export function buildDigestHtml(data: DigestTemplateData): string {
   const dateStr = new Date(data.sentAt).toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
-  const reportingPeriod = (() => {
-    const d = new Date(data.sentAt);
-    const weekAgo = new Date(d.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return `Week ending ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-  })();
+  // Header line follows the digest frequency (set by the cron); fall back to weekly.
+  const reportingPeriod = data.periodHeading
+    ?? `Week ending ${new Date(data.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const periodLabel = data.periodLabel ?? "This Week";
+  const periodWord = data.periodWord ?? "this week";
 
   // Design tokens — light mode hardcoded, dark mode overrides via <style>
   const NAV    = "#0d1f3c";
@@ -169,17 +176,17 @@ export function buildDigestHtml(data: DigestTemplateData): string {
             <div style="font-size:28px;font-weight:700;color:${TEXT};font-family:Georgia,'Times New Roman',serif;letter-spacing:-0.5px;line-height:1;">${totalFmt}</div>
             <div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">Current NAV</div>
           </td>
-          <!-- This Week -->
+          <!-- Period net return -->
           <td width="34%" style="vertical-align:top;border-right:1px solid ${RULE};padding:0 24px;">
-            <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:8px;">This Week</div>
+            <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:8px;">${periodLabel}</div>
             <div style="font-size:28px;font-weight:700;color:${wkColor};font-family:Georgia,'Times New Roman',serif;letter-spacing:-0.5px;line-height:1;">${wkFmt}</div>
-            ${wkAbsFmt ? `<div style="font-size:11px;color:${wkColor};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">${wkAbsFmt} absolute</div>` : `<div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">&nbsp;</div>`}
+            ${wkAbsFmt ? `<div style="font-size:11px;color:${wkColor};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">${wkAbsFmt} net</div>` : `<div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">net return</div>`}
           </td>
-          <!-- All-time -->
+          <!-- Since inception (net) -->
           <td width="34%" style="vertical-align:top;padding-left:24px;">
             <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;margin-bottom:8px;">${sinceLabel}</div>
             <div style="font-size:28px;font-weight:700;color:${atColor};font-family:Georgia,'Times New Roman',serif;letter-spacing:-0.5px;line-height:1;">${atFmt}</div>
-            <div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">Total return</div>
+            <div style="font-size:11px;color:${DIM};font-family:Helvetica Neue,Arial,sans-serif;margin-top:6px;">Net return</div>
           </td>
         </tr>
       </table>
@@ -333,7 +340,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
           <!-- Commentary -->
           <td style="vertical-align:top;padding-left:24px;">
             <div style="font-size:11px;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.65;margin-bottom:10px;">${tierNote}</div>
-            <div style="font-size:11px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.65;">${sc.label.length > 200 ? sc.label.slice(0, 200) + "…" : sc.label}</div>
+            <div style="font-size:11px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.65;white-space:pre-wrap;">${sc.label.length > 1500 ? sc.label.slice(0, 1500) + "…" : sc.label}</div>
           </td>
         </tr>
       </table>
@@ -383,7 +390,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     <tr><td style="padding:0 40px 32px;" class="mobile-pad">
       ${sectionHead(`vs. ${b.symbol}`)}
       <div style="font-size:13px;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.5;">
-        Your portfolio is <strong style="color:${beat ? "#15803d" : "#b91c1c"};">${Math.abs(diff).toFixed(1)}% ${verb}</strong> the ${b.symbol} this week.
+        Your portfolio is <strong style="color:${beat ? "#15803d" : "#b91c1c"};">${Math.abs(diff).toFixed(1)}% ${verb}</strong> the ${b.symbol} ${periodWord}.
       </div>
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;"><tr>
         <td width="50%" style="padding-right:12px;border-right:1px solid ${RULE};">
@@ -654,11 +661,11 @@ export function buildDigestHtml(data: DigestTemplateData): string {
 </html>`;
 }
 
-export function buildDigestSubject(portfolioName: string, performance: DigestTemplateData["performance"]): string {
+export function buildDigestSubject(portfolioName: string, performance: DigestTemplateData["performance"], periodWord = "this week"): string {
   if (performance?.weekReturnPct != null) {
     const sign      = performance.weekReturnPct >= 0 ? "+" : "";
     const direction = performance.weekReturnPct >= 0 ? "▲" : "▼";
-    return `${direction} ${sign}${performance.weekReturnPct.toFixed(1)}% this week — ${portfolioName} Investor Update`;
+    return `${direction} ${sign}${performance.weekReturnPct.toFixed(1)}% ${periodWord} — ${portfolioName} Investor Update`;
   }
   if (performance?.totalValue != null) {
     return `${portfolioName} — Portfolio Update`;

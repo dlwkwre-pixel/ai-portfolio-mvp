@@ -6,6 +6,7 @@ import { buildDigestHtml, buildDigestSubject, type DigestTemplateData } from "@/
 import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
+import { calculateTwr } from "@/lib/portfolio/twr";
 
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://buytune.io";
@@ -160,63 +161,69 @@ export async function GET(request: Request) {
         .maybeSingle();
       if (!portfolio) continue;
 
-      // ── Performance ──────────────────────────────────────────────────────────
+      // ── Period framing — all verbiage follows the digest frequency ───────────
+      const period: "day" | "week" | "month" =
+        pref.frequency === "daily_close" ? "day" : pref.frequency === "monthly_first" ? "month" : "week";
+      const periodDays = period === "day" ? 1 : period === "month" ? 30 : 7;
+      const periodStart = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+      const dayLabel = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const periodLabel = period === "day" ? "Today" : period === "month" ? "This Month" : "This Week";
+      const periodWord = period === "day" ? "today" : period === "month" ? "this month" : "this week";
+      const periodHeading = period === "day"
+        ? dayLabel
+        : period === "month"
+        ? now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+        : `Week ending ${dayLabel}`;
+
+      // ── Performance — net (time-weighted) return, deposit-neutral like the charts ─
       let performance: DigestTemplateData["performance"] = null;
       if (pref.include_performance) {
-        // Three dedicated queries — avoids limit(30) failing when many snapshots exist
-        const [{ data: latestSnap }, { data: weekOldSnap }, { data: oldestSnap }] = await Promise.all([
-          // Most recent snapshot
-          adminSupabase
-            .from("portfolio_snapshots")
-            .select("total_value, snapshot_date")
-            .eq("portfolio_id", pref.portfolio_id)
-            .order("snapshot_date", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          // Most recent snapshot that is at least 7 days old
-          adminSupabase
-            .from("portfolio_snapshots")
-            .select("total_value, snapshot_date")
-            .eq("portfolio_id", pref.portfolio_id)
-            .lte("snapshot_date", `${sevenDaysAgo}T23:59:59`)
-            .order("snapshot_date", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          // Oldest snapshot (inception)
+        const [{ data: snapsRaw }, { data: flowsRaw }] = await Promise.all([
           adminSupabase
             .from("portfolio_snapshots")
             .select("total_value, snapshot_date")
             .eq("portfolio_id", pref.portfolio_id)
             .order("snapshot_date", { ascending: true })
-            .limit(1)
-            .maybeSingle(),
+            .limit(1000),
+          adminSupabase
+            .from("cash_ledger")
+            .select("amount, direction, effective_at")
+            .eq("portfolio_id", pref.portfolio_id),
         ]);
 
-        if (latestSnap) {
-          const latestVal = Number(latestSnap.total_value);
-          const weekOldVal = weekOldSnap ? Number(weekOldSnap.total_value) : null;
-          const oldestVal = oldestSnap ? Number(oldestSnap.total_value) : null;
-          const isFirstSnap = oldestSnap?.snapshot_date === latestSnap.snapshot_date;
+        const snaps = (snapsRaw ?? [])
+          .map((s) => ({ snapshot_date: s.snapshot_date as string, total_value: Number(s.total_value) }))
+          .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0);
+        const cashFlows = (flowsRaw ?? []).map((f) => ({
+          effective_at: f.effective_at as string,
+          direction: (f.direction as string | null) ?? "IN",
+          amount: Number(f.amount ?? 0),
+        }));
 
-          // Value-based returns from the stored snapshot totals. (TWR isn't stored
-          // on snapshots, so the previous TWR math always resolved to null/0 and
-          // the weekly return silently dropped out of the email.)
-          const weekReturnPct = weekOldVal != null && weekOldVal > 0
-            ? ((latestVal - weekOldVal) / weekOldVal) * 100
-            : null;
-          const weekReturnAbs = weekOldVal != null && weekOldVal > 0
-            ? latestVal - weekOldVal
-            : null;
-          const allTimeReturnPct = oldestVal != null && oldestVal > 0 && !isFirstSnap
-            ? ((latestVal - oldestVal) / oldestVal) * 100
-            : null;
+        if (snaps.length > 0) {
+          const latestVal = snaps[snaps.length - 1].total_value;
+
+          // Net return since inception (TWR — strips out deposits/withdrawals)
+          const allTimeReturnPct = calculateTwr(snaps, cashFlows);
+
+          // Period net return: baseline = last snapshot on/before the period start
+          let baselineIdx = -1;
+          for (let i = 0; i < snaps.length; i++) {
+            if (new Date(snaps[i].snapshot_date) <= periodStart) baselineIdx = i; else break;
+          }
+          if (baselineIdx < 0) baselineIdx = 0;
+          const periodSnaps = snaps.slice(baselineIdx);
+          const baselineVal = periodSnaps[0]?.total_value ?? null;
+          const periodTwr = calculateTwr(periodSnaps, cashFlows);
+          // Deposit-neutral dollar gain implied by the net return over the period
+          const periodReturnAbs = baselineVal != null && periodTwr != null ? baselineVal * (periodTwr / 100) : null;
 
           performance = {
             totalValue: latestVal,
-            weekReturnPct: weekReturnPct != null ? Math.round(weekReturnPct * 10) / 10 : null,
-            weekReturnAbs: weekReturnAbs != null ? Math.round(weekReturnAbs) : null,
+            weekReturnPct: periodTwr != null ? Math.round(periodTwr * 10) / 10 : null,
+            weekReturnAbs: periodReturnAbs != null ? Math.round(periodReturnAbs) : null,
             allTimeReturnPct: allTimeReturnPct != null ? Math.round(allTimeReturnPct * 10) / 10 : null,
-            inceptionDate: oldestSnap?.snapshot_date ?? null,
+            inceptionDate: snaps[0].snapshot_date,
           };
         }
       }
@@ -291,7 +298,12 @@ export async function GET(request: Request) {
           const match = lastRun.summary.match(/Health Score:\s*(\d+)\/100/i);
           if (match) {
             const score = parseInt(match[1], 10);
-            aiScore = { score, label: lastRun.summary.split("|")[0].trim() };
+            // Pass the full assessment, not just the first segment — strip the
+            // redundant "Health Score: X/100" token and join remaining parts.
+            const cleaned = lastRun.summary
+              .replace(/Health Score:\s*\d+\/100/i, "")
+              .split("|").map((s: string) => s.trim()).filter(Boolean).join(" — ");
+            aiScore = { score, label: cleaned || lastRun.summary.trim() };
           }
         }
       }
@@ -314,6 +326,9 @@ export async function GET(request: Request) {
         reportUrl,
         manageUrl,
         unsubscribeUrl,
+        periodLabel,
+        periodWord,
+        periodHeading,
         performance,
         holdings,
         earnings,
@@ -323,7 +338,7 @@ export async function GET(request: Request) {
       };
 
       const html = buildDigestHtml(templateData);
-      const subject = buildDigestSubject(portfolio.name, performance);
+      const subject = buildDigestSubject(portfolio.name, performance, periodWord);
       const fromAddress = process.env.RESEND_FROM_EMAIL ?? "digest@buytune.io";
 
       const dateSlug = now.toISOString().slice(0, 10);
