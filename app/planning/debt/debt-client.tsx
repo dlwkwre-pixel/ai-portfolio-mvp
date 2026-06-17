@@ -153,6 +153,12 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+      <style>{`
+        @media (max-width: 600px) {
+          [data-debt-grid] { grid-template-columns: 1fr 1fr 1fr 28px !important; }
+          [data-debt-grid] > :first-child { grid-column: 1 / -1 !important; }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)", flexShrink: 0, gap: "12px" }}>
         <div>
@@ -182,7 +188,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
           </div>
 
           {/* Column headers */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.8fr 1fr 28px", gap: "8px", marginBottom: "6px", paddingRight: "2px" }}>
+          <div data-debt-grid style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.8fr 1fr 28px", gap: "8px", marginBottom: "6px", paddingRight: "2px" }}>
             {["Debt", "Balance", "APR %", "Min / mo", ""].map((h, i) => (
               <span key={i} style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)" }}>{h}</span>
             ))}
@@ -190,7 +196,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {debts.map((d, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.8fr 1fr 28px", gap: "8px", alignItems: "center" }}>
+              <div key={i} data-debt-grid style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.8fr 1fr 28px", gap: "8px", alignItems: "center" }}>
                 <input style={inputStyle} placeholder="e.g. Chase card" value={d.name} onChange={(e) => updateDebt(i, { name: e.target.value })} />
                 <input style={inputStyle} type="number" min="0" placeholder="0" value={d.balance || ""} onChange={(e) => updateDebt(i, { balance: Number(e.target.value) })} />
                 <input style={inputStyle} type="number" min="0" step="0.1" placeholder="0" value={d.apr || ""} onChange={(e) => updateDebt(i, { apr: Number(e.target.value) })} />

@@ -390,6 +390,12 @@ export default function TimeOffClient({
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          [data-sab-cols] { flex-direction: column !important; }
+          [data-sab-sidebar] { width: 100% !important; min-width: 0 !important; max-width: none !important; border-right: none !important; border-bottom: 1px solid var(--border-subtle) !important; overflow-y: visible !important; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)", flexShrink: 0, gap: "12px" }}>
@@ -415,10 +421,10 @@ export default function TimeOffClient({
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "row", minHeight: 0 }}>
+      <div data-sab-cols style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "row", minHeight: 0 }}>
 
         {/* Left sidebar */}
-        <div style={{ width: "280px", minWidth: "260px", maxWidth: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", overflowY: "auto", padding: "18px 16px", display: "flex", flexDirection: "column", gap: "14px", background: "var(--bg-base)" }}>
+        <div data-sab-sidebar style={{ width: "280px", minWidth: "260px", maxWidth: "300px", flexShrink: 0, borderRight: "1px solid var(--border-subtle)", overflowY: "auto", padding: "18px 16px", display: "flex", flexDirection: "column", gap: "14px", background: "var(--bg-base)" }}>
 
           {/* Scenario selector */}
           {scenarios.length > 1 && (
