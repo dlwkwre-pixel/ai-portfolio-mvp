@@ -919,6 +919,9 @@ function DetailView({
   const [digestError, setDigestError]     = useState<string | null>(null);
   const [aiAnalysis, setAiAnalysis]           = useState<AiAnalysis | null>(null);
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
+  const [grokAnalysis, setGrokAnalysis]       = useState<AiAnalysis | null>(null);
+  const [grokLoading, setGrokLoading]         = useState(false);
+  const [grokError, setGrokError]             = useState<string | null>(null);
   const [buyOpen, setBuyOpen]             = useState(false);
   const [socialPulse, setSocialPulse]         = useState<RedditPulse | null>(null);
   const [socialLoading, setSocialLoading]     = useState(false);
@@ -942,6 +945,9 @@ function DetailView({
   useEffect(() => {
     setAiAnalysisLoading(true);
     setAiAnalysis(null);
+    setGrokAnalysis(null);
+    setGrokError(null);
+    setGrokLoading(false);
     fetch("/api/research/ai-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -957,6 +963,27 @@ function DetailView({
       .catch(() => {})
       .finally(() => setAiAnalysisLoading(false));
   }, [result.ticker]);
+
+  // On-demand Grok deep-dive (live web + X search) — costs tokens, button-triggered
+  function runGrokAnalysis() {
+    if (grokLoading) return;
+    setGrokLoading(true);
+    setGrokError(null);
+    fetch("/api/research/grok-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ticker: result.ticker,
+        company_name: result.profile?.name ?? result.ticker,
+        price: result.quote.c,
+        change_pct: result.quote.dp,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (d.error) setGrokError(d.error); else setGrokAnalysis(d as AiAnalysis); })
+      .catch(() => setGrokError("Grok analysis failed. Try again."))
+      .finally(() => setGrokLoading(false));
+  }
 
   // Auto-load digest on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1214,50 +1241,66 @@ function DetailView({
       </div>
 
       {/* AI Verdict */}
-      {(aiAnalysisLoading || aiAnalysis) && (() => {
-        const verdictColor = aiAnalysis?.verdict === "BUY" ? "var(--green)" : aiAnalysis?.verdict === "SELL" ? "var(--red)" : "var(--violet)";
-        const verdictBg    = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
-        const verdictBorder = aiAnalysis?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : aiAnalysis?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
-        const upside = aiAnalysis?.price_target && result.quote.c > 0
-          ? ((aiAnalysis.price_target - result.quote.c) / result.quote.c) * 100
+      {(aiAnalysisLoading || aiAnalysis || grokLoading || grokAnalysis) && (() => {
+        const shown = grokAnalysis ?? aiAnalysis;
+        const isGrok = !!grokAnalysis;
+        const busy = grokLoading || (aiAnalysisLoading && !aiAnalysis);
+        const accent = isGrok ? "oklch(0.62 0.21 295)" : "oklch(0.65 0.18 260)"; // violet for Grok
+        const verdictColor = shown?.verdict === "BUY" ? "var(--green)" : shown?.verdict === "SELL" ? "var(--red)" : "var(--violet)";
+        const verdictBg    = shown?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
+        const verdictBorder = shown?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
+        const upside = shown?.price_target && result.quote.c > 0
+          ? ((shown.price_target - result.quote.c) / result.quote.c) * 100
           : null;
         return (
           <div style={{ padding: "10px 18px 16px" }}>
-            <div style={{ border: `1px solid ${aiAnalysisLoading ? "var(--border-subtle)" : verdictBorder}`, borderRadius: "var(--radius-lg)", background: aiAnalysisLoading ? "var(--bg-surface)" : verdictBg, overflow: "hidden" }}>
+            <div style={{ border: `1px solid ${busy ? "var(--border-subtle)" : verdictBorder}`, borderRadius: "var(--radius-lg)", background: busy ? "var(--bg-surface)" : verdictBg, overflow: "hidden" }}>
               {/* Header */}
               <div style={{ padding: "12px 16px 0", display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-                <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "color-mix(in oklch, " + accent + " 14%, transparent)", border: `1px solid color-mix(in oklch, ${accent} 28%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill={`color-mix(in oklch, ${accent} 20%, transparent)`} stroke={accent} strokeWidth="1.5"/><path d="M8 17h4" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)" }}>AI Analysis</span>
-                {aiAnalysis && (
-                  <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                    {new Date(aiAnalysis.cached_at).toLocaleDateString()}
-                  </span>
-                )}
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>{isGrok ? "Grok Analysis" : "AI Analysis"}</span>
+
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+                  {shown && (
+                    <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{new Date(shown.cached_at).toLocaleDateString()}</span>
+                  )}
+                  {/* Grok deep-dive button — only when not already showing Grok */}
+                  {!isGrok && (
+                    <button type="button" onClick={runGrokAnalysis} disabled={grokLoading}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid color-mix(in oklch, oklch(0.62 0.21 295) 35%, transparent)", background: "color-mix(in oklch, oklch(0.62 0.21 295) 14%, transparent)", color: "oklch(0.68 0.20 295)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: grokLoading ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
+                      <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path d="M11 2L4 11h4l-1 7 7-9h-4l1-7z" /></svg>
+                      {grokLoading ? "Searching…" : "Grok deep-dive"}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {aiAnalysisLoading ? (
+              {busy ? (
                 <div style={{ padding: "10px 16px 14px", display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)", fontSize: "12px" }}>
-                  <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.65 0.18 260)", opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />
-                  Analyzing {result.ticker}...
+                  <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: accent, opacity: 0.7, animation: "bt-pulse 1.4s ease-in-out infinite" }} />
+                  {grokLoading ? `Grok is researching ${result.ticker} with live web + X search…` : `Analyzing ${result.ticker}...`}
                 </div>
-              ) : aiAnalysis && (
+              ) : shown && (
                 <div style={{ padding: "0 16px 14px" }}>
+                  {grokError && (
+                    <div style={{ fontSize: "11px", color: "var(--red)", marginBottom: "10px" }}>{grokError}</div>
+                  )}
                   {/* Verdict row */}
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
                     <div style={{ padding: "4px 12px", borderRadius: "var(--radius-full)", background: verdictBg, border: `1px solid ${verdictBorder}`, fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: verdictColor, letterSpacing: "0.04em" }}>
-                      {aiAnalysis.verdict}
+                      {shown.verdict}
                     </div>
                     <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
-                      {aiAnalysis.conviction} conviction
+                      {shown.conviction} conviction
                     </span>
-                    {aiAnalysis.price_target && (
+                    {shown.price_target && (
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
                         <div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{aiAnalysis.timeframe} target</div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{shown.timeframe} target</div>
                           <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
-                            <span className="num" style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{formatPrice(aiAnalysis.price_target)}</span>
+                            <span className="num" style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{formatPrice(shown.price_target)}</span>
                             {upside !== null && (
                               <span className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
                                 {upside >= 0 ? "+" : ""}{upside.toFixed(1)}%
@@ -1269,29 +1312,32 @@ function DetailView({
                     )}
                   </div>
                   {/* Takeaway */}
-                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{aiAnalysis.takeaway}</p>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{shown.takeaway}</p>
                   {/* Bull / Bear */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     <div>
                       <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bull case</div>
-                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.bull_case}</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.bull_case}</p>
                     </div>
                     <div>
                       <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bear case</div>
-                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.bear_case}</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.bear_case}</p>
                     </div>
                   </div>
                   {/* Catalysts + Risks */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
                     <div>
                       <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Catalysts</div>
-                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_catalysts}</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.key_catalysts}</p>
                     </div>
                     <div>
                       <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
-                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{aiAnalysis.key_risks}</p>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.key_risks}</p>
                     </div>
                   </div>
+                  {isGrok && (
+                    <div style={{ marginTop: "10px", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Powered by Grok with live web + X search.</div>
+                  )}
                 </div>
               )}
             </div>
