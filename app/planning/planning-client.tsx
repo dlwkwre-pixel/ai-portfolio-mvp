@@ -9066,6 +9066,23 @@ export default function PlanningClient({
                 </div>
               </Link>
 
+              {/* Relocation */}
+              <Link href="/planning/relocation" className="hub-card hub-card-relocation" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.15 200) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.15 200)", flexShrink: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 21s-6-5.686-6-10a6 6 0 1112 0c0 4.314-6 10-6 10z" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="11" r="2"/></svg>
+                    </div>
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Relocation</span>
+                  </div>
+                  <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.72 0.15 200)", background: "color-mix(in oklch, oklch(0.72 0.15 200) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>LIFE</span>
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Moving cities or going remote? See what a salary and cost-of-living change really nets you.</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
+                  Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </Link>
+
             </div>
           </div>
 
