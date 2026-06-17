@@ -76,6 +76,17 @@ export type TaxPageData = {
   lotAcqYears: Record<string, number>;
   lotCostBasis: Record<string, number>;
   lotProceeds: Record<string, number>;
+  retirementContributions: RetirementContribution[];
+};
+
+export type RetirementContribution = {
+  portfolioId: string;
+  portfolioName: string;
+  accountType: string;       // 'roth_ira' | 'traditional_ira' | '401k' | ...
+  accountLabel: string;      // human label
+  contributed: number;       // total IN deposits in the selected year
+  annualLimit: number | null; // IRS contribution limit for the type, if known
+  deductible: boolean;       // traditional IRA / 401k reduce taxable income
 };
 
 function holdingDays(acquiredAt: string | null, soldAt: string): number | null {
@@ -110,7 +121,18 @@ export default async function TaxPage({
     .order("created_at", { ascending: false });
 
   const activePortfolios = (portfolios ?? []).filter(p => p.is_active);
-  const portfolioIds = activePortfolios.map(p => p.id);
+
+  // Only TAXABLE accounts generate a capital-gains / dividend tax bill. Gains
+  // inside tax-advantaged accounts (Roth IRA, Traditional IRA, 401k, HSA, etc.)
+  // and paper-trade accounts must NOT be counted, or the bill is overstated.
+  const isTaxableAccount = (t: string | null) => {
+    const v = (t ?? "").toLowerCase();
+    if (/roth|ira|401|403|hsa|retirement|paper/.test(v)) return false;
+    return true; // taxable, brokerage, margin, speculative, or unset → taxable
+  };
+  const taxablePortfolios = activePortfolios.filter(p => isTaxableAccount(p.account_type));
+  // Used for every realized-gain / dividend / wash-sale query below.
+  const portfolioIds = taxablePortfolios.map(p => p.id);
 
   // Transactions for selected year (sell + dividend)
   const yearStart = `${selectedYear}-01-01T00:00:00.000Z`;
@@ -340,6 +362,51 @@ export default async function TaxPage({
       ? (financialProfileData.lot_proceeds as Record<string, number>)
       : {};
 
+  // ── Retirement contributions ────────────────────────────────────────────────
+  // Cash deposits into tax-advantaged accounts are contributions. Surface them so
+  // the user can track IRA/Roth/401k contribution room (and deductibility).
+  const RETIREMENT_LIMITS: { match: RegExp; label: string; limit: number | null; deductible: boolean }[] = [
+    { match: /roth/, label: "Roth IRA", limit: 7000, deductible: false },
+    { match: /traditional_ira|trad_ira|^ira$/, label: "Traditional IRA", limit: 7000, deductible: true },
+    { match: /401|403/, label: "401(k) / 403(b)", limit: 23500, deductible: true },
+    { match: /ira/, label: "IRA", limit: 7000, deductible: true },
+    { match: /retirement/, label: "Retirement", limit: null, deductible: true },
+  ];
+  const classifyRetirement = (t: string | null) => {
+    const v = (t ?? "").toLowerCase();
+    return RETIREMENT_LIMITS.find((r) => r.match.test(v)) ?? null;
+  };
+  const retirementPortfolios = activePortfolios
+    .map((p) => ({ p, cls: classifyRetirement(p.account_type) }))
+    .filter((x): x is { p: typeof activePortfolios[number]; cls: NonNullable<ReturnType<typeof classifyRetirement>> } => x.cls !== null);
+
+  let retirementContributions: RetirementContribution[] = [];
+  if (retirementPortfolios.length > 0) {
+    const { data: deposits } = await supabase
+      .from("cash_ledger")
+      .select("portfolio_id, amount, direction, reason, effective_at")
+      .in("portfolio_id", retirementPortfolios.map((x) => x.p.id))
+      .eq("direction", "IN")
+      .eq("reason", "deposit")
+      .gte("effective_at", yearStart)
+      .lte("effective_at", yearEnd);
+
+    retirementContributions = retirementPortfolios.map(({ p, cls }) => {
+      const contributed = (deposits ?? [])
+        .filter((d) => d.portfolio_id === p.id)
+        .reduce((s, d) => s + Number(d.amount ?? 0), 0);
+      return {
+        portfolioId: p.id,
+        portfolioName: p.name,
+        accountType: p.account_type ?? "",
+        accountLabel: cls.label,
+        contributed,
+        annualLimit: cls.limit,
+        deductible: cls.deductible,
+      };
+    }).filter((r) => r.contributed > 0);
+  }
+
   const taxData: TaxPageData = {
     years,
     selectedYear,
@@ -353,6 +420,7 @@ export default async function TaxPage({
     lotAcqYears: savedLotAcqYears,
     lotCostBasis: savedLotCostBasis,
     lotProceeds: savedLotProceeds,
+    retirementContributions,
   };
 
   return (

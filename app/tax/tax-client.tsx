@@ -842,6 +842,51 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </div>
             </SectionCard>
 
+            {/* ── RETIREMENT CONTRIBUTIONS ── */}
+            {data.retirementContributions.length > 0 && (
+              <SectionCard
+                icon="🏦"
+                color="#8b5cf6"
+                label={`Retirement Contributions — ${data.selectedYear}`}
+                amount={data.retirementContributions.reduce((s, r) => s + r.contributed, 0)}
+                sub="Cash you added to tax-advantaged accounts — not part of your capital-gains bill"
+                defaultOpen={false}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {data.retirementContributions.map((r) => {
+                    const pct = r.annualLimit ? Math.min(100, (r.contributed / r.annualLimit) * 100) : null;
+                    const over = r.annualLimit != null && r.contributed > r.annualLimit;
+                    return (
+                      <div key={r.portfolioId} style={{ padding: "12px 14px", background: "var(--bg-elevated)", border: `1px solid ${over ? "rgba(239,68,68,0.3)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px", marginBottom: "6px" }}>
+                          <div>
+                            <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 1px" }}>{r.portfolioName}</p>
+                            <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{r.accountLabel}{r.deductible ? " · contributions may be tax-deductible" : " · after-tax contributions"}</p>
+                          </div>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: over ? "var(--red)" : "var(--text-primary)", margin: 0, whiteSpace: "nowrap" }}>{fmt(r.contributed)}</p>
+                        </div>
+                        {r.annualLimit != null && (
+                          <>
+                            <div style={{ height: "5px", borderRadius: "3px", background: "var(--bg-base)", overflow: "hidden", marginBottom: "4px" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: over ? "var(--red)" : "#8b5cf6", borderRadius: "3px" }} />
+                            </div>
+                            <p style={{ fontSize: "9px", color: over ? "var(--red)" : "var(--text-muted)", margin: 0 }}>
+                              {over
+                                ? `Over the ${fmt(r.annualLimit)} annual limit — you may owe an excess-contribution penalty. Confirm with the IRS limits for your age/income.`
+                                : `${fmt(r.contributed)} of ${fmt(r.annualLimit)} limit · ${fmt(Math.max(0, r.annualLimit - r.contributed))} room left`}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
+                    Tracked from cash deposits into your tax-advantaged portfolios. Limits shown are the standard under-50 figures — your actual limit depends on age and income. Roth contributions are after-tax (no deduction); Traditional IRA / 401(k) contributions may reduce taxable income.
+                  </p>
+                </div>
+              </SectionCard>
+            )}
+
             {/* ── DEDUCTIONS ── */}
             {incomeTaxEstimate && (
               <SectionCard
