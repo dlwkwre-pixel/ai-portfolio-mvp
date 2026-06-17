@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const FALLBACK = "Markets are shaped by a constant interplay of fundamentals and sentiment. Diversification across sectors and asset classes reduces concentration risk over long horizons. Reviewing your strategy against your original thesis remains one of the highest-value activities an investor can do.";
 
@@ -10,6 +11,9 @@ export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { limited, retryAfter } = checkRateLimit(`market-pulse:${user.id}`, 20, 5 * 60_000);
+  if (limited) return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
 
   const { data: cached } = await supabase
     .from("market_pulse")

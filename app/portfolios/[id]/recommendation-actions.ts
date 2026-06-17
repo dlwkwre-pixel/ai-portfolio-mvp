@@ -5,6 +5,7 @@ import { callGemini } from "@/lib/ai/gemini";
 import { getTickerMarketContext, getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
 import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-data/reddit-pulse";
@@ -1344,6 +1345,10 @@ export async function runPortfolioAiRecommendation(formData: FormData) {
 
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
   if (!portfolioId) throw new Error("Portfolio ID is required.");
+
+  // Hard per-user cap — this triggers an expensive Grok run with live search
+  const { limited } = checkRateLimit(`ai-recommend:${user.id}`, 10, 10 * 60_000);
+  if (limited) throw new Error("You're running analyses too quickly. Please wait a few minutes and try again.");
 
   const isSecondaryRun = formData.get("is_secondary_run") === "true";
   const feedbackNote = String(formData.get("feedback_note") || "").trim().slice(0, 500);

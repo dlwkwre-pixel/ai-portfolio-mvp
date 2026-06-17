@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
+    // Triggers an expensive Grok portfolio run — hard cap per user
+    const { limited, retryAfter } = checkRateLimit(`onboarding-scan:${user.id}`, 5, 10 * 60_000);
+    if (limited) return NextResponse.json({ error: "Too many analysis runs. Please wait a few minutes." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
 
     const body = await req.json() as { portfolio_id: string };
     if (!body.portfolio_id) return NextResponse.json({ error: "portfolio_id required" }, { status: 400 });
