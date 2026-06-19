@@ -363,6 +363,12 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
   const [openMoreId, setOpenMoreId]     = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Execute-confirmation dialog (buy/add/sell/trim) — confirm shares + fill price
+  const [execItem, setExecItem] = useState<LocalRec | null>(null);
+  const [execQty, setExecQty] = useState("");
+  const [execPrice, setExecPrice] = useState("");
+  const [execPriceLoading, setExecPriceLoading] = useState(false);
+
   // Optimistic action state
   const [pendingIds, setPendingIds]     = useState<Set<string>>(new Set());
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
@@ -444,11 +450,31 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
 
   // ── Optimistic single-item action ──────────────────────────────────────────
 
-  async function handleAction(itemId: string, newStatus: string) {
+  async function handleAction(itemId: string, newStatus: string, confirmed?: { price: string; qty: string }) {
     if (pendingIds.has(itemId)) return;
     const item = localRecs.find(r => r.id === itemId);
     if (!item) return;
     const oldStatus = item.recommendation_status;
+
+    // For real trades, confirm shares + actual fill price first so cost basis is
+    // accurate (otherwise the holding's average cost can be off and distort returns).
+    const action = (item.action_type ?? "").toLowerCase();
+    const isTrade = ["buy", "add", "sell", "trim"].includes(action) && !!item.ticker;
+    if (newStatus === "executed" && isTrade && !confirmed) {
+      setExecItem(item);
+      setExecQty(item.share_quantity != null ? String(item.share_quantity) : "");
+      setExecPrice("");
+      setExecPriceLoading(true);
+      fetch(`/api/market/quote/${encodeURIComponent(item.ticker!)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => {
+          if (d?.price > 0) setExecPrice(String(Number(d.price).toFixed(2)));
+          else if (item.share_quantity && item.sizing_dollars) setExecPrice(String((Number(item.sizing_dollars) / Number(item.share_quantity)).toFixed(2)));
+        })
+        .catch(() => {})
+        .finally(() => setExecPriceLoading(false));
+      return;
+    }
 
     setPendingIds(prev => new Set(prev).add(itemId));
     setLocalRecs(prev => prev.map(r => r.id === itemId
@@ -462,6 +488,8 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
       fd.append("portfolio_id", portfolioId);
       fd.append("recommendation_item_id", itemId);
       fd.append("new_status", newStatus);
+      if (confirmed?.price && Number(confirmed.price) > 0) fd.append("executed_price", confirmed.price);
+      if (confirmed?.qty && Number(confirmed.qty) > 0) fd.append("executed_quantity", confirmed.qty);
       await updateRecommendationStatus(fd);
       setLocalRecs(prev => prev.map(r => r.id === itemId ? { ...r, _syncing: false } : r));
     } catch (err) {
@@ -472,6 +500,15 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
     } finally {
       setPendingIds(prev => { const n = new Set(prev); n.delete(itemId); return n; });
     }
+  }
+
+  function confirmExecute() {
+    if (!execItem) return;
+    const id = execItem.id;
+    const price = execPrice;
+    const qty = execQty;
+    setExecItem(null);
+    void handleAction(id, "executed", { price, qty });
   }
 
   // ── Optimistic delete ──────────────────────────────────────────────────────
@@ -1360,6 +1397,76 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
           </div>
         </div>
       )}
+
+      {/* Execute confirmation — shares + actual fill price set the cost basis */}
+      {execItem && (() => {
+        const act = (execItem.action_type ?? "").toLowerCase();
+        const isSell = act === "sell" || act === "trim";
+        const qtyN = Number(execQty);
+        const priceN = Number(execPrice);
+        const valid = qtyN > 0 && priceN > 0;
+        return (
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
+            style={{ background: "rgba(2,6,16,0.72)", backdropFilter: "blur(4px)" }}
+            onClick={() => setExecItem(null)}
+          >
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 p-5"
+              style={{ background: "var(--bg-card, #0a1424)", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-1 text-sm font-semibold text-white">
+                Confirm {isSell ? "sale" : "purchase"} — {execItem.ticker}
+              </div>
+              <p className="mb-4 text-xs text-slate-400">
+                These set your cost basis and the transaction. Adjust to your actual fill so your returns aren&apos;t distorted.
+              </p>
+
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Shares</label>
+              <input
+                type="number" min="0" step="any" value={execQty}
+                onChange={(e) => setExecQty(e.target.value)}
+                className="mb-3 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                placeholder="Number of shares"
+              />
+
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Price per share {execPriceLoading && <span className="text-slate-600">· fetching current…</span>}
+              </label>
+              <input
+                type="number" min="0" step="any" value={execPrice}
+                onChange={(e) => setExecPrice(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                placeholder="Actual fill price"
+              />
+              {valid && (
+                <p className="mt-2 text-xs text-slate-400">
+                  Total: <span className="font-mono text-white">${(qtyN * priceN).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </p>
+              )}
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExecItem(null)}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmExecute}
+                  disabled={!valid}
+                  className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                >
+                  Confirm &amp; record
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
