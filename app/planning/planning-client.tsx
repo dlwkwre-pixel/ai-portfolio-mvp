@@ -1403,7 +1403,7 @@ const selectStyle: React.CSSProperties = {
 };
 const btnPrimaryStyle: React.CSSProperties = {
   padding: "7px 14px", borderRadius: "var(--radius-md)",
-  background: "var(--brand-gradient)", color: "var(--text-primary)",
+  background: "var(--brand-gradient)", color: "#fff",
   border: "none", fontSize: "12px", fontWeight: 600,
   fontFamily: "var(--font-body)", cursor: "pointer",
 };
@@ -2724,24 +2724,24 @@ function EstatePlanningTab({
       {/* Header Banner — Protect Your Plan */}
       <div style={{
         borderRadius: "var(--radius-lg)", overflow: "hidden",
-        background: "linear-gradient(135deg, oklch(0.18 0.04 270) 0%, oklch(0.15 0.02 250) 100%)",
-        border: "1px solid oklch(0.35 0.1 270 / 0.4)",
+        background: "var(--hero-violet-bg)",
+        border: "1px solid var(--hero-violet-border)",
         padding: "20px 24px",
         display: "flex", alignItems: "center", gap: "18px",
       }}>
         <div style={{
           width: "40px", height: "40px", borderRadius: "10px", flexShrink: 0,
-          background: "oklch(0.45 0.15 270 / 0.25)",
-          border: "1px solid oklch(0.55 0.18 270 / 0.3)",
+          background: "var(--violet-bg)",
+          border: "1px solid var(--violet-border)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-            <path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="oklch(0.7 0.18 270)" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="var(--violet)" strokeWidth="1.5" strokeLinejoin="round"/>
           </svg>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.01em" }}>Protect Your Plan</div>
-          <div style={{ fontSize: "12px", color: "oklch(0.65 0.1 270)", marginTop: "3px", lineHeight: 1.5 }}>
+          <div style={{ fontSize: "12px", color: "var(--hero-violet-text)", marginTop: "3px", lineHeight: 1.5 }}>
             Document your estate readiness, record where everything is, and leave clear instructions for the people who matter.
           </div>
         </div>
@@ -7500,9 +7500,9 @@ export default function PlanningClient({
                 ) : commandPriorities.map((pri, i) => {
                   const isUrgent = pri.urgent;
                   const isTop = i === 0 && !isUrgent;
-                  const bg = isUrgent ? "oklch(0.18 0.04 25 / 0.5)" : isTop ? "oklch(0.18 0.04 265 / 0.5)" : "var(--card-bg)";
-                  const borderColor = isUrgent ? "oklch(0.55 0.18 25 / 0.28)" : isTop ? "oklch(0.55 0.15 265 / 0.22)" : "var(--border-subtle)";
-                  const accentColor = isUrgent ? "oklch(0.65 0.18 25)" : isTop ? "oklch(0.60 0.18 265)" : "oklch(0.72 0.19 145)";
+                  const bg = isUrgent ? "var(--red-bg)" : isTop ? "var(--nav-active-bg)" : "var(--card-bg)";
+                  const borderColor = isUrgent ? "var(--red-border)" : isTop ? "var(--nav-active-border)" : "var(--border-subtle)";
+                  const accentColor = isUrgent ? "var(--red)" : isTop ? "var(--brand-blue)" : "oklch(0.72 0.19 145)";
                   const ctaBg = isUrgent ? "rgba(239,68,68,0.1)" : isTop ? "rgba(37,99,235,0.1)" : "rgba(255,255,255,0.05)";
                   const ctaBorder = isUrgent ? "rgba(239,68,68,0.25)" : isTop ? "rgba(37,99,235,0.22)" : "var(--border)";
                   return (
@@ -8085,7 +8085,7 @@ export default function PlanningClient({
                         onClick={() => setWhatIfScenario(isActive ? null : id)}
                         style={{
                           background: isActive ? "color-mix(in oklch, oklch(0.75 0.18 70) 8%, var(--bg-elevated))" : "var(--bg-elevated)",
-                          border: `1px solid ${isActive ? "oklch(0.75 0.18 70 / 0.4)" : "var(--border-subtle)"}`,
+                          border: `1px solid ${isActive ? "oklch(0.75 0.18 70 / 0.4)" : "var(--border)"}`,
                           borderRadius: "var(--radius-md)", padding: "12px 14px",
                           cursor: "pointer", textAlign: "left",
                           transition: "border-color 0.15s, background 0.15s",
@@ -9445,11 +9445,11 @@ export default function PlanningClient({
           {/* Financial Position Snapshot */}
           <div style={{
             borderRadius: "var(--radius-lg)", overflow: "hidden",
-            background: "linear-gradient(135deg, oklch(0.16 0.04 265) 0%, oklch(0.13 0.02 250) 100%)",
-            border: "1px solid oklch(0.3 0.1 265 / 0.5)",
+            background: "var(--hero-violet-bg)",
+            border: "1px solid var(--hero-violet-border)",
           }}>
             {/* Stats row */}
-            <div style={{ display: "flex", gap: "0px", borderBottom: "1px solid oklch(0.28 0.06 265 / 0.4)" }}>
+            <div style={{ display: "flex", gap: "0px", borderBottom: "1px solid var(--hero-violet-line)" }}>
               {[
                 { label: "Net Worth", value: isPrivate ? "••••" : (netWorth >= 0 ? `$${Math.round(netWorth / 1000)}k` : `-$${Math.round(Math.abs(netWorth) / 1000)}k`), color: netWorth >= 0 ? "var(--green)" : "var(--red)" },
                 { label: "Savings Rate", value: savingsRate > 0 ? `${savingsRate.toFixed(0)}%` : "—", color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : "var(--red)" },
@@ -9458,17 +9458,17 @@ export default function PlanningClient({
               ].map(({ label, value, color }, i, arr) => (
                 <div key={label} style={{
                   flex: 1, padding: "12px 16px",
-                  borderRight: i < arr.length - 1 ? "1px solid oklch(0.28 0.06 265 / 0.4)" : "none",
+                  borderRight: i < arr.length - 1 ? "1px solid var(--hero-violet-line)" : "none",
                 }}>
-                  <div style={{ fontSize: "10px", color: "oklch(0.55 0.08 265)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontSize: "10px", color: "var(--hero-violet-label)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>{value}</div>
                 </div>
               ))}
             </div>
             {/* Insight row */}
             <div style={{ padding: "12px 18px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
-              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0, marginTop: "5px" }} />
-              <p style={{ fontSize: "12px", color: "oklch(0.72 0.08 265)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{finnInsight}</p>
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet)", flexShrink: 0, marginTop: "5px" }} />
+              <p style={{ fontSize: "12px", color: "var(--hero-violet-text)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{finnInsight}</p>
             </div>
           </div>
 

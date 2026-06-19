@@ -251,7 +251,7 @@ export default function WeekAheadCard() {
                       cursor: "pointer",
                     }}
                   >
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "rgba(147,197,253,0.95)" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--nav-active-text)" }}>
                       {e.symbol}
                     </span>
                     <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>

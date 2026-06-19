@@ -210,8 +210,8 @@ export default function MondayPrepCard() {
                   className="bt-prep-row"
                   style={{
                     borderRadius: "var(--radius-md)",
-                    background: done ? "rgba(34,197,94,0.04)" : "rgba(255,255,255,0.02)",
-                    border: `1px solid ${done ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.04)"}`,
+                    background: done ? "rgba(34,197,94,0.04)" : "var(--surface-004)",
+                    border: `1px solid ${done ? "rgba(34,197,94,0.1)" : "var(--card-border)"}`,
                     overflow: "hidden",
                   }}
                 >
@@ -224,7 +224,7 @@ export default function MondayPrepCard() {
                         width: "15px",
                         height: "15px",
                         borderRadius: "4px",
-                        border: `1.5px solid ${done ? "var(--green)" : "rgba(255,255,255,0.18)"}`,
+                        border: `1.5px solid ${done ? "var(--green)" : "var(--border-strong)"}`,
                         background: done ? "rgba(34,197,94,0.15)" : "transparent",
                         cursor: "pointer",
                         flexShrink: 0,

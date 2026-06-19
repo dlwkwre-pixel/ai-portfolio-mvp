@@ -278,8 +278,9 @@ export default function PortfolioChartClient({
                 type="button"
                 onClick={() => setChartMode(mode.value as "net" | "twr")}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
-                  chartMode === mode.value ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
+                  chartMode === mode.value ? "bg-white/10" : "text-slate-500 hover:text-slate-300"
                 }`}
+                style={chartMode === mode.value ? { color: "var(--text-primary)" } : undefined}
               >
                 {mode.label}
               </button>

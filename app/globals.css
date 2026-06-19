@@ -84,6 +84,15 @@
   --surface-008:  rgba(255,255,255,0.08);
   --surface-010:  rgba(255,255,255,0.10);
 
+  /* ── Violet hero banners (estate "Protect Your Plan", Ask FINN snapshot) ──
+     Dark values reproduce the current dark-violet gradient; light values are a
+     subtle violet tint so the banners stop rendering as dark boxes in light. */
+  --hero-violet-bg:     linear-gradient(135deg, oklch(0.18 0.04 270) 0%, oklch(0.15 0.02 250) 100%);
+  --hero-violet-border: oklch(0.35 0.1 270 / 0.4);
+  --hero-violet-line:   oklch(0.28 0.06 265 / 0.4);
+  --hero-violet-text:   oklch(0.72 0.08 265);
+  --hero-violet-label:  oklch(0.55 0.08 265);
+
   /* ── Hairline borders (white overlays in dark; gray lines in light) ── */
   --line-004:     rgba(255,255,255,0.04);
   --line-006:     rgba(255,255,255,0.06);
@@ -147,6 +156,13 @@
   --surface-008:  rgba(17,24,39,0.065);
   --surface-010:  rgba(17,24,39,0.08);
 
+  /* Light violet hero banners — subtle tint, readable text. */
+  --hero-violet-bg:     linear-gradient(135deg, rgba(124,58,237,0.07) 0%, rgba(79,70,229,0.05) 100%);
+  --hero-violet-border: var(--violet-border);
+  --hero-violet-line:   rgba(124,58,237,0.14);
+  --hero-violet-text:   var(--text-secondary);
+  --hero-violet-label:  var(--text-tertiary);
+
   /* Light hairlines: visible gray lines instead of vanishing white. */
   --line-004:     rgba(17,24,39,0.07);
   --line-006:     rgba(17,24,39,0.09);
@@ -194,6 +210,45 @@
 
 [data-theme="light"] .divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.07); }
 [data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.08); }
+
+/* ── Light-mode flips for hardcoded slate dark utilities ──
+   Used by portfolio forms, the AI Recommendations card, charts, etc. These are
+   app surfaces (not intentional-dark elements), so they should follow the theme. */
+[data-theme="light"] .bg-slate-950 { background-color: var(--bg-base); }
+[data-theme="light"] .bg-slate-900 { background-color: var(--bg-card); }
+[data-theme="light"] .bg-slate-800 { background-color: var(--surface-006); }
+[data-theme="light"] .bg-slate-700 { background-color: var(--surface-008); }
+[data-theme="light"] .bg-slate-800\/40 { background-color: var(--surface-004); }
+[data-theme="light"] .border-slate-900,
+[data-theme="light"] .border-slate-800 { border-color: var(--card-border); }
+[data-theme="light"] .border-slate-700 { border-color: var(--border-strong); }
+/* Flip near-white heading/body text ONLY inside flipped slate cards (never buttons/links). */
+[data-theme="light"] :is(.bg-slate-950,.bg-slate-900,.bg-slate-800) :where(h1,h2,h3,h4,h5,p,li,dt,dd,label,td,th,figcaption).text-white { color: var(--text-primary); }
+/* Secondary slate text reads too light on white — darken for contrast.
+   (slate-500/600 stay; they're already readable as muted labels on white.) */
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-slate-400 { color: var(--text-secondary); }
+/* Ghost/text buttons go slate→white on hover; in light they must go slate→dark. */
+[data-theme="light"] .hover\:text-white:hover { color: var(--text-primary); }
+/* Brokerage pill hardcodes light-blue text (invisible on light tint) — darken. */
+[data-theme="light"] .bt-pill-brokerage { background: rgba(37,99,235,0.1); color: #1d4ed8; border-color: rgba(37,99,235,0.25); }
+
+/* Light accent text (the -300/-400 shades) is washed out on white/light tints.
+   Map each hue to a darker, readable shade. Covers P&L colors, badges, alerts,
+   the Archive button, etc. In light mode every surface is light, so darkening
+   accent text is always the correct direction. */
+[data-theme="light"] .text-red-300,
+[data-theme="light"] .text-red-400 { color: #dc2626; }
+[data-theme="light"] .text-emerald-300,
+[data-theme="light"] .text-emerald-400 { color: #059669; }
+[data-theme="light"] .text-blue-300,
+[data-theme="light"] .text-blue-400 { color: #1d4ed8; }
+[data-theme="light"] .text-amber-300,
+[data-theme="light"] .text-amber-400 { color: #b45309; }
+[data-theme="light"] .text-yellow-300 { color: #a16207; }
+[data-theme="light"] .text-purple-300 { color: #7e22ce; }
+[data-theme="light"] .text-violet-400 { color: #7c3aed; }
 
 /* ── Base resets ── */
 *, *::before, *::after { box-sizing: border-box; }

@@ -123,9 +123,7 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
             : "rgba(124,58,237,0.15)"
           : "rgba(0,211,149,0.18)";
 
-        const iconColor = isEarnings
-          ? isHigh ? "#a78bfa" : "#8b5cf6"
-          : "#00d395";
+        const iconColor = isEarnings ? "var(--violet)" : "var(--green)";
 
         const content = (
           <div
@@ -163,9 +161,9 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
               fontFamily: "var(--font-mono)",
               fontSize: "10px",
               fontWeight: 600,
-              color: isEarnings ? "#a78bfa" : "#00d395",
-              background: isEarnings ? "rgba(124,58,237,0.15)" : "rgba(0,211,149,0.08)",
-              border: `1px solid ${isEarnings ? "rgba(124,58,237,0.3)" : "rgba(0,211,149,0.2)"}`,
+              color: isEarnings ? "var(--violet)" : "var(--green)",
+              background: isEarnings ? "var(--violet-bg)" : "var(--green-bg)",
+              border: `1px solid ${isEarnings ? "var(--violet-border)" : "var(--green-border)"}`,
               padding: "1px 6px",
               borderRadius: "var(--radius-sm)",
               flexShrink: 0,
@@ -176,7 +174,7 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
             {/* Detail */}
             <span style={{
               fontSize: "12px",
-              color: isEarnings ? "#c4b5fd" : "var(--text-secondary)",
+              color: "var(--text-secondary)",
               lineHeight: 1.4,
               flex: 1,
               minWidth: 0,
