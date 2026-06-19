@@ -452,6 +452,16 @@ export default function OnboardingModal({
             from { opacity: 0; transform: translateY(12px) scale(0.98); }
             to { opacity: 1; transform: translateY(0) scale(1); }
           }
+          @keyframes obArtIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+          @keyframes obArtGlyph {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          .ob-art { animation: obArtIn 0.42s cubic-bezier(0.16,1,0.3,1) both; }
+          .ob-art > svg { animation: obArtGlyph 0.5s ease 0.12s both; }
         `}</style>
 
         {/* Progress bar */}
@@ -551,16 +561,8 @@ export default function OnboardingModal({
           {/* ── Step 1: Welcome */}
           {step === 1 && (
             <div style={{ textAlign: "center", padding: "8px 0" }}>
-              <div style={{
-                width: "64px", height: "64px", margin: "0 auto 20px",
-                background: "linear-gradient(135deg, rgba(37,99,235,0.15), rgba(124,58,237,0.1))",
-                border: "1px solid rgba(37,99,235,0.2)",
-                borderRadius: "18px",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "28px",
-                boxShadow: "0 0 40px rgba(37,99,235,0.15)",
-              }}>
-                📊
+              <div style={{ marginBottom: "20px" }}>
+                <StepArt kind="welcome" />
               </div>
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px", marginBottom: "10px" }}>
                 Welcome to BuyTune
@@ -1335,7 +1337,7 @@ function SummaryRow({ icon, label, value }: { icon: string; label: string; value
 // Simple, theme-aware line diagrams (no screenshots to rot). The panel sets the
 // accent via `color`; glyphs use currentColor + a few token strokes/fills.
 
-type ArtKind = "portfolio" | "holdings" | "cash" | "strategy" | "insights" | "scan";
+type ArtKind = "welcome" | "portfolio" | "holdings" | "cash" | "strategy" | "insights" | "scan";
 
 const BLUE = "var(--brand-blue)";
 const VIOLET = "var(--violet)";
@@ -1344,13 +1346,33 @@ const GREEN = "var(--green)";
 function StepArt({ kind }: { kind: ArtKind }) {
   const accent = kind === "strategy" ? VIOLET : kind === "insights" ? VIOLET : kind === "cash" ? GREEN : BLUE;
   return (
-    <div style={{
+    <div className="ob-art" style={{
       height: "104px", borderRadius: "var(--radius-lg)",
       background: "var(--card-bg)", border: "1px solid var(--card-border)",
       display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden", color: accent,
     }}>
       <svg width="100%" height="104" viewBox="0 0 320 104" fill="none" preserveAspectRatio="xMidYMid meet">
+        {kind === "welcome" && (
+          <g>
+            {/* Portfolio → Strategy → AI insights mini-arc, echoing the phase map */}
+            <rect x="34" y="40" width="64" height="40" rx="8" style={{ fill: "var(--bg-elevated)", stroke: BLUE }} strokeWidth="1.5" />
+            <rect x="44" y="50" width="26" height="6" rx="3" style={{ fill: BLUE }} opacity="0.85" />
+            <rect x="44" y="62" width="40" height="5" rx="2.5" style={{ fill: "var(--text-muted)" }} />
+            <path d="M104 60h26" style={{ stroke: "var(--text-muted)" }} strokeWidth="1.6" strokeLinecap="round" strokeDasharray="2 4" />
+            <path d="M126 56l5 4-5 4" style={{ stroke: "var(--text-muted)" }} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="134" y="40" width="52" height="40" rx="8" style={{ fill: "var(--bg-elevated)", stroke: VIOLET }} strokeWidth="1.5" />
+            <circle cx="148" cy="54" r="3" style={{ stroke: VIOLET }} strokeWidth="1.5" fill="none" />
+            <rect x="156" y="51" width="22" height="5" rx="2.5" style={{ fill: "var(--text-muted)" }} />
+            <rect x="148" y="63" width="30" height="5" rx="2.5" style={{ fill: "var(--text-muted)" }} opacity="0.7" />
+            <path d="M192 60h26" style={{ stroke: "var(--text-muted)" }} strokeWidth="1.6" strokeLinecap="round" strokeDasharray="2 4" />
+            <path d="M214 56l5 4-5 4" style={{ stroke: "var(--text-muted)" }} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="222" y="40" width="64" height="40" rx="8" style={{ fill: "var(--bg-elevated)", stroke: GREEN }} strokeWidth="1.5" />
+            <path d="M236 33l2.4 5.8 5.8 2.4-5.8 2.4L236 49l-2.4-5.8L228 41l5.8-2.4z" style={{ fill: GREEN }} />
+            <rect x="232" y="58" width="44" height="6" rx="3" style={{ fill: GREEN }} opacity="0.5" />
+            <rect x="232" y="68" width="30" height="5" rx="2.5" style={{ fill: "var(--text-muted)" }} />
+          </g>
+        )}
         {kind === "portfolio" && (
           <g>
             <rect x="108" y="24" width="104" height="56" rx="9" style={{ fill: "var(--bg-elevated)", stroke: "currentColor" }} strokeWidth="1.5" />
