@@ -187,12 +187,22 @@ export default function PortfolioChartClient({
     if (displayChartData.length < 2) return [];
     const startValue = displayChartData[0].portfolio_value;
     const startTwr = displayChartData[0].portfolio_twr_pct;
+    // Benchmark baseline: first point that actually has a benchmark value. The
+    // benchmark line shows what the same starting value would be worth if it had
+    // tracked the index over this period (rebased to the start, same as the % stat).
+    const startBench = displayChartData.find((d) => d.benchmark_return_pct !== null)?.benchmark_return_pct ?? null;
     return displayChartData.map((d) => {
       const periodTwr = ((1 + d.portfolio_twr_pct / 100) / (1 + startTwr / 100) - 1) * 100;
+      let bench_value: number | null = null;
+      if (startBench !== null && d.benchmark_return_pct !== null) {
+        const periodBench = d.benchmark_return_pct - startBench;
+        bench_value = startValue * (1 + periodBench / 100);
+      }
       return {
         date: d.date,
         net_value: startValue * (1 + periodTwr / 100),
         actual_value: d.portfolio_value,
+        bench_value,
       };
     });
   }, [displayChartData]);
@@ -372,12 +382,13 @@ export default function PortfolioChartClient({
                 <Tooltip
                   formatter={(value, name) => [
                     `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                    name === "net_value" ? "Net Return" : "Actual Value",
+                    name === "net_value" ? "Net Return" : name === "bench_value" ? benchmarkSymbol : "Actual Value",
                   ]}
                   labelFormatter={(label) => dateTick(String(label))}
                   contentStyle={tooltipStyle}
                 />
                 <Area type="monotone" dataKey="net_value" stroke={isNetPositive ? "#34d399" : "#f87171"} strokeWidth={2.5} fill="url(#netGradient)" dot={false} activeDot={{ r: 4 }} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                <Line type="monotone" dataKey="bench_value" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -436,12 +447,10 @@ export default function PortfolioChartClient({
               <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#a78bfa" : (isNetPositive ? "#34d399" : "#f87171") }} />
               {chartMode === "twr" ? "Inv. Return (TWR)" : "Net Return"}
             </span>
-            {chartMode === "twr" && (
-              <span className="flex items-center gap-1.5">
-                <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />
-                {benchmarkSymbol}
-              </span>
-            )}
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />
+              {benchmarkSymbol}
+            </span>
             {startDateLabel && endDateLabel && (
               <span className="text-slate-600">{startDateLabel} → {endDateLabel}</span>
             )}
