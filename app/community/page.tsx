@@ -22,7 +22,7 @@ export default async function CommunityPage({
 
   const {
     style, risk, sort = "popular", q,
-    section = "strategies", psort = "popular", prisk = "", pq = "", mine = "",
+    section = "feed", psort = "popular", prisk = "", pq = "", mine = "",
   } = await searchParams;
 
   // ── All portfolios (sidebar) ─────────────────────────────────────────────────
@@ -309,6 +309,105 @@ export default async function CommunityPage({
     total_copies: totalCopies,
   };
 
+  // ── Community feed ──────────────────────────────────────────────────────────
+  const { data: rawPosts } = await supabase
+    .from("community_posts")
+    .select("id, user_id, body, tickers, attached_strategy_id, attached_portfolio_id, poll_options, ai_ticker, ai_take, created_at")
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(40);
+  const postList = (rawPosts ?? []) as Array<Record<string, unknown>>;
+  const postIds = postList.map(p => p.id as string);
+  const stratAttachIds = [...new Set(postList.map(p => p.attached_strategy_id).filter(Boolean))] as string[];
+  const portAttachIds = [...new Set(postList.map(p => p.attached_portfolio_id).filter(Boolean))] as string[];
+
+  const [
+    { data: postLikes },
+    { data: postComments },
+    { data: pollVotes },
+    { data: attachStrats },
+    { data: attachPorts },
+    { data: myPubPortfolios },
+  ] = await Promise.all([
+    postIds.length ? supabase.from("community_post_likes").select("post_id, user_id").in("post_id", postIds) : Promise.resolve({ data: [] as { post_id: string; user_id: string }[] }),
+    postIds.length ? supabase.from("community_post_comments").select("id, post_id, user_id, body, created_at").in("post_id", postIds).order("created_at", { ascending: true }) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    postIds.length ? supabase.from("community_poll_votes").select("post_id, user_id, option_idx").in("post_id", postIds) : Promise.resolve({ data: [] as { post_id: string; user_id: string; option_idx: number }[] }),
+    stratAttachIds.length ? supabase.from("strategies").select("id, name, style, risk_level").in("id", stratAttachIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    portAttachIds.length ? supabase.from("public_portfolios").select("id, public_name").in("id", portAttachIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    supabase.from("public_portfolios").select("id, public_name").eq("owner_user_id", user.id).eq("is_public", true),
+  ]);
+
+  // Profiles for post + comment authors (and self).
+  const feedAuthorIds = [...new Set([
+    user.id,
+    ...postList.map(p => p.user_id as string),
+    ...((postComments ?? []) as Record<string, unknown>[]).map(c => c.user_id as string),
+  ])];
+  const { data: feedProfiles } = feedAuthorIds.length > 0
+    ? await supabase.from("user_profiles").select("id, username, display_name, avatar_color").in("id", feedAuthorIds)
+    : { data: [] as Record<string, unknown>[] };
+  const feedProfileMap = new Map((feedProfiles ?? []).map(p => [p.id as string, p]));
+  const authorOf = (id: string) => {
+    const p = feedProfileMap.get(id);
+    return p ? { id, username: (p.username as string) ?? null, display_name: (p.display_name as string) ?? null, avatar_color: (p.avatar_color as string) ?? null } : { id, username: null, display_name: null, avatar_color: null };
+  };
+
+  const stratMap = new Map(((attachStrats ?? []) as Record<string, unknown>[]).map(s => [s.id as string, s]));
+  const portMap = new Map(((attachPorts ?? []) as Record<string, unknown>[]).map(p => [p.id as string, p]));
+  const likesByPost = new Map<string, { count: number; mine: boolean }>();
+  for (const l of (postLikes ?? []) as { post_id: string; user_id: string }[]) {
+    const e = likesByPost.get(l.post_id) ?? { count: 0, mine: false };
+    e.count++; if (l.user_id === user.id) e.mine = true;
+    likesByPost.set(l.post_id, e);
+  }
+  const commentsByPost = new Map<string, Array<Record<string, unknown>>>();
+  for (const c of (postComments ?? []) as Record<string, unknown>[]) {
+    const arr = commentsByPost.get(c.post_id as string) ?? [];
+    arr.push(c); commentsByPost.set(c.post_id as string, arr);
+  }
+  const votesByPost = new Map<string, { counts: Map<number, number>; mine: number | null }>();
+  for (const v of (pollVotes ?? []) as { post_id: string; user_id: string; option_idx: number }[]) {
+    const e = votesByPost.get(v.post_id) ?? { counts: new Map(), mine: null };
+    e.counts.set(v.option_idx, (e.counts.get(v.option_idx) ?? 0) + 1);
+    if (v.user_id === user.id) e.mine = v.option_idx;
+    votesByPost.set(v.post_id, e);
+  }
+
+  const feedPosts = postList.map(p => {
+    const id = p.id as string;
+    const pollOptions = (p.poll_options as string[] | null) ?? null;
+    const voteInfo = votesByPost.get(id);
+    const pollCounts = pollOptions ? pollOptions.map((_, i) => voteInfo?.counts.get(i) ?? 0) : [];
+    const strat = p.attached_strategy_id ? stratMap.get(p.attached_strategy_id as string) : null;
+    const port = p.attached_portfolio_id ? portMap.get(p.attached_portfolio_id as string) : null;
+    const likeInfo = likesByPost.get(id);
+    return {
+      id,
+      user_id: p.user_id as string,
+      body: p.body as string,
+      tickers: (p.tickers as string[]) ?? [],
+      created_at: p.created_at as string,
+      author: authorOf(p.user_id as string),
+      attached_strategy: strat ? { id: strat.id as string, name: strat.name as string, style: (strat.style as string) ?? null, risk_level: (strat.risk_level as string) ?? null } : null,
+      attached_portfolio: port ? { id: port.id as string, public_name: (port.public_name as string) ?? null, return_pct: null } : null,
+      poll_options: pollOptions,
+      poll_counts: pollCounts,
+      poll_my_vote: voteInfo?.mine ?? null,
+      ai_ticker: (p.ai_ticker as string) ?? null,
+      ai_take: (p.ai_take as string) ?? null,
+      like_count: likeInfo?.count ?? 0,
+      liked_by_me: likeInfo?.mine ?? false,
+      comments: (commentsByPost.get(id) ?? []).map(c => ({
+        id: c.id as string, user_id: c.user_id as string, body: c.body as string,
+        created_at: c.created_at as string, author: authorOf(c.user_id as string),
+      })),
+    };
+  });
+
+  const feedMe = authorOf(user.id);
+  const feedMyStrategies = (ownStrategiesRaw ?? []).filter(s => s.is_public).map(s => ({ id: s.id as string, name: s.name as string }));
+  const feedMyPortfolios = ((myPubPortfolios ?? []) as Record<string, unknown>[]).map(p => ({ id: p.id as string, name: (p.public_name as string) ?? "Portfolio" }));
+
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
       <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
@@ -359,6 +458,10 @@ export default async function CommunityPage({
               trendingPortfolios={trendingPortfolios}
               leaderboardStrategies={leaderboardStrategies}
               leaderboardPortfolios={leaderboardPortfolios}
+              feedPosts={feedPosts}
+              feedMe={feedMe}
+              feedMyStrategies={feedMyStrategies}
+              feedMyPortfolios={feedMyPortfolios}
             />
           </div>
         </div>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemplate, postStrategyUpdate, deleteStrategyUpdate } from "./social-actions";
 import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions";
+import CommunityFeed from "./community-feed";
+import type { FeedPost, FeedAuthor, MyOption } from "./community-feed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1574,6 +1576,10 @@ export default function CommunityClient({
   trendingPortfolios,
   leaderboardStrategies,
   leaderboardPortfolios,
+  feedPosts,
+  feedMe,
+  feedMyStrategies,
+  feedMyPortfolios,
 }: {
   strategies: StrategyRow[];
   currentUserId: string;
@@ -1587,6 +1593,10 @@ export default function CommunityClient({
   trendingPortfolios: TrendingPortfolioItem[];
   leaderboardStrategies: LbStrategyItem[];
   leaderboardPortfolios: LbPortfolioItem[];
+  feedPosts: FeedPost[];
+  feedMe: FeedAuthor;
+  feedMyStrategies: MyOption[];
+  feedMyPortfolios: MyOption[];
 }) {
   const router = useRouter();
   const [strategies, setStrategies]       = useState(initialStrategies);
@@ -1717,8 +1727,9 @@ export default function CommunityClient({
   const followingStrategies = strategies.filter(s => !s.is_own && s.author.is_following);
   const followingPortfolios = portfolios.filter(p => !p.is_own && p.author.is_following);
 
-  const TABS = ["strategies", "portfolios", "following", "leaderboard"] as const;
+  const TABS = ["feed", "strategies", "portfolios", "following", "leaderboard"] as const;
   const TAB_LABELS: Record<string, string> = {
+    feed: "Feed",
     strategies: "Strategies",
     portfolios: "Portfolios",
     following: "Following",
@@ -1782,7 +1793,7 @@ export default function CommunityClient({
       </div>
 
       {/* ── Filter row ──────────────────────────────────────────────────────── */}
-      {section !== "following" && section !== "leaderboard" && (
+      {section !== "following" && section !== "leaderboard" && section !== "feed" && (
         <div style={{ padding: "14px 0", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "4px" }}>
           {/* Row 1: search + sort + risk */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1874,7 +1885,15 @@ export default function CommunityClient({
 
       {/* ── Section content ──────────────────────────────────────────────────── */}
 
-      {section === "leaderboard" ? (
+      {section === "feed" ? (
+        <CommunityFeed
+          me={feedMe}
+          initialPosts={feedPosts}
+          myFollowIds={followingIdsArray}
+          myStrategies={feedMyStrategies}
+          myPortfolios={feedMyPortfolios}
+        />
+      ) : section === "leaderboard" ? (
         <LeaderboardSection
           lbStrategies={leaderboardStrategies}
           lbPortfolios={leaderboardPortfolios}
