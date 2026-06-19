@@ -587,8 +587,12 @@ export default function OnboardingModal({
           {/* ── Step 2: Portfolio */}
           {step === 2 && (
             <div>
-              <h2 style={headingStyle}>Create your portfolio</h2>
-              <p style={subStyle}>This is where your holdings, cash, and AI recommendations live.</p>
+              <StepHeader
+                kind="portfolio"
+                title="Create your portfolio"
+                sub="Name it and pick the account type. This is the home for your holdings, cash, and AI insights."
+                unlocks="A place to track your investments"
+              />
 
               {hasExisting && (
                 <div style={{ display: "flex", gap: "8px", marginBottom: "18px" }}>
@@ -663,8 +667,12 @@ export default function OnboardingModal({
           {/* ── Step 3: Holdings */}
           {step === 3 && (
             <div>
-              <h2 style={headingStyle}>Add your current holdings</h2>
-              <p style={subStyle}>Enter stocks you already own. You can add more later from any portfolio page.</p>
+              <StepHeader
+                kind="holdings"
+                title="Add your current holdings"
+                sub="Enter what you already own — ticker, shares, average cost. Skip it and add later if you prefer."
+                unlocks="The AI analyzes your real positions"
+              />
 
               <div style={{ display: "flex", gap: "8px", marginBottom: "12px", alignItems: "flex-end" }}>
                 <div style={{ flex: "0 0 90px" }}>
@@ -752,12 +760,12 @@ export default function OnboardingModal({
           {/* ── Step 4: Cash */}
           {step === 4 && (
             <div>
-              <h2 style={headingStyle}>How much cash do you have available?</h2>
-              <p style={subStyle}>
-                This represents uninvested cash in your <strong style={{ color: "var(--text-primary)" }}>
-                  {existingPortfolios.find((p) => p.id === portfolioId)?.name || "portfolio"}
-                </strong>. Used by the AI when sizing buy recommendations.
-              </p>
+              <StepHeader
+                kind="cash"
+                title="How much cash is available?"
+                sub="Uninvested cash in this portfolio. The AI uses it to size buy recommendations."
+                unlocks="Right-sized buy suggestions"
+              />
               <div>
                 <label style={labelStyle}>Cash balance ($)</label>
                 <input
@@ -780,8 +788,12 @@ export default function OnboardingModal({
           {/* ── Step 5: Strategy */}
           {step === 5 && (
             <div>
-              <h2 style={headingStyle}>Choose an investment strategy</h2>
-              <p style={subStyle}>Your strategy defines how you invest. FINN will analyze it, score it, and surface ways to improve it over time.</p>
+              <StepHeader
+                kind="strategy"
+                title="Choose your strategy"
+                sub="It defines how you invest and guides every AI recommendation. Pick a ready-made one, let Finn build it, or define your own."
+                unlocks="Advice tailored to your style"
+              />
 
               {/* Tabs */}
               <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
@@ -1019,8 +1031,11 @@ export default function OnboardingModal({
           {/* ── Step 6: AI + FINN Tutorial */}
           {step === 6 && (
             <div>
-              <h2 style={headingStyle}>Your AI-powered edge</h2>
-              <p style={subStyle}>BuyTune gives you two layers of AI — portfolio recommendations and strategy intelligence.</p>
+              <StepHeader
+                kind="insights"
+                title="Your AI-powered edge"
+                sub="Every recommendation is a clear call — BUY, HOLD, TRIM — with a thesis, conviction, and sizing, using live market data."
+              />
 
               {/* Section: AI Recommendations */}
               <div style={{ marginBottom: "14px" }}>
@@ -1121,8 +1136,12 @@ export default function OnboardingModal({
           {/* ── Step 7: First Scan */}
           {step === 7 && (
             <div>
-              <h2 style={headingStyle}>Run your first AI scan</h2>
-              <p style={subStyle}>BuyTune will analyze your portfolio and generate initial recommendations.</p>
+              <StepHeader
+                kind="scan"
+                title="Run your first AI scan"
+                sub="Finn reviews your portfolio against your strategy and live data, then lists what to consider."
+                unlocks="Your first recommendations"
+              />
 
               {/* Setup summary */}
               <div style={{ padding: "14px 16px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "11px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1308,6 +1327,122 @@ function SummaryRow({ icon, label, value }: { icon: string; label: string; value
       <span style={{ fontSize: "12px", width: "18px" }}>{icon}</span>
       <span style={{ fontSize: "11px", color: "var(--text-muted)", width: "70px" }}>{label}</span>
       <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 500 }}>{value || "—"}</span>
+    </div>
+  );
+}
+
+// ── Per-step SVG illustrations ──────────────────────────────────────────────
+// Simple, theme-aware line diagrams (no screenshots to rot). The panel sets the
+// accent via `color`; glyphs use currentColor + a few token strokes/fills.
+
+type ArtKind = "portfolio" | "holdings" | "cash" | "strategy" | "insights" | "scan";
+
+const BLUE = "var(--brand-blue)";
+const VIOLET = "var(--violet)";
+const GREEN = "var(--green)";
+
+function StepArt({ kind }: { kind: ArtKind }) {
+  const accent = kind === "strategy" ? VIOLET : kind === "insights" ? VIOLET : kind === "cash" ? GREEN : BLUE;
+  return (
+    <div style={{
+      height: "104px", borderRadius: "var(--radius-lg)",
+      background: "var(--card-bg)", border: "1px solid var(--card-border)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      overflow: "hidden", color: accent,
+    }}>
+      <svg width="100%" height="104" viewBox="0 0 320 104" fill="none" preserveAspectRatio="xMidYMid meet">
+        {kind === "portfolio" && (
+          <g>
+            <rect x="108" y="24" width="104" height="56" rx="9" style={{ fill: "var(--bg-elevated)", stroke: "currentColor" }} strokeWidth="1.5" />
+            <rect x="120" y="36" width="34" height="6" rx="3" style={{ fill: "currentColor" }} opacity="0.9" />
+            <rect x="120" y="50" width="60" height="9" rx="3" style={{ fill: "var(--text-muted)" }} />
+            <rect x="120" y="66" width="14" height="6" rx="3" style={{ fill: "var(--text-muted)" }} opacity="0.7" />
+            <circle cx="196" cy="40" r="9" style={{ stroke: GREEN }} strokeWidth="2" fill="none" />
+            <path d="M192 40l3 3 5-6" style={{ stroke: GREEN }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+        )}
+        {kind === "holdings" && (
+          <g>
+            {[28, 50, 72].map((y, i) => (
+              <g key={y}>
+                <rect x="78" y={y - 9} width="164" height="18" rx="5" style={{ fill: "var(--bg-elevated)", stroke: "var(--card-border)" }} strokeWidth="1" />
+                <rect x="84" y={y - 5} width="26" height="10" rx="3" style={{ fill: "currentColor" }} opacity={0.85 - i * 0.15} />
+                <rect x="120" y={y - 3} width="48" height="6" rx="3" style={{ fill: "var(--text-muted)" }} />
+                <rect x="210" y={y - 3} width="26" height="6" rx="3" style={{ fill: GREEN }} opacity="0.8" />
+              </g>
+            ))}
+          </g>
+        )}
+        {kind === "cash" && (
+          <g>
+            <rect x="110" y="34" width="100" height="40" rx="8" style={{ fill: "var(--bg-elevated)", stroke: "currentColor" }} strokeWidth="1.5" />
+            <circle cx="160" cy="54" r="12" style={{ stroke: "currentColor" }} strokeWidth="2" fill="none" />
+            <path d="M160 48v12M157 51h4.5a2 2 0 010 4H157m0 0h5" style={{ stroke: "currentColor" }} strokeWidth="1.6" strokeLinecap="round" />
+            <circle cx="126" cy="54" r="3" style={{ fill: "var(--text-muted)" }} />
+            <circle cx="194" cy="54" r="3" style={{ fill: "var(--text-muted)" }} />
+          </g>
+        )}
+        {kind === "strategy" && (
+          <g>
+            <rect x="40" y="28" width="84" height="48" rx="8" style={{ fill: "var(--bg-elevated)", stroke: "currentColor" }} strokeWidth="1.5" />
+            {[40, 52, 64].map((y) => (
+              <g key={y}>
+                <circle cx="54" cy={y} r="3" style={{ stroke: "currentColor" }} strokeWidth="1.5" fill="none" />
+                <rect x="62" y={y - 3} width="46" height="6" rx="3" style={{ fill: "var(--text-muted)" }} />
+              </g>
+            ))}
+            <path d="M132 52h48" style={{ stroke: "currentColor" }} strokeWidth="2" strokeLinecap="round" strokeDasharray="3 4" />
+            <path d="M176 47l6 5-6 5" style={{ stroke: "currentColor" }} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="196" y="32" width="80" height="40" rx="8" style={{ fill: "var(--bg-elevated)", stroke: GREEN }} strokeWidth="1.5" />
+            <rect x="208" y="42" width="30" height="6" rx="3" style={{ fill: GREEN }} opacity="0.85" />
+            <rect x="208" y="54" width="50" height="6" rx="3" style={{ fill: "var(--text-muted)" }} />
+          </g>
+        )}
+        {kind === "insights" && (
+          <g>
+            <path d="M150 30l3.2 7.8 7.8 3.2-7.8 3.2L150 52l-3.2-7.8L139 41l7.8-3.2z" style={{ fill: "currentColor" }} />
+            <path d="M120 66h80" style={{ stroke: "var(--card-border)" }} strokeWidth="1" />
+            <g>
+              <rect x="78" y="74" width="44" height="16" rx="8" style={{ fill: "var(--green-bg)", stroke: GREEN }} strokeWidth="1" />
+              <text x="100" y="85" textAnchor="middle" style={{ fill: GREEN, font: "700 9px var(--font-mono)" }}>BUY</text>
+              <rect x="138" y="74" width="44" height="16" rx="8" style={{ fill: "var(--card-bg)", stroke: "var(--text-muted)" }} strokeWidth="1" />
+              <text x="160" y="85" textAnchor="middle" style={{ fill: "var(--text-secondary)", font: "700 9px var(--font-mono)" }}>HOLD</text>
+              <rect x="198" y="74" width="44" height="16" rx="8" style={{ fill: "var(--amber-bg)", stroke: "var(--amber)" }} strokeWidth="1" />
+              <text x="220" y="85" textAnchor="middle" style={{ fill: "var(--amber)", font: "700 9px var(--font-mono)" }}>TRIM</text>
+            </g>
+          </g>
+        )}
+        {kind === "scan" && (
+          <g>
+            <rect x="96" y="28" width="128" height="52" rx="9" style={{ fill: "var(--bg-elevated)", stroke: "var(--card-border)" }} strokeWidth="1.5" />
+            <rect x="108" y="40" width="44" height="6" rx="3" style={{ fill: "var(--text-muted)" }} />
+            <rect x="108" y="54" width="70" height="6" rx="3" style={{ fill: "var(--text-muted)" }} opacity="0.6" />
+            <circle cx="196" cy="54" r="18" style={{ stroke: "currentColor" }} strokeWidth="2" fill="none" opacity="0.4" />
+            <circle cx="196" cy="54" r="11" style={{ stroke: "currentColor" }} strokeWidth="2" fill="none" />
+            <path d="M204 62l9 9" style={{ stroke: "currentColor" }} strokeWidth="2.5" strokeLinecap="round" />
+          </g>
+        )}
+      </svg>
+    </div>
+  );
+}
+
+function StepHeader({ kind, title, sub, unlocks }: { kind: ArtKind; title: string; sub: string; unlocks?: string }) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <StepArt kind={kind} />
+      <h2 style={{ ...headingStyle, marginTop: "14px", marginBottom: "5px" }}>{title}</h2>
+      <p style={{ ...subStyle, marginBottom: unlocks ? "10px" : "16px" }}>{sub}</p>
+      {unlocks && (
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          padding: "5px 11px", borderRadius: "var(--radius-full)",
+          background: "var(--green-bg)", border: "1px solid var(--green-border)",
+        }}>
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="var(--green)"><path d="M10 1a4 4 0 00-4 4v2H5a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2h-1V5a4 4 0 00-4-4zm2 6V5a2 2 0 10-4 0v2h4z" /></svg>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)" }}>{unlocks}</span>
+        </div>
+      )}
     </div>
   );
 }
