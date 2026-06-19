@@ -13,6 +13,7 @@ import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
 import NotificationCenter from "@/app/components/notification-center";
+import { ThemeToggle } from "@/app/components/theme-provider";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -300,13 +301,14 @@ export default async function DashboardPage({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
               <StreakBadge initialStreak={initialStreak} />
-              <div className="hidden sm:flex" style={{ gap: "8px" }}>
+              <div className="hidden sm:flex" style={{ gap: "8px", alignItems: "center" }}>
                 <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
                   Manage Portfolios
                 </Link>
                 <Link href="/strategies" className="bt-btn bt-btn-ghost bt-btn-sm">
                   Strategies
                 </Link>
+                <ThemeToggle />
               </div>
             </div>
           </div>
