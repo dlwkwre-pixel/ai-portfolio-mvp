@@ -927,7 +927,7 @@ export default function StrategyQuestionnaire({
   variant = "modal",
 }: {
   onClose: () => void;
-  onSaved?: (strategyName: string) => void;
+  onSaved?: (strategyName: string, strategyId?: string) => void;
   variant?: "modal" | "inline";
 }) {
   const router = useRouter();
@@ -1211,12 +1211,12 @@ export default function StrategyQuestionnaire({
         fd.set("cash_max_pct",        editedStrategy.cash_max_pct?.toString() ?? "");
         fd.set("description",         editedStrategy.description);
         fd.set("prompt_text",         editedStrategy.prompt_text);
-        await createStrategy(fd);
+        const created = await createStrategy(fd);
         // Silently persist FINN profile — don't block or surface save errors
         const arch = detectArchetype(editedStrategy);
         const traits = detectTraits(editedStrategy);
         saveFinnProfile(arch, traits).catch(() => {});
-        if (onSaved && editedStrategy) onSaved(editedStrategy.name);
+        if (onSaved && editedStrategy) onSaved(editedStrategy.name, created?.id);
         else { router.refresh(); onClose(); }
       } catch (error) {
         setSaveError(error instanceof Error ? error.message : "Failed to save strategy.");

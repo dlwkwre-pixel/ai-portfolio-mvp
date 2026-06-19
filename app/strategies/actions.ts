@@ -84,6 +84,10 @@ export async function createStrategy(formData: FormData) {
 
   revalidatePath("/strategies");
   revalidatePath("/portfolios");
+
+  // Returned so callers (e.g. the hub's assign-on-create flow) can immediately
+  // link the new strategy to a portfolio without a round trip.
+  return { id: strategy.id as string };
 }
 
 export async function updateStrategy(formData: FormData) {

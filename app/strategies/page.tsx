@@ -64,6 +64,20 @@ export default async function StrategiesPage() {
   const finnProfile = await getFinnProfile();
   const memoryInsights = deriveMemoryInsights(activeCards);
 
+  // Active portfolios — lets the hub offer "apply to a portfolio" right after a
+  // strategy is built, instead of sending the user off to the Portfolios page.
+  const { data: portfoliosData } = await supabase
+    .from("portfolios")
+    .select("id, name, account_type")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+  const hubPortfolios = (portfoliosData ?? []).map((p) => ({
+    id: p.id as string,
+    name: p.name as string,
+    account_type: (p.account_type as string | null) ?? null,
+  }));
+
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
       <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
@@ -93,7 +107,7 @@ export default async function StrategiesPage() {
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "24px" }}>
 
-            <StrategiesHub />
+            <StrategiesHub portfolios={hubPortfolios} />
 
             {/* Market regime context — regime shift alert + compact banner */}
             <RegimeShiftAlert />
