@@ -143,22 +143,39 @@ export async function buildExtraDigestSections(
 
   // ── Benchmark vs index (this week) ──
   if (pref.include_benchmark) {
-    const { data: weekSnaps } = await db
-      .from("portfolio_snapshots")
-      .select("snapshot_date, total_value")
-      .eq("portfolio_id", portfolio.id)
-      .gte("snapshot_date", `${sevenDaysAgo}T00:00:00`)
-      .order("snapshot_date", { ascending: true });
+    const [{ data: weekSnaps }, { data: weekFlows }] = await Promise.all([
+      db
+        .from("portfolio_snapshots")
+        .select("snapshot_date, total_value")
+        .eq("portfolio_id", portfolio.id)
+        .gte("snapshot_date", `${sevenDaysAgo}T00:00:00`)
+        .order("snapshot_date", { ascending: true }),
+      db
+        .from("cash_ledger")
+        .select("amount, direction, effective_at")
+        .eq("portfolio_id", portfolio.id)
+        .gte("effective_at", `${sevenDaysAgo}T00:00:00`),
+    ]);
     if (weekSnaps && weekSnaps.length >= 2) {
       try {
         const cmp = await getBenchmarkComparison({
           snapshots: weekSnaps.map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) })),
           benchmarkSymbol: portfolio.benchmark_symbol || "SPY",
+          // Deposit-neutral: pass cash flows so the portfolio side uses TWR, not a
+          // raw value delta that counts deposits as performance.
+          cashFlows: (weekFlows ?? []).map((f) => ({
+            effective_at: f.effective_at as string,
+            direction: (f.direction as string | null) ?? "IN",
+            amount: Number(f.amount ?? 0),
+          })),
         });
-        if (cmp.portfolioReturnPct != null && cmp.benchmarkReturnPct != null) {
+        // Use TWR (net return) for the portfolio — matches the charts and the
+        // performance section, and isn't distorted by deposits.
+        const portfolioPct = cmp.portfolioTwrPct ?? cmp.portfolioReturnPct;
+        if (portfolioPct != null && cmp.benchmarkReturnPct != null) {
           benchmark = {
             symbol: cmp.benchmarkSymbol,
-            portfolioPct: cmp.portfolioReturnPct,
+            portfolioPct,
             benchmarkPct: cmp.benchmarkReturnPct,
           };
         }
