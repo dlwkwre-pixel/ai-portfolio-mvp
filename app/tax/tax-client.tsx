@@ -464,7 +464,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {/* Segmented bar */}
             {grandTotal > 0 && (
               <div style={{ marginBottom: "14px" }}>
-                <div style={{ display: "flex", height: "4px", borderRadius: "4px", overflow: "hidden", background: "rgba(255,255,255,0.06)", gap: "2px" }}>
+                <div style={{ display: "flex", height: "4px", borderRadius: "4px", overflow: "hidden", background: "var(--surface-006)", gap: "2px" }}>
                   {incomeTaxTotal > 0 && <div style={{ width: barMounted ? `${incomeBarPct}%` : "0%", background: "linear-gradient(90deg,#3b82f6,#60a5fa)", borderRadius: "4px 0 0 4px", transition: "width 1s ease-out", flexShrink: 0 }} />}
                   {propertyTaxTotal > 0 && <div style={{ width: barMounted ? `${propBarPct}%` : "0%", background: "#f59e0b", transition: "width 1s ease-out 0.1s", flexShrink: 0 }} />}
                   {investTaxTotal > 0 && <div style={{ width: barMounted ? `${investBarPct}%` : "0%", background: "linear-gradient(90deg,#8b5cf6,#6d28d9)", borderRadius: "0 4px 4px 0", transition: "width 1s ease-out 0.2s", flexShrink: 0 }} />}

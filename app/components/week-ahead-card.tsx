@@ -163,8 +163,8 @@ export default function WeekAheadCard() {
                     key={idx.symbol}
                     className="bt-wa-tile"
                     style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
+                      background: "var(--surface-003)",
+                      border: "1px solid var(--line-006)",
                       borderRadius: "var(--radius-md)",
                       padding: "7px 8px",
                       animation: `bt-fade-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.05}s both`,
@@ -215,8 +215,8 @@ export default function WeekAheadCard() {
                   style={{
                     fontSize: "10px",
                     color: "var(--text-secondary)",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.07)",
+                    background: "var(--surface-004)",
+                    border: "1px solid var(--line-007)",
                     padding: "2px 8px",
                     borderRadius: "var(--radius-full)",
                   }}
@@ -299,7 +299,7 @@ export default function WeekAheadCard() {
           )}
 
           {/* Footer */}
-          <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--line-006)", display: "flex", alignItems: "center", gap: "6px" }}>
             <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>
               {data.volatility} volatility expected
             </span>

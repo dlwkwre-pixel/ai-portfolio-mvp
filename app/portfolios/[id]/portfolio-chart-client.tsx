@@ -83,7 +83,7 @@ function compactDate(value: string) {
 
 const tooltipStyle = {
   backgroundColor: "#0f172a",
-  border: "1px solid rgba(255,255,255,0.1)",
+  border: "1px solid var(--line-010)",
   borderRadius: "12px",
   color: "#ffffff",
   fontSize: "12px",
@@ -239,7 +239,7 @@ export default function PortfolioChartClient({
   const activeStats = chartMode === "net" ? netStats : twrStats;
 
   return (
-    <div className="mb-6 rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
+    <div className="mb-6 rounded-2xl p-5" style={{ border: "1px solid var(--line-007)", background: "var(--surface-003)" }}>
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-5">

@@ -560,7 +560,7 @@ function StrategyDNAChart({ profile }: { profile: DNAProfile }) {
   return (
     <div
       className="rounded-xl border px-4 pt-3 pb-4"
-      style={{ background: "rgba(255,255,255,0.015)", borderColor: FV.borderFaint, animation: "bt-scale-in 0.35s ease both" }}
+      style={{ background: "var(--surface-002)", borderColor: FV.borderFaint, animation: "bt-scale-in 0.35s ease both" }}
     >
       <div className="mb-3 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accent, animation: "finnPulse 2.5s ease-in-out infinite" }} />
@@ -572,7 +572,7 @@ function StrategyDNAChart({ profile }: { profile: DNAProfile }) {
           return (
             <div key={key} className="flex items-center gap-3">
               <span className="w-16 shrink-0 text-[11px] text-slate-400">{label}</span>
-              <div className="relative flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+              <div className="relative flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: "var(--surface-008)" }}>
                 <div
                   className="absolute inset-y-0 left-0 rounded-full"
                   style={{
@@ -637,11 +637,11 @@ function StrategySnapshotCard({ strategy, mode, onToggle }: {
   return (
     <div
       className="rounded-xl border border-white/6 px-4 pt-3 pb-3.5"
-      style={{ background: "rgba(255,255,255,0.015)", animation: "bt-fade-up 0.4s 0.1s ease both" }}
+      style={{ background: "var(--surface-002)", animation: "bt-fade-up 0.4s 0.1s ease both" }}
     >
       <div className="mb-2.5 flex items-center justify-between">
         <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Strategy Snapshot</p>
-        <div className="flex items-center gap-0.5 rounded-md p-0.5" style={{ background: "rgba(255,255,255,0.04)" }}>
+        <div className="flex items-center gap-0.5 rounded-md p-0.5" style={{ background: "var(--surface-004)" }}>
           {(["simple", "pro"] as const).map(m => (
             <button
               key={m}
@@ -706,7 +706,7 @@ function PsychologyBrief({ strategy }: { strategy: GeneratedStrategy }) {
   return (
     <div
       className="overflow-hidden rounded-xl border border-white/6"
-      style={{ background: "rgba(255,255,255,0.015)", animation: "bt-fade-up 0.4s 0.25s ease both" }}
+      style={{ background: "var(--surface-002)", animation: "bt-fade-up 0.4s 0.25s ease both" }}
     >
       <button
         type="button"
@@ -764,7 +764,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
   return (
     <div
       className="rounded-xl border px-4 pt-3 pb-3.5"
-      style={{ background: "rgba(255,255,255,0.012)", borderColor: "rgba(255,255,255,0.06)", animation: "bt-fade-in 0.35s ease both" }}
+      style={{ background: "var(--surface-002)", borderColor: "var(--line-006)", animation: "bt-fade-in 0.35s ease both" }}
     >
       <div className="mb-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -817,7 +817,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
             return (
               <div key={d.key} className="flex items-center gap-3">
                 <span className="w-16 shrink-0 text-[11px] text-slate-400">{d.label}</span>
-                <div className="relative flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <div className="relative flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: "var(--surface-006)" }}>
                   <div
                     className="absolute inset-y-0 left-0 rounded-full"
                     style={{
@@ -853,7 +853,7 @@ function StressSimulator({ strategy }: { strategy: GeneratedStrategy }) {
   return (
     <div
       className="rounded-xl border border-white/6 px-4 pt-3 pb-3.5"
-      style={{ background: "rgba(255,255,255,0.012)", animation: "bt-fade-up 0.4s 0.3s ease both" }}
+      style={{ background: "var(--surface-002)", animation: "bt-fade-up 0.4s 0.3s ease both" }}
     >
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Stress Scenarios</span>
@@ -866,7 +866,7 @@ function StressSimulator({ strategy }: { strategy: GeneratedStrategy }) {
             <div
               key={s.id}
               className="rounded-xl border border-white/6 px-3 py-2.5"
-              style={{ background: "rgba(255,255,255,0.015)" }}
+              style={{ background: "var(--surface-002)" }}
             >
               <p className="mb-2 text-[10px] font-semibold text-slate-400">{s.label}</p>
               <div className="space-y-1.5">
@@ -1242,7 +1242,7 @@ export default function StrategyQuestionnaire({
       <div
         className="flex items-center justify-between border-b px-6 py-4"
         style={{
-          borderColor: "rgba(255,255,255,0.08)",
+          borderColor: "var(--line-008)",
           background: "radial-gradient(ellipse 70% 140% at 50% 0%, rgba(109,40,217,0.07), transparent)",
         }}
       >
@@ -1346,7 +1346,7 @@ export default function StrategyQuestionnaire({
                 style={
                   msg.role === "assistant"
                     ? { background: FV.bgMed, border: `1px solid ${FV.borderFaint}`, color: FV.accentBright }
-                    : { background: "rgba(255,255,255,0.08)", color: "#cbd5e1" }
+                    : { background: "var(--surface-008)", color: "#cbd5e1" }
                 }
               >
                 {msg.role === "assistant" ? <FinnGlyph size={13} /> : "You"}

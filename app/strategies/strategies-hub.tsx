@@ -471,7 +471,7 @@ export default function StrategiesHub() {
               cursor: "pointer",
               transition: "transform 150ms cubic-bezier(0.23,1,0.32,1), box-shadow 150ms cubic-bezier(0.23,1,0.32,1), border-color 0.18s",
               ...(activeSection === "custom" ? {
-                border: "1px solid rgba(255,255,255,0.15)",
+                border: "1px solid var(--line-015)",
               } : hoveredCard === "custom" ? {
                 transform: "translateY(-2px)",
                 boxShadow: "0 4px 16px rgba(0,0,0,0.28)",
@@ -669,7 +669,7 @@ export default function StrategiesHub() {
                 scrollSnapAlign: "start",
                 width: "80px",
                 background: "transparent",
-                border: "1px dashed rgba(255,255,255,0.07)",
+                border: "1px dashed var(--line-007)",
                 borderRadius: "var(--radius-md)",
                 padding: "11px 8px",
                 display: "flex",

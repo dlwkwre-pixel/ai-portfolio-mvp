@@ -147,8 +147,8 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                         fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em",
                         textTransform: "uppercase", padding: "2px 7px",
                         borderRadius: "var(--radius-full)",
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "var(--surface-004)",
+                        border: "1px solid var(--line-008)",
                         color: "var(--text-muted)",
                       }}>
                         % only
@@ -237,8 +237,8 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
 
               {/* ── Privacy notice ───────────────────────────────────────────── */}
               <div style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "var(--surface-002)",
+                border: "1px solid var(--line-006)",
                 borderRadius: "var(--radius-md)",
                 padding: "9px 14px",
                 marginBottom: "12px",
@@ -307,7 +307,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                       </Link>
                       <div style={{
                         flex: "1 1 60px", height: "4px", borderRadius: "2px",
-                        background: "rgba(255,255,255,0.05)", overflow: "hidden",
+                        background: "var(--surface-005)", overflow: "hidden",
                       }}>
                         <div style={{
                           height: "100%",
@@ -335,7 +335,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                           width: "10px", height: "10px", minWidth: "10px",
                           borderRadius: "3px",
                           background: ALLOC_CASH_COLOR,
-                          border: "1px solid rgba(255,255,255,0.15)",
+                          border: "1px solid var(--line-015)",
                         }} />
                         <span style={{
                           fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600,
@@ -345,7 +345,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                         </span>
                         <div style={{
                           flex: "1 1 60px", height: "4px", borderRadius: "2px",
-                          background: "rgba(255,255,255,0.05)", overflow: "hidden",
+                          background: "var(--surface-005)", overflow: "hidden",
                         }}>
                           <div style={{
                             height: "100%",

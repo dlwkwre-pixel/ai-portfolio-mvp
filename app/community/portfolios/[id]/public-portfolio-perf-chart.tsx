@@ -35,7 +35,7 @@ function fmtPct(v: number) {
 
 const tooltipStyle = {
   backgroundColor: "#0f172a",
-  border: "1px solid rgba(255,255,255,0.1)",
+  border: "1px solid var(--line-010)",
   borderRadius: "12px",
   color: "#fff",
   fontSize: "12px",
@@ -75,8 +75,8 @@ export default function PublicPortfolioPerfChart({ data }: { data: PerfPoint[] }
         </div>
         {/* Timeframe buttons */}
         <div style={{
-          display: "flex", background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.06)", borderRadius: "10px", padding: "3px",
+          display: "flex", background: "var(--surface-003)",
+          border: "1px solid var(--line-006)", borderRadius: "10px", padding: "3px",
         }}>
           {TIMEFRAMES.map((t) => (
             <button
@@ -103,8 +103,8 @@ export default function PublicPortfolioPerfChart({ data }: { data: PerfPoint[] }
       {filtered.length < 2 ? (
         <div style={{
           height: "160px", display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(255,255,255,0.02)", borderRadius: "var(--radius-md)",
-          border: "1px solid rgba(255,255,255,0.05)",
+          background: "var(--surface-002)", borderRadius: "var(--radius-md)",
+          border: "1px solid var(--line-006)",
         }}>
           <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>
             Not enough data for this timeframe.

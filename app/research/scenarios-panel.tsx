@@ -308,7 +308,7 @@ function ScenarioCard({
                 letterSpacing: "0.06em",
                 padding: "1px 6px",
                 borderRadius: "var(--radius-full)",
-                background: "rgba(255,255,255,0.05)",
+                background: "var(--surface-005)",
                 color: "var(--text-tertiary)",
                 border: "1px solid var(--border-subtle)",
               }}>

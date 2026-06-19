@@ -71,6 +71,27 @@
 
   --background: #07090f;
   --foreground: #f0f4ff;
+
+  /* ── Elevation surfaces (white overlays in dark; solid/inset in light) ──
+     Dark values reproduce the inline rgba(255,255,255,a) literals exactly so
+     dark mode is unchanged. The codemod maps inline backgrounds onto these by
+     alpha bucket. Light values give Robinhood-style solid white / faint gray. */
+  --surface-002:  rgba(255,255,255,0.02);
+  --surface-003:  rgba(255,255,255,0.03);
+  --surface-004:  rgba(255,255,255,0.04);
+  --surface-005:  rgba(255,255,255,0.05);
+  --surface-006:  rgba(255,255,255,0.06);
+  --surface-008:  rgba(255,255,255,0.08);
+  --surface-010:  rgba(255,255,255,0.10);
+
+  /* ── Hairline borders (white overlays in dark; gray lines in light) ── */
+  --line-004:     rgba(255,255,255,0.04);
+  --line-006:     rgba(255,255,255,0.06);
+  --line-007:     rgba(255,255,255,0.07);
+  --line-008:     rgba(255,255,255,0.08);
+  --line-010:     rgba(255,255,255,0.10);
+  --line-012:     rgba(255,255,255,0.12);
+  --line-015:     rgba(255,255,255,0.15);
 }
 
 /* ── Light theme ── */
@@ -115,6 +136,25 @@
 
   --background: #f4f5f7;
   --foreground: #111827;
+
+  /* Light elevation: low tiers become solid white cards (sit on the gray base),
+     higher tiers become faint gray insets/hovers. No more invisible white-on-white. */
+  --surface-002:  #ffffff;
+  --surface-003:  #ffffff;
+  --surface-004:  #ffffff;
+  --surface-005:  rgba(17,24,39,0.035);
+  --surface-006:  rgba(17,24,39,0.05);
+  --surface-008:  rgba(17,24,39,0.065);
+  --surface-010:  rgba(17,24,39,0.08);
+
+  /* Light hairlines: visible gray lines instead of vanishing white. */
+  --line-004:     rgba(17,24,39,0.07);
+  --line-006:     rgba(17,24,39,0.09);
+  --line-007:     rgba(17,24,39,0.10);
+  --line-008:     rgba(17,24,39,0.11);
+  --line-010:     rgba(17,24,39,0.13);
+  --line-012:     rgba(17,24,39,0.15);
+  --line-015:     rgba(17,24,39,0.18);
 }
 
 @theme inline {
@@ -123,6 +163,37 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+
+/* ── Light-mode overrides for Tailwind white-alpha utilities ──
+   These utilities (bg-white/N, border-white/N) bake in white, which is
+   invisible on a light background. The rules below are unlayered, so they beat
+   Tailwind's layered utilities by the cascade, while inline styles still win.
+   Low-elevation fills become solid white cards; higher tiers and all borders
+   become visible gray, matching the --surface-*/--line-* token philosophy. */
+[data-theme="light"] .bg-white\/2,
+[data-theme="light"] .bg-white\/3,
+[data-theme="light"] .bg-white\/4 { background-color: #ffffff; }
+[data-theme="light"] .bg-white\/5 { background-color: rgba(17,24,39,0.04); }
+[data-theme="light"] .bg-white\/6 { background-color: rgba(17,24,39,0.05); }
+[data-theme="light"] .bg-white\/8 { background-color: rgba(17,24,39,0.065); }
+[data-theme="light"] .bg-white\/10 { background-color: rgba(17,24,39,0.08); }
+
+[data-theme="light"] .hover\:bg-white\/2:hover { background-color: #ffffff; }
+[data-theme="light"] .hover\:bg-white\/3:hover { background-color: rgba(17,24,39,0.03); }
+[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(17,24,39,0.04); }
+[data-theme="light"] .hover\:bg-white\/6:hover { background-color: rgba(17,24,39,0.05); }
+[data-theme="light"] .hover\:bg-white\/8:hover { background-color: rgba(17,24,39,0.065); }
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(17,24,39,0.08); }
+
+[data-theme="light"] .border-white\/5 { border-color: rgba(17,24,39,0.08); }
+[data-theme="light"] .border-white\/6 { border-color: rgba(17,24,39,0.09); }
+[data-theme="light"] .border-white\/8 { border-color: rgba(17,24,39,0.11); }
+[data-theme="light"] .border-white\/10 { border-color: rgba(17,24,39,0.13); }
+[data-theme="light"] .border-white\/15 { border-color: rgba(17,24,39,0.16); }
+[data-theme="light"] .border-white\/20 { border-color: rgba(17,24,39,0.20); }
+
+[data-theme="light"] .divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.07); }
+[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.08); }
 
 /* ── Base resets ── */
 *, *::before, *::after { box-sizing: border-box; }

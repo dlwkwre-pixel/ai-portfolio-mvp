@@ -237,7 +237,7 @@ export default function DashboardClient({
               <Link
                 key={rec.id}
                 href={`/portfolios/${rec.portfolioId}?tab=ai`}
-                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", borderRadius: "var(--radius-sm)", textDecoration: "none", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)", transition: "background 0.15s ease, border-color 0.15s ease" }}
+                style={{ display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", borderRadius: "var(--radius-sm)", textDecoration: "none", background: "var(--surface-002)", border: "1px solid var(--line-004)", transition: "background 0.15s ease, border-color 0.15s ease" }}
               >
                 <span className={rec.badgeClass}>{(rec.action_type || "—").replace("_", " ")}</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", flexShrink: 0, minWidth: "38px" }}>{rec.ticker}</span>

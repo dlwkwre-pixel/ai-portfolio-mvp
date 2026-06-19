@@ -90,7 +90,7 @@ export default function UsernameSetupPage() {
         .fu2 { animation: fadeUp 0.5s 0.16s ease both; }
         .fu3 { animation: fadeUp 0.5s 0.24s ease both; }
         .fu4 { animation: fadeUp 0.5s 0.32s ease both; }
-        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: all 0.15s; }
+        .ifield { width: 100%; padding: 12px 14px; background: var(--surface-004); border: 1px solid var(--line-008); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: all 0.15s; }
         .ifield:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
         .ifield::placeholder { color: #334155; }
         .ifield.valid { border-color: rgba(0,211,149,0.4); }

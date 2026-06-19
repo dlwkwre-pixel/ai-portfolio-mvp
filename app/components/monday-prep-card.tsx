@@ -136,7 +136,7 @@ export default function MondayPrepCard() {
 
       {/* Progress bar */}
       {data && totalCount > 0 && (
-        <div style={{ height: "2px", background: "rgba(255,255,255,0.06)", borderRadius: "2px", marginBottom: "14px", overflow: "hidden" }}>
+        <div style={{ height: "2px", background: "var(--surface-006)", borderRadius: "2px", marginBottom: "14px", overflow: "hidden" }}>
           <div style={{ height: "100%", borderRadius: "2px", background: allDone ? "var(--green)" : "rgba(96,165,250,0.6)", width: `${(doneCount / totalCount) * 100}%`, transition: "width 0.3s ease, background 0.3s ease" }} />
         </div>
       )}
@@ -169,8 +169,8 @@ export default function MondayPrepCard() {
                       gap: "5px",
                       padding: "5px 10px",
                       borderRadius: "var(--radius-md)",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
+                      background: "var(--surface-004)",
+                      border: "1px solid var(--line-007)",
                       cursor: "pointer",
                     }}
                   >
@@ -193,7 +193,7 @@ export default function MondayPrepCard() {
 
           {/* Divider */}
           {data.holdings.length > 0 && (
-            <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", marginBottom: "12px" }} />
+            <div style={{ height: "1px", background: "var(--surface-005)", marginBottom: "12px" }} />
           )}
 
           {/* Contextual checklist */}
@@ -314,7 +314,7 @@ export default function MondayPrepCard() {
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div style={{ padding: "0 10px 10px 34px", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ padding: "0 10px 10px 34px", borderTop: "1px solid var(--line-004)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6, paddingTop: "8px", marginBottom: hasAction && item.cta ? "8px" : "0" }}>
                         {item.detail}
                       </p>
@@ -327,7 +327,7 @@ export default function MondayPrepCard() {
                               display: "inline-flex", alignItems: "center", gap: "4px",
                               fontSize: "11px", fontWeight: 600, color: accent,
                               padding: "4px 10px", borderRadius: "var(--radius-sm)",
-                              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                              background: "var(--surface-004)", border: "1px solid var(--line-007)",
                               cursor: "pointer",
                             }}
                           >
@@ -340,7 +340,7 @@ export default function MondayPrepCard() {
                               display: "inline-flex", alignItems: "center", gap: "4px",
                               fontSize: "11px", fontWeight: 600, color: accent, textDecoration: "none",
                               padding: "4px 10px", borderRadius: "var(--radius-sm)",
-                              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+                              background: "var(--surface-004)", border: "1px solid var(--line-007)",
                             }}
                           >
                             {item.cta}

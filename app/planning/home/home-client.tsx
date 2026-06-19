@@ -5919,14 +5919,14 @@ export default function HomeClient({
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Export to Excel
                 </button>
-                <button onClick={() => setShowAmortModal(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "#64748b", fontSize: "18px", cursor: "pointer", transition: "color 0.15s, background 0.15s" }}>
+                <button onClick={() => setShowAmortModal(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1px solid var(--line-008)", background: "transparent", color: "#64748b", fontSize: "18px", cursor: "pointer", transition: "color 0.15s, background 0.15s" }}>
                   ×
                 </button>
               </div>
             </div>
 
             {/* Stats bar */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderBottom: "1px solid var(--line-006)" }}>
               {[
                 { label: "Monthly P&I", value: fmt(computed.amortStats.monthlyPayment), sub: "principal + interest", accent: "#e2e8f0" },
                 { label: "Total Interest Cost", value: fmtK(computed.amortStats.totalInterest), sub: "over full loan term", accent: "oklch(0.68 0.18 25)" },
@@ -6004,7 +6004,7 @@ export default function HomeClient({
             </div>
 
             {/* Footer */}
-            <div style={{ padding: "10px 20px 14px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <div style={{ padding: "10px 20px 14px", borderTop: "1px solid var(--line-006)", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
               {[
                 { dot: "#3b82f6", text: "★ = your planned hold year" },
                 { dot: "rgba(0,211,149,0.5)", text: "Green border = crossover (principal > interest)" },

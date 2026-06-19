@@ -250,7 +250,7 @@ function ShareModal({
                       onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
-                  <div style={{ padding: "10px 13px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--radius-md)", display: "flex", gap: "9px", alignItems: "flex-start" }}>
+                  <div style={{ padding: "10px 13px", background: "var(--surface-002)", border: "1px solid var(--line-006)", borderRadius: "var(--radius-md)", display: "flex", gap: "9px", alignItems: "flex-start" }}>
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", flexShrink: 0, marginTop: "1px" }}>
                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                     </svg>
@@ -337,8 +337,8 @@ function StatChip({ icon, value, label }: { icon: React.ReactNode; value: number
     <div style={{
       display: "flex", alignItems: "center", gap: "6px",
       padding: "4px 11px",
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.07)",
+      background: "var(--surface-004)",
+      border: "1px solid var(--line-007)",
       borderRadius: "var(--radius-full)",
     }}>
       <span style={{ color: "var(--text-tertiary)", display: "flex", alignItems: "center" }}>{icon}</span>

@@ -129,7 +129,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               <a href="/login" style={{ display: "block", padding: "12px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "10px", color: "#fff", textDecoration: "none", fontSize: "14px", fontWeight: 600 }}>
                 Switch accounts
               </a>
-              <a href="/portfolios" style={{ display: "block", padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#94a3b8", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
+              <a href="/portfolios" style={{ display: "block", padding: "12px", background: "var(--surface-004)", border: "1px solid var(--line-008)", borderRadius: "10px", color: "#94a3b8", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
                 Go to my portfolios
               </a>
             </div>

@@ -134,7 +134,7 @@ export default function CombinedChartClient({
   const viewToggle = hasNetWorth ? (
     <div style={{
       display: "flex",
-      background: "rgba(255,255,255,0.05)",
+      background: "var(--surface-005)",
       border: "1px solid var(--border-subtle)",
       borderRadius: "8px",
       padding: "2px",
@@ -252,7 +252,7 @@ export default function CombinedChartClient({
       )}
 
       {showTrim && view === "portfolio" && (
-        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", fontSize: "11px" }}>
+        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--surface-004)", border: "1px solid var(--line-008)", fontSize: "11px" }}>
           <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
             Remove all chart history before this date across all portfolios.
           </p>
@@ -261,7 +261,7 @@ export default function CombinedChartClient({
               type="date"
               value={trimDate}
               onChange={(e) => setTrimDate(e.target.value)}
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
+              style={{ background: "var(--surface-008)", border: "1px solid var(--line-015)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
             />
             <button
               onClick={handleTrim}

@@ -171,13 +171,13 @@ export default function Sidebar({
       <style>{`
         .sb-nav-link { transition: background 0.13s ease, color 0.13s ease; }
         .sb-nav-link:hover:not(.sb-nav-link--active) {
-          background: rgba(255,255,255,0.04) !important;
+          background: var(--surface-004) !important;
           color: var(--text-secondary) !important;
         }
         .sb-nav-link:hover:not(.sb-nav-link--active) span { opacity: 0.85 !important; }
         .sb-user-row { transition: background 0.13s ease; border-radius: 8px; }
-        .sb-user-row:hover { background: rgba(255,255,255,0.05) !important; }
-        .sb-signout:hover { background: rgba(255,255,255,0.04) !important; color: var(--text-secondary) !important; }
+        .sb-user-row:hover { background: var(--surface-005) !important; }
+        .sb-signout:hover { background: var(--surface-004) !important; color: var(--text-secondary) !important; }
       `}</style>
 
       {/* Logo */}

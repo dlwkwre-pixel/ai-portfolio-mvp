@@ -48,7 +48,7 @@ export default async function TransactionHistorySection({ portfolioId }: Transac
   const draftCount = transactions?.filter((tx) => isDraft(tx.notes)).length ?? 0;
 
   return (
-    <section className="card rounded-2xl p-5" style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
+    <section className="card rounded-2xl p-5" style={{ border: "1px solid var(--line-007)", background: "var(--surface-003)" }}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Transaction Ledger</h2>

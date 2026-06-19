@@ -155,7 +155,7 @@ function FactorBar({ factor, idx }: { factor: StrategyAnalysis["factors"][0]; id
         <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: 500 }}>{factor.name}</span>
         <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, color }}>{factor.score}</span>
       </div>
-      <div style={{ height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+      <div style={{ height: "4px", borderRadius: "2px", background: "var(--surface-006)", overflow: "hidden" }}>
         <div style={{
           height: "100%", borderRadius: "2px", background: color,
           width: animated ? `${factor.score}%` : "0%",
@@ -417,9 +417,9 @@ function ScoreDeltaRow({ factor, before, after }: { factor: string; before: numb
   return (
     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
       <span style={{ fontSize: "10px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", width: "148px", flexShrink: 0 }}>{factor}</span>
-      <div style={{ flex: 1, height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden", position: "relative" }}>
+      <div style={{ flex: 1, height: "4px", borderRadius: "2px", background: "var(--surface-006)", overflow: "hidden", position: "relative" }}>
         {/* Before bar (ghost) */}
-        <div style={{ position: "absolute", height: "100%", borderRadius: "2px", background: "rgba(255,255,255,0.12)", width: `${before}%` }} />
+        <div style={{ position: "absolute", height: "100%", borderRadius: "2px", background: "var(--surface-010)", width: `${before}%` }} />
         {/* After bar */}
         <div style={{
           position: "absolute", height: "100%", borderRadius: "2px", background: afterColor,
@@ -619,7 +619,7 @@ function ImproveStrategyPanel({
       {result && !loading && (
         <>
           {/* Confidence delta badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.03)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--surface-003)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
             <div>
               <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>FINN Confidence</div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -647,9 +647,9 @@ function ImproveStrategyPanel({
               <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                 Parameter Changes
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--line-006)" }}>
                 {result.changes.map((c, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px", alignItems: "start", padding: "8px 10px", background: "rgba(255,255,255,0.02)", borderBottom: i < result.changes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px", alignItems: "start", padding: "8px 10px", background: "var(--surface-002)", borderBottom: i < result.changes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                     <div>
                       <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px", fontFamily: "var(--font-body)" }}>{c.label}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.4 }}>{c.reason}</div>
@@ -719,7 +719,7 @@ function ImproveStrategyPanel({
                 {applying ? "Applying…" : "Apply Changes"}
               </button>
               <button type="button" onClick={() => { setResult(null); setActiveMode(null); }}
-                style={{ padding: "7px 13px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+                style={{ padding: "7px 13px", borderRadius: "var(--radius-xl)", border: "1px solid var(--line-008)", background: "transparent", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
                 Discard
               </button>
             </div>
@@ -874,7 +874,7 @@ export default function StrategyCardItem({
             {chips.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
                 {chips.map((chip) => (
-                  <span key={chip} style={{ fontSize: "9px", color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                  <span key={chip} style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--surface-004)", border: "1px solid var(--line-006)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                     {chip}
                   </span>
                 ))}

@@ -63,10 +63,10 @@ export default function MarketRibbon() {
   return (
     <div style={{
       overflow: "hidden",
-      borderTop: "1px solid rgba(255,255,255,0.04)",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderTop: "1px solid var(--line-004)",
+      borderBottom: "1px solid var(--line-004)",
       padding: "9px 0",
-      background: "rgba(255,255,255,0.01)",
+      background: "var(--surface-002)",
       position: "relative",
     }}>
 

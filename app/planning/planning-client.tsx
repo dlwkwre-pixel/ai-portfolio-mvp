@@ -1086,7 +1086,7 @@ function NetWorthHistoryCard({
       )}
 
       {showTrim && (
-        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", fontSize: "11px" }}>
+        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--surface-004)", border: "1px solid var(--line-008)", fontSize: "11px" }}>
           <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
             Remove all net worth history before this date.
           </p>
@@ -1095,7 +1095,7 @@ function NetWorthHistoryCard({
               type="date"
               value={trimDate}
               onChange={(e) => setTrimDate(e.target.value)}
-              style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
+              style={{ background: "var(--surface-008)", border: "1px solid var(--line-015)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
             />
             <button
               onClick={handleTrim}
@@ -3316,7 +3316,7 @@ function CashFlowHealthCard({
         .cfh-arc { animation: cfh-ring 1.4s cubic-bezier(0.22,1,0.36,1) forwards; }
         @keyframes cfh-bar { from { transform: scaleX(0); } }
         .cfh-bar { animation: cfh-bar 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
-        .cfh-row:hover { background: rgba(255,255,255,0.03); }
+        .cfh-row:hover { background: var(--surface-003); }
       `}</style>
 
       <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
@@ -4333,8 +4333,8 @@ function BalanceSheetOS({
                   <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Emergency Fund</span>
                   <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{isPrivate ? "••" : emergencyMonths.toFixed(1)}mo{emergencyMonths >= 3 ? " — on track" : " — target 3m"}</span>
                 </div>
-                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div style={{ position: "absolute", left: `${(3/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
                   <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${efColor})`, width: `${efPct}%` }} />
                 </div>
@@ -4346,9 +4346,9 @@ function BalanceSheetOS({
                   <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Debt-to-Asset Ratio</span>
                   <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: below 20%</span>
                 </div>
-                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: `${(20/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
-                  <div style={{ position: "absolute", left: `${(40/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+                  <div style={{ position: "absolute", left: `${(40/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, ${drColor}, ${drColor})`, width: `${drPct}%`, animationDelay: "80ms" }} />
                 </div>
               </div>
@@ -4412,7 +4412,7 @@ function BalanceSheetOS({
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: b.color }}>{ph(fmt(b.val))}</span>
                         <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{w.toFixed(0)}%</span>
                       </div>
-                      <div style={{ height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)" }}>
+                      <div style={{ height: "4px", borderRadius: "2px", background: "var(--surface-006)" }}>
                         <div className="bso-b" style={{ height: "100%", borderRadius: "2px", background: b.color + "88", width: `${w}%`, animationDelay: `${110 + i * 40}ms` }} />
                       </div>
                     </div>
@@ -4513,7 +4513,7 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
         })}
       </div>
       {tip && (
-        <div style={{ marginTop: "6px", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", padding: "6px 10px", background: "rgba(255,255,255,0.04)", borderRadius: "6px" }}>{tip}</div>
+        <div style={{ marginTop: "6px", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", padding: "6px 10px", background: "var(--surface-004)", borderRadius: "6px" }}>{tip}</div>
       )}
       <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
@@ -4746,8 +4746,8 @@ function CashFlowOS({
         .cfo-bar-a { animation: cfo-bar 0.85s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
         .cfo-sr-a  { animation: cfo-sr  1.1s cubic-bezier(0.22,1,0.36,1) both; }
         .cfo-arc-a { animation: cfo-arc 0.5s ease-out both; }
-        .cfo-catrow:hover     { background: rgba(255,255,255,0.025) !important; }
-        .cfo-catrow.cfo-hl   { background: rgba(255,255,255,0.04) !important; }
+        .cfo-catrow:hover     { background: var(--surface-003) !important; }
+        .cfo-catrow.cfo-hl   { background: var(--surface-004) !important; }
         .cfo-actual input:focus { border-color: var(--brand-blue) !important; outline: none; }
         @media (max-width: 640px) {
           /* Stack donut over bars; align-items:stretch so the bars span full
@@ -4774,7 +4774,7 @@ function CashFlowOS({
         animationDelay: "0ms",
       }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
-          <div style={{ display: "flex", background: "rgba(255,255,255,0.05)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
+          <div style={{ display: "flex", background: "var(--surface-005)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
             {(["monthly", "annual", "ytd"] as const).map(m => (
               <button key={m} type="button" onClick={() => setViewMode(m)} style={{
                 padding: "3px 10px", borderRadius: "4px", border: "none", cursor: "pointer",
@@ -4806,8 +4806,8 @@ function CashFlowOS({
               <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
               <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
             </div>
-            <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
-              <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.12)" }} />
+            <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
+              <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
               <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
               <div className="cfo-sr-a" style={{
                 height: "100%", borderRadius: "3px",
@@ -4981,7 +4981,7 @@ function CashFlowOS({
                         )}
                       </div>
                     </div>
-                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "rgba(255,255,255,0.06)" }}>
+                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)" }}>
                       <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${budgetW}%`, borderRadius: "2.5px", background: color + "44", animationDelay: `${110 + ci * 45}ms` }} />
                       {cat.actual > 0 && (
                         <div className="cfo-bar-a" style={{ position: "absolute", top: "-1px", left: 0, height: "7px", width: `${Math.min(actualW, 105)}%`, borderRadius: "3.5px", background: color, animationDelay: `${190 + ci * 45}ms` }} />

@@ -124,7 +124,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
     <div style={{
       display: "grid", gridTemplateColumns: "1fr auto 1fr",
       gap: "12px", alignItems: "center",
-      background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
+      background: "var(--surface-002)", border: "1px solid var(--line-006)",
       borderRadius: "10px", padding: "14px 16px",
     }}>
       {/* A */}
@@ -139,7 +139,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
       {/* vs badge */}
       <div style={{
         fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)",
-        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
+        background: "var(--surface-004)", border: "1px solid var(--line-006)",
         borderRadius: "6px", padding: "4px 8px",
       }}>
         VS
@@ -155,7 +155,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
       </div>
       {/* Net advantage line */}
       {delta !== 0 && (
-        <div style={{ gridColumn: "1 / -1", textAlign: "center", fontSize: "10px", color: delta > 0 ? "#60a5fa" : "#c084fc", fontFamily: "var(--font-body)", fontWeight: 600, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "10px" }}>
+        <div style={{ gridColumn: "1 / -1", textAlign: "center", fontSize: "10px", color: delta > 0 ? "#60a5fa" : "#c084fc", fontFamily: "var(--font-body)", fontWeight: 600, borderTop: "1px solid var(--line-006)", paddingTop: "10px" }}>
           {delta > 0 ? "Strategy A" : "Strategy B"} leads overall by {Math.abs(delta)} points
         </div>
       )}
@@ -185,14 +185,14 @@ function FactorRow({
       display: "grid", gridTemplateColumns: "1fr 140px 1fr",
       gap: "8px", alignItems: "center",
       padding: "7px 0",
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid var(--line-004)",
     }}>
       {/* A bar */}
       <div style={{ display: "flex", alignItems: "center", gap: "7px", justifyContent: "flex-end" }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: colorA, flexShrink: 0 }}>
           {scoreA}
         </span>
-        <div style={{ width: "72px", height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <div style={{ width: "72px", height: "4px", borderRadius: "2px", background: "var(--surface-006)", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: "2px", background: colorA,
             width: animated ? `${scoreA}%` : "0%",
@@ -220,7 +220,7 @@ function FactorRow({
 
       {/* B bar */}
       <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-        <div style={{ width: "72px", height: "4px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+        <div style={{ width: "72px", height: "4px", borderRadius: "2px", background: "var(--surface-006)", overflow: "hidden" }}>
           <div style={{
             height: "100%", borderRadius: "2px", background: colorB,
             width: animated ? `${scoreB}%` : "0%",
@@ -425,7 +425,7 @@ export default function StrategyComparePanel({
             <button type="button" onClick={onClose}
               style={{
                 alignSelf: "flex-start", padding: "6px 16px",
-                borderRadius: "var(--radius-xl)", border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "var(--radius-xl)", border: "1px solid var(--line-008)",
                 background: "transparent", color: "var(--text-tertiary)",
                 fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer",
               }}>

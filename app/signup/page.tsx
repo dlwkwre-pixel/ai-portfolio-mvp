@@ -42,7 +42,7 @@ export default function SignupPage() {
         .fu2{animation:fadeUp 0.5s 0.16s ease both}
         .fu3{animation:fadeUp 0.5s 0.24s ease both}
         .fu4{animation:fadeUp 0.5s 0.32s ease both}
-        .ifield{width:100%;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#e2e8f0;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.15s}
+        .ifield{width:100%;padding:12px 14px;background:var(--surface-004);border:1px solid var(--line-008);border-radius:10px;color:#e2e8f0;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.15s}
         .ifield:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
         .ifield::placeholder{color:#334155}
         .sbtn{width:100%;padding:13px;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,0.35);transition:all 0.2s}
@@ -52,7 +52,7 @@ export default function SignupPage() {
         @media(min-width:1024px){.lg-panel{display:flex!important}.mob-logo{display:none!important}}
       `}</style>
 
-      <div className="lg-panel" style={{ flex:1, flexDirection:"column", justifyContent:"space-between", padding:"48px", background:"linear-gradient(135deg,#0a0d15,#0d1420)", borderRight:"1px solid rgba(255,255,255,0.06)", position:"relative", overflow:"hidden" }}>
+      <div className="lg-panel" style={{ flex:1, flexDirection:"column", justifyContent:"space-between", padding:"48px", background:"linear-gradient(135deg,#0a0d15,#0d1420)", borderRight:"1px solid var(--line-006)", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 30% 40%,rgba(37,99,235,0.12),transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(124,58,237,0.08),transparent 50%)", pointerEvents:"none" }} />
         <Link href="/" style={{ display:"flex", alignItems:"center", gap:"10px", textDecoration:"none", position:"relative", zIndex:1 }}>
           <div style={{ width:"36px", height:"36px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>

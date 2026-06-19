@@ -123,7 +123,7 @@ export default function WeeklyRecapCard() {
           {/* Movers — clickable to research */}
           {data.top_movers.length > 0 && (
             <>
-              <div style={{ height: "1px", background: "rgba(255,255,255,0.05)", marginBottom: "10px" }} />
+              <div style={{ height: "1px", background: "var(--surface-005)", marginBottom: "10px" }} />
               <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
                 Positions — Tap to Research
               </p>
@@ -145,7 +145,7 @@ export default function WeeklyRecapCard() {
                         gap: "6px",
                         padding: "5px 10px",
                         borderRadius: "var(--radius-md)",
-                        background: "rgba(255,255,255,0.04)",
+                        background: "var(--surface-004)",
                         border: `1px solid ${isBest ? "rgba(34,197,94,0.25)" : isWorst ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.07)"}`,
                         cursor: "pointer",
                       }}

@@ -105,7 +105,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: "460px", maxHeight: "90vh", overflowY: "auto",
-          background: "var(--bg-card, #0a1424)", border: "1px solid rgba(255,255,255,0.1)",
+          background: "var(--bg-card, #0a1424)", border: "1px solid var(--line-010)",
           borderRadius: "var(--radius-lg)", padding: "18px",
           boxShadow: "0 28px 72px rgba(0,0,0,0.55)",
           animation: "bt-scale-in 0.22s cubic-bezier(0.16,1,0.3,1)",
@@ -125,7 +125,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
           </div>
           <button
             type="button" onClick={onClose} aria-label="Close"
-            style={{ background: "rgba(255,255,255,0.05)", border: "none", borderRadius: "8px", width: "30px", height: "30px", cursor: "pointer", color: "var(--text-secondary)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{ background: "var(--surface-005)", border: "none", borderRadius: "8px", width: "30px", height: "30px", cursor: "pointer", color: "var(--text-secondary)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
               <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
@@ -176,13 +176,13 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
             {(bullPct != null || target != null) && (
               <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
                 {bullPct != null && (
-                  <div style={{ flex: "1 1 0", minWidth: "120px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                  <div style={{ flex: "1 1 0", minWidth: "120px", background: "var(--surface-003)", border: "1px solid var(--line-006)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                     <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Analyst Sentiment</div>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: bullPct >= 60 ? "var(--green)" : bullPct >= 40 ? "#f59e0b" : "var(--red)" }}>{bullPct}% Bullish</div>
                   </div>
                 )}
                 {target != null && (
-                  <div style={{ flex: "1 1 0", minWidth: "120px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                  <div style={{ flex: "1 1 0", minWidth: "120px", background: "var(--surface-003)", border: "1px solid var(--line-006)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                     <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Price Target</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
                       ${target.toFixed(2)}

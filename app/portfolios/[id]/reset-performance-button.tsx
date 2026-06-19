@@ -150,7 +150,7 @@ export default function ResetPerformanceButton({
           value={trimDate}
           onChange={(e) => setTrimDate(e.target.value)}
           className="rounded-lg px-2 py-1.5 text-xs text-white w-full"
-          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }}
+          style={{ background: "var(--surface-008)", border: "1px solid var(--line-015)" }}
         />
         <div className="flex gap-3 mt-1">
           <button

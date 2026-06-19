@@ -451,7 +451,7 @@ function StrategyPreviewModal({
               </button>
 
               {compareOpen && (
-                <div style={{ marginTop: "10px", padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ marginTop: "10px", padding: "12px", borderRadius: "10px", background: "var(--surface-003)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "10px" }}>
                   {comparePortfolios.length === 0 ? (
                     <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>No portfolios found.</p>
                   ) : (
@@ -461,7 +461,7 @@ function StrategyPreviewModal({
                         <select
                           value={comparePortfolioId}
                           onChange={(e) => setComparePortfolioId(e.target.value)}
-                          style={{ flex: 1, fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "rgba(255,255,255,0.06)", border: "1px solid var(--card-border)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}
+                          style={{ flex: 1, fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "var(--surface-006)", border: "1px solid var(--card-border)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}
                         >
                           {comparePortfolios.map(p => (
                             <option key={p.id} value={p.id}>{p.name}</option>
@@ -1167,8 +1167,8 @@ function MarketPulseCard() {
       </div>
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-          <div style={{ height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", width: "88%" }} />
-          <div style={{ height: "12px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", width: "65%" }} />
+          <div style={{ height: "12px", borderRadius: "4px", background: "var(--surface-006)", width: "88%" }} />
+          <div style={{ height: "12px", borderRadius: "4px", background: "var(--surface-006)", width: "65%" }} />
         </div>
       ) : content ? (
         <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
@@ -1225,7 +1225,7 @@ function LeaderboardRow({ rank, name, sub, pct, author, onClick, href }: {
         }}>
           {name}
         </span>
-        <div style={{ height: "2px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+        <div style={{ height: "2px", background: "var(--surface-005)", borderRadius: "2px", overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${Math.max(pct, 4)}%`, background: barColor, borderRadius: "2px" }} />
         </div>
       </div>
@@ -1461,7 +1461,7 @@ function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id
             {p.is_own && <OwnBadge />}
             <span
               title="Only allocation percentages are shared. Dollar amounts, cost basis, and account balance are never visible."
-              style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-muted)", cursor: "help" }}
+              style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--surface-004)", border: "1px solid var(--line-008)", color: "var(--text-muted)", cursor: "help" }}
             >
               % only
             </span>
@@ -1484,7 +1484,7 @@ function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id
           <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: ALLOC_COLORS[i % ALLOC_COLORS.length], flexShrink: 0 }} />
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", letterSpacing: "-0.2px", flexShrink: 0, width: "38px" }}>{h.ticker}</span>
-            <div style={{ flex: 1, height: "3px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <div style={{ flex: 1, height: "3px", borderRadius: "2px", background: "var(--surface-006)", overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${Math.min(h.allocation_pct, 100)}%`, background: ALLOC_COLORS[i % ALLOC_COLORS.length], borderRadius: "2px" }} />
             </div>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.2px", flexShrink: 0, minWidth: "38px", textAlign: "right" }}>{h.allocation_pct.toFixed(1)}%</span>

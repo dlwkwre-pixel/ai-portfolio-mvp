@@ -265,7 +265,7 @@ body { background: var(--rpt-bg); color: var(--rpt-text); }
 .rpt-table td:nth-child(2) { text-align: left; }
 
 .rpt-table tr:last-child td { border-bottom: none; }
-.rpt-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+.rpt-table tr:nth-child(even) td { background: var(--surface-002); }
 
 .rpt-ticker {
   font-family: "DM Mono", monospace;
@@ -819,7 +819,7 @@ export default async function PortfolioReportPage({
                   <div
                     key={label}
                     style={{
-                      background: "rgba(255,255,255,0.05)",
+                      background: "var(--surface-005)",
                       borderRadius: "6px",
                       padding: "8px 10px",
                     }}

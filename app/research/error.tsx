@@ -35,8 +35,8 @@ export default function ResearchError({
           zIndex: 1,
           maxWidth: "420px",
           textAlign: "center",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--surface-003)",
+          border: "1px solid var(--line-008)",
           borderRadius: "var(--radius-lg)",
           padding: "32px 24px",
         }}
@@ -79,9 +79,9 @@ export default function ResearchError({
             style={{
               padding: "9px 18px",
               borderRadius: "var(--radius-md)",
-              background: "rgba(255,255,255,0.05)",
+              background: "var(--surface-005)",
               color: "var(--text-secondary)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              border: "1px solid var(--line-010)",
               fontSize: "13px",
               fontWeight: 600,
               textDecoration: "none",

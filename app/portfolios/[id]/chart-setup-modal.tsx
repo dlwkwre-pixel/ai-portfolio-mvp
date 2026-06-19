@@ -152,7 +152,7 @@ export default function ChartSetupModal({
     >
       <div
         className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl flex flex-col"
-        style={{ background: "var(--bg-card, #0f1a2e)", border: "1px solid rgba(255,255,255,0.09)", maxHeight: "90vh" }}
+        style={{ background: "var(--bg-card, #0f1a2e)", border: "1px solid var(--line-008)", maxHeight: "90vh" }}
       >
         {/* Header */}
         <div className="flex items-start justify-between p-5 pb-3 flex-shrink-0">
@@ -181,7 +181,7 @@ export default function ChartSetupModal({
                 if (draft.hasExistingLots) {
                   return (
                     <div key={draft.holdingId} className="rounded-xl p-3 flex items-center gap-3"
-                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      style={{ background: "var(--surface-003)", border: "1px solid var(--line-006)" }}>
                       <span className="text-xs font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded">{draft.ticker}</span>
                       <span className="text-[11px] text-emerald-400">✓ Lots already set up</span>
                     </div>
@@ -190,7 +190,7 @@ export default function ChartSetupModal({
 
                 return (
                   <div key={draft.holdingId} className="rounded-xl p-3"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    style={{ background: "var(--surface-004)", border: "1px solid var(--line-008)" }}>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-xs font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded">{draft.ticker}</span>
                       <span className="text-[10px] text-slate-500">
@@ -210,7 +210,7 @@ export default function ChartSetupModal({
                                 value={lot.date}
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "date", e.target.value)}
                                 className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
                               />
                             </div>
                             <div>
@@ -221,7 +221,7 @@ export default function ChartSetupModal({
                                 placeholder="0"
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "shares", e.target.value)}
                                 className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
                                 min="0" step="any"
                               />
                             </div>
@@ -233,7 +233,7 @@ export default function ChartSetupModal({
                                 placeholder="$0.00"
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "price", e.target.value)}
                                 className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
                                 min="0" step="any"
                               />
                             </div>
@@ -244,7 +244,7 @@ export default function ChartSetupModal({
                                   type="button"
                                   onClick={() => removeLot(draft.holdingId, lot.key)}
                                   className="rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 transition"
-                                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                  style={{ background: "var(--surface-005)", border: "1px solid var(--line-008)" }}
                                   title="Remove lot"
                                 >✕</button>
                               ) : (
@@ -277,7 +277,7 @@ export default function ChartSetupModal({
 
         {/* Footer */}
         {holdings && drafts.length > 0 && (
-          <div className="p-5 pt-3 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="p-5 pt-3 flex-shrink-0" style={{ borderTop: "1px solid var(--line-007)" }}>
             {saveError && <p className="text-xs text-red-400 mb-2">{saveError}</p>}
             {needsSetupCount > 0 && (
               <p className="text-[11px] text-slate-500 mb-2">

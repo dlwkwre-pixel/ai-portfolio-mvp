@@ -67,8 +67,8 @@ export default function StrategyList({
             <button type="button" onClick={() => setCompareMode(true)} style={{
               display: "flex", alignItems: "center", gap: "5px",
               fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.07)",
+              background: "var(--surface-003)",
+              border: "1px solid var(--line-007)",
               borderRadius: "6px", cursor: "pointer",
               fontFamily: "var(--font-body)", padding: "3px 9px",
               transition: "background 0.15s",
