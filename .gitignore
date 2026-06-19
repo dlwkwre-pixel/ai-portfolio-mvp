@@ -43,3 +43,6 @@ next-env.d.ts
 # Claude Code local config (machine-specific)
 .claude/settings.local.json
 .claude/skills/
+
+# Claude scheduled tasks lock
+.claude/scheduled_tasks.lock
