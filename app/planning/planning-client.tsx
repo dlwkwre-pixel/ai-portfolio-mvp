@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import PageIntro from "@/app/components/page-intro";
-import { ThemeToggle } from "@/app/components/theme-provider";
 import XLSXStyle from "xlsx-js-style";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -6973,29 +6972,26 @@ export default function PlanningClient({
             Net worth, cash flow, and retirement trajectory.
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-          <button
-            type="button"
-            onClick={togglePrivacy}
-            title={isPrivate ? "Show values" : "Hide values"}
-            style={{
-              display: "flex", alignItems: "center", gap: "5px", flexShrink: 0,
-              padding: "6px 12px", borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)", background: isPrivate ? "var(--bg-surface)" : "transparent",
-              color: isPrivate ? "var(--text-primary)" : "var(--text-tertiary)",
-              fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            {isPrivate ? (
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M3.98 8.223A10.477 10.477 0 001.934 10C3.226 13.307 6.4 15.5 10 15.5c.84 0 1.647-.134 2.4-.378m3.62-2.9A10.48 10.48 0 0018.066 10C16.774 6.693 13.6 4.5 10 4.5c-.84 0-1.647.134-2.4.378m-2.75 2.264l9.5 9.5M4.5 4.5l11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/><path d="M1.934 10C3.226 6.693 6.4 4.5 10 4.5s6.774 2.193 8.066 5.5c-1.292 3.307-4.466 5.5-8.066 5.5S3.226 13.307 1.934 10z" stroke="currentColor" strokeWidth="1.5"/></svg>
-            )}
-            {isPrivate ? "Show" : "Hide"}
-          </button>
-          <ThemeToggle />
-        </div>
+        <button
+          type="button"
+          onClick={togglePrivacy}
+          title={isPrivate ? "Show values" : "Hide values"}
+          style={{
+            display: "flex", alignItems: "center", gap: "5px", flexShrink: 0,
+            padding: "6px 12px", borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border)", background: isPrivate ? "var(--bg-surface)" : "transparent",
+            color: isPrivate ? "var(--text-primary)" : "var(--text-tertiary)",
+            fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+        >
+          {isPrivate ? (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M3.98 8.223A10.477 10.477 0 001.934 10C3.226 13.307 6.4 15.5 10 15.5c.84 0 1.647-.134 2.4-.378m3.62-2.9A10.48 10.48 0 0018.066 10C16.774 6.693 13.6 4.5 10 4.5c-.84 0-1.647.134-2.4.378m-2.75 2.264l9.5 9.5M4.5 4.5l11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/><path d="M1.934 10C3.226 6.693 6.4 4.5 10 4.5s6.774 2.193 8.066 5.5c-1.292 3.307-4.466 5.5-8.066 5.5S3.226 13.307 1.934 10z" stroke="currentColor" strokeWidth="1.5"/></svg>
+          )}
+          {isPrivate ? "Show" : "Hide"}
+        </button>
       </div>
 
       {/* Net Worth History Chart */}

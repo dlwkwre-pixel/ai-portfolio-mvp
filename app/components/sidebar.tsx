@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { ThemeToggle } from "@/app/components/theme-provider";
 import SupportModal from "@/app/components/support-modal";
 
 type Portfolio = {
@@ -415,7 +414,6 @@ export default function Sidebar({
               <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Profile &amp; settings</div>
             </div>
           </Link>
-          <ThemeToggle />
         </div>
 
         {/* Support */}

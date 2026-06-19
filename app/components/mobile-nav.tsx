@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NotificationCenter from "./notification-center";
 import SupportWidget from "./support-widget";
+import { ThemeToggle } from "./theme-provider";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -62,6 +63,7 @@ export default function MobileNav() {
 
       {/* Right actions */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, paddingLeft: "4px" }}>
+        <ThemeToggle />
         <SupportWidget />
         <NotificationCenter />
 
