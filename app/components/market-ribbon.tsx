@@ -63,10 +63,12 @@ export default function MarketRibbon() {
   return (
     <div style={{
       overflow: "hidden",
-      borderTop: "1px solid var(--line-004)",
-      borderBottom: "1px solid var(--line-004)",
+      // Landing page is always dark — keep fixed dark values so the ribbon never
+      // flips to white when a logged-in user has light theme set.
+      borderTop: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid rgba(255,255,255,0.04)",
       padding: "9px 0",
-      background: "var(--surface-002)",
+      background: "rgba(255,255,255,0.02)",
       position: "relative",
     }}>
 

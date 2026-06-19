@@ -22,7 +22,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         .legal-nav-link { font-size: 12px; color: #475569; text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
-        .legal-nav-link:hover { color: #e2e8f0; background: var(--surface-005); }
+        .legal-nav-link:hover { color: #e2e8f0; background: rgba(255,255,255,0.05); }
         .legal-nav-link.active { color: #93c5fd; background: rgba(37,99,235,0.1); }
         .legal-section { margin-bottom: 36px; }
         .legal-h2 { font-size: 14px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -40,7 +40,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       `}</style>
 
       {/* Top nav */}
-      <div style={{ borderBottom: "1px solid var(--line-006)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
@@ -53,7 +53,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
           {LEGAL_PAGES.map((p) => (
             <Link key={p.href} href={p.href} className="legal-nav-link">{p.label}</Link>
           ))}
-          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#60a5fa", borderLeft: "1px solid var(--line-008)", paddingLeft: "10px" }}>
+          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#60a5fa", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px" }}>
             {backLabel} →
           </Link>
         </div>
@@ -77,7 +77,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       </div>
 
       {/* Footer */}
-      <div style={{ borderTop: "1px solid var(--line-006)", padding: "24px 32px", textAlign: "center", fontSize: "12px", color: "#334155" }}>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "24px 32px", textAlign: "center", fontSize: "12px", color: "#334155" }}>
         © 2026 BuyTune. All rights reserved. &nbsp;·&nbsp;
         <Link href="/legal/terms" className="legal-link" style={{ color: "#475569" }}>Terms</Link> &nbsp;·&nbsp;
         <Link href="/legal/privacy" className="legal-link" style={{ color: "#475569" }}>Privacy</Link> &nbsp;·&nbsp;

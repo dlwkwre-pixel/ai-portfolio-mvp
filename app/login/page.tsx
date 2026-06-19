@@ -36,7 +36,7 @@ function LoginForm() {
         .fu1 { animation: fadeUp 0.5s 0.08s cubic-bezier(0.23,1,0.32,1) both; }
         .fu2 { animation: fadeUp 0.5s 0.16s cubic-bezier(0.23,1,0.32,1) both; }
         .fu3 { animation: fadeUp 0.5s 0.24s cubic-bezier(0.23,1,0.32,1) both; }
-        .ifield { width: 100%; padding: 12px 14px; background: var(--surface-004); border: 1px solid var(--line-008); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
         .ifield:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
         .ifield::placeholder { color: #334155; }
         .sbtn { width: 100%; padding: 13px; background: linear-gradient(135deg, #2563eb, #7c3aed); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: box-shadow 0.2s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1); }
@@ -46,13 +46,13 @@ function LoginForm() {
         .left-panel { display: none; }
         @media (min-width: 1024px) { .left-panel { display: flex !important; } .mobile-logo { display: none !important; } }
 
-        .lp-preview { background: var(--surface-002); border: 1px solid var(--line-006); border-radius: 12px; overflow: hidden; margin-top: 28px; }
+        .lp-preview { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; overflow: hidden; margin-top: 28px; }
         .lp-ret { padding: 14px 16px 0; position: relative; height: 136px; overflow: hidden; }
         .lp-ret-label { font-size: 8px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #334155; margin-bottom: 4px; position: relative; z-index: 1; }
         .lp-ret-val { font-family: 'DM Mono', monospace; font-size: 30px; font-weight: 500; color: #00d395; letter-spacing: -0.5px; position: relative; z-index: 1; line-height: 1; }
         .lp-ret-spy { font-family: 'DM Mono', monospace; font-size: 11px; color: #00d395; margin-top: 4px; position: relative; z-index: 1; }
         .lp-ret-note { font-size: 8px; color: #1e293b; margin-top: 3px; position: relative; z-index: 1; }
-        .lp-divider { height: 1px; background: var(--surface-004); }
+        .lp-divider { height: 1px; background: rgba(255,255,255,0.04); }
         .lp-rec { padding: 11px 16px; display: flex; align-items: flex-start; gap: 10px; }
         .lp-rec-badge { padding: 2px 7px; border-radius: 4px; font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 700; letter-spacing: 0.06em; background: rgba(245,158,11,0.15); color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
         .lp-rec-ticker { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 600; color: #e2e8f0; }
@@ -60,7 +60,7 @@ function LoginForm() {
       `}</style>
 
       {/* Left panel */}
-      <div className="left-panel" style={{ flex: 1, flexDirection: "column", justifyContent: "space-between", padding: "48px", background: "linear-gradient(160deg, #0a0d15 0%, #0d1420 100%)", borderRight: "1px solid var(--line-006)", position: "relative" }}>
+      <div className="left-panel" style={{ flex: 1, flexDirection: "column", justifyContent: "space-between", padding: "48px", background: "linear-gradient(160deg, #0a0d15 0%, #0d1420 100%)", borderRight: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 50% at 30% 40%, rgba(37,99,235,0.12), transparent 60%), radial-gradient(ellipse 40% 40% at 80% 80%, rgba(124,58,237,0.08), transparent 50%)" }} />
 
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", position: "relative", zIndex: 1 }}>
