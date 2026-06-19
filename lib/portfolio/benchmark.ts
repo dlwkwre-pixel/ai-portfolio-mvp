@@ -59,7 +59,7 @@ function toDateKey(dateString: string): string {
  * reconstructPortfolioChart generated early near-zero snapshots before all
  * holdings had price data.
  */
-function sanitizeSnapshots(
+export function sanitizeSnapshots(
   snapshots: { snapshot_date: string; total_value: number }[],
   totalCostBasis?: number
 ): { snapshot_date: string; total_value: number }[] {

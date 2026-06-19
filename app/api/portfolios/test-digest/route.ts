@@ -8,6 +8,7 @@ import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
 import { calculateTwr } from "@/lib/portfolio/twr";
+import { sanitizeSnapshots } from "@/lib/portfolio/benchmark";
 
 export const maxDuration = 60;
 
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
   // Performance — net (TWR) return, deposit-neutral like the charts
   let performance: DigestTemplateData["performance"] = null;
   if (include_performance) {
-    const [{ data: snapsRaw }, { data: flowsRaw }] = await Promise.all([
+    const [{ data: snapsRaw }, { data: flowsRaw }, { data: holdingsForBasis }] = await Promise.all([
       adminSupabase
         .from("portfolio_snapshots")
         .select("total_value, snapshot_date")
@@ -115,10 +116,18 @@ export async function POST(request: Request) {
         .from("cash_ledger")
         .select("amount, direction, effective_at")
         .eq("portfolio_id", portfolioId),
+      adminSupabase
+        .from("holdings")
+        .select("shares, average_cost_basis")
+        .eq("portfolio_id", portfolioId),
     ]);
-    const snaps = (snapsRaw ?? [])
+    const totalCostBasis = (holdingsForBasis ?? []).reduce(
+      (s, h) => s + Number(h.shares ?? 0) * Number(h.average_cost_basis ?? 0), 0
+    );
+    const rawSnaps = (snapsRaw ?? [])
       .map((s) => ({ snapshot_date: s.snapshot_date as string, total_value: Number(s.total_value) }))
       .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0);
+    const snaps = sanitizeSnapshots(rawSnaps, totalCostBasis);
     const cashFlows = (flowsRaw ?? []).map((f) => ({
       effective_at: f.effective_at as string,
       direction: (f.direction as string | null) ?? "IN",
