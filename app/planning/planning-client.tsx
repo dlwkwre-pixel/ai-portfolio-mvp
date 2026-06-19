@@ -931,8 +931,16 @@ function CountUp({
   return <>{prefix}{formatted}{suffix}</>;
 }
 
-function InfoTooltip({ text }: { text: string }) {
+function InfoTooltip({ text, align = "center" }: { text: string; align?: "center" | "start" | "end" }) {
   const [visible, setVisible] = useState(false);
+  const boxPos =
+    align === "start" ? { left: 0, transform: "none" as const }
+    : align === "end" ? { right: 0, transform: "none" as const }
+    : { left: "50%", transform: "translateX(-50%)" };
+  const arrowPos =
+    align === "start" ? { left: "14px", transform: "none" as const }
+    : align === "end" ? { right: "14px", transform: "none" as const }
+    : { left: "50%", transform: "translateX(-50%)" };
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}>
       <button
@@ -951,20 +959,22 @@ function InfoTooltip({ text }: { text: string }) {
       >i</button>
       {visible && (
         <div style={{
-          position: "absolute", bottom: "calc(100% + 8px)", left: "50%",
-          transform: "translateX(-50%)",
+          position: "absolute", bottom: "calc(100% + 8px)",
           background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)",
           borderRadius: "var(--radius-md)", padding: "10px 13px",
           fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)",
-          lineHeight: 1.55, width: "230px", zIndex: 100,
+          lineHeight: 1.55, width: "230px", maxWidth: "70vw", zIndex: 100,
           boxShadow: "0 6px 20px rgba(0,0,0,0.4)", pointerEvents: "none",
+          textTransform: "none", letterSpacing: "normal", fontWeight: 400,
+          ...boxPos,
         }}>
           {text}
           <div style={{
-            position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+            position: "absolute", top: "100%",
             width: 0, height: 0,
             borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
             borderTop: "5px solid var(--border)",
+            ...arrowPos,
           }} />
         </div>
       )}
@@ -7048,7 +7058,7 @@ export default function PlanningClient({
             <div className="cmd-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "8px" }}>
 
               <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Net Worth</div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Net Worth<InfoTooltip align="start" text="Everything you own minus everything you owe — total assets less total liabilities. The single number that captures your overall financial position right now." /></div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: netWorth >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
                   <CountUp to={Math.abs(netWorth)} prefix={netWorth < 0 ? "-$" : "$"} isPrivate={isPrivate} duration={1100} />
                 </div>
@@ -7056,7 +7066,7 @@ export default function PlanningClient({
               </div>
 
               <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Monthly Savings</div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Monthly Savings<InfoTooltip align="end" text="What's left over each month: your net monthly income minus your living expenses. This is the money available to invest, save, or pay down debt." /></div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
                   <CountUp to={Math.abs(monthlySavings)} prefix={monthlySavings < 0 ? "-$" : "$"} isPrivate={isPrivate} duration={1000} />
                 </div>
@@ -7066,7 +7076,7 @@ export default function PlanningClient({
               </div>
 
               <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Savings Rate</div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Savings Rate<InfoTooltip align="start" text="The share of your income you keep each month (monthly savings ÷ income). 20% or more is the common benchmark for steadily building wealth." /></div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
                   {effectiveIncome > 0
                     ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={900} isPrivate={isPrivate} />
@@ -7078,7 +7088,7 @@ export default function PlanningClient({
               </div>
 
               <div className="cmd-kpi-tile" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Retirement Probability</div>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Retirement Probability<InfoTooltip align="end" text="A forward-looking forecast: across thousands of simulated market scenarios (a Monte Carlo simulation) using your age, savings, and target, this is the percentage in which your money lasts through retirement. It predicts the future — unlike the Financial Health Score, which grades your finances today." /></div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, lineHeight: 1, color: retirementProb != null ? (retirementProb >= 75 ? "var(--green)" : retirementProb >= 50 ? "var(--amber)" : "var(--red)") : "var(--text-muted)" }}>
                   {retirementProb != null
                     ? <CountUp to={retirementProb} suffix="%" duration={1000} isPrivate={isPrivate} />
@@ -7110,6 +7120,7 @@ export default function PlanningClient({
                   <div style={{ display: "flex", alignItems: "baseline", gap: "5px", marginBottom: "8px" }}>
                     <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Financial Health Score</span>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>/100</span>
+                    <InfoTooltip align="start" text="A 0–100 grade of your finances as they stand today, blending five areas: cash, liquidity, debt, retirement, and estate. It scores your current standing — unlike Retirement Probability, which forecasts whether your savings will last." />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "6px" }}>
                     {healthData.factors.map((f) => (
