@@ -617,16 +617,10 @@ export function buildDigestHtml(data: DigestTemplateData): string {
               <tr><td style="padding:0 40px 32px;" class="mobile-pad">
                 <table cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td style="padding-right:12px;">
+                    <td>
                       <a href="${data.portfolioUrl}"
                         style="display:inline-block;background-color:${NAV};color:${WHITE};text-decoration:none;font-size:11px;font-weight:700;padding:12px 28px;font-family:Helvetica Neue,Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">
                         View Portfolio &rsaquo;
-                      </a>
-                    </td>
-                    <td>
-                      <a href="${data.reportUrl}"
-                        style="display:inline-block;background-color:${WHITE};color:${NAV};text-decoration:none;font-size:11px;font-weight:700;padding:11px 28px;font-family:Helvetica Neue,Arial,sans-serif;letter-spacing:0.08em;text-transform:uppercase;border:1px solid ${NAV};">
-                        Full Report &rsaquo;
                       </a>
                     </td>
                   </tr>
