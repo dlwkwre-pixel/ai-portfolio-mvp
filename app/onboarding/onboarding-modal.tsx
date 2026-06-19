@@ -34,6 +34,15 @@ const FV = {
 } as const;
 
 const TOTAL_STEPS = 7;
+
+// The 7 steps group into a 3-phase arc so users can see the whole "get set up"
+// journey at a glance (step 1 is the intro / welcome).
+const PHASES: { label: string; steps: number[] }[] = [
+  { label: "Portfolio", steps: [2, 3, 4] },
+  { label: "Strategy", steps: [5] },
+  { label: "AI insights", steps: [6, 7] },
+];
+
 const ACCOUNT_TYPES = [
   { value: "brokerage", label: "Brokerage" },
   { value: "roth_ira", label: "Roth IRA" },
@@ -453,6 +462,43 @@ export default function OnboardingModal({
             background: "linear-gradient(90deg, var(--brand-blue), var(--brand-violet))",
             transition: "width 0.4s ease",
           }} />
+        </div>
+
+        {/* Phase map — shows the whole arc: Portfolio → Strategy → AI insights */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "12px 20px 0", flexShrink: 0 }}>
+          {PHASES.map((phase, i) => {
+            const isComplete = phase.steps.every((s) => s < step);
+            const isCurrent = phase.steps.includes(step);
+            const accent = isComplete ? "var(--green)" : isCurrent ? "var(--brand-blue)" : "var(--text-muted)";
+            return (
+              <div key={phase.label} style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1, minWidth: 0 }}>
+                <div style={{
+                  width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "9px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                  color: isComplete ? "#fff" : isCurrent ? "#fff" : "var(--text-muted)",
+                  background: isComplete ? "var(--green)" : isCurrent ? "var(--brand-blue)" : "var(--card-bg)",
+                  border: `1px solid ${isComplete ? "var(--green)" : isCurrent ? "var(--brand-blue)" : "var(--card-border)"}`,
+                  transition: "all 0.3s ease",
+                }}>
+                  {isComplete ? (
+                    <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
+                  ) : i + 1}
+                </div>
+                <span style={{
+                  fontSize: "11px", fontWeight: isCurrent ? 700 : 500,
+                  color: isCurrent ? "var(--text-primary)" : isComplete ? "var(--text-secondary)" : "var(--text-muted)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  transition: "color 0.3s ease",
+                }}>
+                  {phase.label}
+                </span>
+                {i < PHASES.length - 1 && (
+                  <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)", minWidth: "8px" }} />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Header */}
