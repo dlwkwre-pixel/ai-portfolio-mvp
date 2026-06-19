@@ -76,9 +76,14 @@ export default async function ComplianceDashboard() {
               <div style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>Admin</div>
               <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: "26px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px" }}>Compliance Dashboard</h1>
             </div>
-            <Link href="/dashboard" style={{ fontSize: "12px", color: "#475569", textDecoration: "none", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px" }}>
-              Back to App
-            </Link>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <Link href="/admin/feedback" style={{ fontSize: "12px", color: "#60a5fa", textDecoration: "none", padding: "6px 12px", border: "1px solid rgba(96,165,250,0.25)", borderRadius: "8px" }}>
+                User Feedback
+              </Link>
+              <Link href="/dashboard" style={{ fontSize: "12px", color: "#475569", textDecoration: "none", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px" }}>
+                Back to App
+              </Link>
+            </div>
           </div>
           <p style={{ fontSize: "13px", color: "#475569" }}>Platform: BuyTune.io &nbsp;·&nbsp; Legal effective: {effectiveDate} &nbsp;·&nbsp; Governing law: Texas, United States</p>
         </div>

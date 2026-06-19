@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import OnboardingModal from "@/app/onboarding/onboarding-modal";
 import TermsAcceptModal from "@/app/components/terms-accept-modal";
+import FeedbackPrompt from "@/app/components/feedback-prompt";
 import WeekAheadCard from "@/app/components/week-ahead-card";
 import WeeklyRecapCard from "@/app/components/weekly-recap-card";
 import MondayPrepCard from "@/app/components/monday-prep-card";
@@ -79,6 +80,7 @@ export default function DashboardClient({
   onboardingStatus,
   existingPortfolios,
   existingStrategies,
+  accountCreatedAt,
 }: {
   portfolioRows: PortfolioRow[];
   archivedRows: { id: string; name: string }[];
@@ -98,6 +100,7 @@ export default function DashboardClient({
   onboardingStatus?: string;
   existingPortfolios?: OnboardingPortfolio[];
   existingStrategies?: OnboardingStrategy[];
+  accountCreatedAt?: string | null;
 }) {
   const [isPrivate, setIsPrivateState] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -152,6 +155,7 @@ export default function DashboardClient({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {!termsAccepted && <TermsAcceptModal />}
+      {termsAccepted && !onboardingOpen && <FeedbackPrompt accountCreatedAt={accountCreatedAt ?? null} />}
       {onboardingOpen && (
         <OnboardingModal
           initialStep={initialOnboardingStep ?? 1}
