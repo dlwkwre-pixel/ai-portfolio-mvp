@@ -1635,6 +1635,17 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       .eq("id", run.id)
       .eq("portfolio_id", portfolioId);
 
+    // Persist the full health report separately so the AI Analysis tab can show
+    // the latest one on load. Best-effort: if the health_report column hasn't
+    // been added yet (recommendation-runs-health.sql), this fails silently and
+    // the run still completes normally.
+    await supabase
+      .from("recommendation_runs")
+      .update({ health_report: geminiResult })
+      .eq("id", run.id)
+      .eq("portfolio_id", portfolioId)
+      .then(undefined, () => {});
+
     if (updateRunError) throw new Error(updateRunError.message);
 
     // Free snapshot — skip if valuation is zero/invalid (all prices missing)

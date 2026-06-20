@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AIRecommendationRunsList from "./ai-recommendation-runs-list";
 import RunAiControls from "./run-ai-controls";
+import HealthReportCard, { type HealthReport } from "./health-report-card";
 
 type AIRecommendationsSectionProps = {
   portfolioId: string;
@@ -64,6 +65,14 @@ export default async function AIRecommendationsSection({
   }
 
   const latestRun = runs?.[0] ?? null;
+
+  // Most recent run that produced a health report — shown persistently as the
+  // AI Analysis hero (it reloads each time a new analysis is run).
+  const latestHealthRun = (runs ?? []).find(
+    (r) => r.health_report && (r.health_report as HealthReport).overall_score != null
+  ) ?? null;
+  const latestHealth = latestHealthRun ? (latestHealthRun.health_report as HealthReport) : null;
+
   const pendingRunCount =
     runs?.filter((run) =>
       ["pending", "running", "queued"].includes(
@@ -79,6 +88,10 @@ export default async function AIRecommendationsSection({
     : null;
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {latestHealth && (
+        <HealthReportCard report={latestHealth} updatedAt={latestHealthRun?.created_at ?? null} />
+      )}
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <div>
         <h2 className="text-xl font-semibold text-white">AI Recommendations</h2>
@@ -273,5 +286,6 @@ export default async function AIRecommendationsSection({
         </div>
       )}
     </section>
+    </div>
   );
 }
