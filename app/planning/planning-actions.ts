@@ -401,6 +401,8 @@ export type PlanningAssumptions = {
   return_rate: number;
   inflation_rate: number;
   salary_growth_rate: number;
+  social_security_monthly?: number | null;   // estimated monthly benefit (today's $)
+  social_security_claim_age?: number | null;  // age benefits start
   updated_at: string;
 };
 
@@ -413,8 +415,16 @@ export async function upsertPlanningAssumptions(formData: FormData): Promise<{ e
   const inflation_rate = Number(formData.get("inflation_rate") ?? 3) / 100;
   const salary_growth_rate = Number(formData.get("salary_growth_rate") ?? 2) / 100;
 
+  const row: Record<string, unknown> = { user_id: user.id, return_rate, inflation_rate, salary_growth_rate, updated_at: new Date().toISOString() };
+  // Optional retirement income (requires planning-assumptions-retirement-income.sql).
+  // Only included when the form provides them, so other saves work pre-migration.
+  const ssRaw = formData.get("social_security_monthly");
+  const claimRaw = formData.get("social_security_claim_age");
+  if (ssRaw != null) row.social_security_monthly = Number(ssRaw) || 0;
+  if (claimRaw != null && String(claimRaw).trim() !== "") row.social_security_claim_age = Number(claimRaw) || null;
+
   const { error } = await supabase.from("planning_assumptions").upsert(
-    { user_id: user.id, return_rate, inflation_rate, salary_growth_rate, updated_at: new Date().toISOString() },
+    row,
     { onConflict: "user_id" }
   );
 

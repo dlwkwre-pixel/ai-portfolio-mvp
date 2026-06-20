@@ -228,9 +228,13 @@ function buildForecastBands(
   return result;
 }
 
-function calcRetirementProbability(baselineNW: number, annualExpenses: number): number | null {
-  if (annualExpenses <= 0 || baselineNW <= 0) return null;
-  const ratio = baselineNW / (annualExpenses * 25);
+function calcRetirementProbability(baselineNW: number, annualExpenses: number, annualOtherIncome = 0): number | null {
+  // Net guaranteed retirement income (Social Security, pensions) against spending —
+  // you only need the portfolio to cover the gap (the 25x rule on net expenses).
+  const netExpenses = Math.max(0, annualExpenses - Math.max(0, annualOtherIncome));
+  if (netExpenses <= 0) return baselineNW > 0 ? 95 : null; // income alone covers expenses
+  if (baselineNW <= 0) return null;
+  const ratio = baselineNW / (netExpenses * 25);
   if (ratio >= 1.5) return 95;
   if (ratio >= 1.2) return 88;
   if (ratio >= 1.0) return 82;
@@ -5501,7 +5505,12 @@ export default function PlanningClient({
     return_rate: (assumptions?.return_rate ?? 0.07) * 100,
     inflation_rate: (assumptions?.inflation_rate ?? 0.03) * 100,
     salary_growth_rate: (assumptions?.salary_growth_rate ?? 0.02) * 100,
+    social_security_monthly: assumptions?.social_security_monthly ?? 0,
+    social_security_claim_age: assumptions?.social_security_claim_age ?? 67,
   });
+  // Annual guaranteed retirement income in today's dollars — netted against
+  // expenses in the readiness math (the 25x rule applies to the gap, not gross spend).
+  const annualRetirementIncome = Math.max(0, (localAssumptions.social_security_monthly || 0) * 12);
   const [assumptionsPending, startAssumptionsTransition] = useTransition();
 
   // Future events
@@ -5664,8 +5673,13 @@ export default function PlanningClient({
   const retirementPoint = activeYearsToRetire != null
     ? forecastBands[Math.min(activeYearsToRetire, forecastBands.length - 1)]
     : forecastBands[forecastBands.length - 1];
+  // SS is entered in today's dollars; inflate it to retirement-year dollars (COLA tracks
+  // inflation) so it nets cleanly against the inflated expenses in retirementPoint.
+  const annualRetirementIncomeAtRetire = annualRetirementIncome > 0
+    ? annualRetirementIncome * Math.pow(1 + localAssumptions.inflation_rate / 100, activeYearsToRetire ?? 0)
+    : 0;
   const retirementProb = retirementPoint
-    ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
+    ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses, annualRetirementIncomeAtRetire)
     : null;
 
   // ── Master Life Roadmap data (P-Spine-2) ──────────────────────────────────
@@ -6070,7 +6084,9 @@ export default function PlanningClient({
     // Auto-inject FI milestone if not already in roadmap
     const conflictYears = new Set(conflictAlerts.flatMap((a) => a.years));
 
-    // Financial Independence estimate: years until net_worth * (1+r)^n + PMT*... >= 25 * annual_expenses
+    // Financial Independence estimate: years until net_worth * (1+r)^n + PMT*... >= 25 * annual_expenses.
+    // FI does NOT net Social Security — it can arrive well before SS eligibility, so the portfolio
+    // must cover full expenses on its own.
     let fiYear: number | null = null;
     const annualExpenses = effectiveExpenses * 12;
     const fiTarget = annualExpenses > 0 ? annualExpenses * 25 : 0;
@@ -6140,8 +6156,11 @@ export default function PlanningClient({
     forecastBands.length <= 12 || p.year % 5 === 0 || p.year === activeYearsToRetire
   );
 
-  // Monte Carlo — only computed when toggle is on
-  const retirementTarget = retirementPoint ? retirementPoint.annualExpenses * 25 : null;
+  // Monte Carlo — only computed when toggle is on.
+  // Target is 25x the spending NOT covered by guaranteed income (Social Security).
+  const retirementTarget = retirementPoint
+    ? Math.max(0, retirementPoint.annualExpenses - annualRetirementIncomeAtRetire) * 25
+    : null;
   const mcResult = useMemo(() => {
     if (!showMonteCarlo) return null;
     return runMonteCarlo(
@@ -7037,6 +7056,8 @@ export default function PlanningClient({
     fd.set("return_rate", String(localAssumptions.return_rate));
     fd.set("inflation_rate", String(localAssumptions.inflation_rate));
     fd.set("salary_growth_rate", String(localAssumptions.salary_growth_rate));
+    fd.set("social_security_monthly", String(localAssumptions.social_security_monthly || 0));
+    fd.set("social_security_claim_age", String(localAssumptions.social_security_claim_age || ""));
     startAssumptionsTransition(async () => {
       await upsertPlanningAssumptions(fd);
     });
@@ -8145,7 +8166,7 @@ export default function PlanningClient({
                 {(whatIfScenario != null || scenarioRetirementAge !== (profile?.target_retirement_age ?? null)) && (
                   <button
                     type="button"
-                    onClick={() => { setWhatIfScenario(null); setScenarioRetirementAge(profile?.target_retirement_age ?? null); setLocalAssumptions({ return_rate: assumptions?.return_rate ?? 7, inflation_rate: assumptions?.inflation_rate ?? 3, salary_growth_rate: assumptions?.salary_growth_rate ?? 2 }); }}
+                    onClick={() => { setWhatIfScenario(null); setScenarioRetirementAge(profile?.target_retirement_age ?? null); setLocalAssumptions((prev) => ({ ...prev, return_rate: assumptions?.return_rate ?? 7, inflation_rate: assumptions?.inflation_rate ?? 3, salary_growth_rate: assumptions?.salary_growth_rate ?? 2 })); }}
                     style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: 500, cursor: "pointer", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)" }}
                   >Reset all</button>
                 )}
@@ -8337,7 +8358,7 @@ export default function PlanningClient({
                       <button
                         key={name}
                         type="button"
-                        onClick={() => setLocalAssumptions({ ...ASSUMPTION_PRESETS[name] })}
+                        onClick={() => setLocalAssumptions((prev) => ({ ...prev, ...ASSUMPTION_PRESETS[name] }))}
                         style={{
                           padding: "4px 10px", borderRadius: "20px", fontSize: "10px",
                           fontFamily: "var(--font-body)", fontWeight: isActive ? 700 : 400,
@@ -8378,6 +8399,58 @@ export default function PlanningClient({
                 </div>
               ))}
 
+              {/* Retirement income — Social Security nets against the readiness target */}
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "13px", marginBottom: "13px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "9px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Retirement Income</span>
+                  <InfoTooltip text="Guaranteed income in retirement (Social Security, a pension). We net it against your spending, so your portfolio only has to cover the gap. Enter it in today's dollars; we grow it with inflation to your retirement year. Most simple calculators ignore this and overstate how much you need." />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "10px" }}>
+                  <label style={{ display: "block" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "3px" }}>Social Security ($/mo)</span>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)", fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>$</span>
+                      <input
+                        type="number" inputMode="numeric" min={0} step={50} placeholder="0"
+                        value={localAssumptions.social_security_monthly || ""}
+                        onChange={(e) => setLocalAssumptions((prev) => ({ ...prev, social_security_monthly: Math.max(0, Number(e.target.value) || 0) }))}
+                        style={{ width: "100%", padding: "7px 9px 7px 20px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--input-bg, var(--bg-elevated))", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "13px" }}
+                      />
+                    </div>
+                  </label>
+                  <label style={{ display: "block" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "3px" }}>Claim age</span>
+                    <input
+                      type="number" inputMode="numeric" min={62} max={70} step={1} placeholder="67"
+                      value={localAssumptions.social_security_claim_age || ""}
+                      onChange={(e) => setLocalAssumptions((prev) => ({ ...prev, social_security_claim_age: Math.max(0, Number(e.target.value) || 0) }))}
+                      style={{ width: "100%", padding: "7px 9px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--input-bg, var(--bg-elevated))", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "13px" }}
+                    />
+                  </label>
+                </div>
+                {/* Live effect on the target */}
+                {(() => {
+                  if (!retirementPoint) return null;
+                  const grossTarget = retirementPoint.annualExpenses * 25;
+                  if (annualRetirementIncome > 0 && retirementTarget != null) {
+                    const saved = grossTarget - retirementTarget;
+                    return (
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "9px 0 0", lineHeight: 1.55 }}>
+                        ~<span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{fmt(annualRetirementIncome)}</span>/yr of guaranteed income cuts your portfolio target by{" "}
+                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(saved)}</span> — from {fmt(grossTarget)} to{" "}
+                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(retirementTarget)}</span>.
+                      </p>
+                    );
+                  }
+                  return (
+                    <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "9px 0 0", lineHeight: 1.55 }}>
+                      Add your estimate to make your target realistic — it can lower the number you need by hundreds of thousands. Find yours at{" "}
+                      <a href="https://www.ssa.gov/myaccount/" target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand-blue)", textDecoration: "none" }}>ssa.gov</a>.
+                    </p>
+                  );
+                })()}
+              </div>
+
               <button
                 type="button"
                 disabled={assumptionsPending}
@@ -8405,8 +8478,8 @@ export default function PlanningClient({
                   <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textAlign: "center", display: "flex", alignItems: "center", gap: "2px" }}>
                     {mcResult ? "MC · 1k runs" : "4% rule"}
                     <InfoTooltip text={mcResult
-                      ? "Monte Carlo: 1,000 simulations with random annual returns (σ=15%). This probability is the share of simulations where your portfolio hits 25× annual expenses by retirement."
-                      : "The 4% rule: you need 25× your annual expenses saved to retire. At that amount, withdrawing 4% per year should last 30+ years. This probability estimates how close you are to that target."
+                      ? `Monte Carlo: 1,000 simulations with random annual returns (σ=15%). This probability is the share of simulations where your portfolio hits 25× ${annualRetirementIncome > 0 ? "the expenses Social Security doesn't cover" : "annual expenses"} by retirement.`
+                      : `The 4% rule: you need 25× your annual expenses saved to retire. ${annualRetirementIncome > 0 ? "Social Security covers part of that spending, so the target is 25× only the gap it leaves. " : ""}At that amount, withdrawing 4% per year should last 30+ years. This probability estimates how close you are to that target.`
                     } />
                   </span>
                   {retirementTarget != null && retirementPoint != null && (
