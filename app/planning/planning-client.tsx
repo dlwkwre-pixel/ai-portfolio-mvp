@@ -201,9 +201,12 @@ function buildForecastBands(
     const annualExpenses = monthlyExpenses * 12 * Math.pow(1 + inflationRate, y);
     const annualSavings = annualIncome - annualExpenses;
     const yearAbs = currentYear + y;
-    const eventImpact = futureEvents
-      .filter((e) => e.event_year === yearAbs)
-      .reduce((s, e) => s + e.amount_impact, 0);
+    const eventImpact = futureEvents.reduce((s, e) => {
+      let v = e.event_year === yearAbs ? e.amount_impact : 0;
+      const rec = e.recurring_annual ?? 0;
+      if (rec && yearAbs >= e.event_year && (e.end_year == null || yearAbs <= e.end_year)) v += rec;
+      return s + v;
+    }, 0);
 
     if (y > 0) {
       nwOpt = grow(nwOpt, Math.min(0.20, returnRate + 0.03), annualSavings) + eventImpact;
@@ -269,9 +272,13 @@ function runMonteCarlo(
       const income = monthlyIncome * 12 * Math.pow(1 + salaryGrowthRate, y);
       const expenses = monthlyExpenses * 12 * Math.pow(1 + inflationRate, y);
       const savings = income - expenses;
-      const events = futureEvents
-        .filter((e) => e.event_year === currentYear + y)
-        .reduce((s, e) => s + e.amount_impact, 0);
+      const yearAbsMc = currentYear + y;
+      const events = futureEvents.reduce((s, e) => {
+        let v = e.event_year === yearAbsMc ? e.amount_impact : 0;
+        const rec = e.recurring_annual ?? 0;
+        if (rec && yearAbsMc >= e.event_year && (e.end_year == null || yearAbsMc <= e.end_year)) v += rec;
+        return s + v;
+      }, 0);
       const mr = r / 12;
       const mc = savings / 12;
       nw = mr > 0

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { RelocationScenario } from "./relocation-actions";
 import { saveRelocationScenario, deleteRelocationScenario } from "./relocation-actions";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -138,6 +139,20 @@ export default function RelocationClient({
             {calc.paybackMonths != null && ` The ${fmt(movingCost)} move pays for itself in ${Math.ceil(calc.paybackMonths)} month${Math.ceil(calc.paybackMonths) === 1 ? "" : "s"}.`}
           </div>
         </div>
+
+        {/* Add to plan — one-time move cost + the ongoing savings change */}
+        {(movingCost > 0 || calc.delta !== 0) && (
+          <div style={cardStyle}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Add to your plan</span>
+            <AddToPlanButton
+              label={`Move to ${newCity || "new city"}`}
+              category="relocation"
+              amountImpact={-movingCost}
+              recurringAnnual={Math.round(calc.delta * 12)}
+              note={`Models the ${fmt(movingCost)} move${calc.delta !== 0 ? ` and the ${calc.delta >= 0 ? "+" : ""}${fmt(Math.round(calc.delta * 12))}/yr change in savings` : ""} from that year, so your forecast reflects the move.`}
+            />
+          </div>
+        )}
 
         {/* Save row */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>

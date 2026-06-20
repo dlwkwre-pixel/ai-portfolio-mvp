@@ -12,12 +12,16 @@ export default function AddToPlanButton({
   amountImpact,
   defaultYear,
   note,
+  recurringAnnual,
+  endYear,
 }: {
   label: string;
   category: string;
-  amountImpact: number;        // signed: negative = cost, positive = inflow
+  amountImpact: number;        // signed one-time: negative = cost, positive = inflow
   defaultYear?: number;
   note?: string;               // optional one-liner shown under the control
+  recurringAnnual?: number;    // signed $/yr from the chosen year onward (requires migration)
+  endYear?: number | null;     // last year the stream applies (omit = forecast horizon)
 }) {
   const cy = new Date().getFullYear();
   const [year, setYear] = useState(defaultYear ?? cy + 1);
@@ -26,7 +30,7 @@ export default function AddToPlanButton({
   const [error, setError] = useState("");
 
   function add() {
-    if (!amountImpact) return;
+    if (!amountImpact && !recurringAnnual) return;
     setError("");
     start(async () => {
       try {
@@ -35,6 +39,10 @@ export default function AddToPlanButton({
         fd.set("event_year", String(year));
         fd.set("amount_impact", String(Math.round(amountImpact)));
         fd.set("category", category);
+        if (recurringAnnual) {
+          fd.set("recurring_annual", String(Math.round(recurringAnnual)));
+          if (endYear != null) fd.set("end_year", String(endYear));
+        }
         const r = await addFutureEvent(fd);
         if (r?.error) throw new Error(r.error);
         setDone(true);
@@ -66,8 +74,8 @@ export default function AddToPlanButton({
           style={{ width: "84px", background: "var(--bg-base)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "6px 10px", fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none" }}
         />
         <button
-          type="button" onClick={add} disabled={pending || !amountImpact}
-          style={{ padding: "7px 15px", borderRadius: "var(--radius-md)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: pending || !amountImpact ? 0.6 : 1, whiteSpace: "nowrap" }}
+          type="button" onClick={add} disabled={pending || (!amountImpact && !recurringAnnual)}
+          style={{ padding: "7px 15px", borderRadius: "var(--radius-md)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: pending || (!amountImpact && !recurringAnnual) ? 0.6 : 1, whiteSpace: "nowrap" }}
         >
           {pending ? "Adding…" : "Add to plan"}
         </button>

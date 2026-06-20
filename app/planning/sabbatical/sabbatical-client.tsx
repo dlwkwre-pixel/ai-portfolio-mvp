@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SabbaticalScenario } from "./sabbatical-actions";
 import { saveSabbaticalScenario, deleteSabbaticalScenario } from "./sabbatical-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -730,6 +731,25 @@ export default function TimeOffClient({
               </div>
             </div>
           )}
+
+          {/* Add to plan — the break draws down savings in its year */}
+          {showAnalysis && (() => {
+            const cost = breakType === "vacation" ? (vacationResult?.totalCost ?? 0) : (sabbaticalResult?.totalDepletion ?? 0);
+            if (cost <= 0) return null;
+            const vdYear = form.vacation_target_date ? new Date(form.vacation_target_date).getFullYear() : undefined;
+            return (
+              <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "10px" }}>Add to your plan</div>
+                <AddToPlanButton
+                  label={`${form.name?.trim() || (breakType === "vacation" ? "Vacation" : "Sabbatical")}`}
+                  category="other"
+                  amountImpact={-cost}
+                  defaultYear={breakType === "vacation" ? vdYear : undefined}
+                  note={`Models the ${fmt(cost)} drawn from savings that year, so your forecast reflects the ${breakType === "vacation" ? "trip" : "break"}.`}
+                />
+              </div>
+            );
+          })()}
 
           {/* === VACATION: Cost breakdown + Savings plan === */}
           {showAnalysis && breakType === "vacation" && vacationResult && (

@@ -433,6 +433,8 @@ export type FutureEvent = {
   amount_impact: number;
   category: string;
   sort_order: number;
+  recurring_annual?: number | null;  // signed $/yr applied event_year..end_year
+  end_year?: number | null;          // last year the recurring stream applies (null = horizon)
 };
 
 export async function addFutureEvent(formData: FormData): Promise<{ error?: string }> {
@@ -446,6 +448,11 @@ export async function addFutureEvent(formData: FormData): Promise<{ error?: stri
   const event_year = Number(formData.get("event_year") || new Date().getFullYear());
   const amount_impact = Number(formData.get("amount_impact") || 0);
   const category = String(formData.get("category") || "other");
+  // Optional recurring stream (requires planning-future-events-recurring.sql).
+  const recurringRaw = formData.get("recurring_annual");
+  const endYearRaw = formData.get("end_year");
+  const recurring_annual = recurringRaw != null && String(recurringRaw).trim() !== "" ? Number(recurringRaw) : null;
+  const end_year = endYearRaw != null && String(endYearRaw).trim() !== "" ? Number(endYearRaw) : null;
 
   const { data: existing } = await supabase
     .from("planning_future_events")
@@ -457,9 +464,12 @@ export async function addFutureEvent(formData: FormData): Promise<{ error?: stri
 
   const sort_order = (existing?.sort_order ?? -1) + 1;
 
-  const { error } = await supabase.from("planning_future_events").insert({
-    user_id: user.id, label, event_year, amount_impact, category, sort_order,
-  });
+  // Only include recurring columns when actually used, so one-time events keep
+  // working even before the recurring migration is applied.
+  const row: Record<string, unknown> = { user_id: user.id, label, event_year, amount_impact, category, sort_order };
+  if (recurring_annual != null) { row.recurring_annual = recurring_annual; row.end_year = end_year; }
+
+  const { error } = await supabase.from("planning_future_events").insert(row);
 
   if (error) return { error: error.message };
   revalidatePath("/planning");
