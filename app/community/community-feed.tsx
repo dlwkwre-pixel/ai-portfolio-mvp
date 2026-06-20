@@ -505,6 +505,16 @@ export default function CommunityFeed({ me, initialPosts, myFollowIds, myStrateg
     return list;
   }, [posts, view, tickerFilter, followSet]);
 
+  // What the community is talking about — most-tagged tickers across the feed.
+  const trendingTickers = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of posts) {
+      const tset = new Set<string>([...p.tickers, ...(p.ai_ticker ? [p.ai_ticker] : [])]);
+      for (const t of tset) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [posts]);
+
   function updatePost(p: FeedPost) { setPosts(prev => prev.map(x => x.id === p.id ? p : x)); }
   function removePost(id: string) { setPosts(prev => prev.filter(x => x.id !== id)); }
   function prepend(p: FeedPost) { setPosts(prev => [p, ...prev]); }
@@ -512,6 +522,36 @@ export default function CommunityFeed({ me, initialPosts, myFollowIds, myStrateg
   return (
     <div>
       <Composer me={me} myStrategies={myStrategies} myPortfolios={myPortfolios} onPosted={prepend} />
+
+      {/* Trending tickers — what the community is talking about */}
+      {!tickerFilter && trendingTickers.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>🔥 Trending</span>
+          {trendingTickers.map(([t, n]) => (
+            <button key={t} type="button" onClick={() => setTickerFilter(t)}
+              style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 600, cursor: "pointer", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-secondary)" }}>
+              <span style={{ color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>${t}</span>
+              <span style={{ color: "var(--text-muted)" }}>{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active ticker filter — header with a link into stock research */}
+      {tickerFilter && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", padding: "10px 14px", borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.2)" }}>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>${tickerFilter}</span>
+          <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>{visible.length} post{visible.length !== 1 ? "s" : ""}</span>
+          <Link href={`/research?ticker=${encodeURIComponent(tickerFilter)}`}
+            style={{ fontSize: "12px", fontWeight: 600, color: "var(--brand-blue)", textDecoration: "none" }}>
+            Research ${tickerFilter} →
+          </Link>
+          <button type="button" onClick={() => setTickerFilter(null)}
+            style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "13px", fontWeight: 600 }}>
+            Clear ✕
+          </button>
+        </div>
+      )}
 
       {/* View toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
@@ -524,12 +564,6 @@ export default function CommunityFeed({ me, initialPosts, myFollowIds, myStrateg
             {v === "foryou" ? "For You" : "Following"}
           </button>
         ))}
-        {tickerFilter && (
-          <button type="button" onClick={() => setTickerFilter(null)}
-            style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: "var(--radius-full)", fontSize: "12px", fontWeight: 600, cursor: "pointer", border: "1px solid rgba(37,99,235,0.3)", background: "rgba(37,99,235,0.08)", color: "var(--brand-blue)" }}>
-            ${tickerFilter} ✕
-          </button>
-        )}
       </div>
 
       {visible.length === 0 ? (
