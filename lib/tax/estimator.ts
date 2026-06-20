@@ -463,6 +463,90 @@ export function estimateTax(
   };
 }
 
+// ── Retirement tax (federal brackets + Social Security taxability + LTCG) ──────
+// Reusable, retirement-specific tax model for the drawdown engine. Unlike estimateTax
+// (built around wages + FICA), this handles the three income types a retiree actually
+// has: ordinary income (tax-deferred withdrawals, RMDs, Roth conversions), long-term
+// capital gains (taxable-account withdrawals), and Social Security (partially taxable).
+// 2025 figures. Planning estimates only, not tax advice. State tax not modeled here.
+
+// Long-term capital gains brackets — thresholds are on TAXABLE INCOME (gains stack on top
+// of ordinary taxable income to determine the 0% / 15% / 20% rate).
+const LTCG_BRACKETS: Record<FilingStatus, { zeroUpTo: number; fifteenUpTo: number }> = {
+  single:                     { zeroUpTo: 48_350, fifteenUpTo: 533_400 },
+  married_filing_jointly:     { zeroUpTo: 96_700, fifteenUpTo: 600_050 },
+  head_of_household:          { zeroUpTo: 64_750, fifteenUpTo: 566_700 },
+  married_filing_separately:  { zeroUpTo: 48_350, fifteenUpTo: 300_000 },
+};
+
+// Provisional-income thresholds that govern how much Social Security is taxable.
+const SS_TAX_THRESHOLDS: Record<FilingStatus, { base1: number; base2: number }> = {
+  single:                     { base1: 25_000, base2: 34_000 },
+  married_filing_jointly:     { base1: 32_000, base2: 44_000 },
+  head_of_household:          { base1: 25_000, base2: 34_000 },
+  married_filing_separately:  { base1: 0, base2: 0 }, // MFS: SS generally up to 85% taxable
+};
+
+// Portion of Social Security that is federally taxable (IRS provisional-income method).
+export function taxableSocialSecurity(ssAnnual: number, otherIncome: number, filing: FilingStatus): number {
+  if (ssAnnual <= 0) return 0;
+  const { base1, base2 } = SS_TAX_THRESHOLDS[filing];
+  const provisional = Math.max(0, otherIncome) + 0.5 * ssAnnual;
+  if (provisional <= base1) return 0;
+  if (provisional <= base2) return Math.min(0.5 * ssAnnual, 0.5 * (provisional - base1));
+  const tier1 = Math.min(0.5 * ssAnnual, 0.5 * (base2 - base1));
+  return Math.min(0.85 * ssAnnual, 0.85 * (provisional - base2) + tier1);
+}
+
+// Long-term capital gains tax, stacked on top of ordinary taxable income.
+function longTermCapGainsTax(gains: number, ordinaryTaxable: number, filing: FilingStatus): number {
+  if (gains <= 0) return 0;
+  const { zeroUpTo, fifteenUpTo } = LTCG_BRACKETS[filing];
+  let remaining = gains;
+  let start = Math.max(0, ordinaryTaxable);
+  let tax = 0;
+  const zeroRoom = Math.max(0, zeroUpTo - start);
+  const at0 = Math.min(remaining, zeroRoom);
+  remaining -= at0; start += at0;
+  const fifteenRoom = Math.max(0, fifteenUpTo - start);
+  const at15 = Math.min(remaining, fifteenRoom);
+  tax += at15 * 0.15; remaining -= at15;
+  tax += remaining * 0.20;
+  return tax;
+}
+
+export interface RetirementTaxResult {
+  totalTax: number;
+  ordinaryTax: number;
+  capGainsTax: number;
+  taxableSS: number;
+  ordinaryTaxable: number;   // ordinary taxable income after standard deduction
+  marginalOrdinaryRate: number;
+}
+
+// Federal tax for a retirement year given the three income streams.
+export function retirementFederalTax(p: {
+  ordinaryIncome: number;   // tax-deferred withdrawals + RMDs + Roth conversions + taxable interest
+  capitalGains: number;     // realized long-term gains from taxable-account withdrawals
+  socialSecurity: number;   // gross annual Social Security benefit
+  filing: FilingStatus;
+}): RetirementTaxResult {
+  const std = STD_DEDUCTION[p.filing];
+  const taxableSS = taxableSocialSecurity(p.socialSecurity, p.ordinaryIncome + p.capitalGains, p.filing);
+  const ordinaryAGI = Math.max(0, p.ordinaryIncome) + taxableSS;
+  const ordinaryTaxable = Math.max(0, ordinaryAGI - std);
+  const { tax: ordinaryTax, marginalRate } = applyBrackets(ordinaryTaxable, FEDERAL_BRACKETS[p.filing]);
+  const capGainsTax = longTermCapGainsTax(Math.max(0, p.capitalGains), ordinaryTaxable, p.filing);
+  return {
+    totalTax: ordinaryTax + capGainsTax,
+    ordinaryTax,
+    capGainsTax,
+    taxableSS,
+    ordinaryTaxable,
+    marginalOrdinaryRate: marginalRate,
+  };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export const FILING_STATUS_LABELS: Record<FilingStatus, string> = {

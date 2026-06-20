@@ -36,7 +36,7 @@ import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
-import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS } from "@/lib/tax/estimator";
+import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -338,16 +338,18 @@ function rmdDivisor(age: number): number | null {
 
 type DrawdownYear = {
   age: number;
-  expenses: number;
+  expenses: number;        // total spending incl. healthcare/LTC
+  healthcare: number;      // healthcare + LTC portion of expenses
   guaranteedIncome: number;
   rmd: number;
-  withdrawal: number;   // gross withdrawn from all buckets (incl. RMD)
+  conversion: number;      // Roth conversion this year
+  withdrawal: number;      // gross withdrawn from all buckets (incl. RMD)
   taxes: number;
-  taxable: number;      // end-of-year balances
+  taxable: number;         // end-of-year balances
   taxDeferred: number;
   taxFree: number;
   total: number;
-  shortfall: number;    // unmet spending need this year
+  shortfall: number;       // unmet spending need this year
 };
 type DrawdownResult = {
   years: DrawdownYear[];
@@ -357,10 +359,11 @@ type DrawdownResult = {
   endAge: number;
   totalTaxes: number;
   totalRmds: number;
+  totalConversions: number;
   startTotal: number;
 };
 
-function simulateRetirementDrawdown(p: {
+type DrawdownParams = {
   startTaxable: number;
   startTaxDeferred: number;
   startTaxFree: number;
@@ -372,14 +375,30 @@ function simulateRetirementDrawdown(p: {
   returnRate: number;
   socialSecurityAnnualToday: number;  // today's dollars
   claimAge: number;
-  ordinaryRate?: number;
-  taxableRate?: number;
-}): DrawdownResult | null {
+  filing: FilingStatus;
+  taxableGainsFraction?: number;      // share of a taxable-account withdrawal that is realized gains
+  // Roth conversions (convert tax-deferred → Roth in low-income years to fill a bracket)
+  rothConversions?: boolean;
+  conversionFillToTaxable?: number;   // target ordinary TAXABLE income to fill via conversions
+  conversionUntilAge?: number;        // stop converting at this age (default = RMD age 73)
+  // Healthcare / long-term care
+  annualHealthcareToday?: number;     // today's dollars; grows at healthcareInflation
+  healthcareInflation?: number;       // default 5%
+  ltcAnnualToday?: number;            // today's dollars, added during the LTC window
+  ltcStartAge?: number;
+  ltcYears?: number;
+};
+
+// Shared simulation core — `getReturn(yearIndex)` supplies the annual return so the
+// deterministic projection and the Monte Carlo both run the exact same tax/withdrawal logic.
+function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => number): DrawdownResult | null {
   const endAge = p.endAge ?? 95;
-  const ordinaryRate = p.ordinaryRate ?? 0.18;
-  const taxableRate = p.taxableRate ?? 0.10;
   if (p.retirementAge >= endAge) return null;
   if (p.annualExpensesAtRetirement <= 0) return null;
+
+  const gainsFrac = p.taxableGainsFraction ?? 0.5;
+  const convUntil = p.conversionUntilAge ?? 73;
+  const hcInflation = p.healthcareInflation ?? 0.05;
 
   let taxable = Math.max(0, p.startTaxable);
   let taxDeferred = Math.max(0, p.startTaxDeferred);
@@ -389,66 +408,76 @@ function simulateRetirementDrawdown(p: {
 
   const years: DrawdownYear[] = [];
   let depletedAge: number | null = null;
-  let totalTaxes = 0;
-  let totalRmds = 0;
+  let totalTaxes = 0, totalRmds = 0, totalConversions = 0;
 
   for (let age = p.retirementAge; age <= endAge; age++) {
-    const yFromRet = age - p.retirementAge;
+    const yIdx = age - p.retirementAge;
+    const yFromRet = yIdx;
     const yFromToday = Math.max(0, age - p.currentAge);
-    const expenses = p.annualExpensesAtRetirement * Math.pow(1 + p.inflationRate, yFromRet);
-    const ss = age >= p.claimAge ? p.socialSecurityAnnualToday * Math.pow(1 + p.inflationRate, yFromToday) : 0;
-    let need = Math.max(0, expenses - ss); // SS treated as net for v1
-    let withdrawal = 0;
-    let taxesThisYear = 0;
 
-    // 1) Required Minimum Distribution (forced, taxed as ordinary income)
+    // Spending: base + healthcare (grows faster) + LTC window
+    const baseExpenses = p.annualExpensesAtRetirement * Math.pow(1 + p.inflationRate, yFromRet);
+    const healthcare = (p.annualHealthcareToday ?? 0) > 0 ? p.annualHealthcareToday! * Math.pow(1 + hcInflation, yFromToday) : 0;
+    const inLtc = (p.ltcAnnualToday ?? 0) > 0 && p.ltcStartAge != null && age >= p.ltcStartAge && age < p.ltcStartAge + (p.ltcYears ?? 0);
+    const ltc = inLtc ? p.ltcAnnualToday! * Math.pow(1 + hcInflation, yFromToday) : 0;
+    const expenses = baseExpenses + healthcare + ltc;
+    const ss = age >= p.claimAge ? p.socialSecurityAnnualToday * Math.pow(1 + p.inflationRate, yFromToday) : 0;
+
+    // 1) Required Minimum Distribution (forced ordinary income)
     let rmd = 0;
     const div = rmdDivisor(age);
-    if (div != null && taxDeferred > 0) {
-      rmd = taxDeferred / div;
-      taxDeferred -= rmd;
-      withdrawal += rmd;
-      const rmdTax = rmd * ordinaryRate;
-      taxesThisYear += rmdTax;
-      totalRmds += rmd;
-      const rmdNet = rmd - rmdTax;
-      if (rmdNet >= need) {
-        taxable += rmdNet - need; // excess RMD reinvested into the taxable bucket
-        need = 0;
-      } else {
-        need -= rmdNet;
-      }
+    if (div != null && taxDeferred > 0) { rmd = taxDeferred / div; taxDeferred -= rmd; totalRmds += rmd; }
+
+    // 2) Roth conversion — fill ordinary income up to a target taxable level in low-income years
+    let conversion = 0;
+    if (p.rothConversions && age < convUntil && taxDeferred > 0 && (p.conversionFillToTaxable ?? 0) > 0) {
+      const std = STD_DEDUCTION_BY_FILING[p.filing];
+      const taxableSSApprox = 0; // pre-claim or low income → little SS taxation; conservative
+      const ordinarySoFar = rmd + taxableSSApprox;
+      const targetOrdinary = (p.conversionFillToTaxable ?? 0) + std; // gross ordinary income to hit target taxable
+      conversion = Math.max(0, Math.min(taxDeferred, targetOrdinary - ordinarySoFar));
+      if (conversion > 0) { taxDeferred -= conversion; taxFree += conversion; totalConversions += conversion; }
     }
 
-    // 2) Tax-smart sequencing for the remaining need: taxable → tax-deferred → Roth
-    if (need > 0 && taxable > 0) {
-      const gross = Math.min(taxable, need / (1 - taxableRate));
-      const net = gross * (1 - taxableRate);
-      taxable -= gross; withdrawal += gross; taxesThisYear += gross * taxableRate; need -= net;
-    }
-    if (need > 0 && taxDeferred > 0) {
-      const gross = Math.min(taxDeferred, need / (1 - ordinaryRate));
-      const net = gross * (1 - ordinaryRate);
-      taxDeferred -= gross; withdrawal += gross; taxesThisYear += gross * ordinaryRate; need -= net;
-    }
-    if (need > 0 && taxFree > 0) {
-      const gross = Math.min(taxFree, need);
-      taxFree -= gross; withdrawal += gross; need -= gross;
+    // 3) Solve the year: withdraw (taxable → deferred → Roth) enough to cover expenses + taxes.
+    //    Taxes depend on income composition, so iterate to a fixed point.
+    let wdTaxable = 0, wdDeferred = 0, wdRoth = 0;
+    let depletedThisYear = false;
+    let finalTax = 0;
+    for (let iter = 0; iter < 12; iter++) {
+      const ordinaryIncome = rmd + conversion + wdDeferred;
+      const capitalGains = wdTaxable * gainsFrac;
+      finalTax = retirementFederalTax({ ordinaryIncome, capitalGains, socialSecurity: ss, filing: p.filing }).totalTax;
+      const cashIn = ss + rmd + wdTaxable + wdDeferred + wdRoth;
+      const gap = expenses + finalTax - cashIn;
+      if (gap <= 0.5) break;
+      let need = gap;
+      const tCap = taxable - wdTaxable; const t1 = Math.min(need, Math.max(0, tCap)); wdTaxable += t1; need -= t1;
+      if (need > 0) { const dCap = taxDeferred - wdDeferred; const t2 = Math.min(need, Math.max(0, dCap)); wdDeferred += t2; need -= t2; }
+      if (need > 0) { const rCap = taxFree - wdRoth; const t3 = Math.min(need, Math.max(0, rCap)); wdRoth += t3; need -= t3; }
+      if (need > 0.5) { depletedThisYear = true; break; }
     }
 
-    const shortfall = Math.max(0, need);
+    taxable -= wdTaxable; taxDeferred -= wdDeferred; taxFree -= wdRoth;
+    const cashIn = ss + rmd + wdTaxable + wdDeferred + wdRoth;
+    const shortfall = depletedThisYear ? Math.max(0, expenses + finalTax - cashIn) : 0;
     if (shortfall > 0.5 && depletedAge == null) depletedAge = age;
-    totalTaxes += taxesThisYear;
+    // Forced RMD (or any) surplus after covering spending + tax is reinvested into taxable.
+    const surplus = cashIn - finalTax - expenses;
+    if (surplus > 0.5) taxable += surplus;
+    totalTaxes += finalTax;
 
-    // 3) Remaining balances grow for the year
-    taxable = Math.max(0, taxable) * (1 + p.returnRate);
-    taxDeferred = Math.max(0, taxDeferred) * (1 + p.returnRate);
-    taxFree = Math.max(0, taxFree) * (1 + p.returnRate);
+    // 4) Grow remaining balances for the year
+    const r = getReturn(yIdx);
+    taxable = Math.max(0, taxable) * (1 + r);
+    taxDeferred = Math.max(0, taxDeferred) * (1 + r);
+    taxFree = Math.max(0, taxFree) * (1 + r);
     const total = taxable + taxDeferred + taxFree;
 
     years.push({
-      age, expenses: Math.round(expenses), guaranteedIncome: Math.round(ss),
-      rmd: Math.round(rmd), withdrawal: Math.round(withdrawal), taxes: Math.round(taxesThisYear),
+      age, expenses: Math.round(expenses), healthcare: Math.round(healthcare + ltc),
+      guaranteedIncome: Math.round(ss), rmd: Math.round(rmd), conversion: Math.round(conversion),
+      withdrawal: Math.round(rmd + wdTaxable + wdDeferred + wdRoth), taxes: Math.round(finalTax),
       taxable: Math.round(taxable), taxDeferred: Math.round(taxDeferred), taxFree: Math.round(taxFree),
       total: Math.round(total), shortfall: Math.round(shortfall),
     });
@@ -457,7 +486,51 @@ function simulateRetirementDrawdown(p: {
   const lastsToAge = depletedAge != null ? depletedAge - 1 : endAge;
   return {
     years, depletedAge, lastsToAge, success: depletedAge == null, endAge,
-    totalTaxes: Math.round(totalTaxes), totalRmds: Math.round(totalRmds), startTotal: Math.round(startTotal),
+    totalTaxes: Math.round(totalTaxes), totalRmds: Math.round(totalRmds),
+    totalConversions: Math.round(totalConversions), startTotal: Math.round(startTotal),
+  };
+}
+
+// Standard deduction by filing status (kept in sync with the estimator; used for conversion targeting).
+const STD_DEDUCTION_BY_FILING: Record<FilingStatus, number> = {
+  single: 15_000, married_filing_jointly: 30_000, head_of_household: 22_500, married_filing_separately: 15_000,
+};
+
+// Top of the 12% federal bracket (2025) — the usual ceiling to fill with Roth conversions
+// in low-income early-retirement years (stay in the 10–12% bracket, avoid the 22% jump).
+const TWELVE_PCT_BRACKET_TOP: Record<FilingStatus, number> = {
+  single: 48_475, married_filing_jointly: 96_950, head_of_household: 64_850, married_filing_separately: 48_475,
+};
+
+// Deterministic drawdown (constant return).
+function simulateRetirementDrawdown(p: DrawdownParams): DrawdownResult | null {
+  return drawdownCore(p, () => p.returnRate);
+}
+
+// Monte Carlo drawdown — runs the same engine with random annual returns. Success = the
+// portfolio never fails to fund spending before endAge (a far stronger test than "25× at retirement").
+function runDrawdownMonteCarlo(p: DrawdownParams, runs = 400): {
+  successRate: number; medianEndBalance: number; p10EndBalance: number; medianDepletionAge: number | null;
+} | null {
+  const base = drawdownCore(p, () => p.returnRate);
+  if (!base) return null;
+  let successes = 0;
+  const endBalances: number[] = [];
+  const depletionAges: number[] = [];
+  for (let i = 0; i < runs; i++) {
+    const res = drawdownCore(p, () => Math.max(-0.6, normalRandom(p.returnRate, 0.15)));
+    if (!res) continue;
+    if (res.success) successes++; else depletionAges.push(res.depletedAge!);
+    endBalances.push(res.years[res.years.length - 1]?.total ?? 0);
+  }
+  const n = endBalances.length || 1;
+  endBalances.sort((a, b) => a - b);
+  depletionAges.sort((a, b) => a - b);
+  return {
+    successRate: Math.round((successes / (endBalances.length || 1)) * 100),
+    medianEndBalance: endBalances[Math.floor(n / 2)] ?? 0,
+    p10EndBalance: endBalances[Math.floor(n * 0.1)] ?? 0,
+    medianDepletionAge: depletionAges.length > 0 ? depletionAges[Math.floor(depletionAges.length / 2)] : null,
   };
 }
 
@@ -5806,6 +5879,11 @@ export default function PlanningClient({
   );
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
   const [whatIfScenario, setWhatIfScenario] = useState<"home" | "child" | "career" | null>(null);
+  // Drawdown options (Forecast tab → Retirement Drawdown card)
+  const [modelRothConversions, setModelRothConversions] = useState(false);
+  const [healthcareAnnual, setHealthcareAnnual] = useState(0);  // today's $/yr, on top of base expenses
+  const [modelLtc, setModelLtc] = useState(false);              // preset: $100k/yr × 3yrs at age 83
+  const [drawdownMcOn, setDrawdownMcOn] = useState(false);      // run Monte Carlo on the drawdown
 
   // ── Derived numbers ────────────────────────────────────────────────────────
 
@@ -5974,10 +6052,11 @@ export default function PlanningClient({
 
   // ── Retirement drawdown simulation (the spending phase) ────────────────────
   // Projects the INVESTABLE portfolio (not net worth — excludes home/illiquid) to
-  // the retirement year, then draws it down tax-smart with RMDs + Social Security.
+  // the retirement year, then draws it down tax-smart with RMDs + Social Security,
+  // real federal brackets, optional Roth conversions, and healthcare/LTC costs.
   // Supports "already retired" (current age ≥ retirement age → drawdown starts now).
   const DRAWDOWN_END_AGE = 95;
-  const drawdown = useMemo<DrawdownResult | null>(() => {
+  const drawdownParams = useMemo<DrawdownParams | null>(() => {
     const cAge = profile?.current_age ?? null;
     const rAge = activeRetirementAge ?? null;
     if (cAge == null || rAge == null) return null;
@@ -6000,8 +6079,9 @@ export default function PlanningClient({
     const fracTaxable = t.total > 0 ? t.taxable / t.total : 1;
     const fracDeferred = t.total > 0 ? t.tax_deferred / t.total : 0;
     const fracFree = t.total > 0 ? t.tax_free / t.total : 0;
+    const filing = (profile?.filing_status as FilingStatus) || "single";
 
-    return simulateRetirementDrawdown({
+    return {
       startTaxable: invAtRet * fracTaxable,
       startTaxDeferred: invAtRet * fracDeferred,
       startTaxFree: invAtRet * fracFree,
@@ -6013,12 +6093,26 @@ export default function PlanningClient({
       returnRate: r,
       socialSecurityAnnualToday: annualRetirementIncome,
       claimAge: localAssumptions.social_security_claim_age || 67,
-      ordinaryRate: EFFECTIVE_RETIREMENT_TAX_RATE,
-    });
+      filing,
+      rothConversions: modelRothConversions,
+      conversionFillToTaxable: TWELVE_PCT_BRACKET_TOP[filing],
+      annualHealthcareToday: Math.max(0, healthcareAnnual),
+      ltcAnnualToday: modelLtc ? 100_000 : 0,
+      ltcStartAge: 83,
+      ltcYears: 3,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.current_age, activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
+  }, [profile?.current_age, profile?.filing_status, activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
       localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.social_security_claim_age,
-      monthlySavings, annualRetirementIncome]);
+      monthlySavings, annualRetirementIncome, modelRothConversions, healthcareAnnual, modelLtc]);
+
+  const drawdown = useMemo<DrawdownResult | null>(
+    () => (drawdownParams ? simulateRetirementDrawdown(drawdownParams) : null), [drawdownParams]);
+  // Counterfactual with the Roth-conversion choice flipped — powers the "with vs without" comparison.
+  const drawdownAlt = useMemo<DrawdownResult | null>(
+    () => (drawdownParams ? simulateRetirementDrawdown({ ...drawdownParams, rothConversions: !drawdownParams.rothConversions }) : null), [drawdownParams]);
+  const drawdownMc = useMemo(
+    () => (drawdownParams && drawdownMcOn ? runDrawdownMonteCarlo(drawdownParams) : null), [drawdownParams, drawdownMcOn]);
 
   // ── Master Life Roadmap data (P-Spine-2) ──────────────────────────────────
   const roadmap = useMemo(() => {
@@ -8997,7 +9091,7 @@ export default function PlanningClient({
               <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
                   <span style={sectionHeadStyle}>Retirement Drawdown</span>
-                  <InfoTooltip text={`Simulates the spending phase from age ${retAge} to ${drawdown.endAge}. Each year, Social Security covers what it can, required minimum distributions are pulled from tax-deferred accounts at 73+, and the rest is withdrawn tax-smart: taxable first, then tax-deferred, then Roth. Taxes are estimated (tax-deferred ~${Math.round(EFFECTIVE_RETIREMENT_TAX_RATE * 100)}% effective, taxable gains lower, Roth tax-free; Social Security treated as net). It holds today's account mix forward — an estimate, not advice.`} />
+                  <InfoTooltip text={`Simulates the spending phase from age ${retAge} to ${drawdown.endAge}. Each year, Social Security covers what it can, required minimum distributions are pulled from tax-deferred accounts at 73+, and the rest is withdrawn tax-smart: taxable, then tax-deferred, then Roth. Taxes use real 2025 federal brackets, with the taxable share of Social Security and long-term capital-gains rates computed properly (state tax not modeled). It holds today's account mix forward — an estimate, not advice.`} />
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
                   <span style={{ fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, color: statusColor }}>{headline}</span>
@@ -9030,6 +9124,7 @@ export default function PlanningClient({
                     { label: "Investments at retirement", val: pHide(fmt(drawdown.startTotal)), color: "var(--text-primary)" },
                     { label: "Lifetime taxes (est.)", val: pHide(fmt(drawdown.totalTaxes)), color: "var(--amber)" },
                     { label: "Lifetime RMDs", val: drawdown.totalRmds > 0 ? pHide(fmt(drawdown.totalRmds)) : "—", color: "var(--text-secondary)" },
+                    ...(drawdown.totalConversions > 0 ? [{ label: "Roth converted", val: pHide(fmt(drawdown.totalConversions)), color: "var(--violet)" }] : []),
                     { label: `Left at ${drawdown.endAge}`, val: pHide(fmt(drawdown.years[drawdown.years.length - 1].total)), color: drawdown.success ? "var(--green)" : "var(--red)" },
                   ]).map((s) => (
                     <div key={s.label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
@@ -9038,6 +9133,88 @@ export default function PlanningClient({
                     </div>
                   ))}
                 </div>
+
+                {/* Options: model real-world levers */}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
+                  {([
+                    { on: modelRothConversions, set: () => setModelRothConversions((v) => !v), label: "Roth conversions" },
+                    { on: modelLtc, set: () => setModelLtc((v) => !v), label: "Long-term care" },
+                    { on: drawdownMcOn, set: () => setDrawdownMcOn((v) => !v), label: "Monte Carlo" },
+                  ]).map((o) => (
+                    <button key={o.label} type="button" onClick={o.set}
+                      style={{ padding: "5px 11px", borderRadius: "20px", fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: o.on ? 700 : 400, cursor: "pointer",
+                        background: o.on ? "var(--brand-blue)" : "transparent", border: `1px solid ${o.on ? "var(--brand-blue)" : "var(--border)"}`, color: o.on ? "#fff" : "var(--text-secondary)", transition: "all 0.15s" }}>
+                      {o.label}
+                    </button>
+                  ))}
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                    Healthcare $/yr
+                    <input type="number" inputMode="numeric" min={0} step={1000} placeholder="0"
+                      value={healthcareAnnual || ""} onChange={(e) => setHealthcareAnnual(Math.max(0, Number(e.target.value) || 0))}
+                      style={{ width: "92px", padding: "5px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--input-bg, var(--bg-elevated))", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px" }} />
+                  </label>
+                </div>
+                {(healthcareAnnual > 0 || modelLtc) && (
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                    {healthcareAnnual > 0 && `Healthcare adds ${pHide(fmt(healthcareAnnual))}/yr (today's $), growing 5%/yr. `}
+                    {modelLtc && "Long-term care models $100k/yr for 3 years starting age 83 (5% inflation)."}
+                  </p>
+                )}
+
+                {/* Roth conversion comparison (with vs without) */}
+                {drawdownAlt && (() => {
+                  const withConv = modelRothConversions ? drawdown : drawdownAlt;
+                  const withoutConv = modelRothConversions ? drawdownAlt : drawdown;
+                  const taxSaved = withoutConv.totalTaxes - withConv.totalTaxes;
+                  const endDelta = (withConv.years[withConv.years.length - 1]?.total ?? 0) - (withoutConv.years[withoutConv.years.length - 1]?.total ?? 0);
+                  if (Math.abs(taxSaved) < 2000 && Math.abs(endDelta) < 2000) return null;
+                  const helps = taxSaved > 0 || endDelta > 0;
+                  return (
+                    <div style={{ marginTop: "12px", padding: "11px 13px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, var(--violet) 8%, transparent)", border: "1px solid color-mix(in oklch, var(--violet) 24%, transparent)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--violet)", fontFamily: "var(--font-body)" }}>Roth Conversion Strategy</span>
+                        <InfoTooltip text={'Converting tax-deferred savings to Roth in low-income years before age 73 fills up the 12% bracket, pays tax now at a low rate, shrinks future RMDs, and leaves tax-free money for later. Toggle "Roth conversions" to apply it to the plan above.'} />
+                      </div>
+                      <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
+                        {modelRothConversions ? "With conversions on, " : "Modeling Roth conversions could "}
+                        {helps ? (
+                          <>
+                            {taxSaved > 0 && <>{modelRothConversions ? "you cut" : "cut"} lifetime taxes by <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{pHide(fmt(Math.abs(taxSaved)))}</span></>}
+                            {taxSaved > 0 && endDelta > 0 && " and "}
+                            {endDelta > 0 && <>{taxSaved > 0 ? "leave" : (modelRothConversions ? "leaves" : "leave")} <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{pHide(fmt(Math.abs(endDelta)))}</span> more at {drawdown.endAge}</>}
+                            {". "}
+                            {(withoutConv.totalRmds - withConv.totalRmds) > 2000 && <>It also trims lifetime RMDs by {pHide(fmt(withoutConv.totalRmds - withConv.totalRmds))}.</>}
+                          </>
+                        ) : (
+                          <>conversions don&apos;t help much on this plan — your tax-deferred balance or income mix is already efficient.</>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {/* Monte Carlo on the drawdown */}
+                {drawdownMcOn && drawdownMc && (
+                  <div style={{ marginTop: "12px", padding: "12px 13px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Monte Carlo · 400 runs</span>
+                      <InfoTooltip text="Runs the same drawdown 400 times with random annual returns (σ=15%). Success means your money never runs out before age 95 — a far stronger test than hitting 25× expenses at retirement." />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "10px" }}>
+                      {([
+                        { label: "Plan succeeds", val: `${drawdownMc.successRate}%`, color: drawdownMc.successRate >= 80 ? "var(--green)" : drawdownMc.successRate >= 60 ? "var(--amber)" : "var(--red)" },
+                        { label: `Median left at ${drawdown.endAge}`, val: pHide(fmt(drawdownMc.medianEndBalance)), color: "var(--text-primary)" },
+                        { label: `Poor markets (10th %ile)`, val: pHide(fmt(drawdownMc.p10EndBalance)), color: drawdownMc.p10EndBalance > 0 ? "var(--text-secondary)" : "var(--red)" },
+                        ...(drawdownMc.medianDepletionAge != null ? [{ label: "If short, median age", val: `${drawdownMc.medianDepletionAge}`, color: "var(--amber)" }] : []),
+                      ]).map((s) => (
+                        <div key={s.label}>
+                          <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: s.color }}>{s.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
