@@ -7,6 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 import type { CareerScenario } from "./career-actions";
 import { saveCareerScenario, deleteCareerScenario, addCareerChangeToForecast } from "./career-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
@@ -1233,6 +1234,20 @@ export default function CareerClient({
               </button>
             )}
           </div>
+
+          {/* Add to plan — one-time transition cost + the recurring income change */}
+          {(computed.gapCost > 0 || incomeDeltaYear1 !== 0) && (
+            <div style={cardS}>
+              <p style={{ ...sectionHead, margin: "0 0 10px" }}>Add to your plan</p>
+              <AddToPlanButton
+                label={`${inputs.name?.trim() || "Career change"}`}
+                category="career"
+                amountImpact={-Math.round(computed.gapCost)}
+                recurringAnnual={Math.round(incomeDeltaYear1 * 12)}
+                note={`Models the ${fmt(Math.round(computed.gapCost))} transition cost and a ${incomeDeltaYear1 >= 0 ? "+" : ""}${fmt(Math.round(incomeDeltaYear1 * 12))}/yr income change (at steady spending) from that year, so your forecast reflects the switch.`}
+              />
+            </div>
+          )}
 
           {/* Impact Analysis divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

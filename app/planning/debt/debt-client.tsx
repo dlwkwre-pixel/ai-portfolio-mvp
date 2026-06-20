@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Debt, DebtScenario } from "./debt-actions";
 import { saveDebtScenario, deleteDebtScenario } from "./debt-actions";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -297,6 +298,21 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
                 })}
               </div>
             </div>
+
+            {/* Add to plan — once debt-free, the minimum payments free up as savings */}
+            {debtFree && totalMin > 0 && (
+              <div style={cardStyle}>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Add to your plan</span>
+                <AddToPlanButton
+                  label="Debt paid off"
+                  category="debt"
+                  amountImpact={0}
+                  recurringAnnual={Math.round(totalMin * 12)}
+                  defaultYear={new Date().getFullYear() + Math.ceil(result.months / 12)}
+                  note={`Once these debts are cleared (~${payoffDateLabel(result.months)}), the ${fmt(totalMin)}/mo in minimum payments frees up — modeled as +${fmt(Math.round(totalMin * 12))}/yr to your savings from that year.`}
+                />
+              </div>
+            )}
 
             {/* Save row */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>

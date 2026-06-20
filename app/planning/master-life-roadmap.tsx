@@ -26,6 +26,9 @@ const CAT = (c: string): { color: string; label: string } => {
   if (c === "vehicle") return { color: "#f59e0b", label: "Vehicle" };
   if (c === "wedding") return { color: "#f472b6", label: "Wedding" };
   if (c === "windfall") return { color: "#00d395", label: "Windfall" };
+  if (c === "career") return { color: "#06b6d4", label: "Career" };
+  if (c === "relocation") return { color: "#818cf8", label: "Relocation" };
+  if (c === "debt") return { color: "#fb7185", label: "Debt" };
   return { color: "#64748b", label: "Other" };
 };
 
