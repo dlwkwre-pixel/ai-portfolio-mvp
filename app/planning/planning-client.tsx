@@ -296,6 +296,56 @@ function runMonteCarlo(
   return { points, mcRetirementProbability };
 }
 
+// ── Plan spine: one source of truth for life events the forecast consumes ──────
+// Expands committed planner scenarios into per-year FutureEvent drags so that
+// modeling a child, college, etc. actually moves the master forecast — not just
+// triggers a conflict alert. Manual future events pass through unchanged.
+// Planners without a stored target year (home/car/career/sabbatical) are added
+// to the plan explicitly elsewhere; only year-derivable scenarios are auto-collected here.
+function collectLifeEvents(args: {
+  futureEvents: FutureEvent[];
+  familyScenarios: FamilyScenario[];
+  educationScenarios: EducationScenario[];
+  currentYear: number;
+  horizonYears: number;
+}): FutureEvent[] {
+  const { futureEvents, familyScenarios, educationScenarios, currentYear, horizonYears } = args;
+  const endYear = currentYear + horizonYears;
+  const out: FutureEvent[] = [...futureEvents];
+  let synth = 0;
+  const mk = (label: string, year: number, impact: number, category: string): FutureEvent => ({
+    id: `spine-${category}-${synth++}`, user_id: "", label, event_year: year, amount_impact: Math.round(impact), category, sort_order: 0,
+  });
+
+  // Family: annual childcare cost from the child's current age until 18 (age-banded).
+  for (const s of familyScenarios) {
+    const startAge = Math.max(0, Number(s.child_current_age) || 0);
+    for (let age = startAge; age < 18; age++) {
+      const yr = currentYear + (age - startAge);
+      if (yr <= currentYear || yr > endYear) continue; // y=0 isn't applied by the forecast
+      const monthly = age < 3 ? Number(s.monthly_infant_cost)
+        : age <= 12 ? Number(s.monthly_child_cost)
+        : Number(s.monthly_teen_cost);
+      const annual = (monthly || 0) * 12;
+      if (annual > 0) out.push(mk(`${s.child_name ?? "Child"} care`, yr, -annual, "family"));
+    }
+  }
+
+  // Education: inflated annual tuition across the college years.
+  for (const s of educationScenarios) {
+    const yearsUntilCollege = Math.max(0, 18 - (Number(s.child_current_age) || 0));
+    const collegeStart = currentYear + yearsUntilCollege;
+    for (let i = 0; i < (Number(s.years_in_college) || 0); i++) {
+      const yr = collegeStart + i;
+      if (yr <= currentYear || yr > endYear) continue;
+      const inflated = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yr - currentYear);
+      if (inflated > 0) out.push(mk(`${s.child_name ?? "College"} tuition`, yr, -inflated, "education"));
+    }
+  }
+
+  return out;
+}
+
 // ── Optimization engine ───────────────────────────────────────────────────────
 
 type Optimization = {
@@ -5589,13 +5639,18 @@ export default function PlanningClient({
 
   const forecastYears = Math.min(activeYearsToRetire ?? 30, 40);
 
+  // Plan spine: every committed life decision feeds the one master forecast.
+  const planLifeEvents = useMemo(() => collectLifeEvents({
+    futureEvents, familyScenarios, educationScenarios, currentYear, horizonYears: forecastYears,
+  }), [futureEvents, familyScenarios, educationScenarios, currentYear, forecastYears]);
+
   const forecastBands = buildForecastBands(
     netWorth, effectiveIncome, effectiveExpenses,
     forecastYears,
     localAssumptions.return_rate / 100,
     localAssumptions.inflation_rate / 100,
     localAssumptions.salary_growth_rate / 100,
-    futureEvents, currentYear,
+    planLifeEvents, currentYear,
   );
 
   const retirementPoint = activeYearsToRetire != null
@@ -6047,14 +6102,14 @@ export default function PlanningClient({
       localAssumptions.return_rate / 100,
       localAssumptions.inflation_rate / 100,
       localAssumptions.salary_growth_rate / 100,
-      futureEvents, currentYear,
+      planLifeEvents, currentYear,
       activeYearsToRetire,
       retirementTarget,
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMonteCarlo, netWorth, effectiveIncome, effectiveExpenses, forecastYears,
       localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.salary_growth_rate,
-      futureEvents, currentYear, activeYearsToRetire, retirementTarget]);
+      planLifeEvents, currentYear, activeYearsToRetire, retirementTarget]);
 
   const mcChartData = useMemo(() => {
     if (!mcResult) return null;
