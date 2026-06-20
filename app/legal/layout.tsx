@@ -13,7 +13,7 @@ const LEGAL_PAGES = [
 export default async function LegalLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const backHref = user ? "/settings/profile" : "/";
+  const backHref = user ? "/dashboard" : "/";
   const backLabel = user ? "Back to app" : "Back to BuyTune";
 
   return (
