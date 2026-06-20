@@ -17,6 +17,7 @@ export type RoadmapEvent = {
 };
 export type RoadmapMilestone = { year: number; label: string; kind: "retirement" | "wealth" };
 export type TrajectoryPoint = { year: number; nw: number };
+export type ConflictZone = { startYear: number; endYear: number; severity: "critical" | "warning" | "info"; label?: string };
 
 const CAT = (c: string): { color: string; label: string } => {
   if (c.startsWith("home")) return { color: "#3b82f6", label: "Home" };
@@ -36,13 +37,14 @@ function fmtK(n: number): string {
 }
 
 export default function MasterLifeRoadmap({
-  startYear, endYear, events, milestones, trajectory,
+  startYear, endYear, events, milestones, trajectory, conflictZones = [],
 }: {
   startYear: number;
   endYear: number;
   events: RoadmapEvent[];
   milestones: RoadmapMilestone[];
   trajectory: TrajectoryPoint[];
+  conflictZones?: ConflictZone[];
 }) {
   const [hover, setHover] = useState<string | null>(null);
   const span = Math.max(1, endYear - startYear);
@@ -103,6 +105,9 @@ export default function MasterLifeRoadmap({
       </div>
       <p style={{ fontSize: "12px", color: "var(--text-tertiary)", margin: "0 0 16px" }}>
         Every committed decision, on one timeline, with your projected net worth behind it.
+        {conflictZones.length > 0 && (
+          <span style={{ color: "var(--amber)" }}> Shaded bands flag years where major costs cluster.</span>
+        )}
       </p>
 
       {/* Marker labels rail (above the track) */}
@@ -130,6 +135,20 @@ export default function MasterLifeRoadmap({
 
       {/* Track */}
       <div style={{ position: "relative", height: "84px" }}>
+        {/* Conflict zones — translucent bands where major costs cluster / cash gets tight */}
+        {conflictZones.map((z, i) => {
+          const left = xPct(z.startYear);
+          const right = xPct(z.endYear);
+          const width = Math.max(2, right - left);
+          const color = z.severity === "critical" ? "var(--red)" : z.severity === "warning" ? "var(--amber)" : "var(--text-muted)";
+          return (
+            <div key={i} title={z.label}
+              style={{ position: "absolute", left: `${left}%`, width: `${width}%`, top: 0, bottom: "18px",
+                background: `color-mix(in oklch, ${color} 12%, transparent)`,
+                borderLeft: `1px dashed color-mix(in oklch, ${color} 55%, transparent)`,
+                borderRight: `1px dashed color-mix(in oklch, ${color} 55%, transparent)` }} />
+          );
+        })}
         {/* Trajectory area */}
         {areaPath && (
           <svg width="100%" height="84" viewBox="0 0 1000 100" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>

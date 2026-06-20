@@ -8873,7 +8873,7 @@ export default function PlanningClient({
             </div>
           )}
 
-          {/* Master Life Roadmap (P-Spine-2) */}
+          {/* Master Life Roadmap (P-Spine-2 + P-Spine-3 conflict zones) */}
           <div className="hub-section" style={{ animationDelay: "0.07s" }}>
             <MasterLifeRoadmap
               startYear={roadmap.startYear}
@@ -8881,6 +8881,14 @@ export default function PlanningClient({
               events={roadmap.events}
               milestones={roadmap.milestones}
               trajectory={roadmap.trajectory}
+              conflictZones={lifePlan.conflictAlerts
+                .filter((a) => a.years.length > 0)
+                .map((a) => ({
+                  startYear: Math.min(...a.years),
+                  endYear: Math.max(...a.years) + (a.years.length === 1 ? 1 : 0),
+                  severity: a.severity,
+                  label: a.title,
+                }))}
             />
           </div>
 
