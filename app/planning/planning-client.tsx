@@ -7630,7 +7630,7 @@ export default function PlanningClient({
                     </div>
                   ))}
                   <div>
-                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Gross Monthly Income ($)</label>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{formIncomeType === "retired" ? "Monthly Retirement Income ($)" : "Gross Monthly Income ($)"}</label>
                     <input
                       name="gross_monthly_income"
                       type="number" min="0" step="100"
@@ -7638,6 +7638,9 @@ export default function PlanningClient({
                       onChange={(e) => setFormGross(Number(e.target.value) || 0)}
                       style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
                     />
+                    {formIncomeType === "retired" && (
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Social Security, pension & annuities — before portfolio withdrawals. No payroll tax applied.</div>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
@@ -7659,6 +7662,7 @@ export default function PlanningClient({
                         <option value="w2">W-2 Employee</option>
                         <option value="self_employed">Self-Employed / 1099</option>
                         <option value="mixed">W-2 + Freelance</option>
+                        <option value="retired">Retired</option>
                       </select>
                     </div>
                     <div>
@@ -7702,7 +7706,7 @@ export default function PlanningClient({
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "6px" }}>
                           {[
                             { label: "Federal Income Tax", val: fmt(Math.round(t.federalIncomeTax / 12)) + "/mo" },
-                            { label: isSE ? "SE Tax" : "FICA", val: fmt(Math.round((isSE ? t.seTax : t.ficaTax) / 12)) + "/mo" },
+                            { label: isSE ? "SE Tax" : formIncomeType === "retired" ? "Payroll Tax" : "FICA", val: fmt(Math.round((isSE ? t.seTax : t.ficaTax) / 12)) + "/mo" },
                             { label: `State Tax${formStateCode ? ` (${formStateCode})` : ""}`, val: fmt(Math.round(t.stateTax / 12)) + "/mo" },
                           ].map(({ label, val }) => (
                             <div key={label}>
@@ -7835,7 +7839,7 @@ export default function PlanningClient({
                     return (
                       <>
                         <div>
-                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>Gross Monthly</div>
+                          <div style={{ ...sectionHeadStyle, marginBottom: "2px" }}>{profile.income_type === "retired" ? "Retirement Income" : "Gross Monthly"}</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-primary)", fontWeight: 500 }}>{fmt(profile.gross_monthly_income!)}</div>
                         </div>
                         <div>

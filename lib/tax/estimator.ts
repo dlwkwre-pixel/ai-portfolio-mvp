@@ -2,7 +2,9 @@
 // All values are 2025 approximations
 
 export type FilingStatus = "single" | "married_filing_jointly" | "head_of_household" | "married_filing_separately";
-export type IncomeType = "w2" | "self_employed" | "mixed";
+// "retired" income (Social Security, pension, annuities, withdrawals) is not subject
+// to FICA or SE tax — estimateTax applies only federal/state income tax to it.
+export type IncomeType = "w2" | "self_employed" | "mixed" | "retired";
 
 export interface TaxBreakdown {
   grossAnnual: number;
@@ -474,6 +476,7 @@ export const INCOME_TYPE_LABELS: Record<IncomeType, string> = {
   w2: "W-2 Employee",
   self_employed: "Self-Employed / 1099",
   mixed: "W-2 + Freelance",
+  retired: "Retired",
 };
 
 export const US_STATES: Array<{ code: string; name: string }> = [
