@@ -55,6 +55,7 @@ type AiRunResponse = {
 
 type HealthReport = {
   overall_score: number | null;
+  headline: string | null;
   risk_assessment: string | null;
   concentration_analysis: string | null;
   gaps_and_weaknesses: string | null;
@@ -1285,27 +1286,61 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
 
 // --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
 async function callGeminiForHealthReport(context: unknown): Promise<HealthReport> {
-  const prompt = `You are a portfolio health analyst. Analyze this investment portfolio and return ONLY a valid JSON object (no markdown, no preamble):
+  // Derive a few concrete numbers so the model anchors to real data instead of
+  // generic prose, and judge the portfolio against its assigned strategy.
+  const ctx = context as Record<string, unknown>;
+  const cv = (ctx?.current_valuation ?? {}) as Record<string, unknown>;
+  const total = Number(cv?.total_portfolio_value ?? 0);
+  const cash = Number(cv?.cash_balance ?? 0);
+  const cashPct = total > 0 ? (cash / total) * 100 : 0;
+  const holdings = (Array.isArray(cv?.holdings) ? cv.holdings : []) as Array<Record<string, unknown>>;
+  const sorted = [...holdings].sort((a, b) => Number(b?.weight_pct ?? 0) - Number(a?.weight_pct ?? 0));
+  const top = sorted[0];
+  const strat = (ctx?.strategy ?? null) as Record<string, unknown> | null;
+  const stratInfo = (strat?.strategy ?? null) as Record<string, unknown> | null;
+  const sv = (strat?.strategy_version ?? {}) as Record<string, unknown>;
+  const stratStyle = (stratInfo?.style as string) ?? (sv?.style as string) ?? null;
+  const stratRisk = (stratInfo?.risk_level as string) ?? (sv?.risk_level as string) ?? null;
 
+  const grounding = `KEY FACTS (use these exact numbers — do not invent):
+- Positions held: ${holdings.length}
+- Cash: ${cashPct.toFixed(1)}% of the portfolio${sv?.cash_min_pct != null ? ` (strategy target ${sv.cash_min_pct}–${sv.cash_max_pct ?? "?"}%)` : ""}
+- Largest position: ${top ? `${top.ticker} at ${Number(top.weight_pct ?? 0).toFixed(1)}%` : "n/a"}${sv?.max_position_pct != null ? ` (strategy single-position cap ${sv.max_position_pct}%)` : ""}
+- Assigned strategy: ${stratStyle ? `${stratStyle} style, ${stratRisk ?? "moderate"} risk` : "none assigned — assume a balanced, moderate mandate"}`;
+
+  const prompt = `You are a senior portfolio RISK analyst at an institutional firm. Assess how well-constructed and resilient this portfolio is — its HEALTH — NOT which stocks to buy (a separate engine handles trade ideas). Be specific and quantified: cite actual position weights, sector clustering, and cash levels from the data. Judge it against its ASSIGNED STRATEGY — a concentrated aggressive mandate should NOT be penalized for concentration the way a conservative one would, and a conservative mandate sitting in 3 volatile names IS a problem. No generic filler; every sentence should reference something specific about THIS portfolio.
+
+SCORING RUBRIC (overall_score, 1–100):
+- 85–100: Excellent — well-diversified for its mandate, disciplined position sizing, appropriate cash, no glaring single-point risks.
+- 70–84: Solid — minor issues (one slightly heavy name/sector, or some cash drag).
+- 50–69: Needs attention — real concentration, sector clustering, sizing-cap breaches, or cash misallocation.
+- 25–49: Fragile — one or two positions/sectors dominate, or clear misalignment with the assigned strategy.
+- 1–24: High risk — extreme concentration or structural problems.
+
+${grounding}
+
+Return ONLY a valid JSON object (no markdown, no preamble):
 {
   "overall_score": <number 1-100>,
-  "risk_assessment": "<2-3 sentence risk analysis>",
-  "concentration_analysis": "<2-3 sentences on sector/position concentration>",
-  "gaps_and_weaknesses": "<2-3 sentences on what's missing or overexposed>",
-  "strengths": "<2-3 sentences on what's working well>",
-  "suggested_focus": "<1-2 sentences on what to focus on next>"
+  "headline": "<one punchy sentence verdict referencing a specific number, e.g. 'Strong core but 38% in NVDA is a single-point risk'>",
+  "strengths": "<2-3 sentences on what is genuinely working, with specifics>",
+  "gaps_and_weaknesses": "<2-3 sentences on what is missing or overexposed, with numbers>",
+  "concentration_analysis": "<2-3 sentences on position + sector concentration relative to the strategy's tolerance>",
+  "risk_assessment": "<2-3 sentences on the portfolio's main risks given the current macro regime>",
+  "suggested_focus": "<1-2 sentences: the single most valuable thing to address next>"
 }
 
-Portfolio context:
+Full portfolio context:
 ${JSON.stringify(context)}`;
 
   try {
-    const text = await callGemini(prompt, { temperature: 0.1, maxOutputTokens: 1500 });
+    const text = await callGemini(prompt, { temperature: 0.2, maxOutputTokens: 1500 });
     if (!text) throw new Error("Gemini returned empty response.");
 
     const parsed = JSON.parse(extractJsonText(text)) as HealthReport;
     return {
       overall_score: toNullableNumber(parsed.overall_score),
+      headline: typeof parsed.headline === "string" ? parsed.headline : null,
       risk_assessment: typeof parsed.risk_assessment === "string" ? parsed.risk_assessment : null,
       concentration_analysis: typeof parsed.concentration_analysis === "string" ? parsed.concentration_analysis : null,
       gaps_and_weaknesses: typeof parsed.gaps_and_weaknesses === "string" ? parsed.gaps_and_weaknesses : null,
@@ -1313,7 +1348,7 @@ ${JSON.stringify(context)}`;
       suggested_focus: typeof parsed.suggested_focus === "string" ? parsed.suggested_focus : null,
     };
   } catch {
-    return { overall_score: null, risk_assessment: null, concentration_analysis: null, gaps_and_weaknesses: null, strengths: null, suggested_focus: null };
+    return { overall_score: null, headline: null, risk_assessment: null, concentration_analysis: null, gaps_and_weaknesses: null, strengths: null, suggested_focus: null };
   }
 }
 
