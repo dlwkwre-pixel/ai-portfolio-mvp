@@ -177,11 +177,19 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
   }
 
   const toolBtn = (active: boolean): React.CSSProperties => ({
-    display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 10px",
+    display: "inline-flex", alignItems: "center", gap: "5px", padding: "6px 12px",
     borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 600, cursor: "pointer",
     border: `1px solid ${active ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
     background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
     color: active ? "var(--brand-blue)" : "var(--text-secondary)", transition: "all 0.12s",
+  });
+  const selStyle = (active: boolean): React.CSSProperties => ({
+    appearance: "auto", maxWidth: "150px", padding: "6px 8px",
+    borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 600, cursor: "pointer",
+    border: `1px solid ${active ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
+    background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+    color: active ? "var(--brand-blue)" : "var(--text-secondary)",
+    textOverflow: "ellipsis",
   });
 
   return (
@@ -196,7 +204,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
             maxLength={2000}
             rows={2}
             style={{
-              width: "100%", resize: "vertical", minHeight: "48px",
+              width: "100%", resize: "none", minHeight: "44px",
               background: "transparent", border: "none", outline: "none",
               fontSize: "14px", color: "var(--text-primary)", fontFamily: "var(--font-body)", lineHeight: 1.5,
             }}
@@ -267,14 +275,14 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
             <button type="button" style={toolBtn(showFinn)} onClick={() => setShowFinn(v => !v)}>✦ FINN take</button>
             {myStrategies.length > 0 && (
               <select value={attachStrategyId} onChange={(e) => setAttachStrategyId(e.target.value)}
-                style={{ ...toolBtn(!!attachStrategyId), appearance: "auto" as const }}>
+                style={selStyle(!!attachStrategyId)}>
                 <option value="">+ Strategy</option>
                 {myStrategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}
             {myPortfolios.length > 0 && (
               <select value={attachPortfolioId} onChange={(e) => setAttachPortfolioId(e.target.value)}
-                style={{ ...toolBtn(!!attachPortfolioId), appearance: "auto" as const }}>
+                style={selStyle(!!attachPortfolioId)}>
                 <option value="">+ Portfolio</option>
                 {myPortfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>

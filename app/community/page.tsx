@@ -408,6 +408,25 @@ export default async function CommunityPage({
   const feedMyStrategies = (ownStrategiesRaw ?? []).filter(s => s.is_public).map(s => ({ id: s.id as string, name: s.name as string }));
   const feedMyPortfolios = ((myPubPortfolios ?? []) as Record<string, unknown>[]).map(p => ({ id: p.id as string, name: (p.public_name as string) ?? "Portfolio" }));
 
+  // ── Most-held stocks across public portfolios (community transparency) ───────
+  const { data: heldRows } = await supabase
+    .from("public_portfolio_holdings")
+    .select("ticker, company_name, public_portfolio_id, is_cash")
+    .eq("is_cash", false)
+    .limit(2000);
+  const heldMap = new Map<string, { ticker: string; company: string | null; portfolios: Set<string> }>();
+  for (const h of (heldRows ?? []) as Record<string, unknown>[]) {
+    const t = ((h.ticker as string) ?? "").toUpperCase();
+    if (!t) continue;
+    const e = heldMap.get(t) ?? { ticker: t, company: (h.company_name as string) ?? null, portfolios: new Set<string>() };
+    e.portfolios.add(h.public_portfolio_id as string);
+    heldMap.set(t, e);
+  }
+  const mostHeld = [...heldMap.values()]
+    .map(e => ({ ticker: e.ticker, company: e.company, count: e.portfolios.size }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
+
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
       <div className="bt-glow" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }} />
@@ -462,6 +481,7 @@ export default async function CommunityPage({
               feedMe={feedMe}
               feedMyStrategies={feedMyStrategies}
               feedMyPortfolios={feedMyPortfolios}
+              mostHeld={mostHeld}
             />
           </div>
         </div>
