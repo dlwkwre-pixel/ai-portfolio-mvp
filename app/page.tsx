@@ -7,6 +7,8 @@ export default function LandingPage() {
       <style>{`
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{scroll-behavior:smooth}
+        /* Land section anchors just below the fixed nav, not under it */
+        #how-it-works,#features,#why,#finn,#ai-analysis{scroll-margin-top:88px}
         body{background:#07090f;color:#e2e8f0;font-family:'DM Sans',sans-serif;overflow-x:hidden}
 
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -25,7 +27,7 @@ export default function LandingPage() {
         .nav-name{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#f0f4ff;letter-spacing:-0.3px}
         .nav-name span{color:#7c3aed}
         .nav-links{display:flex;gap:28px}
-        .nav-links a{font-size:13px;color:#475569;text-decoration:none;transition:color 0.15s ease}
+        .nav-links a{font-size:13px;color:#94a3b8;text-decoration:none;transition:color 0.15s ease}
         .nav-links a:hover{color:#e2e8f0}
         .nav-btns{display:flex;gap:8px;align-items:center}
         .btn-ghost{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#94a3b8;background:transparent;border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:color 0.15s ease,border-color 0.15s ease}
@@ -41,11 +43,11 @@ export default function LandingPage() {
         .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:99px;border:1px solid rgba(37,99,235,0.28);background:rgba(37,99,235,0.07);font-size:12px;color:#93c5fd;font-weight:500;margin-bottom:24px}
         .badge-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:pulse 2s ease infinite}
 
-        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(34px,5.5vw,66px);font-weight:800;letter-spacing:-2px;line-height:1.05;color:#f0f4ff;margin:0 0 14px;max-width:760px}
+        h1.hero-h{font-family:'Syne',sans-serif;font-size:clamp(34px,5.5vw,64px);font-weight:800;letter-spacing:-0.025em;line-height:1.06;color:#f5f8ff;margin:0 0 14px;max-width:760px;text-wrap:balance}
         .hero-h .accent{color:#93c5fd}
-        .hero-sub{font-size:clamp(14px,1.8vw,17px);color:#64748b;line-height:1.72;max-width:540px;margin:0 auto 16px}
-        .hero-trust{font-size:12px;color:#334155;margin:0 auto 22px;letter-spacing:0.01em}
-        .hero-trust strong{color:#475569;font-weight:500}
+        .hero-sub{font-size:clamp(15px,1.8vw,18px);color:#a8b3c7;line-height:1.7;max-width:560px;margin:0 auto 16px}
+        .hero-trust{font-size:12px;color:#64748b;margin:0 auto 22px;letter-spacing:0.01em}
+        .hero-trust strong{color:#94a3b8;font-weight:600}
 
         .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
         .btn-hero{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;text-decoration:none;box-shadow:0 8px 28px rgba(37,99,235,0.38);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
@@ -103,8 +105,8 @@ export default function LandingPage() {
         /* Sections */
         .section{padding:80px 48px;max-width:1080px;margin:0 auto}
         .s-label{font-size:10px;font-weight:600;letter-spacing:0.11em;text-transform:uppercase;color:#3b82f6;margin-bottom:14px}
-        .s-title{font-family:'Syne',sans-serif;font-size:clamp(26px,3.5vw,40px);font-weight:700;letter-spacing:-1px;color:#f0f4ff;margin:0 0 13px;line-height:1.15}
-        .s-sub{font-size:14px;color:#475569;line-height:1.72;max-width:480px;margin:0 0 48px}
+        .s-title{font-family:'Syne',sans-serif;font-size:clamp(26px,3.5vw,40px);font-weight:700;letter-spacing:-0.02em;color:#f5f8ff;margin:0 0 13px;line-height:1.15;text-wrap:balance}
+        .s-sub{font-size:15px;color:#a8b3c7;line-height:1.7;max-width:520px;margin:0 0 48px}
 
         /* Steps */
         .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -112,39 +114,39 @@ export default function LandingPage() {
         .step:hover{border-color:rgba(37,99,235,0.22)}
         .step-n{font-family:'DM Mono',monospace;font-size:10px;color:#2d3748;margin-bottom:16px;letter-spacing:0.04em}
         .step-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:13px}
-        .step-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:600;color:#e2e8f0;margin:0 0 7px}
-        .step-desc{font-size:13px;color:#475569;line-height:1.62;margin:0}
+        .step-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:600;color:#f0f4ff;margin:0 0 7px}
+        .step-desc{font-size:13px;color:#9aa6ba;line-height:1.62;margin:0}
 
         /* Features */
         .features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
         .feat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:22px;transition:border-color 0.2s ease,background 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1)}
         @media (hover:hover) and (pointer:fine){.feat:hover{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.09);transform:translateY(-2px)}}
         .feat-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-        .feat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:#e2e8f0;margin:0 0 6px}
-        .feat-desc{font-size:12px;color:#475569;line-height:1.64;margin:0}
+        .feat-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:#f0f4ff;margin:0 0 6px}
+        .feat-desc{font-size:12.5px;color:#9aa6ba;line-height:1.64;margin:0}
 
         /* VS */
-        .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:700px}
-        .vs-card{border-radius:14px;padding:22px 26px}
-        .vs-bad{background:rgba(255,92,92,0.03);border:1px solid rgba(255,92,92,0.09)}
-        .vs-good{background:rgba(37,99,235,0.05);border:1px solid rgba(37,99,235,0.13)}
-        .vs-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;margin:0 0 13px}
-        .vs-bad .vs-title{color:#ff5c5c}.vs-good .vs-title{color:#93c5fd}
-        .vs-item{display:flex;gap:8px;font-size:12px;color:#475569;margin-bottom:9px;line-height:1.5;align-items:flex-start}
-        .vs-note{font-size:10px;color:#2d3748;line-height:1.6;margin-top:14px;padding-top:13px;border-top:1px solid rgba(255,255,255,0.04)}
+        .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px}
+        .vs-card{border-radius:16px;padding:26px 28px}
+        .vs-bad{background:rgba(255,92,92,0.04);border:1px solid rgba(255,92,92,0.14)}
+        .vs-good{background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.22)}
+        .vs-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin:0 0 16px;letter-spacing:-0.01em}
+        .vs-bad .vs-title{color:#ff7a7a}.vs-good .vs-title{color:#93c5fd}
+        .vs-item{display:flex;gap:9px;font-size:13.5px;color:#cbd5e1;margin-bottom:12px;line-height:1.5;align-items:flex-start}
+        .vs-note{font-size:11px;color:#64748b;line-height:1.6;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)}
 
         /* CTA */
         .cta-wrap{padding:80px 48px;text-align:center;position:relative}
         .cta-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(37,99,235,0.09),transparent 70%);pointer-events:none}
         .cta-box{max-width:600px;margin:0 auto;position:relative;z-index:1;background:rgba(37,99,235,0.04);border:1px solid rgba(37,99,235,0.13);border-radius:20px;padding:52px 44px}
-        .cta-title{font-family:'Syne',sans-serif;font-size:clamp(24px,3.8vw,36px);font-weight:800;letter-spacing:-1px;color:#f0f4ff;margin:0 0 10px;line-height:1.18}
+        .cta-title{font-family:'Syne',sans-serif;font-size:clamp(24px,3.8vw,36px);font-weight:800;letter-spacing:-0.02em;color:#f5f8ff;margin:0 0 10px;line-height:1.18;text-wrap:balance}
         .cta-accent{color:#93c5fd}
-        .cta-sub{font-size:14px;color:#475569;margin:0 0 30px;line-height:1.66;max-width:460px;margin-left:auto;margin-right:auto}
-        .cta-fine{font-size:11px;color:#2d3748;margin-top:16px;line-height:1.6}
+        .cta-sub{font-size:15px;color:#a8b3c7;margin:0 0 30px;line-height:1.66;max-width:460px;margin-left:auto;margin-right:auto}
+        .cta-fine{font-size:11px;color:#64748b;margin-top:16px;line-height:1.6}
 
-        footer{padding:24px 48px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#2d3748}
-        footer a{color:#2d3748;text-decoration:none;transition:color 0.15s ease}
-        footer a:hover{color:#475569}
+        footer{padding:24px 48px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b}
+        footer a{color:#94a3b8;text-decoration:none;transition:color 0.15s ease}
+        footer a:hover{color:#f0f4ff}
 
         /* Mobile */
         @media (max-width: 768px) {
@@ -403,7 +405,10 @@ export default function LandingPage() {
         <div className="section" style={{paddingTop:0}}>
           <div className="s-label">Features</div>
           <h2 className="s-title">Built for investors who want<br/>data behind every decision.</h2>
-          <p className="s-sub">Not a passive tracker. Not an overwhelming terminal. The intelligence layer your portfolio is missing.</p>
+          <p className="s-sub" style={{fontSize:"18px",color:"#e2e8f0",maxWidth:"620px",lineHeight:1.6}}>
+            <strong style={{color:"#f5f8ff",fontWeight:700}}>Not a passive tracker. Not an overwhelming terminal.</strong>{" "}
+            The intelligence layer your portfolio has been missing.
+          </p>
           <div className="features">
             {[
               {
@@ -481,11 +486,11 @@ export default function LandingPage() {
             <div className="vs-card vs-bad">
               <div className="vs-title">Without BuyTune</div>
               {[
-                "Financial advisors charge 1–2% AUM annually",
+                "Advisors charge 1–2% of everything you own — every year, win or lose",
+                "Advice that can answer to the firm's incentives, not only yours",
                 "Decisions made without live prices or earnings context",
-                "Manual return tracking across spreadsheets",
-                "No benchmark to know if you're actually winning",
-                "Generic advice disconnected from your actual holdings",
+                "Manual return tracking across spreadsheets, no real benchmark",
+                "Generic guidance disconnected from your actual holdings",
               ].map(t => (
                 <div key={t} className="vs-item">
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="#ff5c5c" style={{flexShrink:0,marginTop:"2px"}}><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
@@ -497,10 +502,10 @@ export default function LandingPage() {
               <div className="vs-title">With BuyTune</div>
               {[
                 "Free — your brokerage account stays exactly where it is",
+                "On your side: guidance tied to your holdings, never a sales quota",
                 "Live prices, earnings, and sentiment in every recommendation",
                 "True return tracking with automatic benchmark comparison",
-                "Recommendations follow your exact strategy and sizing rules",
-                "Review every call with full reasoning before you act",
+                "Every call shows its full reasoning — you decide and act",
               ].map(t => (
                 <div key={t} className="vs-item">
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="#00d395" style={{flexShrink:0,marginTop:"2px"}}><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
@@ -524,7 +529,7 @@ export default function LandingPage() {
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "clamp(22px,4vw,32px)", fontWeight: 800, color: "#f0f4ff", letterSpacing: "-0.8px", margin: "0 0 10px" }}>
             FINN answers your hardest money questions
           </h2>
-          <p style={{ fontSize: "14px", color: "#475569", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
+          <p style={{ fontSize: "15px", color: "#a8b3c7", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
             Add your income, expenses, and goals. FINN runs your retirement forecast and tells you exactly where you stand.
           </p>
         </div>
@@ -619,7 +624,7 @@ export default function LandingPage() {
             Every holding, analyzed
           </h2>
           <p style={{
-            fontSize: "16px", color: "oklch(0.55 0.02 250)", maxWidth: "560px",
+            fontSize: "16px", color: "#a8b3c7", maxWidth: "560px",
             margin: "0 auto", lineHeight: 1.65,
           }}>
             BuyTune runs Grok live web search on each stock — surfacing earnings signals, news, and momentum shifts with a buy, hold, or sell call.

@@ -88,7 +88,7 @@ function LoginForm() {
             portfolio needs,<br />
             <span style={{ color: "#93c5fd" }}>in one place.</span>
           </h2>
-          <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.65 }}>
+          <p style={{ fontSize: "13px", color: "#94a3b8", lineHeight: 1.65 }}>
             AI recommendations, financial planning, tax tracking, stock research, and a community of investors — all tied to your actual holdings.
           </p>
 
@@ -139,19 +139,19 @@ function LoginForm() {
               <div>
                 <div style={{display:"flex",alignItems:"center",gap:"6px"}}>
                   <span className="lp-rec-ticker">NVDA</span>
-                  <span style={{fontSize:"9px",color:"#334155"}}>High confidence</span>
+                  <span style={{fontSize:"9px",color:"#94a3b8"}}>High confidence</span>
                 </div>
                 <div className="lp-rec-desc">Tech at 62% vs your 40% cap. Reduce 10–12 shares.</div>
               </div>
             </div>
           </div>
 
-          <p style={{ fontSize: "11px", color: "#2d3748", lineHeight: 1.6, marginTop: "18px" }}>
-            <strong style={{color:"#334155",fontWeight:500}}>BuyTune recommends. You decide and act.</strong> No auto-trading, ever.
+          <p style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.6, marginTop: "18px" }}>
+            <strong style={{color:"#94a3b8",fontWeight:500}}>BuyTune recommends. You decide and act.</strong> No auto-trading, ever.
           </p>
         </div>
 
-        <div style={{ position: "relative", zIndex: 1, fontSize: "12px", color: "#334155" }}>© 2026 BuyTune. All rights reserved.</div>
+        <div style={{ position: "relative", zIndex: 1, fontSize: "12px", color: "#64748b" }}>© 2026 BuyTune. All rights reserved.</div>
       </div>
 
       {/* Right panel */}
@@ -168,18 +168,18 @@ function LoginForm() {
 
           <div className="fu0" style={{ marginBottom: "32px" }}>
             <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Welcome back</h1>
-            <p style={{ fontSize: "14px", color: "#64748b" }}>Sign in to your portfolio workspace</p>
+            <p style={{ fontSize: "14px", color: "#94a3b8" }}>Sign in to your portfolio workspace</p>
           </div>
 
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div className="fu1">
-              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>Email address</label>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#94a3b8", marginBottom: "6px" }}>Email address</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" />
             </div>
             <div className="fu2">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 500, color: "#64748b" }}>Password</label>
-                <Link href="/forgot-password" style={{ fontSize: "11px", color: "#475569", textDecoration: "none" }}>Forgot password?</Link>
+                <label style={{ fontSize: "12px", fontWeight: 500, color: "#94a3b8" }}>Password</label>
+                <Link href="/forgot-password" style={{ fontSize: "11px", color: "#94a3b8", textDecoration: "none" }}>Forgot password?</Link>
               </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required className="ifield" />
             </div>
@@ -191,11 +191,11 @@ function LoginForm() {
             </div>
           </form>
 
-          <p style={{ textAlign: "center", fontSize: "11px", color: "#2d3748", marginTop: "16px", lineHeight: 1.6 }}>
+          <p style={{ textAlign: "center", fontSize: "11px", color: "#64748b", marginTop: "16px", lineHeight: 1.6 }}>
             Free · No credit card required · No brokerage connection needed
           </p>
 
-          <p style={{ textAlign: "center", fontSize: "13px", color: "#475569", marginTop: "20px" }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "#94a3b8", marginTop: "20px" }}>
             Don&apos;t have an account?{" "}
             <Link href="/signup" style={{ color: "#93c5fd", textDecoration: "none", fontWeight: 500 }}>Create one free</Link>
           </p>
