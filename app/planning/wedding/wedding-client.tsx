@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { WeddingScenario } from "./wedding-actions";
 import { saveWeddingScenario, deleteWeddingScenario } from "./wedding-actions";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -174,6 +175,20 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
               ))}
             </div>
             <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "12px", lineHeight: 1.5 }}>Industry-average splits — adjust your real allocations as you book vendors.</p>
+          </div>
+        )}
+
+        {/* Add to plan */}
+        {totalBudget > 0 && (
+          <div style={cardStyle}>
+            <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Add to your plan</span>
+            <AddToPlanButton
+              label={`${name.trim() || "Wedding"}`}
+              category="wedding"
+              amountImpact={-totalBudget}
+              defaultYear={weddingDate ? new Date(weddingDate).getFullYear() : undefined}
+              note={`Models the full ${fmt(totalBudget)} budget as a one-time cost that year, so it flows into your retirement forecast.`}
+            />
           </div>
         )}
 

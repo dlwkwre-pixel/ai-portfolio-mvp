@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -144,6 +145,17 @@ export default function WindfallClient({
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Add to plan — only meaningful for an expected FUTURE windfall */}
+            <div style={cardStyle}>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Expecting this in the future?</span>
+              <AddToPlanButton
+                label={`${source} windfall`}
+                category="windfall"
+                amountImpact={amount}
+                note="If this is a future windfall (bonus, vesting, inheritance), add it so your forecast reflects the inflow. Skip if you already have the cash."
+              />
             </div>
 
             {/* Note */}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CarScenario } from "./car-actions";
 import { saveCarScenario, deleteCarScenario } from "./car-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
+import AddToPlanButton from "@/app/planning/add-to-plan-button";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ type CarComputed = {
   monthlyCostDeltaPct: number;
   tco5yrDelta: number;
   breakEvenMonth: number | null;
+  upfrontPremium: number;   // cash out the door now (down payment / price, net of trade-in)
   // Verdict
   verdict: CarVerdict;
   verdictConfidence: string;
@@ -239,7 +241,7 @@ function computeCar(inputs: CarScenario, mode: ScenarioMode = "replace"): CarCom
     currentEquity: curEquity, currentTradeInValue: tradeIn, currentPrivateSaleValue: privateSale, current5yrTCO: cur5yr,
     newFinancedAmount: financedAmt, newMonthlyPayment: newPayment, newGasPerMonth: newGas, newTotalMonthly: newTotalMo, new5yrTCO: new5yr,
     totalInterestPaid: totalInterest, monthlyCostDelta: moDelta, monthlyCostDeltaPct: moDeltaPct,
-    tco5yrDelta: tco5Delta, breakEvenMonth, verdict, verdictConfidence, verdictConditions: conditions,
+    tco5yrDelta: tco5Delta, breakEvenMonth, upfrontPremium, verdict, verdictConfidence, verdictConditions: conditions,
     finnNarrative, amortization, breakEvenChart,
   };
 }
@@ -960,6 +962,19 @@ export default function CarClient({
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{result.finnNarrative}</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Add to plan — the upfront cash hits net worth at the purchase year */}
+          {showAnalysis && result.upfrontPremium > 0 && (
+            <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+              <div style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)", marginBottom: "10px" }}>Add to your plan</div>
+              <AddToPlanButton
+                label={`${form.name?.trim() || "Car purchase"}`}
+                category="vehicle"
+                amountImpact={-result.upfrontPremium}
+                note={`Models the ${fmt(result.upfrontPremium)} cash needed up front as a one-time cost that year, so it flows into your retirement forecast.`}
+              />
             </div>
           )}
 
