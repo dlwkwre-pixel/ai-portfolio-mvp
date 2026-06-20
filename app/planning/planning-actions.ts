@@ -47,7 +47,26 @@ export type BalanceSheetItem = {
   value: number;
   is_liability: boolean;
   sort_order: number;
+  tax_treatment?: TaxTreatment | null; // taxable | tax_deferred | tax_free; null = n/a (illiquid)
 };
+
+export type TaxTreatment = "taxable" | "tax_deferred" | "tax_free";
+
+// Default tax bucket inferred from an asset category when the user hasn't set one.
+// Liquid/investable categories get a sensible default; everything else is null (n/a).
+// Not exported — "use server" files may only export async functions.
+function inferTaxTreatment(category: string): TaxTreatment | null {
+  if (category === "cash" || category === "investment") return "taxable";
+  if (category === "retirement") return "tax_deferred"; // most common; user can switch to Roth
+  return null;
+}
+
+function parseTaxTreatment(formData: FormData, category: string): TaxTreatment | null {
+  const raw = String(formData.get("tax_treatment") ?? "").trim();
+  if (raw === "taxable" || raw === "tax_deferred" || raw === "tax_free") return raw;
+  if (raw === "" || raw === "__auto__") return inferTaxTreatment(category);
+  return inferTaxTreatment(category);
+}
 
 // Recurring cadences. weekly/biweekly/semimonthly support real pay cycles;
 // quarterly rounds out the set. Stored as text; normalized via toMonthly().
@@ -172,14 +191,14 @@ export async function addBalanceSheetItem(formData: FormData): Promise<{ error?:
 
   const sort_order = (existing?.sort_order ?? -1) + 1;
 
-  const { error } = await supabase.from("balance_sheet_items").insert({
-    user_id: user.id,
-    label,
-    category,
-    value,
-    is_liability,
-    sort_order,
-  });
+  const row: Record<string, unknown> = { user_id: user.id, label, category, value, is_liability, sort_order };
+  // Tax treatment only written for assets, and only when the form opts in — so
+  // saves still work before balance-sheet-tax-treatment.sql is run.
+  if (!is_liability && formData.has("tax_treatment")) {
+    row.tax_treatment = parseTaxTreatment(formData, category);
+  }
+
+  const { error } = await supabase.from("balance_sheet_items").insert(row);
 
   if (error) return { error: error.message };
   revalidatePath("/planning");
@@ -200,9 +219,14 @@ export async function updateBalanceSheetItem(formData: FormData): Promise<{ erro
   const LIABILITY_CATS = new Set(["mortgage", "auto_loan", "student_loan", "credit_card", "personal_loan", "other_liability", "liability"]);
   const is_liability = LIABILITY_CATS.has(category);
 
+  const patch: Record<string, unknown> = { label, category, value, is_liability, updated_at: new Date().toISOString() };
+  if (formData.has("tax_treatment")) {
+    patch.tax_treatment = is_liability ? null : parseTaxTreatment(formData, category);
+  }
+
   const { error } = await supabase
     .from("balance_sheet_items")
-    .update({ label, category, value, is_liability, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq("id", id)
     .eq("user_id", user.id);
 

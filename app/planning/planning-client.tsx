@@ -855,6 +855,47 @@ function computeAssetBuckets(assets: BalanceSheetItem[], portfolioValue: number)
   });
 }
 
+// Effective tax bucket for an asset — explicit tag wins, otherwise inferred from
+// category so the breakdown is populated before users tag anything. Illiquid → null.
+function effectiveTaxBucket(a: BalanceSheetItem): "taxable" | "tax_deferred" | "tax_free" | null {
+  if (a.tax_treatment === "taxable" || a.tax_treatment === "tax_deferred" || a.tax_treatment === "tax_free") return a.tax_treatment;
+  if (a.category === "cash" || a.category === "investment") return "taxable";
+  if (a.category === "retirement") return "tax_deferred";
+  return null;
+}
+
+const TAX_BUCKET_META: Record<"taxable" | "tax_deferred" | "tax_free", { label: string; color: string; note: string }> = {
+  taxable:      { label: "Taxable",      color: "oklch(0.75 0.15 70)",  note: "Brokerage & savings. Gains taxed as you go; flexible, no withdrawal rules." },
+  tax_deferred: { label: "Tax-deferred", color: "oklch(0.62 0.17 260)", note: "Traditional 401(k)/IRA. Withdrawals taxed as income; RMDs from age 73." },
+  tax_free:     { label: "Tax-free",     color: "oklch(0.70 0.17 150)", note: "Roth & HSA. Qualified withdrawals tax-free; no RMDs on Roth IRA." },
+};
+
+// Compute the three tax buckets (portfolio counts as taxable brokerage by default).
+function computeTaxBuckets(assets: BalanceSheetItem[], portfolioValue: number): { taxable: number; tax_deferred: number; tax_free: number; total: number } {
+  let taxable = portfolioValue > 0 ? portfolioValue : 0;
+  let tax_deferred = 0, tax_free = 0;
+  for (const a of assets) {
+    const b = effectiveTaxBucket(a);
+    if (b === "taxable") taxable += a.value;
+    else if (b === "tax_deferred") tax_deferred += a.value;
+    else if (b === "tax_free") tax_free += a.value;
+  }
+  return { taxable, tax_deferred, tax_free, total: taxable + tax_deferred + tax_free };
+}
+
+// One-line read on tax diversification — the planning concept that having money across
+// all three buckets gives you levers to control taxable income in retirement.
+function taxDiversificationInsight(b: { taxable: number; tax_deferred: number; tax_free: number; total: number }): string {
+  if (b.total <= 0) return "Tag your accounts as taxable, tax-deferred, or tax-free to see your tax diversification.";
+  const pct = (v: number) => (v / b.total) * 100;
+  const dpct = pct(b.tax_deferred), fpct = pct(b.tax_free), tpct = pct(b.taxable);
+  if (fpct < 5 && b.total > 25000) return "Almost no tax-free (Roth) money. Every retirement dollar will be taxed as income or capital gains — Roth space adds flexibility to control your tax bracket later.";
+  if (dpct > 80) return "Heavily concentrated in tax-deferred accounts. Withdrawals are taxed as ordinary income and forced by RMDs at 73 — consider building taxable or Roth balances for flexibility.";
+  if (tpct > 85 && b.total > 25000) return "Nearly everything is in taxable accounts. Tax-advantaged space (401k, IRA, Roth) could shelter more of your growth from taxes.";
+  if (fpct >= 20 && dpct >= 20 && tpct >= 15) return "Well diversified across tax buckets — you'll have levers to manage taxable income in retirement.";
+  return "A mix across taxable, tax-deferred, and tax-free accounts gives you the most control over taxes in retirement.";
+}
+
 function computeBalanceFinnInsight(p: {
   liquidAssets: number; totalAssets: number; totalLiabilities: number;
   netWorth: number; portfolioTotalValue: number;
@@ -1261,6 +1302,22 @@ const LIABILITY_CATEGORIES: [string, string][] = [
   ["other_liability","Other Debt"],
 ];
 
+// Tax buckets — shown only for liquid/investable assets, the foundation for
+// tax-aware withdrawal modeling (taxable vs Traditional vs Roth).
+const TAX_TREATMENT_OPTIONS: [string, string][] = [
+  ["taxable",      "Taxable (brokerage, savings)"],
+  ["tax_deferred", "Tax-deferred (Traditional)"],
+  ["tax_free",     "Tax-free (Roth / HSA)"],
+];
+const LIQUID_ASSET_CATS = new Set(["cash", "investment", "retirement"]);
+function defaultTaxTreatment(cat: string): string {
+  if (cat === "retirement") return "tax_deferred";
+  return "taxable";
+}
+const TAX_TREATMENT_LABEL: Record<string, string> = {
+  taxable: "Taxable", tax_deferred: "Tax-deferred", tax_free: "Tax-free",
+};
+
 function AddItemRow({
   type, onAdd, placeholder, sectionType = "asset",
 }: {
@@ -1271,6 +1328,7 @@ function AddItemRow({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [cat, setCat] = useState(sectionType === "liability" ? "mortgage" : "cash");
   const formRef = useRef<HTMLFormElement>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -1279,6 +1337,7 @@ function AddItemRow({
     startTransition(async () => {
       await onAdd(fd);
       formRef.current?.reset();
+      setCat(sectionType === "liability" ? "mortgage" : "cash");
       setOpen(false);
     });
   }
@@ -1312,12 +1371,19 @@ function AddItemRow({
 
       {type === "balance" ? (
         <>
-          <select name="category" style={selectStyle} defaultValue={sectionType === "liability" ? "mortgage" : "cash"}>
+          <select name="category" style={selectStyle} value={cat} onChange={(e) => setCat(e.target.value)}>
             {(sectionType === "liability" ? LIABILITY_CATEGORIES : ASSET_CATEGORIES).map(([val, lbl]) => (
               <option key={val} value={val}>{lbl}</option>
             ))}
           </select>
           <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" required style={{ ...inputStyle, width: "120px" }} />
+          {sectionType !== "liability" && LIQUID_ASSET_CATS.has(cat) && (
+            <select key={cat} name="tax_treatment" style={selectStyle} defaultValue={defaultTaxTreatment(cat)} title="How this account is taxed — used for tax-aware retirement modeling">
+              {TAX_TREATMENT_OPTIONS.map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
+            </select>
+          )}
         </>
       ) : (
         <>
@@ -1355,6 +1421,7 @@ function LineItemRow({
   const bal = item as BalanceSheetItem;
   const cf = item as CashFlowItem;
   const [isVar, setIsVar] = useState(!!(cf as CashFlowItem).is_variable);
+  const [editCat, setEditCat] = useState(isBalance ? bal.category : "");
 
   const displayValue = isPrivate
     ? "••••••"
@@ -1388,12 +1455,21 @@ function LineItemRow({
         <input name="label" defaultValue={item.label} required style={inputStyle} />
         {isBalance ? (
           <>
-            <select name="category" defaultValue={bal.category} style={selectStyle}>
+            <select name="category" value={editCat} onChange={(e) => setEditCat(e.target.value)} style={selectStyle}>
               {(bal.is_liability ? LIABILITY_CATEGORIES : ASSET_CATEGORIES).map(([val, lbl]) => (
                 <option key={val} value={val}>{lbl}</option>
               ))}
             </select>
             <input name="value" type="number" min="0" step="0.01" defaultValue={bal.value} style={{ ...inputStyle, width: "120px" }} />
+            {!bal.is_liability && LIQUID_ASSET_CATS.has(editCat) && (
+              <select key={editCat} name="tax_treatment" style={selectStyle}
+                defaultValue={bal.tax_treatment ?? defaultTaxTreatment(editCat)}
+                title="How this account is taxed — used for tax-aware retirement modeling">
+                {TAX_TREATMENT_OPTIONS.map(([val, lbl]) => (
+                  <option key={val} value={val}>{lbl}</option>
+                ))}
+              </select>
+            )}
           </>
         ) : (
           <>
@@ -4338,6 +4414,10 @@ function BalanceSheetOS({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [manualAssets, portfolioTotalValue]);
 
+  const taxBuckets = useMemo(() => computeTaxBuckets(assets, portfolioTotalValue),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [manualAssets, portfolioTotalValue, assets]);
+
   const finnInsight = useMemo(() => computeBalanceFinnInsight({
     liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets,
   }),
@@ -4482,6 +4562,45 @@ function BalanceSheetOS({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Zone 2.5 — Tax Diversification (foundation for tax-aware retirement) */}
+      {taxBuckets.total > 0 && (
+        <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px", animationDelay: "130ms" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Tax Diversification</span>
+            <InfoTooltip text="Where your money sits across the three tax buckets. Having balances in each gives you levers to control how much income is taxable in retirement — and which accounts to draw from first. Tag accounts in the list below (or we infer it from the account type)." />
+          </div>
+          {(() => {
+            const segs = ([
+              ["taxable", taxBuckets.taxable] as const,
+              ["tax_deferred", taxBuckets.tax_deferred] as const,
+              ["tax_free", taxBuckets.tax_free] as const,
+            ]).filter(([, v]) => v > 0);
+            return (
+              <>
+                <div style={{ height: "14px", borderRadius: "7px", overflow: "hidden", display: "flex", marginBottom: "12px" }}>
+                  {segs.map(([k, v]) => (
+                    <div key={k} className="bso-b" style={{ flex: `0 0 ${(v / taxBuckets.total) * 100}%`, background: TAX_BUCKET_META[k].color }} title={`${TAX_BUCKET_META[k].label}: ${fmt(v)}`} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", marginBottom: "12px" }}>
+                  {segs.map(([k, v]) => (
+                    <div key={k} title={TAX_BUCKET_META[k].note} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: TAX_BUCKET_META[k].color, flexShrink: 0 }} />
+                      <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{TAX_BUCKET_META[k].label}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)" }}>{ph(fmt(v))}</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>({((v / taxBuckets.total) * 100).toFixed(0)}%)</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55, fontFamily: "var(--font-body)" }}>
+                  {taxDiversificationInsight(taxBuckets)}
+                </p>
+              </>
+            );
+          })()}
         </div>
       )}
 
