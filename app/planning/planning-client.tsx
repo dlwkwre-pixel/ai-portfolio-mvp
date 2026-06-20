@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import PageIntro from "@/app/components/page-intro";
+import MasterLifeRoadmap, { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 import XLSXStyle from "xlsx-js-style";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -5660,6 +5661,46 @@ export default function PlanningClient({
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses)
     : null;
 
+  // ── Master Life Roadmap data (P-Spine-2) ──────────────────────────────────
+  const roadmap = useMemo(() => {
+    const startYear = currentYear;
+    const endYear = currentYear + forecastYears;
+    const hrefByCat: Record<string, string> = {
+      home_purchase: "/planning/home", home_sale: "/planning/home", home: "/planning/home",
+      family: "/planning/family", education: "/planning/education", vehicle: "/planning/car",
+      wedding: "/planning/wedding", windfall: "/planning/windfall",
+    };
+    const events: RoadmapEvent[] = [];
+    for (const e of futureEvents) {
+      if (e.event_year < startYear || e.event_year > endYear) continue;
+      events.push({ id: e.id, year: e.event_year, label: e.label, amount: e.amount_impact, category: e.category ?? "other", href: hrefByCat[e.category ?? ""] });
+    }
+    // Family / education are auto-fed to the forecast; surface one marker each.
+    for (const s of familyScenarios) {
+      const monthly = s.child_current_age < 3 ? Number(s.monthly_infant_cost) : s.child_current_age <= 12 ? Number(s.monthly_child_cost) : Number(s.monthly_teen_cost);
+      events.push({ id: `fam-${s.id}`, year: startYear, label: `${s.child_name ?? "Child"}`, amount: -(monthly * 12), category: "family", href: "/planning/family" });
+    }
+    for (const s of educationScenarios) {
+      const yr = startYear + Math.max(0, 18 - s.child_current_age);
+      if (yr > endYear) continue;
+      const inflated = Number(s.annual_cost_today) * Math.pow(1 + Number(s.cost_inflation_rate), yr - startYear);
+      events.push({ id: `edu-${s.id}`, year: yr, label: `${s.child_name ?? "College"} starts`, amount: -Math.round(inflated), category: "education", href: "/planning/education" });
+    }
+
+    const milestones: RoadmapMilestone[] = [];
+    if (activeYearsToRetire != null) milestones.push({ year: startYear + activeYearsToRetire, label: "Retire", kind: "retirement" });
+    const thresholds: [number, string][] = [[100_000, "$100k"], [250_000, "$250k"], [500_000, "$500k"], [1_000_000, "$1M"], [2_000_000, "$2M"], [5_000_000, "$5M"]];
+    for (const [amt, label] of thresholds) {
+      if (netWorth >= amt) continue; // already there
+      const hit = forecastBands.find((p) => p.baseline >= amt);
+      if (hit) milestones.push({ year: startYear + hit.year, label, kind: "wealth" });
+    }
+
+    const trajectory: TrajectoryPoint[] = forecastBands.map((p) => ({ year: startYear + p.year, nw: p.baseline }));
+    return { startYear, endYear, events, milestones, trajectory };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [futureEvents, familyScenarios, educationScenarios, forecastBands, currentYear, forecastYears, activeYearsToRetire, netWorth]);
+
   const estateDocsComplete = estateProfile
     ? [estateProfile.doc_will, estateProfile.doc_living_trust, estateProfile.doc_durable_poa, estateProfile.doc_healthcare_directive, estateProfile.doc_beneficiary_desig, estateProfile.doc_digital_assets].filter((d) => d !== "none" && d != null).length
     : 0;
@@ -8831,6 +8872,17 @@ export default function PlanningClient({
               })}
             </div>
           )}
+
+          {/* Master Life Roadmap (P-Spine-2) */}
+          <div className="hub-section" style={{ animationDelay: "0.07s" }}>
+            <MasterLifeRoadmap
+              startYear={roadmap.startYear}
+              endYear={roadmap.endYear}
+              events={roadmap.events}
+              milestones={roadmap.milestones}
+              trajectory={roadmap.trajectory}
+            />
+          </div>
 
           {/* Life Decisions divider */}
           <div className="hub-section hub-divider-label" style={{ animationDelay: "0.08s" }}>
