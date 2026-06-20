@@ -8,7 +8,7 @@ export default function LandingPage() {
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{scroll-behavior:smooth}
         /* Land section anchors just below the fixed nav, not under it */
-        #how-it-works,#features,#why,#finn,#ai-analysis{scroll-margin-top:88px}
+        #how-it-works,#features,#why,#finn,#ai-analysis,#faq,#trust{scroll-margin-top:88px}
         body{background:#07090f;color:#e2e8f0;font-family:'DM Sans',sans-serif;overflow-x:hidden}
 
         @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -183,6 +183,37 @@ export default function LandingPage() {
         @media (max-width: 480px) {
           .features{grid-template-columns:1fr}
         }
+
+        /* Control / trust band */
+        .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1000px;margin:0 auto}
+        .trust-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:20px 18px;transition:border-color 0.2s ease}
+        .trust-item:hover{border-color:rgba(37,99,235,0.22)}
+        .trust-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+        .trust-t{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:#f0f4ff;margin:0 0 5px}
+        .trust-d{font-size:12.5px;color:#9aa6ba;line-height:1.55;margin:0}
+
+        /* Powered by */
+        .powered{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:780px;margin:0 auto}
+        .pchip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:99px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);font-size:12.5px;color:#cbd5e1}
+        .pchip b{color:#f0f4ff;font-weight:600}
+        .pchip .pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+        /* FAQ */
+        .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+        .faq details{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;transition:border-color 0.2s ease}
+        .faq details[open]{border-color:rgba(37,99,235,0.22)}
+        .faq summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px;font-weight:600;color:#f0f4ff}
+        .faq summary::-webkit-details-marker{display:none}
+        .faq .chev{transition:transform 0.22s cubic-bezier(0.16,1,0.3,1);color:#64748b;flex-shrink:0}
+        .faq details[open] .chev{transform:rotate(180deg)}
+        .faq-a{padding:0 18px 16px;font-size:13.5px;color:#9aa6ba;line-height:1.66}
+
+        @media (max-width: 768px){
+          .trust{grid-template-columns:1fr 1fr}
+        }
+        @media (max-width: 480px){
+          .trust{grid-template-columns:1fr}
+        }
       `}</style>
 
       {/* Nav */}
@@ -203,6 +234,7 @@ export default function LandingPage() {
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
           <a href="#why">Why BuyTune</a>
+          <a href="#faq">FAQ</a>
         </div>
         <div className="nav-btns">
           <Link href="/login" className="btn-ghost">Sign in</Link>
@@ -735,6 +767,116 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Control / trust band */}
+      <div id="trust" className="section" style={{paddingTop:"40px"}}>
+        <div className="s-label">You stay in control</div>
+        <h2 className="s-title">An intelligence layer — not a black box.</h2>
+        <p className="s-sub">BuyTune analyzes and recommends. Every decision, and every trade, stays yours.</p>
+        <div className="trust">
+          {[
+            {
+              t:"Never trades for you",
+              d:"BuyTune surfaces buy, trim, hold, and sell calls with full reasoning. You place every trade yourself, in your own brokerage.",
+              c:"#3b82f6", bg:"rgba(37,99,235,0.1)",
+              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#3b82f6"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm2.5 8V5.5a2.5 2.5 0 00-5 0V9h5z" clipRule="evenodd"/></svg>,
+            },
+            {
+              t:"Your brokerage stays put",
+              d:"Keep your account exactly where it is — Fidelity, Schwab, Robinhood, anywhere. Nothing to move, nothing to link to trade.",
+              c:"#00d395", bg:"rgba(0,211,149,0.1)",
+              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#00d395"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>,
+            },
+            {
+              t:"On your side, not the fund's",
+              d:"No commissions, no quotas, no products to push. Recommendations answer only to your strategy and your holdings.",
+              c:"#a78bfa", bg:"rgba(124,58,237,0.1)",
+              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#a78bfa"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>,
+            },
+            {
+              t:"Free to start, no card",
+              d:"The core platform is free. No subscription and no credit card to create an account and get your first recommendation.",
+              c:"#f59e0b", bg:"rgba(245,158,11,0.1)",
+              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#f59e0b"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/></svg>,
+            },
+          ].map(item => (
+            <div key={item.t} className="trust-item">
+              <div className="trust-ic" style={{background:item.bg}}>{item.icon}</div>
+              <h3 className="trust-t">{item.t}</h3>
+              <p className="trust-d">{item.d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Powered by */}
+      <div className="section" style={{paddingTop:0,paddingBottom:"40px",textAlign:"center"}}>
+        <div className="s-label" style={{marginBottom:"18px"}}>The intelligence under the hood</div>
+        <div className="powered">
+          {[
+            {n:"Grok", s:"live web + X search", c:"#a78bfa"},
+            {n:"Gemini", s:"portfolio health check", c:"#60a5fa"},
+            {n:"Finnhub", s:"real-time quotes & earnings", c:"#00d395"},
+            {n:"FMP", s:"fundamentals & benchmarks", c:"#38bdf8"},
+            {n:"Reddit + X", s:"retail sentiment", c:"#f59e0b"},
+          ].map(p => (
+            <span key={p.n} className="pchip">
+              <span className="pdot" style={{background:p.c}}/>
+              <b>{p.n}</b> {p.s}
+            </span>
+          ))}
+        </div>
+        <p style={{fontSize:"12.5px",color:"#64748b",marginTop:"18px",maxWidth:"560px",marginLeft:"auto",marginRight:"auto",lineHeight:1.6}}>
+          Every recommendation is built on live market data and current sentiment — never stale, never generic.
+        </p>
+      </div>
+
+      {/* FAQ */}
+      <div id="faq" className="section" style={{paddingTop:0}}>
+        <div className="s-label">Questions</div>
+        <h2 className="s-title">Everything you might be wondering.</h2>
+        <p className="s-sub">Straight answers before you sign up.</p>
+        <div className="faq">
+          {[
+            {
+              q:"Is BuyTune really free?",
+              a:"Yes — the core platform is free to start, with no credit card required. You can add a portfolio, set a strategy, and get AI recommendations without paying anything.",
+            },
+            {
+              q:"Does BuyTune trade for me?",
+              a:"Never. BuyTune is informational only. It analyzes your portfolio and surfaces buy, trim, hold, and sell recommendations with full reasoning — but you place every trade yourself in your own brokerage. No auto-trading, ever.",
+            },
+            {
+              q:"Which brokerages does it work with?",
+              a:"Any of them. You enter your holdings and cash, and BuyTune tracks and analyzes them — your account stays wherever it already is. There's nothing to move and no brokerage login required to get recommendations.",
+            },
+            {
+              q:"How is this different from a robo-advisor?",
+              a:"A robo-advisor takes custody of your money and auto-invests it on a generic model. BuyTune leaves your money where it is and gives you the analysis a human advisor would — tied to your exact holdings and strategy — while you stay in full control of every decision.",
+            },
+            {
+              q:"How does the AI actually make recommendations?",
+              a:"Grok runs live web and market search on each holding — pulling current prices, earnings, news, and sentiment — then returns specific calls filtered through your strategy's risk, sizing, and cash rules. Gemini cross-checks your overall portfolio health. You see the reasoning behind every call.",
+            },
+            {
+              q:"Is my financial data safe?",
+              a:"Your data is encrypted and isolated to your account with row-level security. We never place trades, never sell your data, and never require your brokerage password. You can delete your data at any time.",
+            },
+            {
+              q:"What else can BuyTune do beyond stock picks?",
+              a:"A lot: full financial planning with retirement forecasts and FINN commentary, a tax center for realized/unrealized gains and harvesting, stock research with analyst consensus and sentiment, and a community feed to follow strategies and learn.",
+            },
+          ].map(({q,a}) => (
+            <details key={q}>
+              <summary>
+                {q}
+                <svg className="chev" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd"/></svg>
+              </summary>
+              <div className="faq-a">{a}</div>
+            </details>
+          ))}
+        </div>
+      </div>
+
       {/* CTA */}
       <div className="cta-wrap">
         <div className="cta-glow"/>
@@ -765,7 +907,7 @@ export default function LandingPage() {
           <div style={{width:"20px",height:"20px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:"5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
           </div>
-          <span style={{color:"#334155"}}>BuyTune.io</span>
+          <span style={{color:"#94a3b8"}}>BuyTune.io</span>
         </div>
         <span>© 2026 BuyTune. All rights reserved.</span>
         <div style={{display:"flex",gap:"20px"}}>
