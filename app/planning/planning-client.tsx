@@ -308,6 +308,159 @@ function runMonteCarlo(
   return { points, mcRetirementProbability };
 }
 
+// ── Retirement drawdown engine ─────────────────────────────────────────────────
+// The forecast above is accumulation-only and stops at retirement. This simulates
+// the SPENDING phase: each year guaranteed income (Social Security) covers what it
+// can, RMDs are forced from tax-deferred accounts at 73+, and the remaining need is
+// pulled in tax-smart order — taxable first, then tax-deferred, then Roth — so the
+// most-taxed and RMD-exposed money is spent before tax-free money is touched.
+//
+// v1 tax model (simplified, bucket-differentiated, clearly an estimate):
+//   • tax-deferred withdrawals + RMDs taxed at an ordinary effective rate
+//   • taxable-account withdrawals taxed at a low effective (gains) rate
+//   • Roth withdrawals tax-free
+//   • Social Security treated as net (after-tax) — most retirees pay little on it
+// Upgrade path: full federal brackets, SS provisional-income taxation, state tax.
+
+// IRS Uniform Lifetime Table (2022+) — divisor by age for required minimum distributions.
+const RMD_DIVISORS: Record<number, number> = {
+  73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0, 79: 21.1, 80: 20.2,
+  81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8, 85: 16.0, 86: 15.2, 87: 14.4, 88: 13.7,
+  89: 12.9, 90: 12.2, 91: 11.5, 92: 10.8, 93: 10.1, 94: 9.5, 95: 8.9, 96: 8.4,
+  97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4, 101: 6.0, 102: 5.6, 103: 5.2, 104: 4.9,
+  105: 4.6, 106: 4.3, 107: 4.1, 108: 3.9, 109: 3.7, 110: 3.5,
+};
+function rmdDivisor(age: number): number | null {
+  if (age < 73) return null;
+  if (age >= 110) return 3.5;
+  return RMD_DIVISORS[age] ?? null;
+}
+
+type DrawdownYear = {
+  age: number;
+  expenses: number;
+  guaranteedIncome: number;
+  rmd: number;
+  withdrawal: number;   // gross withdrawn from all buckets (incl. RMD)
+  taxes: number;
+  taxable: number;      // end-of-year balances
+  taxDeferred: number;
+  taxFree: number;
+  total: number;
+  shortfall: number;    // unmet spending need this year
+};
+type DrawdownResult = {
+  years: DrawdownYear[];
+  depletedAge: number | null;  // first age spending could not be fully met
+  lastsToAge: number;          // last age fully funded
+  success: boolean;            // funded through endAge
+  endAge: number;
+  totalTaxes: number;
+  totalRmds: number;
+  startTotal: number;
+};
+
+function simulateRetirementDrawdown(p: {
+  startTaxable: number;
+  startTaxDeferred: number;
+  startTaxFree: number;
+  currentAge: number;
+  retirementAge: number;
+  endAge?: number;
+  annualExpensesAtRetirement: number; // nominal, inflated to the retirement year
+  inflationRate: number;
+  returnRate: number;
+  socialSecurityAnnualToday: number;  // today's dollars
+  claimAge: number;
+  ordinaryRate?: number;
+  taxableRate?: number;
+}): DrawdownResult | null {
+  const endAge = p.endAge ?? 95;
+  const ordinaryRate = p.ordinaryRate ?? 0.18;
+  const taxableRate = p.taxableRate ?? 0.10;
+  if (p.retirementAge >= endAge) return null;
+  if (p.annualExpensesAtRetirement <= 0) return null;
+
+  let taxable = Math.max(0, p.startTaxable);
+  let taxDeferred = Math.max(0, p.startTaxDeferred);
+  let taxFree = Math.max(0, p.startTaxFree);
+  const startTotal = taxable + taxDeferred + taxFree;
+  if (startTotal <= 0) return null;
+
+  const years: DrawdownYear[] = [];
+  let depletedAge: number | null = null;
+  let totalTaxes = 0;
+  let totalRmds = 0;
+
+  for (let age = p.retirementAge; age <= endAge; age++) {
+    const yFromRet = age - p.retirementAge;
+    const yFromToday = Math.max(0, age - p.currentAge);
+    const expenses = p.annualExpensesAtRetirement * Math.pow(1 + p.inflationRate, yFromRet);
+    const ss = age >= p.claimAge ? p.socialSecurityAnnualToday * Math.pow(1 + p.inflationRate, yFromToday) : 0;
+    let need = Math.max(0, expenses - ss); // SS treated as net for v1
+    let withdrawal = 0;
+    let taxesThisYear = 0;
+
+    // 1) Required Minimum Distribution (forced, taxed as ordinary income)
+    let rmd = 0;
+    const div = rmdDivisor(age);
+    if (div != null && taxDeferred > 0) {
+      rmd = taxDeferred / div;
+      taxDeferred -= rmd;
+      withdrawal += rmd;
+      const rmdTax = rmd * ordinaryRate;
+      taxesThisYear += rmdTax;
+      totalRmds += rmd;
+      const rmdNet = rmd - rmdTax;
+      if (rmdNet >= need) {
+        taxable += rmdNet - need; // excess RMD reinvested into the taxable bucket
+        need = 0;
+      } else {
+        need -= rmdNet;
+      }
+    }
+
+    // 2) Tax-smart sequencing for the remaining need: taxable → tax-deferred → Roth
+    if (need > 0 && taxable > 0) {
+      const gross = Math.min(taxable, need / (1 - taxableRate));
+      const net = gross * (1 - taxableRate);
+      taxable -= gross; withdrawal += gross; taxesThisYear += gross * taxableRate; need -= net;
+    }
+    if (need > 0 && taxDeferred > 0) {
+      const gross = Math.min(taxDeferred, need / (1 - ordinaryRate));
+      const net = gross * (1 - ordinaryRate);
+      taxDeferred -= gross; withdrawal += gross; taxesThisYear += gross * ordinaryRate; need -= net;
+    }
+    if (need > 0 && taxFree > 0) {
+      const gross = Math.min(taxFree, need);
+      taxFree -= gross; withdrawal += gross; need -= gross;
+    }
+
+    const shortfall = Math.max(0, need);
+    if (shortfall > 0.5 && depletedAge == null) depletedAge = age;
+    totalTaxes += taxesThisYear;
+
+    // 3) Remaining balances grow for the year
+    taxable = Math.max(0, taxable) * (1 + p.returnRate);
+    taxDeferred = Math.max(0, taxDeferred) * (1 + p.returnRate);
+    taxFree = Math.max(0, taxFree) * (1 + p.returnRate);
+    const total = taxable + taxDeferred + taxFree;
+
+    years.push({
+      age, expenses: Math.round(expenses), guaranteedIncome: Math.round(ss),
+      rmd: Math.round(rmd), withdrawal: Math.round(withdrawal), taxes: Math.round(taxesThisYear),
+      taxable: Math.round(taxable), taxDeferred: Math.round(taxDeferred), taxFree: Math.round(taxFree),
+      total: Math.round(total), shortfall: Math.round(shortfall),
+    });
+  }
+
+  const lastsToAge = depletedAge != null ? depletedAge - 1 : endAge;
+  return {
+    years, depletedAge, lastsToAge, success: depletedAge == null, endAge,
+    totalTaxes: Math.round(totalTaxes), totalRmds: Math.round(totalRmds), startTotal: Math.round(startTotal),
+  };
+}
+
 // ── Plan spine: one source of truth for life events the forecast consumes ──────
 // Expands committed planner scenarios into per-year FutureEvent drags so that
 // modeling a child, college, etc. actually moves the master forecast — not just
@@ -5819,6 +5972,54 @@ export default function PlanningClient({
     ? Math.round(retirementPoint.baseline - afterTaxRetirementAssets)
     : null;
 
+  // ── Retirement drawdown simulation (the spending phase) ────────────────────
+  // Projects the INVESTABLE portfolio (not net worth — excludes home/illiquid) to
+  // the retirement year, then draws it down tax-smart with RMDs + Social Security.
+  // Supports "already retired" (current age ≥ retirement age → drawdown starts now).
+  const DRAWDOWN_END_AGE = 95;
+  const drawdown = useMemo<DrawdownResult | null>(() => {
+    const cAge = profile?.current_age ?? null;
+    const rAge = activeRetirementAge ?? null;
+    if (cAge == null || rAge == null) return null;
+    const investNow = taxBucketsNow.total;
+    if (investNow <= 0 || !retirementPoint || retirementPoint.annualExpenses <= 0) return null;
+
+    const r = localAssumptions.return_rate / 100;
+    const inflation = localAssumptions.inflation_rate / 100;
+    const yearsToRet = Math.max(0, rAge - cAge);
+    const annualSavings = monthlySavings * 12;
+
+    // Grow the investable portfolio to the retirement year (annual compounding +
+    // contributions); already-retired starts from today's balance.
+    let invAtRet = investNow;
+    for (let y = 0; y < yearsToRet; y++) invAtRet = invAtRet * (1 + r) + annualSavings;
+    invAtRet = Math.max(0, invAtRet);
+
+    // Hold today's tax-bucket mix forward to split the projected portfolio (v1 approx).
+    const t = taxBucketsNow;
+    const fracTaxable = t.total > 0 ? t.taxable / t.total : 1;
+    const fracDeferred = t.total > 0 ? t.tax_deferred / t.total : 0;
+    const fracFree = t.total > 0 ? t.tax_free / t.total : 0;
+
+    return simulateRetirementDrawdown({
+      startTaxable: invAtRet * fracTaxable,
+      startTaxDeferred: invAtRet * fracDeferred,
+      startTaxFree: invAtRet * fracFree,
+      currentAge: cAge,
+      retirementAge: rAge,
+      endAge: DRAWDOWN_END_AGE,
+      annualExpensesAtRetirement: retirementPoint.annualExpenses,
+      inflationRate: inflation,
+      returnRate: r,
+      socialSecurityAnnualToday: annualRetirementIncome,
+      claimAge: localAssumptions.social_security_claim_age || 67,
+      ordinaryRate: EFFECTIVE_RETIREMENT_TAX_RATE,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.current_age, activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
+      localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.social_security_claim_age,
+      monthlySavings, annualRetirementIncome]);
+
   // ── Master Life Roadmap data (P-Spine-2) ──────────────────────────────────
   const roadmap = useMemo(() => {
     const startYear = currentYear;
@@ -8765,6 +8966,77 @@ export default function PlanningClient({
               <MetricCard label="Pessimistic scenario" value={pHide(fmt(retirementPoint.pessimistic))} color="var(--amber)" />
             </div>
           )}
+
+          {/* Retirement Drawdown — the spending phase */}
+          {drawdown && activeRetirementAge != null && (() => {
+            const retAge = activeRetirementAge;
+            const span = Math.max(1, drawdown.endAge - retAge);
+            const lastsPct = Math.max(0, Math.min(100, ((drawdown.lastsToAge - retAge) / span) * 100));
+            const ok = drawdown.success;
+            const longish = !ok && drawdown.lastsToAge >= 85;
+            const statusColor = ok ? "var(--green)" : longish ? "var(--amber)" : "var(--red)";
+            const headline = ok
+              ? `Your money lasts through age ${drawdown.endAge}`
+              : `Your money runs short at age ${drawdown.depletedAge}`;
+            const sub = ok
+              ? `On this plan, ${pHide(fmt(drawdown.startTotal))} of investments at retirement funds your spending (plus Social Security) for life, with about ${pHide(fmt(drawdown.years[drawdown.years.length - 1].total))} left at ${drawdown.endAge}.`
+              : `${pHide(fmt(drawdown.startTotal))} of investments at retirement covers your spending until age ${drawdown.lastsToAge}. Closing the gap means saving more, spending less, retiring later, or claiming more guaranteed income.`;
+            // Balance sparkline
+            const maxBal = Math.max(...drawdown.years.map((y) => y.total), 1);
+            const pts = drawdown.years.map((y, i) => {
+              const x = (i / Math.max(1, drawdown.years.length - 1)) * 1000;
+              const yy = 100 - (y.total / maxBal) * 90 - 5;
+              return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${yy.toFixed(1)}`;
+            }).join(" ");
+            const area = `${pts} L1000,100 L0,100 Z`;
+            return (
+              <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                  <span style={sectionHeadStyle}>Retirement Drawdown</span>
+                  <InfoTooltip text={`Simulates the spending phase from age ${retAge} to ${drawdown.endAge}. Each year, Social Security covers what it can, required minimum distributions are pulled from tax-deferred accounts at 73+, and the rest is withdrawn tax-smart: taxable first, then tax-deferred, then Roth. Taxes are estimated (tax-deferred ~${Math.round(EFFECTIVE_RETIREMENT_TAX_RATE * 100)}% effective, taxable gains lower, Roth tax-free; Social Security treated as net). It holds today's account mix forward — an estimate, not advice.`} />
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, color: statusColor }}>{headline}</span>
+                </div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 14px", lineHeight: 1.55, maxWidth: "640px" }}>{sub}</p>
+
+                {/* Balance-over-retirement sparkline */}
+                <svg width="100%" height="64" viewBox="0 0 1000 100" preserveAspectRatio="none" style={{ display: "block", marginBottom: "6px" }}>
+                  <defs>
+                    <linearGradient id="dd-grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={ok ? "#00d395" : "#f59e0b"} stopOpacity="0.20" />
+                      <stop offset="100%" stopColor={ok ? "#00d395" : "#f59e0b"} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={area} fill="url(#dd-grad)" />
+                  <path d={pts} fill="none" stroke={statusColor} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                </svg>
+                {/* Age axis + how-long bar */}
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden", marginBottom: "6px" }}>
+                  <div style={{ height: "100%", borderRadius: "3px", background: statusColor, width: `${lastsPct}%` }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginBottom: "14px" }}>
+                  <span>Retire {retAge}</span>
+                  <span>{drawdown.success ? `Age ${drawdown.endAge}` : `Depletes ${drawdown.depletedAge}`}</span>
+                </div>
+
+                {/* Stat chips */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "10px" }}>
+                  {([
+                    { label: "Investments at retirement", val: pHide(fmt(drawdown.startTotal)), color: "var(--text-primary)" },
+                    { label: "Lifetime taxes (est.)", val: pHide(fmt(drawdown.totalTaxes)), color: "var(--amber)" },
+                    { label: "Lifetime RMDs", val: drawdown.totalRmds > 0 ? pHide(fmt(drawdown.totalRmds)) : "—", color: "var(--text-secondary)" },
+                    { label: `Left at ${drawdown.endAge}`, val: pHide(fmt(drawdown.years[drawdown.years.length - 1].total)), color: drawdown.success ? "var(--green)" : "var(--red)" },
+                  ]).map((s) => (
+                    <div key={s.label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
+                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: s.color }}>{s.val}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Biggest Drivers */}
           {biggestDrivers.length > 0 && (
