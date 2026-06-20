@@ -5801,6 +5801,24 @@ export default function PlanningClient({
     ? calcRetirementProbability(retirementPoint.baseline, retirementPoint.annualExpenses, annualRetirementIncomeAtRetire)
     : null;
 
+  // After-tax retirement assets — a tax-deferred dollar is worth less than a Roth/taxable
+  // dollar because withdrawals are taxed as income. We discount the tax-deferred share of
+  // the projected portfolio by an assumed effective retirement tax rate. Additive readout;
+  // does NOT alter the headline probability. Approximation: holds today's bucket mix forward.
+  const EFFECTIVE_RETIREMENT_TAX_RATE = 0.18;
+  const taxBucketsNow = useMemo(
+    () => computeTaxBuckets(assets, portfolioTotalValue),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [assets, portfolioTotalValue],
+  );
+  const taxDeferredFraction = taxBucketsNow.total > 0 ? taxBucketsNow.tax_deferred / taxBucketsNow.total : 0;
+  const afterTaxRetirementAssets = retirementPoint && taxDeferredFraction > 0
+    ? Math.round(retirementPoint.baseline * (1 - taxDeferredFraction * EFFECTIVE_RETIREMENT_TAX_RATE))
+    : null;
+  const retirementTaxDrag = retirementPoint && afterTaxRetirementAssets != null
+    ? Math.round(retirementPoint.baseline - afterTaxRetirementAssets)
+    : null;
+
   // ── Master Life Roadmap data (P-Spine-2) ──────────────────────────────────
   const roadmap = useMemo(() => {
     const startYear = currentYear;
@@ -8607,6 +8625,16 @@ export default function PlanningClient({
                       <span style={{ display: "block", color: retirementPoint.baseline >= retirementTarget ? "var(--green)" : "var(--amber)" }}>
                         proj. {fmt(retirementPoint.baseline)}
                       </span>
+                    </div>
+                  )}
+                  {afterTaxRetirementAssets != null && retirementTaxDrag != null && retirementTaxDrag > 0 && (
+                    <div style={{ marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--border-subtle)", fontSize: "9px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5, display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
+                        after tax
+                        <InfoTooltip text={`A tax-deferred dollar (Traditional 401k/IRA) is worth less than a Roth or taxable dollar because withdrawals are taxed as ordinary income. Discounting your tax-deferred balances by an assumed ${Math.round(EFFECTIVE_RETIREMENT_TAX_RATE * 100)}% effective retirement tax rate, your projected ${fmt(retirementPoint.baseline)} is worth about ${fmt(afterTaxRetirementAssets)} of real spending power. This is an estimate and does not change the probability above.`} />
+                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>≈ {fmt(afterTaxRetirementAssets)}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--amber)" }}>−{fmt(retirementTaxDrag)} tax</span>
                     </div>
                   )}
                 </div>
