@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     .map((f) => `  - ${f.name}: ${f.score}/100`)
     .join("\n");
 
-  const systemPrompt = `You are FINN, an institutional investment strategy optimizer. You improve investment strategies by making concrete, targeted parameter changes. You are analytically honest — improvements in one dimension come with real tradeoffs in others. You never claim to improve everything simultaneously.
+  const systemPrompt = `You are Atlas, an institutional investment strategy optimizer. You improve investment strategies by making concrete, targeted parameter changes. You are analytically honest — improvements in one dimension come with real tradeoffs in others. You never claim to improve everything simultaneously.
 
 Respond ONLY with valid JSON. No markdown, no code fences, no explanation outside the JSON structure.`;
 
@@ -113,9 +113,9 @@ Strategy Parameters:
 - Description: ${description ?? "None"}
 - AI Investment Instructions: ${prompt_text ?? "None"}
 
-Current FINN Quality Scores:
+Current Atlas Quality Scores:
 ${factorLines || "  (not available — estimate from parameters)"}
-Current FINN Confidence: ${current_confidence}/100
+Current Atlas Confidence: ${current_confidence}/100
 
 Optimization Goal: ${goal}
 
@@ -140,7 +140,7 @@ Return this exact JSON shape:
     { "factor": "Concentration Risk", "before": <number>, "after": <number> },
     { "factor": "Volatility Management", "before": <number>, "after": <number> }
   ],
-  "projected_confidence": <new overall FINN Confidence score 0-100>,
+  "projected_confidence": <new overall Atlas Confidence score 0-100>,
   "narrative": "<2-3 sentences explaining what changed and why. Reference specific parameters. Explain the core tradeoff made.>",
   "tradeoffs": [
     "<what was sacrificed or made worse — be specific>",

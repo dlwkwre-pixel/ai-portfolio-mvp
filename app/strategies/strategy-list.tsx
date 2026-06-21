@@ -163,7 +163,7 @@ export default function StrategyList({
               {selectedCards[1]?.name}
             </span>
             <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-              FINN will analyze both strategies in parallel
+              Atlas will analyze both strategies in parallel
             </span>
           </div>
           <button

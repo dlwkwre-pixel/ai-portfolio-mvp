@@ -127,10 +127,10 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
         body: JSON.stringify({ ticker: t }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "FINN is unavailable.");
+      if (!res.ok) throw new Error(data.error || "Atlas is unavailable.");
       setFinnTake(data.take);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "FINN failed.");
+      setError(e instanceof Error ? e.message : "Atlas failed.");
     } finally {
       setFinnLoading(false);
     }
@@ -237,7 +237,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
             </div>
           )}
 
-          {/* FINN take editor */}
+          {/* Atlas take editor */}
           {showFinn && (
             <div style={{ marginTop: "10px", padding: "10px 12px", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", borderRadius: "10px" }}>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -246,7 +246,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
                   style={{ width: "90px", background: "var(--bg-base)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", color: "var(--text-primary)", outline: "none", fontFamily: "var(--font-mono)" }} />
                 <button type="button" onClick={generateFinn} disabled={finnLoading || !finnTicker}
                   style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: "var(--violet)", color: "#fff", fontSize: "11px", fontWeight: 600, cursor: "pointer", opacity: finnLoading || !finnTicker ? 0.6 : 1 }}>
-                  {finnLoading ? "Thinking…" : "Get FINN's take"}
+                  {finnLoading ? "Thinking…" : "Get Atlas's take"}
                 </button>
               </div>
               {finnTake && <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "8px 0 0" }}>{finnTake}</p>}
@@ -272,7 +272,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
           {/* Toolbar */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
             <button type="button" style={toolBtn(showPoll)} onClick={() => setShowPoll(v => !v)}>📊 Poll</button>
-            <button type="button" style={toolBtn(showFinn)} onClick={() => setShowFinn(v => !v)}>✦ FINN take</button>
+            <button type="button" style={toolBtn(showFinn)} onClick={() => setShowFinn(v => !v)}>✦ Atlas take</button>
             {myStrategies.length > 0 && (
               <select value={attachStrategyId} onChange={(e) => setAttachStrategyId(e.target.value)}
                 style={selStyle(!!attachStrategyId)}>
@@ -394,11 +394,11 @@ function PostCard({ post, myUserId, onTicker, onChange, onRemove }: {
       {/* Body */}
       <PostBody body={post.body} onTicker={onTicker} />
 
-      {/* FINN take */}
+      {/* Atlas take */}
       {post.ai_ticker && post.ai_take && (
         <div style={{ marginTop: "10px", padding: "10px 12px", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", borderRadius: "10px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--violet)" }}>✦ FINN on ${post.ai_ticker}</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--violet)" }}>✦ Atlas on ${post.ai_ticker}</span>
           </div>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{post.ai_take}</p>
         </div>

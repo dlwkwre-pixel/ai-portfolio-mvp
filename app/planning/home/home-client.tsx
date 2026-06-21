@@ -573,7 +573,7 @@ function calcStressTests(
   ];
 }
 
-// ── FINN advisor narrative (rule-based, advisor voice) ────────────────────────
+// ── Atlas advisor narrative (rule-based, advisor voice) ────────────────────────
 
 function buildFinnNarrative({
   verdict,
@@ -1989,7 +1989,7 @@ export default function HomeClient({
     return { ...best, confidence, reasons, concerns, verdict, verdictColor };
   }, [comparePathMetrics, profile, inputs.monthly_rent]);
 
-  // ── FINN Executive Summary (rule-based, always available) ──────────────────
+  // ── Atlas Executive Summary (rule-based, always available) ──────────────────
 
   const finnSummary = useMemo(() => {
     if (!goalMetrics.hasProfile) return null;
@@ -2258,7 +2258,7 @@ export default function HomeClient({
       const data = await res.json() as { commentary?: string; error?: string };
       setFinnCommentary(data.commentary ?? data.error ?? "Analysis unavailable.");
     } catch {
-      setFinnCommentary("Unable to reach FINN — please try again.");
+      setFinnCommentary("Unable to reach Atlas — please try again.");
     } finally {
       setFinnLoading(false);
     }
@@ -2804,7 +2804,7 @@ export default function HomeClient({
           );
         })()}
 
-        {/* FINN Executive Summary */}
+        {/* Atlas Executive Summary */}
         {hasStarted && finnSummary && (
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
@@ -2812,7 +2812,7 @@ export default function HomeClient({
                 <div style={{ width: "24px", height: "24px", borderRadius: "7px", background: "rgba(109,40,217,0.08)", border: "1px solid rgba(109,40,217,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="oklch(0.55 0.22 295)"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 14.5a6.5 6.5 0 110-13 6.5 6.5 0 010 13zm.75-9.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.25 9.5h1.5v5h-1.5V9.5z"/></svg>
                 </div>
-                <p style={{ ...sectionHead, margin: 0 }}>FINN Advisor Summary</p>
+                <p style={{ ...sectionHead, margin: 0 }}>Atlas Advisor Summary</p>
               </div>
               <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
             </div>
@@ -2820,7 +2820,7 @@ export default function HomeClient({
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 0 14px", fontFamily: "var(--font-body)" }}>{finnSummary}</p>
               <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" as const }}>
                 <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, flex: 1 }}>
-                  Want a deeper, AI-powered analysis? FINN can account for nuances these rules cannot capture.
+                  Want a deeper, AI-powered analysis? Atlas can account for nuances these rules cannot capture.
                 </p>
                 {finnCommentary ? (
                   <button type="button" onClick={() => setFinnCommentary(null)} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const }}>
@@ -4542,7 +4542,7 @@ export default function HomeClient({
               );
             })()}
 
-            {/* ── FINN Executive Summary ── */}
+            {/* ── Atlas Executive Summary ── */}
             {(() => {
               const narrative = buildFinnNarrative({
                 verdict: computed.verdictData.verdict,
@@ -4565,7 +4565,7 @@ export default function HomeClient({
                       <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                       <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                     </svg>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>FINN Advisor Take</span>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
                   </div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${vc} 40%, transparent)`, paddingLeft: "12px" }}>
                     {narrative}
@@ -5425,14 +5425,14 @@ export default function HomeClient({
             {/* ── SECTION: INTELLIGENCE ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>FINN &amp; Risk</span>
+              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Atlas &amp; Risk</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
-            {/* FINN Home Advisor */}
+            {/* Atlas Home Advisor */}
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                <p style={{ ...sectionHead, margin: 0 }}>FINN Home Advisor</p>
+                <p style={{ ...sectionHead, margin: 0 }}>Atlas Home Advisor</p>
                 <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)" }}>Rule-Based</span>
               </div>
               {/* Advisor opinion paragraph */}
@@ -5471,7 +5471,7 @@ export default function HomeClient({
               {/* AI deep analysis */}
               <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "10px" }}>
-                  Want FINN to go deeper? AI analysis accounts for nuances these rules can't capture.
+                  Want Atlas to go deeper? AI analysis accounts for nuances these rules can't capture.
                 </div>
                 {finnCommentary ? (
                   <>
@@ -5492,7 +5492,7 @@ export default function HomeClient({
                       <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                       <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                     </svg>
-                    {finnLoading ? "FINN is thinking…" : "Ask FINN for AI Analysis"}
+                    {finnLoading ? "Atlas is thinking…" : "Ask Atlas for AI Analysis"}
                   </button>
                 )}
               </div>

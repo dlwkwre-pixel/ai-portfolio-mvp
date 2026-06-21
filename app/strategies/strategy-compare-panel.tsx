@@ -133,7 +133,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
           {scoreA}
         </div>
         <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
-          FINN Confidence A
+          Atlas Confidence A
         </div>
       </div>
       {/* vs badge */}
@@ -150,7 +150,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
           {scoreB}
         </div>
         <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
-          FINN Confidence B
+          Atlas Confidence B
         </div>
       </div>
       {/* Net advantage line */}
@@ -308,7 +308,7 @@ export default function StrategyComparePanel({
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: FV.accent, boxShadow: `0 0 6px ${FV.accent}` }} />
           <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FV.accent, fontFamily: "var(--font-body)" }}>
-            FINN Strategy Comparison
+            Atlas Strategy Comparison
           </span>
         </div>
         <button type="button" onClick={onClose}

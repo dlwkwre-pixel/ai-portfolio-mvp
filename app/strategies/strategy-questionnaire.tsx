@@ -49,7 +49,7 @@ const HOLDING_PERIOD_BIASES = [
   "Short-term", "Swing", "Medium-term", "Long-term", "Very Long-term", "Flexible",
 ];
 
-// ── Section 18: FINN visual identity tokens ───────────────────────────────────
+// ── Section 18: Atlas visual identity tokens ───────────────────────────────────
 
 const FV = {
   bg:          "rgba(109,40,217,0.05)",
@@ -63,7 +63,7 @@ const FV = {
   accentDim:   "#6d28d9",
 } as const;
 
-// ── Tier 1: FINN thinking states ──────────────────────────────────────────────
+// ── Tier 1: Atlas thinking states ──────────────────────────────────────────────
 
 const CHAT_THINKING = [
   "Analyzing your investing goal…",
@@ -280,7 +280,7 @@ function detectInsight(
     return {
       id: "profile_complete",
       title: "Profile Complete",
-      body: "FINN has gathered enough context to build a high-confidence strategy. Your preferences have been mapped.",
+      body: "Atlas has gathered enough context to build a high-confidence strategy. Your preferences have been mapped.",
     };
   }
   return null;
@@ -303,24 +303,24 @@ const CONTRADICTION_PAIRS: ContradictionDef[] = [
     a: /aggress|maximum.return|beat.market|outperform|high.alpha|best.return/i,
     b: /low.risk|low.volatil|safe|protect.capital|minimal.loss|no.loss|conservative/i,
     title: "Return vs. Risk Conflict",
-    body: "Aggressive returns and low volatility are structurally at odds. Higher expected returns require accepting higher variance — that's a foundational tradeoff. FINN is prioritizing long-term compounding with managed, not minimized, risk.",
-    resolution: "FINN will optimize for risk-adjusted returns rather than maximum upside or maximum safety independently.",
+    body: "Aggressive returns and low volatility are structurally at odds. Higher expected returns require accepting higher variance — that's a foundational tradeoff. Atlas is prioritizing long-term compounding with managed, not minimized, risk.",
+    resolution: "Atlas will optimize for risk-adjusted returns rather than maximum upside or maximum safety independently.",
   },
   {
     id: "income-growth",
     a: /maximum.income|high.dividend|passive.income|yield.focused|income.first/i,
     b: /maximum.growth|high.growth|capital.appreciat|growth.only|compound.wealth/i,
     title: "Income vs. Growth Conflict",
-    body: "Maximum income and maximum growth pull capital in opposite directions. High-yield positions redirect earnings away from reinvestment; pure growth strategies rarely prioritize distributions. FINN will build a primary objective with a secondary allocation.",
-    resolution: "FINN will determine the dominant objective from your time horizon and bias the strategy accordingly.",
+    body: "Maximum income and maximum growth pull capital in opposite directions. High-yield positions redirect earnings away from reinvestment; pure growth strategies rarely prioritize distributions. Atlas will build a primary objective with a secondary allocation.",
+    resolution: "Atlas will determine the dominant objective from your time horizon and bias the strategy accordingly.",
   },
   {
     id: "concentr-safe",
     a: /concentrat|few.stock|[3-9].stock|10.stock|focused.portf|high.conviction.few/i,
     b: /low.risk|low.volatil|safe|stable|downside.protect|conservative|protect/i,
     title: "Concentration vs. Safety Conflict",
-    body: "Concentrated portfolios carry materially higher single-position and sector risk. Low-risk positioning and high concentration are difficult to reconcile — concentrated bets amplify both upside and drawdowns. FINN will moderate position sizing.",
-    resolution: "FINN will cap single positions at 15–18% to preserve high-conviction character while limiting concentration risk.",
+    body: "Concentrated portfolios carry materially higher single-position and sector risk. Low-risk positioning and high concentration are difficult to reconcile — concentrated bets amplify both upside and drawdowns. Atlas will moderate position sizing.",
+    resolution: "Atlas will cap single positions at 15–18% to preserve high-conviction character while limiting concentration risk.",
   },
   {
     id: "tax-active",
@@ -328,7 +328,7 @@ const CONTRADICTION_PAIRS: ContradictionDef[] = [
     b: /active.trad|high.turnover|frequent.trad|short.term.trad|trade.often|swing.trad/i,
     title: "Tax Efficiency vs. Active Trading Conflict",
     body: "Frequent trading generates short-term capital gains taxed at ordinary income rates. Tax efficiency requires holding periods that active trading explicitly avoids. These objectives are structurally incompatible at high turnover.",
-    resolution: "FINN will bias toward lower turnover and longer holds to qualify for long-term capital gains treatment.",
+    resolution: "Atlas will bias toward lower turnover and longer holds to qualify for long-term capital gains treatment.",
   },
   {
     id: "passive-alpha",
@@ -336,7 +336,7 @@ const CONTRADICTION_PAIRS: ContradictionDef[] = [
     b: /beat.market|outperform|alpha|above.market|excess.return|better.than.market/i,
     title: "Passive Index vs. Alpha Pursuit Conflict",
     body: "Passive index strategies are designed to match the market — not beat it. Pursuing alpha requires active selection, which is the structural opposite of a passive approach.",
-    resolution: "FINN will build a core-satellite strategy: index core for market exposure with selective active positions for alpha.",
+    resolution: "Atlas will build a core-satellite strategy: index core for market exposure with selective active positions for alpha.",
   },
 ];
 
@@ -538,7 +538,7 @@ function renderMessageContent(content: string) {
   });
 }
 
-// Section 18: FINN F-glyph mark
+// Section 18: Atlas F-glyph mark
 function FinnGlyph({ size = 15 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -603,7 +603,7 @@ function ContradictionCard({ title, body, resolution }: { title: string; body: s
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="none">
           <path d="M5 1v4M5 7.5v.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#ef4444" }}>FINN — Objective Conflict</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#ef4444" }}>Atlas — Objective Conflict</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -622,7 +622,7 @@ function InsightCard({ title, body }: { title: string; body: string }) {
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="currentColor" style={{ color: FV.accentBright }}>
           <path d="M5 0l.58 3.42L9 5l-3.42.58L5 10l-.58-3.42L1 5l3.42-.58L5 0z" />
         </svg>
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>FINN Insight</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Insight</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -691,7 +691,7 @@ function ConfidenceMeter({ signalCount }: { signalCount: number }) {
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">FINN Confidence</span>
+          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Atlas Confidence</span>
           <span className="text-[10px] font-semibold" style={{ color: conf.color }}>{conf.level}</span>
         </div>
         <p className="text-[11px] text-slate-500">{conf.reason}</p>
@@ -902,7 +902,7 @@ function FinnEvolutionLog({ original, current }: { original: GeneratedStrategy; 
     >
       <div className="mb-2.5 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accentBright, animation: "finnPulse 2.5s ease-in-out infinite" }} />
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>FINN Adjustments</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Adjustments</span>
       </div>
       <div className="relative pl-3.5">
         <div className="absolute inset-y-0 left-0 w-px" style={{ background: FV.border }} />
@@ -937,7 +937,7 @@ export default function StrategyQuestionnaire({
     {
       role: "assistant",
       content:
-        "Hi, I'm **Finn** — your AI strategy advisor. I'll ask you a few questions about your goals, then build a complete investing strategy tailored to your answers.\n\nLet's start: **What's your main investing goal?** Are you focused on growing your wealth aggressively, building steady income, protecting capital, or something in between?",
+        "Hi, I'm **Atlas** — your AI strategy advisor. I'll ask you a few questions about your goals, then build a complete investing strategy tailored to your answers.\n\nLet's start: **What's your main investing goal?** Are you focused on growing your wealth aggressively, building steady income, protecting capital, or something in between?",
     },
   ]);
   const [input, setInput]                         = useState("");
@@ -1212,7 +1212,7 @@ export default function StrategyQuestionnaire({
         fd.set("description",         editedStrategy.description);
         fd.set("prompt_text",         editedStrategy.prompt_text);
         const created = await createStrategy(fd);
-        // Silently persist FINN profile — don't block or surface save errors
+        // Silently persist Atlas profile — don't block or surface save errors
         const arch = detectArchetype(editedStrategy);
         const traits = detectTraits(editedStrategy);
         saveFinnProfile(arch, traits).catch(() => {});
@@ -1238,7 +1238,7 @@ export default function StrategyQuestionnaire({
         transition: "box-shadow 0.6s ease",
       }}
     >
-      {/* Header — Section 18: FINN visual identity */}
+      {/* Header — Section 18: Atlas visual identity */}
       <div
         className="flex items-center justify-between border-b px-6 py-4"
         style={{
@@ -1259,7 +1259,7 @@ export default function StrategyQuestionnaire({
                 className="text-sm font-bold text-white"
                 style={{ letterSpacing: "0.14em" }}
               >
-                FINN
+                Atlas
               </h2>
               <span
                 className="h-1.5 w-1.5 rounded-full"
@@ -1331,7 +1331,7 @@ export default function StrategyQuestionnaire({
                   <ContradictionCard
                     title={title}
                     body={msg.content}
-                    resolution={contradiction?.resolution ?? "FINN will resolve the tension by prioritizing your primary objective."}
+                    resolution={contradiction?.resolution ?? "Atlas will resolve the tension by prioritizing your primary objective."}
                   />
                 </div>
               );
@@ -1340,7 +1340,7 @@ export default function StrategyQuestionnaire({
           }
           return (
             <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              {/* Section 18: FINN glyph in every avatar position */}
+              {/* Section 18: Atlas glyph in every avatar position */}
               <div
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
                 style={
@@ -1351,7 +1351,7 @@ export default function StrategyQuestionnaire({
               >
                 {msg.role === "assistant" ? <FinnGlyph size={13} /> : "You"}
               </div>
-              {/* Section 18: violet-tinted FINN bubble */}
+              {/* Section 18: violet-tinted Atlas bubble */}
               <div
                 className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-6"
                 style={
@@ -1476,7 +1476,7 @@ export default function StrategyQuestionnaire({
                     className="rounded px-1 py-px text-[8px] font-semibold uppercase tracking-widest"
                     style={{ background: FV.bgMed, color: FV.accentBright, animation: "bt-fade-in 0.4s ease both" }}
                   >
-                    FINN
+                    Atlas
                   </span>
                 )}
               </div>
@@ -1582,7 +1582,7 @@ export default function StrategyQuestionnaire({
               </svg>
             </button>
           </div>
-          <p className="mt-2 text-[10px] text-slate-600">Press Enter to send · Powered by FINN</p>
+          <p className="mt-2 text-[10px] text-slate-600">Press Enter to send · Powered by Atlas</p>
         </div>
       )}
     </div>

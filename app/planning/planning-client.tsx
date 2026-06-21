@@ -1178,7 +1178,7 @@ function computeBalanceFinnInsight(p: {
     || (p.portfolioAccounts ?? []).some((pa) => pa.value > 0 && isRetirementAccountType(pa.account_type));
   if (debtRatio > 50) return `Liabilities represent ${debtRatio.toFixed(0)}% of total assets. Debt reduction is the highest-leverage balance sheet move — every dollar eliminated compounds forward as investable capital.`;
   if (p.effectiveExpenses > 0 && emergencyMonths < 1) return "Liquid cash covers less than 1 month of expenses. A single financial shock would force selling investments at a bad time. Building to 3 months is the top balance sheet priority.";
-  if (!hasRetirement && p.totalAssets > 10000) return "No retirement account on your balance sheet. Add any 401k, IRA, or Roth IRA balances — FINN needs these for an accurate long-term picture.";
+  if (!hasRetirement && p.totalAssets > 10000) return "No retirement account on your balance sheet. Add any 401k, IRA, or Roth IRA balances — Atlas needs these for an accurate long-term picture.";
   if (p.totalAssets > 50000 && cashPct > 30) return `Cash is ${cashPct.toFixed(0)}% of your assets. Moving excess above 6 months of expenses into investments would compound more effectively over time.`;
   if (p.netWorth > 30000 && portfolioPct < 15) return `Investment portfolio represents ${portfolioPct.toFixed(0)}% of net worth. Gradually increasing this allocation is one of the highest-leverage moves for long-term wealth.`;
   if (emergencyMonths >= 3 && debtRatio < 20 && p.netWorth > 0) return "Strong balance sheet — adequate reserves and low debt. Primary focus now is growing investment and retirement assets.";
@@ -2593,7 +2593,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Budget Setup from Statement</span>
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
             {step === "paste"
-              ? "FINN groups spending by category and estimates monthly targets. Existing budget items won't be touched."
+              ? "Atlas groups spending by category and estimates monthly targets. Existing budget items won't be touched."
               : `${allParsed.length} transactions analyzed across ${allParsed.length > 0 ? "your statement(s)" : "0 statements"}.`}
           </p>
         </div>
@@ -2704,7 +2704,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={"Paste a credit card or bank statement — CSV export, copied transactions, or plain text. FINN groups charges by category automatically."}
+            placeholder={"Paste a credit card or bank statement — CSV export, copied transactions, or plain text. Atlas groups charges by category automatically."}
             rows={6}
             style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px", resize: "vertical", outline: "none", lineHeight: 1.6 }}
             onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
@@ -2714,7 +2714,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
               style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)", color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: !rawText.trim() || parsing ? "default" : "pointer" }}>
-              {parsing ? "Analyzing…" : "Analyze with FINN"}
+              {parsing ? "Analyzing…" : "Analyze with Atlas"}
             </button>
             {allParsed.length > 0 && (
               <button type="button" onClick={() => setStep("review")}
@@ -3402,7 +3402,7 @@ function EstatePlanningTab({
         </div>
       </div>
 
-      {/* FINN Estate Insight */}
+      {/* Atlas Estate Insight */}
       <div style={{
         padding: "14px 18px", borderRadius: "var(--radius-lg)",
         background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--card-bg))",
@@ -3410,7 +3410,7 @@ function EstatePlanningTab({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
           <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
-          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>FINN</span>
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>Atlas</span>
         </div>
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{estateFinnInsight}</p>
       </div>
@@ -4261,7 +4261,7 @@ function StatementImportPanel({
           <textarea
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
-            placeholder={"Paste your credit card or bank statement — CSV export, copied transactions, or plain text. FINN groups charges by category automatically."}
+            placeholder={"Paste your credit card or bank statement — CSV export, copied transactions, or plain text. Atlas groups charges by category automatically."}
             rows={6}
             style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px", resize: "vertical", outline: "none", lineHeight: 1.6 }}
             onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
@@ -4967,13 +4967,13 @@ function BalanceSheetOS({
         )}
       </div>
 
-      {/* FINN strip */}
+      {/* Atlas strip */}
       <div className="bso-z" style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
         <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
           <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnInsight}</p>
         </div>
       </div>
@@ -5593,7 +5593,7 @@ function CashFlowOS({
         </div>
       )}
 
-      {/* FINN Insight Strip */}
+      {/* Atlas Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
         <div className="cfo-zone" style={{
           background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)",
@@ -5607,7 +5607,7 @@ function CashFlowOS({
             </svg>
           </div>
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
           </div>
         </div>
@@ -5868,7 +5868,7 @@ function CashFlowOS({
 
           {expenseItems.length === 0 ? (
             <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 10px" }}>
-              No expenses yet. Add one below — FINN auto-groups by category.
+              No expenses yet. Add one below — Atlas auto-groups by category.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "10px" }}>
@@ -6256,7 +6256,7 @@ export default function PlanningClient({
   const [eventPending, startEventTransition] = useTransition();
   const eventFormRef = useRef<HTMLFormElement>(null);
 
-  // FINN chat
+  // Atlas chat
   const [finnChatMessages, setFinnChatMessages] = useState<FinnChatEntry[]>([]);
   const [finnChatInput, setFinnChatInput] = useState("");
   const [finnChatLoading, setFinnChatLoading] = useState(false);
@@ -6342,7 +6342,7 @@ export default function PlanningClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── FINN commentary ────────────────────────────────────────────────────────
+  // ── Atlas commentary ────────────────────────────────────────────────────────
 
   async function fetchFinnCommentary() {
     setFinnLoading(true);
@@ -6384,14 +6384,14 @@ export default function PlanningClient({
       const data = await res.json();
       if (!res.ok || data.error) {
         const msg = res.status === 429
-          ? "FINN is temporarily rate-limited. Try again in a moment."
-          : "FINN is temporarily unavailable. Please try again.";
+          ? "Atlas is temporarily rate-limited. Try again in a moment."
+          : "Atlas is temporarily unavailable. Please try again.";
         setFinnCommentary(msg);
         return;
       }
       setFinnCommentary(data.commentary ?? null);
     } catch {
-      setFinnCommentary("Unable to load FINN commentary at this time.");
+      setFinnCommentary("Unable to load Atlas commentary at this time.");
     } finally {
       setFinnLoading(false);
     }
@@ -7596,7 +7596,7 @@ export default function PlanningClient({
     });
   }
 
-  // ── FINN Chat ──────────────────────────────────────────────────────────────
+  // ── Atlas Chat ──────────────────────────────────────────────────────────────
 
   function buildFinnChatContext(): FinnChatContext {
     const homeScenariosForFinn = homeScenarios.map((s) => {
@@ -7822,7 +7822,7 @@ export default function PlanningClient({
       {
         role: "user" as const,
         content: isInit
-          ? "Introduce yourself as FINN in one sentence. Then, using my complete financial picture — including all active planning scenarios and their interactions — give me: (1) the single most important cross-planner interaction or timing risk right now, with specific numbers; (2) my highest-leverage action this month; (3) one blind spot I might be missing. End with 2 targeted questions worth exploring."
+          ? "Introduce yourself as Atlas in one sentence. Then, using my complete financial picture — including all active planning scenarios and their interactions — give me: (1) the single most important cross-planner interaction or timing risk right now, with specific numbers; (2) my highest-leverage action this month; (3) one blind spot I might be missing. End with 2 targeted questions worth exploring."
           : text,
       },
     ];
@@ -7895,7 +7895,7 @@ export default function PlanningClient({
     { id: "forecast", label: "Forecast" },
     { id: "events", label: "Life Events" },
     { id: "estate", label: "Estate Readiness" },
-    { id: "finn", label: "Ask FINN" },
+    { id: "finn", label: "Ask Atlas" },
   ];
 
   function saveAssumptions() {
@@ -8639,7 +8639,7 @@ export default function PlanningClient({
             </div>
           </div>
 
-          {/* ── Section 3: FINN Insight ── */}
+          {/* ── Section 3: Atlas Insight ── */}
           <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "16px 20px", animationDelay: "100ms" }}>
             <div style={{ display: "flex", gap: "13px", alignItems: "flex-start" }}>
               <div style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -8649,13 +8649,13 @@ export default function PlanningClient({
                 </svg>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>FINN's Biggest Insight</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>Atlas's Biggest Insight</div>
                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: "0 0 10px" }}>
                   {finnInsight}
                 </p>
                 <button type="button" onClick={() => setTab("finn")}
                   style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", color: "oklch(0.65 0.18 260)", cursor: "pointer" }}>
-                  Ask FINN a question
+                  Ask Atlas a question
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
                 </button>
               </div>
@@ -9071,7 +9071,7 @@ export default function PlanningClient({
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>FINN</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>
                 {(() => {
                   const proj = retirementPoint.baseline;
@@ -9934,7 +9934,7 @@ export default function PlanningClient({
             }
           `}</style>
 
-          {/* FINN Life Verdict */}
+          {/* Atlas Life Verdict */}
           <div className="hub-section" style={{
             borderRadius: "var(--radius-xl)",
             border: lifePlan.futureReadinessScore >= 75
@@ -9953,7 +9953,7 @@ export default function PlanningClient({
               <div style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="9" height="9" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
               </div>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase" }}>FINN</span>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase" }}>Atlas</span>
               <div style={{ width: "1px", height: "10px", background: "var(--border-subtle)" }} />
               <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-body)", color: "var(--text-muted)" }}>Life Plan Verdict</span>
             </div>
@@ -10900,7 +10900,7 @@ export default function PlanningClient({
         </div>
       )}
 
-      {/* ── Tab: Ask FINN ── */}
+      {/* ── Tab: Ask Atlas ── */}
       {tab === "finn" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
 
@@ -10937,7 +10937,7 @@ export default function PlanningClient({
           {/* Chat panel */}
           <div style={{ display: "flex", flexDirection: "column", height: "520px" }}>
 
-          {/* FINN header */}
+          {/* Atlas header */}
           <div style={{
             display: "flex", alignItems: "center", gap: "12px",
             paddingBottom: "14px", borderBottom: "1px solid var(--border-subtle)",
@@ -10950,7 +10950,7 @@ export default function PlanningClient({
               <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>F</span>
             </div>
             <div>
-              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>FINN</div>
+              <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Atlas</div>
               <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)" }} />
                 <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Financial Planning AI</span>
@@ -11064,7 +11064,7 @@ export default function PlanningClient({
             )}
           </div>
 
-          {/* Suggested prompts — visible after FINN’s intro before user has sent anything */}
+          {/* Suggested prompts — visible after Atlas’s intro before user has sent anything */}
           {finnChatMessages.length === 1 && !finnChatLoading && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
               {(() => {
@@ -11144,7 +11144,7 @@ export default function PlanningClient({
                   void sendFinnChatMessage(finnChatInput);
                 }
               }}
-              placeholder="Ask FINN anything about your finances…"
+              placeholder="Ask Atlas anything about your finances…"
               disabled={finnChatLoading}
               style={{
                 flex: 1, padding: "10px 14px", borderRadius: "var(--radius-md)",

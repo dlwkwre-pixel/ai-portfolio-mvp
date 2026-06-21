@@ -117,7 +117,7 @@ function computeVacation(
     verdictConditions = ["No savings margin — build a savings cushion before planning this trip"];
   }
 
-  // FINN narrative
+  // Atlas narrative
   let finnNarrative: string;
   if (verdict === "BOOK_IT") {
     finnNarrative = `At ${fmt(totalCost)} total, this trip uses ${depletionPct}% of your liquid savings${depletionPct <= 15 ? " — comfortably within range. Book it." : ". That's manageable, but make sure your emergency fund stays untouched."}${monthlySavings > 0 ? ` At your savings rate, you'd rebuild in ${Math.ceil(totalCost / monthlySavings)} months.` : ""}`;
@@ -608,7 +608,7 @@ export default function TimeOffClient({
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>FINN Assessment</span>
+                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Atlas Assessment</span>
                     <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${meta.color}22`, color: meta.color, fontFamily: "var(--font-body)" }}>
                       {(vacationResult ?? sabbaticalResult)?.verdictConfidence}
                     </span>
@@ -714,7 +714,7 @@ export default function TimeOffClient({
             </div>
           )}
 
-          {/* FINN narrative */}
+          {/* Atlas narrative */}
           {showAnalysis && (vacationResult ?? sabbaticalResult) && (
             <div style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
@@ -725,7 +725,7 @@ export default function TimeOffClient({
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>FINN</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{(vacationResult ?? sabbaticalResult)!.finnNarrative}</p>
                 </div>
               </div>

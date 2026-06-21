@@ -436,7 +436,7 @@ export default function CareerClient({
     else if (gapDeficit > 0 || (inputs.gap_months > 0 && runwayMonths < 4)) transitionRiskLevel = "MODERATE";
     else transitionRiskLevel = "LOW";
 
-    // P6: Rule-based FINN narrative — opinionated first-person
+    // P6: Rule-based Atlas narrative — opinionated first-person
     let finnNarrative: string;
     if (verdictHighRisk) {
       finnNarrative = `I'd hold off. The transition math could work eventually, but right now the cash situation is the real problem. With ${runwayMonths.toFixed(1)} months of runway against a projected shortfall of ${fmt(gapDeficit)}, you're betting your financial stability on everything going right. Build savings to at least ${inputs.gap_months + 3} months of expenses first, then revisit.`;
@@ -1122,7 +1122,7 @@ export default function CareerClient({
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: "200px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>Atlas</span>
                   <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "99px", background: verdictMeta.border, color: verdictMeta.color }}>{verdictConfidence} Confidence</span>
                 </div>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: "48px", fontWeight: 800, color: verdictMeta.color, letterSpacing: "-1.5px", lineHeight: 1 }}>{verdictMeta.label}</div>
@@ -1204,7 +1204,7 @@ export default function CareerClient({
             </div>
           </div>
 
-          {/* FINN's Take */}
+          {/* Atlas's Take */}
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -1212,7 +1212,7 @@ export default function CareerClient({
                 <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                 <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
               </svg>
-              <p style={{ ...sectionHead, margin: 0 }}>FINN&apos;s Take</p>
+              <p style={{ ...sectionHead, margin: 0 }}>Atlas&apos;s Take</p>
             </div>
             <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, #7c3aed 7%, transparent)", border: `1px solid ${verdictMeta.border}`, marginBottom: finnCommentary ? "12px" : "0" }}>
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{computed.finnNarrative}</p>
@@ -1230,7 +1230,7 @@ export default function CareerClient({
                   <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                 </svg>
-                {finnLoading ? "FINN is thinking…" : "Get Deep AI Analysis"}
+                {finnLoading ? "Atlas is thinking…" : "Get Deep AI Analysis"}
               </button>
             )}
           </div>

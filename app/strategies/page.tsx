@@ -113,7 +113,7 @@ export default async function StrategiesPage() {
             <RegimeShiftAlert />
             <RegimeCompactBanner />
 
-            {/* FINN Investor Profile */}
+            {/* Atlas Investor Profile */}
             {finnProfile && (
               <FinnProfileCard profile={finnProfile} strategyCount={activeCards.length} insights={memoryInsights} />
             )}

@@ -413,7 +413,7 @@ function StrategyPreviewModal({
                 }}>
                   {strategy.finn_confidence}
                 </div>
-                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>FINN score</span>
+                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Atlas score</span>
               </div>
             )}
             {strategy.return_pct != null && (
@@ -1162,7 +1162,7 @@ function MarketPulseCard() {
           </svg>
         </div>
         <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#93c5fd" }}>
-          FINN&apos;s Market Pulse
+          Atlas&apos;s Market Pulse
         </span>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
           {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -1855,7 +1855,7 @@ export default function CommunityClient({
                 <FilterChip active={initialSort === "popular"} label="Popular" onClick={() => updateUrl({ sort: "popular" })} />
                 <FilterChip active={initialSort === "newest"} label="Newest" onClick={() => updateUrl({ sort: "newest" })} />
                 <FilterChip active={initialSort === "copied"} label="Most copied" onClick={() => updateUrl({ sort: "copied" })} />
-                <FilterChip active={initialSort === "finn"} label="FINN Score" onClick={() => updateUrl({ sort: "finn" })} />
+                <FilterChip active={initialSort === "finn"} label="Atlas Score" onClick={() => updateUrl({ sort: "finn" })} />
                 <FilterChip active={initialSort === "return"} label="Best Return" onClick={() => updateUrl({ sort: "return" })} />
                 <FilterChip active={initialSort === "monthly"} label="Monthly" onClick={() => updateUrl({ sort: "monthly" })} />
               </>

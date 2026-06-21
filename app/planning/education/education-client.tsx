@@ -772,7 +772,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
       const data = await res.json();
       setCommentary(data.commentary ?? data.error ?? "No response.");
     } catch {
-      setCommentary("Failed to get FINN commentary.");
+      setCommentary("Failed to get Atlas commentary.");
     } finally {
       setLoadingCommentary(false);
     }
@@ -1046,7 +1046,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>Atlas</span>
                   <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${computed.contextVerdictColor}22`, color: computed.contextVerdictColor }}>
                     {computed.contextVerdictSubtitle}
                   </span>
@@ -1088,14 +1088,14 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             </div>
           </div>
 
-          {/* FINN Assessment */}
+          {/* Atlas Assessment */}
           <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "edu-fade-up 0.4s ease-out 0.05s both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: `${computed.contextVerdictColor}18`, border: `1px solid ${computed.contextVerdictColor}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill={computed.contextVerdictColor}/></svg>
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>FINN&apos;s Assessment</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Atlas&apos;s Assessment</div>
                 <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Rule-Based Analysis</div>
               </div>
             </div>
@@ -1383,7 +1383,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "10px 0 0" }}>Click a row to apply that path to your calculator.</p>
           </div>
 
-          {/* FINN Deep Analysis */}
+          {/* Atlas Deep Analysis */}
           <div style={{ background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", border: "1px solid oklch(0.45 0.2 285 / 0.2)", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
             <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.10) 0%, transparent 70%)", pointerEvents: "none", animation: "edu-orb-pulse 4s ease-in-out infinite" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, position: "relative" }}>
@@ -1395,7 +1395,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 </svg>
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>FINN Deep Analysis</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Atlas Deep Analysis</div>
                 <div style={{ fontSize: 10, color: "oklch(0.60 0.12 290)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Education Advisor</div>
               </div>
             </div>
@@ -1418,7 +1418,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 {loadingCommentary ? (
                   <><span style={{ width: 12, height: 12, border: "2px solid oklch(0.60 0.15 290)", borderTopColor: "transparent", borderRadius: "50%", animation: "edu-spin 0.7s linear infinite", display: "inline-block" }} />Analyzing…</>
                 ) : (
-                  <><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>Get FINN Guidance</>
+                  <><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>Get Atlas Guidance</>
                 )}
               </button>
             </div>

@@ -649,7 +649,7 @@ function ScenarioCard({
                     <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
                   </circle>
                 </svg>
-                FINN is assessing likelihood…
+                Atlas is assessing likelihood…
               </div>
             )}
 
@@ -675,7 +675,7 @@ function ScenarioCard({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
-                        ✦ FINN Analysis
+                        ✦ Atlas Analysis
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

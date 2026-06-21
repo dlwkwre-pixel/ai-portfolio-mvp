@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   Projected net worth at retirement: ${projected_nw_before != null ? fmt(projected_nw_before) : "unknown"} → ${projected_nw_after != null ? fmt(projected_nw_after) : "unknown"}`
     : null;
 
-  const systemPrompt = `You are FINN, BuyTune's financial planning advisor specializing in family financial planning.
+  const systemPrompt = `You are Atlas, BuyTune's financial planning advisor specializing in family financial planning.
 You give honest, empathetic guidance on the financial realities of raising children.
 Acknowledge both the costs and the joy — but stay grounded in the math. End with the standard disclaimer.`;
 

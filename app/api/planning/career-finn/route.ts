@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     ? `  Retirement probability: ${retirement_prob_current}% → ${retirement_prob_new}% (${retirement_prob_new - retirement_prob_current > 0 ? "+" : ""}${retirement_prob_new - retirement_prob_current}pp)`
     : null;
 
-  const systemPrompt = `You are FINN, BuyTune's financial planning advisor specializing in career decisions.
+  const systemPrompt = `You are Atlas, BuyTune's financial planning advisor specializing in career decisions.
 You provide clear, honest analysis of career change tradeoffs — not motivational coaching.
 Focus on the financial math. Acknowledge both the costs and the long-term upside.
 Never give legal or employment advice. End with the standard disclaimer.`;

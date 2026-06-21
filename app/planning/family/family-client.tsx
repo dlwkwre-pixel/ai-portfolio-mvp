@@ -453,7 +453,7 @@ function computeFamily(
     }
   }
 
-  // P7: Auto FINN Narrative (rule-based, always computed)
+  // P7: Auto Atlas Narrative (rule-based, always computed)
   let autoNarrative: string | null = null;
   {
     const timingNote = timingBestDelayLabel && timingBestGain > 10_000
@@ -746,7 +746,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
       const data = await res.json();
       setCommentary(data.commentary ?? data.error ?? "No response.");
     } catch {
-      setCommentary("Failed to get FINN commentary.");
+      setCommentary("Failed to get Atlas commentary.");
     } finally {
       setLoadingCommentary(false);
     }
@@ -1025,7 +1025,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>FINN</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>Atlas</span>
                   <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: meta.border, color: meta.color }}>
                     {computed.verdictConfidence} Conviction
                   </span>
@@ -1109,7 +1109,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
 
 
-          {/* FINN Assessment */}
+          {/* Atlas Assessment */}
           {computed.autoNarrative && meta && (
             <div style={{ background: `color-mix(in oklch, ${meta.color} 4%, var(--card-bg, var(--bg-card)))`, border: `1px solid ${meta.border}`, borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: 10 }}>
@@ -1118,7 +1118,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke={meta.color} strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="10" cy="15.5" r="0.75" fill={meta.color} />
                 </svg>
-                <span style={{ fontSize: 12, fontWeight: 600, color: meta.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>FINN Assessment</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: meta.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>Atlas Assessment</span>
               </div>
               <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${meta.color} 40%, transparent)`, paddingLeft: "12px" }}>
                 {computed.autoNarrative}
@@ -1357,7 +1357,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-          {/* Retirement Impact + FINN side by side */}
+          {/* Retirement Impact + Atlas side by side */}
           <div data-family-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "stretch" }}>
 
             {computed.projectedNWBefore != null && computed.projectedNWAfter != null && computed.retirProbBefore != null && (
@@ -1408,7 +1408,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 </svg>
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.01em" }}>FINN Deep Analysis</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.01em" }}>Atlas Deep Analysis</div>
                 <div style={{ fontSize: 10, color: "oklch(0.60 0.12 290)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Family Advisor</div>
               </div>
             </div>
@@ -1449,7 +1449,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 ) : (
                   <>
                     <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>
-                    Get FINN Guidance
+                    Get Atlas Guidance
                   </>
                 )}
               </button>

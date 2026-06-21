@@ -158,7 +158,7 @@ const FAQ = [
   { q: "What is a strategy in BuyTune?", a: "A strategy is a set of rules that guides how the AI analyzes and manages your portfolio. It defines your risk tolerance, trading frequency, holding periods, and investing philosophy." },
   { q: "How does the AI use my strategy?", a: "When you run AI analysis on a portfolio, the AI reads your strategy's instructions and parameters to tailor its recommendations. A conservative strategy produces very different advice than an aggressive one." },
   { q: "Can I have multiple strategies?", a: "Yes. Create different strategies for different goals: one for a growth-focused brokerage account, another for a conservative retirement account. Each portfolio can reference a different strategy." },
-  { q: "What's the difference between templates and Finn?", a: "Templates are pre-built starting points you can customize immediately. Finn interviews you about your personal goals and constructs a strategy from scratch based on your answers." },
+  { q: "What's the difference between templates and Atlas?", a: "Templates are pre-built starting points you can customize immediately. Atlas interviews you about your personal goals and constructs a strategy from scratch based on your answers." },
   { q: "What do the parameters mean?", a: "Max single holding caps how much of your portfolio can be in one position. Trading frequency controls how often the AI suggests rebalancing. Time horizon reflects how long you plan to hold positions before reviewing." },
 ];
 
@@ -225,7 +225,7 @@ const KEYFRAMES = `
 
 export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPortfolio[] }) {
   const router = useRouter();
-  // One builder, three methods. Default to Finn (the recommended path).
+  // One builder, three methods. Default to Atlas (the recommended path).
   const [method, setMethod] = useState<"ai-builder" | "templates" | "custom">("ai-builder");
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -398,7 +398,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
         {/* Method toggle — same destination, three ways to get there */}
         <div style={{ display: "inline-flex", gap: "4px", padding: "4px", borderRadius: "var(--radius-xl)", background: "var(--card-bg)", border: "1px solid var(--card-border)", marginBottom: "14px", flexWrap: "wrap" }}>
           {([
-            { id: "ai-builder", label: "Let Finn build it", badge: "Recommended" },
+            { id: "ai-builder", label: "Let Atlas build it", badge: "Recommended" },
             { id: "templates", label: "Start from a template", badge: null },
             { id: "custom", label: "Build it myself", badge: null },
           ] as const).map((m) => {
@@ -423,7 +423,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
           })}
         </div>
 
-        {/* ── Finn body ── */}
+        {/* ── Atlas body ── */}
         {method === "ai-builder" && (
           <div className="bt-card" style={{ padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
@@ -433,13 +433,13 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 </svg>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Finn, your AI strategy advisor</div>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>Atlas, your AI strategy advisor</div>
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 12px", maxWidth: "52ch" }}>
-                  Answer a few quick questions about your goals and risk. Finn sets your position sizing and cash rules and writes the AI instruction prompt for you. About 60 seconds.
+                  Answer a few quick questions about your goals and risk. Atlas sets your position sizing and cash rules and writes the AI instruction prompt for you. About 60 seconds.
                 </p>
                 <button type="button" onClick={() => setShowFinn(true)}
                   style={{ padding: "9px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg, #2563eb, #4f46e5)", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                  Start with Finn
+                  Start with Atlas
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
                 </button>
               </div>
@@ -653,7 +653,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
         </div>
         )}
 
-        {/* ── Finn modal ───────────────────────────────────────────────── */}
+        {/* ── Atlas modal ───────────────────────────────────────────────── */}
         {showFinn && (
           <StrategyQuestionnaire
             variant="modal"

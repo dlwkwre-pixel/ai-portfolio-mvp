@@ -80,7 +80,7 @@ export default function FinnInsightCard({ insights, portfolioId }: { insights: F
             </div>
             <div>
               <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", marginBottom: "4px" }}>
-                FINN: {insight.title}
+                Atlas: {insight.title}
               </p>
               <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
                 {insight.body}

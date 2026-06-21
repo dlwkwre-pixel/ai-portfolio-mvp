@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     ? `no shortfall — projected to cover ${coverage_pct.toFixed(0)}% of costs`
     : `${fmt(funding_gap)} shortfall — ${coverage_pct.toFixed(0)}% coverage`;
 
-  const systemPrompt = `You are FINN, BuyTune's financial planning advisor specializing in education funding.
+  const systemPrompt = `You are Atlas, BuyTune's financial planning advisor specializing in education funding.
 You provide clear, actionable guidance on 529 college savings plans and education cost planning.
 Never give tax advice beyond noting the general tax advantages of 529 plans. End with the standard disclaimer.`;
 

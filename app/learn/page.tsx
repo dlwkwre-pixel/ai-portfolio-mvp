@@ -101,7 +101,7 @@ export default async function LearnPage() {
                 "Investing fundamentals: stocks, ETFs, bonds, and diversification",
                 "Reading analyst ratings and price targets",
                 "How to interpret your portfolio's performance metrics",
-                "Finn walkthroughs: using AI to build your investing strategy",
+                "Atlas walkthroughs: using AI to build your investing strategy",
                 "Glossary of financial terms used across BuyTune",
               ]}
               eta="Coming in a future update"

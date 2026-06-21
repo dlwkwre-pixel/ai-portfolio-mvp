@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
   Proactively connect insights across planners — highlight compounding effects and timing conflicts between them.`;
   }
 
-  const systemPrompt = `You are FINN, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
+  const systemPrompt = `You are Atlas, BuyTune's personal financial planning AI. You have complete access to this user's financial data shown below.
 
 CAPABILITIES:
 - Answer any question about their finances with specific numbers from their data

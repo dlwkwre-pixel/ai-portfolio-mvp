@@ -69,7 +69,7 @@ export default function Image() {
           fontSize: "22px", color: "#475569", textAlign: "center",
           maxWidth: "700px", lineHeight: 1.5,
         }}>
-          Portfolio analytics, AI analysis, financial planning, and FINN — your personal financial AI.
+          Portfolio analytics, AI analysis, financial planning, and Atlas — your personal financial AI.
         </div>
 
         {/* URL */}

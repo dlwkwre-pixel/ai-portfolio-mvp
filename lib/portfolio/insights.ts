@@ -70,7 +70,7 @@ export function detectFinnInsights(params: {
     insights.push({
       id: "no-strategy",
       title: "This portfolio has no strategy assigned",
-      body: "Portfolios without a defined strategy tend to drift. FINN can help you document your thesis, rebalancing rules, and risk tolerance in the Strategies tab.",
+      body: "Portfolios without a defined strategy tend to drift. Atlas can help you document your thesis, rebalancing rules, and risk tolerance in the Strategies tab.",
       type: "strategy",
     });
   }

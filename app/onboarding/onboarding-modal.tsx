@@ -112,7 +112,7 @@ export default function OnboardingModal({
   const [selectedExistingId, setSelectedExistingId] = useState(existingStrategies[0]?.id ?? "");
   const [strategySaved, setStrategySaved] = useState(false);
 
-  // ── Step 5: FINN
+  // ── Step 5: Atlas
   const [finnMessages, setFinnMessages] = useState<FinnMessage[]>([]);
   const [finnInput, setFinnInput] = useState("");
   const [finnThinking, setFinnThinking] = useState(false);
@@ -282,7 +282,7 @@ export default function OnboardingModal({
         const s = STARTER_STRATEGIES[selectedStarterIdx];
         payload = { portfolio_id: portfolioId, mode: "create", strategy: s };
       } else if (strategyTab === "finn") {
-        // FINN started but hasn't generated yet — skip
+        // Atlas started but hasn't generated yet — skip
         await go(6);
         return;
       } else {
@@ -338,7 +338,7 @@ export default function OnboardingModal({
     }
   }
 
-  // ── FINN functions
+  // ── Atlas functions
 
   async function startFinn() {
     if (finnStarted) return;
@@ -352,11 +352,11 @@ export default function OnboardingModal({
         body: JSON.stringify({ messages: [], phase: "chat" }),
       });
       const data = await res.json() as { text?: string; error?: string };
-      if (!res.ok || data.error) throw new Error(data.error || "FINN failed to start");
+      if (!res.ok || data.error) throw new Error(data.error || "Atlas failed to start");
       const reply = (data.text ?? "").replace(/READY_TO_GENERATE/g, "").trim();
       setFinnMessages([{ role: "assistant", content: reply }]);
     } catch (e) {
-      setFinnError(e instanceof Error ? e.message : "FINN failed to start. Try again.");
+      setFinnError(e instanceof Error ? e.message : "Atlas failed to start. Try again.");
       setFinnStarted(false);
     } finally {
       setFinnThinking(false);
@@ -378,7 +378,7 @@ export default function OnboardingModal({
         body: JSON.stringify({ messages: next, phase: "chat" }),
       });
       const data = await res.json() as { text?: string; error?: string };
-      if (!res.ok || data.error) throw new Error(data.error || "FINN error");
+      if (!res.ok || data.error) throw new Error(data.error || "Atlas error");
       const reply = data.text ?? "";
       const withReply = [...next, { role: "assistant" as const, content: reply }];
       setFinnMessages(withReply);
@@ -793,7 +793,7 @@ export default function OnboardingModal({
               <StepHeader
                 kind="strategy"
                 title="Choose your strategy"
-                sub="It defines how you invest and guides every AI recommendation. Pick a ready-made one, let Finn build it, or define your own."
+                sub="It defines how you invest and guides every AI recommendation. Pick a ready-made one, let Atlas build it, or define your own."
                 unlocks="Advice tailored to your style"
               />
 
@@ -806,7 +806,7 @@ export default function OnboardingModal({
                     className={strategyTab === tab ? "bt-btn bt-btn-primary bt-btn-sm" : "bt-btn bt-btn-ghost bt-btn-sm"}
                     style={tab === "finn" && strategyTab !== "finn" ? { borderColor: FV.border, color: FV.accentBright } : {}}
                   >
-                    {tab === "starter" ? "Starter templates" : tab === "custom" ? "Build custom" : tab === "existing" ? "My strategies" : "✦ Build with FINN"}
+                    {tab === "starter" ? "Starter templates" : tab === "custom" ? "Build custom" : tab === "existing" ? "My strategies" : "✦ Build with Atlas"}
                   </button>
                 ))}
               </div>
@@ -901,7 +901,7 @@ export default function OnboardingModal({
                 </div>
               )}
 
-              {/* FINN chat tab */}
+              {/* Atlas chat tab */}
               {strategyTab === "finn" && (
                 <div>
                   <style>{`
@@ -913,7 +913,7 @@ export default function OnboardingModal({
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", padding: "9px 12px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
                     <div style={{ width: "22px", height: "22px", flexShrink: 0, background: "linear-gradient(135deg, #6d28d9, #8b5cf6)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#fff" }}>F</div>
                     <div>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentBright }}>FINN Strategy Builder</div>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentBright }}>Atlas Strategy Builder</div>
                       <div style={{ fontSize: "10px", color: "rgba(167,139,250,0.55)" }}>Personalized strategy through conversation — 5 to 7 exchanges</div>
                     </div>
                   </div>
@@ -921,7 +921,7 @@ export default function OnboardingModal({
                   {!finnStarted && !finnThinking && finnMessages.length === 0 && (
                     <div style={{ textAlign: "center", padding: "20px 12px", background: FV.bg, border: `1px dashed ${FV.border}`, borderRadius: "10px", marginBottom: "12px" }}>
                       <p style={{ fontSize: "11px", color: "rgba(167,139,250,0.65)", marginBottom: "12px", lineHeight: 1.5 }}>
-                        FINN will ask you a few questions to build a strategy tailored specifically to how you invest.
+                        Atlas will ask you a few questions to build a strategy tailored specifically to how you invest.
                       </p>
                       <button onClick={startFinn} style={{ background: FV.bgMed, color: FV.accentBright, border: `1px solid ${FV.border}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
                         Start conversation ✦
@@ -970,7 +970,7 @@ export default function OnboardingModal({
                         value={finnInput}
                         onChange={(e) => setFinnInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendFinnMessage(finnInput); } }}
-                        placeholder="Reply to FINN..."
+                        placeholder="Reply to Atlas..."
                         disabled={finnThinking}
                         style={{ flex: 1, fontSize: "12px" }}
                       />
@@ -1007,14 +1007,14 @@ export default function OnboardingModal({
                         ))}
                       </div>
                       <p style={{ fontSize: "10px", color: "rgba(167,139,250,0.45)", marginTop: "8px", marginBottom: 0 }}>
-                        ✦ Strategy built by FINN — click Continue to save it.
+                        ✦ Strategy built by Atlas — click Continue to save it.
                       </p>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* FINN note — shown for all other tabs */}
+              {/* Atlas note — shown for all other tabs */}
               {strategyTab !== "finn" && (
               <div style={{
                 marginTop: "14px", padding: "9px 12px",
@@ -1023,14 +1023,14 @@ export default function OnboardingModal({
               }}>
                 <span style={{ fontSize: "12px", flexShrink: 0, marginTop: "1px" }}>✦</span>
                 <p style={{ fontSize: "11px", color: "rgba(167,139,250,0.9)", lineHeight: 1.5, margin: 0 }}>
-                  Once saved, FINN will score your strategy, explain its thesis, surface weaknesses, and build your investor profile as you add more strategies.
+                  Once saved, Atlas will score your strategy, explain its thesis, surface weaknesses, and build your investor profile as you add more strategies.
                 </p>
               </div>
               )}
             </div>
           )}
 
-          {/* ── Step 6: AI + FINN Tutorial */}
+          {/* ── Step 6: AI + Atlas Tutorial */}
           {step === 6 && (
             <div>
               <StepHeader
@@ -1081,7 +1081,7 @@ export default function OnboardingModal({
                 </div>
               </div>
 
-              {/* Section: FINN Strategy Intelligence */}
+              {/* Section: Atlas Strategy Intelligence */}
               <div style={{
                 padding: "12px 14px",
                 background: "rgba(109,40,217,0.05)",
@@ -1100,7 +1100,7 @@ export default function OnboardingModal({
                     letterSpacing: "-0.3px",
                   }}>F</div>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(167,139,250,1)", letterSpacing: "-0.1px" }}>
-                    FINN Strategy Intelligence
+                    Atlas Strategy Intelligence
                   </span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
@@ -1125,7 +1125,7 @@ export default function OnboardingModal({
                   ))}
                 </div>
                 <p style={{ fontSize: "10px", color: "rgba(167,139,250,0.5)", marginTop: "10px", marginBottom: 0, lineHeight: 1.4 }}>
-                  Find FINN on every strategy card in the Strategies tab.
+                  Find Atlas on every strategy card in the Strategies tab.
                 </p>
               </div>
 
@@ -1141,7 +1141,7 @@ export default function OnboardingModal({
               <StepHeader
                 kind="scan"
                 title="Run your first AI scan"
-                sub="Finn reviews your portfolio against your strategy and live data, then lists what to consider."
+                sub="Atlas reviews your portfolio against your strategy and live data, then lists what to consider."
                 unlocks="Your first recommendations"
               />
 
@@ -1157,7 +1157,7 @@ export default function OnboardingModal({
                     : strategyTab === "starter"
                     ? STARTER_STRATEGIES[selectedStarterIdx]?.name
                     : strategyTab === "finn"
-                    ? (finnGenerated?.name ?? "FINN Strategy")
+                    ? (finnGenerated?.name ?? "Atlas Strategy")
                     : `Custom ${customStyle}`
                 } />
               </div>

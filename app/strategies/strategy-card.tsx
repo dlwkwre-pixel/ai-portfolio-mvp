@@ -100,7 +100,7 @@ function formatRelativeDate(dateStr: string): string {
   return `${Math.floor(days / 365)}y ago`;
 }
 
-// ── FINN Intelligence Panel ───────────────────────────────────────────────────
+// ── Atlas Intelligence Panel ───────────────────────────────────────────────────
 
 const FV = {
   bg:     "rgba(109,40,217,0.06)",
@@ -255,7 +255,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
             <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke={FV.accent} strokeWidth="1.5" strokeLinecap="round" />
             <circle cx="10" cy="15.5" r="0.75" fill={FV.accent} />
           </svg>
-          FINN Analysis
+          Atlas Analysis
         </button>
       )}
 
@@ -266,7 +266,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
               <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: FV.accent, boxShadow: `0 0 6px ${FV.dim}` }} />
-              <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FV.accent, fontFamily: "var(--font-body)" }}>FINN Analysis</span>
+              <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: FV.accent, fontFamily: "var(--font-body)" }}>Atlas Analysis</span>
             </div>
             <button type="button" onClick={() => setOpen(false)}
               style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "2px" }}>
@@ -294,7 +294,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
               <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
                   <ConfidenceRing score={analysis.finn_confidence} />
-                  <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", letterSpacing: "0.04em", textTransform: "uppercase" }}>FINN Confidence</span>
+                  <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", letterSpacing: "0.04em", textTransform: "uppercase" }}>Atlas Confidence</span>
                 </div>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
                   {analysis.factors.map((f, i) => <FactorBar key={f.name} factor={f} idx={i} />)}
@@ -621,7 +621,7 @@ function ImproveStrategyPanel({
           {/* Confidence delta badge */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--surface-003)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
             <div>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>FINN Confidence</div>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Atlas Confidence</div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", color: "var(--text-muted)", fontWeight: 500 }}>{currentConfidence ?? "—"}</span>
                 <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M10 1l4 4-4 4" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -679,7 +679,7 @@ function ImproveStrategyPanel({
           {/* Narrative */}
           <div style={{ background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.16)", borderRadius: "var(--radius-md)", padding: "10px 13px" }}>
             <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
-              FINN Rationale
+              Atlas Rationale
             </p>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontFamily: "var(--font-body)" }}>
               {result.narrative}
@@ -1109,7 +1109,7 @@ export default function StrategyCardItem({
                   </div>
                 )}
 
-                {/* FINN Intelligence + Improve */}
+                {/* Atlas Intelligence + Improve */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <FinnIntelligencePanel card={card} onAnalysis={setSharedAnalysis} />
                   <ImproveStrategyPanel

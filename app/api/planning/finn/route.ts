@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
     roth_conversion_tax_savings != null && roth_conversion_tax_savings > 1000 ? `  Modeling Roth conversions could save ~${fmt(roth_conversion_tax_savings)} in lifetime taxes` : null,
   ].filter(Boolean).join("\n");
 
-  const systemPrompt = `You are FINN, BuyTune's financial planning advisor.
+  const systemPrompt = `You are Atlas, BuyTune's financial planning advisor.
 Your role is to help users understand their financial future clearly and confidently.
 You communicate probability, not false certainty.
 You are empowering, not judgmental.

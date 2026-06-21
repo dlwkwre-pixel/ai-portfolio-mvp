@@ -259,7 +259,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
   const { realizedLots, dividendIncome, tlhOpportunities, washSaleWarnings, selectedYear, taxProfile } = data;
 
-  // FINN localStorage persistence
+  // Atlas localStorage persistence
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`finn-tax-${selectedYear}`);
@@ -1364,7 +1364,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         )}
       </div>
 
-      {/* ── FINN FLOATING PANEL ── */}
+      {/* ── Atlas FLOATING PANEL ── */}
       {finnPanelOpen && (
         <div style={{ position: "fixed", bottom: "80px", right: "12px", left: "12px", maxWidth: "480px", marginLeft: "auto", zIndex: 60 }}>
           <div className="finn-panel" style={{ background: "var(--card-bg)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(99,102,241,0.1)" }}>
@@ -1374,7 +1374,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   <svg width="13" height="13" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
                 </div>
                 <div>
-                  <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>FINN — Tax Analysis</p>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Atlas — Tax Analysis</p>
                   <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>AI-powered {selectedYear} tax strategy</p>
                 </div>
               </div>
@@ -1386,7 +1386,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               {!finnOutput && !finnLoading && (
                 <div style={{ textAlign: "center" as const, padding: "10px 0" }}>
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.6 }}>
-                    FINN will analyze your income type, gains, and trading activity to write a personalized tax strategy.
+                    Atlas will analyze your income type, gains, and trading activity to write a personalized tax strategy.
                   </p>
                   <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "10px", padding: "9px 22px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
                     Run analysis
@@ -1396,7 +1396,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               {finnLoading && !finnOutput && (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)", fontSize: "12px", padding: "10px 0" }}>
                   <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
-                  FINN is analyzing your tax situation…
+                  Atlas is analyzing your tax situation…
                 </div>
               )}
               {finnError && <p style={{ fontSize: "12px", color: "var(--red)", margin: "0 0 10px" }}>{finnError}</p>}
@@ -1423,7 +1423,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         </div>
       )}
 
-      {/* ── FINN FLOATING BUTTON ── */}
+      {/* ── Atlas FLOATING BUTTON ── */}
       <button
         type="button"
         onClick={() => setFinnPanelOpen(v => !v)}
@@ -1434,7 +1434,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         ) : (
           <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
         )}
-        {finnPanelOpen ? "Close" : "Ask FINN"}
+        {finnPanelOpen ? "Close" : "Ask Atlas"}
         {finnOutput && !finnPanelOpen && <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(255,255,255,0.7)", flexShrink: 0 }} />}
       </button>
     </>

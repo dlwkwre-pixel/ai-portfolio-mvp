@@ -487,7 +487,7 @@ export default function LandingPage() {
               },
               {
                 title:"Financial Planning",
-                desc:"Track your full financial picture: balance sheet, cash flow, and savings rate. Run deterministic net-worth projections and get FINN commentary on your financial health trajectory.",
+                desc:"Track your full financial picture: balance sheet, cash flow, and savings rate. Run deterministic net-worth projections and get Atlas commentary on your financial health trajectory.",
                 bg:"rgba(16,185,129,0.08)",
                 icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#34d399"><path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd"/></svg>,
               },
@@ -559,10 +559,10 @@ export default function LandingPage() {
             See it in action
           </div>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "clamp(22px,4vw,32px)", fontWeight: 800, color: "#f0f4ff", letterSpacing: "-0.8px", margin: "0 0 10px" }}>
-            FINN answers your hardest money questions
+            Atlas answers your hardest money questions
           </h2>
           <p style={{ fontSize: "15px", color: "#a8b3c7", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
-            Add your income, expenses, and goals. FINN runs your retirement forecast and tells you exactly where you stand.
+            Add your income, expenses, and goals. Atlas runs your retirement forecast and tells you exactly where you stand.
           </p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
@@ -634,7 +634,7 @@ export default function LandingPage() {
             color: "#93c5fd", fontSize: "13px", fontWeight: 600, textDecoration: "none",
             transition: "all 0.15s",
           }}>
-            Get your own FINN analysis — free
+            Get your own Atlas analysis — free
             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
           </Link>
         </div>
@@ -863,7 +863,7 @@ export default function LandingPage() {
             },
             {
               q:"What else can BuyTune do beyond stock picks?",
-              a:"A lot: full financial planning with retirement forecasts and FINN commentary, a tax center for realized/unrealized gains and harvesting, stock research with analyst consensus and sentiment, and a community feed to follow strategies and learn.",
+              a:"A lot: full financial planning with retirement forecasts and Atlas commentary, a tax center for realized/unrealized gains and harvesting, stock research with analyst consensus and sentiment, and a community feed to follow strategies and learn.",
             },
           ].map(({q,a}) => (
             <details key={q}>

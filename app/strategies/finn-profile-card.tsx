@@ -76,7 +76,7 @@ export default function FinnProfileCard({
   insights?: MemoryInsight[];
 }) {
   const meta = ARCHETYPE_META[profile.archetype] ?? {
-    tagline: "Your investing identity, as understood by FINN.",
+    tagline: "Your investing identity, as understood by Atlas.",
     initial: profile.archetype.slice(0, 2).toUpperCase(),
   };
   const updatedLabel = new Date(profile.updated_at).toLocaleDateString("en-US", {
@@ -96,7 +96,7 @@ export default function FinnProfileCard({
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center" }}>
         <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: FV.accent }}>
-          FINN Investor Profile
+          Atlas Investor Profile
         </span>
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
@@ -144,7 +144,7 @@ export default function FinnProfileCard({
       {insights.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: `1px solid ${FV.border}`, paddingTop: "12px" }}>
           <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: FV.accent }}>
-            FINN has noticed
+            Atlas has noticed
           </span>
           {insights.map((insight, i) => (
             <InsightRow key={i} insight={insight} />
@@ -154,7 +154,7 @@ export default function FinnProfileCard({
 
       {/* Footer */}
       <div style={{ fontSize: "10px", color: "var(--text-muted)", borderTop: `1px solid ${FV.border}`, paddingTop: "8px" }}>
-        Based on {strategyCount} {strategyCount === 1 ? "strategy" : "strategies"} — FINN infers your investor identity from strategy parameters
+        Based on {strategyCount} {strategyCount === 1 ? "strategy" : "strategies"} — Atlas infers your investor identity from strategy parameters
       </div>
     </div>
   );

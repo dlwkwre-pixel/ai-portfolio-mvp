@@ -173,7 +173,7 @@ export default function TermsAcceptModal() {
             )}
           </div>
           <span style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-            Send me a weekly FINN digest — portfolio highlights and one financial insight. Unsubscribe anytime. (Optional)
+            Send me a weekly Atlas digest — portfolio highlights and one financial insight. Unsubscribe anytime. (Optional)
           </span>
         </label>
 
