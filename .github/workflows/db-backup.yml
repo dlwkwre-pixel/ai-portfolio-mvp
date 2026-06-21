@@ -1,0 +1,56 @@
+name: Supabase DB backup
+
+# Free, off-platform disaster-recovery backup. Runs a daily pg_dump of the Supabase
+# Postgres database and stores it as a GitHub Actions artifact (free; no Supabase paid
+# tier or PITR required). If Supabase is ever lost, restore from the most recent artifact.
+#
+# ONE-TIME SETUP (required): add a repo secret named SUPABASE_DB_URL.
+#   Supabase dashboard → Project Settings → Database → Connection string → URI
+#   (use the "Session pooler" / direct connection URI, include the password).
+#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret.
+#
+# RESTORE: download the artifact, then:
+#   gunzip -c backup-YYYY-MM-DD.sql.gz | psql "<target-connection-string>"
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # daily at 07:00 UTC
+  workflow_dispatch: {}    # allow manual runs
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Guard — secret present
+        env:
+          PGCONN: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$PGCONN" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set. See .github/workflows/db-backup.yml header for setup."
+            exit 1
+          fi
+
+      - name: Dump database (gzip)
+        env:
+          PGCONN: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP="$(date -u +%F)"
+          # Use a recent pg_dump (backward-compatible with older servers). Pass the
+          # connection string via env so it never appears in the command/log.
+          docker run --rm -e PGCONN postgres:17 \
+            sh -c 'pg_dump "$PGCONN" --no-owner --no-privileges --clean --if-exists' \
+            | gzip > "backup-${STAMP}.sql.gz"
+          ls -lh "backup-${STAMP}.sql.gz"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup-*.sql.gz
+          retention-days: 90
+          if-no-files-found: error
