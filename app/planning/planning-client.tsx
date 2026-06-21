@@ -1901,6 +1901,8 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   const [wizardIncome, setWizardIncome] = useState<{ label: string; amount: number; frequency: string }[]>([]);
   const [wizardExpenses, setWizardExpenses] = useState<{ label: string; amount: number; frequency: string }[]>([]);
   const [wizardAssets, setWizardAssets] = useState<{ label: string; value: number; kind: "asset" | "debt" }[]>([]);
+  // Essentials captured at step 0 — powers the "here's where you stand" reveal without a refresh.
+  const [wizProfile, setWizProfile] = useState<{ age: number | null; retireAt: number | null; grossMonthly: number; monthlyExpenses: number }>({ age: null, retireAt: null, grossMonthly: 0, monthlyExpenses: 0 });
 
   const incomeFormRef = useRef<HTMLFormElement>(null);
   const expenseFormRef = useRef<HTMLFormElement>(null);
@@ -1915,6 +1917,14 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const dob = String(fd.get("date_of_birth") || "");
+    const age = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+    setWizProfile({
+      age,
+      retireAt: Number(fd.get("target_retirement_age")) || null,
+      grossMonthly: Number(fd.get("gross_monthly_income")) || 0,
+      monthlyExpenses: Number(fd.get("monthly_expenses")) || 0,
+    });
     startProfTransition(async () => {
       await upsertFinancialProfile(fd);
       setStep(1);
@@ -1969,6 +1979,31 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
 
   const totalAdded = wizardIncome.length + wizardExpenses.length + wizardAssets.length;
 
+  // "Here's where you stand" — compute a quick readiness read from what was entered.
+  // Uses the same 25× logic as the hub; a deliberately simple preview, not the full engine.
+  const reveal = useMemo(() => {
+    const freqM = (amt: number, f: string) =>
+      f === "weekly" ? amt * 52 / 12 : f === "biweekly" ? amt * 26 / 12 : f === "semimonthly" ? amt * 2
+      : f === "quarterly" ? amt / 3 : f === "annual" ? amt / 12 : amt;
+    const incomeM = wizardIncome.length ? wizardIncome.reduce((s, i) => s + freqM(i.amount, i.frequency), 0) : wizProfile.grossMonthly * 0.75;
+    const expM = wizardExpenses.length ? wizardExpenses.reduce((s, i) => s + freqM(i.amount, i.frequency), 0) : wizProfile.monthlyExpenses;
+    const assetsTotal = wizardAssets.filter((a) => a.kind === "asset").reduce((s, a) => s + a.value, 0);
+    const debtsTotal = wizardAssets.filter((a) => a.kind === "debt").reduce((s, a) => s + a.value, 0);
+    const netWorth = assetsTotal - debtsTotal;
+    const monthlySavings = incomeM - expM;
+    const yearsToRet = (wizProfile.age != null && wizProfile.retireAt != null) ? Math.max(0, wizProfile.retireAt - wizProfile.age) : null;
+    const annualExpenses = expM * 12;
+    if (yearsToRet == null || annualExpenses <= 0) return null;
+    const r = 0.07, annualSavings = monthlySavings * 12;
+    const series: number[] = [Math.max(0, netWorth)];
+    let nw = Math.max(0, netWorth);
+    for (let y = 0; y < yearsToRet; y++) { nw = nw * (1 + r) + annualSavings; series.push(Math.max(0, nw)); }
+    const projected = Math.max(0, nw);
+    const inflatedExpenses = annualExpenses * Math.pow(1.03, yearsToRet);
+    const prob = calcRetirementProbability(projected, inflatedExpenses);
+    return { netWorth, monthlySavings, projected, prob, yearsToRet, series, retireAt: wizProfile.retireAt };
+  }, [wizardIncome, wizardExpenses, wizardAssets, wizProfile]);
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -2002,9 +2037,9 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
         {/* Step 0: Profile */}
         {step === 0 && (
           <div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Set up your profile</h2>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Let{"'"}s see where you stand</h2>
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 22px", lineHeight: 1.6 }}>
-              A few basics so FINN can build your retirement forecast.
+              Four basics and we{"'"}ll show your retirement readiness in under a minute. You can refine everything later.
             </p>
             <form onSubmit={handleProfileSave}>
               <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "22px" }}>
@@ -2079,6 +2114,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <button type="button" onClick={() => setStep(0)} style={{ ...btnSecondaryStyle, padding: "11px 14px" }}>← Back</button>
               <button type="button" onClick={() => setStep(2)} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>Continue →</button>
             </div>
+            <button type="button" onClick={() => setStep(4)} style={{ display: "block", margin: "12px auto 0", background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer", textDecoration: "underline" }}>Skip ahead — see my number now →</button>
           </div>
         )}
 
@@ -2114,6 +2150,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
               <button type="button" onClick={() => setStep(1)} style={{ ...btnSecondaryStyle, padding: "11px 14px" }}>← Back</button>
               <button type="button" onClick={() => setStep(3)} style={{ ...btnPrimaryStyle, flex: 1, padding: "11px 0", fontSize: "13px" }}>Continue →</button>
             </div>
+            <button type="button" onClick={() => setStep(4)} style={{ display: "block", margin: "12px auto 0", background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer", textDecoration: "underline" }}>Skip ahead — see my number now →</button>
           </div>
         )}
 
@@ -2169,29 +2206,79 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Step 4: Ready */}
-        {step === 4 && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "42px", marginBottom: "14px" }}>🎯</div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>You{"'"}re set up</h2>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 22px", lineHeight: 1.7 }}>
-              {totalAdded > 0
-                ? `${totalAdded} item${totalAdded !== 1 ? "s" : ""} added. FINN has everything it needs to build your forecast and start analyzing your picture.`
-                : "FINN is ready. Add your financial details from the tabs below to unlock the full forecast."}
-            </p>
-            {totalAdded > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "24px" }}>
-                {wizardIncome.length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)" }}>{wizardIncome.length} income source{wizardIncome.length !== 1 ? "s" : ""}</span>}
-                {wizardExpenses.length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.18)", fontSize: "11px", color: "var(--red)", fontFamily: "var(--font-body)" }}>{wizardExpenses.length} expense{wizardExpenses.length !== 1 ? "s" : ""}</span>}
-                {wizardAssets.filter((a) => a.kind === "asset").length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.2)", fontSize: "11px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>{wizardAssets.filter((a) => a.kind === "asset").length} asset{wizardAssets.filter((a) => a.kind === "asset").length !== 1 ? "s" : ""}</span>}
-                {wizardAssets.filter((a) => a.kind === "debt").length > 0 && <span style={{ padding: "4px 10px", borderRadius: "20px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.18)", fontSize: "11px", color: "var(--amber)", fontFamily: "var(--font-body)" }}>{wizardAssets.filter((a) => a.kind === "debt").length} debt item{wizardAssets.filter((a) => a.kind === "debt").length !== 1 ? "s" : ""}</span>}
+        {/* Step 4: Here's where you stand — the payoff reveal */}
+        {step === 4 && (() => {
+          // Fallback when we don't have enough to compute (no age / retirement age / expenses)
+          if (!reveal || reveal.prob == null) {
+            return (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "40px", marginBottom: "12px" }}>🎯</div>
+                <h2 style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>You{"'"}re set up</h2>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 22px", lineHeight: 1.7 }}>
+                  Add your age, retirement age, and monthly expenses to see your readiness, then explore your full plan.
+                </p>
+                <button type="button" onClick={dismiss} style={{ ...btnPrimaryStyle, padding: "12px 36px", fontSize: "13px", fontWeight: 700 }}>See my plan</button>
               </div>
-            )}
-            <button type="button" onClick={dismiss} style={{ ...btnPrimaryStyle, padding: "12px 36px", fontSize: "13px", fontWeight: 700 }}>
-              Start Planning
-            </button>
-          </div>
-        )}
+            );
+          }
+          const prob = reveal.prob;
+          const color = prob >= 75 ? "var(--green)" : prob >= 50 ? "var(--amber)" : "var(--red)";
+          const verdict = prob >= 80 ? "You're on track. A strong position for your timeline."
+            : prob >= 60 ? "You're close. A few moves put retirement well within reach."
+            : prob >= 35 ? "A real start. There's a gap to close, and the time to close it."
+            : "Early days, and that's fine. Your plan shows exactly which levers move this most.";
+          const R = 52, C = 2 * Math.PI * R, off = C * (1 - prob / 100);
+          // Trajectory sparkline
+          const max = Math.max(...reveal.series, 1);
+          const pts = reveal.series.map((v, i) => {
+            const x = (i / Math.max(1, reveal.series.length - 1)) * 1000;
+            const y = 100 - (v / max) * 88 - 6;
+            return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+          }).join(" ");
+          return (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Where you stand</div>
+
+              {/* Readiness gauge */}
+              <div style={{ position: "relative", width: "140px", height: "140px", margin: "0 auto 6px" }}>
+                <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
+                  <circle cx="70" cy="70" r={R} fill="none" stroke="var(--surface-008, rgba(255,255,255,0.08))" strokeWidth="9" />
+                  <circle cx="70" cy="70" r={R} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
+                    strokeDasharray={C} strokeDashoffset={off} style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(0.16,1,0.3,1)" }} />
+                </svg>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "34px", fontWeight: 700, color, lineHeight: 1 }}>{prob}%</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>on track</span>
+                </div>
+              </div>
+
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 auto 18px", lineHeight: 1.6, maxWidth: "360px" }}>{verdict}</p>
+
+              {/* Trajectory shape */}
+              <svg width="100%" height="48" viewBox="0 0 1000 100" preserveAspectRatio="none" style={{ display: "block", marginBottom: "4px" }}>
+                <defs>
+                  <linearGradient id="wiz-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d={`${pts} L1000,100 L0,100 Z`} fill="url(#wiz-grad)" />
+                <path d={pts} fill="none" stroke="#3b82f6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              </svg>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginBottom: "18px" }}>
+                <span>Today {fmtFull(reveal.netWorth)}</span>
+                <span>Age {reveal.retireAt} · {fmtFull(reveal.projected)}</span>
+              </div>
+
+              <button type="button" onClick={dismiss} style={{ ...btnPrimaryStyle, width: "100%", padding: "12px 0", fontSize: "13px", fontWeight: 700, marginBottom: "10px" }}>
+                See my full plan →
+              </button>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
+                A quick estimate. Your full forecast refines this with taxes, Social Security, and every decision you model.
+              </p>
+            </div>
+          );
+        })()}
 
       </div>
     </div>

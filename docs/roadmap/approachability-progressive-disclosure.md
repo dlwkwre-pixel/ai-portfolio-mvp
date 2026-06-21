@@ -36,3 +36,32 @@ Give concrete ideas to solve this. Likely themes to explore:
 
 (See related: [[project-light-mode-redesign]] reference to Robinhood, [[project-strategy-flow-redesign]]
 onboarding work, [[project-finn-personality]] for the guiding-advisor voice.)
+
+---
+
+## Planning roadmap (decided 2026-06-20, after tax-aware engine completed)
+
+The tax-aware retirement engine is complete (federal brackets, SS taxation, LTCG+basis, state
+tax, RMDs, Roth conversions, healthcare/LTC, Monte Carlo, FINN-aware). The frontier moves from
+capability → connection + trust. All four tracks below are approved for the roadmap; **building
+in this order:**
+
+1. **Guided first-run + narrative Overview** (BUILDING FIRST). The fix for "daunting on arrival":
+   on first visit /planning shows ~18 surfaces (7 tabs + 11 planner cards), mostly empty, with no
+   "start here." Build a 3-question guided setup (age + retirement age, ~investments, monthly
+   savings/expenses) that lands on an immediate **shape-first "here's where you stand"** — one big
+   number (retirement readiness), one FINN sentence, one next action. Then reveal the full hub.
+   Overview should later lead with a FINN-written plan summary before the dense tabs. Shapes over
+   tables on entry; depth on demand. Robinhood/Fidelity calm-first reference.
+2. **Deepen the thin planners** (coverage, not line count). Windfall: tax treatment of RSU /
+   inheritance / bonus + an explicit employer-401k-match step before "invest." Richer Wedding /
+   Relocation / Debt variations. Thin ≠ weak; the gap is missing real-world branches.
+3. **Build missing planners** — every life situation: Insurance/protection (life/disability/
+   umbrella), Starting/buying a business, Caring for aging parents, Emergency-fund, Big-purchase /
+   travel sinking-fund, Inheritance receipt, Major medical event, Divorce, Rental/real-estate
+   investment, a dedicated Retirement-income/drawdown planner page, a Tax/Roth-conversion page.
+4. **Whole-plan A/B compare + Sankey cash flow** — the two ProjectionLab features still missing.
+   "Compare two versions of my life" side by side; Sankey of income→spend→save. High wow-factor.
+
+Constraint (user, 2026-06-20): **no time crunch — make it perfect before advertising to strangers.**
+Hold every new planning surface to craft-level UI (Impeccable bar).
