@@ -2963,6 +2963,41 @@ function CompareTab({
           currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
       </div>
 
+      {/* Plain-English verdict — which path wins and what it costs */}
+      {(() => {
+        const pa = resA.prob, pb = resB.prob;
+        const nwa = resA.retPt?.baseline ?? null, nwb = resB.retPt?.baseline ?? null;
+        if (pa == null || pb == null || nwa == null || nwb == null) return null;
+        const aBetter = pa !== pb ? pa > pb : nwa >= nwb;
+        const win = aBetter ? cfgA : cfgB, lose = aBetter ? cfgB : cfgA;
+        const winRes = aBetter ? resA : resB, loseRes = aBetter ? resB : resA;
+        const winColor = aBetter ? BLUE : VIOLET;
+        const probGap = Math.abs((winRes.prob ?? 0) - (loseRes.prob ?? 0));
+        const nwGap = Math.abs((winRes.retPt?.baseline ?? 0) - (loseRes.retPt?.baseline ?? 0));
+        const diffs: string[] = [];
+        if (win.retirementAge !== lose.retirementAge) diffs.push(`${win.retirementAge < lose.retirementAge ? "retires" : "works"} ${Math.abs(win.retirementAge - lose.retirementAge)} ${Math.abs(win.retirementAge - lose.retirementAge) === 1 ? "year" : "years"} ${win.retirementAge < lose.retirementAge ? "earlier" : "longer"}`);
+        if (Math.abs(win.monthlySavings - lose.monthlySavings) >= 50) diffs.push(`saves ${fmt(Math.abs(win.monthlySavings - lose.monthlySavings))}/mo ${win.monthlySavings > lose.monthlySavings ? "more" : "less"}`);
+        if (Math.abs(win.returnRate - lose.returnRate) >= 0.5) diffs.push(`assumes ${Math.abs(win.returnRate - lose.returnRate).toFixed(1)}pp ${win.returnRate > lose.returnRate ? "higher" : "lower"} returns`);
+        const same = probGap < 1 && nwGap < 5000;
+        return (
+          <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "14px 16px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>The verdict</div>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>
+              {same ? (
+                <>Both paths land in nearly the same place — about <strong style={{ color: "var(--text-primary)" }}>{winRes.prob}%</strong> on-track. The choice comes down to lifestyle, not math.</>
+              ) : (
+                <>
+                  <strong style={{ color: winColor }}>{win.label}</strong> comes out ahead — <strong style={{ color: "var(--text-primary)" }}>{winRes.prob}%</strong> on-track vs {loseRes.prob}%
+                  {probGap >= 1 && <> (a {Math.round(probGap)}-point edge)</>}, ending with <strong style={{ color: "var(--text-primary)" }}>{fmt(winRes.retPt?.baseline ?? 0)}</strong>
+                  {nwGap >= 5000 && <> ({fmt(nwGap)} more)</>} at retirement.
+                  {diffs.length > 0 && <> It {diffs.join(", ")}.</>}
+                </>
+              )}
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Combined trajectory chart */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "12px" }}>
