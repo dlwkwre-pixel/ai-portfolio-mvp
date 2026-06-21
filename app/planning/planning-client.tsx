@@ -5314,13 +5314,15 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
 
 function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
-  monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
+  monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
-  savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean;
+  savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
 }) {
+  const [cfExpanded, setCfExpanded] = useState(false);
+  const cfAdvanced = !guided || cfExpanded;
   const router = useRouter();
   const now = new Date();
   const [selYear, setSelYear] = useState(now.getFullYear());
@@ -5602,6 +5604,14 @@ function CashFlowOS({
         </div>
       )}
 
+      {guided && !cfExpanded && (
+        <button type="button" onClick={() => setCfExpanded(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer", marginBottom: "10px" }}>
+          Show category detail & budget tracking
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
+      {cfAdvanced && (<>
       {/* Zone 2 — Donut + Category Bars */}
       {catData.length > 0 && (
         <div className="cfo-zone" style={{
@@ -6064,6 +6074,14 @@ function CashFlowOS({
           <AddItemRow type="cashflow" placeholder="Add expense (auto-categorized by label)" onAdd={fd => { fd.set("type", "expense"); return addCashFlowItem(fd); }} />
         </div>
       </div>
+      {guided && cfExpanded && (
+        <button type="button" onClick={() => setCfExpanded(false)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+          Show less
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
+      </>)}
     </div>
   );
 }
@@ -6134,6 +6152,10 @@ export default function PlanningClient({
   // Guided shows a curated subset of the 18 planners (the universal ones); the rest are
   // hidden via CSS behind "Show all" so the hub isn't an 18-card wall on first look.
   const [hubExpanded, setHubExpanded] = useState(false);
+  // Guided Forecast keeps the readiness + chart + drawdown, collapses the deep analytics
+  // (biggest drivers, year-by-year table, scenario A/B) behind one expander.
+  const [forecastExpanded, setForecastExpanded] = useState(false);
+  const forecastAdvanced = !guided || forecastExpanded;
 
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
@@ -8983,6 +9005,7 @@ export default function PlanningClient({
           savingsRate={savingsRate}
           cashFlowFinnInsight={cashFlowFinnInsight}
           isPrivate={isPrivate}
+          guided={guided}
         />
       )}
 
@@ -9674,6 +9697,14 @@ export default function PlanningClient({
             );
           })()}
 
+          {guided && !forecastExpanded && (
+            <button type="button" onClick={() => setForecastExpanded(true)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              Show full forecast detail
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          {forecastAdvanced && (<>
           {/* Biggest Drivers */}
           {biggestDrivers.length > 0 && (
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
@@ -9815,6 +9846,14 @@ export default function PlanningClient({
               currentYear={currentYear}
             />
           </div>
+          {guided && forecastExpanded && (
+            <button type="button" onClick={() => setForecastExpanded(false)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              Show less
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          </>)}
         </div>
       )}
 
