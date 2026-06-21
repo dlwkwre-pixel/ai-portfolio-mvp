@@ -22,6 +22,14 @@ export type FinnContext = {
   retirement_probability?: number | null;
   projected_nw_at_retirement?: number | null;
   future_events_count?: number;
+  // Phase 3 — tax buckets + retirement drawdown
+  tax_taxable?: number;
+  tax_deferred?: number;
+  tax_free?: number;
+  drawdown_lasts_to_age?: number | null;
+  drawdown_end_age?: number | null;
+  drawdown_lifetime_taxes?: number | null;
+  roth_conversion_tax_savings?: number | null; // lifetime tax saved by modeling conversions
 };
 
 function clamp(n: number, min: number, max: number): number {
@@ -87,6 +95,8 @@ export async function POST(req: NextRequest) {
     portfolio_total_value, financial_health_score, health_factors,
     return_rate_pct, inflation_rate_pct, retirement_probability,
     projected_nw_at_retirement, future_events_count,
+    tax_taxable, tax_deferred, tax_free,
+    drawdown_lasts_to_age, drawdown_end_age, drawdown_lifetime_taxes, roth_conversion_tax_savings,
   } = context;
 
   const fmt = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -102,6 +112,14 @@ export async function POST(req: NextRequest) {
     retirement_probability != null ? `  Retirement on-track probability: ${retirement_probability}%` : null,
     projected_nw_at_retirement != null ? `  Projected net worth at retirement: ${fmt(projected_nw_at_retirement)}` : null,
     future_events_count != null && future_events_count > 0 ? `  Future events planned: ${future_events_count}` : null,
+  ].filter(Boolean).join("\n");
+
+  const hasBuckets = (tax_taxable ?? 0) + (tax_deferred ?? 0) + (tax_free ?? 0) > 0;
+  const taxLines = [
+    hasBuckets ? `  Tax buckets — taxable: ${fmt(tax_taxable ?? 0)}, tax-deferred: ${fmt(tax_deferred ?? 0)}, tax-free/Roth: ${fmt(tax_free ?? 0)}` : null,
+    drawdown_lasts_to_age != null ? `  Retirement drawdown: money lasts to age ${drawdown_lasts_to_age}${drawdown_end_age != null ? ` (plan horizon ${drawdown_end_age})` : ""}` : null,
+    drawdown_lifetime_taxes != null ? `  Estimated lifetime taxes in retirement: ${fmt(drawdown_lifetime_taxes)}` : null,
+    roth_conversion_tax_savings != null && roth_conversion_tax_savings > 1000 ? `  Modeling Roth conversions could save ~${fmt(roth_conversion_tax_savings)} in lifetime taxes` : null,
   ].filter(Boolean).join("\n");
 
   const systemPrompt = `You are FINN, BuyTune's financial planning advisor.
@@ -134,8 +152,9 @@ Cash Flow:
 Health Score Breakdown:
 ${factorLines}
 ${phase2Lines ? `\nForecast:\n${phase2Lines}` : ""}
+${taxLines ? `\nTax & Retirement Drawdown:\n${taxLines}` : ""}
 
-Respond in 2-4 plain sentences. No bullet points. No headers. End with the disclaimer.`;
+Respond in 2-4 plain sentences. No bullet points. No headers. If tax-bucket concentration or a Roth-conversion opportunity stands out, you may surface it. End with the disclaimer.`;
 
   try {
     const client = new OpenAI({

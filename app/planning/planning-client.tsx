@@ -1755,6 +1755,14 @@ function LineItemRow({
         {!isBalance && (cf as CashFlowItem).is_variable && (
           <span style={{ fontSize: "9px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
+        {isBalance && !bal.is_liability && (() => {
+          const b = effectiveTaxBucket(bal);
+          if (!b) return null;
+          const meta = TAX_BUCKET_META[b];
+          return (
+            <span title={meta.note} style={{ fontSize: "9px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
+          );
+        })()}
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: accentColor, fontWeight: 500 }}>{displayValue}</span>
       <button type="button" onClick={() => setEditing(true)} style={iconBtnStyle} title={editTitle ?? "Edit"}>
@@ -5989,6 +5997,15 @@ export default function PlanningClient({
         retirement_probability: retirementProb,
         projected_nw_at_retirement: retirementPoint?.baseline ?? null,
         future_events_count: futureEvents.length,
+        tax_taxable: taxBucketsNow.taxable,
+        tax_deferred: taxBucketsNow.tax_deferred,
+        tax_free: taxBucketsNow.tax_free,
+        drawdown_lasts_to_age: drawdown?.lastsToAge ?? null,
+        drawdown_end_age: drawdown?.endAge ?? null,
+        drawdown_lifetime_taxes: drawdown?.totalTaxes ?? null,
+        roth_conversion_tax_savings: (drawdown && drawdownAlt)
+          ? (modelRothConversions ? drawdownAlt.totalTaxes - drawdown.totalTaxes : drawdown.totalTaxes - drawdownAlt.totalTaxes)
+          : null,
       };
       const res = await fetch("/api/planning/finn", {
         method: "POST",
@@ -6094,11 +6111,15 @@ export default function PlanningClient({
     let bDeferred = Math.max(0, taxBucketsNow.tax_deferred);
     let bFree = Math.max(0, taxBucketsNow.tax_free);
     let basisTaxable = bTaxable * 0.7; // assume ~30% embedded gains in today's taxable holdings
+    // If the user already holds Roth money, assume they keep funding a Roth IRA each year
+    // (2025 limit $7k, +$1k catch-up at 50+); the rest of after-tax savings goes to taxable.
+    const rothContribAnnual = bFree > 0 ? Math.min(afterTaxSavings, cAge >= 50 ? 8_000 : 7_000) : 0;
+    const taxableContribAnnual = Math.max(0, afterTaxSavings - rothContribAnnual);
     for (let y = 0; y < yearsToRet; y++) {
       bDeferred = bDeferred * (1 + r) + preTaxAnnual;
-      bTaxable = bTaxable * (1 + r) + afterTaxSavings;
-      basisTaxable += afterTaxSavings; // contributions add to basis (only growth is gains)
-      bFree = bFree * (1 + r);
+      bFree = bFree * (1 + r) + rothContribAnnual;
+      bTaxable = bTaxable * (1 + r) + taxableContribAnnual;
+      basisTaxable += taxableContribAnnual; // contributions add to basis (only growth is gains)
     }
     const filing = (profile?.filing_status as FilingStatus) || "single";
     const conversionTop = (conversionBracket === "22" ? TWENTY_TWO_PCT_BRACKET_TOP : TWELVE_PCT_BRACKET_TOP)[filing];
