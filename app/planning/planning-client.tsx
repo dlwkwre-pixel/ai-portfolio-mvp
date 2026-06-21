@@ -1903,6 +1903,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   const [wizardAssets, setWizardAssets] = useState<{ label: string; value: number; kind: "asset" | "debt" }[]>([]);
   // Essentials captured at step 0 — powers the "here's where you stand" reveal without a refresh.
   const [wizProfile, setWizProfile] = useState<{ age: number | null; retireAt: number | null; grossMonthly: number; monthlyExpenses: number }>({ age: null, retireAt: null, grossMonthly: 0, monthlyExpenses: 0 });
+  const [animProb, setAnimProb] = useState(0); // count-up + ring-draw animation for the reveal
 
   const incomeFormRef = useRef<HTMLFormElement>(null);
   const expenseFormRef = useRef<HTMLFormElement>(null);
@@ -2003,6 +2004,20 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
     const prob = calcRetirementProbability(projected, inflatedExpenses);
     return { netWorth, monthlySavings, projected, prob, yearsToRet, series, retireAt: wizProfile.retireAt };
   }, [wizardIncome, wizardExpenses, wizardAssets, wizProfile]);
+
+  // Animate the readiness ring + number up from 0 when the reveal appears.
+  useEffect(() => {
+    if (step !== 4 || !reveal || reveal.prob == null) { setAnimProb(0); return; }
+    const target = reveal.prob, start = performance.now(), dur = 950;
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      setAnimProb(Math.round(target * (1 - Math.pow(1 - p, 3)))); // ease-out-cubic
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [step, reveal]);
 
   return (
     <div style={{
@@ -2227,7 +2242,7 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
             : prob >= 60 ? "You're close. A few moves put retirement well within reach."
             : prob >= 35 ? "A real start. There's a gap to close, and the time to close it."
             : "Early days, and that's fine. Your plan shows exactly which levers move this most.";
-          const R = 52, C = 2 * Math.PI * R, off = C * (1 - prob / 100);
+          const R = 52, C = 2 * Math.PI * R, off = C * (1 - animProb / 100);
           // Trajectory sparkline
           const max = Math.max(...reveal.series, 1);
           const pts = reveal.series.map((v, i) => {
@@ -2236,18 +2251,19 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
             return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
           }).join(" ");
           return (
-            <div style={{ textAlign: "center" }}>
+            <div style={{ textAlign: "center", animation: "wiz-reveal 0.5s cubic-bezier(0.16,1,0.3,1) both" }}>
+              <style>{`@keyframes wiz-reveal { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }`}</style>
               <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "16px" }}>Where you stand</div>
 
-              {/* Readiness gauge */}
+              {/* Readiness gauge — ring draws + number counts up on reveal */}
               <div style={{ position: "relative", width: "140px", height: "140px", margin: "0 auto 6px" }}>
                 <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
                   <circle cx="70" cy="70" r={R} fill="none" stroke="var(--surface-008, rgba(255,255,255,0.08))" strokeWidth="9" />
                   <circle cx="70" cy="70" r={R} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round"
-                    strokeDasharray={C} strokeDashoffset={off} style={{ transition: "stroke-dashoffset 1.1s cubic-bezier(0.16,1,0.3,1)" }} />
+                    strokeDasharray={C} strokeDashoffset={off} />
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "34px", fontWeight: 700, color, lineHeight: 1 }}>{prob}%</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "34px", fontWeight: 700, color, lineHeight: 1 }}>{animProb}%</span>
                   <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>on track</span>
                 </div>
               </div>
@@ -7741,6 +7757,50 @@ export default function PlanningClient({
               .cmd-body-cols { display: grid !important; grid-template-columns: 3fr 2fr !important; }
             }
           `}</style>
+
+          {/* ── State of your plan: narrative lead (story first, then the numbers) ── */}
+          {(() => {
+            const hasP = profile?.current_age != null;
+            const tone = !hasP || retirementProb == null ? "neutral"
+              : retirementProb >= 75 ? "good" : retirementProb >= 50 ? "warn" : "alert";
+            const dotColor = tone === "good" ? "var(--green)" : tone === "warn" ? "var(--amber)" : tone === "alert" ? "var(--red)" : "var(--text-tertiary)";
+            const ret = profile?.target_retirement_age;
+            const sr = savingsRate;
+            const srPhrase = sr >= 20 ? `a strong ${sr.toFixed(0)}% savings rate` : sr >= 10 ? `a ${sr.toFixed(0)}% savings rate` : sr > 0 ? `a ${sr.toFixed(0)}% savings rate, with room to grow` : "spending close to your income";
+            const readyPhrase = retirementProb == null ? "" : retirementProb >= 80 ? "comfortably on track" : retirementProb >= 60 ? "on track, with a little room to tighten" : retirementProb >= 40 ? "partway there, with a real gap to close" : "early in the journey";
+            return (
+              <div className="cmd-section" style={{ animationDelay: "0ms", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 22px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>State of your plan</span>
+                  {hasP && retirementProb != null && (
+                    <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: dotColor }}>{retirementProb}% on track</span>
+                  )}
+                </div>
+                {!hasP ? (
+                  <p style={{ fontSize: "15px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6, maxWidth: "64ch" }}>
+                    Set up your basics and BuyTune builds your retirement readiness, a lifetime forecast, and a personalized next move, in under a minute.
+                    {" "}<button type="button" onClick={() => setShowWizard(true)} style={{ background: "none", border: "none", padding: 0, color: "var(--brand-blue)", fontFamily: "var(--font-body)", fontSize: "15px", cursor: "pointer", textDecoration: "underline" }}>Start now →</button>
+                  </p>
+                ) : (
+                  <p style={{ fontSize: "15px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.65, maxWidth: "66ch" }}>
+                    {readyPhrase && <>You{"'"}re <strong style={{ color: "var(--text-primary)" }}>{readyPhrase}</strong> for retirement{ret ? ` at ${ret}` : ""}. </>}
+                    Your <strong style={{ color: "var(--text-primary)" }}>{pHide(fmt(netWorth))}</strong> net worth and {srPhrase} set the pace
+                    {drawdown ? (drawdown.success
+                      ? <>, and on this path your money lasts through age <strong style={{ color: "var(--text-primary)" }}>{drawdown.endAge}</strong>.</>
+                      : <>, though your money runs short around age <strong style={{ color: "var(--amber)" }}>{drawdown.depletedAge}</strong> on the current path.</>)
+                      : "."}
+                    {lifePlan.nextAction && <> Your highest-leverage move right now: <strong style={{ color: "var(--text-primary)" }}>{lifePlan.nextAction.title.toLowerCase()}</strong>.</>}
+                  </p>
+                )}
+                {hasP && lifePlan.nextAction && (
+                  <a href={lifePlan.nextAction.href} style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "13px", padding: "7px 13px", borderRadius: "var(--radius-md)", border: "1px solid rgba(37,99,235,0.3)", background: "rgba(37,99,235,0.08)", color: "var(--text-primary)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                    {lifePlan.nextAction.title} →
+                  </a>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── Section 1: KPI Strip ── */}
           <div className="cmd-section" style={{ animationDelay: "0ms" }}>
