@@ -1892,7 +1892,7 @@ function getActivePreset(local: { return_rate: number; inflation_rate: number; s
 
 // ── Onboarding Wizard ─────────────────────────────────────────────────────────
 
-function OnboardingWizard({ onClose }: { onClose: () => void }) {
+function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?: FinancialProfile | null }) {
   const STEPS = ["Profile", "Income", "Expenses", "Assets & Debts", "Ready"];
   const [step, setStep] = useState(0);
   const [profPending, startProfTransition] = useTransition();
@@ -1902,7 +1902,13 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
   const [wizardExpenses, setWizardExpenses] = useState<{ label: string; amount: number; frequency: string }[]>([]);
   const [wizardAssets, setWizardAssets] = useState<{ label: string; value: number; kind: "asset" | "debt" }[]>([]);
   // Essentials captured at step 0 — powers the "here's where you stand" reveal without a refresh.
-  const [wizProfile, setWizProfile] = useState<{ age: number | null; retireAt: number | null; grossMonthly: number; monthlyExpenses: number }>({ age: null, retireAt: null, grossMonthly: 0, monthlyExpenses: 0 });
+  // Prefilled from an existing profile so replaying the setup lands on a real number instantly.
+  const [wizProfile, setWizProfile] = useState<{ age: number | null; retireAt: number | null; grossMonthly: number; monthlyExpenses: number }>({
+    age: profile?.current_age ?? null,
+    retireAt: profile?.target_retirement_age ?? null,
+    grossMonthly: profile?.gross_monthly_income ?? 0,
+    monthlyExpenses: profile?.monthly_expenses ?? 0,
+  });
   const [animProb, setAnimProb] = useState(0); // count-up + ring-draw animation for the reveal
 
   const incomeFormRef = useRef<HTMLFormElement>(null);
@@ -2061,21 +2067,21 @@ function OnboardingWizard({ onClose }: { onClose: () => void }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
-                    <input name="date_of_birth" type="date" required max={new Date().toISOString().split("T")[0]} style={fieldStyle} />
+                    <input name="date_of_birth" type="date" required max={new Date().toISOString().split("T")[0]} defaultValue={profile?.date_of_birth ?? ""} style={fieldStyle} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Retire At</label>
-                    <input name="target_retirement_age" type="number" min="40" max="85" defaultValue="65" placeholder="65" style={fieldStyle} />
+                    <input name="target_retirement_age" type="number" min="40" max="85" defaultValue={profile?.target_retirement_age ?? 65} placeholder="65" style={fieldStyle} />
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Gross Monthly Income</label>
-                    <input name="gross_monthly_income" type="number" min="0" step="100" placeholder="e.g. 8500" style={fieldStyle} />
+                    <input name="gross_monthly_income" type="number" min="0" step="100" placeholder="e.g. 8500" defaultValue={profile?.gross_monthly_income ?? ""} style={fieldStyle} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Expenses</label>
-                    <input name="monthly_expenses" type="number" min="0" step="100" placeholder="e.g. 3500" style={fieldStyle} />
+                    <input name="monthly_expenses" type="number" min="0" step="100" placeholder="e.g. 3500" defaultValue={profile?.monthly_expenses ?? ""} style={fieldStyle} />
                   </div>
                 </div>
                 <div>
@@ -2837,15 +2843,25 @@ function CompareTab({
     }
   }
 
-  function scenarioResult(cfg: ScenarioCfg) {
+  // Each path can include or exclude individual committed life decisions, so you can
+  // literally compare "buy the house" vs "skip it." Default: every event in both paths.
+  const [excludedA, setExcludedA] = useState<Set<string>>(new Set());
+  const [excludedB, setExcludedB] = useState<Set<string>>(new Set());
+  function toggleEvent(which: "a" | "b", id: string) {
+    const setter = which === "a" ? setExcludedA : setExcludedB;
+    setter((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+
+  function scenarioResult(cfg: ScenarioCfg, excluded: Set<string>) {
     const age = currentAge ?? 35;
     const yrs = Math.max(1, cfg.retirementAge - age);
     const expensesForCalc = effectiveExpenses - defaultMonthlySavings + cfg.monthlySavings;
     const incomeForCalc = effectiveIncome + (cfg.monthlySavings - defaultMonthlySavings);
+    const events = excluded.size > 0 ? futureEvents.filter((e) => !excluded.has(e.id)) : futureEvents;
     const bands = buildForecastBands(
       netWorth, incomeForCalc, expensesForCalc, yrs,
       cfg.returnRate / 100, defaultInflation / 100, defaultSalaryGrowth / 100,
-      futureEvents, currentYear,
+      events, currentYear,
     );
     const retPt = bands[bands.length - 1];
     const prob = retPt ? calcRetirementProbability(retPt.baseline, retPt.annualExpenses) : null;
@@ -2854,14 +2870,14 @@ function CompareTab({
     return { bands, retPt, prob, target, yrs, sr };
   }
 
-  const resA = useMemo(() => scenarioResult(cfgA),
+  const resA = useMemo(() => scenarioResult(cfgA, excludedA),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cfgA, currentAge, netWorth, effectiveIncome, effectiveExpenses,
+    [cfgA, excludedA, currentAge, netWorth, effectiveIncome, effectiveExpenses,
      defaultInflation, defaultSalaryGrowth, defaultMonthlySavings, futureEvents, currentYear]);
 
-  const resB = useMemo(() => scenarioResult(cfgB),
+  const resB = useMemo(() => scenarioResult(cfgB, excludedB),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cfgB, currentAge, netWorth, effectiveIncome, effectiveExpenses,
+    [cfgB, excludedB, currentAge, netWorth, effectiveIncome, effectiveExpenses,
      defaultInflation, defaultSalaryGrowth, defaultMonthlySavings, futureEvents, currentYear]);
 
   // Build combined chart — pad shorter series with nulls
@@ -2962,6 +2978,43 @@ function CompareTab({
         <ScenarioPanel cfg={cfgB} setCfg={setCfgB} color={VIOLET} result={resB}
           currentAge={currentAge} effectiveIncome={effectiveIncome} defaultMonthlySavings={defaultMonthlySavings} />
       </div>
+
+      {/* Life decisions in each path — compare "buy the house" vs "skip it" */}
+      {futureEvents.length > 0 && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-subtle)", borderRadius: "12px", padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Life decisions in each path</span>
+            <div style={{ display: "flex", gap: "18px", fontSize: "10px", fontFamily: "var(--font-body)" }}>
+              <span style={{ color: BLUE, fontWeight: 700 }}>{cfgA.label}</span>
+              <span style={{ color: VIOLET, fontWeight: 700 }}>{cfgB.label}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {futureEvents.map((e) => {
+              const inA = !excludedA.has(e.id), inB = !excludedB.has(e.id);
+              const Pill = ({ on, color, onClick }: { on: boolean; color: string; onClick: () => void }) => (
+                <button type="button" onClick={onClick} aria-pressed={on}
+                  style={{ width: "26px", height: "20px", borderRadius: "6px", cursor: "pointer", flexShrink: 0, fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                    border: `1px solid ${on ? color : "var(--border-subtle)"}`, background: on ? `color-mix(in oklch, ${color} 18%, transparent)` : "transparent", color: on ? color : "var(--text-muted)" }}>
+                  {on ? "✓" : ""}
+                </button>
+              );
+              return (
+                <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "6px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {e.label} <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "10px" }}>· {e.event_year} · {e.amount_impact >= 0 ? "+" : ""}{fmt(e.amount_impact)}{e.recurring_annual ? "/yr" : ""}</span>
+                  </span>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <Pill on={inA} color={BLUE} onClick={() => toggleEvent("a", e.id)} />
+                    <Pill on={inB} color={VIOLET} onClick={() => toggleEvent("b", e.id)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "8px 0 0", lineHeight: 1.5 }}>Toggle a decision off in one path to see the difference it makes — e.g. include the home purchase in A, leave it out of B.</p>
+        </div>
+      )}
 
       {/* Plain-English verdict — which path wins and what it costs */}
       {(() => {
@@ -7783,7 +7836,7 @@ export default function PlanningClient({
   return (
     <div className="bt-mobile-nav-pad" style={{ padding: "24px", maxWidth: "900px" }}>
 
-      {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
+      {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} profile={profile} />}
 
       <PageIntro
         pageKey="planning"
@@ -7897,9 +7950,18 @@ export default function PlanningClient({
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
                   <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>State of your plan</span>
-                  {hasP && retirementProb != null && (
-                    <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: dotColor }}>{retirementProb}% on track</span>
-                  )}
+                  <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "12px" }}>
+                    {hasP && retirementProb != null && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: dotColor }}>{retirementProb}% on track</span>
+                    )}
+                    {hasP && (
+                      <button type="button" onClick={() => setShowWizard(true)} title="Replay the guided setup and see where you stand"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "none", border: "none", padding: 0, color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M13.5 8a5.5 5.5 0 11-1.6-3.9M13.5 2v3h-3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Replay
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {!hasP ? (
                   <p style={{ fontSize: "15px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6, maxWidth: "64ch" }}>
