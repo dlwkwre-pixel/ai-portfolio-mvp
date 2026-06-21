@@ -6131,6 +6131,9 @@ export default function PlanningClient({
   // profile exists — new users still see the full setup path).
   const [overviewExpanded, setOverviewExpanded] = useState(false);
   const overviewAdvanced = !guided || !hasPlanProfile || overviewExpanded;
+  // Guided shows a curated subset of the 18 planners (the universal ones); the rest are
+  // hidden via CSS behind "Show all" so the hub isn't an 18-card wall on first look.
+  const [hubExpanded, setHubExpanded] = useState(false);
 
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
@@ -10029,11 +10032,12 @@ export default function PlanningClient({
             <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Life Decisions</span>
           </div>
 
-          {/* 4 Planner Cards */}
+          {/* Planner Cards */}
           <div className="hub-section" style={{ animationDelay: "0.1s" }}>
-            <div className="hub-decisions-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+            <style>{`.hub-decisions-grid.hub-collapsed .hub-card:not(.hub-primary){display:none}`}</style>
+            <div className={`hub-decisions-grid${guided && !hubExpanded ? " hub-collapsed" : ""}`} style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
 
-              <Link href="/planning/home" className="hub-card hub-card-home" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/home" className="hub-card hub-primary hub-card-home" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.65 0.14 200) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.65 0.14 200)", flexShrink: 0 }}>
@@ -10067,7 +10071,7 @@ export default function PlanningClient({
                 </div>
               </Link>
 
-              <Link href="/planning/family" className="hub-card hub-card-family" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/family" className="hub-card hub-primary hub-card-family" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.15 340) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.15 340)", flexShrink: 0 }}>
@@ -10094,7 +10098,7 @@ export default function PlanningClient({
                 </div>
               </Link>
 
-              <Link href="/planning/career" className="hub-card hub-card-career" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/career" className="hub-card hub-primary hub-card-career" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.75 0.16 55) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.75 0.16 55)", flexShrink: 0 }}>
@@ -10355,7 +10359,7 @@ export default function PlanningClient({
               </Link>
 
               {/* Insurance / Protection */}
-              <Link href="/planning/insurance" className="hub-card hub-card-insurance" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/insurance" className="hub-card hub-primary hub-card-insurance" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.70 0.14 165) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.70 0.14 165)", flexShrink: 0 }}>
@@ -10372,7 +10376,7 @@ export default function PlanningClient({
               </Link>
 
               {/* Emergency Fund */}
-              <Link href="/planning/emergency-fund" className="hub-card hub-card-ef" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/emergency-fund" className="hub-card hub-primary hub-card-ef" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.78 0.16 70) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.78 0.16 70)", flexShrink: 0 }}>
@@ -10389,7 +10393,7 @@ export default function PlanningClient({
               </Link>
 
               {/* Savings Goal */}
-              <Link href="/planning/savings-goal" className="hub-card hub-card-goal" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
+              <Link href="/planning/savings-goal" className="hub-card hub-primary hub-card-goal" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.65 0.18 260) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.65 0.18 260)", flexShrink: 0 }}>
@@ -10474,6 +10478,13 @@ export default function PlanningClient({
               </Link>
 
             </div>
+            {guided && (
+              <button type="button" onClick={() => setHubExpanded((v) => !v)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", marginTop: "10px", padding: "10px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+                {hubExpanded ? "Show fewer planners" : "Show all 18 planners"}
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d={hubExpanded ? "M4 10l4-4 4 4" : "M4 6l4 4 4-4"} strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            )}
           </div>
 
           {/* Decision Impact Ranking */}
