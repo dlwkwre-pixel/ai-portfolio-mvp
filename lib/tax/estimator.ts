@@ -547,6 +547,13 @@ export function retirementFederalTax(p: {
   };
 }
 
+// State income tax on a retirement taxable base (ordinary income + realized gains).
+// Most states exempt Social Security, so SS is excluded by the caller. Uses the same
+// flat/graduated state tables as wage income — a reasonable planning approximation.
+export function retirementStateTax(taxableIncome: number, stateCode: string, filing: FilingStatus): number {
+  return computeStateTax(Math.max(0, taxableIncome), stateCode, filing);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export const FILING_STATUS_LABELS: Record<FilingStatus, string> = {

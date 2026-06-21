@@ -36,7 +36,7 @@ import Link from "next/link";
 import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
-import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax } from "@/lib/tax/estimator";
+import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax, retirementStateTax } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -376,7 +376,9 @@ type DrawdownParams = {
   socialSecurityAnnualToday: number;  // today's dollars
   claimAge: number;
   filing: FilingStatus;
-  taxableGainsFraction?: number;      // share of a taxable-account withdrawal that is realized gains
+  stateCode?: string;                 // for state income tax on retirement income
+  startTaxableBasis?: number;         // cost basis of the taxable bucket at retirement (for real cap-gains)
+  taxableGainsFraction?: number;      // fallback embedded-gains fraction if no basis provided
   // Roth conversions (convert tax-deferred → Roth in low-income years to fill a bracket)
   rothConversions?: boolean;
   conversionFillToTaxable?: number;   // target ordinary TAXABLE income to fill via conversions
@@ -396,13 +398,15 @@ function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => numbe
   if (p.retirementAge >= endAge) return null;
   if (p.annualExpensesAtRetirement <= 0) return null;
 
-  const gainsFrac = p.taxableGainsFraction ?? 0.5;
   const convUntil = p.conversionUntilAge ?? 73;
   const hcInflation = p.healthcareInflation ?? 0.05;
 
   let taxable = Math.max(0, p.startTaxable);
   let taxDeferred = Math.max(0, p.startTaxDeferred);
   let taxFree = Math.max(0, p.startTaxFree);
+  // Cost basis of the taxable bucket — only the gains portion of a withdrawal is taxed.
+  // Defaults to the provided basis, else assumes a moderate embedded-gains fraction.
+  let taxableBasis = Math.min(taxable, Math.max(0, p.startTaxableBasis ?? taxable * (1 - (p.taxableGainsFraction ?? 0.35))));
   const startTotal = taxable + taxDeferred + taxFree;
   if (startTotal <= 0) return null;
 
@@ -440,14 +444,19 @@ function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => numbe
     }
 
     // 3) Solve the year: withdraw (taxable → deferred → Roth) enough to cover expenses + taxes.
-    //    Taxes depend on income composition, so iterate to a fixed point.
+    //    Taxes depend on income composition (incl. real cap gains + state tax), so iterate.
+    //    The taxable bucket's gains fraction at this moment drives its capital gains.
+    const gainsFracNow = taxable > 0 ? Math.max(0, Math.min(1, (taxable - taxableBasis) / taxable)) : 0;
     let wdTaxable = 0, wdDeferred = 0, wdRoth = 0;
     let depletedThisYear = false;
     let finalTax = 0;
     for (let iter = 0; iter < 12; iter++) {
       const ordinaryIncome = rmd + conversion + wdDeferred;
-      const capitalGains = wdTaxable * gainsFrac;
-      finalTax = retirementFederalTax({ ordinaryIncome, capitalGains, socialSecurity: ss, filing: p.filing }).totalTax;
+      const capitalGains = wdTaxable * gainsFracNow;
+      const fed = retirementFederalTax({ ordinaryIncome, capitalGains, socialSecurity: ss, filing: p.filing }).totalTax;
+      // State tax on retirement income (ordinary + gains; SS excluded, as most states do).
+      const st = p.stateCode ? retirementStateTax(ordinaryIncome + capitalGains, p.stateCode, p.filing) : 0;
+      finalTax = fed + st;
       const cashIn = ss + rmd + wdTaxable + wdDeferred + wdRoth;
       const gap = expenses + finalTax - cashIn;
       if (gap <= 0.5) break;
@@ -458,18 +467,21 @@ function drawdownCore(p: DrawdownParams, getReturn: (yearIndex: number) => numbe
       if (need > 0.5) { depletedThisYear = true; break; }
     }
 
+    // Apply withdrawals. The taxable withdrawal draws down basis pro-rata with gains.
+    if (wdTaxable > 0) { taxableBasis -= wdTaxable * (1 - gainsFracNow); }
     taxable -= wdTaxable; taxDeferred -= wdDeferred; taxFree -= wdRoth;
     const cashIn = ss + rmd + wdTaxable + wdDeferred + wdRoth;
     const shortfall = depletedThisYear ? Math.max(0, expenses + finalTax - cashIn) : 0;
     if (shortfall > 0.5 && depletedAge == null) depletedAge = age;
-    // Forced RMD (or any) surplus after covering spending + tax is reinvested into taxable.
+    // Forced RMD (or any) surplus after covering spending + tax is reinvested into taxable (all basis).
     const surplus = cashIn - finalTax - expenses;
-    if (surplus > 0.5) taxable += surplus;
+    if (surplus > 0.5) { taxable += surplus; taxableBasis += surplus; }
     totalTaxes += finalTax;
 
-    // 4) Grow remaining balances for the year
+    // 4) Grow remaining balances for the year (growth adds gains, not basis)
     const r = getReturn(yIdx);
     taxable = Math.max(0, taxable) * (1 + r);
+    taxableBasis = Math.max(0, Math.min(taxableBasis, taxable));
     taxDeferred = Math.max(0, taxDeferred) * (1 + r);
     taxFree = Math.max(0, taxFree) * (1 + r);
     const total = taxable + taxDeferred + taxFree;
@@ -500,6 +512,10 @@ const STD_DEDUCTION_BY_FILING: Record<FilingStatus, number> = {
 // in low-income early-retirement years (stay in the 10–12% bracket, avoid the 22% jump).
 const TWELVE_PCT_BRACKET_TOP: Record<FilingStatus, number> = {
   single: 48_475, married_filing_jointly: 96_950, head_of_household: 64_850, married_filing_separately: 48_475,
+};
+// Top of the 22% bracket — a more aggressive conversion ceiling.
+const TWENTY_TWO_PCT_BRACKET_TOP: Record<FilingStatus, number> = {
+  single: 103_350, married_filing_jointly: 206_700, head_of_household: 103_350, married_filing_separately: 103_350,
 };
 
 // Deterministic drawdown (constant return).
@@ -5881,6 +5897,7 @@ export default function PlanningClient({
   const [whatIfScenario, setWhatIfScenario] = useState<"home" | "child" | "career" | null>(null);
   // Drawdown options (Forecast tab → Retirement Drawdown card)
   const [modelRothConversions, setModelRothConversions] = useState(false);
+  const [conversionBracket, setConversionBracket] = useState<"12" | "22">("12"); // bracket to fill with conversions
   const [healthcareAnnual, setHealthcareAnnual] = useState(0);  // today's $/yr, on top of base expenses
   const [modelLtc, setModelLtc] = useState(false);              // preset: $100k/yr × 3yrs at age 83
   const [drawdownMcOn, setDrawdownMcOn] = useState(false);      // run Monte Carlo on the drawdown
@@ -6066,25 +6083,31 @@ export default function PlanningClient({
     const r = localAssumptions.return_rate / 100;
     const inflation = localAssumptions.inflation_rate / 100;
     const yearsToRet = Math.max(0, rAge - cAge);
-    const annualSavings = monthlySavings * 12;
 
-    // Grow the investable portfolio to the retirement year (annual compounding +
-    // contributions); already-retired starts from today's balance.
-    let invAtRet = investNow;
-    for (let y = 0; y < yearsToRet; y++) invAtRet = invAtRet * (1 + r) + annualSavings;
-    invAtRet = Math.max(0, invAtRet);
-
-    // Hold today's tax-bucket mix forward to split the projected portfolio (v1 approx).
-    const t = taxBucketsNow;
-    const fracTaxable = t.total > 0 ? t.taxable / t.total : 1;
-    const fracDeferred = t.total > 0 ? t.tax_deferred / t.total : 0;
-    const fracFree = t.total > 0 ? t.tax_free / t.total : 0;
+    // Per-bucket accumulation to retirement. After-tax savings flow into the taxable
+    // bucket (as basis); pre-tax deductions (401k/IRA/HSA) flow into tax-deferred — this
+    // captures contributions the old "hold today's mix forward" model ignored, and lets
+    // the retirement mix differ from today's. Already-retired starts from today's balances.
+    const afterTaxSavings = Math.max(0, monthlySavings * 12);
+    const preTaxAnnual = Math.max(0, profile?.pre_tax_deductions_annual ?? 0);
+    let bTaxable = Math.max(0, taxBucketsNow.taxable);
+    let bDeferred = Math.max(0, taxBucketsNow.tax_deferred);
+    let bFree = Math.max(0, taxBucketsNow.tax_free);
+    let basisTaxable = bTaxable * 0.7; // assume ~30% embedded gains in today's taxable holdings
+    for (let y = 0; y < yearsToRet; y++) {
+      bDeferred = bDeferred * (1 + r) + preTaxAnnual;
+      bTaxable = bTaxable * (1 + r) + afterTaxSavings;
+      basisTaxable += afterTaxSavings; // contributions add to basis (only growth is gains)
+      bFree = bFree * (1 + r);
+    }
     const filing = (profile?.filing_status as FilingStatus) || "single";
+    const conversionTop = (conversionBracket === "22" ? TWENTY_TWO_PCT_BRACKET_TOP : TWELVE_PCT_BRACKET_TOP)[filing];
 
     return {
-      startTaxable: invAtRet * fracTaxable,
-      startTaxDeferred: invAtRet * fracDeferred,
-      startTaxFree: invAtRet * fracFree,
+      startTaxable: bTaxable,
+      startTaxDeferred: bDeferred,
+      startTaxFree: bFree,
+      startTaxableBasis: basisTaxable,
       currentAge: cAge,
       retirementAge: rAge,
       endAge: DRAWDOWN_END_AGE,
@@ -6094,17 +6117,19 @@ export default function PlanningClient({
       socialSecurityAnnualToday: annualRetirementIncome,
       claimAge: localAssumptions.social_security_claim_age || 67,
       filing,
+      stateCode: profile?.state_code || undefined,
       rothConversions: modelRothConversions,
-      conversionFillToTaxable: TWELVE_PCT_BRACKET_TOP[filing],
+      conversionFillToTaxable: conversionTop,
       annualHealthcareToday: Math.max(0, healthcareAnnual),
       ltcAnnualToday: modelLtc ? 100_000 : 0,
       ltcStartAge: 83,
       ltcYears: 3,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.current_age, profile?.filing_status, activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
+  }, [profile?.current_age, profile?.filing_status, profile?.state_code, profile?.pre_tax_deductions_annual,
+      activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
       localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.social_security_claim_age,
-      monthlySavings, annualRetirementIncome, modelRothConversions, healthcareAnnual, modelLtc]);
+      monthlySavings, annualRetirementIncome, modelRothConversions, conversionBracket, healthcareAnnual, modelLtc]);
 
   const drawdown = useMemo<DrawdownResult | null>(
     () => (drawdownParams ? simulateRetirementDrawdown(drawdownParams) : null), [drawdownParams]);
@@ -9091,7 +9116,7 @@ export default function PlanningClient({
               <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
                   <span style={sectionHeadStyle}>Retirement Drawdown</span>
-                  <InfoTooltip text={`Simulates the spending phase from age ${retAge} to ${drawdown.endAge}. Each year, Social Security covers what it can, required minimum distributions are pulled from tax-deferred accounts at 73+, and the rest is withdrawn tax-smart: taxable, then tax-deferred, then Roth. Taxes use real 2025 federal brackets, with the taxable share of Social Security and long-term capital-gains rates computed properly (state tax not modeled). It holds today's account mix forward — an estimate, not advice.`} />
+                  <InfoTooltip text={`Simulates the spending phase from age ${retAge} to ${drawdown.endAge}. Each year, Social Security covers what it can, required minimum distributions are pulled from tax-deferred accounts at 73+, and the rest is withdrawn tax-smart: taxable, then tax-deferred, then Roth. Taxes use real 2025 federal brackets, the taxable share of Social Security, long-term capital gains tracked against your cost basis${drawdownParams?.stateCode ? `, and ${drawdownParams.stateCode} state income tax` : " (set your state in the profile to include state tax)"}. Contributions grow per account type to retirement. An estimate, not advice.`} />
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
                   <span style={{ fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, color: statusColor }}>{headline}</span>
@@ -9153,6 +9178,22 @@ export default function PlanningClient({
                       value={healthcareAnnual || ""} onChange={(e) => setHealthcareAnnual(Math.max(0, Number(e.target.value) || 0))}
                       style={{ width: "92px", padding: "5px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)", background: "var(--input-bg, var(--bg-elevated))", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px" }} />
                   </label>
+                  {/* Conversion bracket target — only relevant when conversions are on */}
+                  {modelRothConversions && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                      Fill to
+                      <span style={{ display: "inline-flex", gap: "2px", background: "var(--bg-elevated)", borderRadius: "16px", padding: "2px" }}>
+                        {(["12", "22"] as const).map((b) => (
+                          <button key={b} type="button" onClick={() => setConversionBracket(b)}
+                            style={{ padding: "3px 9px", borderRadius: "14px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: conversionBracket === b ? 700 : 400, cursor: "pointer", border: "none",
+                              background: conversionBracket === b ? "var(--violet)" : "transparent", color: conversionBracket === b ? "#fff" : "var(--text-secondary)" }}>
+                            {b}%
+                          </button>
+                        ))}
+                      </span>
+                      <span style={{ color: "var(--text-muted)" }}>bracket</span>
+                    </span>
+                  )}
                 </div>
                 {(healthcareAnnual > 0 || modelLtc) && (
                   <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
