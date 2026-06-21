@@ -911,7 +911,7 @@ export default function OnboardingModal({
                     }
                   `}</style>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", padding: "9px 12px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
-                    <div style={{ width: "22px", height: "22px", flexShrink: 0, background: "linear-gradient(135deg, #6d28d9, #8b5cf6)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#fff" }}>F</div>
+                    <div style={{ width: "22px", height: "22px", flexShrink: 0, background: "linear-gradient(135deg, #6d28d9, #8b5cf6)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#fff" }}>A</div>
                     <div>
                       <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentBright }}>Atlas Strategy Builder</div>
                       <div style={{ fontSize: "10px", color: "rgba(167,139,250,0.55)" }}>Personalized strategy through conversation — 5 to 7 exchanges</div>
@@ -1098,7 +1098,7 @@ export default function OnboardingModal({
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "10px", fontWeight: 700, color: "#fff",
                     letterSpacing: "-0.3px",
-                  }}>F</div>
+                  }}>A</div>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(167,139,250,1)", letterSpacing: "-0.1px" }}>
                     Atlas Strategy Intelligence
                   </span>

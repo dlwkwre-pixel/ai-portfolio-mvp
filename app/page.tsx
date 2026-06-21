@@ -619,7 +619,7 @@ export default function LandingPage() {
                   background: "linear-gradient(135deg, #2563eb, #7c3aed)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>F</span>
+                  <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>A</span>
                 </div>
                 <p style={{ fontSize: "12px", color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>{a}</p>
               </div>

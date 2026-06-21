@@ -6157,6 +6157,17 @@ type Props = {
 type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "estate" | "finn";
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
+// Contextual "thinking" states for the Ask Atlas chat — premium, calm, analytical
+// (not a generic spinner). Cycles while Atlas is composing a reply.
+const ATLAS_THINKING = [
+  "Reading your balance sheet…",
+  "Reviewing your forecast…",
+  "Checking your savings rate…",
+  "Weighing your retirement timeline…",
+  "Scanning your tax buckets…",
+  "Pressure-testing your plan…",
+];
+
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
@@ -6265,6 +6276,18 @@ export default function PlanningClient({
   const finnChatInitialized = useRef(false);
   const finnChatScrollRef = useRef<HTMLDivElement>(null);
   const finnChatAnimationRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Cycling "thinking" state while Atlas composes a reply.
+  const [atlasThinkingIdx, setAtlasThinkingIdx] = useState(0);
+  const atlasThinkingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (finnChatLoading) {
+      setAtlasThinkingIdx(0);
+      atlasThinkingRef.current = setInterval(() => setAtlasThinkingIdx((p) => (p + 1) % ATLAS_THINKING.length), 1600);
+    } else if (atlasThinkingRef.current) {
+      clearInterval(atlasThinkingRef.current); atlasThinkingRef.current = null;
+    }
+    return () => { if (atlasThinkingRef.current) clearInterval(atlasThinkingRef.current); };
+  }, [finnChatLoading]);
 
   // Forecast scenarios
   const [scenarioRetirementAge, setScenarioRetirementAge] = useState<number | null>(
@@ -10947,7 +10970,7 @@ export default function PlanningClient({
               background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>F</span>
+              <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>A</span>
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "14px", color: "var(--text-primary)" }}>Atlas</div>
@@ -10967,32 +10990,6 @@ export default function PlanningClient({
               minHeight: 0,
             }}
           >
-            {/* Initial loading dots */}
-            {finnChatLoading && finnChatMessages.length === 0 && (
-              <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
-                <div style={{
-                  width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
-                  background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
-                </div>
-                <div style={{
-                  padding: "12px 16px", borderRadius: "14px 14px 14px 2px",
-                  background: "var(--violet-bg)", border: "1px solid var(--violet-border)",
-                  display: "flex", gap: "5px", alignItems: "center",
-                }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{
-                      width: "7px", height: "7px", borderRadius: "50%",
-                      background: "var(--violet)", opacity: 0.8,
-                      animation: `finnBounce 1.2s ${i * 0.2}s ease-in-out infinite`,
-                    }} />
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Rendered messages */}
             {finnChatMessages.map((msg, idx) => {
               const isFinn = msg.role === "finn";
@@ -11011,7 +11008,7 @@ export default function PlanningClient({
                       background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
+                      <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>A</span>
                     </div>
                   )}
                   <div style={{
@@ -11037,28 +11034,33 @@ export default function PlanningClient({
               );
             })}
 
-            {/* Loading dots while awaiting a follow-up response */}
-            {finnChatLoading && finnChatMessages.length > 0 && (
+            {/* Atlas thinking — contextual states + a soft glowing orb (premium identity) */}
+            {finnChatLoading && (
               <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
-                <div style={{
+                <div className="atlas-thinking-orb" style={{
                   width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
                   background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>F</span>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>A</span>
                 </div>
                 <div style={{
-                  padding: "12px 16px", borderRadius: "14px 14px 14px 2px",
+                  padding: "11px 15px", borderRadius: "14px 14px 14px 2px",
                   background: "var(--violet-bg)", border: "1px solid var(--violet-border)",
-                  display: "flex", gap: "5px", alignItems: "center",
+                  display: "flex", gap: "10px", alignItems: "center",
                 }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{
-                      width: "7px", height: "7px", borderRadius: "50%",
-                      background: "var(--violet)", opacity: 0.8,
-                      animation: `finnBounce 1.2s ${i * 0.2}s ease-in-out infinite`,
-                    }} />
-                  ))}
+                  <span key={atlasThinkingIdx} style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", animation: "atlasFade 0.4s ease both" }}>
+                    {ATLAS_THINKING[atlasThinkingIdx]}
+                  </span>
+                  <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} style={{
+                        width: "5px", height: "5px", borderRadius: "50%",
+                        background: "var(--violet)", opacity: 0.8,
+                        animation: `finnBounce 1.2s ${i * 0.2}s ease-in-out infinite`,
+                      }} />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -11179,6 +11181,12 @@ export default function PlanningClient({
               0%, 100% { opacity: 1; }
               50% { opacity: 0; }
             }
+            @keyframes atlasGlow {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+              50% { box-shadow: 0 0 0 5px rgba(124,58,237,0.18); }
+            }
+            .atlas-thinking-orb { animation: atlasGlow 1.8s ease-in-out infinite; }
+            @keyframes atlasFade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
           `}</style>
           </div>{/* end inner chat div */}
         </div>
