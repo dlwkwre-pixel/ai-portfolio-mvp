@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
 import AddToPlanButton from "@/app/planning/add-to-plan-button";
+import AtlasThinking from "@/app/planning/atlas-thinking";
 import type { CareerScenario } from "./career-actions";
 import { saveCareerScenario, deleteCareerScenario, addCareerChangeToForecast } from "./career-actions";
 import type { FinancialProfile } from "@/app/planning/planning-actions";
@@ -1222,6 +1223,10 @@ export default function CareerClient({
                 <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", marginBottom: "6px" }}>Deep AI Analysis</p>
                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{finnCommentary}</p>
                 <button type="button" onClick={() => setFinnCommentary(null)} style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)" }}>Refresh</button>
+              </div>
+            ) : finnLoading ? (
+              <div style={{ marginTop: "10px" }}>
+                <AtlasThinking messages={["Weighing the income change…", "Modeling the transition gap…", "Projecting long-term earnings…", "Checking the break-even point…"]} />
               </div>
             ) : (
               <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.2 290 / 0.15)" : "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(124,58,237,0.35)" }}>

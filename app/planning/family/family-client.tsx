@@ -8,6 +8,7 @@ import {
 import { saveFamilyScenario, deleteFamilyScenario, addFamilyToForecast } from "./family-actions";
 import type { FamilyScenario } from "./family-actions";
 import type { FinancialProfile, ProfileKid } from "@/app/planning/planning-actions";
+import AtlasThinking from "@/app/planning/atlas-thinking";
 import type { FamilyFinnRequest } from "@/app/api/planning/family-finn/route";
 import { estimateTax } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
@@ -1417,6 +1418,8 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
+              ) : loadingCommentary ? (
+                <AtlasThinking messages={["Modeling child-cost timing…", "Weighing the retirement impact…", "Finding the optimal delay…", "Pressure-testing your plan…"]} />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 14, padding: "16px 8px", textAlign: "center" }}>
                   <div style={{ fontSize: 28, animation: "bt-orb-pulse 3s ease-in-out infinite" }}>🤖</div>

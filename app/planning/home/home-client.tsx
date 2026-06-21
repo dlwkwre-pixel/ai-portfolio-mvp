@@ -8,6 +8,7 @@ import type { HomeScenario, HomeOwnerProfile } from "./home-actions";
 import { saveHomeScenario, deleteHomeScenario, saveHomeOwnerProfile } from "./home-actions";
 import type { FinancialProfile, FutureEvent } from "@/app/planning/planning-actions";
 import { addFutureEvent, deleteFutureEvent } from "@/app/planning/planning-actions";
+import AtlasThinking from "@/app/planning/atlas-thinking";
 import type { HomeFinnRequest } from "@/app/api/planning/home-finn/route";
 import { estimateTax } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
@@ -5480,6 +5481,8 @@ export default function HomeClient({
                       Refresh AI Analysis
                     </button>
                   </>
+                ) : finnLoading ? (
+                  <AtlasThinking messages={["Modeling the purchase…", "Comparing buy vs rent…", "Weighing the down-payment hit…", "Projecting the retirement impact…"]} />
                 ) : (
                   <button
                     type="button"

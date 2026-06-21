@@ -8,6 +8,7 @@ import {
 import { saveEducationScenario, deleteEducationScenario, addEducationToForecast } from "./education-actions";
 import type { EducationScenario } from "./education-actions";
 import type { FinancialProfile, ProfileKid } from "@/app/planning/planning-actions";
+import AtlasThinking from "@/app/planning/atlas-thinking";
 import type { EducationFinnRequest } from "@/app/api/planning/education-finn/route";
 import { estimateTax } from "@/lib/tax/estimator";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
@@ -1402,6 +1403,8 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "edu-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
+              ) : loadingCommentary ? (
+                <AtlasThinking messages={["Modeling tuition inflation…", "Weighing 529 vs Roth…", "Checking financial-aid impact…", "Optimizing the funding timeline…"]} />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>Get personalized AI guidance on 529 strategy, tax advantages, investment allocation, and optimal funding timeline.</p>
