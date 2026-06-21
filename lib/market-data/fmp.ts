@@ -50,3 +50,29 @@ export async function getFmpQuotes(tickers: string[]): Promise<Map<string, FmpQu
     return new Map();
   }
 }
+
+export type FmpMover = { symbol: string; name: string; price: number; change: number; changesPercentage: number };
+
+// Real market-wide movers from FMP's free gainers/losers/actives endpoints.
+// Returns [] gracefully (no key / failure / non-free tier) so callers can fall back.
+export async function getFmpMovers(kind: "gainers" | "losers" | "actives"): Promise<FmpMover[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return [];
+  try {
+    const res = await fetch(`${FMP_BASE}/stock_market/${kind}?apikey=${key}`, { next: { revalidate: 120 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter((r) => r?.symbol && typeof r.price === "number" && r.price > 0)
+      .map((r) => ({
+        symbol: String(r.symbol).toUpperCase(),
+        name: r.name ?? r.symbol,
+        price: r.price,
+        change: r.change ?? 0,
+        changesPercentage: typeof r.changesPercentage === "number" ? r.changesPercentage : Number(String(r.changesPercentage ?? "0").replace(/[%()]/g, "")) || 0,
+      }));
+  } catch {
+    return [];
+  }
+}

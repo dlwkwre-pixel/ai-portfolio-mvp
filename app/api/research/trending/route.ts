@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
 
-const MIN_HOLDERS = 2;
+// Rank purely by how many BuyTune users hold each ticker (no minimum floor) — with a
+// small user base, "most held" is more useful than hiding everything below a threshold.
+const MIN_HOLDERS = 1;
 const MAX_POPULAR = 8;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
+import { getFmpMovers } from "@/lib/market-data/fmp";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CURATED_SECTIONS = [
@@ -107,11 +108,23 @@ export async function GET(req: Request) {
     analystRec: analystRecs[ticker] ?? null,
   }));
 
-  // Daily Top Movers: top 5 by absolute % change across all curated tickers
+  // Daily Top Movers: the market's REAL biggest gainers + losers (FMP, free tier).
+  // Falls back to the curated universe sorted by |change| if FMP is unavailable.
+  const [fmpGainers, fmpLosers] = await Promise.all([
+    getFmpMovers("gainers").catch(() => []),
+    getFmpMovers("losers").catch(() => []),
+  ]);
+  const realMovers = [...fmpGainers.slice(0, 4), ...fmpLosers.slice(0, 2)]
+    .map((m) => ({ ticker: m.symbol, name: m.name, price: m.price, change: m.change, changePct: m.changesPercentage, analystRec: null }))
+    .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
+    .slice(0, 6);
+
   const withQuote = enriched.filter((t) => t.price !== undefined && (t as { changePct?: number }).changePct !== undefined);
-  const dailyMovers = [...withQuote]
-    .sort((a, b) => Math.abs((b as { changePct?: number }).changePct ?? 0) - Math.abs((a as { changePct?: number }).changePct ?? 0))
-    .slice(0, 5);
+  const dailyMovers = realMovers.length > 0
+    ? realMovers
+    : [...withQuote]
+        .sort((a, b) => Math.abs((b as { changePct?: number }).changePct ?? 0) - Math.abs((a as { changePct?: number }).changePct ?? 0))
+        .slice(0, 5);
 
   // Build curated sections sorted by changePct desc within each
   const curatedSections = CURATED_SECTIONS.map((section) => ({

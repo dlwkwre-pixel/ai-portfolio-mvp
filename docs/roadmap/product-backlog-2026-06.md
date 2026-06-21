@@ -19,6 +19,12 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
    has the guided first-run wizard + density modes; reuse that pattern. Need a generic
    "page tutorial" system (first-visit detection via localStorage/profile + a Learn-tab launcher).
 
+4b. **Congressional trades ("Unusual Whales"-style) — FREE path** (fold into #4).
+   Unusual Whales itself is paid (don't need it). Public STOCK Act disclosures are free via:
+   FMP Senate/House endpoints (already have FMP, free tier 250/day) OR House/Senate Stock
+   Watcher datasets (free JSON, no key). Add a "Congress is trading" list on research + a
+   per-ticker "traded by Congress" signal. Verified 2026-06-21.
+
 4. **Research-page list automation + most-popular ranking** 🟠.
    Top movers / most popular currently manual or thresholded. Automate top-movers (needs a
    market-movers data source — check Finnhub/FMP). Most-popular: rank by # of BuyTune owners
