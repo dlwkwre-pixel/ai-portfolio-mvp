@@ -6113,6 +6113,25 @@ export default function PlanningClient({
     });
   }
   function pHide(value: string): string { return isPrivate ? "••••••" : value; }
+
+  // Density mode — "guided" (calm, big-picture, depth on demand) vs "pro" (everything open).
+  // New users start guided so the hub isn't overwhelming; the choice is remembered.
+  const [density, setDensityRaw] = useState<"guided" | "pro">("guided");
+  useEffect(() => {
+    try { const d = localStorage.getItem("bt-planning-density"); if (d === "pro" || d === "guided") setDensityRaw(d); } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function setDensity(d: "guided" | "pro") {
+    setDensityRaw(d);
+    try { localStorage.setItem("bt-planning-density", d); } catch {}
+  }
+  const guided = density === "guided";
+  const hasPlanProfile = profile?.current_age != null;
+  // Guided collapses the dense lower half of Overview behind one expander (only when a
+  // profile exists — new users still see the full setup path).
+  const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const overviewAdvanced = !guided || !hasPlanProfile || overviewExpanded;
+
   const [profilePending, startProfileTransition] = useTransition();
   const [editingProfile, setEditingProfile] = useState(!profile);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
@@ -7885,6 +7904,28 @@ export default function PlanningClient({
         isPrivate={isPrivate}
       />
 
+      {/* Density mode — calm "Guided" vs full-detail "Pro", swappable on every tab */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", margin: "4px 0 12px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "inline-flex", background: "var(--bg-elevated)", borderRadius: "999px", padding: "3px", border: "1px solid var(--border-subtle)" }}>
+            {([
+              ["guided", "Guided", <path key="g" d="M3 6.5h14M5 10h10M7 13.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />],
+              ["pro", "Pro", <path key="p" d="M4 4h5v5H4zM11 4h5v5h-5zM4 11h5v5H4zM11 11h5v5h-5z" stroke="currentColor" strokeWidth="1.4" fill="none" />],
+            ] as const).map(([key, label, icon]) => (
+              <button key={key} type="button" onClick={() => setDensity(key)} aria-pressed={density === key}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 13px", borderRadius: "999px", border: "none", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: density === key ? 700 : 500,
+                  background: density === key ? "var(--brand-blue)" : "transparent", color: density === key ? "#fff" : "var(--text-secondary)", transition: "background 0.15s, color 0.15s" }}>
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">{icon}</svg>{label}
+              </button>
+            ))}
+          </div>
+          <InfoTooltip text="Guided shows the big picture and your single next move, with the detail one tap away. Pro opens every number, table, and control. Switch anytime — your choice is remembered." />
+        </div>
+        <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+          {guided ? "Big-picture view — tap any section to see the detail." : "Full detail — every number and control is open."}
+        </span>
+      </div>
+
       {/* Tabs */}
       <div style={{ position: "relative", marginBottom: "20px" }}>
         <div className="planning-tabs-bar" style={{ display: "flex", gap: "2px", borderBottom: "1px solid var(--border-subtle)" }}>
@@ -8075,6 +8116,14 @@ export default function PlanningClient({
           </div>
 
           {/* ── Profile Settings ── */}
+          {guided && hasPlanProfile && !overviewExpanded && (
+            <button type="button" onClick={() => setOverviewExpanded(true)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              Show full breakdown
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          {overviewAdvanced && (<>
           <div id="profile-settings" className="cmd-section" style={{ animationDelay: "20ms" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
               <div>
@@ -8894,6 +8943,14 @@ export default function PlanningClient({
               </div>
             );
           })()}
+          {guided && overviewExpanded && (
+            <button type="button" onClick={() => setOverviewExpanded(false)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              Show less
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+          </>)}
 
           {/* ── Profile Settings (moved to top, above Biggest Opportunity) — placeholder removed from bottom ── */}
 
