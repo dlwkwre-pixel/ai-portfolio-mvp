@@ -33,10 +33,27 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
    market-movers data source — check Finnhub/FMP). Most-popular: rank by # of BuyTune owners
    (drop the ">2 owners" floor, just sort by holder count).
 
-5. **Non-tradeable / advisor funds** 🟡 research+design then build.
-   Let users hold funds not on public exchanges (no Finnhub quote). How to value/track:
-   manual NAV entry + periodic update, or a NAV data source (Morningstar/other). Needs an
-   asset-type that bypasses the quote pipeline and uses a user-entered/looked-up price.
+5. **Non-tradeable / advisor funds** 🟡 — RESEARCHED 2026-06-21; build-ready spec below.
+   FINDING (the "how do we track these accurately + free" answer): truly non-exchange funds
+   (private/interval/advisor-only funds, some annuities) have NO public price feed — the free
+   APIs (Finnhub/FMP/AlphaVantage) only quote exchange-listed tickers + mutual funds with a
+   public symbol. So the only accurate, FREE method is user-entered NAV (the advisor/statement
+   gives the NAV; the user updates it periodically). No paid data source needed.
+   BUILD SPEC (careful — must not corrupt valuations/snapshots):
+   1. Migration supabase/holdings-manual-price.sql: `alter table holdings add column if not
+      exists manual_price numeric;` (asset_type = "manual" marks it). Optional
+      manual_price_updated_at.
+   2. lib/portfolio/valuation.ts: add manual_price to HoldingRow; exclude asset_type==="manual"
+      from the Finnhub/crypto batches; in assembly, manual → current_price = manual_price,
+      day_change/dayChangePct = null, has_live_price = false.
+   3. Thread `manual_price` into the holdings SELECT at ALL 15 getPortfolioValuation call sites
+      (dashboard, planning, portfolios, portfolios/[id], report, tax, community, cron x2,
+      monday-prep, weekly-recap, export-xlsx, actions, recommendation-actions,
+      portfolio-performance-section) — otherwise manual holdings value as $0 and corrupt
+      snapshots/returns. This is the critical, tedious part.
+   4. UI in holdings-table.tsx (+ add/import flows): "Non-tradeable fund" type → enter name +
+      shares + current NAV; an "Update NAV" affordance to refresh it. Badge it as manual/stale.
+   NOT YET BUILT — large + valuation-sensitive; warrants a dedicated focused pass.
 
 6. **Move portfolio stress simulator** 🟢 small.
    Currently at the bottom of the AI analysis page; consider relocating/surfacing on the
