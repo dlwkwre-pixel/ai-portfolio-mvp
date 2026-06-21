@@ -314,7 +314,7 @@ export async function syncPublicAllocation(portfolioId: string) {
   try {
     const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
       supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date"),
-      supabase.from("portfolio_cashflows").select("effective_at, direction, amount").eq("portfolio_id", portfolioId),
+      supabase.from("cash_ledger").select("effective_at, direction, amount").eq("portfolio_id", portfolioId),
     ]);
     if (snapshots && snapshots.length >= 2) {
       const result = await getBenchmarkComparison({

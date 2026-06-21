@@ -180,7 +180,7 @@ export async function GET(request: Request) {
                   .eq("portfolio_id", portfolio.id)
                   .order("snapshot_date"),
                 supabase
-                  .from("portfolio_cashflows")
+                  .from("cash_ledger")
                   .select("effective_at, direction, amount")
                   .eq("portfolio_id", portfolio.id),
               ]);

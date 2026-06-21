@@ -85,8 +85,9 @@ export async function GET() {
       .order("traded_at", { ascending: false })
       .limit(20),
     // Deposits / withdrawals this week — needed to exclude cash flows from the return.
+    // Source of truth is cash_ledger (deposit/withdraw/dividend writes go here).
     supabase
-      .from("portfolio_cashflows")
+      .from("cash_ledger")
       .select("direction, amount, effective_at")
       .in("portfolio_id", portfolioIds)
       .gte("effective_at", monday.toISOString()),
