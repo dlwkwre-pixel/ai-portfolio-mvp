@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
 import ScenariosPanel from "./scenarios-panel";
+import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1955,6 +1956,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
 
   return (
     <div ref={topRef} style={{ maxWidth: "900px" }}>
+      <PageTutorial tutorialId="research" />
 
       {/* Market hours notice */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", padding: "7px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>

@@ -8,6 +8,7 @@ import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions
 import CommunityFeed from "./community-feed";
 import type { FeedPost, FeedAuthor, MyOption } from "./community-feed";
 import CommunityLearn from "./community-learn";
+import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1749,6 +1750,7 @@ export default function CommunityClient({
 
   return (
     <div style={{ maxWidth: "900px", display: "flex", flexDirection: "column" }}>
+      <PageTutorial tutorialId="community" />
 
       {/* ── Animated tab bar ────────────────────────────────────────────────── */}
       <div style={{ position: "relative", display: "flex", borderBottom: "1px solid var(--border-subtle)", marginBottom: "0" }}>

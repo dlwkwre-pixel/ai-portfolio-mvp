@@ -7,6 +7,7 @@ import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-action
 import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import { contributionLimits } from "@/lib/tax/contribution-limits";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
+import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -409,6 +410,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
   return (
     <>
+      <PageTutorial tutorialId="tax" />
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(10px); }
