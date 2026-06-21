@@ -10,6 +10,7 @@ export type RecapMover = {
 };
 
 export type RecapPayload = {
+  calc_version?: number;
   current_value: number;
   week_return_pct: number | null;
   baseline_value: number | null;
@@ -43,9 +44,9 @@ export async function GET() {
     .eq("week_start", weekStart)
     .maybeSingle();
 
-  // Only serve cache if it has the new rich payload. Rows without it were generated
-  // by the old (buggy) code path and must be regenerated.
-  if (cached?.narrative && cached.payload) {
+  // Only serve cache if it has the new rich payload AND the current calc version.
+  // Rows from older (buggy) code paths are regenerated so the fix takes effect.
+  if (cached?.narrative && cached.payload && (cached.payload as { calc_version?: number }).calc_version === 2) {
     return NextResponse.json({
       narrative: cached.narrative,
       week_start: weekStart,
@@ -69,7 +70,7 @@ export async function GET() {
 
   // Live valuation across all portfolios (same source the dashboard uses) +
   // this week's snapshots (for a baseline) + this week's transactions.
-  const [{ data: weekSnapshots }, { data: thisWeekTxns }, ...valuations] = await Promise.all([
+  const [{ data: weekSnapshots }, { data: thisWeekTxns }, { data: weekCashflows }, ...valuations] = await Promise.all([
     supabase
       .from("portfolio_snapshots")
       .select("portfolio_id, snapshot_date, total_value")
@@ -83,6 +84,12 @@ export async function GET() {
       .gte("traded_at", monday.toISOString())
       .order("traded_at", { ascending: false })
       .limit(20),
+    // Deposits / withdrawals this week — needed to exclude cash flows from the return.
+    supabase
+      .from("portfolio_cashflows")
+      .select("direction, amount, effective_at")
+      .in("portfolio_id", portfolioIds)
+      .gte("effective_at", monday.toISOString()),
     ...portfolios.map(async (p) => {
       const { data: holdings } = await supabase
         .from("holdings")
@@ -120,20 +127,49 @@ export async function GET() {
 
   const holdingsCount = allHoldings.length;
 
-  // Week baseline: aggregate snapshots by date, use earliest valid (>0) day that
-  // isn't today. Prevents the cross-portfolio / corrupt-zero comparison bug.
-  const byDate = new Map<string, number>();
+  // Week baseline: take ONE value per portfolio per day (the latest snapshot of that
+  // day — rows are ordered ascending, so the last write wins), THEN sum across
+  // portfolios. Multiple writers (daily cron, dashboard chart, 4-hour intraday) can each
+  // insert a row for the same portfolio on the same day; summing all of them would
+  // double/triple-count the baseline and fabricate a large fake loss.
+  const perDatePortfolio = new Map<string, Map<string, number>>(); // date -> (portfolioId -> value)
   for (const s of weekSnapshots ?? []) {
     const d = (s.snapshot_date as string).split("T")[0];
-    byDate.set(d, (byDate.get(d) ?? 0) + Number(s.total_value ?? 0));
+    if (!perDatePortfolio.has(d)) perDatePortfolio.set(d, new Map());
+    perDatePortfolio.get(d)!.set(s.portfolio_id, Number(s.total_value ?? 0));
+  }
+  const byDate = new Map<string, number>();
+  for (const [d, m] of perDatePortfolio) {
+    byDate.set(d, [...m.values()].reduce((a, b) => a + b, 0));
   }
   const todayStr = now.toISOString().split("T")[0];
   const baselineDate = [...byDate.keys()].sort().find((d) => d < todayStr && (byDate.get(d) ?? 0) > 0);
   const baselineValue = baselineDate ? byDate.get(baselineDate)! : null;
 
+  // Cash-flow-adjusted (Modified Dietz) return — excludes deposits/withdrawals so a
+  // money movement isn't mistaken for a gain/loss. Flows are weighted by the share of
+  // the period remaining after they occurred. This is the same principle the benchmark
+  // TWR uses; without it, a single withdrawal can read as a double-digit "loss" even
+  // when every holding is up.
   let weekReturnPct: number | null = null;
-  if (baselineValue && baselineValue > 0 && currentValue > 0) {
-    weekReturnPct = ((currentValue - baselineValue) / baselineValue) * 100;
+  if (baselineValue && baselineValue > 0 && currentValue > 0 && baselineDate) {
+    const startMs = new Date(`${baselineDate}T00:00:00`).getTime();
+    const endMs = now.getTime();
+    const span = Math.max(1, endMs - startMs);
+    let netFlows = 0;       // signed: deposits (+) minus withdrawals (−)
+    let weightedFlows = 0;  // Modified Dietz time-weighting
+    for (const cf of weekCashflows ?? []) {
+      const t = new Date(cf.effective_at as string).getTime();
+      if (!Number.isFinite(t) || t <= startMs || t > endMs) continue;
+      const amt = Number(cf.amount ?? 0);
+      const signed = (String(cf.direction ?? "").toUpperCase() === "OUT") ? -amt : amt;
+      netFlows += signed;
+      weightedFlows += signed * ((endMs - t) / span); // fraction of period the flow was invested
+    }
+    const denom = baselineValue + weightedFlows;
+    if (denom > 0) {
+      weekReturnPct = ((currentValue - baselineValue - netFlows) / denom) * 100;
+    }
   }
 
   // Best / worst movers from live day-change
@@ -181,6 +217,7 @@ Acknowledge a specific win or concern. End with one concrete, practical thought 
   }
 
   const payload: RecapPayload = {
+    calc_version: 2,
     current_value: currentValue,
     week_return_pct: weekReturnPct,
     baseline_value: baselineValue,
