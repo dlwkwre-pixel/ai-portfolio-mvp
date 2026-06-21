@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
 import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-actions";
 import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
+import { contributionLimits } from "@/lib/tax/contribution-limits";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -989,8 +990,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     />
                   )}
                   {(taxProfile?.preTaxDeductionsAnnual ?? 0) === 0 && activeEstimate && (() => {
-                    const limit401k = selectedYear >= 2025 ? 23_500 : 23_000;
-                    const limitHSA = 4_300;
+                    const yearLimits = contributionLimits(selectedYear);
+                    const limit401k = yearLimits.k401;
+                    const limitHSA = yearLimits.hsaSelf;
                     const remaining401k = Math.max(0, limit401k - pretax401k);
                     const remainingHSA = Math.max(0, limitHSA - pretaxHSA);
                     const totalRemaining = remaining401k + remainingHSA;

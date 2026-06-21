@@ -37,6 +37,7 @@ import type { FinnContext } from "@/app/api/planning/finn/route";
 import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/chat/route";
 import type { ImportedItem } from "@/app/api/planning/import/route";
 import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax, retirementStateTax } from "@/lib/tax/estimator";
+import { contributionLimits, iraLimitForAge } from "@/lib/tax/contribution-limits";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -6505,7 +6506,7 @@ export default function PlanningClient({
     let basisTaxable = bTaxable * 0.7; // assume ~30% embedded gains in today's taxable holdings
     // If the user already holds Roth money, assume they keep funding a Roth IRA each year
     // (2025 limit $7k, +$1k catch-up at 50+); the rest of after-tax savings goes to taxable.
-    const rothContribAnnual = bFree > 0 ? Math.min(afterTaxSavings, cAge >= 50 ? 8_000 : 7_000) : 0;
+    const rothContribAnnual = bFree > 0 ? Math.min(afterTaxSavings, iraLimitForAge(cAge)) : 0;
     const taxableContribAnnual = Math.max(0, afterTaxSavings - rothContribAnnual);
     for (let y = 0; y < yearsToRet; y++) {
       bDeferred = bDeferred * (1 + r) + preTaxAnnual;
@@ -8308,7 +8309,7 @@ export default function PlanningClient({
                         placeholder="e.g. 23500"
                         style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
                       />
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>401k (up to $23,500), HSA ($4,300), IRA ($7,000)</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>{(() => { const cl = contributionLimits(); return `401k (up to ${fmt(cl.k401)}), HSA (${fmt(cl.hsaSelf)}), IRA (${fmt(cl.ira)})`; })()}</div>
                     </div>
                   </div>
                   {formGross > 0 && (() => {

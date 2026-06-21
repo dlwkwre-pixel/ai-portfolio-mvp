@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { contributionLimits } from "@/lib/tax/contribution-limits";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import TaxClient from "./tax-client";
@@ -365,11 +366,12 @@ export default async function TaxPage({
   // ── Retirement contributions ────────────────────────────────────────────────
   // Cash deposits into tax-advantaged accounts are contributions. Surface them so
   // the user can track IRA/Roth/401k contribution room (and deductibility).
+  const cl = contributionLimits();
   const RETIREMENT_LIMITS: { match: RegExp; label: string; limit: number | null; deductible: boolean }[] = [
-    { match: /roth/, label: "Roth IRA", limit: 7000, deductible: false },
-    { match: /traditional_ira|trad_ira|^ira$/, label: "Traditional IRA", limit: 7000, deductible: true },
-    { match: /401|403/, label: "401(k) / 403(b)", limit: 23500, deductible: true },
-    { match: /ira/, label: "IRA", limit: 7000, deductible: true },
+    { match: /roth/, label: "Roth IRA", limit: cl.ira, deductible: false },
+    { match: /traditional_ira|trad_ira|^ira$/, label: "Traditional IRA", limit: cl.ira, deductible: true },
+    { match: /401|403/, label: "401(k) / 403(b)", limit: cl.k401, deductible: true },
+    { match: /ira/, label: "IRA", limit: cl.ira, deductible: true },
     { match: /retirement/, label: "Retirement", limit: null, deductible: true },
   ];
   const classifyRetirement = (t: string | null) => {
