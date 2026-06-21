@@ -48,15 +48,20 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
   const [totalBudget, setTotalBudget] = useState<number>(active?.total_budget ?? 30000);
   const [amountSaved, setAmountSaved] = useState<number>(active?.amount_saved ?? 0);
   const [monthly, setMonthly] = useState<number>(active?.monthly_contribution ?? 0);
+  const [contributions, setContributions] = useState<number>(0); // family / gifts toward the wedding
   const [saved, setSaved] = useState(false);
 
   const months = monthsUntil(weddingDate);
   const costPerGuest = guestCount > 0 ? totalBudget / guestCount : 0;
-  const remaining = Math.max(0, totalBudget - amountSaved);
+  const funded = amountSaved + contributions; // money already in hand toward the budget
+  const remaining = Math.max(0, totalBudget - funded);
   const requiredMonthly = months && months > 0 ? remaining / months : null;
-  const projectedSaved = months != null ? amountSaved + monthly * months : amountSaved;
+  const projectedSaved = months != null ? funded + monthly * months : funded;
   const projectedGap = totalBudget - projectedSaved; // >0 = short
   const onTrack = requiredMonthly != null ? monthly >= requiredMonthly - 1 : null;
+  // Reverse-solve: what you can actually afford by the date at the current pace.
+  const affordable = funded + monthly * (months ?? 0);
+  const affordableGuests = costPerGuest > 0 ? Math.floor(affordable / (totalBudget / guestCount)) : null;
 
   function handleSave() {
     startTransition(async () => {
@@ -116,6 +121,10 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
               <label style={labelStyle}>Saving / month</label>
               <input style={inputStyle} type="number" min="0" value={monthly || ""} onChange={(e) => { setMonthly(Number(e.target.value)); setSaved(false); }} />
             </div>
+            <div>
+              <label style={labelStyle}>Family / gifts</label>
+              <input style={inputStyle} type="number" min="0" value={contributions || ""} onChange={(e) => { setContributions(Number(e.target.value)); setSaved(false); }} placeholder="0" />
+            </div>
           </div>
           <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
             <button type="button" onClick={() => { setTotalBudget(guestCount * COST_PER_GUEST); setSaved(false); }}
@@ -150,11 +159,21 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
               border: `1px solid ${onTrack ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)"}`,
               fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               {onTrack
-                ? `On track — saving ${fmt(monthly)}/mo covers the ${fmt(remaining)} gap with ${projectedGap < 0 ? `${fmt(Math.abs(Math.round(projectedGap)))} to spare` : "time to spare"}.`
+                ? `On track — saving ${fmt(monthly)}/mo${contributions > 0 ? ` plus ${fmt(contributions)} from family` : ""} covers the ${fmt(remaining)} gap with ${projectedGap < 0 ? `${fmt(Math.abs(Math.round(projectedGap)))} to spare` : "time to spare"}.`
                 : monthly > 0
                 ? `Short by ${fmt(Math.abs(Math.round(projectedGap)))}. Bump savings to ${fmt(Math.ceil(requiredMonthly ?? 0))}/mo, trim the budget, or push the date.`
                 : `Set a monthly savings amount to see if you'll hit ${fmt(totalBudget)} by the date.`}
             </div>
+          )}
+
+          {/* Reverse-solve: what's actually affordable by the date */}
+          {months != null && guestCount > 0 && affordableGuests != null && (
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "10px", lineHeight: 1.55 }}>
+              On this pace you{"'"}ll have <strong style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.round(affordable))}</strong> by the date
+              {affordableGuests < guestCount
+                ? <> — about <strong style={{ color: "var(--text-secondary)" }}>{affordableGuests} guests</strong> at today{"'"}s per-guest cost. Trimming the list is often the fastest way to close the gap.</>
+                : <>, comfortably covering your {guestCount}-guest plan.</>}
+            </p>
           )}
         </div>
 

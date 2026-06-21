@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { RelocationScenario } from "./relocation-actions";
 import { saveRelocationScenario, deleteRelocationScenario } from "./relocation-actions";
 import AddToPlanButton from "@/app/planning/add-to-plan-button";
+import { US_STATES, retirementStateTax } from "@/lib/tax/estimator";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -33,19 +34,27 @@ export default function RelocationClient({
   const [currentExpenses, setCurrentExpenses] = useState<number>(active?.current_expenses_monthly || prefillExpenses);
   const [colDelta, setColDelta] = useState<number>(active?.col_delta_pct ?? 0);
   const [movingCost, setMovingCost] = useState<number>(active?.moving_cost ?? 0);
+  const [currentState, setCurrentState] = useState<string>("");
+  const [newState, setNewState] = useState<string>("");
   const [saved, setSaved] = useState(false);
 
   const effNewIncome = isRemote ? currentIncome : newIncome;
 
   const calc = useMemo(() => {
     const newExpenses = currentExpenses * (1 + colDelta / 100);
+    // State income-tax swing — where you LIVE determines it. Often the biggest hidden
+    // difference between two cities (e.g. TX/FL have none, CA/NY are high). Rough estimate.
+    const stCur = currentState ? retirementStateTax(currentIncome * 12, currentState, "single") : 0;
+    const stNew = newState ? retirementStateTax(effNewIncome * 12, newState, "single") : 0;
+    const stateTaxDeltaAnnual = stNew - stCur; // + = you pay MORE state tax after the move
+    const stateTaxDeltaMo = stateTaxDeltaAnnual / 12;
     const savingsNow = currentIncome - currentExpenses;
-    const savingsAfter = effNewIncome - newExpenses;
+    const savingsAfter = effNewIncome - newExpenses - stateTaxDeltaMo;
     const delta = savingsAfter - savingsNow;
-    const breakEvenIncome = currentIncome + (newExpenses - currentExpenses);
+    const breakEvenIncome = currentIncome + (newExpenses - currentExpenses) + stateTaxDeltaMo;
     const paybackMonths = delta > 0 && movingCost > 0 ? movingCost / delta : null;
-    return { newExpenses, savingsNow, savingsAfter, delta, breakEvenIncome, paybackMonths };
-  }, [currentIncome, currentExpenses, effNewIncome, colDelta, movingCost]);
+    return { newExpenses, savingsNow, savingsAfter, delta, breakEvenIncome, paybackMonths, stateTaxDeltaAnnual };
+  }, [currentIncome, currentExpenses, effNewIncome, colDelta, movingCost, currentState, newState]);
 
   function handleSave() {
     startTransition(async () => {
@@ -89,6 +98,18 @@ export default function RelocationClient({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
             <div><label style={labelStyle}>Current city</label><input style={inputStyle} value={currentCity} onChange={(e) => { setCurrentCity(e.target.value); setSaved(false); }} placeholder="e.g. Austin, TX" /></div>
             <div><label style={labelStyle}>New city</label><input style={inputStyle} value={newCity} onChange={(e) => { setNewCity(e.target.value); setSaved(false); }} placeholder="e.g. Denver, CO" /></div>
+            <div><label style={labelStyle}>Current state (tax)</label>
+              <select style={inputStyle} value={currentState} onChange={(e) => { setCurrentState(e.target.value); setSaved(false); }}>
+                <option value="">— optional —</option>
+                {US_STATES.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+              </select>
+            </div>
+            <div><label style={labelStyle}>New state (tax)</label>
+              <select style={inputStyle} value={newState} onChange={(e) => { setNewState(e.target.value); setSaved(false); }}>
+                <option value="">— optional —</option>
+                {US_STATES.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+              </select>
+            </div>
           </div>
           <button type="button" onClick={() => { setIsRemote((v) => !v); setSaved(false); }}
             style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "14px", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isRemote ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`, background: isRemote ? "rgba(37,99,235,0.1)" : "var(--bg-base)", color: isRemote ? "var(--brand-blue, #2563eb)" : "var(--text-secondary)" }}>
@@ -137,6 +158,10 @@ export default function RelocationClient({
               ? ` Since you're staying remote, it's purely a cost-of-living play${colDelta < 0 ? " — a cheaper city is an instant raise to your savings." : "."}`
               : ` To keep today's lifestyle you'd need at least ${fmt(Math.round(calc.breakEvenIncome))}/mo${effNewIncome >= calc.breakEvenIncome ? " — the offer clears that bar." : " — the offer falls short."}`}
             {calc.paybackMonths != null && ` The ${fmt(movingCost)} move pays for itself in ${Math.ceil(calc.paybackMonths)} month${Math.ceil(calc.paybackMonths) === 1 ? "" : "s"}.`}
+            {(currentState && newState && Math.abs(calc.stateTaxDeltaAnnual) > 200) && (
+              <> State income tax {calc.stateTaxDeltaAnnual < 0 ? "drops" : "rises"} ~<strong style={{ color: calc.stateTaxDeltaAnnual < 0 ? "var(--green)" : "var(--amber)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(Math.round(calc.stateTaxDeltaAnnual)))}/yr</strong> ({currentState}→{newState})
+                {calc.stateTaxDeltaAnnual < 0 ? " — a quiet raise most movers overlook." : ", already folded into the numbers above."}</>
+            )}
           </div>
         </div>
 

@@ -20,7 +20,18 @@ const inputStyle: React.CSSProperties = { width: "100%", padding: "9px 11px", bo
 const labelStyle: React.CSSProperties = { display: "block", fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" };
 const cardStyle: React.CSSProperties = { background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg, 14px)", padding: "16px 18px" };
 
-const SOURCES = ["Bonus", "Tax refund", "Inheritance", "RSU / stock vest", "Gift", "Other"];
+// Tax treatment by windfall source. Bonuses and RSU vests are ordinary income (federal
+// supplemental withholding ~22% + FICA ~7.65% ≈ 30% rough effective). A tax refund is
+// already your after-tax money; inheritances and gifts are not taxable income to the
+// recipient (federally). "Other" is treated as already-net unless you say otherwise.
+const SOURCES: { name: string; taxRate: number; note: string }[] = [
+  { name: "Bonus", taxRate: 0.30, note: "Taxed as supplemental wages — withholding plus FICA." },
+  { name: "RSU / stock vest", taxRate: 0.30, note: "Taxed as ordinary income at vesting; withholding often underestimates." },
+  { name: "Tax refund", taxRate: 0, note: "Already your after-tax money — no further tax." },
+  { name: "Inheritance", taxRate: 0, note: "Not taxable income to you federally. Inherited investments get a stepped-up basis." },
+  { name: "Gift", taxRate: 0, note: "Not taxable to the recipient." },
+  { name: "Other", taxRate: 0, note: "Assumed already after-tax — adjust if it's pre-tax income." },
+];
 
 export default function WindfallClient({
   monthlyExpenses, highInterestDebt, liquidAssets,
@@ -28,30 +39,44 @@ export default function WindfallClient({
   monthlyExpenses: number; highInterestDebt: number; liquidAssets: number;
 }) {
   const [amount, setAmount] = useState<number>(10000);
-  const [source, setSource] = useState<string>("Bonus");
+  const [sourceName, setSourceName] = useState<string>("Bonus");
+  const [isGross, setIsGross] = useState<boolean>(true);
   const [emergencyTargetMonths, setEmergencyTargetMonths] = useState<number>(6);
+  const [unmatchedMatch, setUnmatchedMatch] = useState<number>(0);
+
+  const source = SOURCES.find((s) => s.name === sourceName) ?? SOURCES[0];
+  const taxRate = source.taxRate;
+  // Net amount actually available to allocate.
+  const estTax = taxRate > 0 && isGross ? Math.round(Math.max(0, amount) * taxRate) : 0;
+  const net = Math.max(0, Math.max(0, amount) - estTax);
 
   const rec = useMemo<Allocation[]>(() => {
-    let remaining = Math.max(0, amount);
+    let remaining = net;
     const out: Allocation[] = [];
 
     // 1. Emergency starter — get to 1 month of expenses if below
-    const oneMonth = monthlyExpenses;
-    const starterGap = Math.max(0, oneMonth - liquidAssets);
+    const starterGap = Math.max(0, monthlyExpenses - liquidAssets);
     if (starterGap > 0 && remaining > 0) {
       const a = Math.min(remaining, starterGap);
       out.push({ key: "starter", label: "Emergency starter", amount: a, color: "oklch(0.78 0.16 70)", rationale: "Get to one month of expenses in cash before anything else." });
       remaining -= a;
     }
 
-    // 2. High-interest debt
+    // 2. Capture employer match — an instant ~100% return beats everything
+    if (unmatchedMatch > 0 && remaining > 0) {
+      const a = Math.min(remaining, unmatchedMatch);
+      out.push({ key: "match", label: "Capture employer 401(k) match", amount: a, color: "oklch(0.72 0.19 145)", rationale: "An employer match is an instant ~100% return — the best return available. Reserve this to raise your 401(k) contributions; the windfall backfills the dip in your take-home pay." });
+      remaining -= a;
+    }
+
+    // 3. High-interest debt
     if (highInterestDebt > 0 && remaining > 0) {
       const a = Math.min(remaining, highInterestDebt);
       out.push({ key: "debt", label: "High-interest debt", amount: a, color: "oklch(0.70 0.19 25)", rationale: "Paying off ~20% APR debt is a guaranteed, tax-free return no investment can match." });
       remaining -= a;
     }
 
-    // 3. Emergency fund to target
+    // 4. Emergency fund to target
     const targetCash = monthlyExpenses * emergencyTargetMonths;
     const afterStarter = liquidAssets + (out.find((o) => o.key === "starter")?.amount ?? 0);
     const efGap = Math.max(0, targetCash - afterStarter);
@@ -61,15 +86,16 @@ export default function WindfallClient({
       remaining -= a;
     }
 
-    // 4. Invest the rest
+    // 5. Invest the rest
     if (remaining > 0) {
-      out.push({ key: "invest", label: "Invest", amount: remaining, color: "oklch(0.72 0.19 145)", rationale: "With debt handled and a cushion in place, the rest compounds best in the market." });
+      out.push({ key: "invest", label: "Invest", amount: remaining, color: "oklch(0.65 0.18 260)", rationale: "With the match captured, debt handled, and a cushion in place, the rest compounds best in the market." });
     }
 
     return out;
-  }, [amount, monthlyExpenses, highInterestDebt, liquidAssets, emergencyTargetMonths]);
+  }, [net, monthlyExpenses, highInterestDebt, liquidAssets, emergencyTargetMonths, unmatchedMatch]);
 
   const total = rec.reduce((s, r) => s + r.amount, 0);
+  const showTax = taxRate > 0;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
@@ -99,10 +125,10 @@ export default function WindfallClient({
               <label style={labelStyle}>Windfall amount</label>
               <input style={inputStyle} type="number" min="0" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} placeholder="10000" />
             </div>
-            <div style={{ flex: "1 1 140px" }}>
+            <div style={{ flex: "1 1 160px" }}>
               <label style={labelStyle}>Source</label>
-              <select style={inputStyle} value={source} onChange={(e) => setSource(e.target.value)}>
-                {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+              <select style={inputStyle} value={sourceName} onChange={(e) => setSourceName(e.target.value)}>
+                {SOURCES.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
               </select>
             </div>
             <div style={{ flex: "0 1 150px" }}>
@@ -112,6 +138,32 @@ export default function WindfallClient({
               </select>
             </div>
           </div>
+
+          {/* Tax treatment for this source */}
+          <div style={{ marginTop: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
+            {showTax ? (
+              <>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontSize: "12px", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={isGross} onChange={(e) => setIsGross(e.target.checked)} style={{ accentColor: "var(--brand-blue)", width: "15px", height: "15px" }} />
+                  Amount is pre-tax (gross)
+                </label>
+                {isGross && (
+                  <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
+                    ≈ <strong style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{fmt(net)}</strong> after ~{fmt(estTax)} estimated tax
+                  </span>
+                )}
+              </>
+            ) : (
+              <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{source.note}</span>
+            )}
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--border-subtle)", marginTop: "14px", paddingTop: "14px" }}>
+            <label style={labelStyle}>Employer 401(k) match you{"'"}re not capturing ($/yr)</label>
+            <input style={{ ...inputStyle, maxWidth: "200px" }} type="number" min="0" value={unmatchedMatch || ""} onChange={(e) => setUnmatchedMatch(Math.max(0, Number(e.target.value) || 0))} placeholder="0" />
+            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "5px", lineHeight: 1.5 }}>If you aren&apos;t getting your full employer match, enter the annual amount you&apos;re leaving behind. It jumps to the top of the waterfall — free money beats everything.</div>
+          </div>
+
           <div style={{ display: "flex", gap: "18px", flexWrap: "wrap", marginTop: "14px", fontSize: "11px", color: "var(--text-tertiary)" }}>
             <span>Monthly expenses: <strong style={{ color: "var(--text-secondary)" }}>{fmt(monthlyExpenses)}</strong></span>
             <span>High-interest debt: <strong style={{ color: "var(--text-secondary)" }}>{fmt(highInterestDebt)}</strong></span>
@@ -119,11 +171,13 @@ export default function WindfallClient({
           </div>
         </div>
 
-        {amount > 0 && (
+        {net > 0 && (
           <>
             {/* Stacked allocation bar */}
             <div style={cardStyle}>
-              <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "12px" }}>Recommended Split for {fmt(amount)}</span>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "12px" }}>
+                Recommended split for {fmt(net)}{showTax && isGross ? " (after tax)" : ""}
+              </span>
               <div style={{ display: "flex", height: "12px", borderRadius: "6px", overflow: "hidden", background: "var(--bg-elevated, rgba(255,255,255,0.06))", marginBottom: "16px" }}>
                 {rec.map((r) => (
                   <div key={r.key} style={{ width: `${total > 0 ? (r.amount / total) * 100 : 0}%`, background: r.color }} title={`${r.label}: ${fmt(r.amount)}`} />
@@ -151,16 +205,16 @@ export default function WindfallClient({
             <div style={cardStyle}>
               <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Expecting this in the future?</span>
               <AddToPlanButton
-                label={`${source} windfall`}
+                label={`${sourceName} windfall`}
                 category="windfall"
-                amountImpact={amount}
-                note="If this is a future windfall (bonus, vesting, inheritance), add it so your forecast reflects the inflow. Skip if you already have the cash."
+                amountImpact={net}
+                note="Adds the after-tax amount as a future inflow so your forecast reflects it. Skip if you already have the cash."
               />
             </div>
 
             {/* Note */}
             <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.6, margin: 0 }}>
-              This follows the standard waterfall: a one-month cash starter, then high-interest debt (a guaranteed return), then your full emergency fund, then investing. If you have employer-matched retirement contributions you aren&apos;t maxing, capture that match before the &quot;Invest&quot; bucket — it&apos;s free money.
+              The waterfall captures any free employer match first (an instant return), then a one-month cash starter, high-interest debt (a guaranteed return), your full emergency fund, and finally investing. {showTax && "Tax estimates are rough planning figures, not tax advice — your actual withholding and bracket may differ."}
             </p>
           </>
         )}
