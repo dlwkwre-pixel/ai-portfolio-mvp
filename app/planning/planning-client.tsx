@@ -5147,6 +5147,83 @@ function FiftyThirtyTwenty({
   );
 }
 
+// ── Cash-flow Sankey ───────────────────────────────────────────────────────────
+// The classic budget flow: one income source fanning out to every spending category
+// plus savings, with ribbon thickness = dollars. Colored by 50/30/20 bucket.
+const SANKEY_BUCKET_COLOR: Record<string, string> = {
+  needs: "oklch(0.62 0.15 250)", wants: "oklch(0.66 0.16 300)", savings: "oklch(0.72 0.18 150)",
+};
+function CashFlowSankey({ income, leaves, isPrivate }: {
+  income: number;
+  leaves: { label: string; amount: number; bucket: "needs" | "wants" | "savings" }[];
+  isPrivate: boolean;
+}) {
+  const ph = (v: string) => (isPrivate ? "••••" : v);
+  const fmtMo = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
+  const positive = leaves.filter((l) => l.amount > 0).sort((a, b) => (a.bucket === b.bucket ? b.amount - a.amount : a.bucket === "savings" ? 1 : b.bucket === "savings" ? -1 : 0));
+  const total = positive.reduce((s, l) => s + l.amount, 0);
+  if (total <= 0 || positive.length === 0) return null;
+
+  const VB_W = 1000, padY = 8, rowGap = 6;
+  const n = positive.length;
+  const usableH = Math.max(200, n * 34);
+  const VB_H = usableH + padY * 2;
+  const sxRight = 230;            // income node right edge
+  const txLeft = 660;            // leaf node left edge
+  const nodeW = 16;
+  const midx = (sxRight + txLeft) / 2;
+
+  // Stack leaves on the right; income subdivided into matching bands on the left.
+  let cursor = padY;
+  let srcCursor = padY;
+  const linkH = usableH - rowGap * (n - 1);
+  const segs = positive.map((l) => {
+    const h = (l.amount / total) * linkH;
+    const ty0 = cursor, ty1 = cursor + h;
+    const sy0 = srcCursor, sy1 = srcCursor + h;
+    cursor += h + rowGap;
+    srcCursor += h + rowGap;
+    return { ...l, ty0, ty1, sy0, sy1, h };
+  });
+  const incTop = padY, incBot = segs[segs.length - 1].sy1;
+
+  return (
+    <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 18px", marginBottom: "10px", animationDelay: "70ms" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Where your money flows</span>
+        <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ph(fmtMo(income))}/mo in</span>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block", overflow: "visible" }} preserveAspectRatio="xMidYMid meet">
+        {/* Income node */}
+        <rect x={sxRight - nodeW} y={incTop} width={nodeW} height={Math.max(1, incBot - incTop)} rx="3" fill="var(--text-secondary)" opacity="0.85" />
+        <text x={sxRight - nodeW - 8} y={(incTop + incBot) / 2} textAnchor="end" dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", fill: "var(--text-primary)" }}>Income</text>
+        {/* Links + leaf nodes + labels */}
+        {segs.map((s, i) => {
+          const color = SANKEY_BUCKET_COLOR[s.bucket];
+          const path = `M${sxRight},${s.sy0.toFixed(1)} C${midx},${s.sy0.toFixed(1)} ${midx},${s.ty0.toFixed(1)} ${txLeft},${s.ty0.toFixed(1)} L${txLeft},${s.ty1.toFixed(1)} C${midx},${s.ty1.toFixed(1)} ${midx},${s.sy1.toFixed(1)} ${sxRight},${s.sy1.toFixed(1)} Z`;
+          return (
+            <g key={i}>
+              <path d={path} fill={color} opacity="0.26" />
+              <rect x={txLeft} y={s.ty0} width={nodeW} height={Math.max(1, s.h)} rx="3" fill={color} />
+              <text x={txLeft + nodeW + 8} y={(s.ty0 + s.ty1) / 2} dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontSize: "12px", fill: "var(--text-secondary)" }}>
+                {s.label}
+                <tspan style={{ fontFamily: "var(--font-mono)", fill: "var(--text-tertiary)", fontSize: "11px" }}> · {ph(fmtMo(s.amount))} ({Math.round((s.amount / total) * 100)}%)</tspan>
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "10px" }}>
+        {([["needs", "Needs"], ["wants", "Wants"], ["savings", "Savings"]] as const).map(([k, label]) => (
+          <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+            <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: SANKEY_BUCKET_COLOR[k] }} />{label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate,
@@ -5400,6 +5477,18 @@ function CashFlowOS({
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
           </div>
         </div>
+      )}
+
+      {/* Sankey — where the money flows (income → categories + savings) */}
+      {effectiveIncome > 0 && catData.length > 0 && (
+        <CashFlowSankey
+          income={effectiveIncome}
+          leaves={[
+            ...catData.map((c) => ({ label: c.label, amount: c.budgeted, bucket: bucketForCategory(c.label) })),
+            ...(monthlySavings > 0 ? [{ label: "Savings", amount: monthlySavings, bucket: "savings" as const }] : []),
+          ]}
+          isPrivate={isPrivate}
+        />
       )}
 
       {/* Pacing Alert Strip — only for current month when tracking over budget */}
