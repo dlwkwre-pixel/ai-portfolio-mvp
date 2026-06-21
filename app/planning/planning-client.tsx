@@ -1112,10 +1112,34 @@ const TAX_BUCKET_META: Record<"taxable" | "tax_deferred" | "tax_free", { label: 
   tax_free:     { label: "Tax-free",     color: "oklch(0.70 0.17 150)", note: "Roth & HSA. Qualified withdrawals tax-free; no RMDs on Roth IRA." },
 };
 
-// Compute the three tax buckets (portfolio counts as taxable brokerage by default).
-function computeTaxBuckets(assets: BalanceSheetItem[], portfolioValue: number): { taxable: number; tax_deferred: number; tax_free: number; total: number } {
-  let taxable = portfolioValue > 0 ? portfolioValue : 0;
-  let tax_deferred = 0, tax_free = 0;
+// A linked BuyTune portfolio, classified by its account type.
+type PortfolioAccount = { id: string; name: string; account_type: string | null; value: number };
+
+// Map a portfolio's account type to a tax bucket. Roth/HSA → tax-free; 401k/IRA/pension →
+// tax-deferred; brokerage/cash/everything else → taxable. (Roth checked first so "Roth IRA"
+// doesn't fall through to the generic "ira" → deferred branch.)
+function accountTypeTaxBucket(t: string | null): "taxable" | "tax_deferred" | "tax_free" {
+  const s = (t ?? "").toLowerCase();
+  if (s.includes("roth") || s.includes("hsa")) return "tax_free";
+  if (s.includes("401") || s.includes("403") || s.includes("ira") || s.includes("pension") || s.includes("sep") || s.includes("simple") || s.includes("traditional") || s.includes("retire")) return "tax_deferred";
+  return "taxable";
+}
+function isRetirementAccountType(t: string | null): boolean {
+  const s = (t ?? "").toLowerCase();
+  return s.includes("401") || s.includes("403") || s.includes("ira") || s.includes("roth") || s.includes("pension") || s.includes("sep") || s.includes("retire");
+}
+
+// Compute the three tax buckets from balance-sheet items + linked portfolios (each
+// portfolio bucketed by its own account type, e.g. a Roth IRA portfolio is tax-free).
+function computeTaxBuckets(assets: BalanceSheetItem[], portfolioAccounts: PortfolioAccount[]): { taxable: number; tax_deferred: number; tax_free: number; total: number } {
+  let taxable = 0, tax_deferred = 0, tax_free = 0;
+  for (const p of portfolioAccounts) {
+    if (!(p.value > 0)) continue;
+    const b = accountTypeTaxBucket(p.account_type);
+    if (b === "tax_free") tax_free += p.value;
+    else if (b === "tax_deferred") tax_deferred += p.value;
+    else taxable += p.value;
+  }
   for (const a of assets) {
     const b = effectiveTaxBucket(a);
     if (b === "taxable") taxable += a.value;
@@ -1142,13 +1166,16 @@ function computeBalanceFinnInsight(p: {
   liquidAssets: number; totalAssets: number; totalLiabilities: number;
   netWorth: number; portfolioTotalValue: number;
   effectiveExpenses: number; assets: BalanceSheetItem[];
+  portfolioAccounts?: PortfolioAccount[];
 }): string {
   if (p.totalAssets === 0) return "Add assets and liabilities below to unlock balance sheet intelligence.";
   const debtRatio = p.totalAssets > 0 ? (p.totalLiabilities / p.totalAssets) * 100 : 0;
   const emergencyMonths = p.effectiveExpenses > 0 ? p.liquidAssets / p.effectiveExpenses : 0;
   const cashPct = p.totalAssets > 0 ? (p.liquidAssets / p.totalAssets) * 100 : 0;
   const portfolioPct = p.netWorth > 0 ? (p.portfolioTotalValue / p.netWorth) * 100 : 0;
-  const hasRetirement = p.assets.some((a) => a.category === "retirement");
+  // A linked retirement portfolio (Roth/401k/IRA) counts too — not just manual line items.
+  const hasRetirement = p.assets.some((a) => a.category === "retirement")
+    || (p.portfolioAccounts ?? []).some((pa) => pa.value > 0 && isRetirementAccountType(pa.account_type));
   if (debtRatio > 50) return `Liabilities represent ${debtRatio.toFixed(0)}% of total assets. Debt reduction is the highest-leverage balance sheet move — every dollar eliminated compounds forward as investable capital.`;
   if (p.effectiveExpenses > 0 && emergencyMonths < 1) return "Liquid cash covers less than 1 month of expenses. A single financial shock would force selling investments at a bad time. Building to 3 months is the top balance sheet priority.";
   if (!hasRetirement && p.totalAssets > 10000) return "No retirement account on your balance sheet. Add any 401k, IRA, or Roth IRA balances — FINN needs these for an accurate long-term picture.";
@@ -4831,10 +4858,11 @@ const LIAB_CAT_LABELS: Record<string, string> = {
 };
 
 function BalanceSheetOS({
-  balanceItems, portfolioTotalValue, effectiveExpenses, netWorthHistory, isPrivate,
+  balanceItems, portfolioTotalValue, portfolioAccounts = [], effectiveExpenses, netWorthHistory, isPrivate,
 }: {
   balanceItems: BalanceSheetItem[];
   portfolioTotalValue: number;
+  portfolioAccounts?: PortfolioAccount[];
   effectiveExpenses: number;
   netWorthHistory: NetWorthSnapshot[];
   isPrivate: boolean;
@@ -4855,15 +4883,15 @@ function BalanceSheetOS({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [manualAssets, portfolioTotalValue]);
 
-  const taxBuckets = useMemo(() => computeTaxBuckets(assets, portfolioTotalValue),
+  const taxBuckets = useMemo(() => computeTaxBuckets(assets, portfolioAccounts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [manualAssets, portfolioTotalValue, assets]);
+    [manualAssets, portfolioTotalValue, assets, portfolioAccounts]);
 
   const finnInsight = useMemo(() => computeBalanceFinnInsight({
-    liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets,
+    liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, assets, portfolioAccounts,
   }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses]);
+    [liquidAssets, totalAssets, totalLiabilities, netWorth, portfolioTotalValue, effectiveExpenses, portfolioAccounts]);
 
   const liabBuckets = useMemo(() => {
     const map = new Map<string, number>();
@@ -5048,7 +5076,7 @@ function BalanceSheetOS({
       {/* Portfolio auto-include notice */}
       {portfolioTotalValue > 0 && (
         <div className="bso-z" style={{ padding: "9px 14px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginBottom: "10px", animationDelay: "140ms" }}>
-          <strong style={{ color: "oklch(0.72 0.19 145)" }}>Portfolio auto-included:</strong> {ph(fmt(portfolioTotalValue))} from your active BuyTune portfolios is counted in Total Assets.
+          <strong style={{ color: "oklch(0.72 0.19 145)" }}>BuyTune portfolios sync automatically</strong> — each is listed in Assets below and classified by its account type (a Roth IRA counts as tax-free).
         </div>
       )}
 
@@ -5059,6 +5087,22 @@ function BalanceSheetOS({
             <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Assets</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "oklch(0.72 0.19 145)", fontWeight: 600 }}>{ph(fmt(totalAssets))}</span>
           </div>
+          {/* Linked BuyTune portfolios — read-only, auto-valued, classified by account type */}
+          {portfolioAccounts.filter((pa) => pa.value > 0).map((pa) => {
+            const bucket = accountTypeTaxBucket(pa.account_type);
+            const meta = TAX_BUCKET_META[bucket];
+            return (
+              <div key={pa.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pa.name}</span>
+                  <span style={{ fontSize: "9px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
+                  <span title={meta.note} style={{ fontSize: "9px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
+                </span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{ph(fmtFull(pa.value))}</span>
+              </div>
+            );
+          })}
           {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />)}
           <div style={{ marginTop: "10px" }}><AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} /></div>
         </div>
@@ -6094,6 +6138,7 @@ type Props = {
   cashFlowItems: CashFlowItem[];
   netWorthHistory: NetWorthSnapshot[];
   portfolioTotalValue: number;
+  portfolioAccounts?: PortfolioAccount[];
   assumptions: PlanningAssumptions | null;
   futureEvents: FutureEvent[];
   homeScenarios: HomeScenario[];
@@ -6113,7 +6158,7 @@ type Tab = "overview" | "balance" | "cashflow" | "forecast" | "events" | "estate
 type FinnChatEntry = { role: "user" | "finn"; text: string };
 
 export default function PlanningClient({
-  profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue,
+  profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
   sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, budgetHistory, estateProfile, initialTab,
 }: Props) {
@@ -6396,9 +6441,9 @@ export default function PlanningClient({
   // does NOT alter the headline probability. Approximation: holds today's bucket mix forward.
   const EFFECTIVE_RETIREMENT_TAX_RATE = 0.18;
   const taxBucketsNow = useMemo(
-    () => computeTaxBuckets(assets, portfolioTotalValue),
+    () => computeTaxBuckets(assets, portfolioAccounts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assets, portfolioTotalValue],
+    [assets, portfolioTotalValue, portfolioAccounts],
   );
   const taxDeferredFraction = taxBucketsNow.total > 0 ? taxBucketsNow.tax_deferred / taxBucketsNow.total : 0;
   const afterTaxRetirementAssets = retirementPoint && taxDeferredFraction > 0
@@ -8987,6 +9032,7 @@ export default function PlanningClient({
         <BalanceSheetOS
           balanceItems={balanceItems}
           portfolioTotalValue={portfolioTotalValue}
+          portfolioAccounts={portfolioAccounts}
           effectiveExpenses={effectiveExpenses}
           netWorthHistory={netWorthHistory}
           isPrivate={isPrivate}

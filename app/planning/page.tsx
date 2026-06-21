@@ -63,33 +63,41 @@ export default async function PlanningPage({
     supabase.from("cash_flow_budget_history").select("*").eq("user_id", user.id).order("effective_year").order("effective_month"),
   ]);
 
-  // Aggregate portfolio value from all active portfolios
+  // Value each portfolio on its own so the balance sheet can classify it by account type
+  // (a Roth IRA portfolio is tax-free money, a brokerage is taxable, etc.).
   let portfolioTotalValue = 0;
+  const portfolioAccounts: { id: string; name: string; account_type: string | null; value: number }[] = [];
   if (portfolios && portfolios.length > 0) {
-    try {
-      const { data: allHoldings } = await supabase
-        .from("holdings")
-        .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
-        .in("portfolio_id", portfolios.map((p) => p.id));
-
-      if (allHoldings && allHoldings.length > 0) {
-        const valuation = await getPortfolioValuation({
-          holdings: allHoldings.map((h) => ({
-            id: h.id,
-            ticker: h.ticker,
-            company_name: h.company_name,
-            asset_type: h.asset_type,
-            shares: h.shares,
-            average_cost_basis: h.average_cost_basis,
-          })),
-          cashBalance: portfolios.reduce((sum, p) => sum + Number(p.cash_balance ?? 0), 0),
-        });
-        portfolioTotalValue = valuation.total_portfolio_value ?? 0;
-      } else {
-        portfolioTotalValue = portfolios.reduce((sum, p) => sum + Number(p.cash_balance ?? 0), 0);
+    const { data: allHoldings } = await supabase
+      .from("holdings")
+      .select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis")
+      .in("portfolio_id", portfolios.map((p) => p.id));
+    const byPortfolio = new Map<string, typeof allHoldings>();
+    for (const h of allHoldings ?? []) {
+      const arr = byPortfolio.get(h.portfolio_id) ?? [];
+      arr.push(h);
+      byPortfolio.set(h.portfolio_id, arr);
+    }
+    for (const p of portfolios) {
+      const cash = Number(p.cash_balance ?? 0);
+      const hs = byPortfolio.get(p.id) ?? [];
+      let value = cash;
+      try {
+        if (hs.length > 0) {
+          const valuation = await getPortfolioValuation({
+            holdings: hs.map((h) => ({
+              id: h.id, ticker: h.ticker, company_name: h.company_name,
+              asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+            })),
+            cashBalance: cash,
+          });
+          value = valuation.total_portfolio_value ?? cash;
+        }
+      } catch {
+        value = cash;
       }
-    } catch {
-      portfolioTotalValue = portfolios.reduce((sum, p) => sum + Number(p.cash_balance ?? 0), 0);
+      portfolioAccounts.push({ id: p.id, name: p.name, account_type: p.account_type ?? null, value });
+      portfolioTotalValue += value;
     }
   }
 
@@ -258,6 +266,7 @@ export default async function PlanningPage({
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
           portfolioTotalValue={portfolioTotalValue}
+          portfolioAccounts={portfolioAccounts}
           assumptions={assumptions}
           futureEvents={typedFutureEvents}
           homeScenarios={typedHomeScenarios}
