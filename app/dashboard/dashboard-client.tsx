@@ -8,6 +8,7 @@ import FeedbackPrompt from "@/app/components/feedback-prompt";
 import WeekAheadCard from "@/app/components/week-ahead-card";
 import WeeklyRecapCard from "@/app/components/weekly-recap-card";
 import MondayPrepCard from "@/app/components/monday-prep-card";
+import StressTestSection from "@/app/portfolios/[id]/stress-test-section";
 import { TickerLookupProvider } from "@/app/components/ticker-quick-look";
 
 type PortfolioRow = {
@@ -71,6 +72,7 @@ export default function DashboardClient({
   lastRunAt,
   totalDayChange,
   totalCash,
+  stressHoldings,
   latestAiSummary,
   latestAiRunPortfolioId,
   termsAccepted,
@@ -91,6 +93,7 @@ export default function DashboardClient({
   lastRunAt: string | null;
   totalDayChange: number;
   totalCash: number;
+  stressHoldings?: { ticker: string; company_name: string | null; market_value: number; weight_pct: number }[];
   latestAiSummary: string | null;
   latestAiRunPortfolioId: string | null;
   termsAccepted: boolean;
@@ -437,6 +440,13 @@ export default function DashboardClient({
         </div>
 
       </div>
+
+      {/* Account-wide stress test — across every active portfolio */}
+      {stressHoldings && stressHoldings.length > 0 && (
+        <div style={{ marginTop: "16px" }}>
+          <StressTestSection holdings={stressHoldings} totalValue={totalValue} cashBalance={totalCash} />
+        </div>
+      )}
     </div>
   );
 }

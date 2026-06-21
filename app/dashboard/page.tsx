@@ -109,6 +109,8 @@ export default async function DashboardPage({
   let totalCash = 0;
   const portfolioValues: Record<string, number> = {};
   const portfolioCash: Record<string, number> = {};
+  // Combined holdings across all active portfolios — powers the account-wide stress test.
+  const combinedHoldings = new Map<string, { ticker: string; company_name: string | null; market_value: number }>();
 
   for (const p of activePortfolios) {
     const { data: holdings } = await supabase
@@ -133,6 +135,14 @@ export default async function DashboardPage({
         if (h.day_change !== null) {
           totalDayChange += h.day_change * h.shares_number;
         }
+        if ((h.shares_number ?? 0) > 0 && (h.market_value ?? 0) > 0) {
+          const prev = combinedHoldings.get(h.ticker);
+          combinedHoldings.set(h.ticker, {
+            ticker: h.ticker,
+            company_name: h.company_name ?? prev?.company_name ?? null,
+            market_value: (prev?.market_value ?? 0) + (h.market_value ?? 0),
+          });
+        }
       }
     } catch {
       // Finnhub unavailable — show cash-only value rather than crashing
@@ -140,6 +150,10 @@ export default async function DashboardPage({
       totalValue += pCash;
     }
   }
+
+  const stressHoldings = [...combinedHoldings.values()]
+    .map((h) => ({ ...h, weight_pct: totalValue > 0 ? (h.market_value / totalValue) * 100 : 0 }))
+    .sort((a, b) => b.market_value - a.market_value);
 
   let recentRuns: any[] = [];
   let recentTransactions: any[] = [];
@@ -340,6 +354,7 @@ export default async function DashboardPage({
               lastRunAt={recentRuns[0]?.created_at ?? null}
               totalDayChange={totalDayChange}
               totalCash={totalCash}
+              stressHoldings={stressHoldings}
               latestAiSummary={recentRuns[0]?.summary ?? null}
               latestAiRunPortfolioId={recentRuns[0]?.portfolio_id ?? null}
               termsAccepted={termsAccepted}
