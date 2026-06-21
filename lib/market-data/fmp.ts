@@ -51,6 +51,27 @@ export async function getFmpQuotes(tickers: string[]): Promise<Map<string, FmpQu
   }
 }
 
+export type FmpScreenResult = { symbol: string; name: string };
+
+// FMP stock screener — used to auto-populate research sections (growth/dividend/defensive)
+// by their defining characteristics instead of a hardcoded list. Returns [] gracefully.
+export async function getFmpScreen(params: Record<string, string | number>): Promise<FmpScreenResult[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return [];
+  const qs = new URLSearchParams({ ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])), isActivelyTrading: "true", exchange: "NASDAQ,NYSE", apikey: key });
+  try {
+    const res = await fetch(`${FMP_BASE}/stock-screener?${qs.toString()}`, { next: { revalidate: 21600 } }); // 6h
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data
+      .filter((r) => r?.symbol && /^[A-Z.]{1,6}$/.test(r.symbol)) // skip odd/foreign symbols
+      .map((r) => ({ symbol: String(r.symbol).toUpperCase(), name: r.companyName ?? r.symbol }));
+  } catch {
+    return [];
+  }
+}
+
 export type FmpMover = { symbol: string; name: string; price: number; change: number; changesPercentage: number };
 
 // Real market-wide movers from FMP's free gainers/losers/actives endpoints.

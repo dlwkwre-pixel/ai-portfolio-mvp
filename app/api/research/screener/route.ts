@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
-import { getFmpMovers } from "@/lib/market-data/fmp";
+import { getFmpMovers, getFmpScreen } from "@/lib/market-data/fmp";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CURATED_SECTIONS = [
@@ -74,7 +74,43 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
   }
 
-  const allTickers = CURATED_SECTIONS.flatMap((s) => s.tickers);
+  // Auto-populate every section by its theme from live FMP data, falling back to the
+  // curated list for any theme FMP can't serve. Each header now reflects real market data:
+  //   Trending → most-active names, Momentum → top gainers, High Growth → large-cap high-beta
+  //   tech, Dividend Stars → big dividend payers, Defensive Plays → low-beta large caps.
+  const curatedById = new Map(CURATED_SECTIONS.map((s) => [s.id, s]));
+  const [actives, gainers, losers, growthScreen, divScreen, defScreen] = await Promise.all([
+    getFmpMovers("actives").catch(() => []),
+    getFmpMovers("gainers").catch(() => []),
+    getFmpMovers("losers").catch(() => []),
+    getFmpScreen({ marketCapMoreThan: 10_000_000_000, sector: "Technology", betaMoreThan: 1.15, limit: 25 }).catch(() => []),
+    getFmpScreen({ marketCapMoreThan: 20_000_000_000, dividendMoreThan: 1, limit: 40 }).catch(() => []),
+    getFmpScreen({ marketCapMoreThan: 20_000_000_000, betaLowerThan: 0.85, limit: 40 }).catch(() => []),
+  ]);
+
+  // Use the top-N live names if FMP gave us enough; otherwise fall back to the curated list.
+  const pick = (
+    auto: { symbol: string; name: string }[],
+    id: string,
+    n = 5
+  ): { ticker: string; name: string }[] => {
+    const live = auto.slice(0, n).map((a) => ({ ticker: a.symbol, name: a.name }));
+    return live.length >= 3 ? live : (curatedById.get(id)?.tickers ?? live);
+  };
+
+  const sectionDefs = [
+    { id: "trending", label: "Trending", emoji: "🔥", tickers: pick(actives, "trending") },
+    { id: "growth", label: "High Growth", emoji: "🚀", tickers: pick(growthScreen, "growth") },
+    { id: "momentum", label: "Momentum Picks", emoji: "📈", tickers: pick(gainers, "momentum") },
+    { id: "dividend", label: "Dividend Stars", emoji: "💰", tickers: pick(divScreen, "dividend") },
+    { id: "defensive", label: "Defensive Plays", emoji: "🛡️", tickers: pick(defScreen, "defensive") },
+  ];
+
+  // Dedup tickers across sections for a single rate-limited Finnhub enrichment pass.
+  const tickerName = new Map<string, string>();
+  for (const sec of sectionDefs) for (const t of sec.tickers) if (!tickerName.has(t.ticker)) tickerName.set(t.ticker, t.name);
+  const allTickers = [...tickerName.keys()];
+
   const quotes: Record<string, { price: number; change: number; changePct: number } | null> = {};
   const analystRecs: Record<string, { buy: number; hold: number; sell: number } | null> = {};
 
@@ -82,7 +118,7 @@ export async function GET(req: Request) {
   for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
     const batch = allTickers.slice(i, i + BATCH_SIZE);
     await Promise.all(
-      batch.map(async ({ ticker }) => {
+      batch.map(async (ticker) => {
         const [q, rec] = await Promise.all([
           getFinnhubQuote(ticker).catch(() => null),
           getFinnhubRecommendations(ticker).catch(() => null),
@@ -100,35 +136,11 @@ export async function GET(req: Request) {
     if (i + BATCH_SIZE < allTickers.length) await sleep(1000);
   }
 
-  // Build enriched ticker data for all curated tickers
-  const enriched = allTickers.map(({ ticker, name }) => ({
-    ticker,
-    name,
-    ...(quotes[ticker] ?? {}),
-    analystRec: analystRecs[ticker] ?? null,
-  }));
-
-  // Daily Top Movers: the market's REAL biggest gainers + losers (FMP, free tier).
-  // Falls back to the curated universe sorted by |change| if FMP is unavailable.
-  const [fmpGainers, fmpLosers] = await Promise.all([
-    getFmpMovers("gainers").catch(() => []),
-    getFmpMovers("losers").catch(() => []),
-  ]);
-  const realMovers = [...fmpGainers.slice(0, 4), ...fmpLosers.slice(0, 2)]
-    .map((m) => ({ ticker: m.symbol, name: m.name, price: m.price, change: m.change, changePct: m.changesPercentage, analystRec: null }))
-    .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
-    .slice(0, 6);
-
-  const withQuote = enriched.filter((t) => t.price !== undefined && (t as { changePct?: number }).changePct !== undefined);
-  const dailyMovers = realMovers.length > 0
-    ? realMovers
-    : [...withQuote]
-        .sort((a, b) => Math.abs((b as { changePct?: number }).changePct ?? 0) - Math.abs((a as { changePct?: number }).changePct ?? 0))
-        .slice(0, 5);
-
-  // Build curated sections sorted by changePct desc within each
-  const curatedSections = CURATED_SECTIONS.map((section) => ({
-    ...section,
+  // Enrich each section's tickers with live quote + analyst rec, sorted by % change desc.
+  const enrichedSections = sectionDefs.map((section) => ({
+    id: section.id,
+    label: section.label,
+    emoji: section.emoji,
     tickers: section.tickers
       .map(({ ticker, name }) => ({
         ticker,
@@ -139,10 +151,27 @@ export async function GET(req: Request) {
       .sort((a, b) => ((b as { changePct?: number }).changePct ?? 0) - ((a as { changePct?: number }).changePct ?? 0)),
   }));
 
+  // Daily Top Movers: the market's REAL biggest gainers + losers (FMP, free tier).
+  // Falls back to the enriched universe sorted by |change| if FMP movers are unavailable.
+  const realMovers = [...gainers.slice(0, 4), ...losers.slice(0, 2)]
+    .map((m) => ({ ticker: m.symbol, name: m.name, price: m.price, change: m.change, changePct: m.changesPercentage, analystRec: null }))
+    .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
+    .slice(0, 6);
+  const dailyMovers = realMovers.length > 0
+    ? realMovers
+    : (() => {
+        const seen = new Set<string>();
+        return enrichedSections
+          .flatMap((s) => s.tickers)
+          .filter((t) => (t as { changePct?: number }).changePct !== undefined && !seen.has(t.ticker) && seen.add(t.ticker))
+          .sort((a, b) => Math.abs((b as { changePct?: number }).changePct ?? 0) - Math.abs((a as { changePct?: number }).changePct ?? 0))
+          .slice(0, 5);
+      })();
+
   const sections = [
-    curatedSections.find((s) => s.id === "trending")!,
+    enrichedSections.find((s) => s.id === "trending")!,
     { id: "daily_movers", label: "Daily Top Movers", emoji: "📊", tickers: dailyMovers },
-    ...curatedSections.filter((s) => s.id !== "trending"),
+    ...enrichedSections.filter((s) => s.id !== "trending"),
   ].filter(Boolean);
 
   return NextResponse.json(
