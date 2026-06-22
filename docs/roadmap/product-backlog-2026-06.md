@@ -19,14 +19,23 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
    has the guided first-run wizard + density modes; reuse that pattern. Need a generic
    "page tutorial" system (first-visit detection via localStorage/profile + a Learn-tab launcher).
 
-4b. **Congressional trades ("Unusual Whales"-style) — FREE path** (fold into #4).
-   Unusual Whales itself is paid. VERIFIED 2026-06-21: paid APIs are NOT free for this now —
-   Finnhub congressional = premium; FMP senate/house = paid Starter ($29/mo), not the free
-   250/day tier. **Use the free public datasets instead:** Senate Stock Watcher
-   (github.com/timothycarambat/senate-stock-watcher-data, raw JSON) + House Stock Watcher
-   (housestockwatcher.com/api) — daily-updated official STOCK Act disclosures, no key, $0.
-   Build: fetch + cache those, add a "Congress is trading" list on research + per-ticker
-   "traded by Congress" signal. NOT YET BUILT.
+4b. **Congressional trades ("Unusual Whales"-style) — FREE path** ✅ SHIPPED 2026-06-21.
+   Built on the free House/Senate Stock Watcher S3 datasets (official STOCK Act filings, daily,
+   no key, $0) — NOT paid Finnhub/FMP congressional endpoints. lib/market-data/congress.ts
+   (fetch + normalize both chambers, aggregate by ticker, 12h module TTL cache, graceful empty),
+   /api/research/congress (recent trades + top tickers, or ?ticker=X), and a "Congress is
+   Trading" section in the research feed (top-traded cards + recent buy/sell disclosures,
+   tappable to research). Endpoints: house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/
+   all_transactions.json + senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/
+   all_transactions.json. NOTE: couldn't verify reachability from the dev sandbox (no egress);
+   if S3 keys 403 from Vercel, the section just hides — swap URLs in congress.ts.
+
+4c. **401(k) optimizer** ✅ SHIPPED 2026-06-21 (planning + tax). ⚠️ REQUIRES MIGRATION:
+   run supabase/profile-401k-fields.sql (won't break the site if skipped — planning/tax use
+   select(*) — but saving 401k settings fails until columns exist). lib/tax/retirement-401k.ts
+   (contribution + match capture + scenario take-home), plan-401k-section.tsx, upsert401kSettings
+   action. Traditional deferral folds into the existing pre-tax pipeline so take-home/taxable
+   income drop automatically on planning + tax; employee+match feed the drawdown's deferred bucket.
 
 4. **Research-page list automation + most-popular ranking** ✅ SHIPPED 2026-06-21.
    ALL research sections now auto-populate by their header from live FMP data
