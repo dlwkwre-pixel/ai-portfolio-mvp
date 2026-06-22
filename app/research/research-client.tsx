@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
 import ScenariosPanel from "./scenarios-panel";
-import CongressSection from "./congress-section";
+import CongressSection, { CongressTickerCard } from "./congress-section";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1655,6 +1655,9 @@ function DetailView({
             );
           })()}
         </div>
+
+      {/* Congress trades for this ticker */}
+      <CongressTickerCard ticker={result.ticker} />
 
       {/* Insider Activity */}
       <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>

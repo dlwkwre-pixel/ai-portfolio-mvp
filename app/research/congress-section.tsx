@@ -187,3 +187,68 @@ export default function CongressSection({
     </div>
   );
 }
+
+// Per-ticker congressional activity for a stock's research detail panel.
+// Self-fetches /api/research/congress?ticker=X and shows recent House/Senate disclosures.
+export function CongressTickerCard({ ticker }: { ticker: string }) {
+  const [data, setData] = useState<{ summary: TickerSummary | null; trades: Trade[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetch(`/api/research/congress?ticker=${encodeURIComponent(ticker)}`)
+      .then((r) => r.json())
+      .then((d) => { if (alive) setData({ summary: d.summary ?? null, trades: d.trades ?? [] }); })
+      .catch(() => { if (alive) setData({ summary: null, trades: [] }); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [ticker]);
+
+  return (
+    <>
+      <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>🏛️ Congress Trades</span>
+        <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
+      </div>
+      <div style={{ padding: "8px 18px 14px" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: "13px" }}>Loading congressional trades…</div>
+        ) : !data || data.trades.length === 0 ? (
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            No U.S. House or Senate disclosures for {ticker} in the last ~6 months. Source: public STOCK Act filings.
+          </div>
+        ) : (
+          <div>
+            {data.summary && (
+              <div style={{ display: "flex", gap: "14px", marginBottom: "10px", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
+                <span style={{ color: "var(--green)" }}>{data.summary.buys} buy{data.summary.buys === 1 ? "" : "s"}</span>
+                <span style={{ color: "#f87171" }}>{data.summary.sells} sell{data.summary.sells === 1 ? "" : "s"}</span>
+                <span style={{ color: "var(--text-tertiary)" }}>{data.summary.people.length} member{data.summary.people.length === 1 ? "" : "s"}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+              {data.trades.slice(0, 8).map((t, i) => (
+                <div key={`${t.person}-${i}`} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                  <span style={{
+                    flexShrink: 0, fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", fontFamily: "var(--font-mono)",
+                    color: t.txType === "buy" ? "var(--green)" : t.txType === "sell" ? "#f87171" : "var(--text-tertiary)",
+                    background: t.txType === "buy" ? "rgba(16,185,129,0.1)" : t.txType === "sell" ? "rgba(248,113,113,0.1)" : "var(--bg-elevated)",
+                    border: `1px solid ${t.txType === "buy" ? "rgba(16,185,129,0.2)" : t.txType === "sell" ? "rgba(248,113,113,0.2)" : "var(--border-subtle)"}`,
+                  }}>
+                    {t.txType === "buy" ? "BUY" : t.txType === "sell" ? "SELL" : "EXCH"}
+                  </span>
+                  <span style={{ flex: 1, color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {t.person}<span style={{ color: "var(--text-muted)" }}> · {t.chamber === "house" ? "House" : "Senate"}</span>
+                  </span>
+                  <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", fontSize: "11px", flexShrink: 0, whiteSpace: "nowrap" }}>{t.amountRange ? fmtAmt(t.amountMid) : ""}</span>
+                  <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "11px", flexShrink: 0 }}>{fmtDate(t.transactionDate)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
