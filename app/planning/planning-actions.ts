@@ -218,6 +218,41 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
   );
 
   if (error) return { error: error.message };
+
+  // Reflect the 401(k) balance in net worth by managing a single "401(k)" balance-sheet item
+  // (category retirement → tax-deferred, or tax-free for Roth). This flows through every
+  // net-worth / tax-bucket calculation that already exists, with no double-counting: the
+  // planner owns this one item. Growth is projected separately in the forecast.
+  try {
+    const { data: existing } = await supabase
+      .from("balance_sheet_items")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("label", "401(k)")
+      .maybeSingle();
+
+    if (has_401k && k401_current_balance != null && k401_current_balance > 0) {
+      const tax_treatment = k401_is_roth ? "tax_free" : "tax_deferred";
+      if (existing) {
+        await supabase.from("balance_sheet_items")
+          .update({ value: k401_current_balance, tax_treatment, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("balance_sheet_items").insert({
+          user_id: user.id,
+          label: "401(k)",
+          category: "retirement",
+          value: k401_current_balance,
+          is_liability: false,
+          tax_treatment,
+        });
+      }
+    } else if (existing) {
+      // No 401(k) (or zero balance) → remove the managed item so net worth stays accurate.
+      await supabase.from("balance_sheet_items").delete().eq("id", existing.id);
+    }
+  } catch { /* non-fatal: 401(k) settings still saved even if the balance-sheet sync fails */ }
+
   revalidatePath("/planning");
   revalidatePath("/tax");
   return {};

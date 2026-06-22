@@ -341,7 +341,7 @@ export default function Plan401kSection({
               <div>
                 <label style={label}>Current balance</label>
                 <input type="number" min={0} step={1000} value={balance} placeholder="0" onChange={(e) => setBalance(e.target.value)} style={field} />
-                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px" }}>Set to 0 if you haven&apos;t started yet — we project it forward.</p>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px" }}>Counts toward your net worth as a tax-deferred 401(k) — don&apos;t also add it to the balance sheet. Set to 0 if you haven&apos;t started; we project it forward.</p>
               </div>
             </div>
 
