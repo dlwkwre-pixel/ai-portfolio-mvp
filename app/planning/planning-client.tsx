@@ -5290,7 +5290,7 @@ const SANKEY_BUCKET_COLOR: Record<string, string> = {
 };
 function CashFlowSankey({ income, leaves, isPrivate }: {
   income: number;
-  leaves: { label: string; amount: number; bucket: "needs" | "wants" | "savings" }[];
+  leaves: { label: string; amount: number; bucket: "needs" | "wants" | "savings"; color?: string }[];
   isPrivate: boolean;
 }) {
   const ph = (v: string) => (isPrivate ? "••••" : v);
@@ -5349,7 +5349,7 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
         <text x={sxRight - nodeW - 8} y={(incTop + incBot) / 2} textAnchor="end" dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", fill: "var(--text-primary)" }}>Income</text>
         {/* Links + leaf nodes + labels */}
         {labeled.map((s, i) => {
-          const color = SANKEY_BUCKET_COLOR[s.bucket];
+          const color = s.color ?? SANKEY_BUCKET_COLOR[s.bucket];
           const path = `M${sxRight},${s.sy0.toFixed(1)} C${midx},${s.sy0.toFixed(1)} ${midx},${s.ty0.toFixed(1)} ${txLeft},${s.ty0.toFixed(1)} L${txLeft},${s.ty1.toFixed(1)} C${midx},${s.ty1.toFixed(1)} ${midx},${s.sy1.toFixed(1)} ${sxRight},${s.sy1.toFixed(1)} Z`;
           return (
             <g key={i}>
@@ -5363,13 +5363,6 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
           );
         })}
       </svg>
-      <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", marginTop: "10px" }}>
-        {([["needs", "Needs"], ["wants", "Wants"], ["savings", "Savings"]] as const).map(([k, label]) => (
-          <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-            <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: SANKEY_BUCKET_COLOR[k] }} />{label}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
@@ -5636,8 +5629,8 @@ function CashFlowOS({
         <CashFlowSankey
           income={effectiveIncome}
           leaves={[
-            ...catData.map((c) => ({ label: c.label, amount: c.budgeted, bucket: bucketForCategory(c.label) })),
-            ...(monthlySavings > 0 ? [{ label: "Savings", amount: monthlySavings, bucket: "savings" as const }] : []),
+            ...catData.map((c) => ({ label: c.label, amount: c.budgeted, bucket: bucketForCategory(c.label), color: CF_CAT_COLORS[c.label] ?? "oklch(0.55 0.05 258)" })),
+            ...(monthlySavings > 0 ? [{ label: "Savings", amount: monthlySavings, bucket: "savings" as const, color: "oklch(0.72 0.18 150)" }] : []),
           ]}
           isPrivate={isPrivate}
         />
