@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getFinnhubQuote, getFinnhubRecommendations } from "@/lib/market-data/finnhub";
-import { getFmpMovers, getFmpScreen } from "@/lib/market-data/fmp";
+import { getFinnhubRecommendations } from "@/lib/market-data/finnhub";
+import { getFmpMovers, getFmpScreen, getFmpQuotes } from "@/lib/market-data/fmp";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CURATED_SECTIONS = [
@@ -114,16 +114,29 @@ export async function GET(req: Request) {
   const quotes: Record<string, { price: number; change: number; changePct: number } | null> = {};
   const analystRecs: Record<string, { buy: number; hold: number; sell: number } | null> = {};
 
-  const BATCH_SIZE = 5;
-  for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
-    const batch = allTickers.slice(i, i + BATCH_SIZE);
+  // Quotes in ONE batched FMP call (was per-ticker Finnhub with 1s sleeps between batches —
+  // the main source of the slow "cards take a beat" load). Seed from the mover endpoints we
+  // already fetched so movers never miss a price.
+  const moverSeed = new Map<string, { price: number; change: number; changePct: number }>();
+  for (const m of [...actives, ...gainers, ...losers]) {
+    if (!moverSeed.has(m.symbol)) moverSeed.set(m.symbol, { price: m.price, change: m.change, changePct: m.changesPercentage });
+  }
+  const fmpQuoteMap = await getFmpQuotes(allTickers).catch(() => new Map());
+  for (const ticker of allTickers) {
+    const f = fmpQuoteMap.get(ticker);
+    quotes[ticker] = f
+      ? { price: f.price, change: f.change, changePct: f.changesPercentage }
+      : moverSeed.get(ticker) ?? null;
+  }
+
+  // Analyst ratings: Finnhub is per-ticker, so fetch in parallel batches with a short gap
+  // (no more 1s sleeps). Best-effort — a missed rec just omits the B/H/S badge on that card.
+  const REC_BATCH = 10;
+  for (let i = 0; i < allTickers.length; i += REC_BATCH) {
+    const batch = allTickers.slice(i, i + REC_BATCH);
     await Promise.all(
       batch.map(async (ticker) => {
-        const [q, rec] = await Promise.all([
-          getFinnhubQuote(ticker).catch(() => null),
-          getFinnhubRecommendations(ticker).catch(() => null),
-        ]);
-        quotes[ticker] = q ? { price: q.c, change: q.d, changePct: q.dp } : null;
+        const rec = await getFinnhubRecommendations(ticker).catch(() => null);
         analystRecs[ticker] = rec
           ? {
               buy: (rec.strongBuy ?? 0) + (rec.buy ?? 0),
@@ -133,7 +146,7 @@ export async function GET(req: Request) {
           : null;
       })
     );
-    if (i + BATCH_SIZE < allTickers.length) await sleep(1000);
+    if (i + REC_BATCH < allTickers.length) await sleep(250);
   }
 
   // Enrich each section's tickers with live quote + analyst rec, sorted by % change desc.
@@ -176,6 +189,8 @@ export async function GET(req: Request) {
 
   return NextResponse.json(
     { sections },
-    { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" } }
+    // Cache the computed sections at the edge for 5 min (stale-while-revalidate 30 min) so
+    // most visitors get an instant cached response and rarely hit the compute path.
+    { headers: { "Cache-Control": "s-maxage=300, stale-while-revalidate=1800" } }
   );
 }
