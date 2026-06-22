@@ -67,9 +67,15 @@ const PAY_PERIODS: Record<string, { perYear: number; label: string }> = {
 export default function Plan401kSection({
   profile,
   payFrequency = "biweekly",
+  monthlyExpenses = 0,
+  assumedReturnPct = 7,
+  retirementAge = null,
 }: {
   profile: Profile;
   payFrequency?: string;
+  monthlyExpenses?: number;
+  assumedReturnPct?: number;
+  retirementAge?: number | null;
 }) {
   const payPeriod = PAY_PERIODS[payFrequency] ?? PAY_PERIODS.biweekly;
   const grossAnnual = (profile.gross_monthly_income ?? 0) * 12;
@@ -82,7 +88,7 @@ export default function Plan401kSection({
   const [matchPct, setMatchPct] = useState<number>(profile.k401_employer_match_pct ?? 100);
   const [matchLimitPct, setMatchLimitPct] = useState<number>(profile.k401_employer_match_limit_pct ?? 0);
   const [balance, setBalance] = useState<string>(
-    profile.k401_current_balance != null ? String(profile.k401_current_balance) : ""
+    profile.k401_current_balance != null ? String(profile.k401_current_balance) : "0"
   );
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
@@ -165,6 +171,37 @@ export default function Plan401kSection({
     matchLimitPct > 0
       ? `${matchPct}% match on the first ${fmtPct(matchLimitPct)} of pay`
       : "No employer match set";
+
+  // ── Forward-looking projection: grow current balance + contributions to retirement ──
+  const currentBalance = Math.max(0, Number(balance) || 0);
+  const retAge = retirementAge ?? 65;
+  const yearsToRetire = profile.current_age != null ? Math.max(1, retAge - profile.current_age) : 30;
+  const r = Math.max(0, assumedReturnPct / 100);
+  const fvFactor = Math.pow(1 + r, yearsToRetire);
+  const projectedBalance =
+    r > 0
+      ? currentBalance * fvFactor + result.totalAnnual * ((fvFactor - 1) / r)
+      : currentBalance + result.totalAnnual * yearsToRetire;
+  const totalContributed = currentBalance + result.totalAnnual * yearsToRetire;
+  const projectedGrowth = Math.max(0, projectedBalance - totalContributed);
+
+  const annualTaxSaved = isRoth ? 0 : scenarios.find((s) => Math.abs(s.pct - pct) < 0.6)?.taxSavedVsZero ?? 0;
+  const lifetimeTaxSaved = annualTaxSaved * yearsToRetire;
+
+  // ── Savings-rate recommendation: capture match, then push as high as the budget allows ──
+  const budgetKnown = monthlyExpenses > 0;
+  let affordablePct = result.fullMatchPct;
+  if (budgetKnown) {
+    for (const s of scenarios) if (s.takeHomeMonthly >= monthlyExpenses) affordablePct = Math.max(affordablePct, s.pct);
+  }
+  const TARGET_PCT = 15; // a solid long-term retirement savings rate
+  let recommendedPct = budgetKnown
+    ? Math.max(result.fullMatchPct, Math.min(TARGET_PCT, affordablePct))
+    : Math.max(result.fullMatchPct, result.fullMatchPct > 0 ? result.fullMatchPct : 10);
+  recommendedPct = Math.round(recommendedPct * 10) / 10;
+  const recScenario = scenarios.find((s) => Math.abs(s.pct - recommendedPct) < 0.6);
+  const recSurplus = recScenario && budgetKnown ? recScenario.takeHomeMonthly - monthlyExpenses : null;
+  const atRecommended = Math.abs(pct - recommendedPct) < 0.6;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -256,10 +293,11 @@ export default function Plan401kSection({
                 <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px" }}>{matchValueLabel}</p>
               </div>
 
-              {/* Current balance (optional) */}
+              {/* Current 401(k) balance — defaults to 0 if you haven't started */}
               <div>
-                <label style={label}>Current balance (optional)</label>
-                <input type="number" min={0} step={1000} value={balance} placeholder="e.g. 25000" onChange={(e) => setBalance(e.target.value)} style={field} />
+                <label style={label}>Current balance</label>
+                <input type="number" min={0} step={1000} value={balance} placeholder="0" onChange={(e) => setBalance(e.target.value)} style={field} />
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "4px" }}>Set to 0 if you haven&apos;t started yet — we project it forward.</p>
               </div>
             </div>
 
@@ -279,15 +317,54 @@ export default function Plan401kSection({
             </div>
           </div>
 
-          {/* Insights */}
+          {/* Atlas recommendation — what rate to pick, given match + taxes + budget */}
+          <div style={{ ...card, borderColor: "rgba(37,99,235,0.35)", background: "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.05))" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: "220px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: "6px" }}>Atlas suggests</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "10px", flexWrap: "wrap" }}>
+                  <div style={{ ...mono, fontSize: "30px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtPct(recommendedPct)}</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>of your pay{atRecommended ? " — you're set here ✓" : ""}</div>
+                </div>
+                <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {matchLimitPct > 0 && (
+                    <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      ✓ Captures your full employer match at {fmtPct(result.fullMatchPct)} — guaranteed return you don&apos;t want to skip.
+                    </li>
+                  )}
+                  {!isRoth && annualTaxSaved > 0 && (
+                    <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      ✓ Pre-tax deferrals trim your income tax — about <strong style={{ color: "var(--text-primary)" }}>{fmt(annualTaxSaved)}/yr</strong> at this rate.
+                    </li>
+                  )}
+                  {budgetKnown ? (
+                    <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      ✓ Leaves <strong style={{ color: "var(--text-primary)" }}>{fmt(Math.max(0, recSurplus ?? 0))}/mo</strong> after your budgeted expenses.
+                    </li>
+                  ) : (
+                    <li style={{ fontSize: "12.5px", color: "var(--amber)", lineHeight: 1.5 }}>
+                      → Fill out your monthly budget on the Cash Flow tab and Atlas will push this as high as you can comfortably afford. For now it just secures your match.
+                    </li>
+                  )}
+                </ul>
+              </div>
+              {!atRecommended && (
+                <button type="button" onClick={() => setPct(recommendedPct)}
+                  style={{ alignSelf: "center", background: "var(--accent)", color: "#fff", border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  Use {fmtPct(recommendedPct)}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Insights — forward-looking */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-            {/* Free-money / match capture — the single most important 401(k) insight */}
             {matchLimitPct > 0 && (
               result.capturesFullMatch ? (
                 <div style={{ ...card, borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)" }}>
                   <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>✓ Full match captured</div>
                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — you&apos;re leaving none of it on the table.
+                    Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — none left on the table.
                   </div>
                 </div>
               ) : (
@@ -295,38 +372,36 @@ export default function Plan401kSection({
                   <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", marginBottom: "4px" }}>⚠ Free money on the table</div>
                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                     Bump to <strong style={{ color: "var(--text-primary)" }}>{fmtPct(result.fullMatchPct)}</strong> to capture
-                    {" "}<strong style={{ color: "var(--text-primary)" }}>{fmt(result.unmatchedFreeMoney)}/yr</strong> more in employer match. That&apos;s an instant guaranteed return.
+                    {" "}<strong style={{ color: "var(--text-primary)" }}>{fmt(result.unmatchedFreeMoney)}/yr</strong> more — an instant guaranteed return.
                   </div>
                 </div>
               )
             )}
 
-            {/* Tax impact (Traditional) */}
+            {/* Projected balance at retirement — the forward-looking headline */}
             <div style={card}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {isRoth ? "Roth — taxed now" : "Tax saved this year"}
+                Projected at {retAge}
               </div>
-              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>
-                {isRoth ? fmt(0) : fmt(scenarios.find((s) => Math.abs(s.pct - pct) < 0.6)?.taxSavedVsZero ?? 0)}
-              </div>
+              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(projectedBalance)}</div>
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
-                {isRoth
-                  ? "Roth contributions don't reduce this year's taxable income."
-                  : "Lower federal + state income tax from deferring pre-tax. FICA still applies."}
+                {fmt(currentBalance)} today + {fmt(result.totalAnnual)}/yr, compounded {assumedReturnPct}% for {yearsToRetire} yrs — about {fmt(projectedGrowth)} of that is growth.
               </div>
             </div>
 
-            {/* Total going in */}
+            {/* Tax saved — this year + projected over the years to retirement */}
             <div style={card}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Total into your 401(k)/yr
+                {isRoth ? "Roth — taxed now" : "Tax saved"}
               </div>
-              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(result.totalAnnual)}</div>
+              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>
+                {isRoth ? fmt(0) : `${fmt(annualTaxSaved)}/yr`}
+              </div>
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
-                {fmt(result.employeeAnnual)} you + {fmt(result.employerAnnual)} employer
-                {result.cappedByIrs && (
-                  <span style={{ color: "var(--amber)" }}> · capped at the {fmt(result.irsEmployeeLimit)} IRS {year} limit</span>
-                )}
+                {isRoth
+                  ? "Roth is taxed now; qualified withdrawals in retirement are tax-free."
+                  : `≈ ${fmt(lifetimeTaxSaved)} kept over ${yearsToRetire} yrs at today's rate. FICA still applies.`}
+                {result.cappedByIrs && <span style={{ color: "var(--amber)" }}> · capped at the {fmt(result.irsEmployeeLimit)} IRS {year} limit</span>}
               </div>
             </div>
           </div>

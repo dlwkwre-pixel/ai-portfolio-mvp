@@ -70,8 +70,20 @@ export default function CongressSection({
     );
   }
 
-  // Graceful: if the public datasets are briefly unavailable, render nothing rather than an empty shell.
-  if (!data || (data.topTickers.length === 0 && data.trades.length === 0)) return null;
+  // If the public datasets are briefly unavailable, keep the section visible with a short
+  // note rather than vanishing (so it never looks "missing").
+  if (!data || (data.topTickers.length === 0 && data.trades.length === 0)) {
+    return (
+      <div style={{ marginBottom: "28px" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>
+          🏛️ Congress is Trading
+        </div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "14px 16px", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", background: "var(--card-bg)", lineHeight: 1.5 }}>
+          Congressional disclosure data is syncing from the public STOCK Act feeds — check back shortly.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginBottom: "28px" }}>

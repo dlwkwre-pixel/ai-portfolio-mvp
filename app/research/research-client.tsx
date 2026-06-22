@@ -2175,6 +2175,12 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
         />
       )}
 
+      {/* Congress is Trading — free STOCK Act disclosures, near the top of the default feed */}
+      <CongressSection
+        active={!showScenarios && activeFilter === "all"}
+        onTickerClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "congress_ticker_click"); doSearch(ticker); }}
+      />
+
       {/* Screener sections */}
       {!showScenarios && screenerLoading ? (
         <>
@@ -2203,12 +2209,6 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
           </div>
         ))
       )}
-
-      {/* Congress is Trading — free STOCK Act disclosures, shown in the default feed */}
-      <CongressSection
-        active={!showScenarios && activeFilter === "all"}
-        onTickerClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "congress_ticker_click"); doSearch(ticker); }}
-      />
     </div>
   );
 }

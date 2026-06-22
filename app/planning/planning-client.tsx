@@ -8558,7 +8558,13 @@ export default function PlanningClient({
           {/* ── Section 1a-401k: Workplace retirement (401k optimizer) ── */}
           {profile && (
             <div className="cmd-section" style={{ animationDelay: "30ms" }}>
-              <Plan401kSection profile={profile} payFrequency={effectivePayFrequency} />
+              <Plan401kSection
+                profile={profile}
+                payFrequency={effectivePayFrequency}
+                monthlyExpenses={effectiveExpenses}
+                assumedReturnPct={localAssumptions.return_rate}
+                retirementAge={profile?.target_retirement_age ?? null}
+              />
             </div>
           )}
 
