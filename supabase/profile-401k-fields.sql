@@ -18,7 +18,11 @@ ALTER TABLE financial_profiles
   ADD COLUMN IF NOT EXISTS k401_is_roth                  BOOLEAN DEFAULT false,
   ADD COLUMN IF NOT EXISTS k401_employer_match_pct       NUMERIC DEFAULT 100,
   ADD COLUMN IF NOT EXISTS k401_employer_match_limit_pct NUMERIC DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS k401_current_balance          NUMERIC;
+  ADD COLUMN IF NOT EXISTS k401_current_balance          NUMERIC,
+  -- How often the user is paid. Drives the 401(k) per-paycheck math and is the canonical
+  -- pay cadence (weekly | biweekly | semimonthly | monthly). NULL until set, so BuyTune can
+  -- infer it from the cashflow income cadence meanwhile. Safe to re-run this file.
+  ADD COLUMN IF NOT EXISTS pay_frequency                 TEXT;
 
 COMMENT ON COLUMN financial_profiles.has_401k IS 'Whether the user participates in a workplace 401(k)/403(b)/TSP.';
 COMMENT ON COLUMN financial_profiles.k401_contribution_pct IS 'Employee elective deferral as a percent of gross pay.';

@@ -127,6 +127,7 @@ export default async function PlanningPage({
         k401_employer_match_pct: profileData.k401_employer_match_pct != null ? Number(profileData.k401_employer_match_pct) : null,
         k401_employer_match_limit_pct: profileData.k401_employer_match_limit_pct != null ? Number(profileData.k401_employer_match_limit_pct) : null,
         k401_current_balance: profileData.k401_current_balance != null ? Number(profileData.k401_current_balance) : null,
+        pay_frequency: profileData.pay_frequency ?? null,
         updated_at: profileData.updated_at,
         is_homeowner: profileData.is_homeowner ?? false,
         owner_home_value: profileData.owner_home_value ? Number(profileData.owner_home_value) : null,

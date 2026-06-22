@@ -57,7 +57,21 @@ const field: React.CSSProperties = {
 };
 const mono: React.CSSProperties = { fontFamily: "var(--font-mono)" };
 
-export default function Plan401kSection({ profile }: { profile: Profile }) {
+const PAY_PERIODS: Record<string, { perYear: number; label: string }> = {
+  weekly: { perYear: 52, label: "weekly" },
+  biweekly: { perYear: 26, label: "every 2 weeks" },
+  semimonthly: { perYear: 24, label: "twice a month" },
+  monthly: { perYear: 12, label: "monthly" },
+};
+
+export default function Plan401kSection({
+  profile,
+  payFrequency = "biweekly",
+}: {
+  profile: Profile;
+  payFrequency?: string;
+}) {
+  const payPeriod = PAY_PERIODS[payFrequency] ?? PAY_PERIODS.biweekly;
   const grossAnnual = (profile.gross_monthly_income ?? 0) * 12;
   const year = new Date().getFullYear();
   const limits = contributionLimits(year);
@@ -146,7 +160,7 @@ export default function Plan401kSection({ profile }: { profile: Profile }) {
   }
 
   const monthlyDeferral = result.employeeAnnual / 12;
-  const perPaycheck = result.employeeAnnual / 26; // biweekly
+  const perPaycheck = result.employeeAnnual / payPeriod.perYear;
   const matchValueLabel =
     matchLimitPct > 0
       ? `${matchPct}% match on the first ${fmtPct(matchLimitPct)} of pay`
@@ -183,20 +197,25 @@ export default function Plan401kSection({ profile }: { profile: Profile }) {
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={label}>Your contribution: <span style={{ ...mono, color: "var(--accent)", fontSize: "14px" }}>{fmtPct(pct)}</span> of pay</label>
                 <input
-                  type="range" min={0} max={Math.max(15, Math.ceil(pct))} step={0.5} value={pct}
+                  type="range" min={0} max={Math.max(30, Math.ceil(pct))} step={0.5} value={pct}
                   onChange={(e) => setPct(Number(e.target.value))}
                   style={{ width: "100%", accentColor: "var(--accent)" }}
                 />
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px", flexWrap: "wrap" }}>
                   <input
                     type="number" min={0} max={100} step={0.5} value={pct}
                     onChange={(e) => setPct(Math.max(0, Math.min(100, Number(e.target.value))))}
                     style={{ ...field, width: "90px" }}
                   />
                   <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
-                    ≈ {fmt(monthlyDeferral)}/mo · {fmt(perPaycheck)}/paycheck (biweekly)
+                    ≈ {fmt(monthlyDeferral)}/mo · {fmt(perPaycheck)}/paycheck ({payPeriod.label})
                   </span>
                 </div>
+                <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "6px", lineHeight: 1.5 }}>
+                  Drag the slider or type any rate (e.g. 4%). There&apos;s no fixed % cap — you can defer up to
+                  the {fmt(limits.k401)} IRS {year} limit; your <em>plan</em> may cap the percent of pay you can elect
+                  (often 15–100%). We stop the contribution at whichever you hit first.
+                </p>
               </div>
 
               {/* Roth vs Traditional */}

@@ -32,6 +32,7 @@ export type FinancialProfile = {
   k401_employer_match_pct?: number | null;
   k401_employer_match_limit_pct?: number | null;
   k401_current_balance?: number | null;
+  pay_frequency?: string | null; // weekly | biweekly | semimonthly | monthly
   updated_at: string;
   // Home owner-mover mode
   is_homeowner: boolean;
@@ -139,6 +140,9 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   const filing_status = String(formData.get("filing_status") || "single");
   const state_code = String(formData.get("state_code") || "").trim() || null;
   const income_type = String(formData.get("income_type") || "w2");
+  const PAY_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly"];
+  const pay_frequency_raw = String(formData.get("pay_frequency") || "").trim();
+  const pay_frequency = PAY_FREQUENCIES.includes(pay_frequency_raw) ? pay_frequency_raw : "biweekly";
   const partner_name = String(formData.get("partner_name") || "").trim() || null;
   const partner_age = formData.get("partner_age") ? Number(formData.get("partner_age")) : null;
   const partner_target_retirement_age = formData.get("partner_target_retirement_age") ? Number(formData.get("partner_target_retirement_age")) : null;
@@ -158,6 +162,7 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
       filing_status,
       state_code,
       income_type,
+      pay_frequency,
       partner_name,
       partner_age,
       partner_target_retirement_age,

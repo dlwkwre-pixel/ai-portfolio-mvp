@@ -11,8 +11,13 @@
 // module-level cache with a TTL. Everything fails gracefully to [] so the research page never
 // breaks when a dataset is briefly unavailable.
 
-const HOUSE_URL = "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json";
-const SENATE_URL = "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json";
+// Senate via raw.githubusercontent (verified reachable + maintained by GH Actions).
+// House via S3 (best-effort) with a raw.githubusercontent fallback if S3 blocks the request.
+const SENATE_URL = "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_transactions.json";
+const HOUSE_URLS = [
+  "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json",
+  "https://raw.githubusercontent.com/timothycarambat/house-stock-watcher-data/master/data/all_transactions.json",
+];
 
 export type CongressTrade = {
   chamber: "house" | "senate";
@@ -91,7 +96,11 @@ async function fetchJsonArray(url: string, timeoutMs = 9000): Promise<unknown[]>
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: { "User-Agent": "BuyTune/1.0 (+https://buytuneio.vercel.app)", Accept: "application/json" },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -100,6 +109,15 @@ async function fetchJsonArray(url: string, timeoutMs = 9000): Promise<unknown[]>
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Try each URL in order, returning the first that yields a non-empty array.
+async function fetchJsonArrayFromAny(urls: string[]): Promise<unknown[]> {
+  for (const u of urls) {
+    const arr = await fetchJsonArray(u);
+    if (arr.length > 0) return arr;
+  }
+  return [];
 }
 
 function normalizeHouse(rows: unknown[]): CongressTrade[] {
@@ -152,7 +170,7 @@ function normalizeSenate(rows: unknown[]): CongressTrade[] {
 
 let cache: { data: CongressActivity; expires: number } | null = null;
 const TTL_MS = 12 * 60 * 60 * 1000; // 12h
-const LOOKBACK_DAYS = 120;
+const LOOKBACK_DAYS = 180; // disclosures lag (filed within 45 days, dataset refreshes periodically)
 const MAX_TRADES = 300;
 
 function buildActivity(all: CongressTrade[]): CongressActivity {
@@ -196,7 +214,7 @@ export async function getCongressActivity(): Promise<CongressActivity> {
   if (cache && cache.expires > Date.now()) return cache.data;
   try {
     const [house, senate] = await Promise.all([
-      fetchJsonArray(HOUSE_URL).then(normalizeHouse).catch(() => [] as CongressTrade[]),
+      fetchJsonArrayFromAny(HOUSE_URLS).then(normalizeHouse).catch(() => [] as CongressTrade[]),
       fetchJsonArray(SENATE_URL).then(normalizeSenate).catch(() => [] as CongressTrade[]),
     ]);
     const all = [...house, ...senate];

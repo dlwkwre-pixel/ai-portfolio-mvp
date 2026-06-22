@@ -6226,6 +6226,7 @@ export default function PlanningClient({
   const [formIncomeType, setFormIncomeType] = useState<IncomeType>(() => (profile?.income_type as IncomeType) ?? "w2");
   const [formStateCode, setFormStateCode] = useState(() => profile?.state_code ?? "");
   const [formPreTax, setFormPreTax] = useState(() => profile?.pre_tax_deductions_annual ?? 0);
+  const [formPayFrequency, setFormPayFrequency] = useState(() => profile?.pay_frequency ?? "biweekly");
   const [netOverride, setNetOverride] = useState<number | null>(() => profile?.net_monthly_override ?? null);
   const [showNetOverride, setShowNetOverride] = useState(() => (profile?.net_monthly_override ?? null) !== null);
 
@@ -6237,6 +6238,7 @@ export default function PlanningClient({
       setFormIncomeType((profile?.income_type as IncomeType) ?? "w2");
       setFormStateCode(profile?.state_code ?? "");
       setFormPreTax(profile?.pre_tax_deductions_annual ?? 0);
+      setFormPayFrequency(profile?.pay_frequency ?? inferredPayFrequency ?? "biweekly");
       setNetOverride(profile?.net_monthly_override ?? null);
       setShowNetOverride((profile?.net_monthly_override ?? null) !== null);
       setProfileSaveError(null);
@@ -6340,6 +6342,17 @@ export default function PlanningClient({
   const k401DeferredAnnual = (k401Result?.traditionalAnnual ?? 0) + (k401Result?.employerAnnual ?? 0);
   const k401EmployeeMonthly = (k401Result?.employeeAnnual ?? 0) / 12;
   const effectivePreTaxAnnual = (profile?.pre_tax_deductions_annual ?? 0) + k401TraditionalAnnual;
+
+  // Pay cadence drives the 401(k) per-paycheck math. Use the profile's explicit setting;
+  // otherwise infer it from the largest recurring income line the user already entered in
+  // cash flow (so "twice a month" carries over automatically without re-entering it).
+  const inferredPayFrequency = (() => {
+    const incomes = cashFlowItems.filter((i) => i.type === "income");
+    const top = incomes.slice().sort((a, b) => toMonthly(b.amount, b.frequency) - toMonthly(a.amount, a.frequency))[0];
+    const f = top?.frequency;
+    return f === "weekly" || f === "biweekly" || f === "semimonthly" || f === "monthly" ? f : null;
+  })();
+  const effectivePayFrequency = profile?.pay_frequency ?? inferredPayFrequency ?? "biweekly";
 
   // Derive estimated net income from gross profile income using tax estimator.
   // Net take-home = after-tax pay MINUS the employee 401(k) deferral that leaves the paycheck
@@ -8256,7 +8269,7 @@ export default function PlanningClient({
 
             {editingProfile ? (
               <form onSubmit={handleProfileSubmit}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", alignItems: "end" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Date of Birth</label>
                     <input name="date_of_birth" type="date" max={new Date().toISOString().split("T")[0]} defaultValue={profile?.date_of_birth ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
@@ -8282,6 +8295,16 @@ export default function PlanningClient({
                     {formIncomeType === "retired" && (
                       <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Social Security, pension & annuities — before portfolio withdrawals. No payroll tax applied.</div>
                     )}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Pay Frequency</label>
+                    <select name="pay_frequency" value={formPayFrequency} onChange={(e) => setFormPayFrequency(e.target.value)} style={{ ...selectStyle, width: "100%" }}>
+                      <option value="weekly">Weekly (52/yr)</option>
+                      <option value="biweekly">Every 2 weeks (26/yr)</option>
+                      <option value="semimonthly">Twice a month (24/yr)</option>
+                      <option value="monthly">Monthly (12/yr)</option>
+                    </select>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Used for your 401(k) per-paycheck math.</div>
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
@@ -8334,7 +8357,7 @@ export default function PlanningClient({
                         placeholder="e.g. 23500"
                         style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
                       />
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>{(() => { const cl = contributionLimits(); return `401k (up to ${fmt(cl.k401)}), HSA (${fmt(cl.hsaSelf)}), IRA (${fmt(cl.ira)})`; })()}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>{(() => { const cl = contributionLimits(); return `HSA (${fmt(cl.hsaSelf)}), IRA (${fmt(cl.ira)}), etc. — your 401(k) is added automatically from the 401(k) planner, so don't enter it here`; })()}</div>
                     </div>
                   </div>
                   {formGross > 0 && (() => {
@@ -8535,7 +8558,7 @@ export default function PlanningClient({
           {/* ── Section 1a-401k: Workplace retirement (401k optimizer) ── */}
           {profile && (
             <div className="cmd-section" style={{ animationDelay: "30ms" }}>
-              <Plan401kSection profile={profile} />
+              <Plan401kSection profile={profile} payFrequency={effectivePayFrequency} />
             </div>
           )}
 
