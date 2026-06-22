@@ -11,12 +11,13 @@
 // module-level cache with a TTL. Everything fails gracefully to [] so the research page never
 // breaks when a dataset is briefly unavailable.
 
-// Senate via raw.githubusercontent (verified reachable + maintained by GH Actions).
-// House via S3 (best-effort) with a raw.githubusercontent fallback if S3 blocks the request.
-const SENATE_URL = "https://raw.githubusercontent.com/timothycarambat/senate-stock-watcher-data/master/aggregate/all_transactions.json";
+// The live Stock Watcher sites read these S3 buckets, which stay CURRENT. (The GitHub
+// mirrors went stale in 2021, so we do NOT use them.) The buckets are Referer-gated —
+// they only serve requests that look like they come from the site — so fetchJsonArray
+// sends a matching Referer/Origin + a browser User-Agent.
+const SENATE_URL = "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json";
 const HOUSE_URLS = [
   "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json",
-  "https://raw.githubusercontent.com/timothycarambat/house-stock-watcher-data/master/data/all_transactions.json",
 ];
 
 export type CongressTrade = {
@@ -95,11 +96,21 @@ function cleanTicker(raw: unknown): string | null {
 async function fetchJsonArray(url: string, timeoutMs = 9000): Promise<unknown[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // The Stock Watcher S3 buckets are Referer-gated; mimic the site so requests aren't 403'd.
+  const referer = url.includes("senate-stock-watcher")
+    ? "https://senatestockwatcher.com/"
+    : url.includes("house-stock-watcher")
+      ? "https://housestockwatcher.com/"
+      : undefined;
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       cache: "no-store",
-      headers: { "User-Agent": "BuyTune/1.0 (+https://buytuneio.vercel.app)", Accept: "application/json" },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        Accept: "application/json,text/plain,*/*",
+        ...(referer ? { Referer: referer, Origin: referer.replace(/\/$/, "") } : {}),
+      },
     });
     if (!res.ok) return [];
     const data = await res.json();

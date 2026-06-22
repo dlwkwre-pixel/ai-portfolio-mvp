@@ -370,7 +370,7 @@ export default function Plan401kSection({
                     </li>
                   ) : (
                     <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                      ✓ Emergency fund covered — about {(monthsCovered ?? 0).toFixed(0)} months of expenses in liquid savings.
+                      ✓ Emergency fund covered — <strong style={{ color: "var(--text-primary)" }}>{fmt(liquidAssets)}</strong> in savings ≈ {(monthsCovered ?? 0).toFixed(1)} months, past your {efMonths}-month target.
                     </li>
                   )}
                   {!isRoth && annualTaxSaved > 0 && recStage === "grow" && (
@@ -441,7 +441,7 @@ export default function Plan401kSection({
               </div>
               <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(projectedBalance)}</div>
               <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
-                {fmt(currentBalance)} today + {fmt(result.totalAnnual)}/yr, compounded {assumedReturnPct}% for {yearsToRetire} yrs — about {fmt(projectedGrowth)} of that is growth.
+                {fmt(currentBalance)} today + {fmt(result.totalAnnual)}/yr, compounded {Number(assumedReturnPct.toFixed(2))}% for {yearsToRetire} yrs — about {fmt(projectedGrowth)} of that is growth.
               </div>
             </div>
 
