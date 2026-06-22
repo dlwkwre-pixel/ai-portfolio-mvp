@@ -5322,6 +5322,18 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
   });
   const incTop = padY, incBot = segs[segs.length - 1].sy1;
 
+  // De-collide labels: tiny flows (e.g. Insurance $15) sit only a few px apart and their
+  // text overlaps. Nudge each label down so neighbors are at least MIN_LABEL_GAP apart,
+  // while the ribbon + node stay at their true proportional positions.
+  const MIN_LABEL_GAP = 15;
+  let lastLabelY = -Infinity;
+  const labeled = segs.map((s) => {
+    let labelY = (s.ty0 + s.ty1) / 2;
+    if (labelY - lastLabelY < MIN_LABEL_GAP) labelY = lastLabelY + MIN_LABEL_GAP;
+    lastLabelY = labelY;
+    return { ...s, labelY };
+  });
+
   return (
     <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 18px", marginBottom: "10px", animationDelay: "70ms" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
@@ -5333,14 +5345,14 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
         <rect x={sxRight - nodeW} y={incTop} width={nodeW} height={Math.max(1, incBot - incTop)} rx="3" fill="var(--text-secondary)" opacity="0.85" />
         <text x={sxRight - nodeW - 8} y={(incTop + incBot) / 2} textAnchor="end" dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", fill: "var(--text-primary)" }}>Income</text>
         {/* Links + leaf nodes + labels */}
-        {segs.map((s, i) => {
+        {labeled.map((s, i) => {
           const color = SANKEY_BUCKET_COLOR[s.bucket];
           const path = `M${sxRight},${s.sy0.toFixed(1)} C${midx},${s.sy0.toFixed(1)} ${midx},${s.ty0.toFixed(1)} ${txLeft},${s.ty0.toFixed(1)} L${txLeft},${s.ty1.toFixed(1)} C${midx},${s.ty1.toFixed(1)} ${midx},${s.sy1.toFixed(1)} ${sxRight},${s.sy1.toFixed(1)} Z`;
           return (
             <g key={i}>
               <path d={path} fill={color} opacity="0.26" />
               <rect x={txLeft} y={s.ty0} width={nodeW} height={Math.max(1, s.h)} rx="3" fill={color} />
-              <text x={txLeft + nodeW + 8} y={(s.ty0 + s.ty1) / 2} dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontSize: "12px", fill: "var(--text-secondary)" }}>
+              <text x={txLeft + nodeW + 8} y={s.labelY} dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontSize: "12px", fill: "var(--text-secondary)" }}>
                 {s.label}
                 <tspan style={{ fontFamily: "var(--font-mono)", fill: "var(--text-tertiary)", fontSize: "11px" }}> · {ph(fmtMo(s.amount))} ({Math.round((s.amount / total) * 100)}%)</tspan>
               </text>
