@@ -182,7 +182,9 @@ function trackEvent(ticker: string, eventType: TrackEventType) {
 
 // Client-side cache — survives navigation within the same session
 const _sparkCache = new Map<string, { pts: number[] | null; ts: number }>();
-const SPARK_CLIENT_TTL = 10 * 60 * 1000; // 10 min
+const SPARK_CLIENT_TTL = 10 * 60 * 1000; // 10 min for a successful chart
+const SPARK_FAIL_TTL = 60 * 1000;        // but only 1 min for a miss, so a transient provider
+                                         // failure retries soon instead of staying chart-less
 
 // Concurrency limiter — Finnhub free tier is 60/min, but still avoid pile-ups
 const MAX_CONCURRENT = 6;
@@ -363,7 +365,7 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
     // Check client-side cache first — avoids re-fetching on navigation
     const cacheKey = t.ticker;
     const clientHit = _sparkCache.get(cacheKey);
-    if (clientHit && Date.now() - clientHit.ts < SPARK_CLIENT_TTL) {
+    if (clientHit && Date.now() - clientHit.ts < (clientHit.pts ? SPARK_CLIENT_TTL : SPARK_FAIL_TTL)) {
       setSparkPoints(clientHit.pts);
       setSparkLoading(false);
       return;
