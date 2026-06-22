@@ -23,6 +23,7 @@ type Profile = {
   k401_employer_match_pct?: number | null;
   k401_employer_match_limit_pct?: number | null;
   k401_current_balance?: number | null;
+  emergency_fund_months?: number | null;
 };
 
 const fmt = (n: number) =>
@@ -70,12 +71,14 @@ export default function Plan401kSection({
   monthlyExpenses = 0,
   assumedReturnPct = 7,
   retirementAge = null,
+  liquidAssets = 0,
 }: {
   profile: Profile;
   payFrequency?: string;
   monthlyExpenses?: number;
   assumedReturnPct?: number;
   retirementAge?: number | null;
+  liquidAssets?: number; // cash + taxable accounts available as an emergency buffer
 }) {
   const payPeriod = PAY_PERIODS[payFrequency] ?? PAY_PERIODS.biweekly;
   const grossAnnual = (profile.gross_monthly_income ?? 0) * 12;
@@ -90,6 +93,7 @@ export default function Plan401kSection({
   const [balance, setBalance] = useState<string>(
     profile.k401_current_balance != null ? String(profile.k401_current_balance) : "0"
   );
+  const [efMonths, setEfMonths] = useState<number>(profile.emergency_fund_months ?? 6);
   const [isPending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -142,6 +146,7 @@ export default function Plan401kSection({
     fd.set("k401_employer_match_pct", String(matchPct));
     fd.set("k401_employer_match_limit_pct", String(matchLimitPct));
     fd.set("k401_current_balance", balance);
+    fd.set("emergency_fund_months", String(efMonths));
     startTransition(async () => {
       const res = await upsert401kSettings(fd);
       if (res?.error) setError(res.error);
@@ -188,16 +193,38 @@ export default function Plan401kSection({
   const annualTaxSaved = isRoth ? 0 : scenarios.find((s) => Math.abs(s.pct - pct) < 0.6)?.taxSavedVsZero ?? 0;
   const lifetimeTaxSaved = annualTaxSaved * yearsToRetire;
 
-  // ── Savings-rate recommendation: capture match, then push as high as the budget allows ──
+  // ── Savings-rate recommendation ─────────────────────────────────────────────
+  // Order of operations Atlas follows: (1) always capture the full employer match —
+  // it's an instant guaranteed return; (2) make sure liquid savings cover the chosen
+  // emergency-fund buffer before deferring more; (3) then push the rate as high as the
+  // monthly budget comfortably allows, up to a solid long-term target.
   const budgetKnown = monthlyExpenses > 0;
-  let affordablePct = result.fullMatchPct;
+  const matchPctTarget = result.fullMatchPct;
+  const TARGET_PCT = 15;
+
+  let affordablePct = matchPctTarget;
   if (budgetKnown) {
     for (const s of scenarios) if (s.takeHomeMonthly >= monthlyExpenses) affordablePct = Math.max(affordablePct, s.pct);
   }
-  const TARGET_PCT = 15; // a solid long-term retirement savings rate
-  let recommendedPct = budgetKnown
-    ? Math.max(result.fullMatchPct, Math.min(TARGET_PCT, affordablePct))
-    : Math.max(result.fullMatchPct, result.fullMatchPct > 0 ? result.fullMatchPct : 10);
+
+  // Emergency fund: cash + taxable accounts vs the chosen months-of-expenses buffer.
+  const emergencyTarget = budgetKnown ? efMonths * monthlyExpenses : 0;
+  const monthsCovered = budgetKnown && monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : null;
+  const emergencyMet = budgetKnown ? liquidAssets >= emergencyTarget : true;
+
+  let recommendedPct: number;
+  let recStage: "nobudget" | "ef" | "grow";
+  if (!budgetKnown) {
+    recommendedPct = matchPctTarget > 0 ? matchPctTarget : 10;
+    recStage = "nobudget";
+  } else if (!emergencyMet) {
+    // Grab the free match; stay light beyond it until the cash buffer is built.
+    recommendedPct = matchPctTarget > 0 ? matchPctTarget : Math.min(3, affordablePct);
+    recStage = "ef";
+  } else {
+    recommendedPct = Math.max(matchPctTarget, Math.min(TARGET_PCT, affordablePct));
+    recStage = "grow";
+  }
   recommendedPct = Math.round(recommendedPct * 10) / 10;
   const recScenario = scenarios.find((s) => Math.abs(s.pct - recommendedPct) < 0.6);
   const recSurplus = recScenario && budgetKnown ? recScenario.takeHomeMonthly - monthlyExpenses : null;
@@ -329,24 +356,53 @@ export default function Plan401kSection({
                 <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }}>
                   {matchLimitPct > 0 && (
                     <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                      ✓ Captures your full employer match at {fmtPct(result.fullMatchPct)} — guaranteed return you don&apos;t want to skip.
+                      ✓ Captures your full employer match at {fmtPct(result.fullMatchPct)} — a guaranteed return you don&apos;t skip even while building cash.
                     </li>
                   )}
-                  {!isRoth && annualTaxSaved > 0 && (
+                  {/* Emergency-fund gate */}
+                  {!budgetKnown ? (
+                    <li style={{ fontSize: "12.5px", color: "var(--amber)", lineHeight: 1.5 }}>
+                      → Fill out your monthly budget on the Cash Flow tab so Atlas can check your emergency fund and how much you can comfortably defer. For now it just secures your match.
+                    </li>
+                  ) : !emergencyMet ? (
+                    <li style={{ fontSize: "12.5px", color: "var(--amber)", lineHeight: 1.5 }}>
+                      ⚠ Build your emergency fund first — you have <strong style={{ color: "var(--text-primary)" }}>{fmt(liquidAssets)}</strong> (~{(monthsCovered ?? 0).toFixed(1)} mo) vs your {efMonths}-month target of <strong style={{ color: "var(--text-primary)" }}>{fmt(emergencyTarget)}</strong>. Atlas held you at the match so spare cash can top up savings.
+                    </li>
+                  ) : (
+                    <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      ✓ Emergency fund covered — about {(monthsCovered ?? 0).toFixed(0)} months of expenses in liquid savings.
+                    </li>
+                  )}
+                  {!isRoth && annualTaxSaved > 0 && recStage === "grow" && (
                     <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                       ✓ Pre-tax deferrals trim your income tax — about <strong style={{ color: "var(--text-primary)" }}>{fmt(annualTaxSaved)}/yr</strong> at this rate.
                     </li>
                   )}
-                  {budgetKnown ? (
+                  {recStage === "grow" && recSurplus != null && (
                     <li style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                      ✓ Leaves <strong style={{ color: "var(--text-primary)" }}>{fmt(Math.max(0, recSurplus ?? 0))}/mo</strong> after your budgeted expenses.
-                    </li>
-                  ) : (
-                    <li style={{ fontSize: "12.5px", color: "var(--amber)", lineHeight: 1.5 }}>
-                      → Fill out your monthly budget on the Cash Flow tab and Atlas will push this as high as you can comfortably afford. For now it just secures your match.
+                      ✓ Leaves <strong style={{ color: "var(--text-primary)" }}>{fmt(Math.max(0, recSurplus))}/mo</strong> after your budgeted expenses.
                     </li>
                   )}
                 </ul>
+
+                {/* Emergency-fund risk tolerance: how many months of expenses to hold in cash */}
+                <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Emergency fund target:</span>
+                  {[6, 9, 12].map((m) => (
+                    <button
+                      key={m} type="button" onClick={() => setEfMonths(m)}
+                      style={{
+                        fontSize: "12px", fontWeight: 600, padding: "4px 12px", borderRadius: "8px", cursor: "pointer",
+                        border: `1px solid ${efMonths === m ? "var(--accent)" : "var(--card-border)"}`,
+                        background: efMonths === m ? "var(--accent)" : "transparent",
+                        color: efMonths === m ? "#fff" : "var(--text-secondary)",
+                      }}
+                    >
+                      {m} mo
+                    </button>
+                  ))}
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>more months = more cautious</span>
+                </div>
               </div>
               {!atRecommended && (
                 <button type="button" onClick={() => setPct(recommendedPct)}

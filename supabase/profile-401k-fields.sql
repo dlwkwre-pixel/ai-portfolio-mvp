@@ -22,7 +22,10 @@ ALTER TABLE financial_profiles
   -- How often the user is paid. Drives the 401(k) per-paycheck math and is the canonical
   -- pay cadence (weekly | biweekly | semimonthly | monthly). NULL until set, so BuyTune can
   -- infer it from the cashflow income cadence meanwhile. Safe to re-run this file.
-  ADD COLUMN IF NOT EXISTS pay_frequency                 TEXT;
+  ADD COLUMN IF NOT EXISTS pay_frequency                 TEXT,
+  -- Emergency-fund target in months of expenses (6 / 9 / 12). The 401(k) advisor won't
+  -- recommend deferring beyond the match until liquid savings cover this buffer.
+  ADD COLUMN IF NOT EXISTS emergency_fund_months         INT DEFAULT 6;
 
 COMMENT ON COLUMN financial_profiles.has_401k IS 'Whether the user participates in a workplace 401(k)/403(b)/TSP.';
 COMMENT ON COLUMN financial_profiles.k401_contribution_pct IS 'Employee elective deferral as a percent of gross pay.';

@@ -33,6 +33,7 @@ export type FinancialProfile = {
   k401_employer_match_limit_pct?: number | null;
   k401_current_balance?: number | null;
   pay_frequency?: string | null; // weekly | biweekly | semimonthly | monthly
+  emergency_fund_months?: number | null; // 6 | 9 | 12
   updated_at: string;
   // Home owner-mover mode
   is_homeowner: boolean;
@@ -198,6 +199,8 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
   const k401_employer_match_limit_pct = Math.min(100, num("k401_employer_match_limit_pct"));
   const balanceRaw = String(formData.get("k401_current_balance") ?? "").trim();
   const k401_current_balance = balanceRaw !== "" && Number.isFinite(Number(balanceRaw)) ? Number(balanceRaw) : null;
+  const efRaw = Number(formData.get("emergency_fund_months"));
+  const emergency_fund_months = [6, 9, 12].includes(efRaw) ? efRaw : 6;
 
   const { error } = await supabase.from("financial_profiles").upsert(
     {
@@ -208,6 +211,7 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
       k401_employer_match_pct,
       k401_employer_match_limit_pct,
       k401_current_balance,
+      emergency_fund_months,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" }

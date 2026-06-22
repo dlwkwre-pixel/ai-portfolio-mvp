@@ -8564,6 +8564,7 @@ export default function PlanningClient({
                 monthlyExpenses={effectiveExpenses}
                 assumedReturnPct={localAssumptions.return_rate}
                 retirementAge={profile?.target_retirement_age ?? null}
+                liquidAssets={liquidAssets + Math.max(0, taxBucketsNow?.taxable ?? 0)}
               />
             </div>
           )}
