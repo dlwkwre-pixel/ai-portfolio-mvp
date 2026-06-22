@@ -361,6 +361,55 @@ export default function Plan401kSection({
             </div>
           </div>
 
+          {/* Insights — forward-looking (shown above the recommendation; tied to the inputs above) */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+            {matchLimitPct > 0 && (
+              result.capturesFullMatch ? (
+                <div style={{ ...card, borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>✓ Full match captured</div>
+                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — none left on the table.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ ...card, borderColor: "rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", marginBottom: "4px" }}>⚠ Free money on the table</div>
+                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    Bump to <strong style={{ color: "var(--text-primary)" }}>{fmtPct(result.fullMatchPct)}</strong> to capture
+                    {" "}<strong style={{ color: "var(--text-primary)" }}>{fmt(result.unmatchedFreeMoney)}/yr</strong> more — an instant guaranteed return.
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* Projected balance at retirement — the forward-looking headline */}
+            <div style={card}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Projected at {retAge}
+              </div>
+              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(projectedBalance)}</div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
+                {fmt(currentBalance)} today + {fmt(result.totalAnnual)}/yr, compounded {Number(assumedReturnPct.toFixed(2))}% for {yearsToRetire} yrs — about {fmt(projectedGrowth)} of that is growth.
+              </div>
+            </div>
+
+            {/* Tax saved — this year + projected over the years to retirement */}
+            <div style={card}>
+              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {isRoth ? "Roth — taxed now" : "Tax saved"}
+              </div>
+              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>
+                {isRoth ? fmt(0) : `${fmt(annualTaxSaved)}/yr`}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
+                {isRoth
+                  ? "Roth is taxed now; qualified withdrawals in retirement are tax-free."
+                  : `≈ ${fmt(lifetimeTaxSaved)} kept over ${yearsToRetire} yrs at today's rate. FICA still applies.`}
+                {result.cappedByIrs && <span style={{ color: "var(--amber)" }}> · capped at the {fmt(result.irsEmployeeLimit)} IRS {year} limit</span>}
+              </div>
+            </div>
+          </div>
+
           {/* Atlas recommendation — what rate to pick, given match + taxes + budget */}
           <div style={{ ...card, borderColor: "rgba(37,99,235,0.35)", background: "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.05))" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
@@ -440,55 +489,6 @@ export default function Plan401kSection({
                   Use {fmtPct(recommendedPct)}
                 </button>
               )}
-            </div>
-          </div>
-
-          {/* Insights — forward-looking */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-            {matchLimitPct > 0 && (
-              result.capturesFullMatch ? (
-                <div style={{ ...card, borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>✓ Full match captured</div>
-                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — none left on the table.
-                  </div>
-                </div>
-              ) : (
-                <div style={{ ...card, borderColor: "rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", marginBottom: "4px" }}>⚠ Free money on the table</div>
-                  <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Bump to <strong style={{ color: "var(--text-primary)" }}>{fmtPct(result.fullMatchPct)}</strong> to capture
-                    {" "}<strong style={{ color: "var(--text-primary)" }}>{fmt(result.unmatchedFreeMoney)}/yr</strong> more — an instant guaranteed return.
-                  </div>
-                </div>
-              )
-            )}
-
-            {/* Projected balance at retirement — the forward-looking headline */}
-            <div style={card}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Projected at {retAge}
-              </div>
-              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>{fmt(projectedBalance)}</div>
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
-                {fmt(currentBalance)} today + {fmt(result.totalAnnual)}/yr, compounded {Number(assumedReturnPct.toFixed(2))}% for {yearsToRetire} yrs — about {fmt(projectedGrowth)} of that is growth.
-              </div>
-            </div>
-
-            {/* Tax saved — this year + projected over the years to retirement */}
-            <div style={card}>
-              <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-tertiary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {isRoth ? "Roth — taxed now" : "Tax saved"}
-              </div>
-              <div style={{ ...mono, fontSize: "20px", color: "var(--text-primary)", fontWeight: 600 }}>
-                {isRoth ? fmt(0) : `${fmt(annualTaxSaved)}/yr`}
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.4 }}>
-                {isRoth
-                  ? "Roth is taxed now; qualified withdrawals in retirement are tax-free."
-                  : `≈ ${fmt(lifetimeTaxSaved)} kept over ${yearsToRetire} yrs at today's rate. FICA still applies.`}
-                {result.cappedByIrs && <span style={{ color: "var(--amber)" }}> · capped at the {fmt(result.irsEmployeeLimit)} IRS {year} limit</span>}
-              </div>
             </div>
           </div>
 

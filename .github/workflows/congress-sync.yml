@@ -1,0 +1,43 @@
+name: Sync congressional trades
+
+# Refreshes lib/market-data/congress-data.json from the public STOCK Act feeds.
+# Runs from a GitHub-hosted runner (different network than Vercel's functions, which the
+# Stock Watcher S3 buckets were blocking). Commits the file if it changed; the commit triggers
+# a Vercel deploy so the research page serves fresh data. No secrets or API keys required.
+
+on:
+  schedule:
+    - cron: "17 11 * * *" # daily ~11:17 UTC (after disclosures post)
+  workflow_dispatch: {}    # allow manual "Run workflow" to populate immediately
+
+permissions:
+  contents: write
+
+concurrency:
+  group: congress-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch + normalize congressional trades
+        run: node scripts/sync-congress.mjs
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain lib/market-data/congress-data.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add lib/market-data/congress-data.json
+            git commit -m "chore: refresh congressional trades data [skip ci]"
+            git push
+          else
+            echo "No change in congress data."
+          fi

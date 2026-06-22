@@ -5299,25 +5299,28 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
   const total = positive.reduce((s, l) => s + l.amount, 0);
   if (total <= 0 || positive.length === 0) return null;
 
-  const VB_W = 1000, padY = 8, rowGap = 6;
+  const VB_W = 1000, padY = 8, rowGap = 8, MIN_BAND = 18;
   const n = positive.length;
-  const usableH = Math.max(200, n * 34);
-  const VB_H = usableH + padY * 2;
   const sxRight = 230;            // income node right edge
   const txLeft = 660;            // leaf node left edge
   const nodeW = 16;
   const midx = (sxRight + txLeft) / 2;
 
-  // Stack leaves on the right; income subdivided into matching bands on the left.
+  // Each band is proportional to its dollars, but floored to MIN_BAND so tiny categories
+  // (e.g. Insurance $15) are still a visible band and their labels don't collide. The income
+  // node grows to match the summed bands; the % shown in each label stays the true share.
+  const baseH = Math.max(240, n * 30);
+  const bandH = positive.map((l) => Math.max(MIN_BAND, (l.amount / total) * baseH));
+  const usableH = bandH.reduce((s, h) => s + h, 0) + rowGap * (n - 1);
+  const VB_H = usableH + padY * 2;
+
+  // Each category is one horizontal band flowing from the income node to its leaf node.
   let cursor = padY;
-  let srcCursor = padY;
-  const linkH = usableH - rowGap * (n - 1);
-  const segs = positive.map((l) => {
-    const h = (l.amount / total) * linkH;
+  const segs = positive.map((l, i) => {
+    const h = bandH[i];
     const ty0 = cursor, ty1 = cursor + h;
-    const sy0 = srcCursor, sy1 = srcCursor + h;
+    const sy0 = cursor, sy1 = cursor + h;
     cursor += h + rowGap;
-    srcCursor += h + rowGap;
     return { ...l, ty0, ty1, sy0, sy1, h };
   });
   const incTop = padY, incBot = segs[segs.length - 1].sy1;

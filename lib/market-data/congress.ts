@@ -1,24 +1,13 @@
 // Congressional stock trades — FREE, no API key.
 //
-// Source: the public House/Senate Stock Watcher datasets, which mirror the official
-// STOCK Act disclosures (members of Congress must report securities trades within 45 days).
-// Hosted as plain JSON on S3, daily-updated, $0:
-//   House:  https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
-//   Senate: https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json
-//
-// These aggregate files are large (tens of MB) and exceed Next's 2MB fetch-cache ceiling, so
-// instead of Next data caching we fetch fresh + memoize the trimmed, normalized result in a
-// module-level cache with a TTL. Everything fails gracefully to [] so the research page never
-// breaks when a dataset is briefly unavailable.
+// Source: the public House/Senate STOCK Act disclosures (members of Congress must report
+// securities trades within 45 days). The live data lives in S3 buckets that block requests
+// from Vercel's serverless functions, so a scheduled GitHub Action (scripts/sync-congress.mjs,
+// .github/workflows/congress-sync.yml) fetches + normalizes them from a GitHub-hosted runner
+// and commits the trimmed snapshot below. This module just reads that snapshot — fast,
+// reliable, and free (no live fetch on the request path).
 
-// The live Stock Watcher sites read these S3 buckets, which stay CURRENT. (The GitHub
-// mirrors went stale in 2021, so we do NOT use them.) The buckets are Referer-gated —
-// they only serve requests that look like they come from the site — so fetchJsonArray
-// sends a matching Referer/Origin + a browser User-Agent.
-const SENATE_URL = "https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json";
-const HOUSE_URLS = [
-  "https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json",
-];
+import congressData from "./congress-data.json";
 
 export type CongressTrade = {
   chamber: "house" | "senate";
@@ -50,138 +39,9 @@ export type CongressActivity = {
   updatedAt: string;
 };
 
-// ── Parsing helpers ────────────────────────────────────────────────────────────
+const SNAPSHOT = congressData as { trades: CongressTrade[]; updatedAt: string | null };
 
-// Disclosed amounts are ranges like "$1,001 - $15,000". Returns the midpoint in dollars.
-function amountMidpoint(raw: string): number {
-  if (!raw) return 0;
-  const nums = raw.replace(/[$,]/g, "").match(/\d+(?:\.\d+)?/g);
-  if (!nums || nums.length === 0) return 0;
-  const vals = nums.map(Number).filter((n) => Number.isFinite(n));
-  if (vals.length === 0) return 0;
-  if (vals.length === 1) return vals[0];
-  return (vals[0] + vals[1]) / 2;
-}
-
-// Datasets mix "yyyy-mm-dd" and "mm/dd/yyyy". Normalize to yyyy-mm-dd; "" if unparseable.
-function toIsoDate(raw: string): string {
-  if (!raw) return "";
-  const s = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) {
-    const [, mm, dd, yyyy] = m;
-    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
-  }
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
-}
-
-function normalizeType(raw: string): CongressTrade["txType"] | null {
-  const t = (raw || "").toLowerCase();
-  if (t.includes("purchase") || t === "buy") return "buy";
-  if (t.includes("sale") || t.includes("sold") || t === "sell") return "sell";
-  if (t.includes("exchange")) return "exchange";
-  return null;
-}
-
-const VALID_TICKER = /^[A-Z][A-Z.]{0,5}$/;
-function cleanTicker(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.trim().toUpperCase();
-  if (!t || t === "--" || t === "N/A" || t.includes("<")) return null;
-  return VALID_TICKER.test(t) ? t : null;
-}
-
-async function fetchJsonArray(url: string, timeoutMs = 9000): Promise<unknown[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  // The Stock Watcher S3 buckets are Referer-gated; mimic the site so requests aren't 403'd.
-  const referer = url.includes("senate-stock-watcher")
-    ? "https://senatestockwatcher.com/"
-    : url.includes("house-stock-watcher")
-      ? "https://housestockwatcher.com/"
-      : undefined;
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      cache: "no-store",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        Accept: "application/json,text/plain,*/*",
-        ...(referer ? { Referer: referer, Origin: referer.replace(/\/$/, "") } : {}),
-      },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Try each URL in order, returning the first that yields a non-empty array.
-async function fetchJsonArrayFromAny(urls: string[]): Promise<unknown[]> {
-  for (const u of urls) {
-    const arr = await fetchJsonArray(u);
-    if (arr.length > 0) return arr;
-  }
-  return [];
-}
-
-function normalizeHouse(rows: unknown[]): CongressTrade[] {
-  const out: CongressTrade[] = [];
-  for (const r of rows as Record<string, unknown>[]) {
-    const ticker = cleanTicker(r.ticker);
-    const txType = normalizeType(String(r.type ?? ""));
-    if (!ticker || !txType) continue;
-    const amountRange = String(r.amount ?? "").trim();
-    out.push({
-      chamber: "house",
-      person: String(r.representative ?? "").replace(/^Hon\.\s*/i, "").trim() || "Unknown",
-      ticker,
-      assetName: String(r.asset_description ?? "").trim().slice(0, 80),
-      txType,
-      amountRange,
-      amountMid: amountMidpoint(amountRange),
-      transactionDate: toIsoDate(String(r.transaction_date ?? "")),
-      disclosureDate: toIsoDate(String(r.disclosure_date ?? "")),
-      ptrLink: typeof r.ptr_link === "string" ? r.ptr_link : null,
-    });
-  }
-  return out;
-}
-
-function normalizeSenate(rows: unknown[]): CongressTrade[] {
-  const out: CongressTrade[] = [];
-  for (const r of rows as Record<string, unknown>[]) {
-    const ticker = cleanTicker(r.ticker);
-    const txType = normalizeType(String(r.type ?? ""));
-    if (!ticker || !txType) continue;
-    const amountRange = String(r.amount ?? "").trim();
-    out.push({
-      chamber: "senate",
-      person: String(r.senator ?? "").trim() || "Unknown",
-      ticker,
-      assetName: String(r.asset_description ?? "").trim().slice(0, 80),
-      txType,
-      amountRange,
-      amountMid: amountMidpoint(amountRange),
-      transactionDate: toIsoDate(String(r.transaction_date ?? "")),
-      disclosureDate: toIsoDate(String(r.disclosure_date ?? "")),
-      ptrLink: typeof r.ptr_link === "string" ? r.ptr_link : null,
-    });
-  }
-  return out;
-}
-
-// ── Module-level TTL cache (per warm serverless instance) ────────────────────────
-
-let cache: { data: CongressActivity; expires: number } | null = null;
-const TTL_MS = 12 * 60 * 60 * 1000; // 12h
-const LOOKBACK_DAYS = 180; // disclosures lag (filed within 45 days, dataset refreshes periodically)
+const LOOKBACK_DAYS = 180;
 const MAX_TRADES = 300;
 
 function buildActivity(all: CongressTrade[]): CongressActivity {
@@ -195,7 +55,6 @@ function buildActivity(all: CongressTrade[]): CongressActivity {
 
   const trades = recent.slice(0, MAX_TRADES);
 
-  // Aggregate by ticker across the recent window.
   const byTicker = new Map<string, CongressTickerSummary>();
   for (const t of recent) {
     let s = byTicker.get(t.ticker);
@@ -216,31 +75,12 @@ function buildActivity(all: CongressTrade[]): CongressActivity {
     .sort((a, b) => b.tradeCount - a.tradeCount || b.notionalMid - a.notionalMid)
     .slice(0, 25);
 
-  return { trades, topTickers, updatedAt: new Date().toISOString() };
+  return { trades, topTickers, updatedAt: SNAPSHOT.updatedAt ?? new Date().toISOString() };
 }
 
-// Recent congressional trading activity (both chambers), normalized + aggregated.
-// Memoized for TTL_MS per warm instance. Returns empty activity on total failure.
+// Recent congressional trading activity (both chambers), built from the committed snapshot.
 export async function getCongressActivity(): Promise<CongressActivity> {
-  if (cache && cache.expires > Date.now()) return cache.data;
-  try {
-    const [house, senate] = await Promise.all([
-      fetchJsonArrayFromAny(HOUSE_URLS).then(normalizeHouse).catch(() => [] as CongressTrade[]),
-      fetchJsonArray(SENATE_URL).then(normalizeSenate).catch(() => [] as CongressTrade[]),
-    ]);
-    const all = [...house, ...senate];
-    // Never cache an empty result — a transient fetch failure shouldn't poison the cache for
-    // 12h. Keep the last good data if we have it; otherwise return empty without caching so
-    // the next request retries the source.
-    if (all.length === 0) {
-      return cache?.data ?? { trades: [], topTickers: [], updatedAt: new Date().toISOString() };
-    }
-    const data = buildActivity(all);
-    cache = { data, expires: Date.now() + TTL_MS };
-    return data;
-  } catch {
-    return cache?.data ?? { trades: [], topTickers: [], updatedAt: new Date().toISOString() };
-  }
+  return buildActivity(SNAPSHOT.trades ?? []);
 }
 
 // Per-ticker signal for the research detail view: recent congressional trades in one symbol.
