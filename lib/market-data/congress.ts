@@ -88,10 +88,11 @@ export async function getCongressTradesForTicker(ticker: string): Promise<{
   ticker: string;
   summary: CongressTickerSummary | null;
   trades: CongressTrade[];
+  available: boolean; // whether the snapshot has ANY data (vs just none for this ticker)
 }> {
   const t = ticker.trim().toUpperCase();
   const activity = await getCongressActivity();
   const summary = activity.topTickers.find((s) => s.ticker === t) ?? null;
   const trades = activity.trades.filter((tr) => tr.ticker === t).slice(0, 20);
-  return { ticker: t, summary, trades };
+  return { ticker: t, summary, trades, available: (SNAPSHOT.trades?.length ?? 0) > 0 };
 }

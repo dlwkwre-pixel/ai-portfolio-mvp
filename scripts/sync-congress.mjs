@@ -113,8 +113,10 @@ async function main() {
   }
 
   if (!anyOk) {
-    console.error("All sources failed — leaving existing data untouched.");
-    process.exit(1);
+    // Sources are currently blocked (the free Stock Watcher S3 buckets 403 everywhere as of
+    // 2026). Exit 0 so the dormant workflow doesn't red-X; leaves existing data untouched.
+    console.warn("All sources failed (likely 403) — leaving existing data untouched. No working free source configured yet.");
+    return;
   }
 
   const trades = all

@@ -70,20 +70,8 @@ export default function CongressSection({
     );
   }
 
-  // If the public datasets are briefly unavailable, keep the section visible with a short
-  // note rather than vanishing (so it never looks "missing").
-  if (!data || (data.topTickers.length === 0 && data.trades.length === 0)) {
-    return (
-      <div style={{ marginBottom: "28px" }}>
-        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>
-          🏛️ Congress is Trading
-        </div>
-        <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "14px 16px", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", background: "var(--card-bg)", lineHeight: 1.5 }}>
-          Congressional disclosure data is syncing from the public STOCK Act feeds — check back shortly.
-        </div>
-      </div>
-    );
-  }
+  // No data available — hide the section entirely rather than show an empty/"syncing" shell.
+  if (!data || (data.topTickers.length === 0 && data.trades.length === 0)) return null;
 
   return (
     <div style={{ marginBottom: "28px" }}>
@@ -191,7 +179,7 @@ export default function CongressSection({
 // Per-ticker congressional activity for a stock's research detail panel.
 // Self-fetches /api/research/congress?ticker=X and shows recent House/Senate disclosures.
 export function CongressTickerCard({ ticker }: { ticker: string }) {
-  const [data, setData] = useState<{ summary: TickerSummary | null; trades: Trade[] } | null>(null);
+  const [data, setData] = useState<{ summary: TickerSummary | null; trades: Trade[]; available: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -199,11 +187,15 @@ export function CongressTickerCard({ ticker }: { ticker: string }) {
     setLoading(true);
     fetch(`/api/research/congress?ticker=${encodeURIComponent(ticker)}`)
       .then((r) => r.json())
-      .then((d) => { if (alive) setData({ summary: d.summary ?? null, trades: d.trades ?? [] }); })
-      .catch(() => { if (alive) setData({ summary: null, trades: [] }); })
+      .then((d) => { if (alive) setData({ summary: d.summary ?? null, trades: d.trades ?? [], available: !!d.available }); })
+      .catch(() => { if (alive) setData({ summary: null, trades: [], available: false }); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [ticker]);
+
+  // Hide entirely when the dataset is unavailable (vs. just no trades for this ticker), so
+  // we don't imply "this stock has no congress trades" when really there's no data at all.
+  if (!loading && (!data || !data.available)) return null;
 
   return (
     <>

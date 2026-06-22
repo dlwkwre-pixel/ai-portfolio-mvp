@@ -6,9 +6,10 @@ name: Sync congressional trades
 # a Vercel deploy so the research page serves fresh data. No secrets or API keys required.
 
 on:
-  schedule:
-    - cron: "17 11 * * *" # daily ~11:17 UTC (after disclosures post)
-  workflow_dispatch: {}    # allow manual "Run workflow" to populate immediately
+  # DORMANT: the free Stock Watcher S3 buckets now 403 from everywhere (incl. GitHub runners),
+  # so there's no working free source yet. Manual-only until one is configured (paid API or a
+  # scraper). Re-add a `schedule:` cron here once scripts/sync-congress.mjs has a live source.
+  workflow_dispatch: {}
 
 permissions:
   contents: write
