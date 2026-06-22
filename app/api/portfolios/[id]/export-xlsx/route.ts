@@ -225,6 +225,7 @@ export async function GET(
     holdings: (rawHoldings ?? []).map((h) => ({
       id: h.id, ticker: h.ticker, company_name: h.company_name,
       asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+      manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
     })),
     cashBalance,
   });

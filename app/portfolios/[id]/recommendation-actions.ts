@@ -845,6 +845,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
       asset_type: holding.asset_type,
       shares: holding.shares,
       average_cost_basis: holding.average_cost_basis,
+      manual_price: holding.manual_price, manual_price_updated_at: holding.manual_price_updated_at,
     })),
     cashBalance: Number(portfolio.cash_balance ?? 0),
   });

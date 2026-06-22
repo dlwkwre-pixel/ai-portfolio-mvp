@@ -70,7 +70,7 @@ export default async function PlanningPage({
   if (portfolios && portfolios.length > 0) {
     const { data: allHoldings } = await supabase
       .from("holdings")
-      .select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis")
+      .select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
       .in("portfolio_id", portfolios.map((p) => p.id));
     const byPortfolio = new Map<string, typeof allHoldings>();
     for (const h of allHoldings ?? []) {
@@ -88,6 +88,7 @@ export default async function PlanningPage({
             holdings: hs.map((h) => ({
               id: h.id, ticker: h.ticker, company_name: h.company_name,
               asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+              manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
             })),
             cashBalance: cash,
           });

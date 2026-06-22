@@ -6,7 +6,9 @@ import { validateTicker, validateLength, validateEnum, validateDate } from "@/li
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 
-const ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "other"] as const;
+// "manual" = non-tradeable / advisor fund with no live price feed; valued at a
+// user-entered NAV (manual_price) that the user refreshes from their statement.
+const ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "manual", "other"] as const;
 const CASH_REASONS = ["deposit", "withdrawal", "dividend", "adjustment_in", "adjustment_out", "fee"] as const;
 const PORTFOLIO_STATUSES = ["active", "archived"] as const;
 
@@ -21,6 +23,7 @@ export async function createHolding(formData: FormData) {
   const assetType = String(formData.get("asset_type") || "stock").trim();
   const sharesRaw = String(formData.get("shares") || "").trim();
   const averageCostBasisRaw = String(formData.get("average_cost_basis") || "").trim();
+  const manualPriceRaw = String(formData.get("manual_price") || "").trim();
   const openedAtRaw = String(formData.get("opened_at") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
 
@@ -33,9 +36,19 @@ export async function createHolding(formData: FormData) {
 
   const shares = Number(sharesRaw);
   const averageCostBasis = Number(averageCostBasisRaw);
+  const isManual = assetType === "manual";
 
   if (!Number.isFinite(shares) || shares <= 0) throw new Error("Shares must be greater than 0.");
   if (!Number.isFinite(averageCostBasis) || averageCostBasis < 0) throw new Error("Average cost must be 0 or greater.");
+
+  // Non-tradeable funds have no live feed, so a current NAV is required up front.
+  let manualPrice: number | null = null;
+  if (isManual) {
+    manualPrice = Number(manualPriceRaw);
+    if (!Number.isFinite(manualPrice) || manualPrice <= 0) {
+      throw new Error("Enter a current NAV (price per share) for a non-tradeable fund.");
+    }
+  }
 
   const { data: portfolio, error: portfolioError } = await supabase
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
@@ -48,6 +61,8 @@ export async function createHolding(formData: FormData) {
     asset_type: assetType,
     shares,
     average_cost_basis: averageCostBasis,
+    manual_price: manualPrice,
+    manual_price_updated_at: isManual ? new Date().toISOString() : null,
     opened_at: openedAtRaw || null,
     notes: notes || null,
   }).select("id").single();
@@ -87,6 +102,7 @@ export async function updateHolding(formData: FormData) {
   const assetType = String(formData.get("asset_type") || "stock").trim();
   const sharesRaw = String(formData.get("shares") || "").trim();
   const averageCostBasisRaw = String(formData.get("average_cost_basis") || "").trim();
+  const manualPriceRaw = String(formData.get("manual_price") || "").trim();
   const openedAtRaw = String(formData.get("opened_at") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
 
@@ -98,18 +114,30 @@ export async function updateHolding(formData: FormData) {
 
   const shares = Number(sharesRaw);
   const averageCostBasis = Number(averageCostBasisRaw);
+  const isManual = assetType === "manual";
 
   if (!Number.isFinite(shares) || shares <= 0) throw new Error("Shares must be greater than 0.");
   if (!Number.isFinite(averageCostBasis) || averageCostBasis < 0) throw new Error("Average cost must be 0 or greater.");
 
+  let manualPrice: number | null = null;
+  if (isManual) {
+    manualPrice = Number(manualPriceRaw);
+    if (!Number.isFinite(manualPrice) || manualPrice <= 0) {
+      throw new Error("Enter a current NAV (price per share) for a non-tradeable fund.");
+    }
+  }
+
   // Verify the holding belongs to a portfolio owned by this user
   const { data: holding, error: holdingError } = await supabase
     .from("holdings")
-    .select("id, portfolio_id, portfolios!inner(user_id)")
+    .select("id, portfolio_id, manual_price, portfolios!inner(user_id)")
     .eq("id", holdingId)
     .single();
 
   if (holdingError || !holding) throw new Error("Holding not found.");
+
+  // Only stamp manual_price_updated_at when the NAV actually changed (or first set).
+  const navChanged = isManual && Number(holding.manual_price ?? NaN) !== manualPrice;
 
   const { error } = await supabase
     .from("holdings")
@@ -118,9 +146,46 @@ export async function updateHolding(formData: FormData) {
       asset_type: assetType,
       shares,
       average_cost_basis: averageCostBasis,
+      manual_price: manualPrice,
+      ...(isManual
+        ? (navChanged ? { manual_price_updated_at: new Date().toISOString() } : {})
+        : { manual_price_updated_at: null }),
       notes: notes || null,
       opened_at: openedAtRaw || null,
     })
+    .eq("id", holdingId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+}
+
+// Lightweight "Update NAV" action for non-tradeable funds — refreshes just the
+// user-entered price without re-validating the whole holding form.
+export async function updateManualNav(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("You must be signed in to update a NAV.");
+
+  const holdingId = String(formData.get("holding_id") || "").trim();
+  const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  const manualPrice = Number(String(formData.get("manual_price") || "").trim());
+
+  if (!holdingId) throw new Error("Holding ID is required.");
+  if (!portfolioId) throw new Error("Portfolio ID is required.");
+  if (!Number.isFinite(manualPrice) || manualPrice <= 0) throw new Error("Enter a valid NAV greater than 0.");
+
+  // Verify ownership before mutating.
+  const { data: holding, error: holdingError } = await supabase
+    .from("holdings")
+    .select("id, portfolios!inner(user_id)")
+    .eq("id", holdingId)
+    .single();
+  if (holdingError || !holding) throw new Error("Holding not found.");
+
+  const { error } = await supabase
+    .from("holdings")
+    .update({ manual_price: manualPrice, manual_price_updated_at: new Date().toISOString() })
     .eq("id", holdingId);
 
   if (error) throw new Error(error.message);
@@ -586,13 +651,14 @@ export async function resetPerformanceHistory(portfolioId: string): Promise<void
   // Get current holdings for a fresh baseline snapshot
   const { data: holdings } = await supabase
     .from("holdings")
-    .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
+    .select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
     .eq("portfolio_id", portfolioId);
 
   const valuation = await getPortfolioValuation({
     holdings: (holdings ?? []).map((h) => ({
       id: h.id, ticker: h.ticker, company_name: h.company_name,
       asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+      manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
     })),
     cashBalance: Number(portfolio.cash_balance ?? 0),
   });

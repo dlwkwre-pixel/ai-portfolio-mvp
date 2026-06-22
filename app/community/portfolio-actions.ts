@@ -24,7 +24,7 @@ async function computeAllocations(
 ): Promise<{ allocations: HoldingAllocation[]; totalValue: number }> {
   const { data: holdings } = await supabase
     .from("holdings")
-    .select("id, ticker, company_name, asset_type, shares, average_cost_basis")
+    .select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
     .eq("portfolio_id", portfolioId);
 
   if (!holdings || holdings.length === 0) {
@@ -45,6 +45,7 @@ async function computeAllocations(
       asset_type: h.asset_type,
       shares: h.shares,
       average_cost_basis: h.average_cost_basis,
+      manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
     })),
     cashBalance,
   });

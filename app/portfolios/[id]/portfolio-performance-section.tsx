@@ -45,6 +45,7 @@ export default async function PortfolioPerformanceSection({
     holdings: (holdings ?? []).map((holding) => ({
       id: holding.id, ticker: holding.ticker, company_name: holding.company_name,
       asset_type: holding.asset_type, shares: holding.shares, average_cost_basis: holding.average_cost_basis,
+      manual_price: holding.manual_price, manual_price_updated_at: holding.manual_price_updated_at,
     })),
     cashBalance,
   });

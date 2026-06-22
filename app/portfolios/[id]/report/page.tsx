@@ -424,6 +424,7 @@ export default async function PortfolioReportPage({
       asset_type: h.asset_type,
       shares: h.shares,
       average_cost_basis: h.average_cost_basis,
+      manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
     })),
     cashBalance,
   });

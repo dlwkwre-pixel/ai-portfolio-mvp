@@ -12,6 +12,9 @@ type HoldingRow = {
   asset_type: string | null;
   shares: number | string | null;
   average_cost_basis: number | string | null;
+  // Non-tradeable / advisor funds (asset_type = "manual"): user-entered NAV, no live feed.
+  manual_price?: number | string | null;
+  manual_price_updated_at?: string | null;
 };
 
 export type ValuedHolding = HoldingRow & {
@@ -41,9 +44,13 @@ export async function getPortfolioValuation(args: {
 }): Promise<PortfolioValuation> {
   const { holdings, cashBalance } = args;
 
-  // Separate crypto holdings from stock/ETF holdings
+  // Separate crypto and non-tradeable ("manual") holdings from live-quoted stock/ETF holdings.
+  // Manual holdings have no public price feed, so they skip the Finnhub/CoinGecko batches
+  // entirely and are valued at shares * user-entered NAV (manual_price).
   const cryptoHoldings = holdings.filter((h) => h.asset_type === "crypto");
-  const stockHoldings = holdings.filter((h) => h.asset_type !== "crypto");
+  const stockHoldings = holdings.filter(
+    (h) => h.asset_type !== "crypto" && h.asset_type !== "manual"
+  );
 
   // Fetch crypto prices from CoinGecko (single batched call, non-fatal on failure)
   const cryptoTickers = cryptoHoldings.map((h) => h.ticker);
@@ -121,6 +128,12 @@ export async function getPortfolioValuation(args: {
         currentPrice !== null && dayChangePct !== null
           ? (currentPrice * dayChangePct) / 100
           : null;
+    } else if (holding.asset_type === "manual") {
+      // Non-tradeable fund: value at the user-entered NAV. No live feed, so no day change.
+      const navRaw = holding.manual_price != null ? Number(holding.manual_price) : null;
+      currentPrice = navRaw !== null && Number.isFinite(navRaw) ? navRaw : null;
+      dayChange = null;
+      dayChangePct = null;
     } else {
       // Use Finnhub for stocks/ETFs
       const quote = quoteMap.get(holding.id) ?? null;
@@ -150,7 +163,8 @@ export async function getPortfolioValuation(args: {
       day_change: dayChange,
       day_change_pct: dayChangePct,
       weight_pct: null,
-      has_live_price: currentPrice !== null,
+      // Manual NAVs contribute to market value but are not a live market price.
+      has_live_price: holding.asset_type === "manual" ? false : currentPrice !== null,
     };
   });
 

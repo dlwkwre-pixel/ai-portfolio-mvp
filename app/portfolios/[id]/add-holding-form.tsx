@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createHolding, updateHolding, deleteHolding } from "./actions";
+import { createHolding, updateHolding, deleteHolding, updateManualNav } from "./actions";
 
 type AddHoldingFormProps = {
   portfolioId: string;
@@ -94,7 +94,13 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
                 <option value="mutual_fund">Mutual Fund</option>
                 <option value="crypto">Crypto</option>
                 <option value="cash_equivalent">Cash Equivalent</option>
+                <option value="manual">Non-tradeable Fund</option>
               </select>
+              {assetType === "manual" && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Advisor / private / interval funds with no public price. You enter and refresh the NAV yourself.
+                </p>
+              )}
             </div>
 
             <div>
@@ -103,9 +109,17 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
             </div>
 
             <div>
-              <label className={labelClass}>Avg Cost Basis *</label>
+              <label className={labelClass}>{assetType === "manual" ? "Purchase NAV *" : "Avg Cost Basis *"}</label>
               <input name="average_cost_basis" type="number" step="0.000001" min="0" placeholder="185.50" className={inputClass} required />
             </div>
+
+            {assetType === "manual" && (
+              <div>
+                <label className={labelClass}>Current NAV *</label>
+                <input name="manual_price" type="number" step="0.000001" min="0" placeholder="192.40" className={inputClass} required />
+                <p className="mt-1 text-xs text-slate-500">Latest price per share from your statement.</p>
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>Opened At</label>
@@ -153,6 +167,7 @@ type EditHoldingFormProps = {
     asset_type: string | null;
     shares: number;
     average_cost_basis: number | null;
+    manual_price?: number | null;
     notes: string | null;
     opened_at: string | null;
   };
@@ -162,6 +177,7 @@ type EditHoldingFormProps = {
 export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
+  const [assetType, setAssetType] = useState(holding.asset_type || "stock");
 
   return (
     <form
@@ -188,12 +204,13 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
 
       <div>
         <label className={labelClass}>Asset Type</label>
-        <select name="asset_type" defaultValue={holding.asset_type || "stock"} className={selectClass}>
+        <select name="asset_type" value={assetType} onChange={(e) => setAssetType(e.target.value)} className={selectClass}>
           <option value="stock">Stock</option>
           <option value="etf">ETF</option>
           <option value="mutual_fund">Mutual Fund</option>
           <option value="crypto">Crypto</option>
           <option value="cash_equivalent">Cash Equivalent</option>
+          <option value="manual">Non-tradeable Fund</option>
         </select>
       </div>
 
@@ -203,9 +220,16 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
       </div>
 
       <div>
-        <label className={labelClass}>Avg Cost Basis</label>
+        <label className={labelClass}>{assetType === "manual" ? "Purchase NAV" : "Avg Cost Basis"}</label>
         <input name="average_cost_basis" type="number" step="0.000001" min="0" defaultValue={holding.average_cost_basis ?? ""} className={inputClass} required />
       </div>
+
+      {assetType === "manual" && (
+        <div>
+          <label className={labelClass}>Current NAV</label>
+          <input name="manual_price" type="number" step="0.000001" min="0" defaultValue={holding.manual_price ?? ""} placeholder="192.40" className={inputClass} required />
+        </div>
+      )}
 
       <div>
         <label className={labelClass}>Purchase Date</label>
@@ -241,6 +265,72 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
           Cancel
         </button>
       </div>
+    </form>
+  );
+}
+
+// --- Update NAV (inline quick-edit for non-tradeable funds) ---
+type UpdateNavButtonProps = {
+  holdingId: string;
+  portfolioId: string;
+  currentNav: number | null;
+};
+
+export function UpdateNavButton({ holdingId, portfolioId, currentNav }: UpdateNavButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setError(""); setOpen(true); }}
+        className="text-xs text-amber-400/70 transition hover:text-amber-300"
+      >
+        Update NAV
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="flex items-center gap-1.5"
+      action={(formData) => {
+        setError("");
+        startTransition(async () => {
+          try {
+            await updateManualNav(formData);
+            setOpen(false);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to update.");
+          }
+        });
+      }}
+    >
+      <input type="hidden" name="holding_id" value={holdingId} />
+      <input type="hidden" name="portfolio_id" value={portfolioId} />
+      <input
+        name="manual_price"
+        type="number"
+        step="0.000001"
+        min="0"
+        defaultValue={currentNav ?? ""}
+        autoFocus
+        placeholder="NAV"
+        className="w-24 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-amber-500/60"
+      />
+      <button
+        type="submit"
+        disabled={isPending}
+        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:opacity-60"
+      >
+        {isPending ? "..." : "Save"}
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-500 transition hover:text-slate-300">
+        Cancel
+      </button>
+      {error && <span className="text-xs text-red-400">{error}</span>}
     </form>
   );
 }

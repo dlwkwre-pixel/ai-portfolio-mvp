@@ -114,7 +114,7 @@ export default async function DashboardPage({
 
   for (const p of activePortfolios) {
     const { data: holdings } = await supabase
-      .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis")
+      .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
       .eq("portfolio_id", p.id);
 
     const pCash = Number(p.cash_balance ?? 0);
@@ -126,6 +126,7 @@ export default async function DashboardPage({
         holdings: (holdings ?? []).map((h) => ({
           id: h.id, ticker: h.ticker, company_name: h.company_name,
           asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+          manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
         })),
         cashBalance: pCash,
       });

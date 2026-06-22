@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { EditHoldingForm, DeleteHoldingButton } from "./add-holding-form";
+import { EditHoldingForm, DeleteHoldingButton, UpdateNavButton } from "./add-holding-form";
 import { HoldingLots } from "./holding-lots";
 import type { HoldingLot } from "./holding-lots";
 import StockChart from "@/app/components/stock-chart";
@@ -21,6 +21,9 @@ type ValuedHolding = {
   unrealized_pl: number | null;
   unrealized_pl_pct: number | null;
   weight_pct: number | null;
+  has_live_price?: boolean;
+  manual_price?: number | string | null;
+  manual_price_updated_at?: string | null;
   notes?: string | null;
   opened_at?: string | null;
 };
@@ -484,7 +487,32 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                 </td>
                 <td className="px-3 py-3 text-slate-300 hidden md:table-cell">{formatMoney(holding.average_cost_basis_number)}</td>
                 <td className="px-3 py-3 text-slate-300 hidden md:table-cell">
-                  {holding.current_price !== null
+                  {holding.asset_type === "manual" ? (
+                    holding.current_price !== null ? (
+                      (() => {
+                        const days = holding.manual_price_updated_at
+                          ? Math.floor((Date.now() - new Date(holding.manual_price_updated_at).getTime()) / 86_400_000)
+                          : null;
+                        const ageLabel = days === null ? "" : days <= 0 ? " · updated today" : days === 1 ? " · updated 1d ago" : ` · updated ${days}d ago`;
+                        const stale = days !== null && days > 45;
+                        return (
+                          <span className="inline-flex items-center gap-1.5">
+                            {formatMoney(holding.current_price)}
+                            <span
+                              title={`Manual NAV — non-tradeable funds have no live price, so you set this yourself${days !== null ? ` (last updated ${days <= 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`})` : ""}. Use Update NAV to refresh it.`}
+                              style={{ display: "inline-flex", alignItems: "center", fontSize: "10px", fontWeight: 600, color: stale ? "var(--amber)" : "var(--text-tertiary)", background: stale ? "rgba(245,158,11,0.1)" : "var(--card-bg)", border: `1px solid ${stale ? "rgba(245,158,11,0.25)" : "var(--card-border)"}`, borderRadius: "4px", padding: "1px 6px", cursor: "help", fontFamily: "var(--font-body)" }}
+                            >
+                              NAV{ageLabel}
+                            </span>
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span title="No NAV set. Use Update NAV to enter the current price per share." style={{ display: "inline-flex", alignItems: "center", fontSize: "10px", fontWeight: 600, color: "var(--amber)", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "help", fontFamily: "var(--font-body)" }}>
+                        No NAV
+                      </span>
+                    )
+                  ) : holding.current_price !== null
                     ? formatMoney(holding.current_price)
                     : (
                       <span
@@ -520,6 +548,13 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                     >
                       {editingId === holding.id ? "Cancel" : "Edit"}
                     </button>
+                    {holding.asset_type === "manual" && (
+                      <UpdateNavButton
+                        holdingId={holding.id}
+                        portfolioId={portfolioId}
+                        currentNav={holding.manual_price != null ? Number(holding.manual_price) : (holding.current_price ?? null)}
+                      />
+                    )}
                     {(() => {
                       const holdingLotCount = lots.filter((l) => l.holding_id === holding.id).length;
                       const isOpen = lotsId === holding.id;
@@ -994,6 +1029,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                         asset_type: holding.asset_type,
                         shares: holding.shares_number,
                         average_cost_basis: holding.average_cost_basis_number,
+                        manual_price: holding.manual_price != null ? Number(holding.manual_price) : null,
                         notes: holding.notes ?? null,
                         opened_at: holding.opened_at ?? null,
                       }}
