@@ -28,12 +28,23 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
    Build: fetch + cache those, add a "Congress is trading" list on research + per-ticker
    "traded by Congress" signal. NOT YET BUILT.
 
-4. **Research-page list automation + most-popular ranking** 🟠.
-   Top movers / most popular currently manual or thresholded. Automate top-movers (needs a
-   market-movers data source — check Finnhub/FMP). Most-popular: rank by # of BuyTune owners
-   (drop the ">2 owners" floor, just sort by holder count).
+4. **Research-page list automation + most-popular ranking** ✅ SHIPPED 2026-06-21.
+   ALL research sections now auto-populate by their header from live FMP data
+   (app/api/research/screener/route.ts + getFmpScreen in lib/market-data/fmp.ts):
+   Trending→FMP actives, Momentum→gainers, High Growth→large-cap high-beta tech screener,
+   Dividend Stars→large-cap dividend screener, Defensive→low-beta large-cap screener; each
+   falls back to its curated list if FMP is empty. Daily Top Movers uses real FMP
+   gainers/losers. Most-popular ("Popular on BuyTune") ranks purely by holder count
+   (MIN_HOLDERS dropped to 1 in research/trending/route.ts).
 
-5. **Non-tradeable / advisor funds** 🟡 — RESEARCHED 2026-06-21; build-ready spec below.
+5. **Non-tradeable / advisor funds** ✅ SHIPPED 2026-06-21 (FREE = manual NAV).
+   ⚠️ REQUIRES MIGRATION: run supabase/holdings-manual-price.sql in the Supabase SQL editor.
+   Until it runs, the explicit holdings SELECTs that now request manual_price/_updated_at
+   will 400 ("column does not exist") and break valuation site-wide. The ALTER is instant
+   and safe (adds two nullable columns). Built: asset_type "manual" valued at user-entered
+   NAV, skips live batches (has_live_price=false), threaded through all 15 valuation call
+   sites, Add/Edit "Non-tradeable Fund" type + Current NAV field, holdings-table NAV badge
+   (age + >45d stale flag) + inline "Update NAV" (updateManualNav action). Original spec:
    FINDING (the "how do we track these accurately + free" answer): truly non-exchange funds
    (private/interval/advisor-only funds, some annuities) have NO public price feed — the free
    APIs (Finnhub/FMP/AlphaVantage) only quote exchange-listed tickers + mutual funds with a
