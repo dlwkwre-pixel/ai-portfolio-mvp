@@ -207,7 +207,7 @@ export default function Plan401kSection({
     for (const s of scenarios) if (s.takeHomeMonthly >= monthlyExpenses) affordablePct = Math.max(affordablePct, s.pct);
   }
 
-  // Emergency fund: cash + taxable accounts vs the chosen months-of-expenses buffer.
+  // Emergency fund: cash savings vs the chosen months-of-expenses buffer.
   const emergencyTarget = budgetKnown ? efMonths * monthlyExpenses : 0;
   const monthsCovered = budgetKnown && monthlyExpenses > 0 ? liquidAssets / monthlyExpenses : null;
   const emergencyMet = budgetKnown ? liquidAssets >= emergencyTarget : true;
@@ -229,6 +229,23 @@ export default function Plan401kSection({
   const recScenario = scenarios.find((s) => Math.abs(s.pct - recommendedPct) < 0.6);
   const recSurplus = recScenario && budgetKnown ? recScenario.takeHomeMonthly - monthlyExpenses : null;
   const atRecommended = Math.abs(pct - recommendedPct) < 0.6;
+
+  // Emergency-fund runway: at the recommended rate, when does cash savings reach the bigger
+  // buffers (9 / 12 mo), assuming the leftover after expenses goes to savings. Answers
+  // "I'm fine at 6 mo now — how soon would I hit 9 / 12 with my reduced savings rate?"
+  const savingsSurplus = recSurplus != null ? Math.max(0, recSurplus) : 0;
+  function fundEta(targetMonths: number): { months: number; date: string } | null {
+    if (!budgetKnown || monthlyExpenses <= 0 || savingsSurplus <= 0) return null;
+    const targetAmt = targetMonths * monthlyExpenses;
+    if (liquidAssets >= targetAmt) return null;
+    const months = Math.ceil((targetAmt - liquidAssets) / savingsSurplus);
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return { months, date: d.toLocaleDateString("en-US", { month: "short", year: "numeric" }) };
+  }
+  const runwayTiers = budgetKnown
+    ? [9, 12].filter((m) => liquidAssets < m * monthlyExpenses).map((m) => ({ m, eta: fundEta(m) }))
+    : [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -403,6 +420,19 @@ export default function Plan401kSection({
                   ))}
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>more months = more cautious</span>
                 </div>
+
+                {/* Runway: when bigger buffers are reached at the recommended rate */}
+                {runwayTiers.length > 0 && (
+                  <div style={{ marginTop: "10px", fontSize: "11.5px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+                    At {fmtPct(recommendedPct)} you&apos;d have ~{fmt(savingsSurplus)}/mo left to save. You&apos;d reach:
+                    {runwayTiers.map(({ m, eta }) => (
+                      <span key={m} style={{ display: "block", color: "var(--text-secondary)" }}>
+                        • a <strong style={{ color: "var(--text-primary)" }}>{m}-month</strong> fund{" "}
+                        {eta ? <>by <strong style={{ color: "var(--text-primary)" }}>{eta.date}</strong> (~{eta.months} mo)</> : "— add savings headroom first"}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               {!atRecommended && (
                 <button type="button" onClick={() => setPct(recommendedPct)}

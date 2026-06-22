@@ -1785,7 +1785,7 @@ function LineItemRow({
         {!isBalance && (cf as CashFlowItem).is_variable && (
           <span style={{ fontSize: "9px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
-        {isBalance && !bal.is_liability && (() => {
+        {isBalance && !bal.is_liability && bal.category !== "cash" && (() => {
           const b = effectiveTaxBucket(bal);
           if (!b) return null;
           const meta = TAX_BUCKET_META[b];

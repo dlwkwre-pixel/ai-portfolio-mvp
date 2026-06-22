@@ -229,7 +229,12 @@ export async function getCongressActivity(): Promise<CongressActivity> {
       fetchJsonArray(SENATE_URL).then(normalizeSenate).catch(() => [] as CongressTrade[]),
     ]);
     const all = [...house, ...senate];
-    if (all.length === 0 && cache) return cache.data; // keep last good data on a transient miss
+    // Never cache an empty result — a transient fetch failure shouldn't poison the cache for
+    // 12h. Keep the last good data if we have it; otherwise return empty without caching so
+    // the next request retries the source.
+    if (all.length === 0) {
+      return cache?.data ?? { trades: [], topTickers: [], updatedAt: new Date().toISOString() };
+    }
     const data = buildActivity(all);
     cache = { data, expires: Date.now() + TTL_MS };
     return data;
