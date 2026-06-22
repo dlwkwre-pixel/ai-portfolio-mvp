@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { validateTicker, validateLength, validateEnum, validateDate } from "@/lib/validation";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
+import { getFmpQuotes } from "@/lib/market-data/fmp";
 
 // "manual" = non-tradeable / advisor fund with no live price feed; valued at a
 // user-entered NAV (manual_price) that the user refreshes from their statement.
@@ -537,7 +538,37 @@ export type CSVHoldingRow = {
   company_name?: string;
   asset_type?: string;
   notes?: string;
+  manual_price?: number; // current NAV for asset_type === "manual" (non-tradeable funds)
 };
+
+// Check which tickers resolve to a real, priceable security (single batched FMP call per
+// chunk). Used by the CSV importer to flag positions it can't identify so the user can mark
+// them as non-tradeable funds (or fix a typo). Returns [] missing if no data source is
+// available, so we never wrongly flag everything.
+export async function resolveTickers(tickers: string[]): Promise<{ missing: string[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { missing: [] };
+
+  const clean = [...new Set(
+    tickers.map((t) => (t || "").trim().toUpperCase()).filter((t) => /^[A-Z0-9.\-]{1,20}$/.test(t))
+  )].slice(0, 200);
+  if (clean.length === 0) return { missing: [] };
+
+  const found = new Set<string>();
+  let anyData = false;
+  const CHUNK = 40;
+  for (let i = 0; i < clean.length; i += CHUNK) {
+    const chunk = clean.slice(i, i + CHUNK);
+    try {
+      const map = await getFmpQuotes(chunk);
+      if (map.size > 0) anyData = true;
+      for (const t of chunk) if (map.has(t)) found.add(t);
+    } catch { /* ignore chunk failure */ }
+  }
+  if (!anyData) return { missing: [] };
+  return { missing: clean.filter((t) => !found.has(t)) };
+}
 
 export type ImportHoldingsResult = {
   imported: number;
@@ -561,9 +592,9 @@ export async function importHoldingsCSV(
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).single();
   if (!portfolio) throw new Error("Portfolio not found.");
 
-  const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "other"];
+  const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "manual", "other"];
   const errors: ImportHoldingsResult["errors"] = [];
-  const validRows: { portfolio_id: string; ticker: string; shares: number; average_cost_basis: number; company_name: string | null; asset_type: string; notes: string | null }[] = [];
+  const validRows: { portfolio_id: string; ticker: string; shares: number; average_cost_basis: number; company_name: string | null; asset_type: string; notes: string | null; manual_price: number | null; manual_price_updated_at: string | null }[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -584,6 +615,15 @@ export async function importHoldingsCSV(
     }
 
     const assetType = VALID_ASSET_TYPES.includes(row.asset_type || "") ? (row.asset_type as string) : "stock";
+    const isManual = assetType === "manual";
+    let manualPrice: number | null = null;
+    if (isManual) {
+      manualPrice = Number(row.manual_price);
+      if (!Number.isFinite(manualPrice) || manualPrice <= 0) {
+        errors.push({ row: rowNum, ticker, message: "Non-tradeable fund needs a current NAV." });
+        continue;
+      }
+    }
     validRows.push({
       portfolio_id: portfolioId,
       ticker,
@@ -592,6 +632,8 @@ export async function importHoldingsCSV(
       company_name: row.company_name?.trim() || null,
       asset_type: assetType,
       notes: row.notes?.trim() || null,
+      manual_price: manualPrice,
+      manual_price_updated_at: isManual ? new Date().toISOString() : null,
     });
   }
 
@@ -610,7 +652,7 @@ export async function importHoldingsCSV(
   for (const row of validRows) {
     if (existingTickers.has(row.ticker)) {
       const { error } = await supabase.from("holdings")
-        .update({ shares: row.shares, average_cost_basis: row.average_cost_basis, company_name: row.company_name, asset_type: row.asset_type, notes: row.notes })
+        .update({ shares: row.shares, average_cost_basis: row.average_cost_basis, company_name: row.company_name, asset_type: row.asset_type, notes: row.notes, manual_price: row.manual_price, manual_price_updated_at: row.manual_price_updated_at })
         .eq("portfolio_id", portfolioId).eq("ticker", row.ticker);
       if (error) {
         errors.push({ row: -1, ticker: row.ticker, message: error.message });

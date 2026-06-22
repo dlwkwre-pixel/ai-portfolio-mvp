@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { importHoldingsCSV, type ImportHoldingsResult } from "./actions";
+import { importHoldingsCSV, resolveTickers, type ImportHoldingsResult } from "./actions";
 
 type InputMode = "file" | "paste";
 
@@ -11,37 +11,46 @@ type EditableRow = {
   ticker: string;
   sharesRaw: string;
   costRaw: string;
+  navRaw: string;
   company_name: string;
   asset_type: string;
   notes: string;
   shares: number;
   average_cost_basis: number;
+  manual_price: number;
   error?: string;
 };
 
-const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "other"];
+const VALID_ASSET_TYPES = ["stock", "etf", "crypto", "bond", "option", "mutual_fund", "cash_equivalent", "manual", "other"];
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  stock: "Stock", etf: "ETF", crypto: "Crypto", bond: "Bond", option: "Option",
+  mutual_fund: "Mutual Fund", cash_equivalent: "Cash Equiv.", manual: "Non-tradeable", other: "Other",
+};
 
-type RowKey = "ticker" | "shares" | "average_cost_basis" | "company_name" | "asset_type" | "notes";
+type RowKey = "ticker" | "shares" | "average_cost_basis" | "company_name" | "asset_type" | "notes" | "manual_price";
 
 function mapHeader(h: string): RowKey | null {
   const n = h.toLowerCase().trim().replace(/[\s_-]+/g, "_");
   if (["ticker", "symbol", "stock", "instrument", "security"].includes(n)) return "ticker";
   if (["shares", "quantity", "qty", "share_count", "num_shares", "units", "amount"].includes(n)) return "shares";
   if (["average_cost_basis", "avg_cost", "cost_basis", "avg_cost_basis", "cost", "average_cost", "price_paid", "avg_price", "purchase_price", "unit_cost", "book_value_per_share"].includes(n)) return "average_cost_basis";
+  if (["nav", "current_nav", "current_price", "price", "market_value_per_share", "unit_price", "current_value"].includes(n)) return "manual_price";
   if (["company_name", "company", "name", "description", "security_name", "stock_name"].includes(n)) return "company_name";
   if (["asset_type", "type", "security_type", "instrument_type"].includes(n)) return "asset_type";
   if (["notes", "note", "comment", "comments"].includes(n)) return "notes";
   return null;
 }
 
-function validateRow(ticker: string, sharesRaw: string, costRaw: string) {
+function validateRow(ticker: string, sharesRaw: string, costRaw: string, assetType: string, navRaw: string) {
   const t = ticker.trim().toUpperCase();
   const shares = parseFloat(sharesRaw);
   const cost = parseFloat(costRaw);
-  if (!t || !/^[A-Z0-9.\-]{1,20}$/.test(t)) return { error: "Invalid ticker", shares: NaN, average_cost_basis: NaN };
-  if (!Number.isFinite(shares) || shares <= 0) return { error: "Invalid shares", shares: NaN, average_cost_basis: cost };
-  if (!Number.isFinite(cost) || cost < 0) return { error: "Invalid cost basis", shares, average_cost_basis: NaN };
-  return { shares, average_cost_basis: cost };
+  const nav = parseFloat(navRaw);
+  if (!t || !/^[A-Z0-9.\-]{1,20}$/.test(t)) return { error: "Invalid ticker", shares: NaN, average_cost_basis: NaN, manual_price: NaN };
+  if (!Number.isFinite(shares) || shares <= 0) return { error: "Invalid shares", shares: NaN, average_cost_basis: cost, manual_price: nav };
+  if (!Number.isFinite(cost) || cost < 0) return { error: "Invalid cost basis", shares, average_cost_basis: NaN, manual_price: nav };
+  if (assetType === "manual" && (!Number.isFinite(nav) || nav <= 0)) return { error: "Enter NAV", shares, average_cost_basis: cost, manual_price: NaN };
+  return { shares, average_cost_basis: cost, manual_price: Number.isFinite(nav) ? nav : NaN };
 }
 
 let _rowIdCounter = 0;
@@ -60,9 +69,10 @@ function parseCSVToEditable(text: string): EditableRow[] {
     const ticker = (raw.ticker || "").trim().toUpperCase();
     const sharesRaw = raw.shares || "";
     const costRaw = raw.average_cost_basis || "";
-    const { error, shares, average_cost_basis } = validateRow(ticker, sharesRaw, costRaw);
+    const navRaw = raw.manual_price || "";
     const assetType = VALID_ASSET_TYPES.includes(raw.asset_type || "") ? raw.asset_type! : "stock";
-    return { id: ++_rowIdCounter, ticker, sharesRaw, costRaw, company_name: raw.company_name || "", asset_type: assetType, notes: raw.notes || "", shares, average_cost_basis, error };
+    const { error, shares, average_cost_basis, manual_price } = validateRow(ticker, sharesRaw, costRaw, assetType, navRaw);
+    return { id: ++_rowIdCounter, ticker, sharesRaw, costRaw, navRaw, company_name: raw.company_name || "", asset_type: assetType, notes: raw.notes || "", shares, average_cost_basis, manual_price, error };
   });
 }
 
@@ -86,49 +96,70 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
   const [fileName, setFileName] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [result, setResult] = useState<ImportHoldingsResult | null>(null);
+  const [missingTickers, setMissingTickers] = useState<Set<string>>(new Set());
+  const [checking, setChecking] = useState(false);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
     setRows([]); setFileName(""); setPastedText(""); setResult(null);
+    setMissingTickers(new Set()); setChecking(false);
     if (fileRef.current) fileRef.current.value = "";
   }
 
   function switchMode(next: InputMode) { setMode(next); reset(); }
+
+  // Verify which tickers resolve to a real market security; flag the rest so the user can
+  // mark them non-tradeable (or fix a typo). Crypto/manual rows are skipped.
+  async function checkTickers(rs: EditableRow[]) {
+    const toCheck = rs.filter(r => !r.error && r.asset_type !== "manual" && r.asset_type !== "crypto").map(r => r.ticker);
+    if (toCheck.length === 0) { setMissingTickers(new Set()); return; }
+    setChecking(true);
+    try {
+      const { missing } = await resolveTickers(toCheck);
+      setMissingTickers(new Set(missing));
+    } catch { setMissingTickers(new Set()); }
+    finally { setChecking(false); }
+  }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) { setRows([]); setFileName(""); return; }
     setFileName(file.name); setResult(null);
     const reader = new FileReader();
-    reader.onload = ev => setRows(parseCSVToEditable(String(ev.target?.result ?? "")));
+    reader.onload = ev => { const parsed = parseCSVToEditable(String(ev.target?.result ?? "")); setRows(parsed); void checkTickers(parsed); };
     reader.readAsText(file);
   }
 
   function handlePasteChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const text = e.target.value;
     setPastedText(text); setResult(null);
-    setRows(text.trim() ? parseCSVToEditable(text) : []);
+    const parsed = text.trim() ? parseCSVToEditable(text) : [];
+    setRows(parsed); void checkTickers(parsed);
   }
 
-  function updateRowField(id: number, field: "ticker" | "sharesRaw" | "costRaw" | "company_name" | "asset_type" | "notes", value: string) {
+  function updateRowField(id: number, field: "ticker" | "sharesRaw" | "costRaw" | "navRaw" | "company_name" | "asset_type" | "notes", value: string) {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row;
       const next = { ...row, [field]: value };
       if (field === "ticker") next.ticker = value.toUpperCase();
-      const { error, shares, average_cost_basis } = validateRow(
+      const { error, shares, average_cost_basis, manual_price } = validateRow(
         field === "ticker" ? value : row.ticker,
         field === "sharesRaw" ? value : row.sharesRaw,
         field === "costRaw" ? value : row.costRaw,
+        field === "asset_type" ? value : row.asset_type,
+        field === "navRaw" ? value : row.navRaw,
       );
-      return { ...next, error, shares, average_cost_basis };
+      return { ...next, error, shares, average_cost_basis, manual_price };
     }));
   }
+
+  function markNonTradeable(id: number) { updateRowField(id, "asset_type", "manual"); }
 
   function removeRow(id: number) { setRows(prev => prev.filter(r => r.id !== id)); }
 
   function addBlankRow() {
-    setRows(prev => [...prev, { id: ++_rowIdCounter, ticker: "", sharesRaw: "", costRaw: "", company_name: "", asset_type: "stock", notes: "", shares: NaN, average_cost_basis: NaN, error: "Invalid ticker" }]);
+    setRows(prev => [...prev, { id: ++_rowIdCounter, ticker: "", sharesRaw: "", costRaw: "", navRaw: "", company_name: "", asset_type: "stock", notes: "", shares: NaN, average_cost_basis: NaN, manual_price: NaN, error: "Invalid ticker" }]);
   }
 
   const validRows = rows.filter(r => !r.error);
@@ -143,6 +174,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
         const res = await importHoldingsCSV(portfolioId, validRows.map(r => ({
           ticker: r.ticker, shares: r.shares, average_cost_basis: r.average_cost_basis,
           company_name: r.company_name || undefined, asset_type: r.asset_type || undefined, notes: r.notes || undefined,
+          manual_price: r.asset_type === "manual" ? r.manual_price : undefined,
         })));
         setResult(res);
         if (res.errors.length === 0) reset();
@@ -320,6 +352,8 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                     ? <><span style={{ color: "var(--green)" }}>{validRows.length} ready</span>{invalidRows.length > 0 && <span style={{ color: "var(--red)", marginLeft: "8px" }}>{invalidRows.length} need fixing</span>}</>
                     : <span style={{ color: "var(--red)" }}>All rows have errors — edit below to fix</span>
                   }
+                  {checking && <span style={{ color: "var(--text-muted)", marginLeft: "8px" }}>· checking tickers…</span>}
+                  {!checking && missingTickers.size > 0 && <span style={{ color: "var(--amber)", marginLeft: "8px" }}>· {missingTickers.size} not found on market</span>}
                 </div>
                 <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Click any cell to edit</span>
               </div>
@@ -328,7 +362,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                     <thead>
                       <tr style={{ background: "var(--bg-surface)" }}>
-                        {["Ticker", "Shares", "Avg Cost", "Company", "Type", ""].map(h => (
+                        {["Ticker", "Shares", "Avg Cost", "NAV", "Company", "Type", ""].map(h => (
                           <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: 600, color: "var(--text-tertiary)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -338,25 +372,40 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                         const err = row.error;
                         return (
                           <tr key={row.id} style={{ background: err ? "rgba(239,68,68,0.04)" : "transparent", borderBottom: "1px solid var(--border-subtle)" }}>
-                            <td style={{ padding: "5px 8px", minWidth: "70px" }}>
+                            <td style={{ padding: "5px 8px", minWidth: "70px", verticalAlign: "top" }}>
                               <input style={{ ...inMono, fontWeight: 600, color: err === "Invalid ticker" ? "var(--red)" : "var(--text-primary)", textTransform: "uppercase" }}
                                 value={row.ticker} onChange={e => updateRowField(row.id, "ticker", e.target.value)} placeholder="AAPL" spellCheck={false} />
+                              {!err && row.asset_type !== "manual" && row.asset_type !== "crypto" && missingTickers.has(row.ticker) && (
+                                <button type="button" onClick={() => markNonTradeable(row.id)}
+                                  title="BuyTune couldn't find this on the market. If it's a non-tradeable / advisor fund, mark it and enter its NAV. If it's a typo, fix the symbol."
+                                  style={{ display: "block", marginTop: "3px", fontSize: "9px", color: "var(--amber)", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", lineHeight: 1.2 }}>
+                                  ⚠ Not found · Non-tradeable?
+                                </button>
+                              )}
                             </td>
-                            <td style={{ padding: "5px 8px", minWidth: "64px" }}>
+                            <td style={{ padding: "5px 8px", minWidth: "64px", verticalAlign: "top" }}>
                               <input style={{ ...inMono, color: err === "Invalid shares" ? "var(--red)" : "var(--text-secondary)" }}
                                 value={row.sharesRaw} onChange={e => updateRowField(row.id, "sharesRaw", e.target.value)} placeholder="0" inputMode="decimal" />
                             </td>
-                            <td style={{ padding: "5px 8px", minWidth: "74px" }}>
+                            <td style={{ padding: "5px 8px", minWidth: "74px", verticalAlign: "top" }}>
                               <input style={{ ...inMono, color: err === "Invalid cost basis" ? "var(--red)" : "var(--text-secondary)" }}
                                 value={row.costRaw} onChange={e => updateRowField(row.id, "costRaw", e.target.value)} placeholder="0.00" inputMode="decimal" />
                             </td>
-                            <td style={{ padding: "5px 8px", minWidth: "100px" }}>
+                            <td style={{ padding: "5px 8px", minWidth: "70px", verticalAlign: "top" }}>
+                              {row.asset_type === "manual" ? (
+                                <input style={{ ...inMono, color: err === "Enter NAV" ? "var(--red)" : "var(--text-secondary)" }}
+                                  value={row.navRaw} onChange={e => updateRowField(row.id, "navRaw", e.target.value)} placeholder="NAV" inputMode="decimal" />
+                              ) : (
+                                <span style={{ color: "var(--text-muted)", opacity: 0.4, fontFamily: "var(--font-mono)" }}>—</span>
+                              )}
+                            </td>
+                            <td style={{ padding: "5px 8px", minWidth: "100px", verticalAlign: "top" }}>
                               <input style={{ ...inCell, color: "var(--text-muted)" }} value={row.company_name} onChange={e => updateRowField(row.id, "company_name", e.target.value)} placeholder="Optional" />
                             </td>
-                            <td style={{ padding: "5px 8px", minWidth: "88px" }}>
+                            <td style={{ padding: "5px 8px", minWidth: "92px", verticalAlign: "top" }}>
                               <select value={row.asset_type} onChange={e => updateRowField(row.id, "asset_type", e.target.value)}
                                 style={{ background: "transparent", border: "none", outline: "none", color: "var(--text-muted)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer", width: "100%", padding: 0 }}>
-                                {VALID_ASSET_TYPES.map(t => <option key={t} value={t} style={{ background: "var(--bg-elevated)" }}>{t}</option>)}
+                                {VALID_ASSET_TYPES.map(t => <option key={t} value={t} style={{ background: "var(--bg-elevated)" }}>{ASSET_TYPE_LABELS[t] ?? t}</option>)}
                               </select>
                             </td>
                             <td style={{ padding: "5px 8px", width: "48px" }}>
