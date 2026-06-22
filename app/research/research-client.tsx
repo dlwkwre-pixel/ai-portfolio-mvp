@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
 import ScenariosPanel from "./scenarios-panel";
+import CongressSection from "./congress-section";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ function timeAgo(unix: number) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-type TrackEventType = "ticker_search" | "stock_card_click" | "stock_detail_view" | "ai_analysis_requested" | "scenario_ticker_click";
+type TrackEventType = "ticker_search" | "stock_card_click" | "stock_detail_view" | "ai_analysis_requested" | "scenario_ticker_click" | "congress_ticker_click";
 
 function trackEvent(ticker: string, eventType: TrackEventType) {
   fetch("/api/research/track", {
@@ -2202,6 +2203,12 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
           </div>
         ))
       )}
+
+      {/* Congress is Trading — free STOCK Act disclosures, shown in the default feed */}
+      <CongressSection
+        active={!showScenarios && activeFilter === "all"}
+        onTickerClick={(ticker) => { setQuery(ticker); trackEvent(ticker, "congress_ticker_click"); doSearch(ticker); }}
+      />
     </div>
   );
 }
