@@ -517,7 +517,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {/* Pre-tax deductions note */}
             {(taxProfile?.preTaxDeductionsAnnual ?? 0) > 0 && (
               <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
-                {fmt(taxProfile!.preTaxDeductionsAnnual)} in pre-tax contributions already reduce your taxable income.
+                {fmt(taxProfile!.preTaxDeductionsAnnual)} in pre-tax contributions already reduce your taxable income
+                {(taxProfile?.k401TraditionalAnnual ?? 0) > 0
+                  ? `, including ${fmt(taxProfile!.k401TraditionalAnnual)} from your Traditional 401(k). Tune it on the Planning page.`
+                  : "."}
               </p>
             )}
           </div>

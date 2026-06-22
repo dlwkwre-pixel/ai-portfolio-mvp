@@ -38,6 +38,8 @@ import type { FinnChatMessage, FinnChatContext } from "@/app/api/planning/finn/c
 import type { ImportedItem } from "@/app/api/planning/import/route";
 import { estimateTax, US_STATES, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, retirementFederalTax, retirementStateTax } from "@/lib/tax/estimator";
 import { contributionLimits, iraLimitForAge } from "@/lib/tax/contribution-limits";
+import { compute401k } from "@/lib/tax/retirement-401k";
+import Plan401kSection from "./plan-401k-section";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -6321,7 +6323,27 @@ export default function PlanningClient({
     .filter((i) => i.type === "expense")
     .reduce((s, i) => s + toMonthly(i.amount, i.frequency), 0);
 
-  // Derive estimated net income from gross profile income using tax estimator
+  // 401(k): the Traditional employee contribution is a pre-tax deduction, so it lowers
+  // taxable income / take-home automatically. The employer match + traditional employee
+  // contribution both flow into the tax-deferred bucket the drawdown engine grows.
+  const k401Result = (profile?.has_401k && (profile?.gross_monthly_income ?? 0) > 0)
+    ? compute401k({
+        grossAnnualIncome: (profile!.gross_monthly_income ?? 0) * 12,
+        contributionPct: profile!.k401_contribution_pct ?? 0,
+        isRoth: profile!.k401_is_roth ?? false,
+        employerMatchPct: profile!.k401_employer_match_pct ?? 0,
+        employerMatchLimitPct: profile!.k401_employer_match_limit_pct ?? 0,
+        age: profile!.current_age,
+      })
+    : null;
+  const k401TraditionalAnnual = k401Result?.traditionalAnnual ?? 0;
+  const k401DeferredAnnual = (k401Result?.traditionalAnnual ?? 0) + (k401Result?.employerAnnual ?? 0);
+  const k401EmployeeMonthly = (k401Result?.employeeAnnual ?? 0) / 12;
+  const effectivePreTaxAnnual = (profile?.pre_tax_deductions_annual ?? 0) + k401TraditionalAnnual;
+
+  // Derive estimated net income from gross profile income using tax estimator.
+  // Net take-home = after-tax pay MINUS the employee 401(k) deferral that leaves the paycheck
+  // (the override branch is the user's stated net, so it already reflects their deductions).
   const profileGross = profile?.gross_monthly_income ?? 0;
   const profileNetMonthly = (profile?.net_monthly_override !== null && profile?.net_monthly_override !== undefined)
     ? profile.net_monthly_override
@@ -6331,8 +6353,8 @@ export default function PlanningClient({
           (profile?.filing_status as FilingStatus) ?? "single",
           (profile?.income_type as IncomeType) ?? "w2",
           profile?.state_code ?? "",
-          profile?.pre_tax_deductions_annual ?? 0,
-        ).netMonthly
+          effectivePreTaxAnnual,
+        ).netMonthly - k401EmployeeMonthly
       : 0;
   // Use profile overrides if cash flow items are empty
   const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : profileNetMonthly;
@@ -6499,7 +6521,9 @@ export default function PlanningClient({
     // captures contributions the old "hold today's mix forward" model ignored, and lets
     // the retirement mix differ from today's. Already-retired starts from today's balances.
     const afterTaxSavings = Math.max(0, monthlySavings * 12);
-    const preTaxAnnual = Math.max(0, profile?.pre_tax_deductions_annual ?? 0);
+    // Annual pre-tax contributions to the tax-deferred bucket = manual pre-tax deductions
+    // + the 401(k) (Traditional employee deferral + employer match).
+    const preTaxAnnual = Math.max(0, (profile?.pre_tax_deductions_annual ?? 0) + k401DeferredAnnual);
     let bTaxable = Math.max(0, taxBucketsNow.taxable);
     let bDeferred = Math.max(0, taxBucketsNow.tax_deferred);
     let bFree = Math.max(0, taxBucketsNow.tax_free);
@@ -6541,6 +6565,7 @@ export default function PlanningClient({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.current_age, profile?.filing_status, profile?.state_code, profile?.pre_tax_deductions_annual,
+      k401DeferredAnnual,
       activeRetirementAge, taxBucketsNow, retirementPoint?.annualExpenses,
       localAssumptions.return_rate, localAssumptions.inflation_rate, localAssumptions.social_security_claim_age,
       monthlySavings, annualRetirementIncome, modelRothConversions, conversionBracket, healthcareAnnual, modelLtc]);
@@ -8506,6 +8531,13 @@ export default function PlanningClient({
               </p>
             )}
           </div>
+
+          {/* ── Section 1a-401k: Workplace retirement (401k optimizer) ── */}
+          {profile && (
+            <div className="cmd-section" style={{ animationDelay: "30ms" }}>
+              <Plan401kSection profile={profile} />
+            </div>
+          )}
 
           {/* ── Section 1b: Biggest Risk + Biggest Opportunity ── */}
           {commandPriorities.length > 0 && (() => {

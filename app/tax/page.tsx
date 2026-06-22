@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { contributionLimits } from "@/lib/tax/contribution-limits";
+import { compute401k } from "@/lib/tax/retirement-401k";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import TaxClient from "./tax-client";
@@ -56,6 +57,7 @@ export type TaxProfile = {
   incomeType: string;
   stateCode: string | null;
   preTaxDeductionsAnnual: number;
+  k401TraditionalAnnual: number; // Traditional 401(k) employee deferral folded into preTaxDeductionsAnnual
   isHomeowner: boolean;
   ownerHomeValue: number | null;
   ownerMortgageBalance: number | null;
@@ -329,12 +331,32 @@ export default async function TaxPage({
 
   tlhOpportunities.sort((a, b) => (a.unrealizedLoss ?? 0) - (b.unrealizedLoss ?? 0));
 
+  // Traditional 401(k) employee deferral is pre-tax — fold it into the deductions that
+  // reduce taxable income so the tax page matches what BuyTune shows on planning.
+  const k401TraditionalAnnual = (
+    financialProfileData?.has_401k &&
+    !financialProfileData?.k401_is_roth &&
+    financialProfileData?.gross_monthly_income
+  )
+    ? compute401k({
+        grossAnnualIncome: Number(financialProfileData.gross_monthly_income) * 12,
+        contributionPct: Number(financialProfileData.k401_contribution_pct ?? 0),
+        isRoth: false,
+        employerMatchPct: Number(financialProfileData.k401_employer_match_pct ?? 0),
+        employerMatchLimitPct: Number(financialProfileData.k401_employer_match_limit_pct ?? 0),
+        age: null,
+      }).traditionalAnnual
+    : 0;
+
   const taxProfile: TaxProfile | null = financialProfileData ? {
     grossMonthly: financialProfileData.gross_monthly_income ? Number(financialProfileData.gross_monthly_income) : null,
     filingStatus: financialProfileData.filing_status ?? "single",
     incomeType: financialProfileData.income_type ?? "w2",
     stateCode: financialProfileData.state_code ?? null,
-    preTaxDeductionsAnnual: financialProfileData.pre_tax_deductions_annual ? Number(financialProfileData.pre_tax_deductions_annual) : 0,
+    preTaxDeductionsAnnual:
+      (financialProfileData.pre_tax_deductions_annual ? Number(financialProfileData.pre_tax_deductions_annual) : 0) +
+      k401TraditionalAnnual,
+    k401TraditionalAnnual,
     isHomeowner: financialProfileData.is_homeowner ?? false,
     ownerHomeValue: financialProfileData.owner_home_value ? Number(financialProfileData.owner_home_value) : null,
     ownerMortgageBalance: financialProfileData.owner_mortgage_balance ? Number(financialProfileData.owner_mortgage_balance) : null,

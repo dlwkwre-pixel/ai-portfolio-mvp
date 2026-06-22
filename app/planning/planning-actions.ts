@@ -25,6 +25,13 @@ export type FinancialProfile = {
   partner_age: number | null;
   partner_target_retirement_age: number | null;
   kids_json: ProfileKid[];
+  // 401(k) / workplace retirement plan (only populated on the main /planning profile load)
+  has_401k?: boolean;
+  k401_contribution_pct?: number | null;
+  k401_is_roth?: boolean;
+  k401_employer_match_pct?: number | null;
+  k401_employer_match_limit_pct?: number | null;
+  k401_current_balance?: number | null;
   updated_at: string;
   // Home owner-mover mode
   is_homeowner: boolean;
@@ -163,6 +170,47 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
 
   if (error) return { error: error.message };
   revalidatePath("/planning");
+  return {};
+}
+
+// 401(k) settings — saved independently of the main profile form so the user can tweak
+// their deferral % without re-entering everything. The Traditional employee contribution
+// flows into the pre-tax-deduction pipeline (estimator.ts), so take-home and tax estimates
+// update automatically across planning and the tax page.
+export async function upsert401kSettings(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const has_401k = String(formData.get("has_401k") ?? "") === "true";
+  const num = (k: string): number => {
+    const v = Number(formData.get(k));
+    return Number.isFinite(v) && v >= 0 ? v : 0;
+  };
+  const k401_contribution_pct = Math.min(100, num("k401_contribution_pct"));
+  const k401_is_roth = String(formData.get("k401_is_roth") ?? "") === "true";
+  const k401_employer_match_pct = num("k401_employer_match_pct");
+  const k401_employer_match_limit_pct = Math.min(100, num("k401_employer_match_limit_pct"));
+  const balanceRaw = String(formData.get("k401_current_balance") ?? "").trim();
+  const k401_current_balance = balanceRaw !== "" && Number.isFinite(Number(balanceRaw)) ? Number(balanceRaw) : null;
+
+  const { error } = await supabase.from("financial_profiles").upsert(
+    {
+      user_id: user.id,
+      has_401k,
+      k401_contribution_pct,
+      k401_is_roth,
+      k401_employer_match_pct,
+      k401_employer_match_limit_pct,
+      k401_current_balance,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  revalidatePath("/tax");
   return {};
 }
 
