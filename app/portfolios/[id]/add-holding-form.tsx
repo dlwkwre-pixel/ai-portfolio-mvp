@@ -196,94 +196,116 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [assetType, setAssetType] = useState(holding.asset_type || "stock");
 
-  return (
-    <form
-      className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-      action={(formData) => {
-        setErrorMessage("");
-        startTransition(async () => {
-          try {
-            await updateHolding(formData);
-            onClose();
-          } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
-          }
-        });
-      }}
+  const modal = (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "16px", overflowY: "auto" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <input type="hidden" name="holding_id" value={holding.id} />
-      <input type="hidden" name="portfolio_id" value={holding.portfolio_id} />
-
-      <div>
-        <label className={labelClass}>Company Name</label>
-        <input name="company_name" type="text" defaultValue={holding.company_name || ""} placeholder="Apple Inc." className={inputClass} />
-      </div>
-
-      <div>
-        <label className={labelClass}>Asset Type</label>
-        <select name="asset_type" value={assetType} onChange={(e) => setAssetType(e.target.value)} className={selectClass}>
-          <option value="stock">Stock</option>
-          <option value="etf">ETF</option>
-          <option value="mutual_fund">Mutual Fund</option>
-          <option value="crypto">Crypto</option>
-          <option value="cash_equivalent">Cash Equivalent</option>
-          <option value="manual">Non-tradeable Fund</option>
-        </select>
-      </div>
-
-      <div>
-        <label className={labelClass}>Shares</label>
-        <input name="shares" type="number" step="0.000001" min="0" defaultValue={holding.shares} className={inputClass} required />
-      </div>
-
-      <div>
-        <label className={labelClass}>{assetType === "manual" ? "Purchase NAV" : "Avg Cost Basis"}</label>
-        <input name="average_cost_basis" type="number" step="0.000001" min="0" defaultValue={holding.average_cost_basis ?? ""} className={inputClass} required />
-      </div>
-
-      {assetType === "manual" && (
-        <div>
-          <label className={labelClass}>Current NAV</label>
-          <input name="manual_price" type="number" step="0.000001" min="0" defaultValue={holding.manual_price ?? ""} placeholder="192.40" className={inputClass} required />
+      <div
+        className="rounded-2xl border border-white/10 bg-slate-900"
+        style={{ width: "100%", maxWidth: "560px", margin: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-white/8 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Edit {holding.ticker}</h3>
+            <p className="mt-0.5 text-xs text-slate-500">Update this position&apos;s details.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="shrink-0 rounded-lg p-1 text-slate-500 transition hover:text-white">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+          </button>
         </div>
-      )}
 
-      <div>
-        <label className={labelClass}>Purchase Date</label>
-        <input
-          name="opened_at"
-          type="date"
-          defaultValue={holding.opened_at ? holding.opened_at.slice(0, 10) : ""}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="sm:col-span-2 lg:col-span-1">
-        <label className={labelClass}>Notes</label>
-        <input name="notes" type="text" defaultValue={holding.notes || ""} placeholder="Optional notes" className={inputClass} />
-      </div>
-
-      {errorMessage && (
-        <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
-          {errorMessage}
-        </div>
-      )}
-
-      <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+        <form
+          className="grid gap-3 p-4 sm:grid-cols-2"
+          action={(formData) => {
+            setErrorMessage("");
+            startTransition(async () => {
+              try {
+                await updateHolding(formData);
+                onClose();
+              } catch (error) {
+                setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+              }
+            });
+          }}
         >
-          {isPending ? "Saving..." : "Save Changes"}
-        </button>
-        <button type="button" onClick={onClose} className="rounded-xl border border-white/10 bg-white/4 px-4 py-2 text-sm text-slate-400 transition hover:text-white">
-          Cancel
-        </button>
+          <input type="hidden" name="holding_id" value={holding.id} />
+          <input type="hidden" name="portfolio_id" value={holding.portfolio_id} />
+
+          <div>
+            <label className={labelClass}>Company Name</label>
+            <input name="company_name" type="text" defaultValue={holding.company_name || ""} placeholder="Apple Inc." className={inputClass} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Asset Type</label>
+            <select name="asset_type" value={assetType} onChange={(e) => setAssetType(e.target.value)} className={selectClass}>
+              <option value="stock">Stock</option>
+              <option value="etf">ETF</option>
+              <option value="mutual_fund">Mutual Fund</option>
+              <option value="crypto">Crypto</option>
+              <option value="cash_equivalent">Cash Equivalent</option>
+              <option value="manual">Non-tradeable Fund</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Shares</label>
+            <input name="shares" type="number" step="0.000001" min="0" defaultValue={holding.shares} className={inputClass} required />
+          </div>
+
+          <div>
+            <label className={labelClass}>{assetType === "manual" ? "Purchase NAV" : "Avg Cost Basis"}</label>
+            <input name="average_cost_basis" type="number" step="0.000001" min="0" defaultValue={holding.average_cost_basis ?? ""} className={inputClass} required />
+          </div>
+
+          {assetType === "manual" && (
+            <div>
+              <label className={labelClass}>Current NAV</label>
+              <input name="manual_price" type="number" step="0.000001" min="0" defaultValue={holding.manual_price ?? ""} placeholder="192.40" className={inputClass} required />
+            </div>
+          )}
+
+          <div>
+            <label className={labelClass}>Purchase Date</label>
+            <input
+              name="opened_at"
+              type="date"
+              defaultValue={holding.opened_at ? holding.opened_at.slice(0, 10) : ""}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className={labelClass}>Notes</label>
+            <input name="notes" type="text" defaultValue={holding.notes || ""} placeholder="Optional notes" className={inputClass} />
+          </div>
+
+          {errorMessage && (
+            <div className="sm:col-span-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-400">
+              {errorMessage}
+            </div>
+          )}
+
+          <div className="sm:col-span-2 flex gap-2">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+            >
+              {isPending ? "Saving..." : "Save Changes"}
+            </button>
+            <button type="button" onClick={onClose} className="rounded-xl border border-white/10 bg-white/4 px-4 py-2 text-sm text-slate-400 transition hover:text-white">
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modal, document.body) : null;
 }
 
 // --- Update NAV (inline quick-edit for non-tradeable funds) ---
