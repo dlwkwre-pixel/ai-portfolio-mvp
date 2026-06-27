@@ -64,9 +64,20 @@ A single visible progression number so every action "counts."
 - extend `BADGES` catalog + `check.ts`
 
 ## Phasing
-1. **P1 — XP engine + levels**: tables, `awardXp` helper, wire into existing server actions,
-   dashboard level chip + bar. (Foundation; visible immediately.)
-2. **P2 — Badges 2.0**: new behavior badges + progress display; Achievements page.
+1. **P1 — XP engine + levels** ✅ SHIPPED: `supabase/gamification-xp.sql` (user_xp + xp_events
+   ledger, idempotent via dedup_key), `lib/gamification/xp.ts` (awardXp/getUserXp/level curve),
+   wired into createHolding / upsertFinancialProfile / AI-run actions, dashboard level chip
+   (`app/components/xp-level-chip.tsx`). ⚠️ run supabase/gamification-xp.sql.
+2. **P2 — Badges 2.0** ✅ SHIPPED: new tiered behavior badges (holdings_10/25, multi_portfolio,
+   ai_25, exec_10, follower_10) with **progress bars** toward unearned ones; per-badge `progress`
+   metadata (`{metric, target}`) in definitions.ts; `getBadgeContext` + `badgeMetrics` extracted
+   in check.ts so progress reuses the same counts the awarder evaluates; shared `BadgeIcon`
+   component (`app/components/badge-icon.tsx`); **Achievements hub** at `/achievements` (level
+   medallion + XP bar + recent-XP feed + all badges grouped by category with progress), linked
+   from the sidebar Discover section + the clickable dashboard XP chip. Badges auto-award on the
+   existing dashboard/profile load paths (no new wiring). NOTE: sector-based ("Diversified across
+   N sectors") + budget/emergency-fund badges deferred — they need per-holding sector data /
+   planning-profile reads not yet in BadgeContext; current count-based set ships value now.
 3. **P3 — Streaks surfaced**: activity table + sidebar/dashboard flame + nudge.
 4. **P4 — Challenges**: rotating weekly quests + completion rewards + bell celebrations.
 

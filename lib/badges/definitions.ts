@@ -4,6 +4,19 @@ export type BadgeIcon =
   | "flame" | "rocket" | "graduation" | "chart-line" | "plus-circle"
   | "sparkle" | "cpu" | "check-circle" | "share" | "users" | "star";
 
+// Countable metrics the app already tracks — used to draw a progress bar toward a locked badge.
+// Each key maps 1:1 to a field on the BadgeContext gathered in lib/badges/check.ts.
+export type BadgeMetric =
+  | "longestStreak"
+  | "portfolioCount"
+  | "holdingCount"
+  | "strategyCount"
+  | "aiRunCount"
+  | "executedCount"
+  | "sharedPortfolioCount"
+  | "followingCount"
+  | "followerCount";
+
 export type Badge = {
   id: string;
   name: string;
@@ -12,6 +25,8 @@ export type Badge = {
   tier: BadgeTier;
   category: BadgeCategory;
   icon: BadgeIcon;
+  // When present, a locked badge shows "current / target" progress toward unlocking.
+  progress?: { metric: BadgeMetric; target: number };
 };
 
 export const BADGES: Badge[] = [
@@ -24,6 +39,7 @@ export const BADGES: Badge[] = [
     tier: "bronze",
     category: "streak",
     icon: "flame",
+    progress: { metric: "longestStreak", target: 3 },
   },
   {
     id: "streak_7",
@@ -33,6 +49,7 @@ export const BADGES: Badge[] = [
     tier: "silver",
     category: "streak",
     icon: "flame",
+    progress: { metric: "longestStreak", target: 7 },
   },
   {
     id: "streak_30",
@@ -42,6 +59,7 @@ export const BADGES: Badge[] = [
     tier: "gold",
     category: "streak",
     icon: "flame",
+    progress: { metric: "longestStreak", target: 30 },
   },
   {
     id: "streak_50",
@@ -51,6 +69,7 @@ export const BADGES: Badge[] = [
     tier: "gold",
     category: "streak",
     icon: "flame",
+    progress: { metric: "longestStreak", target: 50 },
   },
   {
     id: "streak_100",
@@ -60,6 +79,7 @@ export const BADGES: Badge[] = [
     tier: "legendary",
     category: "streak",
     icon: "flame",
+    progress: { metric: "longestStreak", target: 100 },
   },
 
   // ── Setup ─────────────────────────────────────────────────────────────────
@@ -101,6 +121,36 @@ export const BADGES: Badge[] = [
     category: "portfolio",
     icon: "plus-circle",
   },
+  {
+    id: "holdings_10",
+    name: "Stock Picker",
+    description: "Tracking 10 holdings",
+    hint: "Add 10 holdings across your portfolios",
+    tier: "silver",
+    category: "portfolio",
+    icon: "plus-circle",
+    progress: { metric: "holdingCount", target: 10 },
+  },
+  {
+    id: "holdings_25",
+    name: "Deep Bench",
+    description: "Tracking 25 holdings",
+    hint: "Add 25 holdings across your portfolios",
+    tier: "gold",
+    category: "portfolio",
+    icon: "plus-circle",
+    progress: { metric: "holdingCount", target: 25 },
+  },
+  {
+    id: "multi_portfolio",
+    name: "Diversified",
+    description: "Running 3 portfolios",
+    hint: "Create 3 active portfolios",
+    tier: "silver",
+    category: "portfolio",
+    icon: "chart-line",
+    progress: { metric: "portfolioCount", target: 3 },
+  },
 
   // ── Strategy ──────────────────────────────────────────────────────────────
   {
@@ -131,6 +181,17 @@ export const BADGES: Badge[] = [
     tier: "silver",
     category: "ai",
     icon: "cpu",
+    progress: { metric: "aiRunCount", target: 10 },
+  },
+  {
+    id: "ai_25",
+    name: "AI Strategist",
+    description: "Ran 25 AI analyses",
+    hint: "Run 25 AI portfolio analyses",
+    tier: "gold",
+    category: "ai",
+    icon: "cpu",
+    progress: { metric: "aiRunCount", target: 25 },
   },
   {
     id: "exec_first",
@@ -140,6 +201,16 @@ export const BADGES: Badge[] = [
     tier: "silver",
     category: "ai",
     icon: "check-circle",
+  },
+  {
+    id: "exec_10",
+    name: "Conviction",
+    description: "Executed 10 AI recommendations",
+    hint: "Mark 10 AI recommendations as executed",
+    tier: "gold",
+    category: "ai",
+    icon: "check-circle",
+    progress: { metric: "executedCount", target: 10 },
   },
 
   // ── Community ─────────────────────────────────────────────────────────────
@@ -170,7 +241,34 @@ export const BADGES: Badge[] = [
     category: "community",
     icon: "star",
   },
+  {
+    id: "follower_10",
+    name: "Influencer",
+    description: "Reached 10 followers",
+    hint: "Have 10 people follow your profile",
+    tier: "gold",
+    category: "community",
+    icon: "star",
+    progress: { metric: "followerCount", target: 10 },
+  },
 ];
+
+// Category display order + labels for the Achievements hub.
+export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
+  "setup", "portfolio", "strategy", "ai", "streak", "community",
+];
+export const BADGE_CATEGORY_LABEL: Record<BadgeCategory, string> = {
+  setup:     "Getting started",
+  portfolio: "Portfolio",
+  strategy:  "Strategy",
+  ai:        "AI analysis",
+  streak:    "Consistency",
+  community: "Community",
+};
+
+export const TIER_LABEL: Record<BadgeTier, string> = {
+  bronze: "Bronze", silver: "Silver", gold: "Gold", legendary: "Legendary",
+};
 
 export const BADGE_MAP = new Map(BADGES.map((b) => [b.id, b]));
 

@@ -1,8 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import type { BadgeMetric } from "@/lib/badges/definitions";
 
-type BadgeContext = {
+export type BadgeContext = {
   longestStreak: number;
   onboardingStatus: string | null;
   portfolioCount: number;
@@ -14,6 +15,22 @@ type BadgeContext = {
   followingCount: number;
   followerCount: number;
 };
+
+// Flatten the context into the countable metrics a badge can show progress against.
+// Keys must match BadgeMetric (and the per-badge `progress.metric` in definitions.ts).
+export async function badgeMetrics(ctx: BadgeContext): Promise<Record<BadgeMetric, number>> {
+  return {
+    longestStreak:        ctx.longestStreak,
+    portfolioCount:       ctx.portfolioCount,
+    holdingCount:         ctx.holdingCount,
+    strategyCount:        ctx.strategyCount,
+    aiRunCount:           ctx.aiRunCount,
+    executedCount:        ctx.executedCount,
+    sharedPortfolioCount: ctx.sharedPortfolioCount,
+    followingCount:       ctx.followingCount,
+    followerCount:        ctx.followerCount,
+  };
+}
 
 function evaluate(ctx: BadgeContext, existing: Set<string>): string[] {
   const toAward: string[] = [];
@@ -30,23 +47,30 @@ function evaluate(ctx: BadgeContext, existing: Set<string>): string[] {
   check("tutorial",       ctx.onboardingStatus === "completed");
   check("first_portfolio",ctx.portfolioCount > 0);
   check("first_holding",  ctx.holdingCount > 0);
+  check("holdings_10",    ctx.holdingCount >= 10);
+  check("holdings_25",    ctx.holdingCount >= 25);
+  check("multi_portfolio",ctx.portfolioCount >= 3);
   check("strategist",     ctx.strategyCount > 0);
   check("ai_first",       ctx.aiRunCount > 0);
   check("ai_10",          ctx.aiRunCount >= 10);
+  check("ai_25",          ctx.aiRunCount >= 25);
   check("exec_first",     ctx.executedCount > 0);
+  check("exec_10",        ctx.executedCount >= 10);
   check("shared",         ctx.sharedPortfolioCount > 0);
   check("following",      ctx.followingCount > 0);
   check("follower",       ctx.followerCount > 0);
+  check("follower_10",    ctx.followerCount >= 10);
 
   return toAward;
 }
 
-export async function checkAndAwardBadges(userId: string): Promise<string[]> {
+// Gather everything the badge system reasons about, in one parallel pass.
+// Shared by checkAndAwardBadges (award) and the Achievements hub (progress display).
+export async function getBadgeContext(userId: string): Promise<BadgeContext> {
   const supabase = await createClient();
 
   const [
     { data: profile },
-    { data: existingBadges },
     { count: portfolioCount },
     { count: holdingCount },
     { count: strategyCount },
@@ -60,9 +84,6 @@ export async function checkAndAwardBadges(userId: string): Promise<string[]> {
       .select("longest_streak, onboarding_status")
       .eq("id", userId)
       .maybeSingle(),
-    supabase.from("user_badges")
-      .select("badge_id")
-      .eq("user_id", userId),
     supabase.from("portfolios")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -95,7 +116,7 @@ export async function checkAndAwardBadges(userId: string): Promise<string[]> {
   ]);
 
   const p = profile as { longest_streak?: number | null; onboarding_status?: string | null } | null;
-  const ctx: BadgeContext = {
+  return {
     longestStreak:        p?.longest_streak ?? 0,
     onboardingStatus:     p?.onboarding_status ?? null,
     portfolioCount:       portfolioCount ?? 0,
@@ -107,6 +128,15 @@ export async function checkAndAwardBadges(userId: string): Promise<string[]> {
     followingCount:       followingCount ?? 0,
     followerCount:        followerCount ?? 0,
   };
+}
+
+export async function checkAndAwardBadges(userId: string): Promise<string[]> {
+  const supabase = await createClient();
+
+  const [ctx, { data: existingBadges }] = await Promise.all([
+    getBadgeContext(userId),
+    supabase.from("user_badges").select("badge_id").eq("user_id", userId),
+  ]);
 
   const existing = new Set((existingBadges ?? []).map((b) => b.badge_id));
   const toAward = evaluate(ctx, existing);

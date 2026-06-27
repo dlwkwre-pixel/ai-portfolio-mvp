@@ -114,3 +114,26 @@ export async function getUserXp(userId: string): Promise<LevelProgress> {
     return levelProgress(0);
   }
 }
+
+export type XpEvent = { kind: XpKind; xp: number; label: string; created_at: string };
+
+// Recent XP ledger entries for the Achievements activity feed (most recent first).
+export async function getRecentXpEvents(userId: string, limit = 12): Promise<XpEvent[]> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("xp_events")
+      .select("kind, xp, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data ?? []).map((e) => ({
+      kind: e.kind as XpKind,
+      xp: e.xp as number,
+      label: XP_LABELS[e.kind as XpKind] ?? (e.kind as string),
+      created_at: e.created_at as string,
+    }));
+  } catch {
+    return [];
+  }
+}
