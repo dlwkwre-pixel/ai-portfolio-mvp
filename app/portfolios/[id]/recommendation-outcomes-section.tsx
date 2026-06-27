@@ -1,30 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
-import { getFinnhubQuote } from "@/lib/market-data/finnhub";
+import { computeRecommendationScorecard, type Verdict } from "@/lib/portfolio/recommendation-scorecard";
 
 type Props = {
   portfolioId: string;
 };
-
-function daysSince(iso: string): number {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
-}
 
 function formatPct(v: number): string {
   return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
 export default async function RecommendationOutcomesSection({ portfolioId }: Props) {
-  const supabase = await createClient();
+  const sc = await computeRecommendationScorecard(portfolioId);
 
-  const { data: executedItems } = await supabase
-    .from("recommendation_items")
-    .select("id, ticker, company_name, action_type, conviction, target_price_1, thesis, created_at")
-    .eq("portfolio_id", portfolioId)
-    .eq("recommendation_status", "executed")
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (!executedItems?.length) {
+  if (sc.executedCount === 0) {
     return (
       <div style={{ background: "var(--surface-002)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
@@ -40,128 +27,9 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
     );
   }
 
-  const { data: holdings } = await supabase
-    .from("holdings")
-    .select("ticker, average_cost_basis, shares")
-    .eq("portfolio_id", portfolioId);
-
-  const holdingsMap = new Map(
-    (holdings ?? []).map((h) => [h.ticker.toUpperCase(), h])
-  );
-
-  const uniqueTickers = [...new Set(executedItems.map((i) => i.ticker?.toUpperCase()).filter(Boolean))] as string[];
-  const quoteResults = await Promise.allSettled(
-    uniqueTickers.map((t) => getFinnhubQuote(t).then((q) => ({ ticker: t, quote: q })))
-  );
-  const quoteMap = new Map<string, { c: number; pc: number }>();
-  for (const r of quoteResults) {
-    if (r.status === "fulfilled" && r.value.quote && r.value.quote.c > 0) {
-      quoteMap.set(r.value.ticker, { c: r.value.quote.c, pc: r.value.quote.pc ?? 0 });
-    }
-  }
-
-  // Verdict rules:
-  // BUY/ADD: correct if current >= cost_basis (profitable vs what you paid). "Too early" if < 7 days old.
-  // SELL/TRIM: correct if current <= target_price (price fell to/below target). "Heading there" if between sell price and target.
-  //            Without a target, verdict = pending.
-  // HOLD: verdict = pending (no clear pass/fail criterion)
-  type Verdict = "correct" | "incorrect" | "pending" | "no-data";
-
-  type OutcomeRow = {
-    id: string;
-    ticker: string;
-    company_name: string | null;
-    action_type: string;
-    conviction: string | null;
-    target_price_1: number | null;
-    thesis: string | null;
-    created_at: string;
-    currentPrice: number | null;
-    costBasis: number | null;
-    plPct: number | null;
-    daysAgo: number;
-    verdict: Verdict;
-    vsTarget: number | null;
-    tooEarly: boolean;
-    sellPriceDrop: number | null;
-  };
-
-  const rows: OutcomeRow[] = executedItems.map((item) => {
-    const ticker = (item.ticker ?? "").toUpperCase();
-    const quote = quoteMap.get(ticker) ?? null;
-    const holding = holdingsMap.get(ticker) ?? null;
-    const action = (item.action_type ?? "").toLowerCase();
-    const isBuy = action === "buy" || action === "add";
-    const isSell = action === "sell" || action === "trim";
-    const isHold = action === "hold" || action === "watch";
-    const daysAgo = daysSince(item.created_at);
-
-    const currentPrice = quote?.c ?? null;
-    const costBasis = holding ? Number(holding.average_cost_basis) : null;
-    const target = item.target_price_1 ? Number(item.target_price_1) : null;
-
-    let plPct: number | null = null;
-    if (isBuy && currentPrice !== null && costBasis !== null && costBasis > 0) {
-      plPct = ((currentPrice - costBasis) / costBasis) * 100;
-    }
-
-    let vsTarget: number | null = null;
-    if (isBuy && currentPrice !== null && target !== null && target > 0) {
-      vsTarget = ((target - currentPrice) / currentPrice) * 100;
-    }
-
-    // For SELL: how much the price has dropped since recommendation (approx, using target as sell price proxy)
-    let sellPriceDrop: number | null = null;
-    if (isSell && currentPrice !== null && target !== null && target > 0) {
-      // positive = stock dropped below target (sell was correct), negative = stock still above target
-      sellPriceDrop = ((target - currentPrice) / target) * 100;
-    }
-
-    let verdict: Verdict = "no-data";
-    const tooEarly = daysAgo < 7;
-
-    if (isBuy) {
-      if (currentPrice === null || costBasis === null) {
-        verdict = "no-data";
-      } else if (tooEarly) {
-        verdict = "pending";
-      } else {
-        verdict = plPct !== null && plPct >= 0 ? "correct" : "incorrect";
-      }
-    } else if (isSell) {
-      if (target === null || currentPrice === null) {
-        verdict = "pending";
-      } else {
-        // Correct if stock is AT or BELOW the sell target
-        verdict = currentPrice <= target * 1.05 ? "correct" : "incorrect";
-      }
-    } else if (isHold) {
-      verdict = "pending";
-    }
-
-    return {
-      id: item.id,
-      ticker,
-      company_name: item.company_name,
-      action_type: action,
-      conviction: item.conviction,
-      target_price_1: target,
-      thesis: item.thesis,
-      created_at: item.created_at,
-      currentPrice,
-      costBasis,
-      plPct,
-      daysAgo,
-      verdict,
-      vsTarget,
-      tooEarly,
-      sellPriceDrop,
-    };
-  });
-
-  const scored = rows.filter((r) => r.verdict === "correct" || r.verdict === "incorrect");
-  const correct = rows.filter((r) => r.verdict === "correct").length;
-  const accuracyRate = scored.length > 0 ? Math.round((correct / scored.length) * 100) : null;
+  const rows = sc.rows;
+  const accuracyRate = sc.accuracyRate;
+  const executedCount = sc.executedCount;
 
   const verdictColor: Record<Verdict, string> = {
     correct: "#00d395",
@@ -205,7 +73,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
             </span>
           )}
           <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-muted)" }}>
-            {executedItems.length} executed
+            {executedCount} executed
           </span>
         </div>
       </div>

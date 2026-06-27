@@ -12,6 +12,7 @@ import EditCashBalanceButton from "./edit-cash-balance-button";
 import AssignStrategyForm from "./assign-strategy-form";
 import UpgradeStrategyVersionButton from "./upgrade-strategy-version-button";
 import AIRecommendationsSection from "./ai-recommendations-section";
+import AIScorecardCard from "./ai-scorecard-card";
 import TransactionHistorySection from "./transaction-history-section";
 import PortfolioPerformanceSection from "./portfolio-performance-section";
 import PortfolioTabs from "./portfolio-tabs";
@@ -388,6 +389,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {/* AI Scorecard — how the AI's recommendations have played out */}
+                    <AIScorecardCard portfolioId={portfolio.id} />
+
                     {/* Strategy */}
                     <div className="bt-card">
                       <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Assigned Strategy</h2>
