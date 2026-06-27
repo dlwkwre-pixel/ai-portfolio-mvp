@@ -83,3 +83,18 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
    Disaster-recovery if Supabase fails. Options: scheduled DB backups/exports (cheapest,
    recommended first), read-replica, or a secondary store. Full dual-write is complex; start
    with automated backups/point-in-time recovery before a true dual system.
+
+---
+
+## New asks (2026-06-27)
+
+8. **"Add BuyTune to your iPhone home screen" tutorial** 🟢 onboarding.
+   Walk iOS Safari users through Share → Add to Home Screen so they install the PWA. Best as a
+   replayable card in the Learn tab + a one-time, dismissible prompt shown only to iOS Safari
+   users (detect iPhone + Safari + not already standalone via `navigator.standalone`). Reuse the
+   page-tutorial pattern (lib/tutorials.ts + page-tutorial.tsx). The home-screen ICON itself is
+   already fixed (app/apple-icon.tsx — full-bleed brand mark, no gaps). NOT YET BUILT.
+
+9. **Logo / brand-mark ideas** (optional, user likely keeping current). Current mark = rising
+   chart line with 4 data-point dots on a blue→violet gradient. If exploring: a stylized "BT"
+   monogram, an equalizer/"tune" bars motif (plays on "Tune"), or a soundwave-meets-chart hybrid.
