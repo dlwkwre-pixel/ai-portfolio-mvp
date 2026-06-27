@@ -1,8 +1,6 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
-export const metadata = { title: "Compliance Dashboard — BuyTune Admin" };
+export const metadata = { title: "Compliance — BuyTune Admin" };
 
 const LEGAL_PAGES = [
   { href: "/legal/terms", label: "Terms of Service", sections: 16 },
@@ -12,7 +10,8 @@ const LEGAL_PAGES = [
   { href: "/legal/financial-planning-disclaimer", label: "Financial Planning Disclaimer", sections: 9 },
 ];
 
-const SECURITY_CHECKS = [
+type CheckStatus = "pass" | "review" | "fail";
+const SECURITY_CHECKS: { label: string; status: CheckStatus }[] = [
   { label: "Row-level security on user_profiles", status: "pass" },
   { label: "Row-level security on portfolios", status: "pass" },
   { label: "Row-level security on holdings", status: "pass" },
@@ -23,7 +22,7 @@ const SECURITY_CHECKS = [
   { label: "Finnhub API key server-only", status: "pass" },
   { label: "No AI API calls from client components", status: "pass" },
   { label: "Auth-gated pages redirect unauthenticated users to /login", status: "pass" },
-  { label: "Portfolio full report redirect uses ?next= param", status: "pass" },
+  { label: "Admin pages gated by ADMIN_EMAIL (server-side)", status: "pass" },
   { label: "CRON routes validate CRON_SECRET header", status: "pass" },
 ];
 
@@ -37,159 +36,147 @@ const THIRD_PARTY_SERVICES = [
   { name: "Vercel Analytics", purpose: "Usage analytics", dataShared: "Anonymized page views", privacyUrl: "https://vercel.com/legal/privacy-policy" },
 ];
 
+const REGULATORY = [
+  { label: "Registered Investment Adviser (SEC / state)", status: "N/A — educational platform" },
+  { label: "FINRA / SIPC member", status: "N/A — not a broker-dealer" },
+  { label: "GDPR applicability", status: "Monitor — no EU-specific data processing yet" },
+  { label: "CCPA applicability", status: "Monitor — check if >$25M revenue or >50k CA users" },
+  { label: "COPPA compliance", status: "Pass — 18+ age gate in Terms of Service" },
+  { label: "BIMI sender icon (inbox branding)", status: "Deferred — requires DNS + VMC certificate" },
+];
+
+const CONTACTS = [
+  { role: "Privacy inquiries", contact: "privacy@buytune.io" },
+  { role: "Legal / Terms", contact: "legal@buytune.io" },
+  { role: "Support / AI feedback", contact: "support@buytune.io" },
+];
+
+const STATUS_STYLE: Record<CheckStatus, { bg: string; color: string; border: string; label: string }> = {
+  pass:   { bg: "rgba(16,185,129,0.1)",  color: "#6ee7b7", border: "rgba(16,185,129,0.22)", label: "Pass" },
+  review: { bg: "rgba(251,191,36,0.1)",  color: "#fde68a", border: "rgba(251,191,36,0.22)", label: "Review" },
+  fail:   { bg: "rgba(239,68,68,0.1)",   color: "#fca5a5", border: "rgba(239,68,68,0.22)",  label: "Fail" },
+};
+
+function Pill({ status }: { status: CheckStatus }) {
+  const s = STATUS_STYLE[status];
+  return (
+    <span style={{ flexShrink: 0, padding: "2px 9px", borderRadius: "999px", fontSize: "11px", fontWeight: 600, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+      {s.label}
+    </span>
+  );
+}
+
+const card: React.CSSProperties = {
+  background: "var(--card-bg)", border: "1px solid var(--card-border)",
+  borderRadius: "14px", padding: "20px 22px", marginBottom: "16px",
+};
+const sectionLabel: React.CSSProperties = {
+  fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em",
+  color: "var(--text-tertiary)", marginBottom: "14px",
+};
+const row: React.CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+  padding: "9px 0", borderTop: "1px solid var(--border-subtle)", fontSize: "13px", color: "var(--text-secondary)",
+};
+
 export default async function ComplianceDashboard() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login?next=/admin/compliance");
-
-  const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail || user.email !== adminEmail) {
-    redirect("/dashboard");
-  }
-
-  const effectiveDate = "May 26, 2026";
   const passCount = SECURITY_CHECKS.filter((c) => c.status === "pass").length;
   const reviewCount = SECURITY_CHECKS.filter((c) => c.status === "review").length;
+  const effectiveDate = "May 26, 2026";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#07090f", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif", padding: "40px 32px 80px" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .comp-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
-        .comp-h2 { font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
-        .comp-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; color: #94a3b8; }
-        .comp-row:last-child { border-bottom: none; }
-        .badge-pass { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(16,185,129,0.1); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
-        .badge-review { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(251,191,36,0.1); color: #fde68a; border: 1px solid rgba(251,191,36,0.2); }
-        .badge-fail { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
-        a.comp-link { color: #60a5fa; text-decoration: none; font-size: 12px; }
-        a.comp-link:hover { text-decoration: underline; }
-      `}</style>
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div style={{ marginBottom: "20px" }}>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, letterSpacing: "-0.4px", color: "var(--text-primary)" }}>Compliance</h1>
+        <p style={{ fontSize: "13px", color: "var(--text-tertiary)", marginTop: "2px" }}>
+          BuyTune.io · Legal effective {effectiveDate} · Governing law: Texas, United States
+        </p>
+      </div>
 
-      <div style={{ maxWidth: "960px", margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ marginBottom: "36px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+      {/* Status summary */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", marginBottom: "20px" }}>
+        {[
+          { v: `${LEGAL_PAGES.length}`, l: "Legal pages live", ok: true },
+          { v: `${passCount}/${SECURITY_CHECKS.length}`, l: "Security checks passing", ok: true },
+          { v: `${reviewCount}`, l: "Items needing review", ok: reviewCount === 0 },
+        ].map((s) => (
+          <div key={s.l} style={{
+            background: s.ok ? "rgba(16,185,129,0.07)" : "rgba(251,191,36,0.07)",
+            border: `1px solid ${s.ok ? "rgba(16,185,129,0.18)" : "rgba(251,191,36,0.2)"}`,
+            borderRadius: "12px", padding: "16px 18px",
+          }}>
+            <div style={{ fontSize: "24px", fontWeight: 700, fontFamily: "var(--font-mono)", color: s.ok ? "#6ee7b7" : "#fde68a" }}>{s.v}</div>
+            <div style={{ fontSize: "12px", color: "var(--text-tertiary)", marginTop: "4px" }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Legal pages */}
+      <div style={card}>
+        <div style={sectionLabel}>Legal Pages</div>
+        {LEGAL_PAGES.map((p, i) => (
+          <div key={p.href} style={{ ...row, borderTop: i === 0 ? "none" : row.borderTop }}>
             <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>Admin</div>
-              <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: "26px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px" }}>Compliance Dashboard</h1>
+              <span style={{ color: "var(--text-primary)" }}>{p.label}</span>
+              <span style={{ color: "var(--text-muted, #475569)", marginLeft: "8px", fontSize: "12px" }}>{p.sections} sections</span>
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <Link href="/admin/feedback" style={{ fontSize: "12px", color: "#60a5fa", textDecoration: "none", padding: "6px 12px", border: "1px solid rgba(96,165,250,0.25)", borderRadius: "8px" }}>
-                User Feedback
-              </Link>
-              <Link href="/dashboard" style={{ fontSize: "12px", color: "#475569", textDecoration: "none", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "8px" }}>
-                Back to App
-              </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <Pill status="pass" />
+              <Link href={p.href} target="_blank" style={{ color: "var(--accent, #60a5fa)", fontSize: "12px", textDecoration: "none" }}>View</Link>
             </div>
           </div>
-          <p style={{ fontSize: "13px", color: "#475569" }}>Platform: BuyTune.io &nbsp;·&nbsp; Legal effective: {effectiveDate} &nbsp;·&nbsp; Governing law: Texas, United States</p>
-        </div>
+        ))}
+      </div>
 
-        {/* Status Summary */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
-          <div style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: "10px", padding: "16px 20px" }}>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#6ee7b7", fontFamily: "var(--font-mono, monospace)" }}>{LEGAL_PAGES.length}</div>
-            <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>Legal pages live</div>
+      {/* Security checklist */}
+      <div style={card}>
+        <div style={sectionLabel}>Security Checklist</div>
+        {SECURITY_CHECKS.map((c, i) => (
+          <div key={c.label} style={{ ...row, borderTop: i === 0 ? "none" : row.borderTop }}>
+            <span>{c.label}</span>
+            <Pill status={c.status} />
           </div>
-          <div style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: "10px", padding: "16px 20px" }}>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#6ee7b7", fontFamily: "var(--font-mono, monospace)" }}>{passCount}/{SECURITY_CHECKS.length}</div>
-            <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>Security checks passing</div>
-          </div>
-          <div style={{ background: reviewCount > 0 ? "rgba(251,191,36,0.07)" : "rgba(16,185,129,0.07)", border: reviewCount > 0 ? "1px solid rgba(251,191,36,0.2)" : "1px solid rgba(16,185,129,0.18)", borderRadius: "10px", padding: "16px 20px" }}>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: reviewCount > 0 ? "#fde68a" : "#6ee7b7", fontFamily: "var(--font-mono, monospace)" }}>{reviewCount}</div>
-            <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}>Items needing review</div>
-          </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Legal Pages */}
-        <div className="comp-card">
-          <div className="comp-h2">Legal Pages</div>
-          {LEGAL_PAGES.map((page) => (
-            <div key={page.href} className="comp-row">
-              <div>
-                <span style={{ color: "#e2e8f0" }}>{page.label}</span>
-                <span style={{ color: "#334155", marginLeft: "8px", fontSize: "12px" }}>{page.sections} sections</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span className="badge-pass">Live</span>
-                <Link href={page.href} className="comp-link" target="_blank">View</Link>
-              </div>
-            </div>
+      {/* Third-party processors */}
+      <div style={card}>
+        <div style={sectionLabel}>Third-Party Data Processors</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.8fr 2.2fr auto", gap: "0 12px" }}>
+          {["Service", "Purpose", "Data shared", "Policy"].map((h) => (
+            <span key={h} style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", paddingBottom: "8px" }}>{h}</span>
           ))}
-        </div>
-
-        {/* Security Checklist */}
-        <div className="comp-card">
-          <div className="comp-h2">Security Checklist</div>
-          {SECURITY_CHECKS.map((check) => (
-            <div key={check.label} className="comp-row">
-              <span>{check.label}</span>
-              {check.status === "pass" && <span className="badge-pass">Pass</span>}
-              {check.status === "review" && <span className="badge-review">Review</span>}
-              {check.status === "fail" && <span className="badge-fail">Fail</span>}
-            </div>
-          ))}
-          {reviewCount > 0 && (
-            <div style={{ marginTop: "16px", padding: "10px 14px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: "8px", fontSize: "12px", color: "#fde68a" }}>
-              <strong>Review needed:</strong> CRON routes should validate a <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "3px" }}>CRON_SECRET</code> header to prevent unauthorized triggering of digest emails and snapshot jobs.
-            </div>
-          )}
-        </div>
-
-        {/* Third-Party Services */}
-        <div className="comp-card">
-          <div className="comp-h2">Third-Party Data Processors</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 2.5fr auto", gap: "0", marginBottom: "8px" }}>
-            <span style={{ fontSize: "11px", color: "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Service</span>
-            <span style={{ fontSize: "11px", color: "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Purpose</span>
-            <span style={{ fontSize: "11px", color: "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Data shared</span>
-            <span style={{ fontSize: "11px", color: "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Policy</span>
-          </div>
           {THIRD_PARTY_SERVICES.map((svc) => (
-            <div key={svc.name} style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 2.5fr auto", gap: "0", padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.04)", fontSize: "12px", color: "#94a3b8", alignItems: "start" }}>
-              <span style={{ color: "#e2e8f0", fontWeight: 500 }}>{svc.name}</span>
-              <span>{svc.purpose}</span>
-              <span>{svc.dataShared}</span>
-              <a href={svc.privacyUrl} className="comp-link" target="_blank" rel="noopener noreferrer">Link</a>
+            <div key={svc.name} style={{ display: "contents" }}>
+              <span style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.name}</span>
+              <span style={{ color: "var(--text-secondary)", fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.purpose}</span>
+              <span style={{ color: "var(--text-secondary)", fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.dataShared}</span>
+              <a href={svc.privacyUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent, #60a5fa)", fontSize: "12.5px", textDecoration: "none", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>Link</a>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Regulatory Status */}
-        <div className="comp-card">
-          <div className="comp-h2">Regulatory Status</div>
-          {[
-            { label: "Registered Investment Adviser (SEC / state)", status: "N/A — educational platform" },
-            { label: "FINRA / SIPC member", status: "N/A — not a broker-dealer" },
-            { label: "GDPR applicability", status: "Monitor — no EU-specific data processing yet" },
-            { label: "CCPA applicability", status: "Monitor — check if >$25M revenue or >50k CA users" },
-            { label: "COPPA compliance", status: "Pass — 18+ age gate in Terms of Service" },
-            { label: "BIMI sender icon (inbox branding)", status: "Deferred — requires DNS + VMC certificate" },
-          ].map((item) => (
-            <div key={item.label} className="comp-row">
-              <span>{item.label}</span>
-              <span style={{ fontSize: "12px", color: "#475569" }}>{item.status}</span>
-            </div>
-          ))}
-        </div>
+      {/* Regulatory status */}
+      <div style={card}>
+        <div style={sectionLabel}>Regulatory Status</div>
+        {REGULATORY.map((item, i) => (
+          <div key={item.label} style={{ ...row, borderTop: i === 0 ? "none" : row.borderTop }}>
+            <span>{item.label}</span>
+            <span style={{ fontSize: "12px", color: "var(--text-tertiary)", textAlign: "right" }}>{item.status}</span>
+          </div>
+        ))}
+      </div>
 
-        {/* Key Contacts */}
-        <div className="comp-card">
-          <div className="comp-h2">Key Contacts</div>
-          {[
-            { role: "Privacy inquiries", contact: "privacy@buytune.io" },
-            { role: "Legal / Terms", contact: "legal@buytune.io" },
-            { role: "Support / AI feedback", contact: "support@buytune.io" },
-          ].map((item) => (
-            <div key={item.role} className="comp-row">
-              <span>{item.role}</span>
-              <a href={`mailto:${item.contact}`} className="comp-link">{item.contact}</a>
-            </div>
-          ))}
-        </div>
+      {/* Contacts */}
+      <div style={card}>
+        <div style={sectionLabel}>Key Contacts</div>
+        {CONTACTS.map((item, i) => (
+          <div key={item.role} style={{ ...row, borderTop: i === 0 ? "none" : row.borderTop }}>
+            <span>{item.role}</span>
+            <a href={`mailto:${item.contact}`} style={{ color: "var(--accent, #60a5fa)", fontSize: "13px", textDecoration: "none" }}>{item.contact}</a>
+          </div>
+        ))}
       </div>
     </div>
   );

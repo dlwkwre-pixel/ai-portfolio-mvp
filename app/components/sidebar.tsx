@@ -433,7 +433,7 @@ export default function Sidebar({
         {/* Admin (only visible to the admin account) */}
         {isAdmin && (
           <Link
-            href="/admin/notify"
+            href="/admin"
             className="sb-signout"
             style={{
               width: "100%",
