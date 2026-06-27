@@ -13,7 +13,6 @@ function BadgeTile({ badge, earned, earnedAt }: { badge: Badge; earned: boolean;
   const color   = earned ? TIER_COLOR[badge.tier] : "#334155";
   const bg      = earned ? TIER_BG[badge.tier]    : "rgba(255,255,255,0.02)";
   const border  = earned ? TIER_BORDER[badge.tier] : "rgba(255,255,255,0.06)";
-  const glowVar = earned ? `--badge-glow-${badge.id.replace(/_/g, "-")}` : undefined;
 
   return (
     <div

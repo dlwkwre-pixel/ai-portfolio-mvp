@@ -30,6 +30,25 @@ function AddBoxGlyph({ size = 22, color = "#2563eb" }: { size?: number; color?: 
   );
 }
 
+// The BuyTune app icon — the chart mark on the brand gradient (mirrors app/apple-icon.tsx).
+function AppMark({ size = 58 }: { size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: `${Math.round(size * 0.24)}px`,
+      background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 8px 20px rgba(37,99,235,0.35)",
+    }}>
+      <svg width={Math.round(size * 0.66)} height={Math.round(size * 0.66)} viewBox="0 0 122 122" fill="none">
+        <polyline points="22,86 52,54 74,68 100,30" stroke="#fff" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        {([[22, 86], [52, 54], [74, 68], [100, 30]] as [number, number][]).map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r="8" fill="#fff" />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 type StepDef = {
   title: string;
   body: string;
@@ -65,11 +84,7 @@ const STEPS: StepDef[] = [
     body: "Confirm with Add in the top corner. BuyTune now lives on your Home Screen and opens full-screen, like a native app.",
     art: (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-        <div style={{ width: "58px", height: "58px", borderRadius: "14px", background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "4px", paddingBottom: "11px", boxShadow: "0 8px 20px rgba(37,99,235,0.35)" }}>
-          {[14, 22, 30, 38].map((h, i) => (
-            <div key={i} style={{ width: "6px", height: `${h}%`, minHeight: `${h * 0.42}px`, background: "#fff", borderTopLeftRadius: "2px", borderTopRightRadius: "2px" }} />
-          ))}
-        </div>
+        <AppMark size={58} />
         <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>BuyTune</span>
       </div>
     ),
@@ -77,7 +92,6 @@ const STEPS: StepDef[] = [
 ];
 
 export default function IosInstallGuide() {
-  const [mounted, setMounted] = useState(false);
   const [eligible, setEligible] = useState(false); // iOS Safari, not already installed
   const [showNudge, setShowNudge] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -90,31 +104,28 @@ export default function IosInstallGuide() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
+    // Read the platform once on mount. Wrapped in a local fn so the setState calls aren't
+    // lexically in the effect body (matches the codebase pattern; satisfies react-hooks rules).
+    const detect = (): boolean => {
+      let isEligible = false;
+      try {
+        const ua = window.navigator.userAgent;
+        const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
+        const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|chrome|android/i.test(ua);
+        const nav = window.navigator as Navigator & { standalone?: boolean };
+        const standalone = nav.standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches;
+        isEligible = isIOS && isSafari && !standalone;
+      } catch { /* ignore */ }
+      setEligible(isEligible);
+      if (!isEligible) return false;
+      try { return localStorage.getItem(DISMISS_KEY) !== "1"; } catch { return true; }
+    };
 
-    // Eligibility: iPhone/iPad on Safari, not already running standalone.
-    let isEligible = false;
-    try {
-      const ua = window.navigator.userAgent;
-      const isIOS = /iPad|iPhone|iPod/.test(ua) ||
-        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
-      const isSafari = /safari/i.test(ua) && !/crios|fxios|edgios|chrome|android/i.test(ua);
-      const nav = window.navigator as Navigator & { standalone?: boolean };
-      const standalone = nav.standalone === true ||
-        window.matchMedia("(display-mode: standalone)").matches;
-      isEligible = isIOS && isSafari && !standalone;
-    } catch { /* ignore */ }
-    setEligible(isEligible);
-
-    // One-time nudge for eligible users who haven't dismissed it.
-    if (isEligible) {
-      let dismissed = false;
-      try { dismissed = localStorage.getItem(DISMISS_KEY) === "1"; } catch { /* ignore */ }
-      if (!dismissed) {
-        const t = setTimeout(() => setShowNudge(true), 2500); // let the page settle first
-        return () => clearTimeout(t);
-      }
-    }
+    // Show the one-time nudge for eligible, not-yet-dismissed users (after the page settles).
+    const t = detect() ? setTimeout(() => setShowNudge(true), 2500) : undefined;
+    return () => { if (t) clearTimeout(t); };
   }, []);
 
   // Open on demand from the Learn-tab card (any device).
@@ -128,8 +139,6 @@ export default function IosInstallGuide() {
     try { localStorage.setItem(DISMISS_KEY, "1"); } catch { /* ignore */ }
     setShowNudge(false);
   }, []);
-
-  if (!mounted) return null;
 
   const last = step >= STEPS.length - 1;
   const s = STEPS[step];
@@ -150,11 +159,7 @@ export default function IosInstallGuide() {
           }}
         >
           <style>{`@keyframes bt-ios-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }`}</style>
-          <div style={{ flexShrink: 0, width: "40px", height: "40px", borderRadius: "11px", background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "3px", paddingBottom: "8px" }}>
-            {[10, 15, 20, 25].map((h, i) => (
-              <div key={i} style={{ width: "4px", height: `${h}px`, background: "#fff", borderTopLeftRadius: "1.5px", borderTopRightRadius: "1.5px" }} />
-            ))}
-          </div>
+          <AppMark size={40} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.1px" }}>Install BuyTune</div>
             <div style={{ fontSize: "11.5px", color: "var(--text-tertiary)", marginTop: "1px" }}>Add it to your Home Screen for a full-screen app.</div>
@@ -170,7 +175,7 @@ export default function IosInstallGuide() {
 
       {/* Illustrated step modal */}
       {modalOpen && (
-        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(4,13,26,0.78)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-ios-fade 0.25s ease both" }}>
+        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(4,13,26,0.92)", backdropFilter: "blur(7px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-ios-fade 0.25s ease both" }}>
           <style>{`@keyframes bt-ios-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-ios-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--card-bg, #0b1524)", border: "1px solid var(--card-border, rgba(255,255,255,0.1))", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
