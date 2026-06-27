@@ -2231,10 +2231,9 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
                   style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <input name="label" placeholder="e.g. Savings account" style={fieldStyle} />
                   <select name="category" defaultValue="cash" style={fieldStyle}>
-                    <option value="cash">Cash / Savings</option>
-                    <option value="investment">Investment</option>
-                    <option value="real_asset">Real Estate</option>
-                    <option value="other_asset">Other</option>
+                    {ASSET_CATEGORIES.map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
                   </select>
                   <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" style={fieldStyle} />
                   <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "7px 0" }}>Add Asset</button>

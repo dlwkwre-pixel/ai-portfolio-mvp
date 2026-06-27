@@ -7,6 +7,7 @@ import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
 import ScenariosPanel from "./scenarios-panel";
 import CongressSection, { CongressTickerCard } from "./congress-section";
+import StockLogo from "@/app/components/stock-logo";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -437,9 +438,12 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
       onPointerUp={(e)   => { e.currentTarget.style.transform = ""; }}
       onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
     >
-      <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", marginBottom: "7px", display: "inline-block", alignSelf: "flex-start" }}>
-        {t.ticker}
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "7px", alignSelf: "flex-start" }}>
+        <StockLogo ticker={t.ticker} size={26} radius={6} />
+        <span className="ticker" style={{ fontSize: "11px", padding: "2px 7px", display: "inline-block" }}>
+          {t.ticker}
+        </span>
+      </div>
       <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.35, flex: 1, marginBottom: "8px" }}>
         {t.name}
       </div>
@@ -1109,6 +1113,7 @@ function DetailView({
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </button>
+          <StockLogo ticker={result.ticker} src={result.profile?.logo} size={40} radius={10} />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "3px" }}>
               <span className="ticker" style={{ fontSize: "11px", padding: "2px 8px" }}>{result.ticker}</span>

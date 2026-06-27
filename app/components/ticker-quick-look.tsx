@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import StockLogo from "@/app/components/stock-logo";
 
 type Quote = { c: number; d: number; dp: number; h: number; l: number; o: number; pc: number };
 type Profile = { name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null };
@@ -114,10 +115,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", marginBottom: "14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            {data?.profile?.logo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.profile.logo} alt="" width={34} height={34} style={{ borderRadius: "8px", flexShrink: 0, background: "#fff" }} />
-            )}
+            <StockLogo ticker={ticker} src={data?.profile?.logo} size={34} radius={8} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{ticker}</div>
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "260px" }}>{name}</div>
