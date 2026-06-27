@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { awardXp } from "@/lib/gamification/xp";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,8 @@ export async function upsertFinancialProfile(formData: FormData): Promise<{ erro
   );
 
   if (error) return { error: error.message };
+  // XP: one-time award once the core profile is filled (income + birthdate).
+  if (gross_monthly_income && date_of_birth) void awardXp(user.id, "profile_complete");
   revalidatePath("/planning");
   return {};
 }

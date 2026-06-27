@@ -9,6 +9,7 @@ import DashboardClient from "./dashboard-client";
 import MarketRegimeCard from "@/app/components/market-regime-card";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 import StreakBadge from "./streak-badge";
+import XpLevelChip from "@/app/components/xp-level-chip";
 import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
@@ -283,6 +284,7 @@ export default async function DashboardPage({
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
               <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
+              <XpLevelChip userId={user.id} />
               <StreakBadge initialStreak={initialStreak} />
             </div>
           </div>
@@ -314,6 +316,7 @@ export default async function DashboardPage({
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
+              <XpLevelChip userId={user.id} />
               <StreakBadge initialStreak={initialStreak} />
               <div className="hidden sm:flex" style={{ gap: "8px", alignItems: "center" }}>
                 <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">

@@ -6,6 +6,7 @@ import { validateTicker, validateLength, validateEnum, validateDate } from "@/li
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { getFmpQuotes } from "@/lib/market-data/fmp";
+import { awardXp } from "@/lib/gamification/xp";
 
 // "manual" = non-tradeable / advisor fund with no live price feed; valued at a
 // user-entered NAV (manual_price) that the user refreshes from their statement.
@@ -87,6 +88,12 @@ export async function createHolding(formData: FormData) {
       shares,
       price_per_share: averageCostBasis,
     });
+  }
+
+  // XP (idempotent): per-holding award + a one-time first-holding bonus.
+  if (newHolding) {
+    void awardXp(user.id, "holding_added", `holding_added:${newHolding.id}`);
+    void awardXp(user.id, "first_holding");
   }
 
   revalidatePath(`/portfolios/${portfolioId}`);

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { awardXp } from "@/lib/gamification/xp";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
 import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-data/reddit-pulse";
 import { getFredMacroSignals } from "@/lib/market-data/fred";
@@ -1648,6 +1649,9 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       .then(undefined, () => {});
 
     if (updateRunError) throw new Error(updateRunError.message);
+
+    // XP: once-per-day for running an analysis (the 4h cooldown + daily dedup prevent farming).
+    void awardXp(user.id, "analysis_run", `analysis_run:${new Date().toISOString().slice(0, 10)}`);
 
     // Free snapshot — skip if valuation is zero/invalid (all prices missing)
     const aiSnapValue: number = (context as any).current_valuation.total_portfolio_value ?? 0;
