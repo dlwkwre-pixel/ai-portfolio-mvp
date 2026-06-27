@@ -5,6 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import Link from "next/link";
 import ComingSoon from "@/app/components/coming-soon";
 import LaunchSetupButton from "./launch-setup-button";
+import InstallAppButton from "./install-app-button";
 import { TUTORIAL_LIST } from "@/lib/tutorials";
 
 export default async function LearnPage() {
@@ -89,6 +90,36 @@ export default async function LearnPage() {
                   New to BuyTune? The setup guide walks you through creating your portfolio, adding holdings, choosing a strategy, and running your first AI scan.
                 </p>
                 <LaunchSetupButton />
+              </div>
+            </div>
+
+            {/* Install on iPhone */}
+            <div style={{
+              marginBottom: "24px",
+              padding: "18px 20px",
+              background: "var(--card-bg)",
+              border: "1px solid var(--card-border)",
+              borderRadius: "var(--radius-lg)",
+              display: "flex", alignItems: "flex-start", gap: "14px",
+            }}>
+              <div style={{
+                flexShrink: 0, width: "40px", height: "40px",
+                background: "linear-gradient(135deg, rgba(37,99,235,0.15), rgba(124,58,237,0.1))",
+                border: "1px solid rgba(37,99,235,0.2)",
+                borderRadius: "10px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "18px",
+              }}>
+                📲
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "3px" }}>
+                  Add BuyTune to your iPhone
+                </div>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "0" }}>
+                  Install BuyTune to your Home Screen so it opens full-screen like a native app, no App Store needed. A quick three-step walkthrough using Safari&apos;s Share menu.
+                </p>
+                <InstallAppButton />
               </div>
             </div>
 

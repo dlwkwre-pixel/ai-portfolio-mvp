@@ -88,12 +88,14 @@ User-raised items. Tackle separately. Priority/notes are my recommendation.
 
 ## New asks (2026-06-27)
 
-8. **"Add BuyTune to your iPhone home screen" tutorial** 🟢 onboarding.
-   Walk iOS Safari users through Share → Add to Home Screen so they install the PWA. Best as a
-   replayable card in the Learn tab + a one-time, dismissible prompt shown only to iOS Safari
-   users (detect iPhone + Safari + not already standalone via `navigator.standalone`). Reuse the
-   page-tutorial pattern (lib/tutorials.ts + page-tutorial.tsx). The home-screen ICON itself is
-   already fixed (app/apple-icon.tsx — full-bleed brand mark, no gaps). NOT YET BUILT.
+8. **"Add BuyTune to your iPhone home screen" tutorial** ✅ SHIPPED 2026-06-27.
+   app/components/ios-install-guide.tsx (mounted globally in layout.tsx): an illustrated 3-step
+   modal (Share → Add to Home Screen → Add, with iOS glyphs + a brand app-icon preview) plus a
+   one-time, dismissible bottom nudge shown ONLY to eligible iOS Safari visitors (detects
+   iPhone/iPad + Safari + not already standalone via navigator.standalone / display-mode; dismissal
+   stored in localStorage bt-ios-install-dismissed). Replayable anywhere via the
+   `bt-open-ios-install` window event — wired to a "Add BuyTune to your iPhone" card in the Learn
+   tab (app/learn/install-app-button.tsx). The home-screen ICON is the bars mark (app/apple-icon.tsx).
 
 9. **Logo / brand-mark ideas** (optional, user likely keeping current). Current mark = rising
    chart line with 4 data-point dots on a blue→violet gradient. If exploring: a stylized "BT"
