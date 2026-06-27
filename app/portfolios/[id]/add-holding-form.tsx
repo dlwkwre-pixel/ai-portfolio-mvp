@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { createHolding, updateHolding, deleteHolding, updateManualNav } from "./actions";
 
 type AddHoldingFormProps = {
@@ -22,23 +23,27 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
     setIsOpen((prev) => !prev);
   }
 
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={toggleOpen}
-        className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
+  const modal = isOpen ? (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "16px", overflowY: "auto" }}
+      onClick={(e) => { if (e.target === e.currentTarget) toggleOpen(); }}
+    >
+      <div
+        className="rounded-2xl border border-white/10 bg-slate-900"
+        style={{ width: "100%", maxWidth: "560px", margin: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.5)" }}
       >
-        {isOpen ? "Cancel" : "+ Add Holding"}
-      </button>
-
-      {isOpen && (
-        <div className="mt-4 rounded-xl border border-white/8 bg-white/3 p-4">
-          <h3 className="text-sm font-semibold text-white">Add Position</h3>
-          <p className="mt-0.5 text-xs text-slate-500">Add a new holding to this portfolio.</p>
+        <div className="flex items-start justify-between gap-3 border-b border-white/8 p-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Add Position</h3>
+            <p className="mt-0.5 text-xs text-slate-500">Add a new holding to this portfolio.</p>
+          </div>
+          <button type="button" onClick={toggleOpen} aria-label="Close" className="shrink-0 rounded-lg p-1 text-slate-500 transition hover:text-white">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+          </button>
+        </div>
 
           <form
-            className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid gap-3 p-4 sm:grid-cols-2"
             action={(formData) => {
               setErrorMessage("");
               startTransition(async () => {
@@ -152,8 +157,20 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
             </div>
           </form>
         </div>
-      )}
-    </div>
+      </div>
+    ) : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={toggleOpen}
+        className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-500/20"
+      >
+        + Add Holding
+      </button>
+      {typeof document !== "undefined" && modal ? createPortal(modal, document.body) : null}
+    </>
   );
 }
 
