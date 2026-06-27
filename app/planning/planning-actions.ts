@@ -323,6 +323,15 @@ export async function updateBalanceSheetItem(formData: FormData): Promise<{ erro
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
+
+  // Keep the 401(k) planner in sync: editing the managed "401(k)" balance-sheet item here
+  // writes the new value straight back to the profile, so both views stay linked.
+  if (label === "401(k)") {
+    await supabase.from("financial_profiles")
+      .update({ k401_current_balance: value, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+  }
+
   revalidatePath("/planning");
   return {};
 }
@@ -332,6 +341,15 @@ export async function deleteBalanceSheetItem(id: string): Promise<{ error?: stri
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
+  // If this is the managed "401(k)" item, also clear its balance + enrollment on the profile
+  // so the planner and balance sheet stay in sync (no orphaned balance / re-created item).
+  const { data: item } = await supabase
+    .from("balance_sheet_items")
+    .select("label")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("balance_sheet_items")
     .delete()
@@ -339,6 +357,13 @@ export async function deleteBalanceSheetItem(id: string): Promise<{ error?: stri
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
+
+  if (item?.label === "401(k)") {
+    await supabase.from("financial_profiles")
+      .update({ k401_current_balance: null, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+  }
+
   revalidatePath("/planning");
   return {};
 }

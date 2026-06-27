@@ -86,6 +86,8 @@ export default function Plan401kSection({
   const limits = contributionLimits(year);
 
   const [enrolled, setEnrolled] = useState<boolean>(profile.has_401k ?? false);
+  // Collapsed once configured; expands to the full editor on Edit / first enroll.
+  const [editing, setEditing] = useState<boolean>(!(profile.has_401k ?? false));
   const [pct, setPct] = useState<number>(profile.k401_contribution_pct ?? 0);
   const [isRoth, setIsRoth] = useState<boolean>(profile.k401_is_roth ?? false);
   const [matchPct, setMatchPct] = useState<number>(profile.k401_employer_match_pct ?? 100);
@@ -150,7 +152,7 @@ export default function Plan401kSection({
     startTransition(async () => {
       const res = await upsert401kSettings(fd);
       if (res?.error) setError(res.error);
-      else { setSaved(true); setTimeout(() => setSaved(false), 2500); }
+      else { setSaved(true); if (enrolled) setEditing(false); setTimeout(() => setSaved(false), 2500); }
     });
   }
 
@@ -263,7 +265,7 @@ export default function Plan401kSection({
             </p>
           </div>
           <label style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer", whiteSpace: "nowrap" }}>
-            <input type="checkbox" checked={enrolled} onChange={(e) => setEnrolled(e.target.checked)} style={{ width: "16px", height: "16px", accentColor: "var(--accent)" }} />
+            <input type="checkbox" checked={enrolled} onChange={(e) => { const v = e.target.checked; setEnrolled(v); if (v) setEditing(true); }} style={{ width: "16px", height: "16px", accentColor: "var(--accent)" }} />
             <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>I have a 401(k)</span>
           </label>
         </div>
@@ -271,7 +273,8 @@ export default function Plan401kSection({
 
       {enrolled && (
         <>
-          {/* Inputs */}
+          {/* Editor (when editing) or a compact summary you can Edit (when collapsed) */}
+          {editing ? (
           <div style={card}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px" }}>
               {/* Contribution % with slider */}
@@ -360,6 +363,33 @@ export default function Plan401kSection({
               {error && <span style={{ fontSize: "12px", color: "#f87171" }}>{error}</span>}
             </div>
           </div>
+          ) : (
+          <div style={card}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "16px", flex: 1, minWidth: "200px" }}>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "3px" }}>Your rate</div>
+                  <div style={{ ...mono, fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtPct(pct)}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{isRoth ? "Roth" : "Traditional"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "3px" }}>Going in / mo</div>
+                  <div style={{ ...mono, fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(result.totalAnnual / 12)}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{fmt(result.employeeAnnual / 12)} you{result.employerAnnual > 0 ? ` + ${fmt(result.employerAnnual / 12)} match` : ""}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "3px" }}>Balance</div>
+                  <div style={{ ...mono, fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(currentBalance)}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>on your balance sheet</div>
+                </div>
+              </div>
+              <button type="button" onClick={() => setEditing(true)}
+                style={{ flexShrink: 0, background: "var(--card-bg)", color: "var(--text-secondary)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "8px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                Edit
+              </button>
+            </div>
+          </div>
+          )}
 
           {/* Insights — forward-looking (shown above the recommendation; tied to the inputs above) */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
@@ -492,7 +522,8 @@ export default function Plan401kSection({
             </div>
           </div>
 
-          {/* Scenario comparison */}
+          {/* Scenario comparison (only while editing) */}
+          {editing && (
           <div style={card}>
             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
               How your contribution rate changes things
@@ -546,6 +577,7 @@ export default function Plan401kSection({
               {profile.current_age != null && profile.current_age >= 50 ? ` (+catch-up, you qualify)` : ""}.
             </p>
           </div>
+          )}
         </>
       )}
     </div>
