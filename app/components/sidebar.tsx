@@ -156,6 +156,7 @@ export default function Sidebar({
 
   const username = userEmail?.split("@")[0] ?? "User";
   const initials = username.slice(0, 2).toUpperCase();
+  const isAdmin = !!userEmail && !!process.env.NEXT_PUBLIC_ADMIN_EMAIL && userEmail === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   return (
     <aside style={{
@@ -418,6 +419,34 @@ export default function Sidebar({
 
         {/* Support */}
         <SupportModal />
+
+        {/* Admin (only visible to the admin account) */}
+        {isAdmin && (
+          <Link
+            href="/admin/notify"
+            className="sb-signout"
+            style={{
+              width: "100%",
+              padding: "7px 10px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: "var(--text-tertiary)",
+              background: "none",
+              border: "1px solid transparent",
+              textDecoration: "none",
+              fontFamily: "var(--font-body)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "background 0.13s ease, color 0.13s ease",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)" }}>
+              <path fillRule="evenodd" d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 007.078 2.749.5.5 0 01.479.425c.069.52.104 1.05.104 1.59 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 01-.332 0C5.26 16.564 2 12.163 2 7c0-.538.035-1.069.104-1.589a.5.5 0 01.48-.425 11.947 11.947 0 007.077-2.75zm4.196 5.954a.75.75 0 00-1.214-.882l-3.236 4.53-1.55-1.55a.75.75 0 00-1.06 1.06l2.171 2.171a.75.75 0 001.143-.096l3.746-5.243z" clipRule="evenodd" />
+            </svg>
+            Admin
+          </Link>
+        )}
 
         {/* Sign out */}
         <button
