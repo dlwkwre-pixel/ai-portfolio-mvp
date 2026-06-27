@@ -89,8 +89,12 @@ export async function getPortfolioValuation(args: {
     quoteMap.set(result.holdingId, result.quote);
   }
 
-  // FMP fallback: collect any stock holdings where Finnhub returned null and retry in one batch
-  const nullHoldings = stockHoldings.filter((h) => quoteMap.get(h.id) == null);
+  // FMP fallback: collect any stock holdings where Finnhub returned null OR an unusable price
+  // (after-hours/illiquid, Finnhub can return c=0 AND pc=0), and retry those in one batch.
+  const nullHoldings = stockHoldings.filter((h) => {
+    const q = quoteMap.get(h.id);
+    return q == null || (!((q.c ?? 0) > 0) && !((q.pc ?? 0) > 0));
+  });
   if (nullHoldings.length > 0) {
     const fmpMap = await getFmpQuotes(nullHoldings.map((h) => h.ticker));
     for (const holding of nullHoldings) {
@@ -135,11 +139,21 @@ export async function getPortfolioValuation(args: {
       dayChange = null;
       dayChangePct = null;
     } else {
-      // Use Finnhub for stocks/ETFs
+      // Use Finnhub for stocks/ETFs. After-hours or for illiquid names the current price (c)
+      // can come back 0 — fall back to the previous close (pc) so market values and the AI
+      // analysis use a real price instead of $0 (which produced "buy 0 shares at $0.01").
       const quote = quoteMap.get(holding.id) ?? null;
-      currentPrice = quote?.c ?? null;
-      dayChange = quote?.d ?? null;
-      dayChangePct = quote?.dp ?? null;
+      if (quote && (quote.c ?? 0) > 0) {
+        currentPrice = quote.c;
+        dayChange = quote.d ?? null;
+        dayChangePct = quote.dp ?? null;
+      } else if (quote && (quote.pc ?? 0) > 0) {
+        currentPrice = quote.pc;       // previous close — markets closed, no intraday move
+        dayChange = 0;
+        dayChangePct = 0;
+      } else {
+        currentPrice = null;
+      }
     }
 
     const marketValue = currentPrice !== null ? sharesNumber * currentPrice : null;

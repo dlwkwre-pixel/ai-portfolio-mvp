@@ -1875,6 +1875,7 @@ export async function updateRecommendationStatus(formData: FormData) {
       try {
         const liveQuote = await getFinnhubQuote(item.ticker);
         if (liveQuote && liveQuote.c > 0) executedPrice = liveQuote.c;
+        else if (liveQuote && (liveQuote.pc ?? 0) > 0) executedPrice = liveQuote.pc; // after-hours: use prev close
       } catch { /* non-fatal */ }
     }
     if (!executedPrice && item.sizing_dollars && item.share_quantity) {

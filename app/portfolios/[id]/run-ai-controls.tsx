@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { runPortfolioAiRecommendation } from "./recommendation-actions";
 
@@ -69,6 +69,8 @@ export default function RunAiControls({
   const [isSecondaryPending, startSecondaryTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+  const [backgroundRunning, setBackgroundRunning] = useState(false);
   const [contextNote, setContextNote] = useState("");
   const cooldownRemaining = useCooldownTimer(cooldownEndsAt);
   const isInCooldown = cooldownRemaining > 0;
@@ -85,14 +87,38 @@ export default function RunAiControls({
   const [secondarySuccess, setSecondarySuccess] = useState("");
 
   const hasPendingRun = pendingRunCount > 0;
-  const isDisabled = isPending || hasPendingRun;
+  const isDisabled = isPending || hasPendingRun || backgroundRunning;
+
+  // Keep the page in sync while a run is in progress WITHOUT the user keeping the tab open:
+  // poll for completion, refresh when the tab regains focus (e.g. device woke back up), and
+  // clear the background flag once the server no longer reports a pending run.
+  useEffect(() => {
+    if (!hasPendingRun && !backgroundRunning) return;
+    const id = setInterval(() => router.refresh(), 8000);
+    return () => clearInterval(id);
+  }, [hasPendingRun, backgroundRunning, router]);
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") router.refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [router]);
+
+  const prevPendingRef = useRef(hasPendingRun);
+  useEffect(() => {
+    // A pending run that just cleared means it finished — drop the background state.
+    if (prevPendingRef.current && !hasPendingRun) { setBackgroundRunning(false); setInfoMessage(""); }
+    prevPendingRef.current = hasPendingRun;
+  }, [hasPendingRun]);
 
   function handleRunAi() {
     if (isDisabled) return;
     setErrorMessage("");
     setSuccessMessage("");
+    setInfoMessage("");
     setShowSecondary(false);
     setSecondaryUsed(false);
+    setBackgroundRunning(true);
 
     startTransition(async () => {
       try {
@@ -102,15 +128,24 @@ export default function RunAiControls({
 
         const result = await runPortfolioAiRecommendation(formData);
 
+        setBackgroundRunning(false);
         setSuccessMessage(
           `AI review complete — ${result.recommendationCount} recommendation${result.recommendationCount === 1 ? "" : "s"} generated.`
         );
-
-
         setShowSecondary(true);
         router.refresh();
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "AI review failed.");
+        const msg = error instanceof Error ? error.message : "AI review failed.";
+        // Pre-flight failures (rate limit / validation) mean nothing started — show them.
+        // Anything else (device slept, request interrupted) likely means the run is still
+        // completing server-side, so keep it as a background run and let the poll surface it.
+        if (/rate limited|too quickly|signed in|portfolio id|cooldown/i.test(msg)) {
+          setBackgroundRunning(false);
+          setErrorMessage(msg);
+        } else {
+          setInfoMessage("Your analysis is running in the background — it'll appear below when it's done. You can safely close this page and come back.");
+          router.refresh();
+        }
       }
     });
   }
@@ -194,8 +229,8 @@ export default function RunAiControls({
                 </svg>
                 Running AI Analysis...
               </>
-            ) : hasPendingRun ? (
-              "AI Run Already Pending"
+            ) : (hasPendingRun || backgroundRunning) ? (
+              "Analysis running…"
             ) : (
               <>
                 <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
@@ -206,9 +241,15 @@ export default function RunAiControls({
             )}
           </button>
 
-          {hasPendingRun && !isPending && (
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-300">
-              A run is already in progress. Wait for it to finish before starting another.
+          {(hasPendingRun || backgroundRunning) && !isPending && (
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-300">
+              Analysis is running in the background — it&apos;ll appear below when it&apos;s done. You can safely close this page and come back; no need to keep it open.
+            </div>
+          )}
+
+          {infoMessage && !hasPendingRun && !backgroundRunning && (
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-300">
+              {infoMessage}
             </div>
           )}
 

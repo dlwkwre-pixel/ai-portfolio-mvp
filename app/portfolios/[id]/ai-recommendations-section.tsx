@@ -73,12 +73,16 @@ export default async function AIRecommendationsSection({
   ) ?? null;
   const latestHealth = latestHealthRun ? (latestHealthRun.health_report as HealthReport) : null;
 
+  // Only count recent pending runs. A run stuck "pending" beyond this window (the serverless
+  // function died before marking it done) shouldn't lock the button forever — Grok runs
+  // finish in 1-2 min, well under this.
+  const PENDING_STALE_MS = 15 * 60 * 1000;
   const pendingRunCount =
-    runs?.filter((run) =>
-      ["pending", "running", "queued"].includes(
-        String(run.status ?? "").toLowerCase()
-      )
-    ).length ?? 0;
+    runs?.filter((run) => {
+      const isPending = ["pending", "running", "queued"].includes(String(run.status ?? "").toLowerCase());
+      if (!isPending) return false;
+      return Date.now() - new Date(run.created_at).getTime() < PENDING_STALE_MS;
+    }).length ?? 0;
 
   // Pre-calculate cooldown window for the UI
   const COOLDOWN_MS = 4 * 60 * 60 * 1000;
