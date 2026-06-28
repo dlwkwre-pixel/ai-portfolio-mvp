@@ -30,7 +30,8 @@ const POOL: ChallengeDef[] = [
   { id: "add_holding",    label: "Add a position",          description: "Add a holding to one of your portfolios.",   xp: 20, icon: "plus-circle", source: { kind: "xp", xpKind: "holding_added" } },
   { id: "community_post", label: "Share with the community", description: "Post a take, question, or win in the feed.", xp: 20, icon: "users",       source: { kind: "table", table: "community_posts" } },
   { id: "fresh_strategy", label: "Build a strategy",        description: "Create a new investment strategy.",          xp: 25, icon: "sparkle",      source: { kind: "table", table: "strategies", eqCol: "is_active", eqVal: true } },
-  { id: "assign_strategy",label: "Put a strategy to work",  description: "Assign a strategy to a portfolio.",          xp: 25, icon: "chart-line",   source: { kind: "xp", xpKind: "strategy_assigned" } },
+  // NOTE: dropped "assign_strategy" — its xp_events kind strategy_assigned is never awarded, so
+  // it was uncompletable. Re-add once that XP is granted on portfolio→strategy assignment.
 ];
 
 const WEEKLY_COUNT = 3;
