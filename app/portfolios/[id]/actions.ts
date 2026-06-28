@@ -7,6 +7,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { getFmpQuotes } from "@/lib/market-data/fmp";
 import { awardXp } from "@/lib/gamification/xp";
+import { getWeeklyChallenges } from "@/lib/gamification/challenges";
 
 // "manual" = non-tradeable / advisor fund with no live price feed; valued at a
 // user-entered NAV (manual_price) that the user refreshes from their statement.
@@ -94,6 +95,8 @@ export async function createHolding(formData: FormData) {
   if (newHolding) {
     void awardXp(user.id, "holding_added", `holding_added:${newHolding.id}`);
     void awardXp(user.id, "first_holding");
+    // Detect + credit any weekly challenge this completes (fires the bell instantly).
+    void getWeeklyChallenges(user.id).catch(() => {});
   }
 
   revalidatePath(`/portfolios/${portfolioId}`);
