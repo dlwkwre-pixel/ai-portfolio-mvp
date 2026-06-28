@@ -10,6 +10,7 @@ import MarketRegimeCard from "@/app/components/market-regime-card";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 import StreakBadge from "./streak-badge";
 import XpLevelChip from "@/app/components/xp-level-chip";
+import { getWeeklyChallenges } from "@/lib/gamification/challenges";
 import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
@@ -84,6 +85,9 @@ export default async function DashboardPage({
   // If last active was neither today nor yesterday, the streak is broken — show 0 until client updates
   const streakStale = lastActive !== today && lastActive !== yesterday;
   const initialStreak = streakStale ? 0 : (pd?.login_streak ?? 0);
+
+  // Detect + credit any completed weekly challenges (fire-and-forget; idempotent, drops a bell).
+  void getWeeklyChallenges(user.id).catch(() => {});
 
   const { data: portfolios } = await supabase
     .from("portfolios")

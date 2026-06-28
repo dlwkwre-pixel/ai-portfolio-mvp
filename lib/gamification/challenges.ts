@@ -1,36 +1,61 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { awardXp } from "@/lib/gamification/xp";
+import { awardXp, type XpKind } from "@/lib/gamification/xp";
 
 // Weekly challenges — rotating quests that grant XP, computed entirely from data the app
-// already records (no new tables). Completion is idempotent per ISO week via the xp_events
-// dedup key `challenge:<id>:<weekKey>`, so XP is credited at most once per week per challenge.
+// already records (no new tables). A pool of quests rotates 3-at-a-time each ISO week.
+// Completion is idempotent per week via the xp_events dedup key `challenge:<id>:<weekKey>`,
+// so XP is credited at most once per week per quest. On first completion we also drop a
+// celebratory notification in the user's bell.
 
-export type ChallengeId = "ai_analysis" | "community_post" | "fresh_strategy";
+export type ChallengeIcon = "cpu" | "users" | "sparkle" | "plus-circle" | "chart-line";
+
+// A quest's completion is detected either from a domain table (created_at this week) or from
+// the xp_events activity ledger (a given XP kind logged this week).
+type ChallengeSource =
+  | { kind: "table"; table: string; eqCol?: string; eqVal?: string | boolean }
+  | { kind: "xp"; xpKind: XpKind };
 
 export type ChallengeDef = {
-  id: ChallengeId;
+  id: string;
   label: string;
   description: string;
   xp: number;
-  icon: "cpu" | "users" | "sparkle";
+  icon: ChallengeIcon;
+  source: ChallengeSource;
 };
 
-export const WEEKLY_CHALLENGES: ChallengeDef[] = [
-  { id: "ai_analysis",    label: "Run an AI analysis",   description: "Scan any portfolio with Atlas this week.", xp: 30, icon: "cpu" },
-  { id: "community_post", label: "Share with the community", description: "Post a take, question, or win in the feed.", xp: 20, icon: "users" },
-  { id: "fresh_strategy", label: "Build a strategy",      description: "Create a new investment strategy.",        xp: 25, icon: "sparkle" },
+// The full pool. WEEKLY_COUNT of these rotate into view each week.
+const POOL: ChallengeDef[] = [
+  { id: "ai_analysis",    label: "Run an AI analysis",      description: "Scan any portfolio with Atlas this week.",   xp: 30, icon: "cpu",         source: { kind: "table", table: "recommendation_runs", eqCol: "status", eqVal: "completed" } },
+  { id: "add_holding",    label: "Add a position",          description: "Add a holding to one of your portfolios.",   xp: 20, icon: "plus-circle", source: { kind: "xp", xpKind: "holding_added" } },
+  { id: "community_post", label: "Share with the community", description: "Post a take, question, or win in the feed.", xp: 20, icon: "users",       source: { kind: "table", table: "community_posts" } },
+  { id: "fresh_strategy", label: "Build a strategy",        description: "Create a new investment strategy.",          xp: 25, icon: "sparkle",      source: { kind: "table", table: "strategies", eqCol: "is_active", eqVal: true } },
+  { id: "assign_strategy",label: "Put a strategy to work",  description: "Assign a strategy to a portfolio.",          xp: 25, icon: "chart-line",   source: { kind: "xp", xpKind: "strategy_assigned" } },
 ];
 
-export type ChallengeState = ChallengeDef & { done: boolean };
+const WEEKLY_COUNT = 3;
 
-// ISO-week key like "2026-W26" (weeks start Monday). Used for the dedup key + display.
+export type ChallengeState = Omit<ChallengeDef, "source"> & { done: boolean };
+
+// ISO-week key like "2026-W26" (weeks start Monday).
 export function isoWeekKey(d = new Date()): string {
   const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const day = t.getUTCDay() || 7; // Sun=7
-  t.setUTCDate(t.getUTCDate() + 4 - day); // nearest Thursday
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   const week = Math.ceil((((t.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function weekNumber(weekKey: string): number {
+  const m = weekKey.match(/W(\d+)$/);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// Deterministically rotate WEEKLY_COUNT quests into view for the given week.
+function questsForWeek(weekKey: string): ChallengeDef[] {
+  const offset = (weekNumber(weekKey) * WEEKLY_COUNT) % POOL.length;
+  return Array.from({ length: WEEKLY_COUNT }, (_, i) => POOL[(offset + i) % POOL.length]);
 }
 
 // Monday 00:00 UTC of the current week, as an ISO timestamp.
@@ -41,56 +66,60 @@ function weekStartIso(now = new Date()): string {
   return t.toISOString();
 }
 
-async function countSince(
-  admin: ReturnType<typeof createAdminClient>,
-  table: string,
-  userId: string,
-  sinceIso: string,
-  eqCol?: string,
-  eqVal?: string | boolean,
-): Promise<number> {
+type Admin = ReturnType<typeof createAdminClient>;
+
+async function isDone(admin: Admin, userId: string, src: ChallengeSource, sinceIso: string): Promise<boolean> {
   try {
-    let q = admin.from(table).select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", sinceIso);
-    if (eqCol !== undefined) q = q.eq(eqCol, eqVal as string);
+    if (src.kind === "xp") {
+      const { count } = await admin
+        .from("xp_events").select("id", { count: "exact", head: true })
+        .eq("user_id", userId).eq("kind", src.xpKind).gte("created_at", sinceIso);
+      return (count ?? 0) > 0;
+    }
+    let q = admin.from(src.table).select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", sinceIso);
+    if (src.eqCol !== undefined) q = q.eq(src.eqCol, src.eqVal as string);
     const { count } = await q;
-    return count ?? 0;
+    return (count ?? 0) > 0;
   } catch {
-    return 0;
+    return false;
   }
 }
 
-// Compute this week's challenge states for a user and award XP for any freshly completed ones.
+// Compute this week's quests for a user, award XP for any freshly completed ones, and drop a
+// bell notification on first completion. Safe to call from multiple places (idempotent).
 export async function getWeeklyChallenges(userId: string): Promise<{ weekKey: string; challenges: ChallengeState[] }> {
   const weekKey = isoWeekKey();
-  if (!userId) return { weekKey, challenges: WEEKLY_CHALLENGES.map((c) => ({ ...c, done: false })) };
+  const quests = questsForWeek(weekKey);
+  const fallback = quests.map((q) => ({ id: q.id, label: q.label, description: q.description, xp: q.xp, icon: q.icon, done: false }));
+  if (!userId) return { weekKey, challenges: fallback };
 
-  const since = weekStartIso();
-  let admin: ReturnType<typeof createAdminClient>;
+  let admin: Admin;
   try {
     admin = createAdminClient();
   } catch {
-    return { weekKey, challenges: WEEKLY_CHALLENGES.map((c) => ({ ...c, done: false })) };
+    return { weekKey, challenges: fallback };
   }
 
-  const [aiRuns, posts, strategiesNew] = await Promise.all([
-    countSince(admin, "recommendation_runs", userId, since, "status", "completed"),
-    countSince(admin, "community_posts", userId, since),
-    countSince(admin, "strategies", userId, since, "is_active", true),
-  ]);
+  const since = weekStartIso();
+  const dones = await Promise.all(quests.map((q) => isDone(admin, userId, q.source, since)));
+  const challenges: ChallengeState[] = quests.map((q, i) => ({
+    id: q.id, label: q.label, description: q.description, xp: q.xp, icon: q.icon, done: dones[i],
+  }));
 
-  const doneMap: Record<ChallengeId, boolean> = {
-    ai_analysis: aiRuns > 0,
-    community_post: posts > 0,
-    fresh_strategy: strategiesNew > 0,
-  };
-
-  const challenges = WEEKLY_CHALLENGES.map((c) => ({ ...c, done: doneMap[c.id] }));
-
-  // Credit XP once per week for each completed challenge (idempotent via dedup key).
+  // Credit XP once per week for each completed quest; celebrate the first time.
   await Promise.all(
-    challenges
-      .filter((c) => c.done)
-      .map((c) => awardXp(userId, "challenge", `challenge:${c.id}:${weekKey}`, c.xp)),
+    challenges.filter((c) => c.done).map(async (c) => {
+      const res = await awardXp(userId, "challenge", `challenge:${c.id}:${weekKey}`, c.xp);
+      if (res?.awarded) {
+        try {
+          await admin.from("app_notifications").insert({
+            title: "Challenge complete 🎯",
+            body: `You finished "${c.label}" and earned +${c.xp} XP. Keep the streak going!`,
+            target_user_id: userId,
+          });
+        } catch { /* non-fatal */ }
+      }
+    }),
   );
 
   return { weekKey, challenges };

@@ -143,6 +143,8 @@ export default function Sidebar({
   const [signingOut, setSigningOut] = useTransition();
   const [portfoliosOpen, setPortfoliosOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [streak, setStreak] = useState<number | null>(null);
+  const [activeToday, setActiveToday] = useState(true);
 
   useEffect(() => {
     const read = () => {
@@ -156,6 +158,28 @@ export default function Sidebar({
       window.removeEventListener("bt-privacy-change", read);
     };
   }, []);
+
+  useEffect(() => {
+    // Surface the login streak as a flame. Wrapped in a fn so setState isn't lexically
+    // in the effect body (matches the codebase pattern; satisfies react-hooks rules).
+    const loadStreak = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("user_profiles").select("login_streak, last_active_date").eq("id", user.id).maybeSingle();
+        const row = data as { login_streak?: number | null; last_active_date?: string | null } | null;
+        const today = new Date().toISOString().slice(0, 10);
+        const last = row?.last_active_date ?? null;
+        // Stale if last activity wasn't today or yesterday.
+        const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+        const stale = last !== today && last !== yesterday;
+        setStreak(stale ? 0 : (row?.login_streak ?? 0));
+        setActiveToday(last === today);
+      } catch { /* non-fatal */ }
+    };
+    void loadStreak();
+  }, [supabase]);
 
   async function handleSignOut() {
     setSigningOut(async () => {
@@ -247,6 +271,29 @@ export default function Sidebar({
             </div>
           )}
         </div>
+      )}
+
+      {/* Streak flame */}
+      {streak !== null && streak > 0 && (
+        <Link href="/achievements" style={{
+          margin: totalValue !== null && totalValue !== undefined ? "0 10px 10px" : "12px 10px 10px",
+          display: "flex", alignItems: "center", gap: "9px", padding: "8px 11px",
+          borderRadius: "10px", textDecoration: "none",
+          background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M12 2C12 2 9.5 6.5 9.5 9.5c0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5c0-1.2-.5-2.4-.5-2.4S17.5 10 17.5 13.5a5.5 5.5 0 01-11 0c0-5 5.5-11.5 5.5-11.5z" fill="#f59e0b" />
+            <path d="M12 14.5c0 1.1-.9 2-2 2-.3 0-.6-.1-.9-.2.5 1.8 1.7 3 2.9 3s2.5-1.2 2.9-3c-.3.1-.6.2-.9.2-1.1 0-2-.9-2-2z" fill="#fbbf24" />
+          </svg>
+          <div style={{ minWidth: 0, lineHeight: 1.25 }}>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
+              {streak}-day streak
+            </div>
+            {!activeToday && (
+              <div style={{ fontSize: "10px", color: "#f59e0b" }}>Check in to keep it</div>
+            )}
+          </div>
+        </Link>
       )}
 
       {/* Navigation */}
