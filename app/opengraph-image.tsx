@@ -37,7 +37,7 @@ export default function Image() {
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <polyline points="5 16 10 8.5 14 12.5 19 5" stroke="white" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="3 18.5 10 9.5 14 13.5 21 4.5" stroke="white" strokeWidth="3.2" strokeLinecap="butt" strokeLinejoin="miter" />
             </svg>
           </div>
           <span style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#3b82f6" }}>

@@ -1,15 +1,16 @@
 // The BuyTune chart mark — a single source of truth so every logo matches the app icon.
-// A bold, dynamic ascending zigzag (lightning/breakout chart) filling the square, no dots.
+// Per brand spec: a stock/portfolio chart that forms the letter "N" — STRAIGHT lines only,
+// SHARP angles, NO rounded corners, NO rounded endpoints, NO dots/circles. Rise → dip → rise
+// (bullish momentum). The two risers (A→B, C→D) are parallel so it reads as an "N".
 // Pure SVG: safe in server, client, and Satori (next/og). Geometry in a 0 0 24 24 viewBox.
 //
-// Balanced + centered: vertices sit ~5px inside each edge so the bolt reads even (no long
-// corner "tail"), peaks near the top, valley near the middle.
-export const MARK_POLYLINE = "5 16 10 8.5 14 12.5 19 5";
+// A(3,18.5) → B(10,9.5) → C(14,13.5) → D(21,4.5): long lines reaching toward the corners.
+export const MARK_POLYLINE = "3 18.5 10 9.5 14 13.5 21 4.5";
 
 export function BrandGlyph({
   size = 24,
   stroke = "#ffffff",
-  strokeWidth = 3.4,
+  strokeWidth = 3.2,
 }: {
   size?: number;
   stroke?: string;
@@ -21,8 +22,8 @@ export function BrandGlyph({
         points={MARK_POLYLINE}
         stroke={stroke}
         strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeLinecap="butt"
+        strokeLinejoin="miter"
       />
     </svg>
   );
