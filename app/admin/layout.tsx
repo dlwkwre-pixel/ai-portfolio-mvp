@@ -26,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         backdropFilter: "blur(10px)",
         borderBottom: "1px solid var(--border-subtle)",
       }}>
-        <div style={{ maxWidth: "1040px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ maxWidth: "1040px", margin: "0 auto", padding: "14px 24px", paddingTop: "calc(14px + env(safe-area-inset-top))", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginRight: "auto" }}>
             <div style={{ width: "30px", height: "30px", background: "var(--brand-gradient, linear-gradient(135deg,#2563eb,#7c3aed))", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

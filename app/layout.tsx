@@ -43,6 +43,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  // Extend under the notch/status bar so we can paint that area with the brand color
+  // (the black-translucent status bar would otherwise let scrolled content show through it).
+  viewportFit: "cover",
   themeColor: "#07090f",
 };
 

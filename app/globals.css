@@ -617,6 +617,11 @@ body {
   .bt-main-col > div[style*="position: sticky"] {
     padding-left: 16px !important;
     padding-right: 16px !important;
+    /* In a standalone PWA the status bar is translucent and overlays content.
+       Extend the bar's own background up into the safe area (so nothing shows
+       through above it) and push its content below the notch. env() is 0 in a
+       normal browser, so this is a no-op there. */
+    padding-top: calc(12px + env(safe-area-inset-top)) !important;
   }
 
 
