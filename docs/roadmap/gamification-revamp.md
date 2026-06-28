@@ -78,8 +78,17 @@ A single visible progression number so every action "counts."
    existing dashboard/profile load paths (no new wiring). NOTE: sector-based ("Diversified across
    N sectors") + budget/emergency-fund badges deferred — they need per-holding sector data /
    planning-profile reads not yet in BadgeContext; current count-based set ships value now.
-3. **P3 — Streaks surfaced**: activity table + sidebar/dashboard flame + nudge.
-4. **P4 — Challenges**: rotating weekly quests + completion rewards + bell celebrations.
+3. **P3 — Streaks surfaced** ✅ MOSTLY DONE: login/activity streak with smart weekday+US-holiday
+   logic (app/dashboard/streak-actions.ts: recordDailyActivity) + StreakBadge in the dashboard
+   header (app/dashboard/streak-badge.tsx). Remaining nice-to-have: a sidebar flame + a
+   "don't break your streak" nudge (low priority — already visible on the main screen).
+4. **P4 — Challenges** ✅ SHIPPED: rotating weekly quests on the Achievements hub
+   (lib/gamification/challenges.ts). 3 quests computed from this-ISO-week data (AI analysis →
+   recommendation_runs, community post → community_posts, build a strategy → strategies); XP
+   credited once per week per quest via the xp_events dedup key `challenge:<id>:<weekKey>` (no
+   new tables). awardXp gained an amountOverride for variable awards. Surfaced as "This week's
+   challenges" with done/incomplete state. FUTURE: bell celebration on completion + more quest
+   variety (log a transaction, execute a recommendation) once those tables' created_at confirmed.
 
 ## Guardrails
 - **No token/AI cost** — all triggers are user actions already persisted; XP is awarded in the
