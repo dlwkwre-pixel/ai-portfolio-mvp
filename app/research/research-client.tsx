@@ -90,6 +90,20 @@ type AiAnalysis = {
   cached_at: string;
 };
 
+type MyPosition = {
+  owned: boolean;
+  shares: number | null;
+  portfolio_id: string | null;
+  portfolio_name: string | null;
+  rec: {
+    verdict: "BUY" | "SELL" | "TRIM" | "HOLD";
+    conviction: string | null;
+    price_target: number | null;
+    created_at: string | null;
+    portfolio_id: string | null;
+  } | null;
+};
+
 type FilterId = "all" | "trending" | "daily_movers" | "growth" | "momentum" | "dividend" | "defensive" | "popular" | "scenarios";
 
 type InsiderTx = {
@@ -939,6 +953,7 @@ function DetailView({
   const [insiderData, setInsiderData]         = useState<InsiderData | null>(null);
   const [insiderLoading, setInsiderLoading]   = useState(false);
   const [insiderTicker, setInsiderTicker]     = useState<string | null>(null);
+  const [myPosition, setMyPosition]           = useState<MyPosition | null>(null);
 
 
   const rating = analystLabel(result.recommendation);
@@ -1024,6 +1039,15 @@ function DetailView({
       .then((d: InsiderData) => { setInsiderData(d); setInsiderTicker(result.ticker); })
       .catch(() => setInsiderData({ transactions: [], netBuys: 0, netSells: 0, signal: "neutral" }))
       .finally(() => setInsiderLoading(false));
+  }, [result.ticker]);
+
+  // Your personalized portfolio call for this ticker (if owned / previously analyzed).
+  useEffect(() => {
+    setMyPosition(null);
+    fetch(`/api/research/my-position?ticker=${encodeURIComponent(result.ticker)}`)
+      .then((r) => r.json())
+      .then((d: MyPosition) => setMyPosition(d))
+      .catch(() => {});
   }, [result.ticker]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1249,6 +1273,51 @@ function DetailView({
         )}
       </div>
 
+      {/* Your portfolio's personalized call (owned / previously analyzed tickers) */}
+      {myPosition && (myPosition.owned || myPosition.rec) && (() => {
+        const v = myPosition.rec?.verdict ?? null;
+        const vColor = v === "BUY" ? "var(--green)" : (v === "SELL" || v === "TRIM") ? "var(--red)" : "var(--violet)";
+        const vBg = v === "BUY" ? "rgba(34,197,94,0.1)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
+        const vBorder = v === "BUY" ? "rgba(34,197,94,0.22)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
+        const pid = myPosition.rec?.portfolio_id ?? myPosition.portfolio_id;
+        return (
+          <div style={{ padding: "10px 18px 0" }}>
+            <div style={{ border: "1px solid rgba(37,99,235,0.28)", borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.06)", padding: "12px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: myPosition.rec ? "10px" : "4px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--brand-blue)" }}>In your portfolio</span>
+                {myPosition.owned && myPosition.shares != null && (
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{myPosition.shares} shares</span>
+                )}
+                {pid && (
+                  <a href={`/portfolios/${pid}`} style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", textDecoration: "none" }}>
+                    View analysis →
+                  </a>
+                )}
+              </div>
+              {myPosition.rec ? (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <span style={{ padding: "4px 12px", borderRadius: "var(--radius-full)", background: vBg, border: `1px solid ${vBorder}`, fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: vColor, letterSpacing: "0.04em" }}>
+                    {myPosition.rec.verdict}
+                  </span>
+                  {myPosition.rec.conviction && (
+                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                      {myPosition.rec.conviction} conviction
+                    </span>
+                  )}
+                  <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                    Atlas&apos;s call for you — tailored to your strategy{myPosition.rec.created_at ? ` · ${new Date(myPosition.rec.created_at).toLocaleDateString()}` : ""}.
+                  </span>
+                </div>
+              ) : (
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+                  You hold this. Run an AI analysis on your portfolio for a call tailored to your strategy and cost basis — the take below is a generic market view.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* AI Verdict */}
       {(aiAnalysisLoading || aiAnalysis || grokLoading || grokAnalysis) && (() => {
         const shown = grokAnalysis ?? aiAnalysis;
@@ -1269,7 +1338,7 @@ function DetailView({
                 <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "color-mix(in oklch, " + accent + " 14%, transparent)", border: `1px solid color-mix(in oklch, ${accent} 28%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill={`color-mix(in oklch, ${accent} 20%, transparent)`} stroke={accent} strokeWidth="1.5"/><path d="M8 17h4" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>{isGrok ? "Grok Analysis" : "AI Analysis"}</span>
+                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>{isGrok ? "Grok · live web + X" : "Quick take · offline model"}</span>
 
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
                   {shown && (
@@ -1280,7 +1349,7 @@ function DetailView({
                     <button type="button" onClick={runGrokAnalysis} disabled={grokLoading}
                       style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid color-mix(in oklch, oklch(0.62 0.21 295) 35%, transparent)", background: "color-mix(in oklch, oklch(0.62 0.21 295) 14%, transparent)", color: "oklch(0.68 0.20 295)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: grokLoading ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
                       <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path d="M11 2L4 11h4l-1 7 7-9h-4l1-7z" /></svg>
-                      {grokLoading ? "Searching…" : "Grok deep-dive"}
+                      {grokLoading ? "Searching…" : "Live Grok deep-dive"}
                     </button>
                   )}
                 </div>
@@ -1344,8 +1413,12 @@ function DetailView({
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.key_risks}</p>
                     </div>
                   </div>
-                  {isGrok && (
+                  {isGrok ? (
                     <div style={{ marginTop: "10px", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Powered by Grok with live web + X search.</div>
+                  ) : (
+                    <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                      Quick offline-model take — not live and not personalized to your strategy. Tap <strong style={{ color: "oklch(0.68 0.20 295)" }}>Live Grok deep-dive</strong> above for a current, web-searched call.
+                    </div>
                   )}
                 </div>
               )}
