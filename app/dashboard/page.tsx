@@ -363,6 +363,21 @@ export default async function DashboardPage({
             <div style={{ marginBottom: "16px" }}>
               <ChallengesWidget />
             </div>
+            {portfolioIds.length > 0 && (
+              <Link href="/wrapped" style={{
+                display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px",
+                padding: "12px 16px", borderRadius: "var(--radius-lg)", textDecoration: "none",
+                background: "linear-gradient(135deg, rgba(37,99,235,0.1), rgba(124,58,237,0.1))",
+                border: "1px solid rgba(124,58,237,0.25)",
+              }}>
+                <span style={{ fontSize: "20px" }}>🎁</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Your {new Date().getFullYear()} in Review</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>See your year on BuyTune — and share it</div>
+                </div>
+                <span style={{ fontSize: "13px", color: "var(--accent, #818cf8)", fontWeight: 600, flexShrink: 0 }}>→</span>
+              </Link>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               <RegimeShiftAlert />
               <MarketRegimeCard />
