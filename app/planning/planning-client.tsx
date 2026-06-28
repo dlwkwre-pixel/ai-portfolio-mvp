@@ -1070,6 +1070,41 @@ function computeConflictAlerts(p: {
     }
   }
 
+  // Detect: projected funding shortfall — simulate a running liquid balance forward, adding
+  // annual savings + one-time/recurring inflows and subtracting planned goal costs. The first
+  // year the balance goes negative is a quantified collision between goals, timing, and cash flow.
+  {
+    const annualSavings = (p.monthlySavings ?? 0) * 12;
+    const horizon = 15;
+    let balance = p.liquidAssets;
+    let shortfallYear: number | null = null;
+    let shortfallAmt = 0;
+    for (let y = cy + 1; y <= cy + horizon; y++) {
+      balance += annualSavings;
+      for (const e of p.futureEvents) {
+        if (e.amount_impact > 0 && e.event_year === y) balance += e.amount_impact; // one-time inflow
+        const rec = e.recurring_annual ?? 0; // signed $/yr stream
+        if (rec && y >= e.event_year && (e.end_year == null || y <= e.end_year)) balance += rec;
+      }
+      for (const ev of events) if (ev.year === y) balance -= ev.cost; // planned goal costs
+      if (balance < 0 && shortfallYear == null) { shortfallYear = y; shortfallAmt = -balance; }
+    }
+    if (shortfallYear != null && shortfallAmt > 1000) {
+      const monthsAway = Math.max(1, (shortfallYear - cy) * 12);
+      alerts.push({
+        severity: shortfallAmt > 25000 ? "critical" : "warning",
+        title: `Projected ${fmt(Math.round(shortfallAmt))} funding gap by ${shortfallYear}`,
+        description: `At your current pace (${fmt(Math.round(annualSavings))}/yr saved, ${fmt(Math.round(p.liquidAssets))} liquid today), your planned goals through ${shortfallYear} outpace available cash by about ${fmt(Math.round(shortfallAmt))}.`,
+        recommendation: `Save ~${fmt(Math.round(shortfallAmt / monthsAway))}/mo more, push a goal later, or trim a goal's cost to close the gap before ${shortfallYear}.`,
+        tabKey: "forecast",
+        years: [shortfallYear],
+      });
+    }
+  }
+
+  // Surface the most serious tensions first.
+  const rank: Record<ConflictAlert["severity"], number> = { critical: 0, warning: 1, info: 2 };
+  alerts.sort((a, b) => rank[a.severity] - rank[b.severity]);
   return alerts.slice(0, 5);
 }
 
@@ -9527,8 +9562,9 @@ export default function PlanningClient({
           {/* Conflict Alerts — elevated directly after verdict */}
           {lifePlan.conflictAlerts.length > 0 && (
             <div className="hub-section" style={{ animationDelay: "0.06s", display: "flex", flexDirection: "column", gap: "7px" }}>
-              <div className="hub-divider-label" style={{ marginBottom: "4px" }}>
+              <div className="hub-divider-label" style={{ marginBottom: "4px", display: "flex", alignItems: "center" }}>
                 <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--red)", fontFamily: "var(--font-body)" }}>Conflicts Detected</span>
+                <InfoTooltip align="start" text="Conflicts are tensions between your goals, cash flow, and timelines — multiple big expenses landing the same year, goals that outpace your projected savings, or spending that collides with retirement. We scan your whole plan and surface the most serious first." />
               </div>
               {lifePlan.conflictAlerts.map((alert, i) => {
                 const sev = alert.severity;
@@ -9536,7 +9572,7 @@ export default function PlanningClient({
                 const firstYear = alert.years.length > 0 ? alert.years[0] : null;
                 const lastYear = alert.years.length > 1 ? alert.years[alert.years.length - 1] : null;
                 return (
-                  <div key={i} style={{ borderRadius: "var(--radius-md)", border: `1px solid color-mix(in oklch, ${color} 22%, var(--border))`, background: `color-mix(in oklch, ${color} 5%, var(--bg-card))`, padding: "14px 18px" }}>
+                  <div key={i} style={{ borderRadius: "var(--radius-md)", border: `1px solid color-mix(in oklch, ${color} 22%, var(--border))`, background: `color-mix(in oklch, ${color} 5%, var(--bg-card))`, padding: "14px 18px", animation: "bt-fade-up 0.4s cubic-bezier(0.16,1,0.3,1) both", animationDelay: `${i * 70}ms` }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                       <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color, background: `color-mix(in oklch, ${color} 12%, transparent)`, padding: "2px 7px", borderRadius: "20px" }}>{sev}</span>
                       {firstYear != null && (
