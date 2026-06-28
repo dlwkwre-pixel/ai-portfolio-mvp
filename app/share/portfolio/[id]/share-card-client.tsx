@@ -154,7 +154,7 @@ export default function ShareCardClient({
                 flexShrink: 0,
               }}
             >
-              <BrandGlyph size={10} strokeWidth={3} dots={false} />
+              <BrandGlyph size={10} strokeWidth={3.4} />
             </div>
             <span
               style={{

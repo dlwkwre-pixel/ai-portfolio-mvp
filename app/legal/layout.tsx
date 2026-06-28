@@ -44,7 +44,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <BrandGlyph size={11} strokeWidth={3} dots={false} />
+            <BrandGlyph size={11} strokeWidth={3.4} />
           </div>
           <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: "14px", color: "#f0f4ff", letterSpacing: "-0.2px" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>

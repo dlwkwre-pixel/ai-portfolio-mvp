@@ -526,7 +526,7 @@ export default function OnboardingModal({
               borderRadius: "8px",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <BrandGlyph size={13} strokeWidth={2.8} dots={false} />
+              <BrandGlyph size={13} strokeWidth={3.2} />
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>
