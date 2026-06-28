@@ -117,17 +117,28 @@ export default async function DashboardPage({
   // Combined holdings across all active portfolios — powers the account-wide stress test.
   const combinedHoldings = new Map<string, { ticker: string; company_name: string | null; market_value: number }>();
 
-  // Fetch holdings + value every active portfolio in parallel — both the holdings query and
-  // the market-data valuation used to run serially per portfolio, so the dashboard waited on
-  // the sum of all latencies. Promise.all bounds it to the slowest single portfolio.
+  // One holdings query for all portfolios (was N separate round-trips), grouped in memory.
+  // .in() with an empty array returns [] cleanly when the user has no active portfolios.
+  const { data: allHoldingsRows } = await supabase
+    .from("holdings").select("id, portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
+    .in("portfolio_id", portfolioIds);
+  type HoldingRow = NonNullable<typeof allHoldingsRows>[number];
+  const holdingsByPortfolio = new Map<string, HoldingRow[]>();
+  for (const h of allHoldingsRows ?? []) {
+    const arr = holdingsByPortfolio.get(h.portfolio_id) ?? [];
+    arr.push(h);
+    holdingsByPortfolio.set(h.portfolio_id, arr);
+  }
+
+  // Value every active portfolio in parallel — the market-data valuation used to run serially
+  // per portfolio, so the dashboard waited on the sum of all latencies. Promise.all bounds it
+  // to the slowest single portfolio.
   const perPortfolio = await Promise.all(activePortfolios.map(async (p) => {
     const pCash = Number(p.cash_balance ?? 0);
-    const { data: holdings } = await supabase
-      .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
-      .eq("portfolio_id", p.id);
+    const holdings = holdingsByPortfolio.get(p.id) ?? [];
     try {
       const val = await getPortfolioValuation({
-        holdings: (holdings ?? []).map((h) => ({
+        holdings: holdings.map((h) => ({
           id: h.id, ticker: h.ticker, company_name: h.company_name,
           asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
           manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
