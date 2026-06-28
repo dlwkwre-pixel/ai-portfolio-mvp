@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
+import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning, AssetBucket } from "./page";
 import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-actions";
 import { estimateTax, federalBracketHeadroom, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import { contributionLimits } from "@/lib/tax/contribution-limits";
 import type { FilingStatus, IncomeType, BracketHeadroom } from "@/lib/tax/estimator";
 import PageTutorial from "@/app/components/page-tutorial";
+import InfoTooltip from "@/app/components/info-tooltip";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -251,6 +252,208 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Small branded "?" trigger that opens the in-app InfoTooltip popover (not a native title).
+function Hint({ text, width = 230 }: { text: string; width?: number }) {
+  return (
+    <InfoTooltip text={text} width={width} align="start">
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: "15px", height: "15px", borderRadius: "50%", marginLeft: "5px", cursor: "help",
+        background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)",
+        color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700, lineHeight: 1,
+      }}>?</span>
+    </InfoTooltip>
+  );
+}
+
+// ─── asset location / tax diversification ────────────────────────────────────────
+const ASSET_LABELS: Record<string, string> = { stock: "Stocks", equity: "Stocks", etf: "ETFs", crypto: "Crypto", manual: "Funds", cash: "Cash", other: "Other" };
+const BUCKET_META: Record<"taxable" | "deferred" | "free", { label: string; color: string; tip: string }> = {
+  taxable:  { label: "Taxable",      color: "#38bdf8", tip: "Brokerage / individual accounts. You owe tax on dividends and realized gains each year. Best home for tax-efficient holdings you may want to sell flexibly." },
+  deferred: { label: "Tax-deferred", color: "#a78bfa", tip: "Traditional 401(k) / IRA / HSA. Contributions are pre-tax and grow untaxed; withdrawals in retirement are taxed as ordinary income. Best home for income-heavy or tax-inefficient assets (bonds, REITs)." },
+  free:     { label: "Tax-free",     color: "#34d399", tip: "Roth IRA / Roth 401(k). Funded with after-tax dollars; qualified growth and withdrawals are 100% tax-free. Best home for your highest-growth assets." },
+};
+
+function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; deferred: AssetBucket; free: AssetBucket } }) {
+  const order = ["taxable", "deferred", "free"] as const;
+  const total = order.reduce((s, k) => s + buckets[k].value, 0);
+  const animatedTotal = useCountUp(Math.round(total));
+  if (total <= 0) return null;
+
+  const freePct = buckets.free.value / total;
+  const nonEmpty = order.filter((k) => buckets[k].value > 0).length;
+  const guidance = freePct < 0.1
+    ? "Most of your money is taxable or tax-deferred. Building a Roth (tax-free) bucket gives you tax-free growth and the flexibility to pull money in retirement without raising your taxable income."
+    : nonEmpty === 1
+      ? "You're concentrated in one tax treatment. Spreading across taxable, tax-deferred, and Roth gives you levers to manage taxes in any future year."
+      : "Good tax diversification — you hold money across multiple tax treatments, which gives flexibility to control your tax bill in retirement.";
+
+  return (
+    <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+      <style>{`@keyframes bt-al-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } } .bt-al-seg { transform-origin: left; animation: bt-al-grow .7s cubic-bezier(0.16,1,0.3,1) both; }`}</style>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>📍</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center" }}>
+            Asset location <Hint text="Asset location is about WHICH account type holds each investment. Placing the right assets in taxable, tax-deferred, and tax-free accounts can cut lifetime taxes without changing what you own." width={250} />
+          </p>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0" }}>Across {fmt(animatedTotal)} in invested accounts</p>
+        </div>
+      </div>
+
+      {/* Stacked bar */}
+      <div style={{ display: "flex", height: "16px", borderRadius: "8px", overflow: "hidden", marginBottom: "14px", background: "rgba(148,163,184,0.12)" }}>
+        {order.map((k, i) => buckets[k].value > 0 && (
+          <div key={k} className="bt-al-seg" style={{ width: `${(buckets[k].value / total) * 100}%`, background: BUCKET_META[k].color, animationDelay: `${i * 90}ms` }} />
+        ))}
+      </div>
+
+      {/* Bucket rows */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {order.map((k) => {
+          const b = buckets[k];
+          const pct = total > 0 ? Math.round((b.value / total) * 100) : 0;
+          const chips = Object.entries(b.byAsset).sort((a, c) => c[1] - a[1]).slice(0, 4);
+          return (
+            <div key={k} style={{ opacity: b.value > 0 ? 1 : 0.5 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{ width: "9px", height: "9px", borderRadius: "3px", background: BUCKET_META[k].color, flexShrink: 0 }} />
+                <span style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text-primary)", display: "inline-flex", alignItems: "center" }}>
+                  {BUCKET_META[k].label}<Hint text={BUCKET_META[k].tip} />
+                </span>
+                <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)" }}>{fmt(Math.round(b.value))}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)", width: "34px", textAlign: "right" }}>{pct}%</span>
+              </div>
+              {chips.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "17px" }}>
+                  {chips.map(([at, v]) => (
+                    <span key={at} style={{ fontSize: "9.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "1px 8px" }}>
+                      {ASSET_LABELS[at] ?? at} {fmt(Math.round(v))}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Guidance */}
+      <div style={{ marginTop: "14px", padding: "10px 13px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "var(--radius-md)" }}>
+        <p style={{ fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0 }}>{guidance}</p>
+        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: "6px 0 0" }}>
+          Rule of thumb: highest-growth assets → Roth, income / tax-inefficient (bonds, REITs) → tax-deferred, tax-efficient index funds → taxable.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Roth conversion modeler ──────────────────────────────────────────────────────
+// Marginal tax of converting `amount` of pre-tax money, stacking on top of current taxable income.
+function conversionTaxFor(amount: number, h: BracketHeadroom): number {
+  let remaining = amount, cost = 0, pos = h.taxableIncome;
+  for (const seg of h.segments) {
+    if (pos >= seg.ceiling) continue;
+    const room = seg.ceiling - Math.max(pos, seg.floor);
+    const taxed = Math.min(remaining, room);
+    if (taxed > 0) { cost += taxed * seg.rate; remaining -= taxed; pos += taxed; }
+    if (remaining <= 0) break;
+  }
+  return cost;
+}
+
+function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate: number; h: BracketHeadroom }) {
+  const roomDefault = h.roomToNext === Infinity ? 50_000 : Math.max(5_000, Math.round(h.roomToNext / 1000) * 1000);
+  const [balance, setBalance] = useState(Math.max(0, Math.round(traditionalEstimate)));
+  const [annual, setAnnual] = useState(Math.min(roomDefault, Math.max(5_000, Math.round((traditionalEstimate || 100_000) / 1000) * 1000)));
+  const [years, setYears] = useState(3);
+
+  const perYearTax = conversionTaxFor(annual, h);
+  const effRate = annual > 0 ? perYearTax / annual : 0;
+  const totalConverted = Math.min(annual * years, balance);
+  const fullYears = annual > 0 ? Math.min(years, Math.ceil(balance / annual)) : 0;
+  const totalTax = Math.round(perYearTax * Math.min(years, fullYears || years));
+  const remaining = Math.max(0, balance - totalConverted);
+  const spillsBracket = h.roomToNext !== Infinity && annual > h.roomToNext;
+  const ratePct = Math.round(h.currentRate * 100);
+  const nextPct = h.nextRate != null ? Math.round(h.nextRate * 100) : null;
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box", background: "var(--bg-elevated, rgba(255,255,255,0.03))",
+    border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "8px 10px",
+    fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none",
+  };
+
+  return (
+    <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>🔁</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center" }}>
+            Roth conversion modeler <Hint width={260} text="A Roth conversion moves money from a Traditional (pre-tax) IRA/401(k) into a Roth. You pay ordinary income tax on the converted amount now, but it then grows and is withdrawn 100% tax-free. Best in lower-income years and to fill up a low tax bracket." />
+          </p>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0" }}>Convert pre-tax → tax-free, taxed at today&apos;s rate</p>
+        </div>
+      </div>
+
+      {/* Inputs */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+        <div>
+          <label style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-tertiary)", display: "flex", alignItems: "center", marginBottom: "4px" }}>
+            Traditional balance <Hint text="Your estimated pre-tax (Traditional 401k/IRA) balance available to convert. We pre-filled it from your accounts — adjust if needed." />
+          </label>
+          <input type="number" value={balance} min={0} step={1000} onChange={(e) => setBalance(Math.max(0, Number(e.target.value)))} style={inputStyle} />
+        </div>
+        <div>
+          <label style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-tertiary)", display: "flex", alignItems: "center", marginBottom: "4px" }}>
+            Convert per year
+          </label>
+          <input type="number" value={annual} min={0} step={1000} onChange={(e) => setAnnual(Math.max(0, Number(e.target.value)))} style={inputStyle} />
+        </div>
+      </div>
+      <div style={{ marginBottom: "14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-tertiary)" }}>Over {years} year{years > 1 ? "s" : ""}</span>
+          {h.roomToNext !== Infinity && (
+            <button type="button" onClick={() => setAnnual(Math.max(1000, Math.round(h.roomToNext / 1000) * 1000))}
+              style={{ fontSize: "10px", color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+              Fill {ratePct}% bracket ({fmt(Math.round(h.roomToNext))})
+            </button>
+          )}
+        </div>
+        <input type="range" min={1} max={10} value={years} onChange={(e) => setYears(Number(e.target.value))} style={{ width: "100%", accentColor: "#34d399" }} />
+      </div>
+
+      {/* Results */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+        {[
+          { label: "Tax per year", value: fmt(Math.round(perYearTax)), sub: `${Math.round(effRate * 100)}% effective`, color: "var(--text-primary)" },
+          { label: `Total tax (${years}y)`, value: fmt(totalTax), sub: `on ${fmt(Math.round(totalConverted))} converted`, color: "var(--text-primary)" },
+          { label: "Left in Traditional", value: fmt(Math.round(remaining)), sub: remaining > 0 ? "still pre-tax" : "fully converted", color: remaining > 0 ? "var(--text-secondary)" : "var(--green)" },
+        ].map((s) => (
+          <div key={s.label} style={{ padding: "10px 12px", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-muted)", margin: "0 0 4px" }}>{s.label}</p>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: s.color, margin: 0, transition: "color .2s" }}>{s.value}</p>
+            <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "2px 0 0" }}>{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: "12px", padding: "10px 13px", background: spillsBracket ? "rgba(245,158,11,0.06)" : "rgba(52,211,153,0.05)", border: `1px solid ${spillsBracket ? "rgba(245,158,11,0.2)" : "rgba(52,211,153,0.18)"}`, borderRadius: "var(--radius-md)" }}>
+        <p style={{ fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0 }}>
+          {spillsBracket
+            ? `Converting ${fmt(annual)} pushes past your ${ratePct}% bracket — the portion above ${fmt(Math.round(h.roomToNext))} is taxed at ${nextPct}%. To stay at ${ratePct}%, convert about ${fmt(Math.round(h.roomToNext))}/year.`
+            : `At ${fmt(annual)}/year you'd pay tax at roughly ${Math.round(effRate * 100)}% now, then that money grows and comes out tax-free. Converting in lower-income years (early retirement, a sabbatical, a down year) is when this pays off most.`}
+        </p>
+      </div>
+      <p style={{ fontSize: "9.5px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
+        Estimate on {new Date().getFullYear()} federal brackets, ignoring state tax and any IRMAA / ACA-subsidy effects. Not tax advice — confirm with a professional before converting.
+      </p>
     </div>
   );
 }
@@ -731,6 +934,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
             {/* ── BRACKET HEADROOM (Roth conversion / pre-tax / gain-harvest room) ── */}
             {headroom && <BracketHeadroomCard h={headroom} />}
+
+            {/* ── ASSET LOCATION (tax-bucket diversification + guidance) ── */}
+            {(data.accountBuckets.taxable.value + data.accountBuckets.deferred.value + data.accountBuckets.free.value) > 0 && (
+              <AssetLocationCard buckets={data.accountBuckets} />
+            )}
+
+            {/* ── ROTH CONVERSION MODELER ── */}
+            {headroom && <RothConversionModeler traditionalEstimate={data.traditionalEstimate} h={headroom} />}
 
             {/* ── PROPERTY TAX (homeowner only) ── */}
             {taxProfile?.isHomeowner && (

@@ -80,7 +80,11 @@ export type TaxPageData = {
   lotCostBasis: Record<string, number>;
   lotProceeds: Record<string, number>;
   retirementContributions: RetirementContribution[];
+  accountBuckets: { taxable: AssetBucket; deferred: AssetBucket; free: AssetBucket };
+  traditionalEstimate: number;  // best estimate of convertible Traditional/pre-tax balance
 };
+
+export type AssetBucket = { value: number; byAsset: Record<string, number> };
 
 export type RetirementContribution = {
   portfolioId: string;
@@ -132,6 +136,14 @@ export default async function TaxPage({
     const v = (t ?? "").toLowerCase();
     if (/roth|ira|401|403|hsa|retirement|paper/.test(v)) return false;
     return true; // taxable, brokerage, margin, speculative, or unset → taxable
+  };
+  // Classify each account into a tax bucket for the Asset Location view.
+  const taxBucketOf = (t: string | null): "taxable" | "deferred" | "free" | null => {
+    const v = (t ?? "").toLowerCase();
+    if (/paper/.test(v)) return null;            // paper-trade — exclude
+    if (/roth/.test(v)) return "free";           // Roth IRA / Roth 401k → tax-free
+    if (/ira|401|403|hsa|retirement/.test(v)) return "deferred"; // Traditional/pre-tax
+    return "taxable";                            // brokerage / taxable / unset
   };
   const taxablePortfolios = activePortfolios.filter(p => isTaxableAccount(p.account_type));
   // Used for every realized-gain / dividend / wash-sale query below.
@@ -304,9 +316,14 @@ export default async function TaxPage({
         cashBalance: Number(p.cash_balance ?? 0),
       });
       const opps: TLHOpportunity[] = [];
+      const byAsset: Record<string, number> = {};
       for (const vh of val.valued_holdings) {
         const costBasis = Number(vh.average_cost_basis ?? 0) * vh.shares_number;
         const currentValue = vh.market_value ?? null;
+        if (currentValue !== null && currentValue > 0) {
+          const at = (vh.asset_type ?? "stock").toLowerCase();
+          byAsset[at] = (byAsset[at] ?? 0) + currentValue;
+        }
         if (currentValue !== null && currentValue < costBasis) {
           const unrealizedLoss = currentValue - costBasis;
           const unrealizedLossPct = costBasis > 0 ? (unrealizedLoss / costBasis) * 100 : null;
@@ -324,14 +341,25 @@ export default async function TaxPage({
           });
         }
       }
-      return { value: val.total_portfolio_value, opps };
+      return { value: val.total_portfolio_value, opps, bucket: taxBucketOf(p.account_type), cash: Number(p.cash_balance ?? 0), byAsset };
     } catch {
-      return { value: Number(p.cash_balance ?? 0), opps: [] as TLHOpportunity[] };
+      return { value: Number(p.cash_balance ?? 0), opps: [] as TLHOpportunity[], bucket: taxBucketOf(p.account_type), cash: Number(p.cash_balance ?? 0), byAsset: {} as Record<string, number> };
     }
   }));
+  // Asset Location: aggregate value + asset-type mix into the three tax buckets.
+  const accountBuckets: { taxable: AssetBucket; deferred: AssetBucket; free: AssetBucket } = {
+    taxable: { value: 0, byAsset: {} },
+    deferred: { value: 0, byAsset: {} },
+    free: { value: 0, byAsset: {} },
+  };
   for (const r of tlhResults) {
     totalPortfolioValue += r.value;
     tlhOpportunities.push(...r.opps);
+    if (!r.bucket) continue; // skip paper-trade
+    const b = accountBuckets[r.bucket];
+    b.value += r.value;
+    for (const [at, v] of Object.entries(r.byAsset)) b.byAsset[at] = (b.byAsset[at] ?? 0) + v;
+    if (r.cash > 0) b.byAsset["cash"] = (b.byAsset["cash"] ?? 0) + r.cash;
   }
 
   tlhOpportunities.sort((a, b) => (a.unrealizedLoss ?? 0) - (b.unrealizedLoss ?? 0));
@@ -451,6 +479,10 @@ export default async function TaxPage({
     lotCostBasis: savedLotCostBasis,
     lotProceeds: savedLotProceeds,
     retirementContributions,
+    accountBuckets,
+    traditionalEstimate: accountBuckets.deferred.value > 0
+      ? accountBuckets.deferred.value
+      : Number(financialProfileData?.k401_current_balance ?? 0),
   };
 
   return (
