@@ -20,8 +20,8 @@ export default function AppleIcon() {
           background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
         }}
       >
-        <svg width="128" height="128" viewBox="0 0 24 24" fill="none">
-          <polyline points={MARK_POLYLINE} stroke="#ffffff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="120" height="120" viewBox="0 0 24 24" fill="none">
+          <polyline points={MARK_POLYLINE} stroke="#ffffff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     ),
