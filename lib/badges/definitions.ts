@@ -272,23 +272,25 @@ export const TIER_LABEL: Record<BadgeTier, string> = {
 
 export const BADGE_MAP = new Map(BADGES.map((b) => [b.id, b]));
 
+// Tiers are tuned to read as clearly distinct: bronze = muted copper-brown,
+// silver = cool platinum, gold = bright yellow-gold, legendary = violet.
 export const TIER_COLOR: Record<BadgeTier, string> = {
-  bronze:    "#cd7f32",
-  silver:    "#94a3b8",
-  gold:      "#f59e0b",
-  legendary: "#a855f7",
+  bronze:    "#b87333", // copper brown
+  silver:    "#cbd5e1", // bright platinum
+  gold:      "#fbbf24", // vivid yellow-gold
+  legendary: "#a855f7", // violet
 };
 
 export const TIER_BG: Record<BadgeTier, string> = {
-  bronze:    "rgba(205,127,50,0.10)",
-  silver:    "rgba(148,163,184,0.10)",
-  gold:      "rgba(245,158,11,0.10)",
+  bronze:    "rgba(184,115,51,0.12)",
+  silver:    "rgba(203,213,225,0.10)",
+  gold:      "rgba(251,191,36,0.13)",
   legendary: "rgba(168,85,247,0.12)",
 };
 
 export const TIER_BORDER: Record<BadgeTier, string> = {
-  bronze:    "rgba(205,127,50,0.25)",
-  silver:    "rgba(148,163,184,0.20)",
-  gold:      "rgba(245,158,11,0.25)",
+  bronze:    "rgba(184,115,51,0.32)",
+  silver:    "rgba(203,213,225,0.24)",
+  gold:      "rgba(251,191,36,0.34)",
   legendary: "rgba(168,85,247,0.30)",
 };

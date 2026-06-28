@@ -88,9 +88,10 @@ export async function getBadgeContext(userId: string): Promise<BadgeContext> {
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("is_active", true),
+    // Holdings carry only portfolio_id (no user_id), so count via the owning portfolio.
     supabase.from("holdings")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId),
+      .select("id, portfolios!inner(user_id)", { count: "exact", head: true })
+      .eq("portfolios.user_id", userId),
     supabase.from("strategies")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
