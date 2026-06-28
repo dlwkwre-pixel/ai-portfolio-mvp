@@ -4,7 +4,8 @@ import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import PageIntro from "@/app/components/page-intro";
 import MasterLifeRoadmap, { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
-import XLSXStyle from "xlsx-js-style";
+// NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
+// never ships in the initial /planning bundle — it's only needed on the Excel-export click.
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -7111,7 +7112,9 @@ export default function PlanningClient({
   }, [mcResult, netWorthHistory]);
 
   // ── XLSX Export (styled) ──────────────────────────────────────────────────
-  function exportForecastXLSX() {
+  async function exportForecastXLSX() {
+    // Load the heavy Excel lib on demand (keeps it out of the initial bundle).
+    const XLSXStyle = (await import("xlsx-js-style")).default;
     // ── Style primitives ────────────────────────────────────────────────────
     const C = {
       navy:       "0F172A",
