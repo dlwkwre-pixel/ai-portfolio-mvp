@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import PageIntro from "@/app/components/page-intro";
-import MasterLifeRoadmap, { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
+import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
 // never ships in the initial /planning bundle — it's only needed on the Excel-export click.
 import {
@@ -42,6 +43,27 @@ import { contributionLimits, iraLimitForAge } from "@/lib/tax/contribution-limit
 import { compute401k } from "@/lib/tax/retirement-401k";
 import Plan401kSection from "./plan-401k-section";
 import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
+
+// The Master Life Roadmap (events tab) is loaded on demand so its chunk stays out of the
+// initial /planning bundle — it's never on the default overview render.
+const MasterLifeRoadmap = dynamic(() => import("./master-life-roadmap"), {
+  ssr: false,
+  loading: () => <ChartSkeleton height={320} />,
+});
+
+// Lightweight placeholder shown while a lazily-loaded panel's chunk downloads.
+function ChartSkeleton({ height = 200 }: { height?: number }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        height, borderRadius: "var(--radius-lg, 14px)",
+        background: "var(--card-bg)", border: "1px solid var(--card-border)",
+        animation: "bt-pulse 1.4s ease-in-out infinite",
+      }}
+    />
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
