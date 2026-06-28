@@ -59,6 +59,8 @@ Recommended homes below.
    30+ day resurfacing with reflect prompt. ⚠️ needs supabase/decision-journal.sql run.
 2. **Portfolio Wrapped** ✅ SHIPPED (709cd3b) — /wrapped route, animated stat cards from existing
    data + share button; slim dashboard CTA. No migration.
-3. **Analytics tab**: X-ray + correlation heatmap (one portfolio-detail tab).
+3. **Analytics tab** ✅ SHIPPED (c991182) — "Analytics" tab on portfolio detail: exposure X-ray
+   (sector/asset stacked bar + concentration warning) + correlation heatmap (Pearson on top
+   holdings' ~6mo daily returns) via async /api/portfolios/[id]/analytics. No migration.
 4. **Goal-based buckets** (Planning).
 5. Tax-aware rebalancing, Dividend hub, Watchlist, Behavioral guardrails, Withdrawal/SS optimizer.
