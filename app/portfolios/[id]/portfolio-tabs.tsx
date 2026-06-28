@@ -50,6 +50,15 @@ const tabs: Tab[] = [
     ),
   },
   {
+    id: "journal",
+    label: "Journal",
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm2.5 3a.75.75 0 000 1.5h5a.75.75 0 000-1.5h-5zM7 9.75A.75.75 0 017.75 9h5a.75.75 0 010 1.5h-5A.75.75 0 017 9.75zm.75 3.25a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     id: "emails",
     label: "Emails",
     icon: (

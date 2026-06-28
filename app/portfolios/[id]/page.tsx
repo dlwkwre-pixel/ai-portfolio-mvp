@@ -13,6 +13,9 @@ import AssignStrategyForm from "./assign-strategy-form";
 import UpgradeStrategyVersionButton from "./upgrade-strategy-version-button";
 import AIRecommendationsSection from "./ai-recommendations-section";
 import AIScorecardCard from "./ai-scorecard-card";
+import JournalTab from "./journal-tab";
+import type { JournalEntry } from "./journal-actions";
+import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import TransactionHistorySection from "./transaction-history-section";
 import PortfolioPerformanceSection from "./portfolio-performance-section";
 import PortfolioTabs from "./portfolio-tabs";
@@ -179,6 +182,25 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     .from("holding_lots").select("*").eq("portfolio_id", portfolio.id)
     .order("purchased_at", { ascending: true })
     .then((r) => r, () => ({ data: null, error: null }));
+
+  // Decision Journal — lazily fetched only when the Journal tab is open. Current quotes power
+  // the outcome scoring (price move since each decision). Graceful if the table doesn't exist yet.
+  let journalEntries: JournalEntry[] = [];
+  const journalQuotes: Record<string, number> = {};
+  if (activeTab === "journal") {
+    const { data: jrows } = await supabase
+      .from("decision_journal")
+      .select("id, portfolio_id, ticker, action, thesis, conviction, emotion, price_at_decision, created_at, reviewed_at, outcome_note")
+      .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
+      .order("created_at", { ascending: false }).limit(100)
+      .then((r) => r, () => ({ data: null }));
+    journalEntries = (jrows ?? []) as JournalEntry[];
+    const tickers = [...new Set(journalEntries.map((e) => e.ticker))].slice(0, 40);
+    const quoteResults = await Promise.all(tickers.map(async (t) => {
+      try { const q = await getFinnhubQuote(t); return [t, q && q.c > 0 ? q.c : 0] as const; } catch { return [t, 0] as const; }
+    }));
+    for (const [t, c] of quoteResults) if (c > 0) journalQuotes[t] = c;
+  }
 
   if (pubPortfolioErr) console.error("[portfolio page] public_portfolios query error:", pubPortfolioErr.message);
 
@@ -574,6 +596,13 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </div>
               )}
 
+
+              {/* JOURNAL */}
+              {activeTab === "journal" && (
+                <div className="bt-tab-enter" style={{ gap: "16px" }}>
+                  <JournalTab entries={journalEntries} quotes={journalQuotes} portfolioId={portfolio.id} />
+                </div>
+              )}
 
               {/* EMAILS */}
               {activeTab === "emails" && (
