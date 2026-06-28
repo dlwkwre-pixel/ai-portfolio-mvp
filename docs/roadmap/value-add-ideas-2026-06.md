@@ -57,7 +57,8 @@ Recommended homes below.
 1. **Decision Journal** ✅ SHIPPED (8e15dae) — "Journal" tab on portfolio detail; capture
    ticker/action/conviction/mood/thesis + price snapshot; outcome (% since) + directional verdict;
    30+ day resurfacing with reflect prompt. ⚠️ needs supabase/decision-journal.sql run.
-2. **Portfolio Wrapped** (quick visible win + virality).
+2. **Portfolio Wrapped** ✅ SHIPPED (709cd3b) — /wrapped route, animated stat cards from existing
+   data + share button; slim dashboard CTA. No migration.
 3. **Analytics tab**: X-ray + correlation heatmap (one portfolio-detail tab).
 4. **Goal-based buckets** (Planning).
 5. Tax-aware rebalancing, Dividend hub, Watchlist, Behavioral guardrails, Withdrawal/SS optimizer.
