@@ -20,6 +20,7 @@ export interface TaxBreakdown {
   netAnnual: number;
   netMonthly: number;
   estimatedAGI: number;
+  taxableIncome: number;  // AGI minus the standard deduction (what the brackets apply to)
 }
 
 // ── 2025 Federal Income Tax Brackets ─────────────────────────────────────────
@@ -460,6 +461,47 @@ export function estimateTax(
     netAnnual,
     netMonthly,
     estimatedAGI,
+    taxableIncome,
+  };
+}
+
+// ── Federal bracket headroom ───────────────────────────────────────────────────
+// How much taxable income fits in the current bracket before tipping into the next.
+// Powers the Tax Center's bracket-headroom tool (Roth conversion / pre-tax / gain-harvest room).
+
+export type BracketSegment = { rate: number; floor: number; ceiling: number };
+
+export interface BracketHeadroom {
+  taxableIncome: number;
+  segments: BracketSegment[];
+  currentRate: number;
+  currentFloor: number;
+  currentCeiling: number;     // upTo of the active bracket (Infinity for the top bracket)
+  nextRate: number | null;    // rate of the next bracket up, or null at the top
+  roomToNext: number;         // dollars of taxable income before the next bracket (Infinity at top)
+}
+
+export function federalBracketHeadroom(taxableIncome: number, filing: FilingStatus): BracketHeadroom {
+  const brackets = FEDERAL_BRACKETS[filing];
+  const segments: BracketSegment[] = [];
+  let floor = 0;
+  for (const b of brackets) {
+    segments.push({ rate: b.rate, floor, ceiling: b.upTo });
+    floor = b.upTo;
+  }
+  const ti = Math.max(0, taxableIncome);
+  let idx = segments.findIndex((s) => ti < s.ceiling);
+  if (idx === -1) idx = segments.length - 1;
+  const cur = segments[idx];
+  const next = idx < segments.length - 1 ? segments[idx + 1] : null;
+  return {
+    taxableIncome: ti,
+    segments,
+    currentRate: cur.rate,
+    currentFloor: cur.floor,
+    currentCeiling: cur.ceiling,
+    nextRate: next ? next.rate : null,
+    roomToNext: cur.ceiling === Infinity ? Infinity : Math.max(0, cur.ceiling - ti),
   };
 }
 

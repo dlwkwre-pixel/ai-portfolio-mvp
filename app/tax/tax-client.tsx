@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import type { TaxPageData, RealizedLot, TLHOpportunity, WashSaleWarning } from "./page";
 import { saveLotAcqYears, saveLotCostBasis, saveLotProceeds } from "./tax-actions";
-import { estimateTax, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
+import { estimateTax, federalBracketHeadroom, FILING_STATUS_LABELS, INCOME_TYPE_LABELS, US_STATES } from "@/lib/tax/estimator";
 import { contributionLimits } from "@/lib/tax/contribution-limits";
-import type { FilingStatus, IncomeType } from "@/lib/tax/estimator";
+import type { FilingStatus, IncomeType, BracketHeadroom } from "@/lib/tax/estimator";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -173,6 +173,88 @@ function SectionCard({ icon, color, label, amount, sub, children, defaultOpen = 
   );
 }
 
+// ─── bracket headroom tool ──────────────────────────────────────────────────────
+// Shows where taxable income sits in the federal brackets and what the room before the next
+// bracket is worth: extra pre-tax contributions, a Roth conversion, or harvesting gains/income.
+
+function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
+  const ratePct = Math.round(h.currentRate * 100);
+  const nextPct = h.nextRate != null ? Math.round(h.nextRate * 100) : null;
+  const atTop = h.roomToNext === Infinity || h.nextRate == null;
+  const room = atTop ? null : Math.round(h.roomToNext);
+  // Position of income within the active bracket (for the marker), guarded for the top bracket.
+  const span = h.currentCeiling === Infinity ? 0 : h.currentCeiling - h.currentFloor;
+  const posInBracket = span > 0 ? Math.min(1, Math.max(0, (h.taxableIncome - h.currentFloor) / span)) : 1;
+  // 0% long-term capital-gains bracket sits in the 10–12% ordinary brackets.
+  const likely0Ltcg = h.currentRate <= 0.12;
+
+  return (
+    <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 18px 12px" }}>
+        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>🪜</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Bracket headroom</p>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0" }}>
+            You&apos;re in the {ratePct}% bracket{atTop ? " (top bracket)" : ` · ${fmt(room ?? 0)} of taxable income until ${nextPct}%`}
+          </p>
+        </div>
+      </div>
+
+      <div style={{ padding: "4px 18px 16px" }}>
+        {/* Bracket ladder */}
+        <div style={{ display: "flex", height: "30px", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border-subtle)" }}>
+          {h.segments.map((s) => {
+            const active = s.rate === h.currentRate;
+            return (
+              <div key={s.rate} style={{
+                flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+                background: active ? "linear-gradient(135deg,#2563eb,#7c3aed)" : "var(--bg-elevated, rgba(255,255,255,0.03))",
+                borderRight: s.rate === 0.37 ? "none" : "1px solid var(--border-subtle)",
+              }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: active ? "#fff" : "var(--text-tertiary)" }}>{Math.round(s.rate * 100)}</span>
+                {active && span > 0 && (
+                  <div style={{ position: "absolute", top: 0, bottom: 0, left: `${posInBracket * 100}%`, width: "2px", background: "#fff", boxShadow: "0 0 4px rgba(255,255,255,0.8)" }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px" }}>
+          <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Taxable income {fmt(Math.round(h.taxableIncome))}</span>
+          {!atTop && <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Next bracket at {fmt(h.currentCeiling)}</span>}
+        </div>
+
+        {/* What the room is worth */}
+        {!atTop && room != null && room > 0 && (
+          <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: 0 }}>
+              {fmt(room)} of headroom — you could
+            </p>
+            {[
+              { t: `Contribute up to ${fmt(room)} more pre-tax`, d: `Lowers taxable income, saving about ${fmt(Math.round(room * h.currentRate))} now (at your ${ratePct}% rate).` },
+              { t: `Convert up to ${fmt(room)} to a Roth`, d: `Move Traditional IRA/401(k) money into a Roth taxed at just ${ratePct}% — locking in today's rate before the ${nextPct}% bracket.` },
+              likely0Ltcg
+                ? { t: "Harvest long-term gains tax-free", d: `In the ${ratePct}% bracket you're likely in the 0% long-term capital-gains bracket — realizing long-term gains up to ${fmt(room)} could owe $0 federal.` }
+                : { t: `Realize up to ${fmt(room)} of income at ${ratePct}%`, d: `Pull income forward (bonus, gains, IRA withdrawal) while staying in the ${ratePct}% bracket.` },
+            ].map((opt, i) => (
+              <div key={i} style={{ display: "flex", gap: "9px", alignItems: "flex-start", padding: "9px 11px", background: "var(--bg-elevated, rgba(255,255,255,0.02))", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+                <span style={{ color: "var(--accent, #818cf8)", fontWeight: 700, fontSize: "12px", lineHeight: 1.4, flexShrink: 0 }}>{i + 1}</span>
+                <div>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{opt.t}</p>
+                  <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0", lineHeight: 1.5 }}>{opt.d}</p>
+                </div>
+              </div>
+            ))}
+            <p style={{ fontSize: "9.5px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
+              Estimates on {new Date().getFullYear()} federal brackets for planning only — not tax advice. Roth conversions and harvested income are themselves taxable; confirm with a tax professional.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function TaxClient({ data }: { data: TaxPageData }) {
@@ -309,6 +391,10 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
     : null;
   // Active estimate: prefer profile-based, fall back to quick entry
   const activeEstimate = incomeTaxEstimate ?? quickTaxEstimate;
+  const activeFiling: FilingStatus = incomeTaxEstimate
+    ? ((taxProfile?.filingStatus as FilingStatus) ?? "single")
+    : quickFilingStatus;
+  const headroom = activeEstimate ? federalBracketHeadroom(activeEstimate.taxableIncome, activeFiling) : null;
   const cgStcgRateResolved = activeEstimate ? activeEstimate.federalMarginalRate : stcgRate;
   const cgLtcgRateResolved = activeEstimate
     ? (activeEstimate.grossAnnual > (mfjThresh ? 583_750 : 518_900) ? 0.20 : activeEstimate.grossAnnual > (mfjThresh ? 94_050 : 47_025) ? 0.15 : 0.00)
@@ -642,6 +728,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </div>
               )}
             </SectionCard>
+
+            {/* ── BRACKET HEADROOM (Roth conversion / pre-tax / gain-harvest room) ── */}
+            {headroom && <BracketHeadroomCard h={headroom} />}
 
             {/* ── PROPERTY TAX (homeowner only) ── */}
             {taxProfile?.isHomeowner && (
