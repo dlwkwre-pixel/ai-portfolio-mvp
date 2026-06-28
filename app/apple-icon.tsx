@@ -1,30 +1,11 @@
 import { ImageResponse } from "next/og";
-import { MARK_POLYLINE } from "@/app/components/brand-mark";
+import { brandIcon } from "@/lib/brand-icon";
 
-// iPhone home-screen icon: the BuyTune chart mark (shared geometry from brand-mark.tsx) —
-// a bold ascending zigzag in white on the brand gradient. iOS applies its own rounded-squircle
-// mask, so we fill the whole square.
+// iPhone home-screen icon: the BuyTune "N" chart mark in white on the brand gradient
+// (shared renderer — same mark as the favicon, PWA icons, and in-app logo).
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function AppleIcon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-        }}
-      >
-        <svg width="122" height="122" viewBox="0 0 24 24" fill="none">
-          <polyline points={MARK_POLYLINE} stroke="#ffffff" strokeWidth="3.4" strokeLinecap="butt" strokeLinejoin="miter" />
-        </svg>
-      </div>
-    ),
-    { ...size },
-  );
+  return new ImageResponse(brandIcon(180, 0.7), { ...size });
 }
