@@ -11,6 +11,7 @@ import {
 } from "@/lib/badges/definitions";
 import { checkAndAwardBadges, getBadgeContext, badgeMetrics } from "@/lib/badges/check";
 import { getUserXp, getRecentXpEvents, type LevelProgress, type XpEvent } from "@/lib/gamification/xp";
+import { getWeeklyChallenges, type ChallengeState } from "@/lib/gamification/challenges";
 
 export const dynamic = "force-dynamic";
 
@@ -129,7 +130,10 @@ export default async function AchievementsPage() {
   if (!user) redirect("/");
 
   // Award anything newly earned on visit (idempotent), then read state for display.
+  // Challenges run first so any freshly-credited XP is reflected in the reads below.
   await checkAndAwardBadges(user.id);
+  const { weekKey, challenges } = await getWeeklyChallenges(user.id);
+  const challengesDone = challenges.filter((c) => c.done).length;
 
   const [portfoliosRes, badgeRows, profileRes, ctx, xp, events] = await Promise.all([
     supabase.from("portfolios")
@@ -209,6 +213,51 @@ export default async function AchievementsPage() {
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   You&apos;ve unlocked <strong style={{ color: "var(--text-primary)" }}>{earnedCount}</strong> of {BADGES.length} badges. Earn XP by adding holdings, running AI analyses, completing your profile, and showing up daily.
                 </p>
+              </div>
+            </section>
+
+            {/* Weekly challenges */}
+            <section style={{ marginBottom: "28px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "12px" }}>
+                <h2 style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
+                  This week&apos;s challenges
+                </h2>
+                <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
+                  {challengesDone}/{challenges.length} · resets {weekKey.replace(/^\d{4}-/, "")}
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(248px, 1fr))", gap: "11px" }}>
+                {challenges.map((c: ChallengeState) => (
+                  <div key={c.id} style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "14px 15px", borderRadius: "14px",
+                    border: `1px solid ${c.done ? "rgba(16,185,129,0.28)" : "var(--card-border)"}`,
+                    background: c.done ? "rgba(16,185,129,0.06)" : "var(--card-bg)",
+                  }}>
+                    <div style={{
+                      width: "38px", height: "38px", borderRadius: "11px", flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: c.done ? "rgba(16,185,129,0.14)" : "rgba(99,102,241,0.12)",
+                      border: `1px solid ${c.done ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.22)"}`,
+                    }}>
+                      <BadgeIcon icon={c.icon} size={19} color={c.done ? "#34d399" : "#818cf8"} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{c.label}</div>
+                      <div style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.35 }}>{c.description}</div>
+                    </div>
+                    <div style={{ flexShrink: 0 }}>
+                      {c.done ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-mono)" }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          +{c.xp}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>+{c.xp} XP</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
 

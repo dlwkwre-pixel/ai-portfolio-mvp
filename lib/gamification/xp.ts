@@ -9,7 +9,8 @@ export type XpKind =
   | "holdings_imported"
   | "profile_complete"
   | "analysis_run"
-  | "strategy_assigned";
+  | "strategy_assigned"
+  | "challenge";
 
 export const XP_VALUES: Record<XpKind, number> = {
   holding_added: 10,
@@ -18,6 +19,7 @@ export const XP_VALUES: Record<XpKind, number> = {
   profile_complete: 50,
   analysis_run: 20,
   strategy_assigned: 30,
+  challenge: 0, // variable — pass an explicit amount to awardXp
 };
 
 export const XP_LABELS: Record<XpKind, string> = {
@@ -27,6 +29,7 @@ export const XP_LABELS: Record<XpKind, string> = {
   profile_complete: "Completed your profile",
   analysis_run: "Ran an AI analysis",
   strategy_assigned: "Assigned a strategy",
+  challenge: "Completed a weekly challenge",
 };
 
 // Level curve: level L starts at 100·(L-1)² XP. Level 2 at 100, 3 at 400, 4 at 900 …
@@ -68,10 +71,11 @@ export type AwardResult = {
 };
 
 // Credit XP for an action. `dedupKey` makes it idempotent (defaults to the kind = once ever).
+// `amountOverride` lets variable-value awards (e.g. challenges) set their own XP.
 // Best-effort: never throws into the calling action (XP is a side effect, not the main work).
-export async function awardXp(userId: string, kind: XpKind, dedupKey?: string): Promise<AwardResult | null> {
+export async function awardXp(userId: string, kind: XpKind, dedupKey?: string, amountOverride?: number): Promise<AwardResult | null> {
   if (!userId) return null;
-  const amount = XP_VALUES[kind] ?? 0;
+  const amount = amountOverride ?? XP_VALUES[kind] ?? 0;
   const key = dedupKey ?? kind;
 
   try {
