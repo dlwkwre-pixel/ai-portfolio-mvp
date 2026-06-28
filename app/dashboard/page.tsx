@@ -117,15 +117,14 @@ export default async function DashboardPage({
   // Combined holdings across all active portfolios — powers the account-wide stress test.
   const combinedHoldings = new Map<string, { ticker: string; company_name: string | null; market_value: number }>();
 
-  for (const p of activePortfolios) {
+  // Fetch holdings + value every active portfolio in parallel — both the holdings query and
+  // the market-data valuation used to run serially per portfolio, so the dashboard waited on
+  // the sum of all latencies. Promise.all bounds it to the slowest single portfolio.
+  const perPortfolio = await Promise.all(activePortfolios.map(async (p) => {
+    const pCash = Number(p.cash_balance ?? 0);
     const { data: holdings } = await supabase
       .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
       .eq("portfolio_id", p.id);
-
-    const pCash = Number(p.cash_balance ?? 0);
-    portfolioCash[p.id] = pCash;
-    totalCash += pCash;
-
     try {
       const val = await getPortfolioValuation({
         holdings: (holdings ?? []).map((h) => ({
@@ -135,25 +134,30 @@ export default async function DashboardPage({
         })),
         cashBalance: pCash,
       });
-      portfolioValues[p.id] = val.total_portfolio_value;
-      totalValue += val.total_portfolio_value;
-      for (const h of val.valued_holdings) {
-        if (h.day_change !== null) {
-          totalDayChange += h.day_change * h.shares_number;
-        }
-        if ((h.shares_number ?? 0) > 0 && (h.market_value ?? 0) > 0) {
-          const prev = combinedHoldings.get(h.ticker);
-          combinedHoldings.set(h.ticker, {
-            ticker: h.ticker,
-            company_name: h.company_name ?? prev?.company_name ?? null,
-            market_value: (prev?.market_value ?? 0) + (h.market_value ?? 0),
-          });
-        }
-      }
+      return { id: p.id, cash: pCash, value: val.total_portfolio_value, valued: val.valued_holdings };
     } catch {
       // Finnhub unavailable — show cash-only value rather than crashing
-      portfolioValues[p.id] = pCash;
-      totalValue += pCash;
+      return { id: p.id, cash: pCash, value: pCash, valued: null };
+    }
+  }));
+
+  for (const r of perPortfolio) {
+    portfolioCash[r.id] = r.cash;
+    totalCash += r.cash;
+    portfolioValues[r.id] = r.value;
+    totalValue += r.value;
+    for (const h of r.valued ?? []) {
+      if (h.day_change !== null) {
+        totalDayChange += h.day_change * h.shares_number;
+      }
+      if ((h.shares_number ?? 0) > 0 && (h.market_value ?? 0) > 0) {
+        const prev = combinedHoldings.get(h.ticker);
+        combinedHoldings.set(h.ticker, {
+          ticker: h.ticker,
+          company_name: h.company_name ?? prev?.company_name ?? null,
+          market_value: (prev?.market_value ?? 0) + (h.market_value ?? 0),
+        });
+      }
     }
   }
 

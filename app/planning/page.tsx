@@ -78,7 +78,10 @@ export default async function PlanningPage({
       arr.push(h);
       byPortfolio.set(h.portfolio_id, arr);
     }
-    for (const p of portfolios) {
+    // Value every portfolio in parallel — each call hits market-data APIs, so running them
+    // serially made the planning page wait on the sum of all latencies. Promise.all bounds it
+    // to the slowest single valuation instead.
+    const valued = await Promise.all(portfolios.map(async (p) => {
       const cash = Number(p.cash_balance ?? 0);
       const hs = byPortfolio.get(p.id) ?? [];
       let value = cash;
@@ -97,8 +100,11 @@ export default async function PlanningPage({
       } catch {
         value = cash;
       }
-      portfolioAccounts.push({ id: p.id, name: p.name, account_type: p.account_type ?? null, value });
-      portfolioTotalValue += value;
+      return { id: p.id, name: p.name, account_type: p.account_type ?? null, value };
+    }));
+    for (const v of valued) {
+      portfolioAccounts.push(v);
+      portfolioTotalValue += v.value;
     }
   }
 

@@ -287,12 +287,13 @@ export default async function TaxPage({
   const tlhOpportunities: TLHOpportunity[] = [];
   let totalPortfolioValue = 0;
 
-  for (const p of activePortfolios) {
+  // Value every active portfolio in parallel — serial market-data calls made the Tax Center
+  // wait on the sum of all portfolio latencies.
+  const tlhResults = await Promise.all(activePortfolios.map(async (p) => {
     const { data: holdings } = await supabase
       .from("holdings")
       .select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
       .eq("portfolio_id", p.id);
-
     try {
       const val = await getPortfolioValuation({
         holdings: (holdings ?? []).map(h => ({
@@ -302,15 +303,14 @@ export default async function TaxPage({
         })),
         cashBalance: Number(p.cash_balance ?? 0),
       });
-      totalPortfolioValue += val.total_portfolio_value;
-
+      const opps: TLHOpportunity[] = [];
       for (const vh of val.valued_holdings) {
         const costBasis = Number(vh.average_cost_basis ?? 0) * vh.shares_number;
         const currentValue = vh.market_value ?? null;
         if (currentValue !== null && currentValue < costBasis) {
           const unrealizedLoss = currentValue - costBasis;
           const unrealizedLossPct = costBasis > 0 ? (unrealizedLoss / costBasis) * 100 : null;
-          tlhOpportunities.push({
+          opps.push({
             portfolioId: p.id,
             portfolioName: p.name,
             ticker: vh.ticker,
@@ -324,9 +324,14 @@ export default async function TaxPage({
           });
         }
       }
+      return { value: val.total_portfolio_value, opps };
     } catch {
-      totalPortfolioValue += Number(p.cash_balance ?? 0);
+      return { value: Number(p.cash_balance ?? 0), opps: [] as TLHOpportunity[] };
     }
+  }));
+  for (const r of tlhResults) {
+    totalPortfolioValue += r.value;
+    tlhOpportunities.push(...r.opps);
   }
 
   tlhOpportunities.sort((a, b) => (a.unrealizedLoss ?? 0) - (b.unrealizedLoss ?? 0));

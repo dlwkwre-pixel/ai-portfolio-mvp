@@ -54,24 +54,33 @@ export default async function PortfoliosPage() {
   const activePortfolios = portfolios.filter((p) => p.is_active);
   const archivedPortfolios = portfolios.filter((p) => !p.is_active);
 
-  // Get live valuations and position counts for each active portfolio
+  // Get live valuations and position counts for each active portfolio — in parallel, so the
+  // list page waits on the slowest single portfolio rather than the sum of all of them.
   const valuations: Record<string, number> = {};
   let totalPositions = 0;
-  for (const p of activePortfolios) {
+  const valResults = await Promise.all(activePortfolios.map(async (p) => {
+    const pCash = Number(p.cash_balance ?? 0);
     const { data: holdings } = await supabase
       .from("holdings").select("id, ticker, company_name, asset_type, shares, average_cost_basis, manual_price, manual_price_updated_at")
       .eq("portfolio_id", p.id);
-    const activeHoldings = (holdings ?? []).filter((h) => Number(h.shares) > 0);
-    totalPositions += activeHoldings.length;
-    const val = await getPortfolioValuation({
-      holdings: (holdings ?? []).map((h) => ({
-        id: h.id, ticker: h.ticker, company_name: h.company_name,
-        asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
-        manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
-      })),
-      cashBalance: Number(p.cash_balance ?? 0),
-    });
-    valuations[p.id] = val.total_portfolio_value;
+    const positions = (holdings ?? []).filter((h) => Number(h.shares) > 0).length;
+    try {
+      const val = await getPortfolioValuation({
+        holdings: (holdings ?? []).map((h) => ({
+          id: h.id, ticker: h.ticker, company_name: h.company_name,
+          asset_type: h.asset_type, shares: h.shares, average_cost_basis: h.average_cost_basis,
+          manual_price: h.manual_price, manual_price_updated_at: h.manual_price_updated_at,
+        })),
+        cashBalance: pCash,
+      });
+      return { id: p.id, value: val.total_portfolio_value, positions };
+    } catch {
+      return { id: p.id, value: pCash, positions };
+    }
+  }));
+  for (const r of valResults) {
+    valuations[r.id] = r.value;
+    totalPositions += r.positions;
   }
 
   const totalValue = Object.values(valuations).reduce((a, b) => a + b, 0);
