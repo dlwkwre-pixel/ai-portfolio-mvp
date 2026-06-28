@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { STARTER_STRATEGIES } from "./config";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 async function apiPost(path: string, body: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
   const res = await fetch(path, {
@@ -525,9 +526,7 @@ export default function OnboardingModal({
               borderRadius: "8px",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
-              <svg width="12" height="12" viewBox="2 4 20 16" fill="none" stroke="white" strokeWidth="2.5">
-                <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-              </svg>
+              <BrandGlyph size={13} strokeWidth={2.8} dots={false} />
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>

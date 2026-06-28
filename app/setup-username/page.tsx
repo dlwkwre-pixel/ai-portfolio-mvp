@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 export default function UsernameSetupPage() {
   const router = useRouter();
@@ -104,9 +105,7 @@ export default function UsernameSetupPage() {
         {/* Logo */}
         <div className="fu0" style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "40px", justifyContent: "center" }}>
           <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="14" height="14" viewBox="2 4 20 16" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-            </svg>
+            <BrandGlyph size={14} strokeWidth={2.6} />
           </div>
           <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: "#fff" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io

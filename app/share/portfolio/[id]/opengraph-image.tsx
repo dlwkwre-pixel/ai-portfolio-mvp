@@ -81,8 +81,10 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             borderRadius: "8px",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <polyline points="5 16 11 12 16 15 20 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="5" cy="16" r="1.8" fill="white" />
+              <circle cx="20" cy="7" r="1.8" fill="white" />
             </svg>
           </div>
           <span style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#3b82f6" }}>

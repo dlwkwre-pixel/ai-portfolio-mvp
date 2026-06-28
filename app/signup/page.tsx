@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -56,10 +57,7 @@ export default function SignupPage() {
         <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 30% 40%,rgba(37,99,235,0.12),transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(124,58,237,0.08),transparent 50%)", pointerEvents:"none" }} />
         <Link href="/" style={{ display:"flex", alignItems:"center", gap:"10px", textDecoration:"none", position:"relative", zIndex:1 }}>
           <div style={{ width:"36px", height:"36px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/>
-              <circle cx="5" cy="16" r="1.2" fill="white" stroke="none"/>
-            </svg>
+            <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
           <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"17px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
         </Link>
@@ -89,7 +87,7 @@ export default function SignupPage() {
         <div style={{ width:"100%", maxWidth:"400px" }}>
           <Link href="/" className="mob-logo" style={{ display:"flex", alignItems:"center", gap:"8px", textDecoration:"none", marginBottom:"40px", justifyContent:"center" }}>
             <div style={{ width:"28px", height:"28px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"7px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
+              <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
             <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"15px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
           </Link>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import MarketRibbon from "@/app/components/market-ribbon";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 export default function LandingPage() {
   return (
@@ -220,13 +221,7 @@ export default function LandingPage() {
       <nav>
         <a href="/" className="nav-logo">
           <div className="nav-mark">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/>
-              <circle cx="5" cy="16" r="1.2" fill="white" stroke="none"/>
-              <circle cx="11" cy="12" r="1.2" fill="white" stroke="none"/>
-              <circle cx="16" cy="15" r="1.2" fill="white" stroke="none"/>
-              <circle cx="20" cy="7" r="1.2" fill="white" stroke="none"/>
-            </svg>
+            <BrandGlyph size={16} />
           </div>
           <span className="nav-name">Buy<span>Tune</span>.io</span>
         </a>
@@ -905,7 +900,7 @@ export default function LandingPage() {
       <footer>
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
           <div style={{width:"20px",height:"20px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:"5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
+            <BrandGlyph size={10} strokeWidth={3} />
           </div>
           <span style={{color:"#94a3b8"}}>BuyTune.io</span>
         </div>

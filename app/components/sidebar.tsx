@@ -6,6 +6,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SupportModal from "@/app/components/support-modal";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 type Portfolio = {
   id: string;
@@ -209,13 +210,7 @@ export default function Sidebar({
           flexShrink: 0,
           boxShadow: "var(--shadow-brand)",
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-            <circle cx="5" cy="16" r="1.2" fill="white" stroke="none" />
-            <circle cx="11" cy="12" r="1.2" fill="white" stroke="none" />
-            <circle cx="16" cy="15" r="1.2" fill="white" stroke="none" />
-            <circle cx="20" cy="7" r="1.2" fill="white" stroke="none" />
-          </svg>
+          <BrandGlyph size={16} />
         </div>
         <span style={{
           fontFamily: "var(--font-display)",

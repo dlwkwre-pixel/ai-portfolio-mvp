@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 type Holding = {
   ticker: string;
@@ -153,9 +154,7 @@ export default function ShareCardClient({
                 flexShrink: 0,
               }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8" />
-              </svg>
+              <BrandGlyph size={10} strokeWidth={3} dots={false} />
             </div>
             <span
               style={{

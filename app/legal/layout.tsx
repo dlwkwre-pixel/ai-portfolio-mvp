@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { BrandGlyph } from "@/app/components/brand-mark";
 
 const LEGAL_PAGES = [
   { href: "/legal/terms", label: "Terms of Service" },
@@ -43,7 +44,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M4 16c2.5-3 4.5-4 7-4 2 0 3.5 1 5 3 1.5-4 3-7 4-8"/></svg>
+            <BrandGlyph size={11} strokeWidth={3} dots={false} />
           </div>
           <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: "14px", color: "#f0f4ff", letterSpacing: "-0.2px" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>
