@@ -33,8 +33,8 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
   const [err, setErr] = useState(false);
 
   useEffect(() => {
+    // loading starts true / err false from initial state; portfolioId is stable per mount.
     let cancelled = false;
-    setLoading(true); setErr(false);
     fetch(`/api/portfolios/${portfolioId}/analytics`)
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((d: Data) => { if (!cancelled) setData(d); })
