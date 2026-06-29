@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import InfoTooltip from "@/app/components/info-tooltip";
+import WhatIfSimulator, { type SimHolding } from "./what-if-simulator";
 
 type Sector = { label: string; value: number; pct: number };
 type Correlation = { tickers: string[]; matrix: number[][] };
@@ -17,7 +18,7 @@ type FactorTilt = {
   weightedMomentum: number | null;
   headline: string;
 };
-type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; totalValue: number };
+type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; holdings?: SimHolding[]; totalValue: number };
 
 const PALETTE = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b", "#84cc16", "#a855f7"];
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -244,6 +245,11 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           </>
         )}
       </div>
+
+      {/* What-if trade simulator */}
+      {data.holdings && data.holdings.length > 0 && (
+        <WhatIfSimulator portfolioId={portfolioId} baseline={data.holdings} />
+      )}
     </div>
   );
 }

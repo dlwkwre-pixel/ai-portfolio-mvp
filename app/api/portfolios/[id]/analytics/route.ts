@@ -59,6 +59,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── Sector exposure (top 20 positions by value) ──
   const topForSector = [...valued].sort((a, b) => b.market_value - a.market_value).slice(0, 20);
   const sectorMap = new Map<string, number>();
+  const sectorByTicker = new Map<string, string>();
   await Promise.all(topForSector.map(async (h) => {
     let label = "Other / Fund";
     if (h.asset_type === "crypto") label = "Crypto";
@@ -66,6 +67,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     else {
       try { const p = await getFinnhubProfile(h.ticker); if (p?.industry) label = p.industry; } catch { /* keep default */ }
     }
+    sectorByTicker.set(h.ticker, label);
     sectorMap.set(label, (sectorMap.get(label) ?? 0) + h.market_value);
   }));
   const sectors = [...sectorMap.entries()]
@@ -118,11 +120,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .sort((a, b) => b.market_value - a.market_value)
     .slice(0, 15);
 
+  const betaByTicker = new Map<string, number>();
   let factors = null;
   if (factorTickers.length > 0) {
     const metricResults = await Promise.all(factorTickers.map(async (h) => {
       try {
         const m = await getFinnhubFactorMetrics(h.ticker);
+        if (m?.beta != null) betaByTicker.set(h.ticker, m.beta);
         return m ? ({ ticker: h.ticker, value: h.market_value, metrics: m } as FactorInput) : null;
       } catch { return null; }
     }));
@@ -130,5 +134,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     factors = computeFactorTilt(inputs);
   }
 
-  return NextResponse.json({ sectors, correlation, factors, totalValue: Math.round(totalValue) });
+  // ── Per-holding detail for the what-if simulator (top 30 by value) ──
+  const simHoldings = [...valued]
+    .sort((a, b) => b.market_value - a.market_value)
+    .slice(0, 30)
+    .map((h) => ({
+      ticker: h.ticker,
+      value: Math.round(h.market_value),
+      sector: sectorByTicker.get(h.ticker)
+        ?? (h.asset_type === "crypto" ? "Crypto" : h.asset_type === "manual" ? "Non-tradeable" : "Other / Fund"),
+      beta: betaByTicker.get(h.ticker) ?? null,
+    }));
+
+  return NextResponse.json({ sectors, correlation, factors, holdings: simHoldings, totalValue: Math.round(totalValue) });
 }
