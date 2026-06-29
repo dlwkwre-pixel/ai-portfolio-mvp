@@ -274,14 +274,13 @@ export default async function DashboardPage({
           <MobileNav />
 
           {/* ── Mobile header (two rows: title+bell, then value/change+streak) ── */}
-          <div className="sm:hidden" style={{
+          <div className="flex sm:hidden" style={{
             padding: "12px 16px",
             borderBottom: "1px solid var(--border-subtle)",
             background: "var(--bg-base)",
             position: "sticky",
             top: 0,
             zIndex: 10,
-            display: "flex",
             flexDirection: "column",
             gap: "12px",
           }}>
@@ -333,7 +332,8 @@ export default async function DashboardPage({
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <DashboardHeaderClient totalValue={totalValue} totalDayChange={totalDayChange} />
               <XpLevelChip userId={user.id} />
-              <StreakBadge initialStreak={initialStreak} />
+              {/* Streak also lives in the sidebar (≥lg); hide here at lg to avoid showing it twice. */}
+              <span className="lg:hidden"><StreakBadge initialStreak={initialStreak} /></span>
               <div className="hidden sm:flex" style={{ gap: "8px", alignItems: "center" }}>
                 <Link href="/portfolios" className="bt-btn bt-btn-ghost bt-btn-sm">
                   Manage Portfolios
