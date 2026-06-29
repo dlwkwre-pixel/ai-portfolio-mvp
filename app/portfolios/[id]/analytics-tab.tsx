@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import InfoTooltip from "@/app/components/info-tooltip";
 import WhatIfSimulator, { type SimHolding } from "./what-if-simulator";
+import BacktestCard from "./backtest-card";
 
 type Sector = { label: string; value: number; pct: number };
 type Correlation = { tickers: string[]; matrix: number[][] };
@@ -250,6 +251,9 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
       {data.holdings && data.holdings.length > 0 && (
         <WhatIfSimulator portfolioId={portfolioId} baseline={data.holdings} />
       )}
+
+      {/* Backtest current allocation */}
+      <BacktestCard portfolioId={portfolioId} />
     </div>
   );
 }
