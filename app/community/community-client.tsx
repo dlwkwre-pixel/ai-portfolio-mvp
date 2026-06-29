@@ -8,6 +8,7 @@ import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions
 import CommunityFeed from "./community-feed";
 import type { FeedPost, FeedAuthor, MyOption } from "./community-feed";
 import CommunityLearn from "./community-learn";
+import PeerBenchmarkCard from "./peer-benchmark-card";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1903,6 +1904,7 @@ export default function CommunityClient({
         <CommunityLearn />
       ) : section === "leaderboard" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <PeerBenchmarkCard />
         {mostHeld.length > 0 && (
           <div className="bt-card" style={{ padding: "16px 18px" }}>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>📊 Most-held stocks</div>
