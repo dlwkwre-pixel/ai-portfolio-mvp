@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
-import { getFinnhubProfile, getFinnhubDailyCandles } from "@/lib/market-data/finnhub";
+import { getFinnhubProfile, getFinnhubDailyCandles, getFinnhubFactorMetrics } from "@/lib/market-data/finnhub";
+import { computeFactorTilt, type FactorInput } from "@/lib/portfolio/factor-tilt";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -111,5 +112,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  return NextResponse.json({ sectors, correlation, totalValue: Math.round(totalValue) });
+  // ── Factor / style tilt (top 15 stock positions; free Finnhub fundamentals) ──
+  const factorTickers = [...valued]
+    .filter((h) => h.asset_type !== "manual" && h.asset_type !== "crypto")
+    .sort((a, b) => b.market_value - a.market_value)
+    .slice(0, 15);
+
+  let factors = null;
+  if (factorTickers.length > 0) {
+    const metricResults = await Promise.all(factorTickers.map(async (h) => {
+      try {
+        const m = await getFinnhubFactorMetrics(h.ticker);
+        return m ? ({ ticker: h.ticker, value: h.market_value, metrics: m } as FactorInput) : null;
+      } catch { return null; }
+    }));
+    const inputs = metricResults.filter((x): x is FactorInput => x != null);
+    factors = computeFactorTilt(inputs);
+  }
+
+  return NextResponse.json({ sectors, correlation, factors, totalValue: Math.round(totalValue) });
 }

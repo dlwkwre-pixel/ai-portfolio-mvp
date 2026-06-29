@@ -541,6 +541,58 @@ export async function getFinnhubMetrics(symbol: string): Promise<{ peRatio: numb
   }
 }
 
+export type FinnhubFactorMetrics = {
+  peRatio: number | null;
+  pbRatio: number | null;
+  marketCap: number | null; // USD millions (Finnhub native unit)
+  revenueGrowth: number | null; // YoY %
+  epsGrowth: number | null; // YoY %
+  dividendYield: number | null; // %
+  beta: number | null;
+  priceReturn52w: number | null; // % (momentum proxy)
+};
+
+// Richer fundamentals for factor/style analysis. Pulls from the same free
+// /stock/metric?metric=all payload as getFinnhubMetrics, with sensible fallbacks
+// since field coverage varies by ticker. Returns null fields rather than guessing.
+export async function getFinnhubFactorMetrics(symbol: string): Promise<FinnhubFactorMetrics | null> {
+  if (isCryptoTicker(symbol)) return null;
+
+  const apiKey = getApiKey();
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  if (!normalizedSymbol) return null;
+
+  const url = new URL("https://finnhub.io/api/v1/stock/metric");
+  url.searchParams.set("symbol", normalizedSymbol);
+  url.searchParams.set("metric", "all");
+  url.searchParams.set("token", apiKey);
+
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const firstNum = (m: Record<string, unknown>, keys: string[]): number | null => {
+    for (const k of keys) { const v = num(m[k]); if (v !== null) return v; }
+    return null;
+  };
+
+  try {
+    const response = await fetchWithRetry(url.toString(), { method: "GET", next: { revalidate: 3600 } });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const m = (data?.metric ?? {}) as Record<string, unknown>;
+    return {
+      peRatio: firstNum(m, ["peTTM", "peAnnual", "peBasicExclExtraTTM"]),
+      pbRatio: firstNum(m, ["pbAnnual", "pbQuarterly", "pb"]),
+      marketCap: firstNum(m, ["marketCapitalization"]),
+      revenueGrowth: firstNum(m, ["revenueGrowthTTMYoy", "revenueGrowthQuarterlyYoy", "revenueGrowth5Y", "revenueGrowth3Y"]),
+      epsGrowth: firstNum(m, ["epsGrowthTTMYoy", "epsGrowth5Y", "epsGrowth3Y"]),
+      dividendYield: firstNum(m, ["currentDividendYieldTTM", "dividendYieldIndicatedAnnual"]),
+      beta: firstNum(m, ["beta"]),
+      priceReturn52w: firstNum(m, ["52WeekPriceReturnDaily", "52WeekPriceReturn"]),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type FinnhubEconomicEvent = {
   time: string;
   event: string;

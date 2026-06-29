@@ -5,7 +5,19 @@ import InfoTooltip from "@/app/components/info-tooltip";
 
 type Sector = { label: string; value: number; pct: number };
 type Correlation = { tickers: string[]; matrix: number[][] };
-type Data = { sectors: Sector[]; correlation: Correlation | null; totalValue: number };
+type FactorTilt = {
+  analyzedValue: number;
+  styleCoveragePct: number;
+  sizeCoveragePct: number;
+  style: { value: number; blend: number; growth: number };
+  size: { large: number; mid: number; small: number };
+  weightedPe: number | null;
+  weightedBeta: number | null;
+  weightedDividendYield: number | null;
+  weightedMomentum: number | null;
+  headline: string;
+};
+type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; totalValue: number };
 
 const PALETTE = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b", "#84cc16", "#a855f7"];
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -15,6 +27,40 @@ function Hint({ text }: { text: string }) {
     <InfoTooltip text={text} align="start" width={240}>
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
+  );
+}
+
+// A two/three-segment labeled bar for the style and size splits.
+function SplitBar({ segments }: { segments: { label: string; pct: number; color: string }[] }) {
+  const shown = segments.filter((s) => s.pct > 0);
+  return (
+    <div>
+      <div style={{ display: "flex", height: "13px", borderRadius: "7px", overflow: "hidden", background: "rgba(148,163,184,0.12)" }}>
+        {shown.map((s, i) => (
+          <div key={s.label} className="bt-an-seg" title={`${s.label} ${s.pct}%`} style={{ width: `${s.pct}%`, background: s.color, animationDelay: `${i * 70}ms` }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 16px", marginTop: "8px" }}>
+        {segments.map((s) => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px" }}>
+            <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: s.color, flexShrink: 0, opacity: s.pct > 0 ? 1 : 0.3 }} />
+            <span style={{ color: "var(--text-secondary)" }}>{s.label}</span>
+            <span style={{ color: s.pct > 0 ? "var(--text-primary)" : "var(--text-muted)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.pct}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FactorStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div style={{ flex: 1, minWidth: "78px", padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+      <div style={{ fontSize: "9.5px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center" }}>
+        {label}{hint && <Hint text={hint} />}
+      </div>
+      <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)", marginTop: "3px" }}>{value}</div>
+    </div>
   );
 }
 
@@ -98,6 +144,63 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           </div>
         )}
       </div>
+
+      {/* Factor / style tilt */}
+      {data.factors && (data.factors.styleCoveragePct > 0 || data.factors.sizeCoveragePct > 0) && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+          <h2 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", display: "flex", alignItems: "center" }}>
+            Factor tilt <Hint text="What kind of stocks you actually own, by value: their size (large/mid/small cap), their style (value vs growth), and your blended P/E, beta, yield and 12-month momentum. Built from free fundamentals — funds and uncovered tickers are excluded." />
+          </h2>
+          <p style={{ fontSize: "12px", color: "var(--accent, #818cf8)", fontWeight: 600, margin: "0 0 14px", textTransform: "capitalize" }}>{data.factors.headline}</p>
+
+          {data.factors.styleCoveragePct > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center" }}>
+                Value ↔ Growth <Hint text="Value = cheaper on earnings/book (low P/E, low P/B). Growth = pricier, faster-growing (high P/E, strong revenue/EPS growth). Blend is in between." />
+              </div>
+              <SplitBar segments={[
+                { label: "Value", pct: data.factors.style.value, color: "#10b981" },
+                { label: "Blend", pct: data.factors.style.blend, color: "#64748b" },
+                { label: "Growth", pct: data.factors.style.growth, color: "#7c3aed" },
+              ]} />
+            </div>
+          )}
+
+          {data.factors.sizeCoveragePct > 0 && (
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center" }}>
+                Company size <Hint text="Large-cap ≥ $10B (steadier), mid-cap $2–10B, small-cap < $2B (more volatile, more upside). A heavy small-cap tilt means bumpier rides." />
+              </div>
+              <SplitBar segments={[
+                { label: "Large", pct: data.factors.size.large, color: "#2563eb" },
+                { label: "Mid", pct: data.factors.size.mid, color: "#06b6d4" },
+                { label: "Small", pct: data.factors.size.small, color: "#f59e0b" },
+              ]} />
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {data.factors.weightedPe !== null && (
+              <FactorStat label="Blended P/E" value={`${data.factors.weightedPe}`} hint="Value-weighted price-to-earnings of your stock holdings. Higher = the market is paying more per dollar of earnings (growth expectations)." />
+            )}
+            {data.factors.weightedBeta !== null && (
+              <FactorStat label="Beta" value={`${data.factors.weightedBeta}`} hint="How much your holdings move vs the market. 1.0 = moves with it; >1 amplifies swings; <1 is steadier." />
+            )}
+            {data.factors.weightedDividendYield !== null && data.factors.weightedDividendYield > 0 && (
+              <FactorStat label="Div yield" value={`${data.factors.weightedDividendYield}%`} hint="Blended dividend yield — the income your holdings pay relative to price." />
+            )}
+            {data.factors.weightedMomentum !== null && (
+              <FactorStat label="12m return" value={`${data.factors.weightedMomentum > 0 ? "+" : ""}${data.factors.weightedMomentum}%`} hint="Value-weighted 52-week price return of your holdings — a momentum read on what you own." />
+            )}
+          </div>
+
+          {data.factors.styleCoveragePct < 100 && (
+            <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "12px" }}>
+              Based on {data.factors.styleCoveragePct}% of analyzed value. Funds and tickers without fundamentals are excluded.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Correlation heatmap */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
