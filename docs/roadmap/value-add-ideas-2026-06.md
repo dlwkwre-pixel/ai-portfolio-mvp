@@ -62,5 +62,8 @@ Recommended homes below.
 3. **Analytics tab** ✅ SHIPPED (c991182) — "Analytics" tab on portfolio detail: exposure X-ray
    (sector/asset stacked bar + concentration warning) + correlation heatmap (Pearson on top
    holdings' ~6mo daily returns) via async /api/portfolios/[id]/analytics. No migration.
-4. **Goal-based buckets** (Planning).
+4. **Goal-based buckets** ✅ SHIPPED (e230b61) — /planning/goals sub-route + planning hub card;
+   goals w/ target, year, saved amount, animated funded-% bar, monthly pace, contribute/edit/delete,
+   all-goals summary. ⚠️ needs supabase/planning-goals.sql run. (Also fixed a dashboard
+   duplicate-header bug + de-duped the streak across sidebar/header.)
 5. Tax-aware rebalancing, Dividend hub, Watchlist, Behavioral guardrails, Withdrawal/SS optimizer.
