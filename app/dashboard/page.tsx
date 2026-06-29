@@ -6,6 +6,7 @@ import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import DashboardClient from "./dashboard-client";
+import DcaCard from "./dca-card";
 import MarketRegimeCard from "@/app/components/market-regime-card";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
 import StreakBadge from "./streak-badge";
@@ -389,6 +390,7 @@ export default async function DashboardPage({
               existingStrategies={(userStrategies ?? []).map((s) => ({ id: s.id, name: s.name, description: s.description ?? null, risk_level: s.risk_level ?? null }))}
               accountCreatedAt={user.created_at ?? null}
             />
+            <DcaCard />
             {portfolioIds.length > 0 && (
               <Link href="/wrapped" style={{
                 display: "flex", alignItems: "center", gap: "12px", marginTop: "16px",

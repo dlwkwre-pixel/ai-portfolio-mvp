@@ -7397,7 +7397,7 @@ export default function PlanningClient({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bt-mobile-nav-pad" style={{ padding: "24px", maxWidth: "900px" }}>
+    <div className="bt-mobile-nav-pad" style={{ padding: "24px", maxWidth: "1280px", width: "100%", margin: "0 auto" }}>
 
       {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} profile={profile} />}
 
@@ -9800,22 +9800,6 @@ export default function PlanningClient({
                   <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.68 0.16 250)", background: "color-mix(in oklch, oklch(0.68 0.16 250) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>SAVE</span>
                 </div>
                 <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Set savings goals — a house, a trip, a fund — and track each one&apos;s funded %.</p>
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
-                  Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </div>
-              </Link>
-
-              <Link href="/planning/contributions" className="hub-card" style={{ display: "flex", flexDirection: "column", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-subtle)", background: "var(--bg-card)", textDecoration: "none" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <div style={{ width: "26px", height: "26px", borderRadius: "var(--radius-sm)", background: "color-mix(in oklch, oklch(0.72 0.15 160) 14%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", color: "oklch(0.72 0.15 160)", flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M5 9l7-7 7 7" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="17" r="3"/></svg>
-                    </div>
-                    <span style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: "13px", color: "var(--text-primary)" }}>Auto-Invest</span>
-                  </div>
-                  <span style={{ fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.72 0.15 160)", background: "color-mix(in oklch, oklch(0.72 0.15 160) 12%, transparent)", padding: "2px 6px", borderRadius: "4px" }}>DCA</span>
-                </div>
-                <p style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 10px", lineHeight: 1.5 }}>Schedule recurring contributions and get a reminder to invest, every time.</p>
                 <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)", marginTop: "auto" }}>
                   Open <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>

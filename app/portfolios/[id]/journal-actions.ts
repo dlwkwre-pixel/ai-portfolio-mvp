@@ -18,6 +18,7 @@ export type JournalEntry = {
   created_at: string;
   reviewed_at: string | null;
   outcome_note: string | null;
+  source?: string | null; // 'manual' | 'ai'
 };
 
 const ACTIONS: JournalAction[] = ["buy", "add", "sell", "trim", "hold", "watch"];

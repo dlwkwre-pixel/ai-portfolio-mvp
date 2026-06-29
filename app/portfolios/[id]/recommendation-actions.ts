@@ -175,6 +175,81 @@ function normalizeConviction(conviction: string | null): string | null {
   return conviction.toLowerCase().replace(/\s+/g, "_");
 }
 
+// Map an AI recommendation action_type onto a Decision Journal action.
+// Returns null for non-actionable calls (hold/watch/unknown) so we don't flood
+// the journal with non-decisions.
+function recActionToJournalAction(actionType: string | null): "buy" | "add" | "sell" | "trim" | null {
+  const a = (actionType ?? "").toLowerCase();
+  if (/sell|exit|close|liquidat/.test(a)) return "sell";
+  if (/trim|reduce|lighten|pare/.test(a)) return "trim";
+  if (/add|increase|accumulat|build/.test(a)) return "add";
+  if (/buy|new|initiat|start|open|enter/.test(a)) return "buy";
+  return null;
+}
+
+function convictionToJournal(conviction: string | null): string {
+  const c = (conviction ?? "").toLowerCase();
+  if (/very_high|high|strong/.test(c)) return "high";
+  if (/low|weak|specul/.test(c)) return "low";
+  return "medium";
+}
+
+type AutoJournalRec = {
+  action_type: string | null;
+  ticker: string | null;
+  thesis: string | null;
+  rationale: string | null;
+  conviction: string | null;
+};
+
+// Auto-log actionable AI recommendations into the Decision Journal (source='ai').
+// Idempotent via the unique index on recommendation_item_id. Non-fatal.
+async function autoJournalRecommendations(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  portfolioId: string,
+  recs: AutoJournalRec[],
+  itemIds: string[],
+): Promise<void> {
+  const actionable: { rec: AutoJournalRec & { ticker: string }; action: "buy" | "add" | "sell" | "trim"; itemId: string }[] = [];
+  for (let i = 0; i < recs.length; i++) {
+    const action = recActionToJournalAction(recs[i].action_type);
+    const itemId = itemIds[i];
+    const ticker = (recs[i].ticker ?? "").trim().toUpperCase();
+    if (action && itemId && ticker) actionable.push({ rec: { ...recs[i], ticker }, action, itemId });
+  }
+  if (actionable.length === 0) return;
+
+  // Snapshot current price per unique ticker for later outcome scoring.
+  const tickers = [...new Set(actionable.map((a) => a.rec.ticker))];
+  const priceByTicker: Record<string, number> = {};
+  await Promise.all(tickers.map(async (t) => {
+    try { const q = await getFinnhubQuote(t); if (q && q.c > 0) priceByTicker[t] = q.c; } catch { /* leave unset */ }
+  }));
+
+  const rows = actionable.map(({ rec, action, itemId }) => {
+    const thesisText = (rec.thesis || rec.rationale || "AI recommendation.").trim().slice(0, 1800);
+    return {
+      user_id: userId,
+      portfolio_id: portfolioId,
+      ticker: rec.ticker,
+      action,
+      thesis: thesisText,
+      conviction: convictionToJournal(rec.conviction),
+      emotion: null,
+      price_at_decision: priceByTicker[rec.ticker] ?? null,
+      source: "ai",
+      recommendation_item_id: itemId,
+    };
+  });
+
+  // Ignore duplicates (re-runs) via the partial unique index on recommendation_item_id.
+  const { error } = await supabase
+    .from("decision_journal")
+    .upsert(rows, { onConflict: "recommendation_item_id", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+}
+
 async function fetchRedditSentimentForTickers(
   holdings: { ticker: string; company_name?: string | null }[]
 ): Promise<Record<string, CompactRedditPulse>> {
@@ -1622,6 +1697,12 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
         recommendationItemIds: insertedItemIds,
         notes: "Initial AI recommendation created.",
       });
+
+      // Auto-log actionable AI calls into the Decision Journal so the user can
+      // react (run the devil's advocate, reflect later) without manual entry.
+      // Best-effort + non-fatal: skips silently if the migration isn't applied.
+      void autoJournalRecommendations(supabase, user.id, portfolioId, validatedRecs, insertedItemIds)
+        .catch((e) => console.warn("[auto-journal] skipped:", e instanceof Error ? e.message : e));
     }
 
     let completionSummary = grokResult.summary || "AI review completed.";

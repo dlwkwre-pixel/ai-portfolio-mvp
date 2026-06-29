@@ -127,7 +127,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
           </InfoTooltip>
         </h2>
         <p style={{ fontSize: "12px", color: "var(--text-tertiary)", margin: "2px 0 0" }}>
-          Log the thinking behind a move. We snapshot the price now so you can grade your reasoning later.
+          Log the thinking behind a move. We snapshot the price now so you can grade your reasoning later. Actionable AI calls from your analyses are auto-logged here (tagged <span style={{ color: "var(--accent, #818cf8)", fontWeight: 600 }}>AI call</span>) — run the devil&apos;s advocate on them.
         </p>
       </div>
 
@@ -176,6 +176,12 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
               <div key={e.id} style={{ background: "var(--card-bg)", border: `1px solid ${old ? "rgba(245,158,11,0.3)" : "var(--card-border)"}`, borderRadius: "var(--radius-lg)", padding: "14px 16px", animation: "bt-jrnl-in 0.35s ease both", animationDelay: `${Math.min(i, 8) * 40}ms` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "7px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: meta.color, background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`, padding: "2px 8px", borderRadius: "999px" }}>{meta.label}</span>
+                  {e.source === "ai" && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent, #818cf8)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", padding: "2px 7px", borderRadius: "999px" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 9l-4.5 3.8L17 19l-5-3.4L7 19l1.5-6.2L4 9l6.1-.2z" /></svg>
+                      AI call
+                    </span>
+                  )}
                   <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{e.ticker}</span>
                   {e.conviction && <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>{e.conviction} conviction</span>}
                   {e.emotion && <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>· {e.emotion}</span>}

@@ -191,7 +191,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   if (activeTab === "journal") {
     const { data: jrows } = await supabase
       .from("decision_journal")
-      .select("id, portfolio_id, ticker, action, thesis, conviction, emotion, price_at_decision, created_at, reviewed_at, outcome_note")
+      .select("*")
       .eq("user_id", user.id).eq("portfolio_id", portfolio.id)
       .order("created_at", { ascending: false }).limit(100)
       .then((r) => r, () => ({ data: null }));
