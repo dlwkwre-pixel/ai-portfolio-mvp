@@ -1,4 +1,9 @@
 import type { ValuedHolding } from "@/lib/portfolio/valuation";
+import InfoTooltip from "@/app/components/info-tooltip";
+import {
+  type RawLot, buildOpenLots, planTaxAwareTrim, estimateTrimTax,
+  accountIsTaxable, DEFAULT_LT_RATE, DEFAULT_ST_RATE,
+} from "@/lib/portfolio/tax-lots";
 
 type StrategyConstraints = {
   max_position_pct: number | null;
@@ -13,12 +18,27 @@ type Props = {
   cashBalance: number;
   strategyConstraints: StrategyConstraints | null;
   strategyName: string | null;
+  lots?: RawLot[];
+  accountType?: string | null;
 };
 
 type PositionStatus = "over" | "under" | "ok" | "no-price";
 
+type TrimTax = {
+  gain: number;
+  longTermGain: number;
+  shortTermGain: number;
+  tax: number;
+  hasShortTermGain: boolean;
+  coversTarget: boolean;
+};
+
 function formatMoney(v: number) {
   return `$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function signedMoney(v: number) {
+  return `${v < 0 ? "-" : ""}$${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
 export default function RebalancingCalculator({
@@ -27,8 +47,35 @@ export default function RebalancingCalculator({
   cashBalance,
   strategyConstraints,
   strategyName,
+  lots = [],
+  accountType = null,
 }: Props) {
   if (!valuedHoldings.length || totalValue <= 0) return null;
+
+  const isTaxable = accountIsTaxable(accountType);
+  const hasLots = lots.length > 0;
+  const ltRatePct = Math.round(DEFAULT_LT_RATE * 100);
+  const stRatePct = Math.round(DEFAULT_ST_RATE * 100);
+
+  // Tax-optimal trim plan per ticker (only meaningful for taxable accounts with lots).
+  const trimTaxByTicker: Record<string, TrimTax> = {};
+  function computeTrimTax(ticker: string, currentPrice: number, dollarTarget: number): TrimTax | null {
+    if (!isTaxable || !hasLots || currentPrice <= 0 || dollarTarget <= 0) return null;
+    const tickerLots = lots.filter((l) => l.ticker?.toUpperCase() === ticker.toUpperCase());
+    if (!tickerLots.length) return null;
+    const open = buildOpenLots(tickerLots);
+    if (!open.length) return null;
+    const plan = planTaxAwareTrim(open, currentPrice, dollarTarget);
+    if (plan.sharesToSell <= 0) return null;
+    return {
+      gain: plan.gain,
+      longTermGain: plan.longTermGain,
+      shortTermGain: plan.shortTermGain,
+      tax: estimateTrimTax(plan),
+      hasShortTermGain: plan.hasShortTermGain,
+      coversTarget: plan.coversTarget,
+    };
+  }
 
   const maxPct = strategyConstraints?.max_position_pct ?? null;
   const minPct = strategyConstraints?.min_position_pct ?? null;
@@ -69,6 +116,8 @@ export default function RebalancingCalculator({
       deltaValue = currentValue - targetValue;
       deltaLabel = `Trim ${formatMoney(deltaValue)}`;
       trimTo = maxPct;
+      const tt = computeTrimTax(h.ticker, h.current_price, deltaValue);
+      if (tt) trimTaxByTicker[h.ticker] = tt;
     } else if (minPct !== null && currentPct < minPct) {
       status = "under";
       const targetValue = (minPct / 100) * totalValue;
@@ -83,6 +132,12 @@ export default function RebalancingCalculator({
   const overCount = rows.filter((r) => r.status === "over").length;
   const underCount = rows.filter((r) => r.status === "under").length;
   const hasIssues = overCount > 0 || underCount > 0;
+
+  // Aggregate tax impact of trimming every over-weight position the tax-smart way.
+  const trimPlans = Object.values(trimTaxByTicker);
+  const totalTrimGain = trimPlans.reduce((s, t) => s + t.gain, 0);
+  const totalTrimTax = trimPlans.reduce((s, t) => s + t.tax, 0);
+  const showTaxSummary = isTaxable && hasLots && overCount > 0 && trimPlans.length > 0;
 
   // Cash status
   let cashStatus: PositionStatus = "ok";
@@ -174,19 +229,22 @@ export default function RebalancingCalculator({
 
           {/* Position rows */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {rows.map((row) => (
+            {rows.map((row) => {
+              const tt = trimTaxByTicker[row.ticker];
+              return (
               <div
                 key={row.ticker}
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
+                  flexDirection: "column",
+                  gap: tt ? "6px" : 0,
                   padding: "7px 10px",
                   background: statusBg[row.status],
                   border: `1px solid ${statusBorder[row.status]}`,
                   borderRadius: "var(--radius-md)",
                 }}
               >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 {/* Status dot */}
                 <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: statusColor[row.status], flexShrink: 0 }} />
 
@@ -224,8 +282,45 @@ export default function RebalancingCalculator({
                     {row.deltaLabel}
                   </span>
                 )}
+                </div>
+
+                {/* Tax-aware trim detail (taxable accounts with lot history) */}
+                {tt && (
+                  <div style={{
+                    display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px",
+                    paddingLeft: "13px", paddingTop: "2px", borderTop: "1px solid rgba(255,255,255,0.04)",
+                  }}>
+                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Tax-smart trim
+                    </span>
+                    <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: tt.gain >= 0 ? "#f59e0b" : "#00d395" }}>
+                      {tt.gain >= 0 ? `+${signedMoney(tt.gain)} gain` : `${signedMoney(tt.gain)} loss harvested`}
+                    </span>
+                    <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>
+                      est. tax {formatMoney(tt.tax)}
+                    </span>
+                    <InfoTooltip
+                      width={250}
+                      align="end"
+                      text={`To trim ${row.ticker}, sell tax-optimal lots first: harvest losses, then long-term gains (lowest gain first), then short-term last. ${tt.longTermGain !== 0 ? `Long-term ${signedMoney(tt.longTermGain)}. ` : ""}${tt.shortTermGain !== 0 ? `Short-term ${signedMoney(tt.shortTermGain)}. ` : ""}${tt.hasShortTermGain ? "Holding the short-term lots past 1 year would lower the rate. " : ""}Tax est. assumes ${ltRatePct}% long-term / ${stRatePct}% short-term — see the Tax Center for your actual brackets.`}
+                    >
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: "13px", height: "13px", borderRadius: "50%", cursor: "help",
+                        fontSize: "8.5px", fontWeight: 700, color: "var(--text-muted)",
+                        border: "1px solid var(--border-subtle)",
+                      }}>i</span>
+                    </InfoTooltip>
+                    {tt.hasShortTermGain && (
+                      <span style={{ fontSize: "9.5px", color: "#f59e0b", fontWeight: 600 }}>
+                        ⚠ includes short-term
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+            );
+            })}
 
             {/* Cash row */}
             {(cashMinPct !== null || cashMaxPct !== null) && (
@@ -262,8 +357,52 @@ export default function RebalancingCalculator({
             )}
           </div>
 
+          {/* Aggregate tax impact of rebalancing */}
+          {showTaxSummary && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px",
+              marginTop: "10px", padding: "9px 11px", borderRadius: "var(--radius-md)",
+              background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.15)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+                <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                  Trimming the tax-smart way realizes{" "}
+                  <strong style={{ color: totalTrimGain >= 0 ? "var(--text-primary)" : "#00d395", fontFamily: "var(--font-mono)" }}>
+                    {signedMoney(totalTrimGain)}
+                  </strong>{" "}
+                  {totalTrimGain >= 0 ? "in gains" : "in harvested losses"}
+                </span>
+                <InfoTooltip
+                  width={240}
+                  align="start"
+                  text={`Across all over-weight positions, this picks the lots that minimize tax: losses first, then long-term gains, then short-term. Estimated tax assumes ${ltRatePct}% long-term / ${stRatePct}% short-term. Open the Tax Center to model this against your real brackets and harvesting headroom.`}
+                >
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: "14px", height: "14px", borderRadius: "50%", cursor: "help",
+                    fontSize: "9px", fontWeight: 700, color: "var(--text-muted)",
+                    border: "1px solid var(--border-subtle)", flexShrink: 0,
+                  }}>i</span>
+                </InfoTooltip>
+              </div>
+              <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flexShrink: 0 }}>
+                est. tax {formatMoney(totalTrimTax)}
+              </span>
+            </div>
+          )}
+
+          {/* Tax-advantaged accounts: no capital-gains drag */}
+          {!isTaxable && accountType && overCount > 0 && (
+            <p style={{ fontSize: "10px", color: "#00d395", marginTop: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d395" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              Tax-advantaged account — rebalance freely, sells don&apos;t trigger capital-gains tax.
+            </p>
+          )}
+
           <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "10px" }}>
-            Based on strategy position constraints. Run AI analysis for trade-specific recommendations.
+            {isTaxable && hasLots
+              ? "Lot-level tax estimates use your recorded purchase history. Run AI analysis for trade-specific recommendations."
+              : "Based on strategy position constraints. Run AI analysis for trade-specific recommendations."}
           </p>
         </>
       )}

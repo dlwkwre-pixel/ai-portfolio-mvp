@@ -408,6 +408,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         cash_max_pct: activeAssignment.strategy_versions.cash_max_pct ?? null,
                       } : null}
                       strategyName={activeAssignment?.strategies?.name ?? null}
+                      lots={(holdingLots ?? []) as { ticker: string; lot_type: "BUY" | "SELL" | "DRIP"; purchased_at: string; shares: number; price_per_share: number }[]}
+                      accountType={portfolio.account_type ?? null}
                     />
                   </div>
 
