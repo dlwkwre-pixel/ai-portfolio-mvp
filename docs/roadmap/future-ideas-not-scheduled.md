@@ -6,30 +6,28 @@ already have: own data, pure compute, current Finnhub/FMP quotes, free AI) vs PA
 we don't pay for). "FREE*" = free but data coverage on our current API tier is uncertain — verify
 the endpoint before committing.
 
-## FREE — buildable whenever we want them
+## FREE — status (most shipped 2026-06-28)
 
-1. **What-if trade simulator** — add/remove/resize a holding and instantly see the impact on
-   allocation, sector exposure, correlation, and the stress test. Pure compute on existing data.
-   Pairs naturally with the rebalancing assistant.
-2. **AI "second opinion" / devil's advocate** — free AI argues the bear case against a holding or a
-   proposed buy, using the user's own thesis from the Decision Journal. Free AI + own data.
-3. **Peer / cohort benchmarking** — "how your allocation, diversification, or savings rate compares
-   to similar BuyTune users" (anonymized, aggregate — same no-PII rule as the admin metrics page).
-   Own data, pure compute.
-4. **DCA scheduler + contribution reminders** — set a recurring contribution cadence per portfolio;
-   push reminders via the in-app bell (we already have push infra). Own data + existing notifications.
-5. **Tax-loss harvesting scanner** — flag lots sitting at a loss near year-end + wash-sale warnings.
-   Overlaps the tax-aware rebalancer but is its own standalone alert. Lots + quotes, pure compute.
-6. **Strategy backtester** — test a strategy's target allocation against historical prices (FMP
-   history, which we already use for benchmarks). FREE*, depends on history depth on our tier.
-7. **Factor tilt analysis** — value/growth/size/momentum lean of the portfolio from Finnhub
-   fundamentals (P/E, market cap, etc.). FREE*, depends on fundamentals coverage.
-8. **News sentiment timeline per holding** — Finnhub company-news feed scored by free AI, plotted
-   against price. FREE*, Finnhub news on free tier is limited.
-9. **Insider-transaction tracker** — Finnhub insider-transactions endpoint per holding (sits next to
-   the existing Congress-trading section in Research). FREE*, verify endpoint access.
-10. **Per-portfolio stress test** — already planned to fold into the Analytics tab (see main backlog
-    notes). FREE, cheap.
+1. ✅ **What-if trade simulator** — SHIPPED (718b575). Analytics tab: resize/remove/add holdings →
+   live deltas on total, top-position/top-sector weight, effective holdings, beta, downside.
+2. ✅ **AI "second opinion" / devil's advocate** — SHIPPED (914a68f). Journal entries get a bear-case
+   generator anchored to the logged thesis + live Finnhub context.
+3. ✅ **Peer / cohort benchmarking** — SHIPPED (601e197). Community leaderboard "How you compare"
+   card: anonymized percentile vs cohort (positions, cash %) + most-held overlap. No-PII.
+4. ✅ **DCA scheduler + contribution reminders** — SHIPPED (baf6de6). /planning/contributions + daily
+   cron → in-app bell. ⚠️ needs supabase/contribution-schedules.sql run.
+5. ✅ **Tax-loss harvesting scanner** — ALREADY BUILT (Tax Center TLH tab + wash-sale tab).
+6. ✅ **Strategy backtester** — SHIPPED (8d2a0ec) as an allocation backtester: replays current weights
+   through dividend-adjusted history vs benchmark (1Y/3Y/5Y/MAX). Analytics tab.
+7. ✅ **Factor tilt analysis** — SHIPPED (923466a). Analytics tab: value/blend/growth + size split +
+   blended P/E/beta/yield/momentum from free Finnhub fundamentals.
+8. **News sentiment timeline per holding** — PARTIAL/SKIP. ~70% covered (market news feed, Reddit
+   social pulse, analyst sentiment, news fed into AI). The AI-scored-headline-vs-price timeline isn't
+   built; lowest ROI of the set, recommend skipping (overlaps existing surfaces).
+9. ✅ **Insider-transaction tracker** — ALREADY BUILT (Research "Insider Activity" panel + per-holding
+   InsiderPanel + fed into AI). getFinnhubInsiderTransactions, /api/insider/[ticker].
+10. **Per-portfolio stress test** — STILL TODO. Fold a compact stress card into the Analytics tab
+    (recommended; keep the account-wide one on the dashboard). FREE, cheap.
 
 ## PAID / blocked — out of scope unless we accept a cost
 

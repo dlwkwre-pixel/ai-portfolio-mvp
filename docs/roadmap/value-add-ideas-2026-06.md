@@ -66,4 +66,10 @@ Recommended homes below.
    goals w/ target, year, saved amount, animated funded-% bar, monthly pace, contribute/edit/delete,
    all-goals summary. ⚠️ needs supabase/planning-goals.sql run. (Also fixed a dashboard
    duplicate-header bug + de-duped the streak across sidebar/header.)
-5. Tax-aware rebalancing, Dividend hub, Watchlist, Behavioral guardrails, Withdrawal/SS optimizer.
+5. **Tax-aware rebalancing** ✅ SHIPPED (3f41f3e) — lib/portfolio/tax-lots.ts (FIFO open lots +
+   tax-optimal lot selection); rebalancing card shows realized gain (LT/ST) + est. tax per trim.
+6. **Factor tilt** ✅ SHIPPED (923466a), **AI second opinion** ✅ (914a68f), **What-if simulator**
+   ✅ (718b575), **DCA scheduler** ✅ (baf6de6, needs SQL), **Peer benchmarking** ✅ (601e197),
+   **Allocation backtester** ✅ (8d2a0ec). See future-ideas-not-scheduled.md for full status.
+7. Still open: Dividend income hub, Watchlist + AI monitoring, Behavioral guardrails,
+   Withdrawal/SS optimizer, per-portfolio stress test.
