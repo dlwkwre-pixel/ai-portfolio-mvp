@@ -16,6 +16,15 @@ const ACTION_META: Record<JournalAction, { label: string; color: string }> = {
 const CONVICTIONS = ["low", "medium", "high"] as const;
 const EMOTIONS = ["confident", "cautious", "fearful", "fomo", "neutral"] as const;
 
+type SecondOpinion = {
+  headline: string;
+  bearPoints: { title: string; detail: string }[];
+  risks: string[];
+  questions: string[];
+  thesisGap: string | null;
+};
+type OpinionResult = { ticker: string; hadThesis: boolean; opinion: SecondOpinion };
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
@@ -53,6 +62,28 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
   const [error, setError] = useState("");
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [reviewText, setReviewText] = useState("");
+  const [opinions, setOpinions] = useState<Record<string, OpinionResult>>({});
+  const [opinionLoading, setOpinionLoading] = useState<string | null>(null);
+  const [opinionErr, setOpinionErr] = useState<Record<string, string>>({});
+
+  async function getOpinion(entryId: string, tkr: string) {
+    if (opinionLoading) return;
+    setOpinionErr((p) => ({ ...p, [entryId]: "" }));
+    setOpinionLoading(entryId);
+    try {
+      const res = await fetch(`/api/portfolios/${portfolioId}/second-opinion`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: tkr }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setOpinionErr((p) => ({ ...p, [entryId]: d?.error ?? "Couldn't generate a second opinion." })); return; }
+      setOpinions((p) => ({ ...p, [entryId]: d as OpinionResult }));
+    } catch {
+      setOpinionErr((p) => ({ ...p, [entryId]: "Network error. Try again." }));
+    } finally {
+      setOpinionLoading(null);
+    }
+  }
 
   function save() {
     if (!ticker.trim() || !thesis.trim() || pending) { setError("Ticker and reasoning are required."); return; }
@@ -186,8 +217,57 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
                   </div>
                 )}
 
-                <div style={{ marginTop: "8px", textAlign: "right" }}>
-                  <button type="button" onClick={() => remove(e.id)} disabled={pending} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Delete</button>
+                {/* AI second opinion (devil's advocate) */}
+                {opinions[e.id] && (
+                  <div style={{ marginTop: "10px", padding: "12px 14px", background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.22)", borderRadius: "var(--radius-md)", animation: "bt-jrnl-in 0.3s ease both" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#f59e0b" }}>Devil&apos;s advocate</span>
+                      {!opinions[e.id].hadThesis && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>· no thesis on file, general bear case</span>}
+                    </div>
+                    <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.5, margin: "0 0 10px" }}>{opinions[e.id].opinion.headline}</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {opinions[e.id].opinion.bearPoints.map((bp, bi) => (
+                        <div key={bi}>
+                          <div style={{ fontSize: "12px", fontWeight: 700, color: "#f59e0b" }}>{bp.title}</div>
+                          <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{bp.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {opinions[e.id].opinion.risks.length > 0 && (
+                      <div style={{ marginTop: "10px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>Key risks</div>
+                        <ul style={{ margin: 0, paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                          {opinions[e.id].opinion.risks.map((r, ri) => (
+                            <li key={ri} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>{r}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {opinions[e.id].opinion.thesisGap && (
+                      <div style={{ marginTop: "10px", padding: "8px 11px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                        <span style={{ fontWeight: 700, color: "var(--red)" }}>Blind spot: </span>{opinions[e.id].opinion.thesisGap}
+                      </div>
+                    )}
+                    {opinions[e.id].opinion.questions.length > 0 && (
+                      <div style={{ marginTop: "10px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>Questions to sit with</div>
+                        {opinions[e.id].opinion.questions.map((q, qi) => (
+                          <p key={qi} style={{ fontSize: "12px", color: "var(--text-secondary)", fontStyle: "italic", lineHeight: 1.45, margin: "0 0 3px" }}>“{q}”</p>
+                        ))}
+                      </div>
+                    )}
+                    <p style={{ fontSize: "9.5px", color: "var(--text-muted)", marginTop: "10px" }}>AI-generated counterpoint, not advice. It argues one side on purpose.</p>
+                  </div>
+                )}
+
+                <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "12px" }}>
+                  <button type="button" onClick={() => getOpinion(e.id, e.ticker)} disabled={opinionLoading === e.id}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: opinionLoading === e.id ? "var(--text-muted)" : "#f59e0b", background: "none", border: "none", cursor: opinionLoading === e.id ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z" /><line x1="9" y1="21" x2="15" y2="21" /></svg>
+                    {opinionLoading === e.id ? "Thinking…" : opinions[e.id] ? "Re-run devil's advocate" : "Get a second opinion"}
+                  </button>
+                  {opinionErr[e.id] && <span style={{ fontSize: "11px", color: "var(--red)" }}>{opinionErr[e.id]}</span>}
+                  <button type="button" onClick={() => remove(e.id)} disabled={pending} style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Delete</button>
                 </div>
               </div>
             );
