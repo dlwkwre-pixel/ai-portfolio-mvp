@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import { BadgeIcon, LockIcon } from "@/app/components/badge-icon";
+import InfoTooltip from "@/app/components/info-tooltip";
+import ShareAchievements from "./share-achievements";
 import {
   BADGES, BADGE_CATEGORY_ORDER, BADGE_CATEGORY_LABEL, TIER_LABEL,
   TIER_COLOR, TIER_BG, TIER_BORDER,
@@ -84,6 +86,25 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
         </div>
       )}
 
+      {/* How-to-earn tooltip — always available, even on progress/earned tiles */}
+      <div style={{ position: "absolute", top: "7px", left: "7px", zIndex: 2 }}>
+        <InfoTooltip text={`${badge.hint}${target > 0 && !earned ? ` (${current}/${target})` : ""}`} width={180} align="start">
+          <span
+            aria-label="How to earn this badge"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: "15px", height: "15px", borderRadius: "50%",
+              fontSize: "9.5px", fontWeight: 700, lineHeight: 1, cursor: "help",
+              color: earned ? color : "#64748b",
+              background: "rgba(255,255,255,0.05)",
+              border: `1px solid ${earned ? `${color}40` : "rgba(255,255,255,0.1)"}`,
+            }}
+          >
+            ?
+          </span>
+        </InfoTooltip>
+      </div>
+
       <div className={earned ? "bt-ach-icon" : undefined} style={{
         width: "46px", height: "46px", borderRadius: "13px",
         background: earned ? `${color}18` : "rgba(255,255,255,0.03)",
@@ -153,6 +174,13 @@ export default async function AchievementsPage() {
   const earnedCount = BADGES.filter((b) => earnedMap.has(b.id)).length;
   const toNext = Math.max(0, xp.nextLevelXp - xp.xp);
 
+  // Rarest-first list of earned badge names for the share card.
+  const tierRank: Record<string, number> = { legendary: 4, gold: 3, silver: 2, bronze: 1 };
+  const topBadges = BADGES
+    .filter((b) => earnedMap.has(b.id))
+    .sort((a, b) => (tierRank[b.tier] ?? 0) - (tierRank[a.tier] ?? 0))
+    .map((b) => b.name);
+
   const byCategory = BADGE_CATEGORY_ORDER
     .map((cat) => ({ cat, badges: BADGES.filter((b) => b.category === cat) }))
     .filter((g) => g.badges.length > 0);
@@ -213,6 +241,16 @@ export default async function AchievementsPage() {
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   You&apos;ve unlocked <strong style={{ color: "var(--text-primary)" }}>{earnedCount}</strong> of {BADGES.length} badges. Earn XP by adding holdings, running AI analyses, completing your profile, and showing up daily.
                 </p>
+              </div>
+              <div style={{ marginLeft: "auto", alignSelf: "flex-start" }}>
+                <ShareAchievements
+                  level={xp.level}
+                  xp={xp.xp}
+                  earnedCount={earnedCount}
+                  total={BADGES.length}
+                  topBadges={topBadges}
+                  username={username}
+                />
               </div>
             </section>
 
