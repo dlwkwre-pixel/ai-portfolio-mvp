@@ -6,10 +6,19 @@ import { useRouter } from "next/navigation";
 import type { RelocationScenario } from "./relocation-actions";
 import { saveRelocationScenario, deleteRelocationScenario } from "./relocation-actions";
 import AddToPlanButton from "@/app/planning/add-to-plan-button";
+import InfoTooltip from "@/app/components/info-tooltip";
 import { US_STATES, retirementStateTax } from "@/lib/tax/estimator";
 
 function fmt(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+}
+
+function HintDot({ text }: { text: string }) {
+  return (
+    <InfoTooltip text={text} align="start" width={230}>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+    </InfoTooltip>
+  );
 }
 
 const inputStyle: React.CSSProperties = { width: "100%", padding: "9px 11px", borderRadius: "8px", border: "1px solid var(--border-subtle)", background: "var(--bg-base)", color: "var(--text-primary)", fontSize: "14px", fontFamily: "var(--font-body)", outline: "none", boxSizing: "border-box" };
@@ -36,6 +45,8 @@ export default function RelocationClient({
   const [movingCost, setMovingCost] = useState<number>(active?.moving_cost ?? 0);
   const [currentState, setCurrentState] = useState<string>("");
   const [newState, setNewState] = useState<string>("");
+  const [investRate, setInvestRate] = useState<number>(7);
+  const [horizonYears, setHorizonYears] = useState<number>(10);
   const [saved, setSaved] = useState(false);
 
   const effNewIncome = isRemote ? currentIncome : newIncome;
@@ -53,8 +64,20 @@ export default function RelocationClient({
     const delta = savingsAfter - savingsNow;
     const breakEvenIncome = currentIncome + (newExpenses - currentExpenses) + stateTaxDeltaMo;
     const paybackMonths = delta > 0 && movingCost > 0 ? movingCost / delta : null;
-    return { newExpenses, savingsNow, savingsAfter, delta, breakEvenIncome, paybackMonths, stateTaxDeltaAnnual };
+    // Buying power: what your current income is "worth" in the new city's cost basis.
+    const buyingPower = colDelta !== -100 ? currentIncome / (1 + colDelta / 100) : currentIncome;
+    return { newExpenses, savingsNow, savingsAfter, delta, breakEvenIncome, paybackMonths, stateTaxDeltaAnnual, buyingPower };
   }, [currentIncome, currentExpenses, effNewIncome, colDelta, movingCost, currentState, newState]);
+
+  // Long-run net-worth impact: the recurring savings delta invested over the horizon,
+  // net of the upfront move cost (also compounded as opportunity cost).
+  const longRun = useMemo(() => {
+    const rm = investRate / 100 / 12;
+    const months = Math.max(1, horizonYears) * 12;
+    const annuityFV = rm > 0 ? calc.delta * ((Math.pow(1 + rm, months) - 1) / rm) : calc.delta * months;
+    const upfrontFV = -movingCost * Math.pow(1 + investRate / 100, horizonYears);
+    return annuityFV + upfrontFV;
+  }, [calc.delta, movingCost, investRate, horizonYears]);
 
   function handleSave() {
     startTransition(async () => {
@@ -91,7 +114,25 @@ export default function RelocationClient({
       </div>
 
       {/* Body */}
-      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "760px" }}>
+      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
+
+        {/* Verdict hero */}
+        <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${better ? "var(--green)" : "var(--red)"} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${better ? "var(--green)" : "var(--red)"} 26%, transparent)` }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: better ? "var(--green)" : "var(--red)" }}>{better ? "Move comes out ahead" : "Move costs you"}</div>
+              <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: better ? "var(--green)" : "var(--red)", lineHeight: 1.1, marginTop: "2px" }}>
+                {calc.delta >= 0 ? "+" : "−"}{fmt(Math.abs(Math.round(calc.delta)))}<span style={{ fontSize: "14px", color: "var(--text-tertiary)", fontWeight: 600 }}>/mo to savings</span>
+              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{currentCity || "current city"} → {newCity || "new city"}{isRemote ? " · remote" : ""}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{horizonYears}-yr net-worth impact</div>
+              <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-mono)", color: longRun >= 0 ? "var(--green)" : "var(--red)" }}>{longRun >= 0 ? "+" : "−"}{fmt(Math.abs(Math.round(longRun)))}</div>
+              <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>delta invested @ {investRate}%</div>
+            </div>
+          </div>
+        </div>
 
         {/* Cities + remote */}
         <div style={cardStyle}>
@@ -162,6 +203,22 @@ export default function RelocationClient({
               <> State income tax {calc.stateTaxDeltaAnnual < 0 ? "drops" : "rises"} ~<strong style={{ color: calc.stateTaxDeltaAnnual < 0 ? "var(--green)" : "var(--amber)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(Math.round(calc.stateTaxDeltaAnnual)))}/yr</strong> ({currentState}→{newState})
                 {calc.stateTaxDeltaAnnual < 0 ? " — a quiet raise most movers overlook." : ", already folded into the numbers above."}</>
             )}
+          </div>
+        </div>
+
+        {/* Long-run impact */}
+        <div style={cardStyle}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", marginBottom: "12px" }}>
+            The move, compounded<HintDot text="A monthly savings difference is small — until it's invested for years. This projects the recurring delta (minus the upfront move cost) growing at your assumed return." />
+          </span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-end", marginBottom: "14px" }}>
+            <div style={{ flex: "0 1 150px" }}><label style={labelStyle}>Invest savings at (%)</label><input style={inputStyle} type="number" min="0" step="0.5" value={investRate || ""} onChange={(e) => setInvestRate(Number(e.target.value) || 0)} /></div>
+            <div style={{ flex: "0 1 150px" }}><label style={labelStyle}>Over (years)</label><input style={inputStyle} type="number" min="1" max="40" value={horizonYears || ""} onChange={(e) => setHorizonYears(Number(e.target.value) || 0)} /></div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "14px 10px" }}>
+            <Metric label={`${horizonYears}-yr impact`} value={`${longRun >= 0 ? "+" : "−"}${fmt(Math.abs(Math.round(longRun)))}`} sub="net worth vs staying" accent={longRun >= 0 ? "var(--green)" : "var(--red)"} />
+            <Metric label="Buying power there" value={fmt(Math.round(calc.buyingPower))} sub={`your ${fmt(Math.round(currentIncome))} adjusted`} />
+            {calc.paybackMonths != null && <Metric label="Move pays for itself" value={`${Math.ceil(calc.paybackMonths)} mo`} sub={`on ${fmt(movingCost)} cost`} accent="var(--green)" />}
           </div>
         </div>
 
