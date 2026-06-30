@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import type { Debt, DebtScenario } from "./debt-actions";
 import { saveDebtScenario, deleteDebtScenario } from "./debt-actions";
 import AddToPlanButton from "@/app/planning/add-to-plan-button";
+import InfoTooltip from "@/app/components/info-tooltip";
+
+function HintDot({ text }: { text: string }) {
+  return (
+    <InfoTooltip text={text} align="start" width={230}>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+    </InfoTooltip>
+  );
+}
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -33,6 +42,7 @@ type SimResult = {
   totalInterest: number;
   payoffMonth: number[]; // per debt
   capped: boolean;       // true if a debt never amortizes (min < interest)
+  series: number[];      // total balance by month (index 0 = start)
 };
 
 function priorityOrder(debts: Debt[], strategy: "avalanche" | "snowball"): number[] {
@@ -53,6 +63,7 @@ function simulate(debts: Debt[], strategy: "avalanche" | "snowball", extra: numb
   const order = priorityOrder(debts, strategy);
   let totalInterest = 0;
   let month = 0;
+  const series: number[] = [bals.reduce((s, b) => s + b, 0)];
 
   while (bals.some((b) => b > 0.5) && month < 600) {
     month++;
@@ -87,8 +98,17 @@ function simulate(debts: Debt[], strategy: "avalanche" | "snowball", extra: numb
     for (let i = 0; i < bals.length; i++) {
       if (bals[i] <= 0.5 && payoffMonth[i] === 0) payoffMonth[i] = month;
     }
+    series.push(bals.reduce((s, b) => s + Math.max(0, b), 0));
   }
-  return { months: month, totalInterest, payoffMonth, capped: month >= 600 };
+  return { months: month, totalInterest, payoffMonth, capped: month >= 600, series };
+}
+
+// Consolidation loan: one fixed payment over a term. Returns total interest + monthly payment.
+function consolidationCost(balance: number, apr: number, termMonths: number): { payment: number; totalInterest: number } {
+  if (balance <= 0 || termMonths <= 0) return { payment: 0, totalInterest: 0 };
+  const r = apr / 100 / 12;
+  const payment = r > 0 ? (balance * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1) : balance / termMonths;
+  return { payment, totalInterest: payment * termMonths - balance };
 }
 
 // ── Styles ──────────────────────────────────────────────────────────────────
@@ -110,6 +130,8 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
   const [extra, setExtra] = useState<number>(active?.extra_payment ?? 0);
   const [name, setName] = useState(active?.name ?? "My debts");
   const [saved, setSaved] = useState(false);
+  const [consolApr, setConsolApr] = useState(11);
+  const [consolTermYears, setConsolTermYears] = useState(5);
 
   const validDebts = debts.filter((d) => d.balance > 0);
 
@@ -128,6 +150,25 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
 
   // Per-debt payoff order under current strategy
   const order = priorityOrder(validDebts, strategy);
+
+  // Weighted-average APR across balances.
+  const avgApr = totalBalance > 0 ? validDebts.reduce((s, d) => s + d.apr * d.balance, 0) / totalBalance : 0;
+
+  // Consolidation comparison: one loan at consolApr over the chosen term.
+  const consol = useMemo(() => consolidationCost(totalBalance, consolApr, consolTermYears * 12), [totalBalance, consolApr, consolTermYears]);
+  const consolSaves = result.totalInterest - consol.totalInterest;
+
+  // Payoff timeline chart: minimums-only vs your plan.
+  const chart = useMemo(() => {
+    const a = baseline.series, b = result.series;
+    const maxLen = Math.max(a.length, b.length);
+    const maxVal = Math.max(a[0] ?? 0, b[0] ?? 0, 1);
+    const W = 320, H = 110, pad = 5;
+    const x = (i: number) => (maxLen <= 1 ? 0 : (i / (maxLen - 1)) * W);
+    const y = (v: number) => H - pad - (v / maxVal) * (H - 2 * pad);
+    const path = (s: number[]) => s.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    return { W, H, basePath: path(a), planPath: path(b), differ: a.length !== b.length };
+  }, [baseline.series, result.series]);
 
   function updateDebt(i: number, patch: Partial<Debt>) {
     setDebts((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
@@ -179,7 +220,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
       </div>
 
       {/* Body */}
-      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "820px" }}>
+      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
 
         {/* Debts editor */}
         <div style={cardStyle}>
@@ -244,6 +285,39 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
               </div>
             </div>
 
+            {/* Verdict hero */}
+            <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${debtFree ? "var(--green)" : "var(--red)"} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${debtFree ? "var(--green)" : "var(--red)"} 26%, transparent)` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: debtFree ? "var(--green)" : "var(--red)" }}>{debtFree ? "Debt-free date" : "Not on track"}</div>
+                  <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
+                    {debtFree ? payoffDateLabel(result.months) : "Minimums too low"}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{fmt(totalBalance)} across {validDebts.length} debt{validDebts.length === 1 ? "" : "s"} · {avgApr.toFixed(1)}% avg APR</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total interest</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(result.totalInterest)}</div>
+                  {extra > 0 && interestSaved > 0 && <div style={{ fontSize: "10px", color: "var(--green)" }}>saving {fmt(Math.round(interestSaved))} vs minimums</div>}
+                </div>
+              </div>
+            </div>
+
+            {/* Payoff timeline */}
+            <div style={cardStyle}>
+              <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", marginBottom: "12px" }}>Payoff timeline<HintDot text="Your total balance falling to zero. The faster (green) line is your plan with extra payments; the gray line is paying minimums only." /></span>
+              <svg viewBox={`0 0 ${chart.W} ${chart.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "110px", display: "block" }}>
+                {extra > 0 && <path d={chart.basePath} fill="none" stroke="rgba(148,163,184,0.6)" strokeWidth="1.5" strokeDasharray="4 3" />}
+                <path d={chart.planPath} fill="none" stroke="var(--green, #22c55e)" strokeWidth="2" strokeLinejoin="round" />
+              </svg>
+              {extra > 0 && (
+                <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "10.5px" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "var(--green, #22c55e)" }} /> Your plan</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "rgba(148,163,184,0.6)" }} /> Minimums only</span>
+                </div>
+              )}
+            </div>
+
             {/* Results */}
             <div style={cardStyle}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px 10px" }}>
@@ -298,6 +372,35 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
                 })}
               </div>
             </div>
+
+            {/* Consolidation / refinance */}
+            {totalBalance > 0 && (
+              <div style={cardStyle}>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", marginBottom: "12px" }}>
+                  Consolidate or refinance?<HintDot text="Roll everything into one fixed loan (e.g. a personal loan or balance-transfer). Worth it if the new rate beats your blended APR — but a longer term can cost more interest even at a lower rate." />
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-end", marginBottom: "12px" }}>
+                  <div style={{ flex: "0 1 150px" }}>
+                    <label style={labelStyle}>New rate (APR %)</label>
+                    <input style={inputStyle} type="number" min="0" step="0.1" value={consolApr || ""} onChange={(e) => setConsolApr(Number(e.target.value) || 0)} />
+                  </div>
+                  <div style={{ flex: "0 1 150px" }}>
+                    <label style={labelStyle}>Term (years)</label>
+                    <input style={inputStyle} type="number" min="1" max="15" value={consolTermYears || ""} onChange={(e) => setConsolTermYears(Number(e.target.value) || 0)} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px 10px" }}>
+                  <Metric label="New payment / mo" value={fmt(Math.round(consol.payment))} sub={`${consolTermYears} yr @ ${consolApr}%`} />
+                  <Metric label="Consolidated interest" value={fmt(Math.round(consol.totalInterest))} sub="over the term" />
+                  <Metric label="vs your plan" value={consolSaves >= 0 ? `Save ${fmt(Math.round(Math.abs(consolSaves)))}` : `Cost ${fmt(Math.round(Math.abs(consolSaves)))}`} sub={consolSaves >= 0 ? "less interest" : "more interest"} accent={consolSaves >= 0 ? "var(--green)" : "var(--red)"} />
+                </div>
+                <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: consolSaves >= 0 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", border: `1px solid ${consolSaves >= 0 ? "rgba(34,197,94,0.18)" : "rgba(245,158,11,0.18)"}`, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                  {consolApr < avgApr
+                    ? `At ${consolApr}% the new loan beats your ${avgApr.toFixed(1)}% blended APR. ${consolSaves >= 0 ? `Consolidating saves ~${fmt(Math.round(consolSaves))} in interest and simplifies to one payment.` : `But the ${consolTermYears}-year term stretches it out enough that you'd pay ~${fmt(Math.round(Math.abs(consolSaves)))} more interest overall — shorten the term to come out ahead.`}`
+                    : `At ${consolApr}% the new loan is higher than your ${avgApr.toFixed(1)}% blended APR — consolidating wouldn't help here unless it's the only way to get a single manageable payment.`}
+                </div>
+              </div>
+            )}
 
             {/* Add to plan — once debt-free, the minimum payments free up as savings */}
             {debtFree && totalMin > 0 && (
