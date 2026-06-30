@@ -4856,8 +4856,6 @@ function CashFlowOS({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catData, totalBudgeted]);
 
-  const maxCatBudget = catData.length > 0 ? Math.max(...catData.map(c => c.budgeted)) : 1;
-
   const srColor = savingsRate >= 20 ? "oklch(0.72 0.19 145)"
     : savingsRate >= 10 ? "oklch(0.75 0.18 70)"
     : savingsRate > 0  ? "oklch(0.65 0.18 25)"
@@ -5125,15 +5123,54 @@ function CashFlowOS({
 
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "7px" }}>
+              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
                 {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
               </div>
+
+              {/* Headline verdict — the one-glance "how did I do" */}
+              {(() => {
+                const logged = catData.filter((c) => c.actual > 0);
+                if (logged.length === 0) {
+                  return (
+                    <div style={{ marginBottom: "12px", padding: "11px 13px", borderRadius: "10px", background: "var(--surface-006)", border: "1px solid var(--border-subtle)", fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+                      Log this period&apos;s actual spending below and you&apos;ll see exactly how you tracked against budget here.
+                    </div>
+                  );
+                }
+                const totBudget = logged.reduce((s, c) => s + c.budgeted, 0) * mult;
+                const totActual = logged.reduce((s, c) => s + c.actual, 0) * mult;
+                const v = totActual - totBudget;
+                const under = v <= 0;
+                const col = under ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
+                const utilPct = totBudget > 0 ? Math.round((totActual / totBudget) * 100) : 0;
+                return (
+                  <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: under ? "rgba(34,197,94,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${under ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+                        Spent <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{ph(fmt(totActual))}</strong> of <span style={{ fontFamily: "var(--font-mono)" }}>{ph(fmt(totBudget))}</span> budgeted
+                      </span>
+                      <span style={{ fontSize: "14px", fontWeight: 700, color: col, fontFamily: "var(--font-mono)" }}>
+                        {ph(fmt(Math.abs(v)))} {under ? "under" : "over"}
+                      </span>
+                    </div>
+                    <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "9px", overflow: "hidden" }}>
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(utilPct, 100)}%`, borderRadius: "3.5px", background: col }} />
+                    </div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-body)" }}>{utilPct}% of budget used · {logged.length} categor{logged.length === 1 ? "y" : "ies"} logged</div>
+                  </div>
+                );
+              })()}
+
               {catData.map((cat, ci) => {
                 const isHl = highlightedCat === cat.label;
                 const color = CF_CAT_COLORS[cat.label] ?? "oklch(0.55 0.05 258)";
-                const budgetW = maxCatBudget > 0 ? (cat.budgeted / maxCatBudget) * 100 : 0;
-                const actualW = cat.actual > 0 && maxCatBudget > 0 ? (cat.actual / maxCatBudget) * 100 : 0;
-                const variance = cat.actual > 0 ? cat.actual - cat.budgeted : null;
+                const hasActual = cat.actual > 0;
+                const variance = hasActual ? cat.actual - cat.budgeted : null;
+                const over = variance !== null && variance > 0;
+                // Bar fills to % of THIS category's own budget (utilization), not the global max.
+                const util = cat.budgeted > 0 ? cat.actual / cat.budgeted : (hasActual ? 1.2 : 0);
+                const fillPct = Math.min(util * 100, 100);
+                const barColor = !hasActual ? color + "44" : over ? "oklch(0.65 0.18 25)" : color;
                 return (
                   <div
                     key={cat.label}
@@ -5150,19 +5187,20 @@ function CashFlowOS({
                       <span style={{ fontSize: "12px", lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
                       <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontWeight: isHl ? 600 : 400, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cat.label}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: isHl ? color : "var(--text-secondary)" }}>{ph(fmt(cat.budgeted * mult))}</span>
+                        {/* actual / budget — actual is the lead number now */}
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                          <span style={{ color: hasActual ? (over ? "oklch(0.65 0.18 25)" : "var(--text-primary)") : "var(--text-tertiary)", fontWeight: hasActual ? 600 : 400 }}>{hasActual ? ph(fmt(cat.actual * mult)) : "—"}</span>
+                          <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted * mult))}</span>
+                        </span>
                         {variance !== null && (
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px" }}>
-                            {variance > 0 ? "+" : ""}{ph(fmt(variance * mult))}
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
+                            {ph(fmt(Math.abs(variance) * mult))} {over ? "over" : "under"}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)" }}>
-                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${budgetW}%`, borderRadius: "2.5px", background: color + "44", animationDelay: `${110 + ci * 45}ms` }} />
-                      {cat.actual > 0 && (
-                        <div className="cfo-bar-a" style={{ position: "absolute", top: "-1px", left: 0, height: "7px", width: `${Math.min(actualW, 105)}%`, borderRadius: "3.5px", background: color, animationDelay: `${190 + ci * 45}ms` }} />
-                      )}
+                    <div style={{ position: "relative", height: "5px", borderRadius: "2.5px", background: "var(--surface-006)", overflow: "hidden" }}>
+                      <div className="cfo-bar-a" style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${fillPct}%`, borderRadius: "2.5px", background: barColor, animationDelay: `${150 + ci * 45}ms` }} />
                     </div>
                   </div>
                 );
