@@ -50,19 +50,34 @@ export default async function ResearchPage() {
             position: "sticky",
             top: 0,
             zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
           }}>
-            <h1 style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "16px",
-              fontWeight: 600,
-              color: "var(--text-primary)",
-              letterSpacing: "-0.2px",
+            <div>
+              <h1 style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--text-primary)",
+                letterSpacing: "-0.2px",
+              }}>
+                Research
+              </h1>
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>
+                Stock discovery, screeners & market news
+              </p>
+            </div>
+            <a href="/research/watchlist" style={{
+              display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0,
+              padding: "7px 13px", borderRadius: "10px", textDecoration: "none",
+              fontSize: "12px", fontWeight: 600, color: "var(--text-primary)",
+              background: "var(--card-bg)", border: "1px solid var(--card-border)",
             }}>
-              Research
-            </h1>
-            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>
-              Stock discovery, screeners & market news
-            </p>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+              Watchlist
+            </a>
           </div>
 
           {/* Two-column body: main content scrolls left, news sidebar fills full height right */}
