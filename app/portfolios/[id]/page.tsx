@@ -15,6 +15,7 @@ import AIRecommendationsSection from "./ai-recommendations-section";
 import AIScorecardCard from "./ai-scorecard-card";
 import JournalTab from "./journal-tab";
 import AnalyticsTab from "./analytics-tab";
+import IncomeTab from "./income-tab";
 import type { JournalEntry } from "./journal-actions";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import TransactionHistorySection from "./transaction-history-section";
@@ -604,6 +605,13 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               {activeTab === "analytics" && (
                 <div className="bt-tab-enter" style={{ gap: "16px" }}>
                   <AnalyticsTab portfolioId={portfolio.id} />
+                </div>
+              )}
+
+              {/* INCOME */}
+              {activeTab === "income" && (
+                <div className="bt-tab-enter" style={{ gap: "16px" }}>
+                  <IncomeTab portfolioId={portfolio.id} />
                 </div>
               )}
 
