@@ -97,3 +97,63 @@ export async function getFmpMovers(kind: "gainers" | "losers" | "actives"): Prom
     return [];
   }
 }
+
+// ── Dividends ───────────────────────────────────────────────────────────────
+export type FmpDividend = {
+  exDate: string;            // ex-dividend date (YYYY-MM-DD)
+  perShare: number;          // dividend per share
+  recordDate: string | null;
+  paymentDate: string | null;
+  declarationDate: string | null;
+};
+
+// Per-symbol dividend history (+ any future-declared entries). Free FMP endpoint.
+export async function getFmpDividends(symbol: string): Promise<FmpDividend[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key || !symbol) return [];
+  const url = `${FMP_BASE}/historical-price-full/stock_dividend/${encodeURIComponent(symbol.toUpperCase())}?apikey=${key}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 21600 } }); // 6h
+    if (!res.ok) return [];
+    const data = await res.json();
+    const rows = Array.isArray(data?.historical) ? data.historical : [];
+    return rows
+      .map((r: Record<string, unknown>) => ({
+        exDate: String(r.date ?? ""),
+        perShare: Number(r.adjDividend ?? r.dividend ?? 0),
+        recordDate: (r.recordDate as string) || null,
+        paymentDate: (r.paymentDate as string) || null,
+        declarationDate: (r.declarationDate as string) || null,
+      }))
+      .filter((d: FmpDividend) => d.exDate && d.perShare > 0)
+      .sort((a: FmpDividend, b: FmpDividend) => b.exDate.localeCompare(a.exDate));
+  } catch {
+    return [];
+  }
+}
+
+export type FmpCalendarDividend = { symbol: string; exDate: string; perShare: number; paymentDate: string | null };
+
+// Market-wide dividend calendar for a date window (max ~3 months). One call covers
+// every ticker — rate-friendly for the reminder cron.
+export async function getFmpDividendCalendar(from: string, to: string): Promise<FmpCalendarDividend[]> {
+  const key = process.env.FMP_API_KEY;
+  if (!key) return [];
+  const url = `${FMP_BASE}/stock_dividend_calendar?from=${from}&to=${to}&apikey=${key}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 21600 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data
+      .map((r: Record<string, unknown>) => ({
+        symbol: String(r.symbol ?? "").toUpperCase(),
+        exDate: String(r.date ?? ""),
+        perShare: Number(r.adjDividend ?? r.dividend ?? 0),
+        paymentDate: (r.paymentDate as string) || null,
+      }))
+      .filter((d: FmpCalendarDividend) => d.symbol && d.perShare > 0);
+  } catch {
+    return [];
+  }
+}

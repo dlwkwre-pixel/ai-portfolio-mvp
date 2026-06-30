@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
-import { getFinnhubProfile, getFinnhubDailyCandles, getFinnhubFactorMetrics } from "@/lib/market-data/finnhub";
+import { getFinnhubProfile, getFinnhubFactorMetrics } from "@/lib/market-data/finnhub";
+import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { computeFactorTilt, type FactorInput } from "@/lib/portfolio/factor-tilt";
 
 export const dynamic = "force-dynamic";
@@ -83,27 +84,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   let correlation: { tickers: string[]; matrix: number[][] } | null = null;
   if (corrTickers.length >= 2) {
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - 200 * 86400; // ~6.5 months
+    // Use the same robust history source as the backtester (FMP dividend-adjusted
+    // with Finnhub/TwelveData/AlphaVantage fallbacks). Finnhub's /stock/candle is
+    // premium-only on the free tier, so it can't power this on its own.
     const series = await Promise.all(corrTickers.map(async (t) => {
       try {
-        const c = await getFinnhubDailyCandles({ symbol: t, fromUnix: from, toUnix: now });
-        if (!c || !c.t || c.t.length < 10) return null;
-        const byTs = new Map<number, number>();
-        for (let i = 0; i < c.t.length; i++) byTs.set(c.t[i], c.c[i]);
-        return { ticker: t, byTs };
+        const bars = await getBenchmarkHistory(t, "6M", false, false);
+        if (!bars || bars.length < 8) return null;
+        const byDate = new Map<string, number>();
+        for (const b of bars) byDate.set(b.date, b.adjClose);
+        return { ticker: t, byDate };
       } catch { return null; }
     }));
-    const ok = series.filter((s): s is { ticker: string; byTs: Map<number, number> } => s != null);
+    const ok = series.filter((s): s is { ticker: string; byDate: Map<string, number> } => s != null);
     if (ok.length >= 2) {
-      // Common timestamps across all available series, sorted.
-      let common: number[] = [...ok[0].byTs.keys()];
-      for (const s of ok.slice(1)) common = common.filter((ts) => s.byTs.has(ts));
-      common.sort((a, b) => a - b);
+      // Common dates across all available series, sorted ascending.
+      let common: string[] = [...ok[0].byDate.keys()];
+      for (const s of ok.slice(1)) common = common.filter((d) => s.byDate.has(d));
+      common.sort((a, b) => a.localeCompare(b));
       if (common.length >= 6) {
-        // Daily returns on the common dates.
         const returns = ok.map((s) => {
-          const closes = common.map((ts) => s.byTs.get(ts)!);
+          const closes = common.map((d) => s.byDate.get(d)!);
           const r: number[] = [];
           for (let i = 1; i < closes.length; i++) r.push(closes[i - 1] !== 0 ? (closes[i] - closes[i - 1]) / closes[i - 1] : 0);
           return r;

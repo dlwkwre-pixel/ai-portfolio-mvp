@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import InfoTooltip from "@/app/components/info-tooltip";
+import { createCashActivity } from "./actions";
+
+type DivEvent = { ticker: string; shares: number; perShare: number; estAmount: number; exDate: string; payDate: string | null };
+type DivEvents = { upcoming: DivEvent[]; recent: DivEvent[] };
 
 type IncomeHolding = { ticker: string; value: number; yieldPct: number; annualIncome: number; yieldOnCostPct: number | null };
 type Data = {
@@ -21,6 +26,10 @@ type Data = {
 };
 
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
+const fmtDate = (iso: string) => {
+  const d = new Date(iso + "T00:00:00");
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
 
 function Hint({ text }: { text: string }) {
   return (
@@ -31,9 +40,14 @@ function Hint({ text }: { text: string }) {
 }
 
 export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
+  const router = useRouter();
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
+  const [events, setEvents] = useState<DivEvents | null>(null);
+  const [logging, setLogging] = useState<string | null>(null);
+  const [logged, setLogged] = useState<Record<string, boolean>>({});
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     let cancelled = false;
@@ -42,8 +56,34 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
       .then((d: Data) => { if (!cancelled) setData(d); })
       .catch(() => { if (!cancelled) setErr(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    fetch(`/api/portfolios/${portfolioId}/dividend-events`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: DivEvents) => { if (!cancelled) setEvents(d); })
+      .catch(() => { /* calendar is best-effort */ });
     return () => { cancelled = true; };
   }, [portfolioId]);
+
+  function logDividend(ev: DivEvent) {
+    const key = `${ev.ticker}-${ev.payDate ?? ev.exDate}`;
+    if (logging || logged[key]) return;
+    setLogging(key);
+    const fd = new FormData();
+    fd.set("portfolio_id", portfolioId);
+    fd.set("reason", "dividend");
+    fd.set("amount", String(ev.estAmount));
+    fd.set("effective_at", (ev.payDate ?? ev.exDate) || new Date().toISOString().slice(0, 10));
+    startTransition(async () => {
+      try {
+        await createCashActivity(fd);
+        setLogged((p) => ({ ...p, [key]: true }));
+        // Refresh the received chart + projection.
+        fetch(`/api/portfolios/${portfolioId}/income`).then((r) => r.ok ? r.json() : null).then((d) => { if (d) setData(d); }).catch(() => {});
+        router.refresh();
+      } catch { /* surfaced by disabling; keep silent */ } finally {
+        setLogging(null);
+      }
+    });
+  }
 
   if (loading) {
     return (
@@ -93,6 +133,60 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
           </div>
         )}
       </div>
+
+      {/* Dividend calendar — upcoming + recent (one-tap logging) */}
+      {events && (events.upcoming.length > 0 || events.recent.length > 0) && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+          <h2 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", display: "flex", alignItems: "center" }}>
+            Dividend calendar<Hint text="Upcoming and recently-paid dividends for your holdings, with the cash estimated from your share count × the declared per-share amount. We can't see your brokerage, so tap 'Log' to record a payout when it lands." />
+          </h2>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 12px" }}>Estimated from declared per-share amounts · dates from FMP</p>
+
+          {events.upcoming.length > 0 && (
+            <div style={{ marginBottom: events.recent.length > 0 ? "14px" : 0 }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "6px" }}>Upcoming</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {events.upcoming.map((ev) => (
+                  <div key={`u-${ev.ticker}-${ev.exDate}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.16)" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "52px" }}>{ev.ticker}</span>
+                    <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)", flex: 1 }}>{ev.payDate ? `pays ${fmtDate(ev.payDate)}` : `ex-date ${fmtDate(ev.exDate)}`}</span>
+                    <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>~{fmt(ev.estAmount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {events.recent.length > 0 && (
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "6px" }}>Recently paid — log it</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {events.recent.map((ev) => {
+                  const key = `${ev.ticker}-${ev.payDate ?? ev.exDate}`;
+                  const isLogged = logged[key];
+                  return (
+                    <div key={`r-${key}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: isLogged ? "rgba(16,185,129,0.06)" : "var(--bg-base)", border: `1px solid ${isLogged ? "rgba(16,185,129,0.2)" : "var(--border-subtle)"}` }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "52px" }}>{ev.ticker}</span>
+                      <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)", flex: 1 }}>{ev.payDate ? `paid ${fmtDate(ev.payDate)}` : `ex-date ${fmtDate(ev.exDate)}`}</span>
+                      <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>~{fmt(ev.estAmount)}</span>
+                      <button
+                        type="button"
+                        onClick={() => logDividend(ev)}
+                        disabled={isLogged || logging === key}
+                        style={{ flexShrink: 0, padding: "5px 11px", borderRadius: "7px", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: isLogged ? "default" : "pointer",
+                          border: `1px solid ${isLogged ? "rgba(16,185,129,0.3)" : "rgba(16,185,129,0.35)"}`,
+                          background: isLogged ? "transparent" : "rgba(16,185,129,0.12)", color: isLogged ? "#34d399" : "#34d399" }}>
+                        {isLogged ? "Logged ✓" : logging === key ? "…" : `Log ${fmt(ev.estAmount)}`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>One tap records it to your cash ledger as a dividend (editable on the Overview tab). Estimates assume the full position was held through the ex-date.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Per-holding income */}
       {holdings.length > 0 && (
