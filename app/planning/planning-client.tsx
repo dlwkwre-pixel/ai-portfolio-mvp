@@ -5352,8 +5352,8 @@ function CashFlowOS({
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
                         <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>({items.length})</span>
                         {catVariance !== null && (
-                          <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
-                            {catVariance > 0 ? "+" : ""}{ph(fmt(Math.abs(catVariance)))}
+                          <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                            {Math.round(catVariance) === 0 ? "on budget" : `${ph(fmt(Math.abs(catVariance)))} ${catVariance > 0 ? "over" : "under"}`}
                           </span>
                         )}
                       </span>
