@@ -570,6 +570,16 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                         </button>
                       );
                     })()}
+                    {holding.asset_type !== "manual" && (
+                      <a
+                        href={`/research?ticker=${encodeURIComponent(holding.ticker)}`}
+                        className="text-xs transition"
+                        style={{ color: "var(--text-muted)", opacity: 0.6, textDecoration: "none" }}
+                        title={`Full research & AI analysis for ${holding.ticker}`}
+                      >
+                        Research
+                      </a>
+                    )}
                     {(holding.asset_type === "stock" || holding.asset_type == null) && (() => {
                       const isOpen = fundamentalsId === holding.id;
                       return (
