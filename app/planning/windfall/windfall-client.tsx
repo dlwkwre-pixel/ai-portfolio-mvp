@@ -116,7 +116,32 @@ export default function WindfallClient({
       </div>
 
       {/* Body */}
-      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "760px" }}>
+      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
+
+        {/* Verdict hero */}
+        {net > 0 && rec.length > 0 && (() => {
+          const top = [...rec].sort((a, b) => b.amount - a.amount)[0];
+          return (
+            <div style={{ ...cardStyle, background: "linear-gradient(135deg, rgba(37,99,235,0.08), var(--bg-card))", border: "1px solid rgba(37,99,235,0.28)" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--brand-blue, #2563eb)" }}>{fmt(net)} to put to work</div>
+                  <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
+                    First move: {top.label}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{fmt(top.amount)} ({total > 0 ? Math.round((top.amount / total) * 100) : 0}%) — {rec.length} step plan below</div>
+                </div>
+                {showTax && isGross && (
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>After ~{fmt(estTax)} tax</div>
+                    <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(net)}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>of {fmt(amount)} gross</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Inputs */}
         <div style={cardStyle}>
@@ -200,6 +225,26 @@ export default function WindfallClient({
                 ))}
               </div>
             </div>
+
+            {/* Growth of the invested slice */}
+            {(() => {
+              const invest = rec.find((r) => r.key === "invest")?.amount ?? 0;
+              if (invest < 100) return null;
+              const rate = 0.07;
+              const fv10 = invest * Math.pow(1 + rate, 10);
+              const fv20 = invest * Math.pow(1 + rate, 20);
+              return (
+                <div style={cardStyle}>
+                  <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "12px" }}>What the invested slice becomes</span>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+                    <div><div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Invested now</div><div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(Math.round(invest))}</div></div>
+                    <div><div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>In 10 years</div><div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--green)" }}>{fmt(Math.round(fv10))}</div></div>
+                    <div><div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>In 20 years</div><div style={{ fontSize: "18px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--green)" }}>{fmt(Math.round(fv20))}</div></div>
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "10px", lineHeight: 1.5 }}>Assumes ~7%/yr. The real cost of spending a windfall instead of investing it isn&apos;t {fmt(Math.round(invest))} — it&apos;s the {fmt(Math.round(fv20))} it could have become.</p>
+                </div>
+              );
+            })()}
 
             {/* Add to plan — only meaningful for an expected FUTURE windfall */}
             <div style={cardStyle}>

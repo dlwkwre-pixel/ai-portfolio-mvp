@@ -79,7 +79,35 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
         </div>
       </div>
 
-      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "760px" }}>
+      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
+
+        {/* Verdict hero */}
+        {(() => {
+          const pctFunded = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
+          const heroColor = calc.onTrack == null ? "var(--brand-blue, #2563eb)" : calc.onTrack ? "var(--green)" : "var(--amber, #f59e0b)";
+          const heroLabel = calc.onTrack == null ? (calc.monthsToReach != null ? `Ready in ${calc.monthsToReach} months` : "Set a date or monthly amount") : calc.onTrack ? "On track" : "Behind pace";
+          return (
+            <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${heroColor} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${heroColor} 28%, transparent)` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: heroColor }}>{heroLabel}</div>
+                  <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
+                    {fmt(saved)}<span style={{ fontSize: "14px", color: "var(--text-tertiary)", fontWeight: 600 }}> of {fmt(target)}</span>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{name || "Goal"}{months != null ? ` · ${months} mo to go` : ""}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Funded</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{Math.round(pctFunded)}%</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>{fmt(Math.round(calc.remaining))} to go</div>
+                </div>
+              </div>
+              <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "14px", overflow: "hidden" }}>
+                <div style={{ position: "absolute", inset: 0, width: `${pctFunded}%`, background: heroColor, borderRadius: "3.5px", transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Inputs */}
         <div style={cardStyle}>
@@ -119,6 +147,34 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
                 : `To hit ${fmt(target)} by the date, save ${fmt(Math.ceil(calc.requiredMonthly ?? 0))}/mo${monthly > 0 ? ` (you're at ${fmt(monthly)})` : ""} — or push the date out.`}
             </div>
           )}
+
+          {/* Savings timeline */}
+          {months != null && months > 0 && target > 0 && (() => {
+            const W = 320, H = 90, pad = 6;
+            const end = calc.projected;
+            const yMax = Math.max(target, end, saved) * 1.05 || 1;
+            const x = (m: number) => (m / months) * W;
+            const y = (v: number) => H - pad - (v / yMax) * (H - 2 * pad);
+            const path = `M${x(0).toFixed(1)},${y(saved).toFixed(1)} L${x(months).toFixed(1)},${y(end).toFixed(1)}`;
+            const targetY = y(target);
+            const crossM = monthly > 0 && saved < target ? (target - saved) / monthly : null;
+            const reaches = crossM != null && crossM <= months;
+            return (
+              <div style={{ marginTop: "14px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "8px" }}>Savings timeline</div>
+                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "90px", display: "block" }}>
+                  <line x1="0" y1={targetY} x2={W} y2={targetY} stroke="rgba(148,163,184,0.5)" strokeWidth="1" strokeDasharray="4 3" />
+                  <path d={path} fill="none" stroke={end >= target ? "var(--green, #22c55e)" : "var(--amber, #f59e0b)"} strokeWidth="2" strokeLinecap="round" />
+                  {crossM != null && reaches && <circle cx={x(crossM)} cy={targetY} r="3.5" fill="var(--green, #22c55e)" />}
+                </svg>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <span>today · {fmt(saved)}</span>
+                  <span style={{ color: "var(--text-tertiary)" }}>— — target {fmt(target)}</span>
+                  <span>by date · {fmt(Math.round(end))}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Add to plan */}
