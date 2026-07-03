@@ -96,7 +96,35 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
       </div>
 
       {/* Body */}
-      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "760px" }}>
+      <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
+
+        {/* Verdict hero */}
+        {(() => {
+          const heroColor = onTrack == null ? "var(--brand-blue, #2563eb)" : onTrack ? "var(--green)" : "var(--red)";
+          const heroLabel = onTrack == null ? "Set a date to see your timeline" : onTrack ? "On track" : "Behind pace";
+          return (
+            <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${heroColor} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${heroColor} 28%, transparent)` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: heroColor }}>{heroLabel}</div>
+                  <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
+                    {fmt(totalBudget)}<span style={{ fontSize: "14px", color: "var(--text-tertiary)", fontWeight: 600 }}> budget</span>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>{guestCount} guests · {fmt(Math.round(costPerGuest))}/guest{months != null ? ` · ${months} mo out` : ""}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Funded so far</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(funded)}</div>
+                  <div style={{ fontSize: "10px", color: remaining > 0 ? "var(--amber, #f59e0b)" : "var(--green)" }}>{remaining > 0 ? `${fmt(remaining)} to go` : "fully funded"}</div>
+                </div>
+              </div>
+              {/* funded progress */}
+              <div style={{ position: "relative", height: "7px", borderRadius: "3.5px", background: "var(--surface-006)", marginTop: "14px", overflow: "hidden" }}>
+                <div style={{ position: "absolute", inset: 0, width: `${totalBudget > 0 ? Math.min(100, (funded / totalBudget) * 100) : 0}%`, background: heroColor, borderRadius: "3.5px", transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Inputs */}
         <div style={cardStyle}>
@@ -175,6 +203,38 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
                 : <>, comfortably covering your {guestCount}-guest plan.</>}
             </p>
           )}
+
+          {/* Savings timeline — cumulative savings vs the budget line */}
+          {months != null && months > 0 && totalBudget > 0 && (() => {
+            const W = 320, H = 90, pad = 6;
+            const end = funded + monthly * months;
+            const yMax = Math.max(totalBudget, end, funded) * 1.05 || 1;
+            const x = (m: number) => (m / months) * W;
+            const y = (v: number) => H - pad - (v / yMax) * (H - 2 * pad);
+            const savePath = `M${x(0).toFixed(1)},${y(funded).toFixed(1)} L${x(months).toFixed(1)},${y(end).toFixed(1)}`;
+            const targetY = y(totalBudget);
+            // crossover month where savings meets the budget
+            const crossM = monthly > 0 && funded < totalBudget ? (totalBudget - funded) / monthly : null;
+            const reachesInTime = crossM != null && crossM <= months;
+            return (
+              <div style={{ marginTop: "14px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "8px" }}>Savings timeline</div>
+                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "90px", display: "block" }}>
+                  <line x1="0" y1={targetY} x2={W} y2={targetY} stroke="rgba(148,163,184,0.5)" strokeWidth="1" strokeDasharray="4 3" />
+                  <path d={savePath} fill="none" stroke={reachesInTime || end >= totalBudget ? "var(--green, #22c55e)" : "var(--red, #ef4444)"} strokeWidth="2" strokeLinecap="round" />
+                  {crossM != null && reachesInTime && <circle cx={x(crossM)} cy={targetY} r="3.5" fill="var(--green, #22c55e)" />}
+                </svg>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  <span>today · {fmt(funded)}</span>
+                  <span style={{ color: "var(--text-tertiary)" }}>— — budget {fmt(totalBudget)}</span>
+                  <span>wedding · {fmt(Math.round(end))}</span>
+                </div>
+                {crossM != null && reachesInTime && (
+                  <p style={{ fontSize: "10.5px", color: "var(--green)", marginTop: "6px" }}>You hit the budget about {Math.ceil(crossM)} month{Math.ceil(crossM) === 1 ? "" : "s"} in — {months - Math.ceil(crossM)} to spare.</p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Budget breakdown */}
