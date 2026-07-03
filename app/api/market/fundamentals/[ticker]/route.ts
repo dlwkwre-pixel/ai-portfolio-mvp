@@ -93,7 +93,7 @@ async function getCik(ticker: string): Promise<{ cik: number; title: string } | 
   const now = Date.now();
   if (!tickerMapCache || now - tickerMapFetchedAt > TICKER_MAP_TTL_MS) {
     const res = await fetch(
-      "https://efts.sec.gov/LATEST/search-index/company_tickers.json",
+      "https://www.sec.gov/files/company_tickers.json",
       { headers: SEC_HEADERS, next: { revalidate: 86400 } }
     );
     if (!res.ok) return null;

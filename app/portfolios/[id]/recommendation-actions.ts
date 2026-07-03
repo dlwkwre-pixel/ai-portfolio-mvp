@@ -243,10 +243,10 @@ async function autoJournalRecommendations(
     };
   });
 
-  // Ignore duplicates (re-runs) via the partial unique index on recommendation_item_id.
-  const { error } = await supabase
-    .from("decision_journal")
-    .upsert(rows, { onConflict: "recommendation_item_id", ignoreDuplicates: true });
+  // Plain insert — each recommendation run produces fresh item ids, so there's
+  // nothing to conflict with. (An upsert onConflict against the PARTIAL unique
+  // index silently failed, which is why no AI entries were appearing.)
+  const { error } = await supabase.from("decision_journal").insert(rows);
   if (error) throw new Error(error.message);
 }
 
