@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import PageIntro from "@/app/components/page-intro";
+import PageTutorial from "@/app/components/page-tutorial";
 import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
 // never ships in the initial /planning bundle — it's only needed on the Excel-export click.
@@ -7439,6 +7440,7 @@ export default function PlanningClient({
 
       {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} profile={profile} />}
 
+      <PageTutorial tutorialId="planning" />
       <PageIntro
         pageKey="planning"
         title="Financial Planning"

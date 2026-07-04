@@ -28,6 +28,19 @@ export const TUTORIALS: Record<string, Tutorial> = {
       { title: "Act on it", body: "Like what you find? Add it straight to one of your portfolios, or save it to revisit later." },
     ],
   },
+  planning: {
+    id: "planning",
+    label: "Planning",
+    emoji: "🧭",
+    href: "/planning",
+    steps: [
+      { title: "Your money, mapped", body: "Planning turns your accounts, income, and debts into a live net-worth picture and a long-range forecast of where you're headed." },
+      { title: "Cash flow & budget", body: "Track income vs. spending, log what you actually spent each month, and see Budget vs. Actual at a glance — including where every dollar flows." },
+      { title: "Plan any life event", body: "Model a home, car, wedding, rental, business, sabbatical, retirement and more. Each planner gives a clear verdict, projections, and stress tests." },
+      { title: "Goals & auto-invest", body: "Set savings goals with a target date, and schedule recurring contributions — we'll nudge you when each one is due." },
+      { title: "Ask Atlas", body: "Get advisor-style commentary on your plan and pressure-test decisions against your real numbers, right from the hub." },
+    ],
+  },
   community: {
     id: "community",
     label: "Community",
