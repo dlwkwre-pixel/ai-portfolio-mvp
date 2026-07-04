@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 
 export type JournalAction = "buy" | "add" | "sell" | "trim" | "hold" | "watch";
 
@@ -61,6 +62,7 @@ export async function addJournalEntry(formData: FormData): Promise<{ error?: str
   });
   if (error) return { error: error.message };
 
+  void awardXp(user.id, "journal_logged", dailyKey("journal_logged"));
   if (portfolioId) revalidatePath(`/portfolios/${portfolioId}`);
   return {};
 }

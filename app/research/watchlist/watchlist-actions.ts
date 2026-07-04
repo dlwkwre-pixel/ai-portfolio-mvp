@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getFinnhubQuote, getFinnhubProfile } from "@/lib/market-data/finnhub";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 
 export type WatchlistItem = {
   id: string;
@@ -46,6 +47,7 @@ export async function addWatchlistItem(formData: FormData): Promise<{ error?: st
     if (error.code === "23505") return { error: `${ticker} is already on your watchlist.` };
     return { error: error.message };
   }
+  void awardXp(user.id, "watchlist_added", dailyKey("watchlist_added"));
   revalidatePath("/research/watchlist");
   return {};
 }

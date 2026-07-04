@@ -96,13 +96,15 @@ export async function getBadgeContext(userId: string): Promise<BadgeContext> {
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("is_active", true),
+    // recommendation_runs/_items don't store user_id — count via the owning
+    // portfolio (same join holdings uses), which is correct AND retroactive.
     supabase.from("recommendation_runs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
+      .select("id, portfolios!inner(user_id)", { count: "exact", head: true })
+      .eq("portfolios.user_id", userId)
       .eq("status", "completed"),
     supabase.from("recommendation_items")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
+      .select("id, portfolios!inner(user_id)", { count: "exact", head: true })
+      .eq("portfolios.user_id", userId)
       .eq("recommendation_status", "executed"),
     supabase.from("public_portfolios")
       .select("id", { count: "exact", head: true })

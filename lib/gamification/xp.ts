@@ -10,6 +10,13 @@ export type XpKind =
   | "profile_complete"
   | "analysis_run"
   | "strategy_assigned"
+  | "journal_logged"
+  | "dividend_logged"
+  | "community_post"
+  | "budget_logged"
+  | "watchlist_added"
+  | "goal_progress"
+  | "planner_used"
   | "challenge";
 
 export const XP_VALUES: Record<XpKind, number> = {
@@ -19,6 +26,13 @@ export const XP_VALUES: Record<XpKind, number> = {
   profile_complete: 50,
   analysis_run: 20,
   strategy_assigned: 30,
+  journal_logged: 15,
+  dividend_logged: 10,
+  community_post: 15,
+  budget_logged: 15,
+  watchlist_added: 10,
+  goal_progress: 12,
+  planner_used: 10,
   challenge: 0, // variable — pass an explicit amount to awardXp
 };
 
@@ -29,8 +43,21 @@ export const XP_LABELS: Record<XpKind, string> = {
   profile_complete: "Completed your profile",
   analysis_run: "Ran an AI analysis",
   strategy_assigned: "Assigned a strategy",
+  journal_logged: "Logged a decision",
+  dividend_logged: "Logged a dividend",
+  community_post: "Shared with the community",
+  budget_logged: "Tracked your budget",
+  watchlist_added: "Added to watchlist",
+  goal_progress: "Made progress on a goal",
+  planner_used: "Used a planner",
   challenge: "Completed a weekly challenge",
 };
+
+// Daily-dedup key so a repeatable action credits XP at most once per day
+// (matches the analysis_run pattern). Weekly challenges still detect it fine.
+export function dailyKey(kind: XpKind): string {
+  return `${kind}:${new Date().toISOString().slice(0, 10)}`;
+}
 
 // Level curve: level L starts at 100·(L-1)² XP. Level 2 at 100, 3 at 400, 4 at 900 …
 // Fast early levels, gradually steeper.

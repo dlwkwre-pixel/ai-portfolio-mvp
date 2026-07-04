@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 
 // Light profanity guard — blocks the most obvious slurs/abuse. Not exhaustive;
 // reporting + own-delete handle the rest.
@@ -91,6 +92,7 @@ export async function createPost(input: CreatePostInput): Promise<{ id: string }
     .single();
 
   if (error || !post) throw new Error(error?.message || "Could not create post.");
+  void awardXp(user.id, "community_post", dailyKey("community_post"));
   revalidatePath("/community");
   return { id: post.id as string };
 }

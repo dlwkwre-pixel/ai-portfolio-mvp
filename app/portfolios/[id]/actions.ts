@@ -6,7 +6,7 @@ import { validateTicker, validateLength, validateEnum, validateDate } from "@/li
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { getFmpQuotes } from "@/lib/market-data/fmp";
-import { awardXp } from "@/lib/gamification/xp";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { getWeeklyChallenges } from "@/lib/gamification/challenges";
 
 // "manual" = non-tradeable / advisor fund with no live price feed; valued at a
@@ -302,6 +302,7 @@ export async function createCashActivity(formData: FormData) {
     .from("portfolios").update({ cash_balance: newCashBalance }).eq("id", portfolioId).eq("user_id", user.id);
   if (portfolioUpdateError) throw new Error(portfolioUpdateError.message);
 
+  if (reason === "dividend") void awardXp(user.id, "dividend_logged", dailyKey("dividend_logged"));
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 

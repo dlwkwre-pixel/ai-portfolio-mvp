@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 
 export type GoalCategory = "house" | "car" | "travel" | "education" | "retirement" | "emergency" | "wedding" | "fund" | "other";
 
@@ -47,6 +48,7 @@ export async function addGoal(formData: FormData): Promise<{ error?: string }> {
     sort_order,
   });
   if (error) return { error: error.message };
+  void awardXp(user.id, "goal_progress", dailyKey("goal_progress"));
   revalidatePath("/planning/goals");
   return {};
 }
@@ -90,6 +92,7 @@ export async function adjustGoal(id: string, delta: number): Promise<{ error?: s
   const next = Math.max(0, Number(row.current_amount ?? 0) + delta);
   const { error } = await supabase.from("planning_goals").update({ current_amount: next, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
   if (error) return { error: error.message };
+  if (delta > 0) void awardXp(user.id, "goal_progress", dailyKey("goal_progress"));
   revalidatePath("/planning/goals");
   return {};
 }

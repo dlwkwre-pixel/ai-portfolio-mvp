@@ -24,14 +24,17 @@ export type ChallengeDef = {
   source: ChallengeSource;
 };
 
-// The full pool. WEEKLY_COUNT of these rotate into view each week.
+// The full pool. WEEKLY_COUNT of these rotate into view each week. Detection is
+// via xp_events (the action's XP kind) — reliable, since xp_events always carries
+// user_id (recommendation_runs/community_posts detection by user_id was flaky).
 const POOL: ChallengeDef[] = [
-  { id: "ai_analysis",    label: "Run an AI analysis",      description: "Scan any portfolio with Atlas this week.",   xp: 30, icon: "cpu",         source: { kind: "table", table: "recommendation_runs", eqCol: "status", eqVal: "completed" } },
-  { id: "add_holding",    label: "Add a position",          description: "Add a holding to one of your portfolios.",   xp: 20, icon: "plus-circle", source: { kind: "xp", xpKind: "holding_added" } },
-  { id: "community_post", label: "Share with the community", description: "Post a take, question, or win in the feed.", xp: 20, icon: "users",       source: { kind: "table", table: "community_posts" } },
-  { id: "fresh_strategy", label: "Build a strategy",        description: "Create a new investment strategy.",          xp: 25, icon: "sparkle",      source: { kind: "table", table: "strategies", eqCol: "is_active", eqVal: true } },
-  // NOTE: dropped "assign_strategy" — its xp_events kind strategy_assigned is never awarded, so
-  // it was uncompletable. Re-add once that XP is granted on portfolio→strategy assignment.
+  { id: "ai_analysis",    label: "Run an AI analysis",       description: "Scan any portfolio with Atlas this week.",       xp: 30, icon: "cpu",         source: { kind: "xp", xpKind: "analysis_run" } },
+  { id: "add_holding",    label: "Add a position",           description: "Add a holding to one of your portfolios.",       xp: 20, icon: "plus-circle", source: { kind: "xp", xpKind: "holding_added" } },
+  { id: "community_post", label: "Share with the community", description: "Post a take, question, or win in the feed.",     xp: 20, icon: "users",       source: { kind: "xp", xpKind: "community_post" } },
+  { id: "journal_decision", label: "Journal a decision",     description: "Log the reasoning behind a buy, trim, or hold.", xp: 20, icon: "chart-line",  source: { kind: "xp", xpKind: "journal_logged" } },
+  { id: "budget_check",   label: "Check your budget",        description: "Log this month's actual spending in Cash Flow.", xp: 20, icon: "chart-line",  source: { kind: "xp", xpKind: "budget_logged" } },
+  { id: "watchlist_add",  label: "Add to your watchlist",    description: "Track a name you're eyeing in Research.",        xp: 15, icon: "plus-circle", source: { kind: "xp", xpKind: "watchlist_added" } },
+  { id: "fund_goal",      label: "Fund a goal",              description: "Create or add to a savings goal in Planning.",   xp: 20, icon: "sparkle",     source: { kind: "xp", xpKind: "goal_progress" } },
 ];
 
 const WEEKLY_COUNT = 3;

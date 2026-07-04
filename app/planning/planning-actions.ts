@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { awardXp } from "@/lib/gamification/xp";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -688,6 +688,7 @@ export async function logExpenseActual(formData: FormData): Promise<{ error?: st
   );
 
   if (error) return { error: error.message };
+  void awardXp(user.id, "budget_logged", dailyKey("budget_logged"));
   revalidatePath("/planning");
   return {};
 }
