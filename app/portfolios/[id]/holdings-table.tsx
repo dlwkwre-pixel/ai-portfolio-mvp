@@ -6,6 +6,24 @@ import { HoldingLots } from "./holding-lots";
 import type { HoldingLot } from "./holding-lots";
 import StockChart from "@/app/components/stock-chart";
 import FundamentalsPanel from "./fundamentals-panel";
+import { TickerLookupProvider, useTickerLookup } from "@/app/components/ticker-quick-look";
+
+// Opens the ticker quick-look popup in place (no navigation). Must render inside
+// a TickerLookupProvider (we wrap the table below).
+function ResearchQuickLook({ ticker }: { ticker: string }) {
+  const { open } = useTickerLookup();
+  return (
+    <button
+      type="button"
+      onClick={() => open(ticker)}
+      className="text-xs transition"
+      style={{ color: "var(--text-muted)", opacity: 0.6, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+      title={`Quick research for ${ticker}`}
+    >
+      Research
+    </button>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -436,6 +454,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
   }
 
   return (
+    <TickerLookupProvider>
     <div className="mt-4 overflow-x-auto rounded-xl border border-white/5">
       <table className="min-w-full divide-y divide-white/5">
         <thead>
@@ -571,14 +590,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                       );
                     })()}
                     {holding.asset_type !== "manual" && (
-                      <a
-                        href={`/research?ticker=${encodeURIComponent(holding.ticker)}`}
-                        className="text-xs transition"
-                        style={{ color: "var(--text-muted)", opacity: 0.6, textDecoration: "none" }}
-                        title={`Full research & AI analysis for ${holding.ticker}`}
-                      >
-                        Research
-                      </a>
+                      <ResearchQuickLook ticker={holding.ticker} />
                     )}
                     {(holding.asset_type === "stock" || holding.asset_type == null) && (() => {
                       const isOpen = fundamentalsId === holding.id;
@@ -1085,5 +1097,6 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
         </tbody>
       </table>
     </div>
+    </TickerLookupProvider>
   );
 }

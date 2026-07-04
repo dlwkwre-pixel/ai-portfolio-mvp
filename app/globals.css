@@ -751,8 +751,8 @@ body {
 
 }
 
-/* Portfolio tabs / any horizontal scroll container — hide scrollbar */
-.bt-tabs-scroll { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* Portfolio tabs / any horizontal scroll container — hide scrollbar, lock to horizontal */
+.bt-tabs-scroll { scrollbar-width: none; -webkit-overflow-scrolling: touch; overflow-y: hidden; touch-action: pan-x; overscroll-behavior-x: contain; }
 .bt-tabs-scroll::-webkit-scrollbar { display: none; }
 
 /* Planning tab-bar scroll affordance is mobile-only (shown via media query) */
