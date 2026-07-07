@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
-import { awardXp } from "@/lib/gamification/xp";
+import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { getWeeklyChallenges } from "@/lib/gamification/challenges";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
 import { buildCompactRedditPulse, type CompactRedditPulse } from "@/lib/market-data/reddit-pulse";
@@ -2019,6 +2019,8 @@ export async function updateRecommendationStatus(formData: FormData) {
               : oldAvgCost;
             await supabase.from("holdings").update({ shares: newShares, average_cost_basis: newAvgCost }).eq("id", existingHolding.id);
           }
+          // Executing a buy adds a position — award XP like the manual add-holding flow.
+          void awardXp(user.id, "holding_added", dailyKey("holding_added"));
         }
 
         if (isSell && quantity) {

@@ -28,7 +28,7 @@ export const XP_VALUES: Record<XpKind, number> = {
   strategy_assigned: 30,
   journal_logged: 15,
   dividend_logged: 10,
-  community_post: 15,
+  community_post: 40,
   budget_logged: 15,
   watchlist_added: 10,
   goal_progress: 12,
