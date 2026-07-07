@@ -589,6 +589,7 @@ export type FutureEvent = {
   sort_order: number;
   recurring_annual?: number | null;  // signed $/yr applied event_year..end_year
   end_year?: number | null;          // last year the recurring stream applies (null = horizon)
+  included?: boolean;                 // true = Committed (counts in forecast); false = Considering (draft)
 };
 
 export async function addFutureEvent(formData: FormData): Promise<{ error?: string }> {
@@ -622,8 +623,28 @@ export async function addFutureEvent(formData: FormData): Promise<{ error?: stri
   // working even before the recurring migration is applied.
   const row: Record<string, unknown> = { user_id: user.id, label, event_year, amount_impact, category, sort_order };
   if (recurring_annual != null) { row.recurring_annual = recurring_annual; row.end_year = end_year; }
+  // New events start as "Considering" (draft) so adding a plan never silently
+  // moves the retirement number. Callers can pass included="true" to commit now.
+  row.included = String(formData.get("included") ?? "") === "true";
 
   const { error } = await supabase.from("planning_future_events").insert(row);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// Flip an event between Committed (counts in the forecast) and Considering (draft).
+export async function setFutureEventIncluded(id: string, included: boolean): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("planning_future_events")
+    .update({ included })
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) return { error: error.message };
   revalidatePath("/planning");

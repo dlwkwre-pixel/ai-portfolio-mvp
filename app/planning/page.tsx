@@ -199,7 +199,11 @@ export default async function PlanningPage({
     amount_impact: Number(e.amount_impact),
     category: e.category,
     sort_order: e.sort_order,
+    included: e.included ?? true, // pre-migration rows read as Committed
   }));
+  // Committed-only feeds the forecast (drafts don't move the retirement number);
+  // the full list drives the new Life Plan timeline + "My Plan" management UI.
+  const committedFutureEvents = typedFutureEvents.filter((e) => e.included !== false);
 
   const typedHomeScenarios: HomeScenario[] = (homeScenariosData ?? []) as HomeScenario[];
   const typedCareerScenarios: CareerScenario[] = (careerScenariosData ?? []) as CareerScenario[];
@@ -283,7 +287,8 @@ export default async function PlanningPage({
           portfolioTotalValue={portfolioTotalValue}
           portfolioAccounts={portfolioAccounts}
           assumptions={assumptions}
-          futureEvents={typedFutureEvents}
+          futureEvents={committedFutureEvents}
+          allFutureEvents={typedFutureEvents}
           homeScenarios={typedHomeScenarios}
           careerScenarios={typedCareerScenarios}
           educationScenarios={typedEducationScenarios}
