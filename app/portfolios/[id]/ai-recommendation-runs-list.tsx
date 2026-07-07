@@ -1148,9 +1148,9 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                           { label: "Size $",     value: fmt$(item.sizing_dollars) },
                           { label: "Shares",     value: item.share_quantity != null ? fmtN(item.share_quantity, 4) : null },
                         ].map(m => m.value ? (
-                          <div key={m.label} className="rounded-xl border border-white/5 bg-white/2 px-2 py-2 text-center">
-                            <p className="text-[9px] uppercase tracking-widest text-slate-600">{m.label}</p>
-                            <p className="mt-0.5 text-sm font-semibold text-white">{m.value}</p>
+                          <div key={m.label} className="min-w-0 rounded-xl border border-white/5 bg-white/2 px-2 py-2 text-center">
+                            <p className="truncate text-[9px] uppercase tracking-widest text-slate-600">{m.label}</p>
+                            <p className="mt-0.5 truncate text-sm font-semibold text-white">{m.value}</p>
                           </div>
                         ) : null)}
                       </div>
@@ -1165,10 +1165,10 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                               { label: `Base Case${item.target_horizon ? ` · ${item.target_horizon}` : ""}`, price: item.target_price_1, pct: item.base_return_pct, border: "border-emerald-500/15", bg: "bg-emerald-500/5", labelColor: "text-emerald-400", pctColor: "text-emerald-400" },
                               { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, border: "border-blue-500/12", bg: "bg-blue-500/5", labelColor: "text-blue-400", pctColor: "text-blue-400" },
                             ].map(c => c.price != null || c.pct != null ? (
-                              <div key={c.label} className={`rounded-xl border ${c.border} ${c.bg} px-3 py-2.5`}>
+                              <div key={c.label} className={`min-w-0 rounded-xl border ${c.border} ${c.bg} px-2 py-2`}>
                                 <p className={`text-[9px] uppercase tracking-widest ${c.labelColor} truncate`}>{c.label}</p>
-                                {c.pct != null && <p className={`mt-0.5 text-base font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
-                                {c.price != null && <p className="text-xs tabular-nums text-slate-400">{fmt$(c.price)}</p>}
+                                {c.pct != null && <p className={`mt-0.5 truncate text-sm font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
+                                {c.price != null && <p className="truncate text-[11px] tabular-nums text-slate-400">{fmt$(c.price)}</p>}
                               </div>
                             ) : null)}
                           </div>
