@@ -634,6 +634,26 @@ export async function addFutureEvent(formData: FormData): Promise<{ error?: stri
   return {};
 }
 
+// Move an event to a different year (trajectory-chart pin drag, written on release).
+export async function updateFutureEventYear(id: string, event_year: number): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const yr = Math.round(event_year);
+  if (!Number.isFinite(yr) || yr < 2000 || yr > 2200) return { error: "Invalid year." };
+
+  const { error } = await supabase
+    .from("planning_future_events")
+    .update({ event_year: yr })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
 // Flip an event between Committed (counts in the forecast) and Considering (draft).
 export async function setFutureEventIncluded(id: string, included: boolean): Promise<{ error?: string }> {
   const supabase = await createClient();

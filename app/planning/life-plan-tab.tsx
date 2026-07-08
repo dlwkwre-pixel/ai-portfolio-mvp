@@ -74,7 +74,7 @@ function hueFor(category: string | null | undefined): string {
 
 export default function LifePlanTab({
   readinessScore, projectedNWAtRetirement, retirementProb, biggestDecision,
-  conflictAlerts, events, currentYear, retirementYear,
+  conflictAlerts, events, currentYear, retirementYear, trajectory,
 }: {
   readinessScore: number;
   projectedNWAtRetirement: number | null;
@@ -84,6 +84,7 @@ export default function LifePlanTab({
   events: FutureEvent[];
   currentYear: number;
   retirementYear: number | null;
+  trajectory?: React.ReactNode; // the interactive wealth-trajectory chart (preferred over the flat timeline)
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -234,10 +235,12 @@ export default function LifePlanTab({
         </div>
       )}
 
-      {/* ── TIMELINE ── */}
+      {/* ── TIMELINE / TRAJECTORY ── */}
       <div className="lp-sec">
         <SectionLabel color="var(--accent)">Your life timeline</SectionLabel>
-        <Timeline events={events} currentYear={currentYear} retirementYear={retirementYear} highlightId={highlightId} onPick={(id) => setHighlightId(id)} />
+        {trajectory ?? (
+          <Timeline events={events} currentYear={currentYear} retirementYear={retirementYear} highlightId={highlightId} onPick={(id) => setHighlightId(id)} />
+        )}
       </div>
 
       {/* ── MY PLAN ── */}

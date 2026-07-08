@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import PageIntro from "@/app/components/page-intro";
 import PageTutorial from "@/app/components/page-tutorial";
 import LifePlanTab from "./life-plan-tab";
+import TrajectoryChart from "./trajectory-chart";
 import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
 // never ships in the initial /planning bundle — it's only needed on the Excel-export click.
@@ -26,6 +27,8 @@ import {
   upsertPlanningAssumptions,
   addFutureEvent,
   deleteFutureEvent,
+  setFutureEventIncluded,
+  updateFutureEventYear,
 } from "./planning-actions";
 import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions, setCashFlowItemCategory } from "./planning-actions";
@@ -6039,6 +6042,31 @@ export default function PlanningClient({
 
   const drawdown = useMemo<DrawdownResult | null>(
     () => (drawdownParams ? simulateRetirementDrawdown(drawdownParams) : null), [drawdownParams]);
+
+  // ── The wealth trajectory (shared hero) ────────────────────────────────────
+  // Interactive fan wired to the LIVE plan: forecast bands, real life events
+  // (committed + considering), the what-if retirement handle, and the drawdown
+  // verdict. Rendered on Overview and inside the Life Plan tab. Additive.
+  const trajectoryEl = (tab === "overview" || tab === "events") ? (
+    <TrajectoryChart
+      currentAge={profile?.current_age ?? null}
+      currentYear={currentYear}
+      retirementAge={activeRetirementAge}
+      baselineRetirementAge={profile?.target_retirement_age ?? null}
+      onRetirementAgeChange={(age) => setScenarioRetirementAge(age)}
+      onResetRetirementAge={() => setScenarioRetirementAge(profile?.target_retirement_age ?? null)}
+      bands={forecastBands.map((b) => ({ year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic }))}
+      retirementProb={retirementProb}
+      atRetirement={retirementPoint?.baseline ?? null}
+      lastsToAge={drawdown?.lastsToAge ?? null}
+      depletedAge={drawdown?.depletedAge ?? null}
+      drawdownEndAge={drawdown?.endAge ?? 95}
+      events={allFutureEvents ?? futureEvents}
+      onToggleEvent={async (id, included) => { await setFutureEventIncluded(id, included); }}
+      onMoveEvent={async (id, year) => { await updateFutureEventYear(id, year); }}
+      isPrivate={isPrivate}
+    />
+  ) : null;
   // Counterfactual with the Roth-conversion choice flipped — powers the "with vs without" comparison.
   const drawdownAlt = useMemo<DrawdownResult | null>(
     () => (drawdownParams ? simulateRetirementDrawdown({ ...drawdownParams, rothConversions: !drawdownParams.rothConversions }) : null), [drawdownParams]);
@@ -7564,6 +7592,9 @@ export default function PlanningClient({
               .cmd-body-cols { display: grid !important; grid-template-columns: 3fr 2fr !important; }
             }
           `}</style>
+
+          {/* ── The wealth trajectory: the living hero of the plan ── */}
+          {trajectoryEl && <div className="cmd-section" style={{ animationDelay: "0ms" }}>{trajectoryEl}</div>}
 
           {/* ── State of your plan: narrative lead (story first, then the numbers) ── */}
           {(() => {
@@ -9458,6 +9489,7 @@ export default function PlanningClient({
             events={allFutureEvents ?? futureEvents}
             currentYear={currentYear}
             retirementYear={retirementYear}
+            trajectory={trajectoryEl}
           />
         </div>
       )}
