@@ -382,16 +382,29 @@ export default function Plan401kSection({
                   <div style={{ ...mono, fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(currentBalance)}</div>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>on your balance sheet</div>
                 </div>
+                <div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "3px" }}>Projected at {retAge}</div>
+                  <div style={{ ...mono, fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{fmt(projectedBalance)}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{isRoth ? "Roth" : `saves ${fmt(annualTaxSaved)}/yr tax`}</div>
+                </div>
               </div>
               <button type="button" onClick={() => setEditing(true)}
                 style={{ flexShrink: 0, background: "var(--card-bg)", color: "var(--text-secondary)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "8px 16px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                 Edit
               </button>
             </div>
+            {/* Never hide free money behind the collapse */}
+            {matchLimitPct > 0 && !result.capturesFullMatch && (
+              <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--card-border)", fontSize: "12px", color: "var(--amber)", lineHeight: 1.5 }}>
+                ⚠ Free money on the table: bump to <strong style={{ color: "var(--text-primary)" }}>{fmtPct(result.fullMatchPct)}</strong> to capture {fmt(result.unmatchedFreeMoney)}/yr more in match.
+              </div>
+            )}
           </div>
           )}
 
-          {/* Insights — forward-looking (shown above the recommendation; tied to the inputs above) */}
+          {/* Insights + recommendation: only while editing — once configured, the
+              compact summary row above is the whole story until Edit is tapped. */}
+          {editing && (<>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             {matchLimitPct > 0 && (
               result.capturesFullMatch ? (
@@ -521,6 +534,8 @@ export default function Plan401kSection({
               )}
             </div>
           </div>
+
+          </>)}
 
           {/* Scenario comparison (only while editing) */}
           {editing && (

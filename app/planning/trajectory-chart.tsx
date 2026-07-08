@@ -107,7 +107,13 @@ export default function TrajectoryChart({
   const hasAges = currentAge != null;
   // X units: ages when known, otherwise years-from-now offsets.
   const startX = hasAges ? currentAge! : 0;
-  const endX = startX + Math.max(1, bands.length - 1);
+  const dataEnd = startX + Math.max(1, bands.length - 1);
+  // Extend the domain past the retirement handle so it never sits pinned at the
+  // right edge (which also made dragging ratchet the target downward: the domain
+  // shrank with every drag). The fan ends at retirement; the runway is breathing
+  // room to drag in both directions.
+  const retForDomain = hasAges ? (retirementAge ?? null) : null;
+  const endX = retForDomain != null ? Math.min(88, Math.max(dataEnd, retForDomain) + 7) : dataEnd;
   const span = Math.max(1, endX - startX);
   const xOfYearAbs = useCallback((yearAbs: number) => startX + (yearAbs - currentYear), [startX, currentYear]);
 
