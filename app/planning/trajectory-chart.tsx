@@ -106,14 +106,12 @@ export default function TrajectoryChart({
   const [, startTransition] = useTransition();
   const hasAges = currentAge != null;
   // X units: ages when known, otherwise years-from-now offsets.
+  // The domain is FIXED to the full band series (now → plan end ~95), the way the
+  // /planning/concept chart pins its axis to nowAge → planEnd. Because the bands
+  // already span the whole horizon (accumulation + drawdown), the retirement
+  // handle lands mid-chart and dragging it never shifts or shrinks the domain.
   const startX = hasAges ? currentAge! : 0;
-  const dataEnd = startX + Math.max(1, bands.length - 1);
-  // Extend the domain past the retirement handle so it never sits pinned at the
-  // right edge (which also made dragging ratchet the target downward: the domain
-  // shrank with every drag). The fan ends at retirement; the runway is breathing
-  // room to drag in both directions.
-  const retForDomain = hasAges ? (retirementAge ?? null) : null;
-  const endX = retForDomain != null ? Math.min(88, Math.max(dataEnd, retForDomain) + 7) : dataEnd;
+  const endX = startX + Math.max(1, bands.length - 1);
   const span = Math.max(1, endX - startX);
   const xOfYearAbs = useCallback((yearAbs: number) => startX + (yearAbs - currentYear), [startX, currentYear]);
 
@@ -198,8 +196,9 @@ export default function TrajectoryChart({
 
   const dragRetire = useMemo(() => {
     if (!hasAges || !onRetirementAgeChange) return undefined;
-    return beginDrag((x) => onRetirementAgeChange(clamp(Math.round(x), currentAge! + 1, 85)));
-  }, [beginDrag, hasAges, onRetirementAgeChange, currentAge]);
+    const maxRet = Math.min(85, endX - 2);
+    return beginDrag((x) => onRetirementAgeChange(clamp(Math.round(x), currentAge! + 1, maxRet)));
+  }, [beginDrag, hasAges, onRetirementAgeChange, currentAge, endX]);
 
   const pinYearRef = useRef<number | null>(null);
   const dragPin = useCallback((ev: FutureEvent) => beginDrag(

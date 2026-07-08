@@ -6043,6 +6043,67 @@ export default function PlanningClient({
   const drawdown = useMemo<DrawdownResult | null>(
     () => (drawdownParams ? simulateRetirementDrawdown(drawdownParams) : null), [drawdownParams]);
 
+  // ── Full-horizon trajectory bands (now → plan end) ─────────────────────────
+  // The forecast bands are accumulation-only and stop at retirement. To render
+  // the continuous "rise then draw down" arc (like the /planning/concept chart)
+  // we append the drawdown spend-down: investable balance per age, lifted by the
+  // non-investable wealth held at retirement so the two phases join with no cliff.
+  // Result is a dense, one-per-year series from age now to the drawdown end age,
+  // which gives the chart a FIXED domain so the retirement handle sits mid-chart
+  // instead of pinning to the right edge.
+  const trajectoryBands = useMemo(() => {
+    const base = forecastBands.map((b) => ({
+      year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic,
+    }));
+    const cAge = profile?.current_age ?? null;
+    if (!drawdown || drawdown.years.length === 0 || cAge == null || activeRetirementAge == null) return base;
+
+    const investAtRet = drawdown.startTotal;
+    const nwAtRet = retirementPoint?.baseline ?? investAtRet;
+    const nonInvest = Math.max(0, nwAtRet - investAtRet); // home equity + illiquid, held ~flat
+    const fracAtRet = retirementPoint && retirementPoint.baseline > 0
+      ? Math.min(0.35, Math.max(0.03, (retirementPoint.optimistic - retirementPoint.pessimistic) / (2 * retirementPoint.baseline)))
+      : 0.08;
+    const retAge = activeRetirementAge;
+
+    // Known net-worth points keyed by year-offset from now.
+    const known = new Map<number, { baseline: number; optimistic: number; pessimistic: number }>();
+    for (const b of base) known.set(b.year, { baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic });
+    for (const dy of drawdown.years) {
+      if (dy.age <= retAge) continue; // retirement year is already the accumulation tail
+      const off = dy.age - cAge;
+      const nw = dy.total + nonInvest;
+      const frac = Math.min(0.6, fracAtRet * (1 + 0.045 * (dy.age - retAge))); // uncertainty keeps widening
+      known.set(off, {
+        baseline: Math.round(nw),
+        optimistic: Math.round(nw * (1 + frac)),
+        pessimistic: Math.round(Math.max(0, nw * (1 - frac))),
+      });
+    }
+
+    // Emit a dense array (offset 0..maxOff), interpolating any gap between the
+    // 40-year accumulation cap and a later retirement so indices stay consecutive.
+    const maxOff = (drawdown.endAge ?? 95) - cAge;
+    const offs = [...known.keys()].sort((a, b) => a - b);
+    const out: { year: number; baseline: number; optimistic: number; pessimistic: number }[] = [];
+    for (let off = 0; off <= maxOff; off++) {
+      const hit = known.get(off);
+      if (hit) { out.push({ year: off, ...hit }); continue; }
+      const lo = offs.filter((o) => o < off).pop();
+      const hi = offs.find((o) => o > off);
+      if (lo == null || hi == null) continue;
+      const a = known.get(lo)!, b = known.get(hi)!;
+      const t = (off - lo) / (hi - lo);
+      out.push({
+        year: off,
+        baseline: Math.round(a.baseline + (b.baseline - a.baseline) * t),
+        optimistic: Math.round(a.optimistic + (b.optimistic - a.optimistic) * t),
+        pessimistic: Math.round(a.pessimistic + (b.pessimistic - a.pessimistic) * t),
+      });
+    }
+    return out.length >= 2 ? out : base;
+  }, [forecastBands, drawdown, retirementPoint, profile?.current_age, activeRetirementAge]);
+
   // ── The wealth trajectory (shared hero) ────────────────────────────────────
   // Interactive fan wired to the LIVE plan: forecast bands, real life events
   // (committed + considering), the what-if retirement handle, and the drawdown
@@ -6055,7 +6116,7 @@ export default function PlanningClient({
       baselineRetirementAge={profile?.target_retirement_age ?? null}
       onRetirementAgeChange={(age) => setScenarioRetirementAge(age)}
       onResetRetirementAge={() => setScenarioRetirementAge(profile?.target_retirement_age ?? null)}
-      bands={forecastBands.map((b) => ({ year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic }))}
+      bands={trajectoryBands}
       retirementProb={retirementProb}
       atRetirement={retirementPoint?.baseline ?? null}
       lastsToAge={drawdown?.lastsToAge ?? null}
