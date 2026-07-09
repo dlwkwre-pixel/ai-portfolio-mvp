@@ -5923,7 +5923,11 @@ export default function PlanningClient({
     ? Math.max(0, activeRetirementAge - profile.current_age)
     : yearsToRetire;
 
-  const forecastYears = Math.min(activeYearsToRetire ?? 30, 40);
+  // Horizon must actually reach the chosen retirement age, otherwise "at retirement"
+  // (and the drawdown start) freeze at the old 40-year cap: e.g. a 22-year-old
+  // retiring at 81 would read the age-62 band for every age past 62. Cap high enough
+  // (age ~90) to cover any retirement the handle allows; the loop is trivially cheap.
+  const forecastYears = Math.min(activeYearsToRetire ?? 30, 72);
 
   // Plan spine: every committed life decision feeds the one master forecast.
   const planLifeEvents = useMemo(() => collectLifeEvents({

@@ -113,6 +113,9 @@ export default function TrajectoryChart({
   const startX = hasAges ? currentAge! : 0;
   const endX = startX + Math.max(1, bands.length - 1);
   const span = Math.max(1, endX - startX);
+  // Let the retirement handle run nearly to the plan end, leaving a few years of
+  // drawdown room. Shared by the drag, keyboard, and aria bounds.
+  const maxRetAge = hasAges ? Math.max(currentAge! + 1, Math.min(90, endX - 3)) : 90;
   const xOfYearAbs = useCallback((yearAbs: number) => startX + (yearAbs - currentYear), [startX, currentYear]);
 
   const yMax = useMemo(() => Math.max(1, ...bands.map((b) => b.optimistic)) * 1.06, [bands]);
@@ -196,9 +199,8 @@ export default function TrajectoryChart({
 
   const dragRetire = useMemo(() => {
     if (!hasAges || !onRetirementAgeChange) return undefined;
-    const maxRet = Math.min(85, endX - 2);
-    return beginDrag((x) => onRetirementAgeChange(clamp(Math.round(x), currentAge! + 1, maxRet)));
-  }, [beginDrag, hasAges, onRetirementAgeChange, currentAge, endX]);
+    return beginDrag((x) => onRetirementAgeChange(clamp(Math.round(x), currentAge! + 1, maxRetAge)));
+  }, [beginDrag, hasAges, onRetirementAgeChange, currentAge, maxRetAge]);
 
   const pinYearRef = useRef<number | null>(null);
   const dragPin = useCallback((ev: FutureEvent) => beginDrag(
@@ -320,10 +322,19 @@ export default function TrajectoryChart({
             <line x1="0" x2={VBW} y1={(1 - BOT_PAD) * VBH} y2={(1 - BOT_PAD) * VBH} stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
           </svg>
 
+          {/* Y-axis dollar labels, aligned to the gridlines */}
+          <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }}>
+            {[0, 0.25, 0.5, 0.75].map((f) => (
+              <span key={f} style={{ position: "absolute", left: "3px", top: `${(1 - BOT_PAD - f * (1 - TOP_PAD - BOT_PAD)) * 100}%`, transform: "translateY(-50%)", fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-tertiary)", background: "var(--card-bg)", padding: "0 3px", borderRadius: "3px", opacity: 0.9 }}>
+                {ph(fmtMoney(f * yMax))}
+              </span>
+            ))}
+          </div>
+
           {/* Retirement handle (real what-if state) */}
           {retX != null && (
-            <div role="slider" aria-label="What-if retirement age" aria-valuemin={currentAge! + 1} aria-valuemax={85} aria-valuenow={retX} tabIndex={0}
-              onKeyDown={(e) => { if (!onRetirementAgeChange) return; if (e.key === "ArrowLeft") onRetirementAgeChange(clamp(retX - 1, currentAge! + 1, 85)); if (e.key === "ArrowRight") onRetirementAgeChange(clamp(retX + 1, currentAge! + 1, 85)); }}
+            <div role="slider" aria-label="What-if retirement age" aria-valuemin={currentAge! + 1} aria-valuemax={maxRetAge} aria-valuenow={retX} tabIndex={0}
+              onKeyDown={(e) => { if (!onRetirementAgeChange) return; if (e.key === "ArrowLeft") onRetirementAgeChange(clamp(retX - 1, currentAge! + 1, maxRetAge)); if (e.key === "ArrowRight") onRetirementAgeChange(clamp(retX + 1, currentAge! + 1, maxRetAge)); }}
               onPointerDown={dragRetire}
               style={{ position: "absolute", top: 0, bottom: `${BOT_PAD * 100 - 4}%`, left: `${xFrac(retX) * 100}%`, width: "44px", marginLeft: "-22px", cursor: dragRetire ? "ew-resize" : "default", touchAction: "none", zIndex: 4, outline: "none" }}>
               <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(167,139,250,0.9), rgba(167,139,250,0.1))", borderRadius: "2px" }} />
@@ -386,7 +397,7 @@ export default function TrajectoryChart({
             return (
               <>
                 <div style={{ position: "absolute", top: `${TOP_PAD * 100}%`, bottom: `${BOT_PAD * 100}%`, left: `${xFrac(hoverX) * 100}%`, width: "1px", background: "rgba(148,163,184,0.28)", pointerEvents: "none", zIndex: 2 }} />
-                <div style={{ position: "absolute", top: "4px", left: `${clamp(xFrac(hoverX) * 100, 14, 84)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 2, background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "6px 10px", whiteSpace: "nowrap" }}>
+                <div style={{ position: "absolute", top: "38px", left: `${clamp(xFrac(hoverX) * 100, 14, 84)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 8, background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "6px 10px", whiteSpace: "nowrap", boxShadow: "0 6px 20px rgba(0,0,0,0.45)" }}>
                   <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>{hasAges ? `Age ${hoverX}` : `+${hoverX}yr`}</span>
                   <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{ph(fmtMoney(b.baseline))}</span>
                   <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "7px" }}>{ph(`${fmtMoney(b.pessimistic)} – ${fmtMoney(b.optimistic)}`)}</span>
