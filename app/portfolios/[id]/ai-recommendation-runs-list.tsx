@@ -923,7 +923,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
                               {item.thesis.replace(/\[SECURITY\]|\[SIZING\]/g, "").trim()}
                             </span>
                           )}
-                          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                             {item.share_quantity != null && (
                               <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs font-medium tabular-nums text-slate-300">
                                 {fmtN(item.share_quantity, 4)} shares
