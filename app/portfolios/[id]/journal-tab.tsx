@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import InfoTooltip from "@/app/components/info-tooltip";
-import { addJournalEntry, reviewJournalEntry, deleteJournalEntry, type JournalEntry, type JournalAction } from "./journal-actions";
+import { addJournalEntry, reviewJournalEntry, deleteJournalEntry, syncAiDecisionsToJournal, type JournalEntry, type JournalAction } from "./journal-actions";
 
 const ACTION_META: Record<JournalAction, { label: string; color: string }> = {
   buy:   { label: "Buy",   color: "var(--green)" },
@@ -65,6 +65,18 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
   const [opinions, setOpinions] = useState<Record<string, OpinionResult>>({});
   const [opinionLoading, setOpinionLoading] = useState<string | null>(null);
   const [opinionErr, setOpinionErr] = useState<Record<string, string>>({});
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  function syncAi() {
+    if (pending) return;
+    setSyncMsg(null);
+    startTransition(async () => {
+      const r = await syncAiDecisionsToJournal(portfolioId);
+      if (r.error) setSyncMsg(r.error);
+      else setSyncMsg(r.inserted > 0 ? `Added ${r.inserted} past AI decision${r.inserted === 1 ? "" : "s"}.` : "No past AI decisions to add.");
+      router.refresh();
+    });
+  }
 
   async function getOpinion(entryId: string, tkr: string) {
     if (opinionLoading) return;
@@ -129,6 +141,13 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
         <p style={{ fontSize: "12px", color: "var(--text-tertiary)", margin: "2px 0 0" }}>
           Log the thinking behind a move. We snapshot the price now so you can grade your reasoning later. Actionable AI calls from your analyses are auto-logged here (tagged <span style={{ color: "var(--accent, #818cf8)", fontWeight: 600 }}>AI call</span>) — run the devil&apos;s advocate on them.
         </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", flexWrap: "wrap" }}>
+          <button type="button" onClick={syncAi} disabled={pending}
+            style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: "8px", padding: "6px 11px", cursor: pending ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: pending ? 0.6 : 1 }}>
+            {pending ? "Syncing…" : "Sync past AI decisions"}
+          </button>
+          {syncMsg && <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{syncMsg}</span>}
+        </div>
       </div>
 
       {/* Add form */}

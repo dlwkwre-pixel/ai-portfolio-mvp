@@ -95,3 +95,57 @@ export async function deleteJournalEntry(id: string, portfolioId?: string): Prom
   if (portfolioId) revalidatePath(`/portfolios/${portfolioId}`);
   return {};
 }
+
+// One-time backfill: log a journal entry for every already-executed AI recommendation
+// that doesn't have one yet. New executions auto-log going forward; this catches the
+// history. Idempotent — the unique recommendation_item_id index blocks duplicates and
+// we skip any rec that already has an entry.
+export async function syncAiDecisionsToJournal(portfolioId: string): Promise<{ inserted: number; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { inserted: 0, error: "You must be signed in." };
+
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
+  if (!portfolio) return { inserted: 0, error: "Portfolio not found." };
+
+  const { data: recs } = await supabase
+    .from("recommendation_items")
+    .select("id, ticker, action_type, thesis, conviction")
+    .eq("portfolio_id", portfolioId).eq("recommendation_status", "executed");
+  if (!recs || recs.length === 0) return { inserted: 0 };
+
+  const { data: existing } = await supabase
+    .from("decision_journal").select("recommendation_item_id")
+    .eq("portfolio_id", portfolioId).not("recommendation_item_id", "is", null)
+    .then((r) => r, () => ({ data: null }));
+  const done = new Set((existing ?? []).map((r) => r.recommendation_item_id));
+
+  const allowed = ["buy", "add", "sell", "trim", "hold", "watch"];
+  const rows = recs
+    .filter((r) => r.ticker && !done.has(r.id))
+    .map((r) => {
+      const act = (r.action_type || "").toLowerCase();
+      const isSell = act === "sell" || act === "trim";
+      const thesisText = (r.thesis ? String(r.thesis) : "")
+        .replace(/\[SECURITY\]|\[SIZING\]/g, "").trim() || "Executed from an AI recommendation.";
+      return {
+        user_id: user.id,
+        portfolio_id: portfolioId,
+        ticker: String(r.ticker).toUpperCase(),
+        action: allowed.includes(act) ? act : isSell ? "sell" : "buy",
+        thesis: thesisText.slice(0, 2000),
+        conviction: r.conviction ? String(r.conviction).toLowerCase().replace(/\s+/g, "_") : null,
+        price_at_decision: null,
+        source: "ai",
+        recommendation_item_id: r.id,
+      };
+    });
+  if (rows.length === 0) return { inserted: 0 };
+
+  const { error } = await supabase.from("decision_journal").insert(rows);
+  if (error) return { inserted: 0, error: "Could not sync — the journal AI columns may be missing." };
+
+  revalidatePath(`/portfolios/${portfolioId}`);
+  return { inserted: rows.length };
+}

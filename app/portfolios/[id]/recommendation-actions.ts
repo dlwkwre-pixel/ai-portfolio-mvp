@@ -2093,6 +2093,32 @@ export async function updateRecommendationStatus(formData: FormData) {
         // non-fatal — thesis table may not exist yet
       }
     }
+
+    // Auto-log a decision-journal entry from the AI's thesis so executed AI ideas
+    // land in the Journal automatically. Idempotent: the unique recommendation_item_id
+    // index means re-executing the same item never duplicates. source="ai" so the
+    // Journal badges it and it stays distinct from the user's own entries.
+    if (isBuy || isSell) {
+      const allowedActions = ["buy", "add", "sell", "trim", "hold", "watch"];
+      const journalAction = allowedActions.includes(action) ? action : isBuy ? "buy" : "sell";
+      const thesisText = (item.thesis ? String(item.thesis) : "")
+        .replace(/\[SECURITY\]|\[SIZING\]/g, "").trim() || "Executed from an AI recommendation.";
+      try {
+        await supabase.from("decision_journal").insert({
+          user_id: user.id,
+          portfolio_id: portfolioId,
+          ticker: item.ticker.toUpperCase(),
+          action: journalAction,
+          thesis: thesisText.slice(0, 2000),
+          conviction: normalizeConviction(item.conviction),
+          price_at_decision: executedPrice ?? null,
+          source: "ai",
+          recommendation_item_id: recommendationItemId,
+        });
+      } catch {
+        // non-fatal — unique index blocks duplicates; columns may be absent pre-migration
+      }
+    }
   }
 
   revalidatePath(`/portfolios/${portfolioId}`, "layout");
