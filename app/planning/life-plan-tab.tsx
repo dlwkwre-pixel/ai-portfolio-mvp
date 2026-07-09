@@ -38,6 +38,7 @@ const STAGES: Stage[] = [
   ]},
   { key: "career", title: "Career & Income", hue: "285", planners: [
     { label: "Career move", href: "/planning/career", emoji: "💼" },
+    { label: "Equity comp", href: "/planning/equity", emoji: "📈" },
     { label: "Start a business", href: "/planning/business", emoji: "💡" },
     { label: "Take a sabbatical", href: "/planning/sabbatical", emoji: "🌴" },
   ]},
