@@ -204,6 +204,40 @@ export async function updateManualNav(formData: FormData) {
   revalidatePath(`/portfolios/${portfolioId}`);
 }
 
+// Reconcile ritual: the user confirms their manually maintained holdings are still
+// accurate. Stamps holdings_verified_at and credits a small XP (once per portfolio
+// per day). Returns a typed result so the chip can update inline without a reload.
+export async function reconcilePortfolio(
+  portfolioId: string,
+): Promise<{ ok: boolean; verifiedAt: string | null; awardedXp: number; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, verifiedAt: null, awardedXp: 0, error: "You must be signed in." };
+
+  const cleanId = String(portfolioId || "").trim();
+  if (!cleanId) return { ok: false, verifiedAt: null, awardedXp: 0, error: "Portfolio ID is required." };
+
+  // Ownership check before mutating.
+  const { data: portfolio } = await supabase
+    .from("portfolios").select("id").eq("id", cleanId).eq("user_id", user.id).maybeSingle();
+  if (!portfolio) return { ok: false, verifiedAt: null, awardedXp: 0, error: "Portfolio not found." };
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("portfolios").update({ holdings_verified_at: now }).eq("id", cleanId).eq("user_id", user.id);
+  if (error) {
+    // Most likely the migration (supabase/portfolio-holdings-verified.sql) hasn't run yet.
+    return { ok: false, verifiedAt: null, awardedXp: 0, error: "Could not save — the holdings_verified_at column may be missing." };
+  }
+
+  // Once per portfolio per day, so re-confirming doesn't farm XP.
+  const dedup = `holdings_verified:${cleanId}:${now.slice(0, 10)}`;
+  const award = await awardXp(user.id, "holdings_verified", dedup);
+
+  revalidatePath(`/portfolios/${cleanId}`);
+  return { ok: true, verifiedAt: now, awardedXp: award?.awarded ? 8 : 0 };
+}
+
 export async function deleteHolding(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

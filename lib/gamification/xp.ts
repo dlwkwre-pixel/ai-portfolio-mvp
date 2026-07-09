@@ -17,6 +17,7 @@ export type XpKind =
   | "watchlist_added"
   | "goal_progress"
   | "planner_used"
+  | "holdings_verified"
   | "challenge";
 
 export const XP_VALUES: Record<XpKind, number> = {
@@ -33,6 +34,7 @@ export const XP_VALUES: Record<XpKind, number> = {
   watchlist_added: 10,
   goal_progress: 12,
   planner_used: 10,
+  holdings_verified: 8,
   challenge: 0, // variable — pass an explicit amount to awardXp
 };
 
@@ -50,6 +52,7 @@ export const XP_LABELS: Record<XpKind, string> = {
   watchlist_added: "Added to watchlist",
   goal_progress: "Made progress on a goal",
   planner_used: "Used a planner",
+  holdings_verified: "Confirmed your holdings",
   challenge: "Completed a weekly challenge",
 };
 
