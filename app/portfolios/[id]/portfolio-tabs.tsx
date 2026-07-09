@@ -58,31 +58,11 @@ const tabs: Tab[] = [
     ),
   },
   {
-    id: "notes",
-    label: "Notes",
-    mobileHidden: true,
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
     id: "journal",
     label: "Journal",
     icon: (
       <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2H5zm2.5 3a.75.75 0 000 1.5h5a.75.75 0 000-1.5h-5zM7 9.75A.75.75 0 017.75 9h5a.75.75 0 010 1.5h-5A.75.75 0 017 9.75zm.75 3.25a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: "emails",
-    label: "Emails",
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
       </svg>
     ),
   },
@@ -142,6 +122,45 @@ export default function PortfolioTabs({
           </button>
         );
       })}
+
+      {/* Email digest — a settings-style destination, tucked behind a gear so it
+          doesn't take a full tab slot. Highlights when the emails view is open. */}
+      {(() => {
+        const isActive = activeTab === "emails";
+        return (
+          <button
+            type="button"
+            onClick={() => handleTabChange("emails")}
+            title="Email digest settings"
+            aria-label="Email digest settings"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              marginLeft: "auto",
+              padding: "10px 14px",
+              fontSize: "12px",
+              fontWeight: isActive ? 500 : 400,
+              color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
+              background: "none",
+              border: "none",
+              borderBottom: `2px solid ${isActive ? "var(--brand-blue)" : "transparent"}`,
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              transition: "var(--transition-base)",
+              marginBottom: "-1px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ opacity: isActive ? 1 : 0.5, display: "flex" }}>
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.53 1.53 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.53 1.53 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.53 1.53 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.532 1.532 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.53 1.53 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.53 1.53 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.53 1.53 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+              </svg>
+            </span>
+            Emails
+          </button>
+        );
+      })()}
     </div>
   );
 }

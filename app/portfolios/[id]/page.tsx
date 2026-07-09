@@ -191,7 +191,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   // the outcome scoring (price move since each decision). Graceful if the table doesn't exist yet.
   let journalEntries: JournalEntry[] = [];
   const journalQuotes: Record<string, number> = {};
-  if (activeTab === "journal") {
+  if (activeTab === "journal" || activeTab === "notes") {
     const { data: jrows } = await supabase
       .from("decision_journal")
       .select("*")
@@ -569,49 +569,6 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </div>
               )}
 
-              {/* NOTES */}
-              {activeTab === "notes" && (
-                <div className="bt-tab-enter portfolio-notes-grid" style={{ gap: "16px" }}>
-                  <div className="bt-card">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                      <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Portfolio Notes</h2>
-                      <AddNoteForm portfolioId={portfolio.id} />
-                    </div>
-                    {notes && notes.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {notes.map((note) => (
-                          <div key={note.id} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
-                            <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{note.title}</p>
-                            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.6 }}>{note.content || "—"}</p>
-                            <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "8px" }}>{new Date(note.created_at).toLocaleDateString()}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>No notes yet.</p>
-                    )}
-                  </div>
-                  <div className="bt-card">
-                    <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Portfolio Info</h2>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {[
-                        ["Status", portfolio.status],
-                        ["Account Type", formatAccountType(portfolio.account_type)],
-                        ["Currency", portfolio.base_currency],
-                        ["Benchmark", portfolio.benchmark_symbol || "SPY"],
-                        ["Created", new Date(portfolio.created_at).toLocaleDateString()],
-                      ].map(([label, value]) => (
-                        <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                          <span className="label">{label}</span>
-                          <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textTransform: "capitalize" }}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-
               {/* ANALYTICS */}
               {activeTab === "analytics" && (
                 <div className="bt-tab-enter" style={{ gap: "16px" }}>
@@ -626,10 +583,48 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 </div>
               )}
 
-              {/* JOURNAL */}
-              {activeTab === "journal" && (
-                <div className="bt-tab-enter" style={{ gap: "16px" }}>
+              {/* JOURNAL (Notes merged in) */}
+              {(activeTab === "journal" || activeTab === "notes") && (
+                <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <JournalTab entries={journalEntries} quotes={journalQuotes} portfolioId={portfolio.id} />
+                  <div className="portfolio-notes-grid" style={{ gap: "16px" }}>
+                    <div className="bt-card">
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                        <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Portfolio Notes</h2>
+                        <AddNoteForm portfolioId={portfolio.id} />
+                      </div>
+                      {notes && notes.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {notes.map((note) => (
+                            <div key={note.id} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
+                              <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>{note.title}</p>
+                              <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "6px", lineHeight: 1.6 }}>{note.content || "—"}</p>
+                              <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "8px" }}>{new Date(note.created_at).toLocaleDateString()}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>No notes yet.</p>
+                      )}
+                    </div>
+                    <div className="bt-card">
+                      <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)", marginBottom: "12px" }}>Portfolio Info</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {[
+                          ["Status", portfolio.status],
+                          ["Account Type", formatAccountType(portfolio.account_type)],
+                          ["Currency", portfolio.base_currency],
+                          ["Benchmark", portfolio.benchmark_symbol || "SPY"],
+                          ["Created", new Date(portfolio.created_at).toLocaleDateString()],
+                        ].map(([label, value]) => (
+                          <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+                            <span className="label">{label}</span>
+                            <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)", textTransform: "capitalize" }}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
