@@ -6048,64 +6048,63 @@ export default function PlanningClient({
     () => (drawdownParams ? simulateRetirementDrawdown(drawdownParams) : null), [drawdownParams]);
 
   // ── Full-horizon trajectory bands (now → plan end) ─────────────────────────
-  // The forecast bands are accumulation-only and stop at retirement. To render
-  // the continuous "rise then draw down" arc (like the /planning/concept chart)
-  // we append the drawdown spend-down: investable balance per age, lifted by the
-  // non-investable wealth held at retirement so the two phases join with no cliff.
-  // Result is a dense, one-per-year series from age now to the drawdown end age,
-  // which gives the chart a FIXED domain so the retirement handle sits mid-chart
-  // instead of pinning to the right edge.
+  // One continuous BASELINE from now to the plan end, plus a smooth uncertainty
+  // cone derived from that baseline. The accumulation forecast (now → retirement)
+  // is joined to the drawdown spend-down (retirement → end) via an anchor so the
+  // seam is continuous with no cliff. The raw optimistic/pessimistic scenarios are
+  // NOT plotted directly: over long horizons they diverge to many multiples of the
+  // baseline, which balloons the y-scale and squashes the curve. Instead we draw a
+  // cone that widens with √time (the shape return uncertainty actually takes) and
+  // is capped, so the chart stays readable and the two phases share one envelope.
   const trajectoryBands = useMemo(() => {
-    const base = forecastBands.map((b) => ({
-      year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic,
-    }));
     const cAge = profile?.current_age ?? null;
-    if (!drawdown || drawdown.years.length === 0 || cAge == null || activeRetirementAge == null) return base;
 
-    const investAtRet = drawdown.startTotal;
-    const nwAtRet = retirementPoint?.baseline ?? investAtRet;
-    const nonInvest = Math.max(0, nwAtRet - investAtRet); // home equity + illiquid, held ~flat
-    const fracAtRet = retirementPoint && retirementPoint.baseline > 0
-      ? Math.min(0.35, Math.max(0.03, (retirementPoint.optimistic - retirementPoint.pessimistic) / (2 * retirementPoint.baseline)))
-      : 0.08;
-    const retAge = activeRetirementAge;
+    // Baseline net worth per year-offset from now.
+    const baseByOff = new Map<number, number>();
+    for (const b of forecastBands) baseByOff.set(b.year, b.baseline);
+    let maxOff = forecastBands.length - 1;
 
-    // Known net-worth points keyed by year-offset from now.
-    const known = new Map<number, { baseline: number; optimistic: number; pessimistic: number }>();
-    for (const b of base) known.set(b.year, { baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic });
-    for (const dy of drawdown.years) {
-      if (dy.age <= retAge) continue; // retirement year is already the accumulation tail
-      const off = dy.age - cAge;
-      const nw = dy.total + nonInvest;
-      const frac = Math.min(0.6, fracAtRet * (1 + 0.045 * (dy.age - retAge))); // uncertainty keeps widening
-      known.set(off, {
-        baseline: Math.round(nw),
-        optimistic: Math.round(nw * (1 + frac)),
-        pessimistic: Math.round(Math.max(0, nw * (1 - frac))),
-      });
+    if (drawdown && drawdown.years.length > 0 && cAge != null && activeRetirementAge != null) {
+      // Anchor the drawdown balance to the accumulation endpoint so net worth is
+      // continuous across the retirement seam (drawdown tracks investable dollars;
+      // the anchor carries the non-investable remainder, e.g. home equity).
+      const anchor = (retirementPoint?.baseline ?? drawdown.startTotal) - drawdown.startTotal;
+      const retAge = activeRetirementAge;
+      for (const dy of drawdown.years) {
+        if (dy.age <= retAge) continue; // retirement year is the accumulation tail
+        baseByOff.set(dy.age - cAge, Math.max(0, dy.total + anchor));
+      }
+      maxOff = (drawdown.endAge ?? 95) - cAge;
     }
 
-    // Emit a dense array (offset 0..maxOff), interpolating any gap between the
-    // 40-year accumulation cap and a later retirement so indices stay consecutive.
-    const maxOff = (drawdown.endAge ?? 95) - cAge;
-    const offs = [...known.keys()].sort((a, b) => a - b);
+    const offs = [...baseByOff.keys()].sort((a, b) => a - b);
+    // Smooth, capped uncertainty cone around the baseline.
+    const coneAt = (baseline: number, off: number) => {
+      const spread = Math.min(0.42, 0.07 * Math.sqrt(Math.max(0, off)));
+      return {
+        optimistic: Math.round(baseline * (1 + spread)),
+        pessimistic: Math.round(Math.max(0, baseline * (1 - spread))),
+      };
+    };
+
     const out: { year: number; baseline: number; optimistic: number; pessimistic: number }[] = [];
     for (let off = 0; off <= maxOff; off++) {
-      const hit = known.get(off);
-      if (hit) { out.push({ year: off, ...hit }); continue; }
-      const lo = offs.filter((o) => o < off).pop();
-      const hi = offs.find((o) => o > off);
-      if (lo == null || hi == null) continue;
-      const a = known.get(lo)!, b = known.get(hi)!;
-      const t = (off - lo) / (hi - lo);
-      out.push({
-        year: off,
-        baseline: Math.round(a.baseline + (b.baseline - a.baseline) * t),
-        optimistic: Math.round(a.optimistic + (b.optimistic - a.optimistic) * t),
-        pessimistic: Math.round(a.pessimistic + (b.pessimistic - a.pessimistic) * t),
-      });
+      let base = baseByOff.get(off);
+      if (base == null) {
+        // Interpolate a gap (e.g. between the accumulation horizon and a later
+        // retirement) so indices stay one-per-year and the line stays smooth.
+        const lo = offs.filter((o) => o < off).pop();
+        const hi = offs.find((o) => o > off);
+        if (lo == null || hi == null) continue;
+        const t = (off - lo) / (hi - lo);
+        base = baseByOff.get(lo)! + (baseByOff.get(hi)! - baseByOff.get(lo)!) * t;
+      }
+      base = Math.round(base);
+      out.push({ year: off, baseline: base, ...coneAt(base, off) });
     }
-    return out.length >= 2 ? out : base;
+    return out.length >= 2
+      ? out
+      : forecastBands.map((b) => ({ year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic }));
   }, [forecastBands, drawdown, retirementPoint, profile?.current_age, activeRetirementAge]);
 
   // ── The wealth trajectory (shared hero) ────────────────────────────────────
