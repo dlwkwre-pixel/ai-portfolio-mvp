@@ -85,6 +85,27 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
     });
   }
 
+  // Catch-up: log every not-yet-logged recent payout in one pass. Best-effort per row.
+  function logAll() {
+    const list = (events?.recent ?? []).filter((ev) => !logged[`${ev.ticker}-${ev.payDate ?? ev.exDate}`]);
+    if (list.length === 0 || logging) return;
+    setLogging("__all__");
+    startTransition(async () => {
+      for (const ev of list) {
+        const key = `${ev.ticker}-${ev.payDate ?? ev.exDate}`;
+        const fd = new FormData();
+        fd.set("portfolio_id", portfolioId);
+        fd.set("reason", "dividend");
+        fd.set("amount", String(ev.estAmount));
+        fd.set("effective_at", (ev.payDate ?? ev.exDate) || new Date().toISOString().slice(0, 10));
+        try { await createCashActivity(fd); setLogged((p) => ({ ...p, [key]: true })); } catch { /* skip this one */ }
+      }
+      fetch(`/api/portfolios/${portfolioId}/income`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setData(d); }).catch(() => {});
+      router.refresh();
+      setLogging(null);
+    });
+  }
+
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "40px", justifyContent: "center", color: "var(--text-muted)", fontSize: "13px" }}>
@@ -157,9 +178,19 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
             </div>
           )}
 
-          {events.recent.length > 0 && (
+          {events.recent.length > 0 && (() => {
+            const unlogged = events.recent.filter((ev) => !logged[`${ev.ticker}-${ev.payDate ?? ev.exDate}`]);
+            return (
             <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "6px" }}>Recently paid — log it</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "6px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)" }}>Recently paid — log it</div>
+                {unlogged.length >= 2 && (
+                  <button type="button" onClick={logAll} disabled={logging != null}
+                    style={{ flexShrink: 0, padding: "4px 10px", borderRadius: "7px", fontSize: "10.5px", fontWeight: 700, fontFamily: "var(--font-body)", cursor: logging != null ? "default" : "pointer", border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.12)", color: "#34d399", opacity: logging != null ? 0.6 : 1 }}>
+                    {logging === "__all__" ? "Logging…" : `Log all (${unlogged.length})`}
+                  </button>
+                )}
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {events.recent.map((ev) => {
                   const key = `${ev.ticker}-${ev.payDate ?? ev.exDate}`;
@@ -184,7 +215,8 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
               </div>
               <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>One tap records it to your cash ledger as a dividend (editable on the Overview tab). Estimates assume the full position was held through the ex-date.</p>
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 

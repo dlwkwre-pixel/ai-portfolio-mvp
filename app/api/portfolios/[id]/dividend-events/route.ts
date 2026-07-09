@@ -38,36 +38,56 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (rows.length === 0) return NextResponse.json({ upcoming: [], recent: [] });
 
   const upcoming: Event[] = [];
-  const recent: Event[] = [];
+  let recent: Event[] = [];
 
   await Promise.all(rows.map(async (h) => {
     const shares = Number(h.shares);
     let divs;
-    try { divs = await getFmpDividends(h.ticker); } catch { return; }
+    try { divs = await getFmpDividends(h.ticker); } catch { return; } // FMP down for this ticker → skip it
     if (!divs || divs.length === 0) return;
 
-    // Upcoming: any declared dividend with an ex- or pay-date in the future (next 120 days).
+    let hasUpcoming = false;
     for (const d of divs) {
-      const days = daysFromToday(d.paymentDate ?? d.exDate);
+      const ref = d.paymentDate ?? d.exDate;
+      if (!ref) continue;
+      const days = daysFromToday(ref);
+      const estAmount = Math.round(shares * d.perShare * 100) / 100;
+      if (estAmount <= 0) continue;
       if (days >= 0 && days <= 120) {
-        upcoming.push({ ticker: h.ticker, shares, perShare: d.perShare, estAmount: shares * d.perShare, exDate: d.exDate, payDate: d.paymentDate });
-        return; // one upcoming per holding is enough
+        if (!hasUpcoming) { upcoming.push({ ticker: h.ticker, shares, perShare: d.perShare, estAmount, exDate: d.exDate, payDate: d.paymentDate }); hasUpcoming = true; }
+      } else if (days < 0 && days >= -100) {
+        // Every payout in the last ~100 days is a "log it" candidate (dedup happens below).
+        recent.push({ ticker: h.ticker, shares, perShare: d.perShare, estAmount, exDate: d.exDate, payDate: d.paymentDate });
       }
     }
-    // Otherwise surface the most recent payout in the last 60 days as a "log it" candidate.
-    const latest = divs[0];
-    const payRef = latest.paymentDate ?? latest.exDate;
-    const days = daysFromToday(payRef);
-    if (days <= 0 && days >= -60) {
-      recent.push({ ticker: h.ticker, shares, perShare: latest.perShare, estAmount: shares * latest.perShare, exDate: latest.exDate, payDate: latest.paymentDate });
-    }
   }));
+
+  // Dedup: drop any recent payout that already has a matching logged dividend, so a
+  // reload never re-offers an entry the user already recorded (which would double-count
+  // it now that dividends flow into returns). We match on pay-date + amount because the
+  // one-tap logger writes exactly effective_at=payDate and amount=estAmount. Best-effort:
+  // if the ledger read fails, we simply skip dedup rather than break the calendar.
+  try {
+    const { data: logged } = await supabase
+      .from("cash_ledger")
+      .select("amount, effective_at")
+      .eq("portfolio_id", id).eq("reason", "dividend").eq("direction", "IN");
+    if (logged && logged.length > 0) {
+      const seen = new Set(
+        logged.map((l) => `${String(l.effective_at).slice(0, 10)}|${Number(l.amount).toFixed(2)}`),
+      );
+      recent = recent.filter((e) => {
+        const key = `${String(e.payDate ?? e.exDate).slice(0, 10)}|${e.estAmount.toFixed(2)}`;
+        return !seen.has(key);
+      });
+    }
+  } catch { /* dedup is best-effort */ }
 
   upcoming.sort((a, b) => (a.payDate ?? a.exDate).localeCompare(b.payDate ?? b.exDate));
   recent.sort((a, b) => (b.payDate ?? b.exDate).localeCompare(a.payDate ?? a.exDate));
 
   return NextResponse.json({
     upcoming: upcoming.map((e) => ({ ...e, estAmount: Math.round(e.estAmount * 100) / 100 })),
-    recent: recent.map((e) => ({ ...e, estAmount: Math.round(e.estAmount * 100) / 100 })),
+    recent: recent.slice(0, 15).map((e) => ({ ...e, estAmount: Math.round(e.estAmount * 100) / 100 })),
   });
 }
