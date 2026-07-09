@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import AddHoldingForm from "./add-holding-form";
 import ImportHoldingsCSV from "./import-holdings-csv";
+import PortfolioPulse from "./portfolio-pulse";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
@@ -365,6 +366,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               {/* OVERVIEW */}
               {activeTab === "overview" && (
                 <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <PortfolioPulse portfolioId={portfolio.id} />
                   {finnInsights.length > 0 && (
                     <FinnInsightCard insights={finnInsights} portfolioId={portfolio.id} />
                   )}
