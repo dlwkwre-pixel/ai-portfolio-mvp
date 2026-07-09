@@ -315,13 +315,13 @@ export async function syncPublicAllocation(portfolioId: string) {
   try {
     const [{ data: snapshots }, { data: cashFlows }] = await Promise.all([
       supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date"),
-      supabase.from("cash_ledger").select("effective_at, direction, amount").eq("portfolio_id", portfolioId),
+      supabase.from("cash_ledger").select("effective_at, direction, amount, reason").eq("portfolio_id", portfolioId),
     ]);
     if (snapshots && snapshots.length >= 2) {
       const result = await getBenchmarkComparison({
         snapshots: snapshots.map((s) => ({ snapshot_date: s.snapshot_date, total_value: s.total_value })),
         benchmarkSymbol,
-        cashFlows: (cashFlows ?? []).map((c) => ({ effective_at: c.effective_at, direction: c.direction, amount: c.amount })),
+        cashFlows: (cashFlows ?? []).map((c) => ({ effective_at: c.effective_at, direction: c.direction, amount: c.amount, reason: c.reason })),
       });
       returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;
       benchmarkReturnPct = result.benchmarkReturnPct ?? null;

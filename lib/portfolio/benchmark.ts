@@ -10,7 +10,17 @@ type CashFlowRow = {
   effective_at: string;
   direction: string | null;
   amount: number | string;
+  reason?: string | null;
 };
+
+// A dividend (or interest) is investment INCOME, not an external contribution, so it
+// must stay in the return, not be netted out like a deposit. Any flow whose reason is
+// investment income is excluded from the cash-flow set the TWR/net-invested math removes.
+// Rows without a reason are treated as external (the safe default for legacy data).
+export function isExternalCashFlow(reason: string | null | undefined): boolean {
+  const r = (reason ?? "").toLowerCase();
+  return r !== "dividend" && r !== "interest";
+}
 
 export type BenchmarkChartPoint = {
   date: string;
@@ -164,7 +174,9 @@ export async function getBenchmarkComparison(args: {
   totalCostBasis?: number;
 }): Promise<BenchmarkComparisonResult> {
   const benchmarkSymbol = args.benchmarkSymbol?.trim().toUpperCase() || "SPY";
-  const cashFlows = args.cashFlows ?? [];
+  // Keep only EXTERNAL flows (deposits/withdrawals/adjustments). Dividends and interest
+  // are income and must count toward return, so they're dropped from the netting set.
+  const cashFlows = (args.cashFlows ?? []).filter((cf) => isExternalCashFlow(cf.reason));
 
   const rawSnapshots = [...args.snapshots]
     .map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) }))

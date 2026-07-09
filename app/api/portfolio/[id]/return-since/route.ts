@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isExternalCashFlow } from "@/lib/portfolio/benchmark";
 
 export async function GET(
   request: Request,
@@ -29,7 +30,7 @@ export async function GET(
       .order("snapshot_date", { ascending: true }),
     supabase
       .from("cash_ledger")
-      .select("direction, amount, effective_at")
+      .select("direction, amount, effective_at, reason")
       .eq("portfolio_id", portfolioId)
       .gte("effective_at", since + "T00:00:00"),
   ]);
@@ -51,6 +52,7 @@ export async function GET(
   const span = Math.max(1, endMs - startMs);
   let netFlows = 0, weightedFlows = 0;
   for (const f of flows ?? []) {
+    if (!isExternalCashFlow(f.reason)) continue; // dividends/interest are return, not a flow
     const t = new Date(f.effective_at as string).getTime();
     if (!Number.isFinite(t) || t <= startMs || t > endMs) continue;
     const amt = Number(f.amount ?? 0);

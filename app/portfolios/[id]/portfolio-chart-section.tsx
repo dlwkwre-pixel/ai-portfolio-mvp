@@ -55,7 +55,7 @@ export default async function PortfolioChartSection({
       .order("snapshot_date", { ascending: true }),
     supabase
       .from("cash_ledger")
-      .select("effective_at, direction, amount")
+      .select("effective_at, direction, amount, reason")
       .eq("portfolio_id", portfolioId)
       .order("effective_at", { ascending: true }),
     supabase
@@ -78,6 +78,7 @@ export default async function PortfolioChartSection({
       effective_at: cf.effective_at,
       direction: cf.direction,
       amount: cf.amount,
+      reason: cf.reason,
     })),
     totalCostBasis: totalCostBasis > 0 ? totalCostBasis : undefined,
   });

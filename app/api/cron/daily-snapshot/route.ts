@@ -182,7 +182,7 @@ export async function GET(request: Request) {
                   .order("snapshot_date"),
                 supabase
                   .from("cash_ledger")
-                  .select("effective_at, direction, amount")
+                  .select("effective_at, direction, amount, reason")
                   .eq("portfolio_id", portfolio.id),
               ]);
               if (snapshots && snapshots.length >= 2) {
@@ -193,6 +193,7 @@ export async function GET(request: Request) {
                     effective_at: c.effective_at,
                     direction: c.direction,
                     amount: c.amount,
+                    reason: c.reason,
                   })),
                 });
                 returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;

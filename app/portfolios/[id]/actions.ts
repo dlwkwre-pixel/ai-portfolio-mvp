@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateTicker, validateLength, validateEnum, validateDate } from "@/lib/validation";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { isExternalCashFlow } from "@/lib/portfolio/benchmark";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { getFmpQuotes } from "@/lib/market-data/fmp";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
@@ -380,12 +381,13 @@ export async function previewCashActivityDeletion(entryId: string, portfolioId: 
 
   const [{ data: snapshotsRaw }, { data: allFlows }, { data: entry }] = await Promise.all([
     supabase.from("portfolio_snapshots").select("snapshot_date, total_value").eq("portfolio_id", portfolioId).order("snapshot_date", { ascending: true }),
-    supabase.from("cash_ledger").select("id, effective_at, direction, amount").eq("portfolio_id", portfolioId),
+    supabase.from("cash_ledger").select("id, effective_at, direction, amount, reason").eq("portfolio_id", portfolioId),
     supabase.from("cash_ledger").select("id, amount, direction").eq("id", entryId).eq("portfolio_id", portfolioId).single(),
   ]);
 
   const snapshots = (snapshotsRaw ?? []).map((s) => ({ snapshot_date: s.snapshot_date, total_value: Number(s.total_value) }));
-  const flows = allFlows ?? [];
+  // Dividends/interest are income, not external flows — exclude them so TWR matches the charts.
+  const flows = (allFlows ?? []).filter((f) => isExternalCashFlow(f.reason));
   const currentTwr = localCalculateTwr(snapshots, flows);
   const simulatedTwr = localCalculateTwr(snapshots, flows.filter((f) => f.id !== entryId));
 
