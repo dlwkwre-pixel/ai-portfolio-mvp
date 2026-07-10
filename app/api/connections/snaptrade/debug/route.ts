@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { getSnaptrade, fetchAccounts } from "@/lib/connections/snaptrade";
+import { getSnaptrade, fetchAccounts, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
 
 export const maxDuration = 60;
 
-// Diagnostic: shows what SnapTrade actually returns for the user's linked accounts —
-// the broker's return rates, its value history, and the performance report — so we can
-// pick the right fields. Gated to the user + brokerage_connect. Open it in the browser.
+const round = (n: number) => Math.round(n * 100) / 100;
+
+// Diagnostic for linked-portfolio returns. Computes both candidate return numbers from
+// the endpoints that work on the free tier (positions + cash + activities), so we can
+// compare them to what Robinhood shows and pick the right one. Also reports whether the
+// broker's paid "Portfolio Performance" endpoints are reachable, and whether the activity
+// history looks complete (needed for the all-time / net-deposit number). Gated to the
+// user + brokerage_connect. Open it in the browser.
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,23 +33,56 @@ export async function GET() {
   const out: unknown[] = [];
   for (const a of accounts) {
     const rec: Record<string, unknown> = { accountId: a.id, label: a.label };
-    try {
-      const rr = await snaptrade.accountInformation.getUserAccountReturnRates({ ...creds, accountId: a.id });
-      rec.returnRates = (rr.data as { data?: unknown[] })?.data ?? rr.data;
-    } catch (e) { rec.returnRatesError = e instanceof Error ? e.message : String(e); }
-    try {
-      const bh = await snaptrade.accountInformation.getAccountBalanceHistory({ ...creds, accountId: a.id });
-      const hist = ((bh.data as { history?: Array<{ date?: string; total_value?: unknown }> })?.history ?? []);
-      rec.balanceHistory = { count: hist.length, first: hist[0] ?? null, last: hist[hist.length - 1] ?? null };
-    } catch (e) { rec.balanceHistoryError = e instanceof Error ? e.message : String(e); }
-    try {
-      const end = new Date().toISOString().slice(0, 10);
-      const start = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
-      const rep = await snaptrade.transactionsAndReporting.getReportingCustomRange({ ...creds, accounts: a.id, startDate: start, endDate: end, frequency: "daily" });
-      const perf = rep.data as { rateOfReturn?: number; totalEquityTimeframe?: Array<{ date?: string; value?: number }> };
-      const te = perf.totalEquityTimeframe ?? [];
-      rec.reporting = { rateOfReturn: perf.rateOfReturn, equityCount: te.length, equityFirst: te[0] ?? null, equityLast: te[te.length - 1] ?? null };
-    } catch (e) { rec.reportingError = e instanceof Error ? e.message : String(e); }
+
+    // Live value + cost basis from current positions.
+    const positions = await fetchAccountPositions(snaptrade, creds, a.id).catch(() => []);
+    const cash = await fetchAccountCash(snaptrade, creds, a.id).catch(() => 0);
+    let positionsValue = 0, positionsCost = 0;
+    for (const p of positions) {
+      positionsValue += p.value || (p.price != null ? p.price * p.shares : 0);
+      if (p.avgCost != null && p.avgCost > 0) positionsCost += p.avgCost * p.shares;
+    }
+    const currentValue = round(positionsValue + cash);
+    const costBasisReturnPct = positionsCost > 0 ? round(((positionsValue - positionsCost) / positionsCost) * 100) : null;
+
+    // Activity history — needed for the all-time (net-deposit) return.
+    const activities = await fetchAccountActivities(snaptrade, creds, a.id, 500).catch(() => []);
+    const byType: Record<string, { count: number; sum: number }> = {};
+    let deposits = 0, withdrawals = 0, dividends = 0;
+    let earliest: string | null = null, latest: string | null = null;
+    for (const act of activities) {
+      const t = (act.type || "unknown").toLowerCase();
+      const gross = Math.abs(act.amount) || Math.abs(act.units * act.price) || 0;
+      byType[t] = byType[t] || { count: 0, sum: 0 };
+      byType[t].count++; byType[t].sum = round(byType[t].sum + gross);
+      if (t.includes("deposit") || t.includes("contribution")) deposits += gross;
+      else if (t.includes("withdraw")) withdrawals += gross;
+      else if (t.includes("div") || t.includes("interest")) dividends += gross;
+      if (act.date) { const d = act.date.slice(0, 10); if (!earliest || d < earliest) earliest = d; if (!latest || d > latest) latest = d; }
+    }
+    const netInvested = round(deposits - withdrawals);
+    const allTimeReturnDollars = netInvested > 0 ? round(currentValue - netInvested) : null;
+    const allTimeReturnPct = netInvested > 0 ? round(((currentValue - netInvested) / netInvested) * 100) : null;
+
+    rec.currentValue = currentValue;
+    rec.positionsValue = round(positionsValue);
+    rec.positionsCostBasis = round(positionsCost);
+    rec.cash = round(cash);
+    rec.holdingsCostBasisReturnPct = costBasisReturnPct;
+    rec.activities = {
+      count: activities.length,
+      hitLimit: activities.length >= 500, // if true, history is truncated → net-deposit unreliable
+      dateRange: { earliest, latest },
+      deposits: round(deposits), withdrawals: round(withdrawals), dividends: round(dividends),
+      netInvested, allTimeReturnDollars, allTimeReturnPct,
+      byType,
+    };
+
+    // Is the paid Portfolio Performance API reachable? (403 = free tier.)
+    rec.brokerPerfApi = {};
+    try { await snaptrade.accountInformation.getUserAccountReturnRates({ ...creds, accountId: a.id }); (rec.brokerPerfApi as Record<string, string>).returnRates = "ok"; }
+    catch (e) { (rec.brokerPerfApi as Record<string, string>).returnRates = e instanceof Error && e.message.includes("403") ? "403 (paid add-on)" : "error"; }
+
     out.push(rec);
   }
 
