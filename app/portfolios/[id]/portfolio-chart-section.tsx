@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
+import { isPortfolioLinked } from "@/lib/connections/snaptrade";
 import PortfolioChartClient from "./portfolio-chart-client";
 
 type PortfolioChartSectionProps = {
@@ -71,10 +72,14 @@ export default async function PortfolioChartSection({
     return sum + (shares > 0 && cb > 0 ? shares * cb : 0);
   }, 0);
 
+  // Linked portfolios: the chart is the broker's own value series, which is already
+  // deposit-inclusive. Netting external flows out again distorts the TWR (it blows up
+  // to -100% on a small, heavily-funded account), so we drop them for linked accounts.
+  const linked = await isPortfolioLinked(portfolioId);
   const comparison = await getBenchmarkComparison({
     snapshots: snapshots ?? [],
     benchmarkSymbol: benchmarkSymbol || "SPY",
-    cashFlows: (cashFlows ?? []).map((cf) => ({
+    cashFlows: linked ? [] : (cashFlows ?? []).map((cf) => ({
       effective_at: cf.effective_at,
       direction: cf.direction,
       amount: cf.amount,

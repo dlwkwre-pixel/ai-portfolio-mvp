@@ -7,8 +7,9 @@ import AddHoldingForm from "./add-holding-form";
 import ImportHoldingsCSV from "./import-holdings-csv";
 import PortfolioPulse from "./portfolio-pulse";
 import ReconcileChip from "./reconcile-chip";
-import { isPortfolioLinked } from "@/lib/connections/snaptrade";
+import { isPortfolioLinked, getBrokerageStatus } from "@/lib/connections/snaptrade";
 import LinkedChartStart from "./linked-chart-start";
+import AutoResync from "./auto-resync";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
@@ -238,6 +239,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   // Linked (brokerage-mirrored) portfolios are read-only: sync is the source of truth.
   const isLinkedPortfolio = await isPortfolioLinked(portfolio.id);
+  const brokerageLastSyncedAt = isLinkedPortfolio ? (await getBrokerageStatus(user.id)).lastSyncedAt : null;
 
   const totalValue = valuation.total_portfolio_value;
   const cashBalance = Number(portfolio.cash_balance ?? 0);
@@ -386,9 +388,12 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         </div>
                         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           {isLinkedPortfolio ? (
-                            <span title="Holdings and cash sync from your connected brokerage" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px" }}>
-                              🔗 Synced from your brokerage
-                            </span>
+                            <>
+                              <span title="Holdings and cash sync from your connected brokerage" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px" }}>
+                                🔗 Synced from your brokerage
+                              </span>
+                              <AutoResync lastSyncedAt={brokerageLastSyncedAt} />
+                            </>
                           ) : (
                             <>
                               <ImportHoldingsCSV portfolioId={portfolio.id} />
