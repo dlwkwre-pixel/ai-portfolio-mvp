@@ -1,6 +1,41 @@
 import type { Snaptrade } from "snaptrade-typescript-sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "./snaptrade";
+import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountEquityHistory } from "./snaptrade";
+
+function defaultHistoryStart(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 5);
+  return d.toISOString().slice(0, 10);
+}
+
+// Overwrite a linked portfolio's chart/return history with the broker's own daily
+// value series (the source of truth). Respects the portfolio's chart_start_date so
+// the user can start the chart at a chosen date (e.g. skip old losses + a dormant
+// gap). Only writes when the broker returns a usable series, so it never wipes data
+// to nothing. Returns the number of snapshots written.
+export async function rebuildLinkedPortfolioHistory(
+  st: Snaptrade, portfolioId: string, creds: Creds, accountId: string,
+): Promise<number> {
+  const admin = createAdminClient();
+  const { data: p } = await admin
+    .from("portfolios").select("chart_start_date").eq("id", portfolioId).maybeSingle()
+    .then((r) => r, () => ({ data: null }));
+  const startDate = (p?.chart_start_date as string | null) || defaultHistoryStart();
+  const endDate = new Date().toISOString().slice(0, 10);
+
+  const { series } = await fetchAccountEquityHistory(st, creds, accountId, startDate, endDate);
+  if (series.length < 2) return 0;
+
+  await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).then((r) => r, () => ({}));
+  const rows = series.map((pt) => ({
+    portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,
+    snapshot_date: pt.date, notes: "Synced from brokerage",
+  }));
+  for (let i = 0; i < rows.length; i += 500) {
+    await admin.from("portfolio_snapshots").insert(rows.slice(i, i + 500)).then((r) => r, () => ({}));
+  }
+  return rows.length;
+}
 
 type Creds = { userId: string; userSecret: string };
 
@@ -99,5 +134,7 @@ export async function resyncBrokerageAccount(
   await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", userId).then((r) => r, () => ({}));
 
   const activities = await importAccountActivities(st, userId, creds, accountId, defaultPortfolioId);
+  // Overwrite the chart/return history with the broker's own value series.
+  await rebuildLinkedPortfolioHistory(st, defaultPortfolioId, creds, accountId);
   return { updated, added, activities };
 }

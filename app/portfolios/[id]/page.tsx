@@ -8,6 +8,7 @@ import ImportHoldingsCSV from "./import-holdings-csv";
 import PortfolioPulse from "./portfolio-pulse";
 import ReconcileChip from "./reconcile-chip";
 import { isPortfolioLinked } from "@/lib/connections/snaptrade";
+import LinkedChartStart from "./linked-chart-start";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
@@ -406,7 +407,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       )}
                       {isLinkedPortfolio && (
                         <div style={{ marginBottom: "10px", fontSize: "11px", color: "var(--text-tertiary)", padding: "8px 11px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", lineHeight: 1.5 }}>
-                          This portfolio mirrors your brokerage. Holdings and cash update on sync, manual edits are off. Manage positions at your broker, then re-import from <a href="/connections" style={{ color: "var(--accent, #818cf8)", textDecoration: "none" }}>Connections</a>.
+                          This portfolio mirrors your brokerage. Holdings, cash, and chart history sync from the broker, manual edits are off. Manage positions at your broker, then re-import from <a href="/connections" style={{ color: "var(--accent, #818cf8)", textDecoration: "none" }}>Connections</a>.
+                          <LinkedChartStart portfolioId={portfolio.id} startDate={(portfolio as { chart_start_date?: string | null }).chart_start_date ?? null} />
                         </div>
                       )}
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>

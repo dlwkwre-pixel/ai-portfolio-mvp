@@ -112,6 +112,27 @@ export async function fetchAccountCash(
   }
 }
 
+export type EquityPoint = { date: string; value: number };
+
+// The broker's own daily portfolio-value history + computed return for one account.
+// This is the authoritative time series for a linked portfolio's chart. Non-fatal.
+export async function fetchAccountEquityHistory(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string, startDate: string, endDate: string,
+): Promise<{ series: EquityPoint[]; rateOfReturn: number | null }> {
+  try {
+    const res = await st.transactionsAndReporting.getReportingCustomRange({
+      userId: creds.userId, userSecret: creds.userSecret, accounts: accountId, startDate, endDate, frequency: "daily",
+    });
+    const perf = res.data as { totalEquityTimeframe?: Array<{ date?: string; value?: number | null }>; rateOfReturn?: number | null };
+    const series = (perf.totalEquityTimeframe ?? [])
+      .filter((p) => p.date && typeof p.value === "number" && (p.value as number) > 0)
+      .map((p) => ({ date: String(p.date).slice(0, 10), value: Number(p.value) }));
+    return { series, rateOfReturn: typeof perf.rateOfReturn === "number" ? perf.rateOfReturn : null };
+  } catch {
+    return { series: [], rateOfReturn: null };
+  }
+}
+
 export type BrokerageActivity = {
   id: string; type: string; ticker: string | null; name: string | null;
   units: number; price: number; amount: number; fee: number; date: string | null;

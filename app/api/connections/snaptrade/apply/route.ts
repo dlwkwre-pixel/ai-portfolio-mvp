@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccountPositions, fetchAccountCash } from "@/lib/connections/snaptrade";
-import { importAccountActivities } from "@/lib/connections/sync";
+import { importAccountActivities, rebuildLinkedPortfolioHistory } from "@/lib/connections/sync";
 
 export const maxDuration = 60;
 
@@ -86,6 +86,10 @@ export async function POST(req: Request) {
     const activityTarget = cashPortfolioId || defaultPortfolioId;
     if (activityTarget) {
       activitiesImported = await importAccountActivities(snaptrade, user.id, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId, activityTarget);
+    }
+    // Overwrite the linked portfolio's chart/return history with the broker's series.
+    if (defaultPortfolioId) {
+      await rebuildLinkedPortfolioHistory(snaptrade, defaultPortfolioId, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
     }
 
     await admin.from("brokerage_account_links").upsert(
