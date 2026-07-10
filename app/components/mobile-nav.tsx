@@ -13,6 +13,7 @@ const navItems = [
   { href: "/research", label: "Research" },
   { href: "/tax", label: "Tax" },
   { href: "/planning", label: "Planning" },
+  { href: "/connections", label: "Connections" },
 ];
 
 export default function MobileNav() {

@@ -72,6 +72,16 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    href: "/connections",
+    label: "Connections",
+    isNew: true,
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M8.464 3.05a5 5 0 017.07 7.072l-1.768 1.767a1 1 0 01-1.414-1.414l1.768-1.768a3 3 0 10-4.243-4.243L8.11 6.234A1 1 0 116.696 4.82L8.464 3.05zm-3.535 3.535a1 1 0 011.414 1.415L4.575 9.768a3 3 0 104.243 4.243l1.768-1.768a1 1 0 111.414 1.414l-1.768 1.768a5 5 0 01-7.07-7.072l1.767-1.768z" />
+      </svg>
+    ),
+  },
 ];
 
 const discoverItems = [
