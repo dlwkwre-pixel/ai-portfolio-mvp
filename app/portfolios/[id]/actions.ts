@@ -5,6 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { validateTicker, validateLength, validateEnum, validateDate } from "@/lib/validation";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { isExternalCashFlow } from "@/lib/portfolio/benchmark";
+import { isPortfolioLinked } from "@/lib/connections/snaptrade";
+
+// Linked (brokerage-mirrored) portfolios are read-only for manual holding edits —
+// the broker is the source of truth and sync overwrites them. Unlinked portfolios
+// are unaffected (isPortfolioLinked returns false).
+const LINKED_EDIT_MSG = "This portfolio is linked to your brokerage — holdings sync automatically. Make changes at your broker.";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 import { getFmpQuotes } from "@/lib/market-data/fmp";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
@@ -22,6 +28,7 @@ export async function createHolding(formData: FormData) {
   if (!user) throw new Error("You must be signed in to add a holding.");
 
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  if (await isPortfolioLinked(portfolioId)) throw new Error(LINKED_EDIT_MSG);
   const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
   const companyName = String(formData.get("company_name") || "").trim();
   const assetType = String(formData.get("asset_type") || "stock").trim();
@@ -110,6 +117,7 @@ export async function updateHolding(formData: FormData) {
 
   const holdingId = String(formData.get("holding_id") || "").trim();
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  if (await isPortfolioLinked(portfolioId)) throw new Error(LINKED_EDIT_MSG);
   const companyName = String(formData.get("company_name") || "").trim();
   const assetType = String(formData.get("asset_type") || "stock").trim();
   const sharesRaw = String(formData.get("shares") || "").trim();
@@ -181,6 +189,7 @@ export async function updateManualNav(formData: FormData) {
 
   const holdingId = String(formData.get("holding_id") || "").trim();
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  if (await isPortfolioLinked(portfolioId)) throw new Error(LINKED_EDIT_MSG);
   const manualPrice = Number(String(formData.get("manual_price") || "").trim());
 
   if (!holdingId) throw new Error("Holding ID is required.");
@@ -246,6 +255,7 @@ export async function deleteHolding(formData: FormData) {
 
   const holdingId = String(formData.get("holding_id") || "").trim();
   const portfolioId = String(formData.get("portfolio_id") || "").trim();
+  if (await isPortfolioLinked(portfolioId)) throw new Error(LINKED_EDIT_MSG);
 
   if (!holdingId) throw new Error("Holding ID is required.");
   if (!portfolioId) throw new Error("Portfolio ID is required.");

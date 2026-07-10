@@ -7,6 +7,7 @@ import AddHoldingForm from "./add-holding-form";
 import ImportHoldingsCSV from "./import-holdings-csv";
 import PortfolioPulse from "./portfolio-pulse";
 import ReconcileChip from "./reconcile-chip";
+import { isPortfolioLinked } from "@/lib/connections/snaptrade";
 import HoldingsTable from "./holdings-table";
 import AddNoteForm from "./add-note-form";
 import AddCashActivityForm from "./add-cash-activity-form";
@@ -234,6 +235,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
 
+  // Linked (brokerage-mirrored) portfolios are read-only: sync is the source of truth.
+  const isLinkedPortfolio = await isPortfolioLinked(portfolio.id);
+
   const totalValue = valuation.total_portfolio_value;
   const cashBalance = Number(portfolio.cash_balance ?? 0);
   const cashPct = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
@@ -380,16 +384,29 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "2px" }}>Current positions with live market valuation</p>
                         </div>
                         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <ImportHoldingsCSV portfolioId={portfolio.id} />
-                          <AddHoldingForm portfolioId={portfolio.id} />
+                          {isLinkedPortfolio ? (
+                            <span title="Holdings and cash sync from your connected brokerage" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px" }}>
+                              🔗 Synced from your brokerage
+                            </span>
+                          ) : (
+                            <>
+                              <ImportHoldingsCSV portfolioId={portfolio.id} />
+                              <AddHoldingForm portfolioId={portfolio.id} />
+                            </>
+                          )}
                         </div>
                       </div>
-                      {(holdings?.length ?? 0) > 0 && (
+                      {!isLinkedPortfolio && (holdings?.length ?? 0) > 0 && (
                         <div style={{ marginBottom: "10px" }}>
                           <ReconcileChip
                             portfolioId={portfolio.id}
                             verifiedAt={(portfolio as { holdings_verified_at?: string | null }).holdings_verified_at ?? null}
                           />
+                        </div>
+                      )}
+                      {isLinkedPortfolio && (
+                        <div style={{ marginBottom: "10px", fontSize: "11px", color: "var(--text-tertiary)", padding: "8px 11px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", lineHeight: 1.5 }}>
+                          This portfolio mirrors your brokerage. Holdings and cash update on sync, manual edits are off. Manage positions at your broker, then re-import from <a href="/connections" style={{ color: "var(--accent, #818cf8)", textDecoration: "none" }}>Connections</a>.
                         </div>
                       )}
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>

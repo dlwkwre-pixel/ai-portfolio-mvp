@@ -98,6 +98,47 @@ export async function fetchAccounts(
   }).filter((a) => a.id);
 }
 
+// Cash balance for one account (sum of currency balances). Non-fatal on failure.
+export async function fetchAccountCash(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string,
+): Promise<number> {
+  try {
+    const res = await st.accountInformation.getUserAccountBalance({ ...creds, accountId });
+    let cash = 0;
+    for (const b of (res.data ?? []) as Array<{ cash?: number | null }>) cash += Number(b?.cash ?? 0) || 0;
+    return Math.round(cash * 100) / 100;
+  } catch {
+    return 0;
+  }
+}
+
+// Portfolio ids that are the default target of a linked brokerage account (= mirrors).
+// Manual editing is locked on these and sync is the source of truth. Empty set on any
+// failure, so nothing changes for users without a connection.
+export async function getLinkedPortfolioIds(userId: string): Promise<Set<string>> {
+  if (!userId) return new Set();
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("brokerage_account_links").select("default_portfolio_id").eq("user_id", userId);
+    return new Set((data ?? []).map((r) => r.default_portfolio_id).filter((v): v is string => !!v));
+  } catch {
+    return new Set();
+  }
+}
+
+// Is this specific portfolio a linked mirror? Used by the mutation actions to block
+// manual edits. Returns false on any failure (fail open to normal behavior).
+export async function isPortfolioLinked(portfolioId: string): Promise<boolean> {
+  if (!portfolioId) return false;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("brokerage_account_links").select("id").eq("default_portfolio_id", portfolioId).limit(1).maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
 // Normalized positions for one account (getUserHoldings is deprecated → per-account positions).
 export async function fetchAccountPositions(
   st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string,

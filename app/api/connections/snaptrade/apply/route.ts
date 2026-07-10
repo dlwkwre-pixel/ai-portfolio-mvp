@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { getSnaptrade, fetchAccountPositions } from "@/lib/connections/snaptrade";
+import { getSnaptrade, fetchAccountPositions, fetchAccountCash } from "@/lib/connections/snaptrade";
 
 export const maxDuration = 60;
 
@@ -66,6 +66,14 @@ export async function POST(req: Request) {
 
     // Remember the account's default portfolio for next time.
     const defaultPortfolioId = body?.defaultPortfolioId && ownPortfolios.has(body.defaultPortfolioId) ? body.defaultPortfolioId : null;
+
+    // Cash lives in ONE place: the account's default portfolio (a real brokerage
+    // account has a single cash pool). Only set it when there's a default mapped.
+    if (defaultPortfolioId) {
+      const cash = await fetchAccountCash(snaptrade, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
+      await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", user.id).then((r) => r, () => ({}));
+    }
+
     await admin.from("brokerage_account_links").upsert(
       { user_id: user.id, provider: "snaptrade", snaptrade_account_id: accountId, default_portfolio_id: defaultPortfolioId, updated_at: new Date().toISOString() },
       { onConflict: "user_id,provider,snaptrade_account_id" },
