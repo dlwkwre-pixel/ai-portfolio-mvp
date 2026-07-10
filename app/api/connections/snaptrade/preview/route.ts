@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { getSnaptrade, fetchAccountPositions } from "@/lib/connections/snaptrade";
+import { getSnaptrade, fetchAccountPositions, fetchAccountCash } from "@/lib/connections/snaptrade";
 
 export const maxDuration = 60;
 
@@ -30,7 +30,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const positions = await fetchAccountPositions(snaptrade, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
+    const creds = { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret };
+    const [positions, cash] = await Promise.all([
+      fetchAccountPositions(snaptrade, creds, accountId),
+      fetchAccountCash(snaptrade, creds, accountId),
+    ]);
 
     // Where does each ticker already live? (first active portfolio that holds it)
     const { data: portfolios } = await admin.from("portfolios").select("id").eq("user_id", user.id).eq("status", "active");
@@ -48,7 +52,7 @@ export async function POST(req: Request) {
       ...p,
       currentPortfolioId: tickerToPortfolio[p.ticker] ?? null,
     }));
-    return NextResponse.json({ positions: rows });
+    return NextResponse.json({ positions: rows, cash });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not read positions.";
     return NextResponse.json({ error: msg }, { status: 500 });

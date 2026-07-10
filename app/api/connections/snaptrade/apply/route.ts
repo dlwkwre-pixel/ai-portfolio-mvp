@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const snaptrade = getSnaptrade();
   if (!snaptrade) return NextResponse.json({ error: "SnapTrade is not configured." }, { status: 503 });
 
-  const body = await req.json().catch(() => null) as { accountId?: string; defaultPortfolioId?: string | null; assignments?: Record<string, string> } | null;
+  const body = await req.json().catch(() => null) as { accountId?: string; defaultPortfolioId?: string | null; cashPortfolioId?: string | null; assignments?: Record<string, string> } | null;
   const accountId = body?.accountId;
   const assignments = body?.assignments ?? {};
   if (!accountId) return NextResponse.json({ error: "Missing account." }, { status: 400 });
@@ -67,11 +67,15 @@ export async function POST(req: Request) {
     // Remember the account's default portfolio for next time.
     const defaultPortfolioId = body?.defaultPortfolioId && ownPortfolios.has(body.defaultPortfolioId) ? body.defaultPortfolioId : null;
 
-    // Cash lives in ONE place: the account's default portfolio (a real brokerage
-    // account has a single cash pool). Only set it when there's a default mapped.
-    if (defaultPortfolioId) {
+    // Cash is assignable like a holding: the account's single cash pool goes to the
+    // chosen portfolio (defaults to the account default; null = skip / leave as-is).
+    const rawCashPid = body?.cashPortfolioId;
+    const cashPortfolioId = rawCashPid === null
+      ? null
+      : (rawCashPid && ownPortfolios.has(rawCashPid)) ? rawCashPid : defaultPortfolioId;
+    if (cashPortfolioId) {
       const cash = await fetchAccountCash(snaptrade, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
-      await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", user.id).then((r) => r, () => ({}));
+      await admin.from("portfolios").update({ cash_balance: cash }).eq("id", cashPortfolioId).eq("user_id", user.id).then((r) => r, () => ({}));
     }
 
     await admin.from("brokerage_account_links").upsert(

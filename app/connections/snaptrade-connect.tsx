@@ -38,6 +38,8 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   const [reviewAccount, setReviewAccount] = useState<Account | null>(null);
   const [defaultPortfolio, setDefaultPortfolio] = useState<string>("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [cashAmount, setCashAmount] = useState(0);
+  const [cashTarget, setCashTarget] = useState<string>(""); // portfolioId or SKIP
 
   useEffect(() => { void loadAccounts(true); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -79,6 +81,8 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       const def = links[account.id] || portfolios[0]?.id || "";
       setDefaultPortfolio(def);
       setRows((d.positions as PreviewPos[]).map((p) => ({ ...p, target: p.currentPortfolioId ?? def })));
+      setCashAmount(typeof d.cash === "number" ? d.cash : 0);
+      setCashTarget(def);
       setReviewAccount(account);
     } catch { setErr("Network error."); }
     finally { setBusy(null); }
@@ -94,12 +98,13 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
     if (!reviewAccount) return;
     const assignments: Record<string, string> = {};
     for (const r of rows) if (r.target && r.target !== SKIP) assignments[r.ticker] = r.target;
-    if (Object.keys(assignments).length === 0) { setErr("Assign at least one holding, or Cancel."); return; }
+    const hasCash = !!cashTarget && cashTarget !== SKIP && cashAmount > 0;
+    if (Object.keys(assignments).length === 0 && !hasCash) { setErr("Assign at least one holding or the cash, or Cancel."); return; }
     setBusy("apply"); setErr(null); setMsg(null);
     try {
       const res = await fetch("/api/connections/snaptrade/apply", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountId: reviewAccount.id, defaultPortfolioId: defaultPortfolio, assignments }),
+        body: JSON.stringify({ accountId: reviewAccount.id, defaultPortfolioId: defaultPortfolio, cashPortfolioId: cashTarget || null, assignments }),
       });
       const d = await res.json();
       if (!res.ok) { setErr(d.error ?? "Import failed."); return; }
@@ -225,10 +230,22 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
             </div>
             {/* Body */}
             <div style={{ padding: "12px 18px", overflowY: "auto", flex: 1 }}>
-              {rows.length === 0 ? (
-                <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>No positions found in this account.</div>
-              ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {/* Cash — assignable like a holding */}
+                  {cashAmount > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.2)" }}>
+                      <span style={{ fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "62px" }}>Cash</span>
+                      <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flex: 1, minWidth: 0 }}>{fmtUsd(cashAmount)}</span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#00d395", flexShrink: 0, minWidth: "44px" }}>cash</span>
+                      <select value={cashTarget} onChange={(e) => setCashTarget(e.target.value)} style={{ ...sel, flexShrink: 0, width: "170px" }}>
+                        <option value={SKIP}>Skip</option>
+                        {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {rows.length === 0 && cashAmount <= 0 && (
+                    <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>Nothing found in this account.</div>
+                  )}
                   {rows.map((r, i) => (
                     <div key={r.ticker} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", minWidth: "62px" }}>{r.ticker}</span>
@@ -246,7 +263,6 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                     </div>
                   ))}
                 </div>
-              )}
             </div>
             {/* Footer */}
             <div style={{ padding: "14px 18px", borderTop: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
