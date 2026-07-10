@@ -2,11 +2,20 @@ import type { Snaptrade } from "snaptrade-typescript-sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountValueHistory, fetchAccountReturnRate } from "./snaptrade";
 
-// Sync a linked portfolio's chart + return from the broker directly: store the
-// broker's own return %, overwrite the value chart with the broker's actual value
-// history (respecting chart_start_date), and drop external cash flows (the broker
-// value already includes them; netting them out again broke the derived return).
-// Returns the number of snapshots written.
+// Sync a linked portfolio's chart + return directly from the broker.
+//
+// SnapTrade's "Portfolio Performance" endpoints (return rates, balance history, custom
+// reporting) are 403 on the free tier, so we CANNOT rely on the broker's own return or
+// value history. Instead we compute both from the endpoints that DO work everywhere:
+// current positions (shares, price, average_purchase_price) + cash. The broker
+// endpoints are still attempted first, so this auto-upgrades to the exact broker number
+// if the paid add-on is ever enabled.
+//
+// Return = cost-basis total return on the current holdings (matches the "total return"
+// Robinhood shows on your positions). The value chart is a clean baseline→current line
+// whose growth equals that return, with the real live value as the endpoint — replacing
+// the stale performance-index snapshots that made the chart read ~$1.6k on an $859
+// account. Returns the number of snapshots written.
 export async function rebuildLinkedPortfolioHistory(
   st: Snaptrade, portfolioId: string, creds: Creds, accountId: string,
 ): Promise<number> {
@@ -16,23 +25,66 @@ export async function rebuildLinkedPortfolioHistory(
     .then((r) => r, () => ({ data: null }));
   const startDate = (p?.chart_start_date as string | null) || null;
 
-  // The broker's own return number — authoritative, shown as the portfolio's return.
-  const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
-  if (brokerReturn != null) {
-    await admin.from("portfolios")
-      .update({ broker_return_pct: Math.round(brokerReturn * 100) / 100, broker_return_as_of: new Date().toISOString() })
-      .eq("id", portfolioId).then((r) => r, () => ({}));
-  }
-
   // Drop external cash flows (broker value is truth; dividends are income and kept).
   await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
     .in("reason", ["deposit", "withdrawal", "adjustment_in", "adjustment_out", "fee"]).then((r) => r, () => ({}));
 
-  // Overwrite the value chart with the broker's actual value history.
+  // Live holdings + cash (these endpoints work on every SnapTrade tier).
+  const [positions, cash] = await Promise.all([
+    fetchAccountPositions(st, creds, accountId).catch(() => []),
+    fetchAccountCash(st, creds, accountId).catch(() => 0),
+  ]);
+  let positionsValue = 0, positionsCost = 0;
+  for (const pos of positions) {
+    positionsValue += pos.value || (pos.price != null ? pos.price * pos.shares : 0);
+    if (pos.avgCost != null && pos.avgCost > 0) positionsCost += pos.avgCost * pos.shares;
+  }
+  const currentValue = Math.round((positionsValue + cash) * 100) / 100;
+
+  // Return: prefer the broker's own number (paid tier); else cost-basis total return on
+  // the current holdings (free tier). Cash is neutral (not "invested"), so it's excluded.
+  const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
+  let returnPct: number | null = brokerReturn;
+  if (returnPct == null && positionsCost > 0) {
+    returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
+  }
+  if (returnPct != null && Number.isFinite(returnPct)) {
+    await admin.from("portfolios")
+      .update({ broker_return_pct: Math.round(returnPct * 100) / 100, broker_return_as_of: new Date().toISOString() })
+      .eq("id", portfolioId).then((r) => r, () => ({}));
+  }
+
+  // Purge our synthetic snapshots so the stale performance-index values can't linger.
+  await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).eq("notes", "Synced from brokerage").then((r) => r, () => ({}));
+
+  // Value chart. Prefer the broker's real value history (paid tier); else build a clean
+  // baseline→current line whose growth equals the return above, ending at the live value.
   let series = await fetchAccountValueHistory(st, creds, accountId);
   if (startDate) series = series.filter((pt) => pt.date >= startDate);
-  if (series.length < 2) return 0;
-  await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).then((r) => r, () => ({}));
+  if (series.length < 2) {
+    if (currentValue <= 0) return 0;
+    // Free-tier path: also purge any legacy snapshot whose value is implausibly far
+    // above the real live value — these are the corrupt performance-index rows (~$1.6k
+    // on an $859 account) left by earlier versions, whatever they were labeled.
+    await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId)
+      .gt("total_value", Math.round(currentValue * 1.4 * 100) / 100).then((r) => r, () => ({}));
+    const rp = returnPct != null && Number.isFinite(returnPct) && returnPct > -100 ? returnPct : null;
+    const baseVal = rp != null
+      ? Math.round((currentValue / (1 + rp / 100)) * 100) / 100
+      : (positionsCost > 0 ? Math.round(positionsCost * 100) / 100 : currentValue);
+    // Baseline date: the user's chosen chart start, else the earliest holding open date,
+    // else 90 days back so the line has a sensible span.
+    let baseDate = startDate;
+    if (!baseDate) {
+      const { data: h } = await admin.from("holdings").select("opened_at").eq("portfolio_id", portfolioId)
+        .not("opened_at", "is", null).order("opened_at", { ascending: true }).limit(1).maybeSingle()
+        .then((r) => r, () => ({ data: null }));
+      baseDate = (h?.opened_at as string | null)?.slice(0, 10) || new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (baseDate >= today) baseDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    series = [{ date: baseDate, value: baseVal }, { date: today, value: currentValue }];
+  }
   const rows = series.map((pt) => ({
     portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,
     snapshot_date: pt.date, notes: "Synced from brokerage",
