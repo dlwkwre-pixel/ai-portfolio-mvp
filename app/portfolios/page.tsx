@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getLinkedPortfolioIds } from "@/lib/connections/snaptrade";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -53,6 +54,9 @@ export default async function PortfoliosPage() {
   const portfolios = portfoliosData ?? [];
   const activePortfolios = portfolios.filter((p) => p.is_active);
   const archivedPortfolios = portfolios.filter((p) => !p.is_active);
+
+  // Which portfolios mirror a connected brokerage (for the "Synced" badge).
+  const linkedIds = await getLinkedPortfolioIds(user.id);
 
   // Get live valuations and position counts for each active portfolio — in parallel, so the
   // list page waits on the slowest single portfolio rather than the sum of all of them.
@@ -160,6 +164,11 @@ export default async function PortfoliosPage() {
                             <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", textTransform: "capitalize" }}>
                               {portfolio.status}
                             </span>
+                            {linkedIds.has(portfolio.id) && (
+                              <span title="Synced from your connected brokerage" style={{ fontSize: "9px", fontWeight: 700, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
+                                ✓ Synced
+                              </span>
+                            )}
                           </div>
                           {portfolio.description && (
                             <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>

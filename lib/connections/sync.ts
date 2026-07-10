@@ -26,6 +26,11 @@ export async function rebuildLinkedPortfolioHistory(
   const { series } = await fetchAccountEquityHistory(st, creds, accountId, startDate, endDate);
   if (series.length < 2) return 0;
 
+  // Broker value series is deposit-inclusive truth, so drop any external cash flows on
+  // this linked portfolio — netting them out again distorts the return (dividends are
+  // income and kept). Then overwrite snapshots with the broker's series.
+  await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
+    .in("reason", ["deposit", "withdrawal", "adjustment_in", "adjustment_out", "fee"]).then((r) => r, () => ({}));
   await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).then((r) => r, () => ({}));
   const rows = series.map((pt) => ({
     portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,
@@ -70,13 +75,13 @@ export async function importAccountActivities(
       } else if (t.includes("sell")) {
         txRows.push({ portfolio_id: targetPortfolioId, transaction_type: "sell", ticker: a.ticker, company_name: a.name, quantity: a.units ? Math.abs(a.units) : null, price_per_share: a.price || null, gross_amount: gross || null, fees: a.fee || 0, net_cash_impact: gross - (a.fee || 0), notes: "Imported from your brokerage.", traded_at: when });
       } else if (t.includes("div") || t.includes("interest")) {
+        // Income — counts toward return and shows on the income page.
         if (gross > 0) cashRows.push({ portfolio_id: targetPortfolioId, amount: gross, direction: "IN", reason: "dividend", effective_at: when });
-      } else if (t.includes("withdraw")) {
-        if (gross > 0) cashRows.push({ portfolio_id: targetPortfolioId, amount: gross, direction: "OUT", reason: "withdrawal", effective_at: when });
-      } else if (t.includes("contribution") || t.includes("deposit") || t.includes("transfer")) {
-        if (gross > 0) cashRows.push({ portfolio_id: targetPortfolioId, amount: gross, direction: "IN", reason: "deposit", effective_at: when });
-      } else if (t.includes("fee")) {
-        if (gross > 0) cashRows.push({ portfolio_id: targetPortfolioId, amount: gross, direction: "OUT", reason: "fee", effective_at: when });
+      } else if (t.includes("withdraw") || t.includes("contribution") || t.includes("deposit") || t.includes("transfer") || t.includes("fee")) {
+        // External cash movement (deposit/withdrawal/fee/transfer). The broker's value
+        // series already reflects these, so we do NOT book them as cash_ledger flows —
+        // netting them out again distorts the return (TWR blows up on big flows vs a
+        // small balance). Mark them seen so they aren't reprocessed.
       } else {
         handled = false;
       }
