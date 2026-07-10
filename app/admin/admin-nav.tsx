@@ -19,11 +19,15 @@ const ICONS: Record<string, React.ReactNode> = {
   connections: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M8.464 3.05a5 5 0 017.07 7.072l-1.768 1.767a1 1 0 01-1.414-1.414l1.768-1.768a3 3 0 10-4.243-4.243L8.11 6.234A1 1 0 116.696 4.82L8.464 3.05zm-3.535 3.535a1 1 0 011.414 1.415L4.575 9.768a3 3 0 104.243 4.243l1.768-1.768a1 1 0 111.414 1.414l-1.768 1.768a5 5 0 01-7.07-7.072l1.767-1.768z" /></svg>
   ),
+  agreements: (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm5.707 6.707a1 1 0 00-1.414-1.414L7 10.586l-.293-.293a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0l2-2z" clipRule="evenodd" /></svg>
+  ),
 };
 
 const TABS = [
   { href: "/admin", label: "Overview", icon: "overview", exact: true },
   { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
+  { href: "/admin/agreements", label: "Agreements", icon: "agreements" },
   { href: "/admin/notify", label: "Notifications", icon: "notifications" },
   { href: "/admin/feedback", label: "Feedback", icon: "feedback" },
   { href: "/admin/connections", label: "Connections", icon: "connections" },
