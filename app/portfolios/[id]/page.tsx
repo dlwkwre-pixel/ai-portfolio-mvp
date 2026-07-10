@@ -558,7 +558,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       </p>
                     )}
                   </div>
-                  <AIRecommendationsSection portfolioId={portfolio.id} />
+                  <AIRecommendationsSection portfolioId={portfolio.id} isLinked={isLinkedPortfolio} />
                   <RecommendationOutcomesSection portfolioId={portfolio.id} />
                   <StressTestSection
                     holdings={valuation.valued_holdings

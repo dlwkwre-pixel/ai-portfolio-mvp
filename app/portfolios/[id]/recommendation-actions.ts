@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { isPortfolioLinked } from "@/lib/connections/snaptrade";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { getWeeklyChallenges } from "@/lib/gamification/challenges";
 import { searchRedditPosts } from "@/lib/market-data/reddit";
@@ -1948,6 +1949,12 @@ export async function updateRecommendationStatus(formData: FormData) {
     const action = (item.action_type || "").toLowerCase();
     const isBuy = action === "buy" || action === "add";
     const isSell = action === "sell" || action === "trim";
+    // On a brokerage-linked portfolio, sync is the source of truth: DON'T manually
+    // write the trade (holdings/cash/transaction) — that would fight the mirror and
+    // double-count once the activity feed imports the real trade. We still mark the
+    // rec executed + seed thesis + auto-journal below. The user places the trade at
+    // their broker and the next sync reflects it.
+    const linked = await isPortfolioLinked(portfolioId);
 
     // User-confirmed values from the accept dialog (optional overrides)
     const overridePrice = formData.get("executed_price") ? Number(formData.get("executed_price")) : null;
@@ -1980,7 +1987,7 @@ export async function updateRecommendationStatus(formData: FormData) {
       ).catch(() => {});
     }
 
-    if (isBuy || isSell) {
+    if (!linked && (isBuy || isSell)) {
       const transactionType = isBuy ? "buy" : "sell";
       const quantity = overrideQty && overrideQty > 0
         ? overrideQty

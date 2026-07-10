@@ -344,9 +344,9 @@ function RedditPulsePanel({ sp }: { sp: RedditPulse }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type Props = { portfolioId: string; latestRunId?: string | null };
+type Props = { portfolioId: string; latestRunId?: string | null; isLinked?: boolean };
 
-export default function AIRecommendationRunsList({ portfolioId, latestRunId }: Props) {
+export default function AIRecommendationRunsList({ portfolioId, latestRunId, isLinked }: Props) {
   // Data state
   const [localRecs, setLocalRecs]       = useState<LocalRec[]>([]);
   const [tabCounts, setTabCounts]       = useState<Record<string, number>>({});
@@ -460,7 +460,9 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId }: P
     // accurate (otherwise the holding's average cost can be off and distort returns).
     const action = (item.action_type ?? "").toLowerCase();
     const isTrade = ["buy", "add", "sell", "trim"].includes(action) && !!item.ticker;
-    if (newStatus === "executed" && isTrade && !confirmed) {
+    // Linked (broker-mirrored) portfolios: no confirmation popup — the trade happens
+    // at the broker and syncs in, so we just mark it executed (no manual cost basis).
+    if (newStatus === "executed" && isTrade && !confirmed && !isLinked) {
       setExecItem(item);
       setExecQty(item.share_quantity != null ? String(item.share_quantity) : "");
       setExecPrice("");

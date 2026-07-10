@@ -5,10 +5,12 @@ import HealthReportCard, { type HealthReport } from "./health-report-card";
 
 type AIRecommendationsSectionProps = {
   portfolioId: string;
+  isLinked?: boolean;
 };
 
 export default async function AIRecommendationsSection({
   portfolioId,
+  isLinked,
 }: AIRecommendationsSectionProps) {
   const supabase = await createClient();
 
@@ -279,7 +281,7 @@ export default async function AIRecommendationsSection({
 
       {runs && runs.length > 0 ? (
         <div className="mt-4">
-          <AIRecommendationRunsList portfolioId={portfolioId} latestRunId={latestRun?.id ?? null} />
+          <AIRecommendationRunsList portfolioId={portfolioId} latestRunId={latestRun?.id ?? null} isLinked={isLinked} />
         </div>
       ) : (
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-5">
