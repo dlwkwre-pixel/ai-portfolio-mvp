@@ -21,7 +21,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       if (!res.ok || !d.redirectURI) { setErr(d.error ?? "Could not open the connection portal."); return; }
       // Open SnapTrade's hosted portal; the user logs into their brokerage there.
       window.open(d.redirectURI, "snaptrade", "width=460,height=760");
-      setMsg("Finish linking in the popup, then tap Sync.");
+      setMsg("When the popup says “Connection Complete”, close it and press Sync now.");
     } catch { setErr("Network error. Try again."); }
     finally { setBusy(null); }
   }
@@ -59,6 +59,11 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
         </button>
       </div>
       {(msg || err) && <div style={{ fontSize: "11.5px", color: err ? "#f59e0b" : "var(--text-secondary)" }}>{err ?? msg}</div>}
+      {!connected && !msg && !err && (
+        <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
+          Connect opens your brokerage login in a popup. When it says “Connection Complete”, close it and press Sync now.
+        </div>
+      )}
       <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", display: "flex", gap: "10px", flexWrap: "wrap" }}>
         {lastSynced ? <span>Last synced {new Date(lastSynced).toLocaleString()}</span> : <span>Not synced yet</span>}
         {portfolioId && <a href={`/portfolios/${portfolioId}`} style={{ color: "var(--accent, #818cf8)", textDecoration: "none" }}>View synced portfolio →</a>}

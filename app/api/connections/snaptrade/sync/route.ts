@@ -52,13 +52,15 @@ export async function POST() {
       const accId = (acc as { id?: string }).id;
       if (!accId) continue;
       institution = institution ?? ((acc as { institution_name?: string }).institution_name ?? null);
-      const holdings = await snaptrade.accountInformation.getUserHoldings({ ...creds, accountId: accId });
-      const data = holdings.data as {
-        positions?: Array<{ symbol?: { symbol?: { symbol?: string; description?: string | null; type?: { code?: string } }; description?: string }; units?: number | null; fractional_units?: number | null; average_purchase_price?: number | null }>;
-        balances?: Array<{ cash?: number | null }> | null;
-      };
-      for (const b of data.balances ?? []) cash += Number(b?.cash ?? 0) || 0;
-      for (const p of data.positions ?? []) {
+      // getUserHoldings is deprecated (410 Gone); use the per-account positions endpoint.
+      const posRes = await snaptrade.accountInformation.getUserAccountPositions({ ...creds, accountId: accId });
+      const posList = (posRes.data ?? []) as Array<{ symbol?: { symbol?: { symbol?: string; description?: string | null; type?: { code?: string } }; description?: string }; units?: number | null; fractional_units?: number | null; average_purchase_price?: number | null }>;
+      // Cash balance is a separate endpoint; non-fatal if it fails.
+      try {
+        const balRes = await snaptrade.accountInformation.getUserAccountBalance({ ...creds, accountId: accId });
+        for (const b of (balRes.data ?? []) as Array<{ cash?: number | null }>) cash += Number(b?.cash ?? 0) || 0;
+      } catch { /* balances optional */ }
+      for (const p of posList) {
         const ticker = p.symbol?.symbol?.symbol;
         if (!ticker) continue;
         const units = Number(p.units ?? p.fractional_units ?? 0) || 0;
