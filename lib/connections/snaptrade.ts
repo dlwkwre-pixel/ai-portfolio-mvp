@@ -87,7 +87,13 @@ export async function fetchAccounts(
   const res = await st.accountInformation.listUserAccounts(creds);
   return (res.data ?? []).map((a) => {
     const acc = a as { id?: string; name?: string; institution_name?: string; number?: string };
-    const label = [acc.institution_name, acc.name].filter(Boolean).join(" · ") || acc.name || acc.number || "Account";
+    const name = (acc.name ?? "").trim();
+    const inst = (acc.institution_name ?? "").trim();
+    // Avoid "Robinhood · Robinhood Individual" — if the account name already leads with
+    // the institution, just use the name.
+    const label = name && inst && name.toLowerCase().startsWith(inst.toLowerCase())
+      ? name
+      : [inst, name].filter(Boolean).join(" · ") || name || acc.number || "Account";
     return { id: acc.id ?? "", label };
   }).filter((a) => a.id);
 }

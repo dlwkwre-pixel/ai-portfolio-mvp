@@ -14,6 +14,14 @@ type Row = PreviewPos & { target: string }; // target = portfolioId or "" (skip)
 
 const SKIP = "";
 
+function fmtShares(n: number): string {
+  if (Number.isInteger(n)) return n.toLocaleString();
+  return parseFloat(n.toFixed(4)).toLocaleString(undefined, { maximumFractionDigits: 4 });
+}
+function fmtUsd(n: number): string {
+  return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function SnaptradeConnect({ status }: { status: ConnectionStatus }) {
   const router = useRouter();
   const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply">(null);
@@ -120,11 +128,11 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       {(msg || err) && <div style={{ fontSize: "11.5px", color: err ? "#f59e0b" : "var(--text-secondary)" }}>{err ?? msg}</div>}
 
       {/* Accounts list */}
-      {!reviewAccount && accounts.length > 0 && (
+      {accounts.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {accounts.map((a) => (
             <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "9px", background: "var(--bg-base)", border: "1px solid var(--border-subtle)" }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: "12.5px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
+              <span title={a.label} style={{ flex: 1, minWidth: 0, fontSize: "12.5px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default" }}>{a.label}</span>
               <button type="button" onClick={() => startReview(a)} disabled={busy !== null}
                 style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #818cf8)", opacity: busy ? 0.6 : 1 }}>
                 {busy === "preview" ? "…" : "Review & import"}
@@ -133,60 +141,80 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
           ))}
         </div>
       )}
-      {!reviewAccount && loadedOnce && accounts.length === 0 && (
+      {loadedOnce && accounts.length === 0 && (
         <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>No linked accounts yet. Connect one above, then Load accounts.</div>
-      )}
-
-      {/* Review panel */}
-      {reviewAccount && (
-        <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", padding: "12px", background: "var(--bg-base)" }}>
-          <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>{reviewAccount.label}</div>
-          <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginBottom: "10px" }}>
-            Held tickers update in place (history kept). New ones go to the portfolio you pick. Set a holding to “Skip” to leave it out.
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Default portfolio for new holdings</span>
-            <select value={defaultPortfolio} onChange={(e) => changeDefault(e.target.value)} style={sel}>
-              {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          {rows.length === 0 ? (
-            <div style={{ fontSize: "11.5px", color: "var(--text-tertiary)" }}>No positions found in this account.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "340px", overflowY: "auto" }}>
-              {rows.map((r, i) => (
-                <div key={r.ticker} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", borderRadius: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "56px" }}>{r.ticker}</span>
-                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {r.shares} sh{r.value ? ` · ~$${Math.round(r.value).toLocaleString()}` : ""}
-                  </span>
-                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #818cf8)", flexShrink: 0 }}>
-                    {r.currentPortfolioId ? "update" : "add"}
-                  </span>
-                  <select value={r.target} onChange={(e) => setRows((prev) => prev.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))} style={{ ...sel, flexShrink: 0, maxWidth: "150px" }}>
-                    <option value={SKIP}>Skip</option>
-                    {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-            <button type="button" onClick={apply} disabled={busy !== null}
-              style={{ ...btn, border: "none", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
-              {busy === "apply" ? "Importing…" : "Import selected"}
-            </button>
-            <button type="button" onClick={() => { setReviewAccount(null); setRows([]); }} disabled={busy !== null}
-              style={{ ...btn, border: "1px solid var(--card-border)", background: "none", color: "var(--text-secondary)" }}>
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
 
       <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)" }}>
         {status.lastSyncedAt ? `Last import ${new Date(status.lastSyncedAt).toLocaleString()}` : "Read-only. Imports update your existing portfolios, nothing is deleted or duplicated."}
       </div>
+
+      {/* Review modal */}
+      {reviewAccount && (
+        <div onClick={() => { if (busy === null) { setReviewAccount(null); setRows([]); } }}
+          style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(2,6,15,0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: "660px", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+            {/* Header */}
+            <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>{reviewAccount.label}</div>
+                <div style={{ fontSize: "11.5px", color: "var(--text-tertiary)", marginTop: "3px", lineHeight: 1.5 }}>
+                  Held tickers update in place (history kept). New ones go to the portfolio you pick. Set a holding to “Skip” to leave it out.
+                </div>
+              </div>
+              <button type="button" aria-label="Close" onClick={() => { setReviewAccount(null); setRows([]); }} disabled={busy !== null}
+                style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "8px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-secondary)", fontSize: "14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>✕</button>
+            </div>
+            {/* Default portfolio */}
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)" }}>Default portfolio for new holdings</span>
+              <select value={defaultPortfolio} onChange={(e) => changeDefault(e.target.value)} style={{ ...sel, flex: "1 1 180px" }}>
+                {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            {/* Body */}
+            <div style={{ padding: "12px 18px", overflowY: "auto", flex: 1 }}>
+              {rows.length === 0 ? (
+                <div style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>No positions found in this account.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {rows.map((r, i) => (
+                    <div key={r.ticker} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", minWidth: "62px" }}>{r.ticker}</span>
+                      <span title={`${fmtShares(r.shares)} shares${r.value ? ` · ${fmtUsd(r.value)}` : ""}`}
+                        style={{ fontSize: "12px", color: "var(--text-tertiary)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "default" }}>
+                        {fmtShares(r.shares)} sh{r.value ? ` · ~$${Math.round(r.value).toLocaleString()}` : ""}
+                      </span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #818cf8)", flexShrink: 0, minWidth: "44px" }}>
+                        {r.currentPortfolioId ? "update" : "add"}
+                      </span>
+                      <select value={r.target} onChange={(e) => setRows((prev) => prev.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))} style={{ ...sel, flexShrink: 0, width: "170px" }}>
+                        <option value={SKIP}>Skip</option>
+                        {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Footer */}
+            <div style={{ padding: "14px 18px", borderTop: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+              <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)" }}>
+                {rows.filter((r) => r.target && r.target !== SKIP).length} of {rows.length} selected
+              </span>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={() => { setReviewAccount(null); setRows([]); }} disabled={busy !== null}
+                  style={{ ...btn, border: "1px solid var(--card-border)", background: "none", color: "var(--text-secondary)" }}>Cancel</button>
+                <button type="button" onClick={apply} disabled={busy !== null}
+                  style={{ ...btn, border: "none", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+                  {busy === "apply" ? "Importing…" : "Import selected"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
