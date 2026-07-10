@@ -27,6 +27,8 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ updated: number; added: number; skipped: number; portfolios: Portfolio[] } | null>(null);
+  const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -67,7 +69,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   }
 
   async function startReview(account: Account) {
-    setBusy("preview"); setErr(null); setMsg(null);
+    setBusy("preview"); setErr(null); setMsg(null); setSuccess(null);
     try {
       const res = await fetch("/api/connections/snaptrade/preview", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: account.id }),
@@ -101,7 +103,11 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       });
       const d = await res.json();
       if (!res.ok) { setErr(d.error ?? "Import failed."); return; }
-      setMsg(`Updated ${d.updated}, added ${d.added}${d.skipped ? `, skipped ${d.skipped}` : ""}.`);
+      const affected = Array.from(new Set(Object.values(assignments)));
+      const affectedPortfolios = affected.map((id) => portfolios.find((p) => p.id === id)).filter((p): p is Portfolio => !!p);
+      setSuccess({ updated: d.updated ?? 0, added: d.added ?? 0, skipped: d.skipped ?? 0, portfolios: affectedPortfolios });
+      setImportedIds((prev) => new Set(prev).add(reviewAccount.id));
+      setMsg(null);
       setReviewAccount(null); setRows([]);
       void loadAccounts(true);
       router.refresh();
@@ -135,18 +141,54 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       </div>
       {(msg || err) && <div style={{ fontSize: "11.5px", color: err ? "#f59e0b" : "var(--text-secondary)" }}>{err ?? msg}</div>}
 
+      {/* Success panel — what changed + what's next */}
+      {success && (
+        <div style={{ padding: "14px 15px", borderRadius: "14px", border: "1px solid rgba(0,211,149,0.35)", background: "rgba(0,211,149,0.08)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "8px" }}>
+            <span style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,211,149,0.2)", color: "#00d395", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>✓</span>
+            <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--text-primary)" }}>Import complete</span>
+            <button type="button" aria-label="Dismiss" onClick={() => setSuccess(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "13px", fontFamily: "var(--font-body)" }}>✕</button>
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.updated}</span> holding{success.updated === 1 ? "" : "s"} updated to your live shares &amp; cost basis
+            {success.added > 0 && <>, <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.added}</span> new added</>}
+            {success.skipped > 0 && <>, {success.skipped} skipped</>}.
+          </div>
+          {success.portfolios.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "9px" }}>
+              <span style={{ fontSize: "10.5px", color: "var(--text-tertiary)" }}>Next, review your refreshed holdings:</span>
+              {success.portfolios.map((p) => (
+                <a key={p.id} href={`/portfolios/${p.id}`}
+                  style={{ fontSize: "11.5px", fontWeight: 600, color: "#00d395", textDecoration: "none", border: "1px solid rgba(0,211,149,0.3)", background: "rgba(0,211,149,0.1)", borderRadius: "999px", padding: "3px 10px" }}>
+                  {p.name} →
+                </a>
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "9px", lineHeight: 1.5 }}>
+            Your returns, AI analysis, and net worth now reflect these numbers. Re-import anytime to refresh, or connect another account.
+          </div>
+        </div>
+      )}
+
       {/* Accounts list */}
       {accounts.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {accounts.map((a) => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "9px", background: "var(--bg-base)", border: "1px solid var(--border-subtle)" }}>
-              <span title={a.label} style={{ flex: 1, minWidth: 0, fontSize: "12.5px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default" }}>{a.label}</span>
-              <button type="button" onClick={() => startReview(a)} disabled={busy !== null}
-                style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #818cf8)", opacity: busy ? 0.6 : 1 }}>
-                {busy === "preview" ? "…" : "Review & import"}
-              </button>
-            </div>
-          ))}
+          {accounts.map((a) => {
+            const synced = importedIds.has(a.id) || !!links[a.id];
+            return (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "9px", background: "var(--bg-base)", border: `1px solid ${synced ? "rgba(0,211,149,0.25)" : "var(--border-subtle)"}` }}>
+                <span title={a.label} style={{ flex: 1, minWidth: 0, fontSize: "12.5px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default" }}>{a.label}</span>
+                {synced && (
+                  <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "6px", padding: "2px 7px" }}>✓ Synced</span>
+                )}
+                <button type="button" onClick={() => startReview(a)} disabled={busy !== null}
+                  style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #818cf8)", opacity: busy ? 0.6 : 1 }}>
+                  {busy === "preview" ? "…" : synced ? "Re-import" : "Review & import"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
       {loadedOnce && accounts.length === 0 && (
