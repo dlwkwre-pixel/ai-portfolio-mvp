@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import { getUserFeatures } from "@/lib/access/feature-access";
+import { getBrokerageStatus } from "@/lib/connections/snaptrade";
+import SnaptradeConnect from "./snaptrade-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,10 @@ export default async function ConnectionsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const [features, { data: portfolios }] = await Promise.all([
+  const [features, { data: portfolios }, brokerageStatus] = await Promise.all([
     getUserFeatures(user.id),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
+    getBrokerageStatus(user.id),
   ]);
 
   const hasBrokerage = features.has("brokerage_connect");
@@ -25,8 +28,8 @@ export default async function ConnectionsPage() {
   }));
 
   const cards = [
-    { on: hasBrokerage, emoji: "📈", title: "Brokerage", sub: "Robinhood & other brokerages", body: "Auto-import your holdings read-only, so your portfolio stays in sync without manual entry. Trades still happen in your brokerage app.", color: "#00d395" },
-    { on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#818cf8" },
+    { kind: "brokerage", on: hasBrokerage, emoji: "📈", title: "Brokerage", sub: "Robinhood & other brokerages", body: "Auto-import your holdings read-only, so your portfolio stays in sync without manual entry. Trades still happen in your brokerage app.", color: "#00d395" },
+    { kind: "bank", on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#818cf8" },
   ];
 
   return (
@@ -60,10 +63,14 @@ export default async function ConnectionsPage() {
                     <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: c.color, background: `${c.color}1a`, border: `1px solid ${c.color}40`, borderRadius: "6px", padding: "3px 7px" }}>Beta</span>
                   </div>
                   <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "14px" }}>{c.body}</p>
-                  <button type="button" disabled title="Live connection wiring is in progress"
-                    style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-tertiary)", fontSize: "13px", fontWeight: 600, cursor: "not-allowed", fontFamily: "var(--font-body)" }}>
-                    Connect · coming soon
-                  </button>
+                  {c.kind === "brokerage" && brokerageStatus.configured ? (
+                    <SnaptradeConnect status={brokerageStatus} />
+                  ) : (
+                    <button type="button" disabled title="Live connection wiring is in progress"
+                      style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-tertiary)", fontSize: "13px", fontWeight: 600, cursor: "not-allowed", fontFamily: "var(--font-body)" }}>
+                      Connect · coming soon
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
