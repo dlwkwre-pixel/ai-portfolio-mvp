@@ -112,6 +112,44 @@ export async function fetchAccountCash(
   }
 }
 
+export type BrokerageActivity = {
+  id: string; type: string; ticker: string | null; name: string | null;
+  units: number; price: number; amount: number; fee: number; date: string | null;
+};
+
+// Transaction/activity history for one account (buys, sells, dividends, deposits,
+// withdrawals, fees). Non-fatal → empty on failure.
+export async function fetchAccountActivities(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string, limit = 500,
+): Promise<BrokerageActivity[]> {
+  try {
+    const res = await st.accountInformation.getAccountActivities({ ...creds, accountId, limit });
+    const data = ((res.data as { data?: unknown[] })?.data ?? []) as Array<{
+      id?: string; type?: string; symbol?: { symbol?: string; description?: string | null };
+      units?: number | null; price?: number | null; amount?: number | null; fee?: number | null;
+      trade_date?: string | null; settlement_date?: string | null;
+    }>;
+    const out: BrokerageActivity[] = [];
+    for (const a of data) {
+      if (!a.id) continue;
+      out.push({
+        id: a.id,
+        type: (a.type ?? "").toString(),
+        ticker: a.symbol?.symbol ? String(a.symbol.symbol).toUpperCase() : null,
+        name: a.symbol?.description ?? null,
+        units: Number(a.units ?? 0) || 0,
+        price: Number(a.price ?? 0) || 0,
+        amount: Number(a.amount ?? 0) || 0,
+        fee: Number(a.fee ?? 0) || 0,
+        date: a.trade_date ?? a.settlement_date ?? null,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // Portfolio ids that are the default target of a linked brokerage account (= mirrors).
 // Manual editing is locked on these and sync is the source of truth. Empty set on any
 // failure, so nothing changes for users without a connection.

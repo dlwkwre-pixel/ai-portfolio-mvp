@@ -27,7 +27,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ updated: number; added: number; skipped: number; portfolios: Portfolio[] } | null>(null);
+  const [success, setSuccess] = useState<{ updated: number; added: number; skipped: number; activities: number; portfolios: Portfolio[] } | null>(null);
   const [importedIds, setImportedIds] = useState<Set<string>>(new Set());
 
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -110,7 +110,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       if (!res.ok) { setErr(d.error ?? "Import failed."); return; }
       const affected = Array.from(new Set(Object.values(assignments)));
       const affectedPortfolios = affected.map((id) => portfolios.find((p) => p.id === id)).filter((p): p is Portfolio => !!p);
-      setSuccess({ updated: d.updated ?? 0, added: d.added ?? 0, skipped: d.skipped ?? 0, portfolios: affectedPortfolios });
+      setSuccess({ updated: d.updated ?? 0, added: d.added ?? 0, skipped: d.skipped ?? 0, activities: d.activitiesImported ?? 0, portfolios: affectedPortfolios });
       setImportedIds((prev) => new Set(prev).add(reviewAccount.id));
       setMsg(null);
       setReviewAccount(null); setRows([]);
@@ -159,6 +159,11 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
             {success.added > 0 && <>, <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.added}</span> new added</>}
             {success.skipped > 0 && <>, {success.skipped} skipped</>}.
           </div>
+          {success.activities > 0 && (
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "4px" }}>
+              <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.activities}</span> transaction{success.activities === 1 ? "" : "s"} imported (buys, sells, dividends, transfers) — your returns &amp; income now reflect them.
+            </div>
+          )}
           {success.portfolios.length > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "9px" }}>
               <span style={{ fontSize: "10.5px", color: "var(--text-tertiary)" }}>Next, review your refreshed holdings:</span>
