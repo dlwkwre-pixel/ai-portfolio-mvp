@@ -116,10 +116,18 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       {/* Actions */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-        <button type="button" onClick={connect} disabled={busy !== null}
-          style={{ ...btn, flex: "1 1 auto", border: "1px solid rgba(0,211,149,0.4)", background: "rgba(0,211,149,0.12)", color: "#00d395", opacity: busy ? 0.6 : 1 }}>
-          {busy === "link" ? "Opening…" : accounts.length > 0 ? "Add / reconnect" : "Connect brokerage"}
-        </button>
+        {(() => {
+          const isConnected = accounts.length > 0;
+          return (
+            <button type="button" onClick={connect} disabled={busy !== null} title={isConnected ? "Connect another brokerage or reconnect" : "Connect your brokerage"}
+              style={{ ...btn, flex: "1 1 auto",
+                border: `1px solid ${isConnected ? "var(--card-border)" : "rgba(0,211,149,0.4)"}`,
+                background: isConnected ? "var(--bg-elevated)" : "rgba(0,211,149,0.12)",
+                color: isConnected ? "#00d395" : "#00d395", opacity: busy ? 0.6 : 1 }}>
+              {busy === "link" ? "Opening…" : isConnected ? "✓ Connected · add another" : "Connect brokerage"}
+            </button>
+          );
+        })()}
         <button type="button" onClick={() => loadAccounts(false)} disabled={busy !== null}
           style={{ ...btn, border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-primary)", opacity: busy ? 0.6 : 1 }}>
           {busy === "load" ? "Loading…" : "Load accounts"}
