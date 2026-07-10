@@ -24,7 +24,7 @@ function fmtUsd(n: number): string {
 
 export default function SnaptradeConnect({ status }: { status: ConnectionStatus }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply">(null);
+  const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply" | "refresh">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ updated: number; added: number; skipped: number; activities: number; portfolios: Portfolio[] } | null>(null);
@@ -56,6 +56,19 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       } else if (!silent) setErr(d.error ?? "Could not load accounts.");
     } catch { if (!silent) setErr("Network error."); }
     finally { setLoadedOnce(true); if (!silent) setBusy(null); }
+  }
+
+  async function syncAll() {
+    setBusy("refresh"); setErr(null); setMsg(null); setSuccess(null);
+    try {
+      const res = await fetch("/api/connections/snaptrade/refresh", { method: "POST" });
+      const d = await res.json();
+      if (!res.ok) { setErr(d.error ?? "Sync failed."); return; }
+      setMsg(`Synced ${d.accounts} account${d.accounts === 1 ? "" : "s"} · ${d.updated} updated, ${d.added} added${d.activities ? `, ${d.activities} transactions` : ""}.`);
+      void loadAccounts(true);
+      router.refresh();
+    } catch { setErr("Network error."); }
+    finally { setBusy(null); }
   }
 
   async function connect() {
@@ -143,6 +156,12 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
           style={{ ...btn, border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-primary)", opacity: busy ? 0.6 : 1 }}>
           {busy === "load" ? "Loading…" : "Load accounts"}
         </button>
+        {accounts.length > 0 && (
+          <button type="button" onClick={syncAll} disabled={busy !== null} title="Re-pull holdings, cash, and new transactions for all linked accounts"
+            style={{ ...btn, border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-primary)", opacity: busy ? 0.6 : 1 }}>
+            {busy === "refresh" ? "Syncing…" : "Sync all now"}
+          </button>
+        )}
       </div>
       {(msg || err) && <div style={{ fontSize: "11.5px", color: err ? "#f59e0b" : "var(--text-secondary)" }}>{err ?? msg}</div>}
 

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { getSnaptrade, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
+import { getSnaptrade, fetchAccountPositions, fetchAccountCash } from "@/lib/connections/snaptrade";
+import { importAccountActivities } from "@/lib/connections/sync";
 
 export const maxDuration = 60;
 
@@ -78,54 +79,13 @@ export async function POST(req: Request) {
       await admin.from("portfolios").update({ cash_balance: cash }).eq("id", cashPortfolioId).eq("user_id", user.id).then((r) => r, () => ({}));
     }
 
-    // Auto-import the account's transaction history into the primary portfolio, once
-    // each (deduped by activity id). Dividends/deposits/withdrawals → cash_ledger (so
-    // returns are correct); buys/sells → portfolio_transactions (history + realized P/L).
-    // Skipped entirely if the dedup table is missing, to avoid ever double-counting.
+    // Auto-import the account's transaction history into the primary portfolio,
+    // deduped by activity id (see importAccountActivities). Skipped if the dedup
+    // table is missing so it can never double-count.
     let activitiesImported = 0;
     const activityTarget = cashPortfolioId || defaultPortfolioId;
     if (activityTarget) {
-      try {
-        const activities = await fetchAccountActivities(snaptrade, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
-        if (activities.length > 0) {
-          const { data: already, error: dedupErr } = await admin
-            .from("brokerage_synced_activities").select("activity_id")
-            .eq("user_id", user.id).eq("provider", "snaptrade").in("activity_id", activities.map((a) => a.id));
-          if (!dedupErr) { // table exists → safe to import
-            const done = new Set((already ?? []).map((r) => r.activity_id));
-            const cashRows: Record<string, unknown>[] = [];
-            const txRows: Record<string, unknown>[] = [];
-            const syncedIds: Record<string, unknown>[] = [];
-            for (const a of activities) {
-              if (done.has(a.id)) continue;
-              const t = a.type.toLowerCase();
-              const when = a.date ? new Date(a.date).toISOString() : new Date().toISOString();
-              const gross = Math.abs(a.amount) || Math.abs(a.units * a.price) || 0;
-              let handled = true;
-              if (t.includes("buy") || t.includes("reinvest") || t === "rei") {
-                txRows.push({ portfolio_id: activityTarget, transaction_type: "buy", ticker: a.ticker, company_name: a.name, quantity: a.units || null, price_per_share: a.price || null, gross_amount: gross || null, fees: a.fee || 0, net_cash_impact: -(gross + (a.fee || 0)), notes: "Imported from your brokerage.", traded_at: when });
-              } else if (t.includes("sell")) {
-                txRows.push({ portfolio_id: activityTarget, transaction_type: "sell", ticker: a.ticker, company_name: a.name, quantity: a.units ? Math.abs(a.units) : null, price_per_share: a.price || null, gross_amount: gross || null, fees: a.fee || 0, net_cash_impact: gross - (a.fee || 0), notes: "Imported from your brokerage.", traded_at: when });
-              } else if (t.includes("div") || t.includes("interest")) {
-                if (gross > 0) cashRows.push({ portfolio_id: activityTarget, amount: gross, direction: "IN", reason: "dividend", effective_at: when });
-              } else if (t.includes("withdraw")) {
-                if (gross > 0) cashRows.push({ portfolio_id: activityTarget, amount: gross, direction: "OUT", reason: "withdrawal", effective_at: when });
-              } else if (t.includes("contribution") || t.includes("deposit") || t.includes("transfer")) {
-                if (gross > 0) cashRows.push({ portfolio_id: activityTarget, amount: gross, direction: "IN", reason: "deposit", effective_at: when });
-              } else if (t.includes("fee")) {
-                if (gross > 0) cashRows.push({ portfolio_id: activityTarget, amount: gross, direction: "OUT", reason: "fee", effective_at: when });
-              } else {
-                handled = false; // unknown type — leave un-synced so we can handle later
-              }
-              if (handled) syncedIds.push({ user_id: user.id, provider: "snaptrade", activity_id: a.id });
-            }
-            if (cashRows.length > 0) await admin.from("cash_ledger").insert(cashRows).then((r) => r, () => ({}));
-            if (txRows.length > 0) await admin.from("portfolio_transactions").insert(txRows).then((r) => r, () => ({}));
-            if (syncedIds.length > 0) await admin.from("brokerage_synced_activities").insert(syncedIds).then((r) => r, () => ({}));
-            activitiesImported = cashRows.length + txRows.length;
-          }
-        }
-      } catch { /* activity import is best-effort */ }
+      activitiesImported = await importAccountActivities(snaptrade, user.id, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId, activityTarget);
     }
 
     await admin.from("brokerage_account_links").upsert(
