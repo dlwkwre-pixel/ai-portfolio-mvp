@@ -67,3 +67,56 @@ export async function getBrokerageRow(userId: string): Promise<BrokerageConnecti
     return null;
   }
 }
+
+export type SnapAccount = { id: string; label: string };
+export type BrokeragePosition = {
+  ticker: string; name: string | null; shares: number; avgCost: number | null; price: number | null; value: number; assetType: string;
+};
+
+function mapAssetType(code: string | undefined | null): string {
+  const c = (code ?? "").toLowerCase();
+  if (c.includes("crypto")) return "crypto";
+  if (c === "et" || c.includes("etf")) return "etf";
+  return "stock";
+}
+
+// The user's linked brokerage accounts.
+export async function fetchAccounts(
+  st: Snaptrade, creds: { userId: string; userSecret: string },
+): Promise<SnapAccount[]> {
+  const res = await st.accountInformation.listUserAccounts(creds);
+  return (res.data ?? []).map((a) => {
+    const acc = a as { id?: string; name?: string; institution_name?: string; number?: string };
+    const label = [acc.institution_name, acc.name].filter(Boolean).join(" · ") || acc.name || acc.number || "Account";
+    return { id: acc.id ?? "", label };
+  }).filter((a) => a.id);
+}
+
+// Normalized positions for one account (getUserHoldings is deprecated → per-account positions).
+export async function fetchAccountPositions(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string,
+): Promise<BrokeragePosition[]> {
+  const res = await st.accountInformation.getUserAccountPositions({ ...creds, accountId });
+  const list = (res.data ?? []) as Array<{
+    symbol?: { symbol?: { symbol?: string; description?: string | null; type?: { code?: string } }; description?: string };
+    units?: number | null; fractional_units?: number | null; price?: number | null; average_purchase_price?: number | null;
+  }>;
+  const out: BrokeragePosition[] = [];
+  for (const p of list) {
+    const ticker = p.symbol?.symbol?.symbol;
+    if (!ticker) continue;
+    const shares = Number(p.units ?? p.fractional_units ?? 0) || 0;
+    if (shares === 0) continue;
+    const price = p.price != null ? Number(p.price) : null;
+    out.push({
+      ticker: ticker.toUpperCase(),
+      name: p.symbol?.symbol?.description ?? p.symbol?.description ?? null,
+      shares,
+      avgCost: p.average_purchase_price != null ? Number(p.average_purchase_price) : null,
+      price,
+      value: price != null ? Math.round(price * shares * 100) / 100 : 0,
+      assetType: mapAssetType(p.symbol?.symbol?.type?.code),
+    });
+  }
+  return out;
+}
