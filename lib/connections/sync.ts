@@ -1,18 +1,12 @@
 import type { Snaptrade } from "snaptrade-typescript-sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountEquityHistory } from "./snaptrade";
+import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountValueHistory, fetchAccountReturnRate } from "./snaptrade";
 
-function defaultHistoryStart(): string {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - 5);
-  return d.toISOString().slice(0, 10);
-}
-
-// Overwrite a linked portfolio's chart/return history with the broker's own daily
-// value series (the source of truth). Respects the portfolio's chart_start_date so
-// the user can start the chart at a chosen date (e.g. skip old losses + a dormant
-// gap). Only writes when the broker returns a usable series, so it never wipes data
-// to nothing. Returns the number of snapshots written.
+// Sync a linked portfolio's chart + return from the broker directly: store the
+// broker's own return %, overwrite the value chart with the broker's actual value
+// history (respecting chart_start_date), and drop external cash flows (the broker
+// value already includes them; netting them out again broke the derived return).
+// Returns the number of snapshots written.
 export async function rebuildLinkedPortfolioHistory(
   st: Snaptrade, portfolioId: string, creds: Creds, accountId: string,
 ): Promise<number> {
@@ -20,17 +14,24 @@ export async function rebuildLinkedPortfolioHistory(
   const { data: p } = await admin
     .from("portfolios").select("chart_start_date").eq("id", portfolioId).maybeSingle()
     .then((r) => r, () => ({ data: null }));
-  const startDate = (p?.chart_start_date as string | null) || defaultHistoryStart();
-  const endDate = new Date().toISOString().slice(0, 10);
+  const startDate = (p?.chart_start_date as string | null) || null;
 
-  const { series } = await fetchAccountEquityHistory(st, creds, accountId, startDate, endDate);
-  if (series.length < 2) return 0;
+  // The broker's own return number — authoritative, shown as the portfolio's return.
+  const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
+  if (brokerReturn != null) {
+    await admin.from("portfolios")
+      .update({ broker_return_pct: Math.round(brokerReturn * 100) / 100, broker_return_as_of: new Date().toISOString() })
+      .eq("id", portfolioId).then((r) => r, () => ({}));
+  }
 
-  // Broker value series is deposit-inclusive truth, so drop any external cash flows on
-  // this linked portfolio — netting them out again distorts the return (dividends are
-  // income and kept). Then overwrite snapshots with the broker's series.
+  // Drop external cash flows (broker value is truth; dividends are income and kept).
   await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
     .in("reason", ["deposit", "withdrawal", "adjustment_in", "adjustment_out", "fee"]).then((r) => r, () => ({}));
+
+  // Overwrite the value chart with the broker's actual value history.
+  let series = await fetchAccountValueHistory(st, creds, accountId);
+  if (startDate) series = series.filter((pt) => pt.date >= startDate);
+  if (series.length < 2) return 0;
   await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).then((r) => r, () => ({}));
   const rows = series.map((pt) => ({
     portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,

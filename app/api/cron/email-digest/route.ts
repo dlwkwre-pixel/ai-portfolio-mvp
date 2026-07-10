@@ -215,8 +215,11 @@ export async function GET(request: Request) {
         if (snaps.length > 0) {
           const latestVal = snaps[snaps.length - 1].total_value;
 
-          // Net return since inception (TWR — strips out deposits/withdrawals)
-          const allTimeReturnPct = calculateTwr(snaps, cashFlows);
+          // Net return since inception. For a linked portfolio, use the broker's OWN
+          // return (authoritative); otherwise TWR from snapshots/flows.
+          const { data: brRow } = await adminSupabase.from("portfolios").select("broker_return_pct").eq("id", pref.portfolio_id).maybeSingle().then((r) => r, () => ({ data: null }));
+          const brokerReturnPct = brRow?.broker_return_pct != null ? Number(brRow.broker_return_pct) : null;
+          const allTimeReturnPct = (brokerReturnPct != null && Number.isFinite(brokerReturnPct)) ? brokerReturnPct : calculateTwr(snaps, cashFlows);
 
           // Period net return: baseline = last snapshot on/before the period start
           let baselineIdx = -1;

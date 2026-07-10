@@ -112,24 +112,41 @@ export async function fetchAccountCash(
   }
 }
 
-export type EquityPoint = { date: string; value: number };
+export type ValuePoint = { date: string; value: number };
 
-// The broker's own daily portfolio-value history + computed return for one account.
-// This is the authoritative time series for a linked portfolio's chart. Non-fatal.
-export async function fetchAccountEquityHistory(
-  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string, startDate: string, endDate: string,
-): Promise<{ series: EquityPoint[]; rateOfReturn: number | null }> {
+// The broker's actual account VALUE history (getAccountBalanceHistory → history[]).
+// This is the real value over time (not a performance index), so it drives a linked
+// portfolio's chart accurately. Non-fatal → empty on failure.
+export async function fetchAccountValueHistory(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string,
+): Promise<ValuePoint[]> {
   try {
-    const res = await st.transactionsAndReporting.getReportingCustomRange({
-      userId: creds.userId, userSecret: creds.userSecret, accounts: accountId, startDate, endDate, frequency: "daily",
-    });
-    const perf = res.data as { totalEquityTimeframe?: Array<{ date?: string; value?: number | null }>; rateOfReturn?: number | null };
-    const series = (perf.totalEquityTimeframe ?? [])
-      .filter((p) => p.date && typeof p.value === "number" && (p.value as number) > 0)
-      .map((p) => ({ date: String(p.date).slice(0, 10), value: Number(p.value) }));
-    return { series, rateOfReturn: typeof perf.rateOfReturn === "number" ? perf.rateOfReturn : null };
+    const res = await st.accountInformation.getAccountBalanceHistory({ userId: creds.userId, userSecret: creds.userSecret, accountId });
+    const hist = ((res.data as { history?: Array<{ date?: string; total_value?: string | number | null }> })?.history ?? []);
+    return hist
+      .filter((h) => h.date && h.total_value != null)
+      .map((h) => ({ date: String(h.date).slice(0, 10), value: Number(h.total_value) }))
+      .filter((p) => Number.isFinite(p.value) && p.value > 0);
   } catch {
-    return { series: [], rateOfReturn: null };
+    return [];
+  }
+}
+
+// The broker's OWN computed return % for the account (getUserAccountReturnRates).
+// Prefers the all-time figure, falling back to the longest available window. This is
+// the authoritative return we display for a linked portfolio. Non-fatal → null.
+export async function fetchAccountReturnRate(
+  st: Snaptrade, creds: { userId: string; userSecret: string }, accountId: string,
+): Promise<number | null> {
+  try {
+    const res = await st.accountInformation.getUserAccountReturnRates({ userId: creds.userId, userSecret: creds.userSecret, accountId });
+    const rows = ((res.data as { data?: Array<{ timeframe?: string; return_percent?: number | null }> })?.data ?? []);
+    const byTf: Record<string, number> = {};
+    for (const r of rows) if (r.timeframe && typeof r.return_percent === "number") byTf[r.timeframe.toUpperCase()] = r.return_percent;
+    for (const tf of ["ALL", "1Y", "YTD", "6M", "3M", "1M", "1W", "1D"]) if (byTf[tf] != null) return byTf[tf];
+    return null;
+  } catch {
+    return null;
   }
 }
 

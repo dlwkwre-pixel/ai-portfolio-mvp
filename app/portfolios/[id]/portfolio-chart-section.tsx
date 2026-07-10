@@ -88,6 +88,22 @@ export default async function PortfolioChartSection({
     totalCostBasis: totalCostBasis > 0 ? totalCostBasis : undefined,
   });
 
+  // For a linked portfolio, show the broker's OWN return number (authoritative)
+  // instead of a derived one.
+  if (linked) {
+    const { data: pr } = await supabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle();
+    const bpct = pr?.broker_return_pct != null ? Number(pr.broker_return_pct) : null;
+    if (bpct != null && Number.isFinite(bpct)) {
+      const c = comparison as { portfolioTwrPct: number | null; portfolioReturnPct: number | null; excessReturnPct: number | null; excessTwrPct: number | null; benchmarkReturnPct: number | null };
+      c.portfolioTwrPct = bpct;
+      c.portfolioReturnPct = bpct;
+      if (c.benchmarkReturnPct != null) {
+        c.excessReturnPct = bpct - c.benchmarkReturnPct;
+        c.excessTwrPct = bpct - c.benchmarkReturnPct;
+      }
+    }
+  }
+
   return (
     <PortfolioChartClient
       portfolioId={portfolioId}
