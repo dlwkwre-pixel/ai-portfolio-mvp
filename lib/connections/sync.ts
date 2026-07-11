@@ -230,12 +230,16 @@ export async function resyncBrokerageAccount(
   if (!own.has(defaultPortfolioId)) return { updated: 0, added: 0, activities: 0 };
   const pids = [...own];
 
-  const tickerToPortfolio: Record<string, string> = {};
+  // Route each ticker within THIS account's own holdings, so a ticker held in two linked
+  // accounts (e.g. MSFT in both a taxable and a Roth) doesn't collapse into one portfolio.
+  // Prefer the row already in this account's default portfolio when it's tagged in several.
+  const homeByTicker: Record<string, { id: string; portfolio_id: string }> = {};
   if (pids.length > 0) {
-    const { data: holdings } = await admin.from("holdings").select("ticker, portfolio_id").in("portfolio_id", pids);
-    for (const h of holdings ?? []) {
+    const { data: tagged } = await admin.from("holdings").select("id, ticker, portfolio_id")
+      .eq("brokerage_account_id", accountId).in("portfolio_id", pids).then((r) => r, () => ({ data: null }));
+    for (const h of tagged ?? []) {
       const t = String(h.ticker).toUpperCase();
-      if (!tickerToPortfolio[t]) tickerToPortfolio[t] = h.portfolio_id;
+      if (!homeByTicker[t] || h.portfolio_id === defaultPortfolioId) homeByTicker[t] = { id: h.id, portfolio_id: h.portfolio_id };
     }
   }
 
@@ -243,9 +247,10 @@ export async function resyncBrokerageAccount(
   const touchedPortfolios = new Set<string>();
   let updated = 0, added = 0;
   for (const p of positions) {
-    const existingPid = tickerToPortfolio[p.ticker];
-    const target = existingPid && own.has(existingPid) ? existingPid : defaultPortfolioId;
+    const home = homeByTicker[p.ticker];
+    const target = home && own.has(home.portfolio_id) ? home.portfolio_id : defaultPortfolioId;
     touchedPortfolios.add(target);
+    // Match an existing row in the target (tagged, or a legacy untagged manual row).
     const { data: existing } = await admin.from("holdings").select("id").eq("portfolio_id", target).ilike("ticker", p.ticker).maybeSingle();
     if (existing) {
       await admin.from("holdings").update({ shares: p.shares, average_cost_basis: p.avgCost, company_name: p.name, asset_type: p.assetType, brokerage_account_id: accountId }).eq("id", existing.id)
@@ -256,6 +261,9 @@ export async function resyncBrokerageAccount(
         .then((r) => r, () => admin.from("holdings").insert({ portfolio_id: target, ticker: p.ticker, company_name: p.name, asset_type: p.assetType, shares: p.shares, average_cost_basis: p.avgCost }));
       added++;
     }
+    // Clean up leaked duplicates: any OTHER row for this ticker tagged with THIS account in
+    // a different portfolio (from the old global-routing bug). Only touches broker mirrors.
+    await admin.from("holdings").delete().eq("brokerage_account_id", accountId).ilike("ticker", p.ticker).neq("portfolio_id", target).in("portfolio_id", pids).then((r) => r, () => ({}));
   }
 
   const cash = await fetchAccountCash(st, creds, accountId);
