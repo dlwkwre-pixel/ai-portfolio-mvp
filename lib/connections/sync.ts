@@ -69,9 +69,13 @@ export async function rebuildLinkedPortfolioHistory(
   const depositsClean = netDepositPct != null && netDepositPct > -60 && netDepositPct < 1000
     && deposits <= 3 * (currentValue + totalBuys);
 
-  // Reconstruction window: user's chosen start, else the earliest activity, else 1y back.
+  // Reconstruction window. User's chosen start wins. Otherwise default to the last year
+  // (avoids ancient distortion like long-closed options positions), but not before the
+  // account's earliest activity if it's younger than that.
   const today = new Date().toISOString().slice(0, 10);
-  let startDate = startDatePref || earliestActivity || new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10);
+  const oneYearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10);
+  let startDate = startDatePref
+    || (earliestActivity && earliestActivity > oneYearAgo ? earliestActivity : oneYearAgo);
   if (startDate >= today) startDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
 
   const recon = await reconstructValueSeries(positions, activities, cash, currentValue, startDate, today);
@@ -83,7 +87,7 @@ export async function rebuildLinkedPortfolioHistory(
   let returnPct: number | null = brokerReturn;
   if (returnPct == null) {
     if (depositsClean && !startDatePref) returnPct = netDepositPct!;
-    else if (recon.coverage >= 0.7 && recon.returnPct != null) returnPct = recon.returnPct;
+    else if (recon.pricedCoverage >= 0.85 && recon.returnPct != null) returnPct = recon.returnPct;
     else if (depositsClean) returnPct = netDepositPct!;
     else if (positionsCost > 0) returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
   }

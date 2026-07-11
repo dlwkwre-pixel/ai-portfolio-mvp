@@ -1,5 +1,44 @@
+import { createClient } from "@supabase/supabase-js";
 import type { BrokeragePosition, BrokerageActivity } from "./snaptrade";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Durable price cache in the shared chart_cache table (service-role R/W). Reconstruction
+// values many tickers at once; caching each ticker's history for a day keeps repeated
+// rebuilds (and multiple accounts sharing a ticker) from re-hammering the price API and
+// getting rate-limited. Fails open (no cache) if env/table is unavailable.
+function priceAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function getCachedCloses(ticker: string): Promise<Map<string, number> | null> {
+  const db = priceAdmin();
+  if (!db) return null;
+  try {
+    const { data } = await db.from("chart_cache").select("result, expires_at").eq("cache_key", `recon:${ticker}`).single();
+    if (!data || new Date(data.expires_at as string) <= new Date()) return null;
+    const obj = (data.result as { closes?: Record<string, number> })?.closes;
+    if (!obj) return null;
+    return new Map(Object.entries(obj).map(([d, c]) => [d, Number(c)]));
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedCloses(ticker: string, m: Map<string, number>): Promise<void> {
+  const db = priceAdmin();
+  if (!db || m.size === 0) return;
+  try {
+    await db.from("chart_cache").upsert(
+      { cache_key: `recon:${ticker}`, result: { closes: Object.fromEntries(m) }, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+      { onConflict: "cache_key" },
+    );
+  } catch { /* non-fatal */ }
+}
 
 // Reconstruct a linked account's real value history WITHOUT the broker's paid history
 // API (which is 403 on the free tier). We replay the account's trades against historical
@@ -12,18 +51,23 @@ export type DailyValue = { date: string; value: number };
 
 type Trade = { ticker: string; date: string; signedUnits: number; flow: number };
 
-// Daily close history for one ticker → Map<YYYY-MM-DD, close>. Reuses the project's
-// proven multi-source fetcher (FMP → Finnhub → Twelve Data → Alpha Vantage) so coverage
-// matches the portfolio charts. Non-fatal → empty. `range` bounds how far back to pull.
-async function fetchDailyCloses(symbol: string, range: "3M" | "6M" | "1Y" | "3Y" | "5Y" | "MAX"): Promise<Map<string, number>> {
+// Daily close history for one ticker → Map<YYYY-MM-DD, close>. Serves from the durable
+// cache first; otherwise pulls a wide (5Y) window via the project's proven multi-source
+// fetcher (FMP → Finnhub → Twelve Data → Alpha Vantage) — one entry covers every window —
+// with a single retry to ride out a transient rate-limit. Non-fatal → empty.
+export async function fetchDailyCloses(symbol: string): Promise<Map<string, number>> {
   const sym = symbol.trim().toUpperCase();
   if (!sym) return new Map();
+  const cached = await getCachedCloses(sym);
+  if (cached && cached.size > 0) return cached;
   try {
-    const bars = await getBenchmarkHistory(sym, range, false, false);
+    let bars = await getBenchmarkHistory(sym, "5Y", false, false);
+    if (bars.length === 0) { await sleep(500); bars = await getBenchmarkHistory(sym, "5Y", false, false); }
     const m = new Map<string, number>();
     for (const b of bars) {
       if (b.date && Number.isFinite(b.close) && b.close > 0) m.set(b.date.slice(0, 10), b.close);
     }
+    if (m.size > 0) await setCachedCloses(sym, m);
     return m;
   } catch {
     return new Map();
@@ -59,7 +103,8 @@ function priceOn(sortedDates: string[], closes: Map<string, number>, day: string
 export type ReconstructResult = {
   series: DailyValue[];
   returnPct: number | null;
-  coverage: number; // reconstructed end value / actual current value (1.0 = perfect)
+  coverage: number;        // reconstructed end value / actual current value (1.0 = whole)
+  pricedCoverage: number;  // share of current value backed by REAL price history (not flat)
 };
 
 // Build the daily value series + windowed return for [startDate, endDate].
@@ -72,10 +117,12 @@ export async function reconstructValueSeries(
   endDate: string,
 ): Promise<ReconstructResult> {
   const currentShares: Record<string, number> = {};
+  const currentPrice: Record<string, number> = {};
   const tickers = new Set<string>();
   for (const p of positions) {
     const tk = p.ticker.toUpperCase();
     currentShares[tk] = (currentShares[tk] ?? 0) + p.shares;
+    if (p.price != null && p.price > 0) currentPrice[tk] = p.price;
     tickers.add(tk);
   }
 
@@ -98,14 +145,11 @@ export async function reconstructValueSeries(
     });
   }
 
-  // Prices per ticker — pull a range that comfortably covers the window.
-  const spanDays = (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000;
-  const range: "6M" | "1Y" | "3Y" | "5Y" | "MAX" =
-    spanDays <= 150 ? "6M" : spanDays <= 330 ? "1Y" : spanDays <= 3 * 365 ? "3Y" : spanDays <= 5 * 365 ? "5Y" : "MAX";
+  // Prices per ticker (cache-first, so many tickers don't get rate-limited).
   const priceMaps: Record<string, Map<string, number>> = {};
   const sortedDatesByTicker: Record<string, string[]> = {};
   for (const tk of tickers) {
-    const m = await fetchDailyCloses(tk, range);
+    const m = await fetchDailyCloses(tk);
     priceMaps[tk] = m;
     sortedDatesByTicker[tk] = [...m.keys()].sort();
   }
@@ -125,14 +169,18 @@ export async function reconstructValueSeries(
   }
 
   const days = dateList(startDate, endDate);
-  if (days.length === 0) return { series: [], returnPct: null, coverage: 0 };
+  if (days.length === 0) return { series: [], returnPct: null, coverage: 0, pricedCoverage: 0 };
   const series: DailyValue[] = [];
   for (const day of days) {
     let v = cash; // current cash carried flat (small relative to holdings)
     for (const tk of tickers) {
       const sh = sharesOn(tk, day);
       if (sh <= 0) continue;
-      const px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], day);
+      let px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], day);
+      // No price history (options, crypto, exotic tickers) → value flat at the broker's
+      // current price. Keeps the account whole (coverage ≈ 1) and return-neutral for that
+      // holding instead of dropping it and distorting the reconstructed return.
+      if (px <= 0) px = currentPrice[tk] ?? 0;
       if (px > 0) v += sh * px;
     }
     series.push({ date: day, value: Math.round(v * 100) / 100 });
@@ -159,6 +207,19 @@ export async function reconstructValueSeries(
   const denom = v0 + weightedFlow;
   const returnPct = denom > 0 ? Math.round(((v1 - v0 - netFlow) / denom) * 10000) / 100 : null;
 
+  // Overall coverage = how whole the account is (flat-filled holdings count). Priced
+  // coverage = how much of the current value has REAL price history (flat-filled excluded)
+  // — this is what tells us the reconstructed RETURN is trustworthy.
   const coverage = currentValue > 0 ? v1 / currentValue : 0;
-  return { series: finalSeries, returnPct, coverage };
+  let pricedValueNow = 0;
+  for (const tk of tickers) {
+    const sh = sharesOn(tk, endDate);
+    if (sh <= 0) continue;
+    if ((priceMaps[tk]?.size ?? 0) > 0) {
+      const px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], endDate);
+      if (px > 0) pricedValueNow += sh * px;
+    }
+  }
+  const pricedCoverage = currentValue > 0 ? pricedValueNow / currentValue : 0;
+  return { series: finalSeries, returnPct, coverage, pricedCoverage };
 }

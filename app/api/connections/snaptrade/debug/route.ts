@@ -3,8 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccounts, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
-import { reconstructValueSeries } from "@/lib/connections/reconstruct";
-import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
+import { reconstructValueSeries, fetchDailyCloses } from "@/lib/connections/reconstruct";
 
 export const maxDuration = 60;
 
@@ -80,27 +79,28 @@ export async function GET() {
       byType,
     };
 
-    // Per-holding price coverage — pinpoints which tickers the price fetcher can't value.
-    if (currentValue > 0) {
-      const probes: Array<{ ticker: string; value: number; assetType: string; priced: boolean }> = [];
-      for (const p of positions) {
-        const bars = await getBenchmarkHistory(p.ticker.toUpperCase(), "6M", false, false).catch(() => []);
-        probes.push({ ticker: p.ticker.toUpperCase(), value: round(p.value || (p.price != null ? p.price * p.shares : 0)), assetType: p.assetType, priced: bars.length > 0 });
-      }
-      rec.holdings = probes.sort((a, b) => b.value - a.value);
-      rec.unpricedValue = round(probes.filter((x) => !x.priced).reduce((s, x) => s + x.value, 0));
-    }
-
     // Reconstruction preview over a ~3-month window (matches "up 23% in 3 months").
+    // Runs first so it warms the durable price cache before the per-holding probe reads it.
     if (currentValue > 0) {
       const end = new Date().toISOString().slice(0, 10);
       const start90 = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
       const r = await reconstructValueSeries(positions, activities, cash, currentValue, start90, end).catch(() => null);
       if (r) rec.reconstruct90d = {
-        returnPct: r.returnPct, coverage: round(r.coverage),
+        returnPct: r.returnPct, coverage: round(r.coverage), pricedCoverage: round(r.pricedCoverage),
         valueStart: r.series[0]?.value ?? null, valueEnd: r.series[r.series.length - 1]?.value ?? null,
         points: r.series.length,
       };
+    }
+
+    // Per-holding price coverage (cache-first) — which tickers still can't be valued.
+    if (currentValue > 0) {
+      const probes: Array<{ ticker: string; value: number; assetType: string; priced: boolean }> = [];
+      for (const p of positions) {
+        const closes = await fetchDailyCloses(p.ticker.toUpperCase()).catch(() => new Map());
+        probes.push({ ticker: p.ticker.toUpperCase(), value: round(p.value || (p.price != null ? p.price * p.shares : 0)), assetType: p.assetType, priced: closes.size > 0 });
+      }
+      rec.holdings = probes.sort((a, b) => b.value - a.value);
+      rec.unpricedValue = round(probes.filter((x) => !x.priced).reduce((s, x) => s + x.value, 0));
     }
 
     // Is the paid Portfolio Performance API reachable? (403 = free tier.)
