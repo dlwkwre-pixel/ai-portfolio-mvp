@@ -61,7 +61,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   async function syncAll() {
     setBusy("refresh"); setErr(null); setMsg(null); setSuccess(null);
     try {
-      const res = await fetch("/api/connections/snaptrade/refresh", { method: "POST" });
+      const res = await fetch("/api/connections/snaptrade/refresh", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full: true }) });
       const d = await res.json();
       if (!res.ok) { setErr(d.error ?? "Sync failed."); return; }
       setMsg(`Synced ${d.accounts} account${d.accounts === 1 ? "" : "s"} · ${d.updated} updated, ${d.added} added${d.activities ? `, ${d.activities} transactions` : ""}.`);

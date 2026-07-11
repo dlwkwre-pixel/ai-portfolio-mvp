@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     const creds = credsByUser.get(l.user_id);
     if (!creds || !l.default_portfolio_id) continue;
     try {
-      await resyncBrokerageAccount(snaptrade, l.user_id, creds, l.snaptrade_account_id, l.default_portfolio_id);
+      await resyncBrokerageAccount(snaptrade, l.user_id, creds, l.snaptrade_account_id, l.default_portfolio_id, { forceRebuild: true });
       await admin.from("brokerage_connections").update({ connected: true, last_synced_at: new Date().toISOString(), last_error: null }).eq("user_id", l.user_id).eq("provider", "snaptrade").then((r) => r, () => ({}));
       synced++;
     } catch {

@@ -1,21 +1,29 @@
 import type { Snaptrade } from "snaptrade-typescript-sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountValueHistory, fetchAccountReturnRate } from "./snaptrade";
+import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountReturnRate } from "./snaptrade";
+import { reconstructValueSeries } from "./reconstruct";
 
-// Sync a linked portfolio's chart + return directly from the broker.
+// Sync a linked portfolio's chart + return directly from the broker's data.
 //
 // SnapTrade's "Portfolio Performance" endpoints (return rates, balance history, custom
-// reporting) are 403 on the free tier, so we CANNOT rely on the broker's own return or
-// value history. Instead we compute both from the endpoints that DO work everywhere:
-// current positions (shares, price, average_purchase_price) + cash. The broker
-// endpoints are still attempted first, so this auto-upgrades to the exact broker number
-// if the paid add-on is ever enabled.
+// reporting) are 403 on the free tier, so we CANNOT read the broker's own return or
+// value history. We compute both from the endpoints that work everywhere — current
+// positions + cash + activity history — plus FMP historical prices:
 //
-// Return = cost-basis total return on the current holdings (matches the "total return"
-// Robinhood shows on your positions). The value chart is a clean baseline→current line
-// whose growth equals that return, with the real live value as the endpoint — replacing
-// the stale performance-index snapshots that made the chart read ~$1.6k on an $859
-// account. Returns the number of snapshots written.
+//  - RETURN: if the deposit history is clean (deposits reconcile with buys/value) we use
+//    the net-deposit return, which matches Robinhood exactly (verified on a Roth: our
+//    +14.66% vs RH +14.74%). If deposits are polluted with internal sweeps (Robinhood
+//    reports cash sweeps as "contributions", e.g. $40k of "deposits" on a $1.1k account),
+//    net-deposit is garbage, so we use a reconstructed Modified-Dietz windowed return
+//    that only counts trade cash flows, never deposits.
+//  - CHART: we reconstruct the real daily value by replaying trades against historical
+//    market prices (reconstruct.ts), respecting the user's chart_start_date so they can
+//    trim off an old loss. Falls back to a clean baseline→current line if price coverage
+//    is poor. Either way this replaces the corrupt performance-index snapshots that made
+//    the chart read ~$1.6k on an $859 account.
+//
+// The broker's own endpoints are still tried first, so this auto-upgrades to the exact
+// broker figure if the paid add-on is ever enabled. Returns snapshots written.
 export async function rebuildLinkedPortfolioHistory(
   st: Snaptrade, portfolioId: string, creds: Creds, accountId: string,
 ): Promise<number> {
@@ -23,16 +31,17 @@ export async function rebuildLinkedPortfolioHistory(
   const { data: p } = await admin
     .from("portfolios").select("chart_start_date").eq("id", portfolioId).maybeSingle()
     .then((r) => r, () => ({ data: null }));
-  const startDate = (p?.chart_start_date as string | null) || null;
+  const startDatePref = (p?.chart_start_date as string | null)?.slice(0, 10) || null;
 
-  // Drop external cash flows (broker value is truth; dividends are income and kept).
+  // Drop external cash flows (they'd double-count against a value-based chart).
   await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
     .in("reason", ["deposit", "withdrawal", "adjustment_in", "adjustment_out", "fee"]).then((r) => r, () => ({}));
 
-  // Live holdings + cash (these endpoints work on every SnapTrade tier).
-  const [positions, cash] = await Promise.all([
+  // Live holdings + cash + activity history (all work on every SnapTrade tier).
+  const [positions, cash, activities] = await Promise.all([
     fetchAccountPositions(st, creds, accountId).catch(() => []),
     fetchAccountCash(st, creds, accountId).catch(() => 0),
+    fetchAccountActivities(st, creds, accountId, 500).catch(() => []),
   ]);
   let positionsValue = 0, positionsCost = 0;
   for (const pos of positions) {
@@ -40,13 +49,43 @@ export async function rebuildLinkedPortfolioHistory(
     if (pos.avgCost != null && pos.avgCost > 0) positionsCost += pos.avgCost * pos.shares;
   }
   const currentValue = Math.round((positionsValue + cash) * 100) / 100;
+  if (currentValue <= 0) return 0;
 
-  // Return: prefer the broker's own number (paid tier); else cost-basis total return on
-  // the current holdings (free tier). Cash is neutral (not "invested"), so it's excluded.
+  // Net-deposit stats → is the deposit history clean enough to trust?
+  let deposits = 0, withdrawals = 0, totalBuys = 0, earliestActivity: string | null = null;
+  for (const a of activities) {
+    const t = a.type.toLowerCase();
+    const gross = Math.abs(a.amount) || Math.abs(a.units * a.price) || 0;
+    if (t.includes("deposit") || t.includes("contribution")) deposits += gross;
+    else if (t.includes("withdraw")) withdrawals += gross;
+    if (t.includes("buy")) totalBuys += gross;
+    const d = (a.date ?? "").slice(0, 10);
+    if (d && (!earliestActivity || d < earliestActivity)) earliestActivity = d;
+  }
+  const netInvested = deposits - withdrawals;
+  const netDepositPct = netInvested > 0 ? ((currentValue - netInvested) / netInvested) * 100 : null;
+  // Clean = deposits reconcile: a plausible return, and deposits aren't wildly larger
+  // than the money that actually bought stock or sits in the account (sweep pollution).
+  const depositsClean = netDepositPct != null && netDepositPct > -60 && netDepositPct < 1000
+    && deposits <= 3 * (currentValue + totalBuys);
+
+  // Reconstruction window: user's chosen start, else the earliest activity, else 1y back.
+  const today = new Date().toISOString().slice(0, 10);
+  let startDate = startDatePref || earliestActivity || new Date(Date.now() - 365 * 86_400_000).toISOString().slice(0, 10);
+  if (startDate >= today) startDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+
+  const recon = await reconstructValueSeries(positions, activities, cash, currentValue, startDate, today);
+
+  // Return: broker's own number first (paid tier). Then, when the user hasn't trimmed the
+  // window and deposits are clean → net-deposit (exact broker match). Otherwise the
+  // reconstructed windowed return (pollution-proof). Cost-basis is the last resort.
   const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
   let returnPct: number | null = brokerReturn;
-  if (returnPct == null && positionsCost > 0) {
-    returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
+  if (returnPct == null) {
+    if (depositsClean && !startDatePref) returnPct = netDepositPct!;
+    else if (recon.coverage >= 0.7 && recon.returnPct != null) returnPct = recon.returnPct;
+    else if (depositsClean) returnPct = netDepositPct!;
+    else if (positionsCost > 0) returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
   }
   if (returnPct != null && Number.isFinite(returnPct)) {
     await admin.from("portfolios")
@@ -54,36 +93,26 @@ export async function rebuildLinkedPortfolioHistory(
       .eq("id", portfolioId).then((r) => r, () => ({}));
   }
 
-  // Purge our synthetic snapshots so the stale performance-index values can't linger.
-  await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).eq("notes", "Synced from brokerage").then((r) => r, () => ({}));
-
-  // Value chart. Prefer the broker's real value history (paid tier); else build a clean
-  // baseline→current line whose growth equals the return above, ending at the live value.
-  let series = await fetchAccountValueHistory(st, creds, accountId);
-  if (startDate) series = series.filter((pt) => pt.date >= startDate);
-  if (series.length < 2) {
-    if (currentValue <= 0) return 0;
-    // Free-tier path: also purge any legacy snapshot whose value is implausibly far
-    // above the real live value — these are the corrupt performance-index rows (~$1.6k
-    // on an $859 account) left by earlier versions, whatever they were labeled.
+  // Value chart.
+  const useRecon = recon.coverage >= 0.7 && recon.series.length >= 2;
+  let series: Array<{ date: string; value: number }>;
+  if (useRecon) {
+    // Reconstruction fully defines the line → clean slate so no stale rows survive.
+    await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).then((r) => r, () => ({}));
+    series = recon.series;
+    // Anchor the last point to the exact live value (FMP EOD can lag intraday).
+    series[series.length - 1] = { date: series[series.length - 1].date, value: currentValue };
+  } else {
+    // Fallback: purge our synthetic rows + any implausible legacy row (corrupt index
+    // values), then draw a baseline→current line whose growth equals the return above.
+    await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).eq("notes", "Synced from brokerage").then((r) => r, () => ({}));
     await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId)
-      .gt("total_value", Math.round(currentValue * 1.4 * 100) / 100).then((r) => r, () => ({}));
+      .gt("total_value", Math.round(currentValue * 1.6 * 100) / 100).then((r) => r, () => ({}));
     const rp = returnPct != null && Number.isFinite(returnPct) && returnPct > -100 ? returnPct : null;
     const baseVal = rp != null
       ? Math.round((currentValue / (1 + rp / 100)) * 100) / 100
       : (positionsCost > 0 ? Math.round(positionsCost * 100) / 100 : currentValue);
-    // Baseline date: the user's chosen chart start, else the earliest holding open date,
-    // else 90 days back so the line has a sensible span.
-    let baseDate = startDate;
-    if (!baseDate) {
-      const { data: h } = await admin.from("holdings").select("opened_at").eq("portfolio_id", portfolioId)
-        .not("opened_at", "is", null).order("opened_at", { ascending: true }).limit(1).maybeSingle()
-        .then((r) => r, () => ({ data: null }));
-      baseDate = (h?.opened_at as string | null)?.slice(0, 10) || new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
-    }
-    const today = new Date().toISOString().slice(0, 10);
-    if (baseDate >= today) baseDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    series = [{ date: baseDate, value: baseVal }, { date: today, value: currentValue }];
+    series = [{ date: startDate, value: baseVal }, { date: today, value: currentValue }];
   }
   const rows = series.map((pt) => ({
     portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,
@@ -154,8 +183,15 @@ export async function importAccountActivities(
 // portfolio), set the default portfolio's cash, and import new activities. Does NOT
 // delete holdings (mirror-delete is a separate, opt-in step). Used by the cron and
 // the manual refresh.
+//
+// The holdings/cash/activity refresh is cheap and always runs. The chart+return rebuild
+// (rebuildLinkedPortfolioHistory) fetches FMP price history and rewrites snapshots, so it
+// is throttled: it only runs on `forceRebuild` (the manual "Sync all now" + daily cron)
+// or when the last rebuild is older than 4h. This keeps the every-2-min AutoResync from
+// burning the FMP quota / churning the DB while the live value stays fresh via quotes.
 export async function resyncBrokerageAccount(
   st: Snaptrade, userId: string, creds: Creds, accountId: string, defaultPortfolioId: string,
+  opts?: { forceRebuild?: boolean },
 ): Promise<{ updated: number; added: number; activities: number }> {
   const admin = createAdminClient();
 
@@ -192,7 +228,14 @@ export async function resyncBrokerageAccount(
   await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", userId).then((r) => r, () => ({}));
 
   const activities = await importAccountActivities(st, userId, creds, accountId, defaultPortfolioId);
-  // Overwrite the chart/return history with the broker's own value series.
-  await rebuildLinkedPortfolioHistory(st, defaultPortfolioId, creds, accountId);
+
+  // Rebuild the chart/return only when forced or stale (>4h) — see note above.
+  let shouldRebuild = opts?.forceRebuild ?? false;
+  if (!shouldRebuild) {
+    const { data: pr } = await admin.from("portfolios").select("broker_return_as_of").eq("id", defaultPortfolioId).maybeSingle().then((r) => r, () => ({ data: null }));
+    const asOf = pr?.broker_return_as_of ? new Date(pr.broker_return_as_of as string).getTime() : 0;
+    shouldRebuild = !asOf || Date.now() - asOf > 4 * 60 * 60 * 1000;
+  }
+  if (shouldRebuild) await rebuildLinkedPortfolioHistory(st, defaultPortfolioId, creds, accountId);
   return { updated, added, activities };
 }

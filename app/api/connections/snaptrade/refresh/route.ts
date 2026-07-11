@@ -9,7 +9,10 @@ export const maxDuration = 120;
 
 // One-tap "sync all now": re-pull holdings, cash, and new activity for every linked
 // account of the current user, using their saved account→portfolio mappings.
-export async function POST() {
+// Body { full: true } forces the (heavier) chart+return rebuild; the automatic
+// background AutoResync omits it so the rebuild is throttled to every ~4h.
+export async function POST(req: Request) {
+  const full = await req.json().then((b) => !!(b as { full?: boolean })?.full).catch(() => false);
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -39,7 +42,7 @@ export async function POST() {
   for (const l of links) {
     if (!l.default_portfolio_id) continue;
     try {
-      const r = await resyncBrokerageAccount(snaptrade, user.id, creds, l.snaptrade_account_id, l.default_portfolio_id);
+      const r = await resyncBrokerageAccount(snaptrade, user.id, creds, l.snaptrade_account_id, l.default_portfolio_id, { forceRebuild: full });
       updated += r.updated; added += r.added; activities += r.activities; accounts++;
     } catch { /* skip this account */ }
   }
