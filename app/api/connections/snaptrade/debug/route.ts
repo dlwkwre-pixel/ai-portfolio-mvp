@@ -111,5 +111,22 @@ export async function GET() {
     out.push(rec);
   }
 
-  return NextResponse.json({ accounts: accounts.length, data: out }, { status: 200 });
+  // What BuyTune actually stores per portfolio — reveals duplicates / mis-assignment
+  // behind a wrong portfolio value (e.g. a "split" portfolio reading higher than the account).
+  const { data: pfs } = await admin.from("portfolios").select("id, name, cash_balance").eq("user_id", user.id).eq("status", "active").then((r) => r, () => ({ data: null }));
+  const pfIds = (pfs ?? []).map((p) => p.id);
+  const { data: hold } = pfIds.length
+    ? await admin.from("holdings").select("portfolio_id, ticker, shares, average_cost_basis, brokerage_account_id").in("portfolio_id", pfIds).then((r) => r, () => ({ data: null }))
+    : { data: null };
+  const portfolios = (pfs ?? []).map((p) => {
+    const hs = (hold ?? []).filter((h) => h.portfolio_id === p.id);
+    return {
+      id: p.id, name: p.name, cash: round(Number(p.cash_balance ?? 0)),
+      holdingsCount: hs.length,
+      costBasisSum: round(hs.reduce((s, h) => s + (Number(h.shares) || 0) * (Number(h.average_cost_basis) || 0), 0)),
+      holdings: hs.map((h) => ({ ticker: h.ticker, shares: Number(h.shares) || 0, cost: Number(h.average_cost_basis) || 0, acct: h.brokerage_account_id ?? null })),
+    };
+  });
+
+  return NextResponse.json({ accounts: accounts.length, data: out, portfolios }, { status: 200 });
 }

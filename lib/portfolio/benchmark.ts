@@ -1,5 +1,38 @@
+import { createClient as createSbClient } from "@supabase/supabase-js";
 import { getBenchmarkHistory, toIndexedSeries } from "@/lib/market-data/finnhub-benchmark";
 import type { BenchmarkBar, RangeKey } from "@/lib/market-data/type";
+
+// Durable benchmark cache (chart_cache table). The benchmark (SPY) is fetched on every
+// portfolio render and shares the price-API quota with the linked-portfolio reconstruction
+// (many tickers). When that quota is briefly exhausted the SPY fetch returns empty and the
+// line/stat vanish ("—"); falling back to the last good bars keeps it steady. Fails open.
+function benchAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createSbClient(url, key, { auth: { persistSession: false } });
+}
+async function getCachedBenchmark(symbol: string): Promise<BenchmarkBar[] | null> {
+  const db = benchAdmin();
+  if (!db) return null;
+  try {
+    const { data } = await db.from("chart_cache").select("result, expires_at").eq("cache_key", `bench:${symbol}`).single();
+    if (!data || new Date(data.expires_at as string) <= new Date()) return null;
+    const bars = (data.result as { bars?: BenchmarkBar[] })?.bars;
+    return Array.isArray(bars) && bars.length > 0 ? bars : null;
+  } catch {
+    return null;
+  }
+}
+async function setCachedBenchmark(symbol: string, bars: BenchmarkBar[]): Promise<void> {
+  const db = benchAdmin();
+  if (!db || bars.length === 0) return;
+  try {
+    await db.from("chart_cache").upsert(
+      { cache_key: `bench:${symbol}`, result: { bars }, expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() },
+      { onConflict: "cache_key" },
+    );
+  } catch { /* non-fatal */ }
+}
 
 type SnapshotRow = {
   snapshot_date: string;
@@ -220,6 +253,14 @@ export async function getBenchmarkComparison(args: {
     benchmarkBars = await getBenchmarkHistory(benchmarkSymbol, "MAX", true);
   } catch {
     benchmarkBars = [];
+  }
+  // Live fetch succeeded → refresh the durable cache. Failed/empty (quota crunch) → fall
+  // back to the last good bars so SPY doesn't disappear.
+  if (benchmarkBars.length > 0) {
+    void setCachedBenchmark(benchmarkSymbol, benchmarkBars);
+  } else {
+    const cached = await getCachedBenchmark(benchmarkSymbol);
+    if (cached) benchmarkBars = cached;
   }
 
   const benchmarkAvailable = benchmarkBars.length > 0;

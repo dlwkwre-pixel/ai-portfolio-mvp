@@ -85,7 +85,10 @@ export default async function PortfolioChartSection({
       amount: cf.amount,
       reason: cf.reason,
     })),
-    totalCostBasis: totalCostBasis > 0 ? totalCostBasis : undefined,
+    // For linked portfolios the reconstructed value line IS the truth, so don't let the
+    // cost-basis anchor rewrite the first point (that produced the "strange dip at the
+    // start") or the cost-basis sanitizer drop legitimately low early values.
+    totalCostBasis: linked ? undefined : (totalCostBasis > 0 ? totalCostBasis : undefined),
   });
 
   // For a linked portfolio, show the broker's OWN return number (authoritative)
