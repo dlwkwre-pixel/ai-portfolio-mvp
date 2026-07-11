@@ -1,4 +1,5 @@
 import type { BrokeragePosition, BrokerageActivity } from "./snaptrade";
+import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 
 // Reconstruct a linked account's real value history WITHOUT the broker's paid history
 // API (which is 403 on the free tier). We replay the account's trades against historical
@@ -11,23 +12,17 @@ export type DailyValue = { date: string; value: number };
 
 type Trade = { ticker: string; date: string; signedUnits: number; flow: number };
 
-// FMP full daily history for one ticker → Map<YYYY-MM-DD, close>. Non-fatal → empty.
-async function fetchDailyCloses(symbol: string): Promise<Map<string, number>> {
-  const key = process.env.FMP_API_KEY;
-  if (!key) return new Map();
+// Daily close history for one ticker → Map<YYYY-MM-DD, close>. Reuses the project's
+// proven multi-source fetcher (FMP → Finnhub → Twelve Data → Alpha Vantage) so coverage
+// matches the portfolio charts. Non-fatal → empty. `range` bounds how far back to pull.
+async function fetchDailyCloses(symbol: string, range: "3M" | "6M" | "1Y" | "3Y" | "5Y" | "MAX"): Promise<Map<string, number>> {
   const sym = symbol.trim().toUpperCase();
   if (!sym) return new Map();
-  const url = `https://financialmodelingprep.com/api/v3/historical-price-full/${encodeURIComponent(sym)}?apikey=${key}`;
   try {
-    const res = await fetch(url, { next: { revalidate: 21600 } });
-    if (!res.ok) return new Map();
-    const data = (await res.json()) as { historical?: Array<{ date?: string; close?: number | string; adjClose?: number | string }> };
-    const rows = Array.isArray(data?.historical) ? data.historical : [];
+    const bars = await getBenchmarkHistory(sym, range, false, false);
     const m = new Map<string, number>();
-    for (const r of rows) {
-      const d = String(r.date ?? "").slice(0, 10);
-      const c = Number(r.close ?? r.adjClose ?? 0);
-      if (d && Number.isFinite(c) && c > 0) m.set(d, c);
+    for (const b of bars) {
+      if (b.date && Number.isFinite(b.close) && b.close > 0) m.set(b.date.slice(0, 10), b.close);
     }
     return m;
   } catch {
@@ -103,11 +98,14 @@ export async function reconstructValueSeries(
     });
   }
 
-  // Prices per ticker.
+  // Prices per ticker — pull a range that comfortably covers the window.
+  const spanDays = (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000;
+  const range: "6M" | "1Y" | "3Y" | "5Y" | "MAX" =
+    spanDays <= 150 ? "6M" : spanDays <= 330 ? "1Y" : spanDays <= 3 * 365 ? "3Y" : spanDays <= 5 * 365 ? "5Y" : "MAX";
   const priceMaps: Record<string, Map<string, number>> = {};
   const sortedDatesByTicker: Record<string, string[]> = {};
   for (const tk of tickers) {
-    const m = await fetchDailyCloses(tk);
+    const m = await fetchDailyCloses(tk, range);
     priceMaps[tk] = m;
     sortedDatesByTicker[tk] = [...m.keys()].sort();
   }
