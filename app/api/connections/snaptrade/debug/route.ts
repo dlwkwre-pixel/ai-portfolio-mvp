@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccounts, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
 import { reconstructValueSeries } from "@/lib/connections/reconstruct";
+import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
 
 export const maxDuration = 60;
 
@@ -78,6 +79,17 @@ export async function GET() {
       netInvested, allTimeReturnDollars, allTimeReturnPct,
       byType,
     };
+
+    // Per-holding price coverage — pinpoints which tickers the price fetcher can't value.
+    if (currentValue > 0) {
+      const probes: Array<{ ticker: string; value: number; assetType: string; priced: boolean }> = [];
+      for (const p of positions) {
+        const bars = await getBenchmarkHistory(p.ticker.toUpperCase(), "6M", false, false).catch(() => []);
+        probes.push({ ticker: p.ticker.toUpperCase(), value: round(p.value || (p.price != null ? p.price * p.shares : 0)), assetType: p.assetType, priced: bars.length > 0 });
+      }
+      rec.holdings = probes.sort((a, b) => b.value - a.value);
+      rec.unpricedValue = round(probes.filter((x) => !x.priced).reduce((s, x) => s + x.value, 0));
+    }
 
     // Reconstruction preview over a ~3-month window (matches "up 23% in 3 months").
     if (currentValue > 0) {
