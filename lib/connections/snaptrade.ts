@@ -188,26 +188,42 @@ export async function fetchAccountActivities(
   }
 }
 
-// Portfolio ids that are the default target of a linked brokerage account (= mirrors).
-// Manual editing is locked on these and sync is the source of truth. Empty set on any
-// failure, so nothing changes for users without a connection.
+// Portfolio ids that are fed by a linked brokerage account (= mirrors). A single account
+// can feed several portfolios (a taxable account split by holding period), so this is the
+// union of the recorded default targets AND any portfolio that holds broker-sourced
+// positions (holdings.brokerage_account_id). Manual editing is locked on these and sync is
+// the source of truth. Empty set on any failure, so nothing changes for users without a
+// connection.
 export async function getLinkedPortfolioIds(userId: string): Promise<Set<string>> {
   if (!userId) return new Set();
+  const out = new Set<string>();
+  const admin = createAdminClient();
   try {
-    const admin = createAdminClient();
     const { data } = await admin.from("brokerage_account_links").select("default_portfolio_id").eq("user_id", userId);
-    return new Set((data ?? []).map((r) => r.default_portfolio_id).filter((v): v is string => !!v));
-  } catch {
-    return new Set();
-  }
+    for (const r of data ?? []) if (r.default_portfolio_id) out.add(r.default_portfolio_id);
+  } catch { /* table may not exist */ }
+  try {
+    const { data: pf } = await admin.from("portfolios").select("id").eq("user_id", userId);
+    const ids = (pf ?? []).map((p) => p.id);
+    if (ids.length > 0) {
+      const { data: h } = await admin.from("holdings").select("portfolio_id").in("portfolio_id", ids).not("brokerage_account_id", "is", null);
+      for (const r of h ?? []) if (r.portfolio_id) out.add(r.portfolio_id);
+    }
+  } catch { /* column may not exist yet */ }
+  return out;
 }
 
 // Is this specific portfolio a linked mirror? Used by the mutation actions to block
-// manual edits. Returns false on any failure (fail open to normal behavior).
+// manual edits and by the page to show the linked UI. True if it's a recorded default
+// target OR holds any broker-sourced position. Returns false on any failure (fail open).
 export async function isPortfolioLinked(portfolioId: string): Promise<boolean> {
   if (!portfolioId) return false;
+  const admin = createAdminClient();
   try {
-    const admin = createAdminClient();
+    const { data } = await admin.from("holdings").select("id").eq("portfolio_id", portfolioId).not("brokerage_account_id", "is", null).limit(1).maybeSingle();
+    if (data) return true;
+  } catch { /* column may not exist yet */ }
+  try {
     const { data } = await admin.from("brokerage_account_links").select("id").eq("default_portfolio_id", portfolioId).limit(1).maybeSingle();
     return !!data;
   } catch {

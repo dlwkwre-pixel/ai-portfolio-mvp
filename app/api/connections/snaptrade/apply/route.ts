@@ -54,13 +54,19 @@ export async function POST(req: Request) {
       if (existing) {
         await admin.from("holdings").update({
           shares: pos.shares, average_cost_basis: pos.avgCost, company_name: pos.name, asset_type: pos.assetType,
-        }).eq("id", existing.id);
+          brokerage_account_id: accountId,
+        }).eq("id", existing.id).then((r) => r, () => admin.from("holdings").update({
+          shares: pos.shares, average_cost_basis: pos.avgCost, company_name: pos.name, asset_type: pos.assetType,
+        }).eq("id", existing.id)); // fall back if the brokerage_account_id column isn't migrated yet
         updated++;
       } else {
         await admin.from("holdings").insert({
           portfolio_id: portfolioId, ticker, company_name: pos.name, asset_type: pos.assetType,
+          shares: pos.shares, average_cost_basis: pos.avgCost, brokerage_account_id: accountId,
+        }).then((r) => r, () => admin.from("holdings").insert({
+          portfolio_id: portfolioId, ticker, company_name: pos.name, asset_type: pos.assetType,
           shares: pos.shares, average_cost_basis: pos.avgCost,
-        });
+        }));
         added++;
       }
     }
@@ -87,9 +93,13 @@ export async function POST(req: Request) {
     if (activityTarget) {
       activitiesImported = await importAccountActivities(snaptrade, user.id, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId, activityTarget);
     }
-    // Overwrite the linked portfolio's chart/return history with the broker's series.
-    if (defaultPortfolioId) {
-      await rebuildLinkedPortfolioHistory(snaptrade, defaultPortfolioId, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
+    // Rebuild the chart/return for every portfolio this account was assigned into (a split
+    // account feeds several), each from its own tickers + its own chart start date.
+    const rebuildTargets = new Set<string>();
+    for (const pid of Object.values(assignments)) if (pid && ownPortfolios.has(pid)) rebuildTargets.add(pid);
+    if (defaultPortfolioId) rebuildTargets.add(defaultPortfolioId);
+    for (const pid of rebuildTargets) {
+      await rebuildLinkedPortfolioHistory(snaptrade, pid, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
     }
 
     await admin.from("brokerage_account_links").upsert(

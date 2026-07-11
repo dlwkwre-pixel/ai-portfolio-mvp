@@ -145,13 +145,19 @@ export async function reconstructValueSeries(
     });
   }
 
-  // Prices per ticker (cache-first, so many tickers don't get rate-limited).
+  // Prices per ticker (cache-first, so many tickers don't get rate-limited). Fetched with
+  // small bounded concurrency so a many-holding account doesn't take too long or time out.
   const priceMaps: Record<string, Map<string, number>> = {};
   const sortedDatesByTicker: Record<string, string[]> = {};
-  for (const tk of tickers) {
-    const m = await fetchDailyCloses(tk);
-    priceMaps[tk] = m;
-    sortedDatesByTicker[tk] = [...m.keys()].sort();
+  const tickerList = [...tickers];
+  const CONCURRENCY = 3;
+  for (let i = 0; i < tickerList.length; i += CONCURRENCY) {
+    const batch = tickerList.slice(i, i + CONCURRENCY);
+    const maps = await Promise.all(batch.map((tk) => fetchDailyCloses(tk)));
+    batch.forEach((tk, j) => {
+      priceMaps[tk] = maps[j];
+      sortedDatesByTicker[tk] = [...maps[j].keys()].sort();
+    });
   }
 
   // shares(tk, day) = currentShares − Σ signedUnits(trades on tk with date > day).

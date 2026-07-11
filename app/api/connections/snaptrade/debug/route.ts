@@ -5,7 +5,7 @@ import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccounts, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
 import { reconstructValueSeries, fetchDailyCloses } from "@/lib/connections/reconstruct";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const round = (n: number) => Math.round(n * 100) / 100;
 

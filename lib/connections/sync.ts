@@ -37,21 +37,42 @@ export async function rebuildLinkedPortfolioHistory(
   await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
     .in("reason", ["deposit", "withdrawal", "adjustment_in", "adjustment_out", "fee"]).then((r) => r, () => ({}));
 
-  // Live holdings + cash + activity history (all work on every SnapTrade tier).
-  const [positions, cash, activities] = await Promise.all([
+  // Account-level data (all work on every SnapTrade tier).
+  const [allPositions, cash, allActivities] = await Promise.all([
     fetchAccountPositions(st, creds, accountId).catch(() => []),
     fetchAccountCash(st, creds, accountId).catch(() => 0),
     fetchAccountActivities(st, creds, accountId, 500).catch(() => []),
   ]);
+
+  // One brokerage account can feed several portfolios (split by holding period). Rebuild
+  // THIS portfolio from only the tickers assigned to it (its holdings ∩ the account's
+  // positions). Cash lives with the account's default portfolio.
+  const { data: myHoldings } = await admin.from("holdings").select("ticker").eq("portfolio_id", portfolioId)
+    .then((r) => r, () => ({ data: null }));
+  const myTickers = new Set((myHoldings ?? []).map((h) => String(h.ticker).toUpperCase()));
+  const accountTickers = new Set(allPositions.map((p) => p.ticker.toUpperCase()));
+  // Only filter when this portfolio is a strict subset (a real split); a 1:1 link holds
+  // everything, so keep the whole account (also covers the not-yet-migrated case).
+  const isSplit = myTickers.size > 0 && [...accountTickers].some((t) => !myTickers.has(t));
+  const positions = isSplit ? allPositions.filter((p) => myTickers.has(p.ticker.toUpperCase())) : allPositions;
+  const activities = isSplit ? allActivities.filter((a) => a.ticker && myTickers.has(a.ticker.toUpperCase())) : allActivities;
+
+  // Cash goes to the account's default (cash) portfolio only.
+  const { data: link } = await admin.from("brokerage_account_links").select("default_portfolio_id")
+    .eq("snaptrade_account_id", accountId).limit(1).maybeSingle().then((r) => r, () => ({ data: null }));
+  const includeCash = (!isSplit || link?.default_portfolio_id === portfolioId) ? cash : 0;
+
   let positionsValue = 0, positionsCost = 0;
   for (const pos of positions) {
     positionsValue += pos.value || (pos.price != null ? pos.price * pos.shares : 0);
     if (pos.avgCost != null && pos.avgCost > 0) positionsCost += pos.avgCost * pos.shares;
   }
-  const currentValue = Math.round((positionsValue + cash) * 100) / 100;
+  const currentValue = Math.round((positionsValue + includeCash) * 100) / 100;
   if (currentValue <= 0) return 0;
 
-  // Net-deposit stats → is the deposit history clean enough to trust?
+  // Net-deposit stats → is the deposit history clean enough to trust? Deposits are
+  // account-level, so this only applies to a 1:1 link (not a split, where deposits can't
+  // be attributed to one side).
   let deposits = 0, withdrawals = 0, totalBuys = 0, earliestActivity: string | null = null;
   for (const a of activities) {
     const t = a.type.toLowerCase();
@@ -66,7 +87,8 @@ export async function rebuildLinkedPortfolioHistory(
   const netDepositPct = netInvested > 0 ? ((currentValue - netInvested) / netInvested) * 100 : null;
   // Clean = deposits reconcile: a plausible return, and deposits aren't wildly larger
   // than the money that actually bought stock or sits in the account (sweep pollution).
-  const depositsClean = netDepositPct != null && netDepositPct > -60 && netDepositPct < 1000
+  // Never for a split (deposits can't be attributed to one side of the split).
+  const depositsClean = !isSplit && netDepositPct != null && netDepositPct > -60 && netDepositPct < 1000
     && deposits <= 3 * (currentValue + totalBuys);
 
   // Reconstruction window. User's chosen start wins. Otherwise default to the last year
@@ -78,7 +100,7 @@ export async function rebuildLinkedPortfolioHistory(
     || (earliestActivity && earliestActivity > oneYearAgo ? earliestActivity : oneYearAgo);
   if (startDate >= today) startDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
 
-  const recon = await reconstructValueSeries(positions, activities, cash, currentValue, startDate, today);
+  const recon = await reconstructValueSeries(positions, activities, includeCash, currentValue, startDate, today);
 
   // Return: broker's own number first (paid tier). Then, when the user hasn't trimmed the
   // window and deposits are clean → net-deposit (exact broker match). Otherwise the
@@ -220,10 +242,12 @@ export async function resyncBrokerageAccount(
     const target = existingPid && own.has(existingPid) ? existingPid : defaultPortfolioId;
     const { data: existing } = await admin.from("holdings").select("id").eq("portfolio_id", target).ilike("ticker", p.ticker).maybeSingle();
     if (existing) {
-      await admin.from("holdings").update({ shares: p.shares, average_cost_basis: p.avgCost, company_name: p.name, asset_type: p.assetType }).eq("id", existing.id);
+      await admin.from("holdings").update({ shares: p.shares, average_cost_basis: p.avgCost, company_name: p.name, asset_type: p.assetType, brokerage_account_id: accountId }).eq("id", existing.id)
+        .then((r) => r, () => admin.from("holdings").update({ shares: p.shares, average_cost_basis: p.avgCost, company_name: p.name, asset_type: p.assetType }).eq("id", existing.id));
       updated++;
     } else {
-      await admin.from("holdings").insert({ portfolio_id: target, ticker: p.ticker, company_name: p.name, asset_type: p.assetType, shares: p.shares, average_cost_basis: p.avgCost });
+      await admin.from("holdings").insert({ portfolio_id: target, ticker: p.ticker, company_name: p.name, asset_type: p.assetType, shares: p.shares, average_cost_basis: p.avgCost, brokerage_account_id: accountId })
+        .then((r) => r, () => admin.from("holdings").insert({ portfolio_id: target, ticker: p.ticker, company_name: p.name, asset_type: p.assetType, shares: p.shares, average_cost_basis: p.avgCost }));
       added++;
     }
   }
@@ -240,6 +264,14 @@ export async function resyncBrokerageAccount(
     const asOf = pr?.broker_return_as_of ? new Date(pr.broker_return_as_of as string).getTime() : 0;
     shouldRebuild = !asOf || Date.now() - asOf > 4 * 60 * 60 * 1000;
   }
-  if (shouldRebuild) await rebuildLinkedPortfolioHistory(st, defaultPortfolioId, creds, accountId);
+  if (shouldRebuild) {
+    // Rebuild every portfolio this account feeds (a split account feeds several), each
+    // from its own tickers. Falls back to just the default if the marker isn't migrated.
+    const targets = new Set<string>([defaultPortfolioId]);
+    const { data: fed } = await admin.from("holdings").select("portfolio_id").eq("brokerage_account_id", accountId)
+      .then((r) => r, () => ({ data: null }));
+    for (const row of fed ?? []) if (row.portfolio_id && own.has(row.portfolio_id)) targets.add(row.portfolio_id);
+    for (const pid of targets) await rebuildLinkedPortfolioHistory(st, pid, creds, accountId);
+  }
   return { updated, added, activities };
 }
