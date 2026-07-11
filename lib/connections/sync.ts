@@ -240,10 +240,12 @@ export async function resyncBrokerageAccount(
   }
 
   const positions = await fetchAccountPositions(st, creds, accountId);
+  const touchedPortfolios = new Set<string>();
   let updated = 0, added = 0;
   for (const p of positions) {
     const existingPid = tickerToPortfolio[p.ticker];
     const target = existingPid && own.has(existingPid) ? existingPid : defaultPortfolioId;
+    touchedPortfolios.add(target);
     const { data: existing } = await admin.from("holdings").select("id").eq("portfolio_id", target).ilike("ticker", p.ticker).maybeSingle();
     if (existing) {
       await admin.from("holdings").update({ shares: p.shares, average_cost_basis: p.avgCost, company_name: p.name, asset_type: p.assetType, brokerage_account_id: accountId }).eq("id", existing.id)
@@ -270,8 +272,9 @@ export async function resyncBrokerageAccount(
   }
   if (shouldRebuild) {
     // Rebuild every portfolio this account feeds (a split account feeds several), each
-    // from its own tickers. Falls back to just the default if the marker isn't migrated.
-    const targets = new Set<string>([defaultPortfolioId]);
+    // from its own tickers. Discover them from the tagged holdings AND from the portfolios
+    // touched this sync, so it works even before the brokerage_account_id column exists.
+    const targets = new Set<string>([defaultPortfolioId, ...touchedPortfolios]);
     const { data: fed } = await admin.from("holdings").select("portfolio_id").eq("brokerage_account_id", accountId)
       .then((r) => r, () => ({ data: null }));
     for (const row of fed ?? []) if (row.portfolio_id && own.has(row.portfolio_id)) targets.add(row.portfolio_id);
