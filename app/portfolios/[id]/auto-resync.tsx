@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Keeps a linked portfolio fresh while you're looking at it: re-syncs from the broker
-// on open and then every couple of minutes, but only when the tab is visible and only
-// if it's been at least `minGapSeconds` since the last sync — so it catches a trade you
-// just made without hammering the broker (the live dollar value already updates from
-// market quotes on every load; this refreshes composition + the broker return).
-export default function AutoResync({ lastSyncedAt, minGapSeconds = 120 }: { lastSyncedAt: string | null; minGapSeconds?: number }) {
+// Keeps a linked portfolio reasonably fresh while you're looking at it. The live dollar
+// value already updates from market quotes on every render, so this only needs to refresh
+// composition + the broker return occasionally — a full multi-account resync is expensive
+// (several broker round-trips) and its follow-up router.refresh() re-renders the page, so
+// running it on every visit made navigation feel slow. We now sync at most once every
+// `minGapSeconds` (default 15 min), only when the tab is visible, and only re-render the
+// page if the sync actually changed something.
+export default function AutoResync({ lastSyncedAt, minGapSeconds = 900 }: { lastSyncedAt: string | null; minGapSeconds?: number }) {
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const lastSync = useRef<number>(lastSyncedAt ? new Date(lastSyncedAt).getTime() : 0);
@@ -29,7 +31,7 @@ export default function AutoResync({ lastSyncedAt, minGapSeconds = 120 }: { last
       finally { busy.current = false; if (!cancelled) setSyncing(false); }
     }
     void maybeSync(); // on open
-    const id = setInterval(() => void maybeSync(), 60 * 1000); // check each minute
+    const id = setInterval(() => void maybeSync(), 5 * 60 * 1000); // check every 5 min
     const onVis = () => { if (document.visibilityState === "visible") void maybeSync(); };
     document.addEventListener("visibilitychange", onVis);
     return () => { cancelled = true; clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
