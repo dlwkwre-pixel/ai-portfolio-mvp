@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccounts, fetchAccountPositions, fetchAccountCash, fetchAccountActivities } from "@/lib/connections/snaptrade";
+import { reconstructValueSeries } from "@/lib/connections/reconstruct";
 
 export const maxDuration = 60;
 
@@ -77,6 +78,18 @@ export async function GET() {
       netInvested, allTimeReturnDollars, allTimeReturnPct,
       byType,
     };
+
+    // Reconstruction preview over a ~3-month window (matches "up 23% in 3 months").
+    if (currentValue > 0) {
+      const end = new Date().toISOString().slice(0, 10);
+      const start90 = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+      const r = await reconstructValueSeries(positions, activities, cash, currentValue, start90, end).catch(() => null);
+      if (r) rec.reconstruct90d = {
+        returnPct: r.returnPct, coverage: round(r.coverage),
+        valueStart: r.series[0]?.value ?? null, valueEnd: r.series[r.series.length - 1]?.value ?? null,
+        points: r.series.length,
+      };
+    }
 
     // Is the paid Portfolio Performance API reachable? (403 = free tier.)
     rec.brokerPerfApi = {};
