@@ -102,16 +102,20 @@ export async function rebuildLinkedPortfolioHistory(
 
   const recon = await reconstructValueSeries(positions, activities, includeCash, currentValue, startDate, today);
 
-  // Return: broker's own number first (paid tier). Then, when the user hasn't trimmed the
-  // window and deposits are clean → net-deposit (exact broker match). Otherwise the
-  // reconstructed windowed return (pollution-proof). Cost-basis is the last resort.
+  // Return = money-weighted total return, matching what Robinhood actually shows:
+  //  - broker's own number if the paid tier ever exposes it;
+  //  - a whole (1:1) account with clean deposits → (value − net deposits) / net deposits.
+  //    Verified exact on a Roth: our 14.68% vs Robinhood 14.76%.
+  //  - otherwise (a split portfolio, or polluted deposits) → cost-basis total return on
+  //    THIS portfolio's holdings, (value − cost) / cost. That's exactly Robinhood's
+  //    per-position "total return" aggregated, which is what you see when you split an
+  //    account by holdings (e.g. one stock isolated reads its own −58%).
   const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
   let returnPct: number | null = brokerReturn;
   if (returnPct == null) {
-    if (depositsClean && !startDatePref) returnPct = netDepositPct!;
-    else if (recon.pricedCoverage >= 0.85 && recon.returnPct != null) returnPct = recon.returnPct;
-    else if (depositsClean) returnPct = netDepositPct!;
+    if (!isSplit && depositsClean) returnPct = netDepositPct!;
     else if (positionsCost > 0) returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
+    else if (depositsClean) returnPct = netDepositPct!;
   }
   if (returnPct != null && Number.isFinite(returnPct)) {
     await admin.from("portfolios")

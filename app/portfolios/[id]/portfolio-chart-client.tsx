@@ -36,6 +36,7 @@ type PortfolioChartClientProps = {
   endDateLabel: string | null;
   hasEnoughSnapshots: boolean;
   netInvested: number | null;
+  isLinked?: boolean;
   holdings: { ticker: string; opened_at: string | null }[];
 };
 
@@ -93,15 +94,22 @@ export default function PortfolioChartClient({
   portfolioId,
   chartData,
   benchmarkSymbol,
+  portfolioReturnPct,
   portfolioTwrPct,
   benchmarkReturnPct,
+  excessReturnPct,
   excessTwrPct,
   startDateLabel,
   endDateLabel,
   hasEnoughSnapshots,
+  isLinked = false,
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
+  // Linked (brokerage-synced) portfolios always use the value view: their chart line is
+  // the real account value and the return is the broker's money-weighted total return.
+  // The TWR-derived "Inv. Return" line double-counts deposits on a synced value series,
+  // so we hide that toggle for linked portfolios.
   const [chartMode, setChartMode] = useState<"net" | "twr">("net");
   const [backfilling, setBackfilling] = useState(false);
   const [backfillDone, setBackfillDone] = useState(false);
@@ -200,26 +208,38 @@ export default function PortfolioChartClient({
       }
       return {
         date: d.date,
-        net_value: startValue * (1 + periodTwr / 100),
+        // Linked portfolios plot the real account value (which already reflects deposits);
+        // unlinked plot the TWR-normalized dollar line (deposits made invisible).
+        net_value: isLinked ? d.portfolio_value : startValue * (1 + periodTwr / 100),
         actual_value: d.portfolio_value,
         bench_value,
       };
     });
-  }, [displayChartData]);
+  }, [displayChartData, isLinked]);
 
   const netTwrStats = useMemo(() => {
     if (activeTimeframe === "All") {
-      return { twrPct: portfolioTwrPct, benchPct: benchmarkReturnPct, excess: excessTwrPct };
+      // Linked: the money-weighted total return (matches Robinhood). Unlinked: TWR.
+      return isLinked
+        ? { twrPct: portfolioReturnPct, benchPct: benchmarkReturnPct, excess: excessReturnPct }
+        : { twrPct: portfolioTwrPct, benchPct: benchmarkReturnPct, excess: excessTwrPct };
     }
     if (filteredChartData.length < 2) return { twrPct: null, benchPct: null, excess: null };
-    const firstTwr = filteredChartData[0].portfolio_twr_pct;
-    const lastTwr = filteredChartData[filteredChartData.length - 1].portfolio_twr_pct;
-    const periodTwr = ((1 + lastTwr / 100) / (1 + firstTwr / 100) - 1) * 100;
     const firstBench = filteredChartData[0].benchmark_return_pct;
     const lastBench = filteredChartData[filteredChartData.length - 1].benchmark_return_pct;
     const periodBench = firstBench !== null && lastBench !== null ? lastBench - firstBench : null;
+    if (isLinked) {
+      // Windowed value change of the real account value.
+      const firstVal = filteredChartData[0].portfolio_value;
+      const lastVal = filteredChartData[filteredChartData.length - 1].portfolio_value;
+      const periodRet = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : null;
+      return { twrPct: periodRet, benchPct: periodBench, excess: periodRet !== null && periodBench !== null ? periodRet - periodBench : null };
+    }
+    const firstTwr = filteredChartData[0].portfolio_twr_pct;
+    const lastTwr = filteredChartData[filteredChartData.length - 1].portfolio_twr_pct;
+    const periodTwr = ((1 + lastTwr / 100) / (1 + firstTwr / 100) - 1) * 100;
     return { twrPct: periodTwr, benchPct: periodBench, excess: periodBench !== null ? periodTwr - periodBench : null };
-  }, [filteredChartData, activeTimeframe, portfolioTwrPct, benchmarkReturnPct, excessTwrPct]);
+  }, [filteredChartData, activeTimeframe, isLinked, portfolioReturnPct, portfolioTwrPct, benchmarkReturnPct, excessReturnPct, excessTwrPct]);
 
   const currentValue = chartData.length > 0 ? chartData[chartData.length - 1].portfolio_value : null;
   const isNetPositive = (netTwrStats.twrPct ?? 0) >= 0;
@@ -271,21 +291,23 @@ export default function PortfolioChartClient({
         </div>
 
         <div className="flex flex-wrap gap-2 min-w-0">
-          <div className="bt-tabs-scroll flex rounded-xl border border-white/8 bg-white/3 p-0.5" style={{ overflowX: "auto" }}>
-            {CHART_MODES.map((mode) => (
-              <button
-                key={mode.value}
-                type="button"
-                onClick={() => setChartMode(mode.value as "net" | "twr")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
-                  chartMode === mode.value ? "bg-white/10" : "text-slate-500 hover:text-slate-300"
-                }`}
-                style={chartMode === mode.value ? { color: "var(--text-primary)" } : undefined}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
+          {!isLinked && (
+            <div className="bt-tabs-scroll flex rounded-xl border border-white/8 bg-white/3 p-0.5" style={{ overflowX: "auto" }}>
+              {CHART_MODES.map((mode) => (
+                <button
+                  key={mode.value}
+                  type="button"
+                  onClick={() => setChartMode(mode.value as "net" | "twr")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition whitespace-nowrap ${
+                    chartMode === mode.value ? "bg-white/10" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                  style={chartMode === mode.value ? { color: "var(--text-primary)" } : undefined}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="bt-tabs-scroll flex rounded-xl border border-white/8 bg-white/3 p-0.5" style={{ overflowX: "auto" }}>
             {TIMEFRAMES.map((tf) => (
@@ -383,7 +405,7 @@ export default function PortfolioChartClient({
                 <Tooltip
                   formatter={(value, name) => [
                     `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                    name === "net_value" ? "Net Return" : name === "bench_value" ? benchmarkSymbol : "Actual Value",
+                    name === "net_value" ? (isLinked ? "Value" : "Net Return") : name === "bench_value" ? benchmarkSymbol : "Actual Value",
                   ]}
                   labelFormatter={(label) => dateTick(String(label))}
                   contentStyle={tooltipStyle}

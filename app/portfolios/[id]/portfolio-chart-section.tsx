@@ -118,6 +118,7 @@ export default async function PortfolioChartSection({
       endDateLabel={comparison.endDateLabel}
       hasEnoughSnapshots={comparison.hasEnoughSnapshots}
       netInvested={comparison.netInvested}
+      isLinked={linked}
       holdings={(holdingsMeta ?? []).map((h) => ({ ticker: String(h.ticker), opened_at: h.opened_at as string | null }))}
     />
   );
