@@ -26,12 +26,22 @@ export async function POST(req: Request) {
   const startDate = body?.startDate && /^\d{4}-\d{2}-\d{2}$/.test(body.startDate) ? body.startDate : null;
 
   const admin = createAdminClient();
-  // The portfolio must be the linked (default) target of one of the user's accounts.
+  // The portfolio must be fed by one of the user's linked accounts — either as the
+  // account's default target, or as a split portfolio holding that account's positions
+  // (holdings.brokerage_account_id). The old default-only check wrongly told split
+  // portfolios "isn't linked to a brokerage".
   const { data: portfolio } = await admin.from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
   if (!portfolio) return NextResponse.json({ error: "Portfolio not found." }, { status: 404 });
+  let accountId: string | null = null;
   const { data: link } = await admin
     .from("brokerage_account_links").select("snaptrade_account_id").eq("user_id", user.id).eq("default_portfolio_id", portfolioId).limit(1).maybeSingle();
-  if (!link?.snaptrade_account_id) return NextResponse.json({ error: "This portfolio isn't linked to a brokerage." }, { status: 400 });
+  if (link?.snaptrade_account_id) accountId = link.snaptrade_account_id;
+  if (!accountId) {
+    const { data: fed } = await admin.from("holdings").select("brokerage_account_id").eq("portfolio_id", portfolioId)
+      .not("brokerage_account_id", "is", null).limit(1).maybeSingle().then((r) => r, () => ({ data: null }));
+    if (fed?.brokerage_account_id) accountId = fed.brokerage_account_id as string;
+  }
+  if (!accountId) return NextResponse.json({ error: "This portfolio isn't linked to a brokerage." }, { status: 400 });
 
   const { error: updErr } = await admin.from("portfolios").update({ chart_start_date: startDate }).eq("id", portfolioId).eq("user_id", user.id);
   if (updErr) return NextResponse.json({ error: "Could not save. Run supabase/portfolio-chart-start-date.sql first." }, { status: 500 });
@@ -40,7 +50,7 @@ export async function POST(req: Request) {
     .from("brokerage_connections").select("snaptrade_user_id, snaptrade_user_secret").eq("user_id", user.id).eq("provider", "snaptrade").maybeSingle();
   let snapshots = 0;
   if (conn?.snaptrade_user_id && conn?.snaptrade_user_secret) {
-    snapshots = await rebuildLinkedPortfolioHistory(snaptrade, portfolioId, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, link.snaptrade_account_id);
+    snapshots = await rebuildLinkedPortfolioHistory(snaptrade, portfolioId, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
   }
   return NextResponse.json({ ok: true, startDate, snapshots });
 }

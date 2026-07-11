@@ -194,7 +194,14 @@ export async function reconstructValueSeries(
 
   // Keep only weekdays to avoid flat weekend runs (markets closed) — cleaner line.
   const weekdayed = series.filter((pt) => { const wd = new Date(pt.date + "T00:00:00Z").getUTCDay(); return wd !== 0 && wd !== 6; });
-  const finalSeries = weekdayed.length >= 2 ? weekdayed : series;
+  let finalSeries = weekdayed.length >= 2 ? weekdayed : series;
+
+  // Trim the leading near-zero run: before the first buy of the current holdings the
+  // replayed value is ~$0, which charts as months of flat zero and reads as missing data.
+  // Start the line where the portfolio actually begins to exist.
+  const floor = Math.max(1, currentValue * 0.005);
+  const firstReal = finalSeries.findIndex((pt) => pt.value >= floor);
+  if (firstReal > 0 && finalSeries.length - firstReal >= 2) finalSeries = finalSeries.slice(firstReal);
 
   const v0 = finalSeries[0]?.value ?? 0;
   const v1 = finalSeries[finalSeries.length - 1]?.value ?? currentValue;

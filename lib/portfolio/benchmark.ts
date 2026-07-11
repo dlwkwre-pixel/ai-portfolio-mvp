@@ -11,12 +11,13 @@ function benchAdmin() {
   if (!url || !key) return null;
   return createSbClient(url, key, { auth: { persistSession: false } });
 }
-async function getCachedBenchmark(symbol: string): Promise<BenchmarkBar[] | null> {
+async function getCachedBenchmark(symbol: string, allowStale = false): Promise<BenchmarkBar[] | null> {
   const db = benchAdmin();
   if (!db) return null;
   try {
     const { data } = await db.from("chart_cache").select("result, expires_at").eq("cache_key", `bench:${symbol}`).single();
-    if (!data || new Date(data.expires_at as string) <= new Date()) return null;
+    if (!data) return null;
+    if (!allowStale && new Date(data.expires_at as string) <= new Date()) return null;
     const bars = (data.result as { bars?: BenchmarkBar[] })?.bars;
     return Array.isArray(bars) && bars.length > 0 ? bars : null;
   } catch {
@@ -248,19 +249,23 @@ export async function getBenchmarkComparison(args: {
       ? costBasis
       : firstSnapshot.total_value;
 
-  let benchmarkBars: BenchmarkBar[] = [];
-  try {
-    benchmarkBars = await getBenchmarkHistory(benchmarkSymbol, "MAX", true);
-  } catch {
-    benchmarkBars = [];
-  }
-  // Live fetch succeeded → refresh the durable cache. Failed/empty (quota crunch) → fall
-  // back to the last good bars so SPY doesn't disappear.
-  if (benchmarkBars.length > 0) {
-    void setCachedBenchmark(benchmarkSymbol, benchmarkBars);
-  } else {
-    const cached = await getCachedBenchmark(benchmarkSymbol);
-    if (cached) benchmarkBars = cached;
+  // Cache-first: the old code force-refetched the benchmark's full history on EVERY
+  // portfolio render (bustCache), which burned the price API's daily quota — and once
+  // exhausted, SPY vanished from every chart. Serve fresh cached bars (12h) when we have
+  // them; fetch live only when the cache is cold; fall back to stale bars over nothing.
+  let benchmarkBars: BenchmarkBar[] = (await getCachedBenchmark(benchmarkSymbol)) ?? [];
+  if (benchmarkBars.length === 0) {
+    try {
+      benchmarkBars = await getBenchmarkHistory(benchmarkSymbol, "MAX", true);
+    } catch {
+      benchmarkBars = [];
+    }
+    if (benchmarkBars.length > 0) {
+      void setCachedBenchmark(benchmarkSymbol, benchmarkBars);
+    } else {
+      const stale = await getCachedBenchmark(benchmarkSymbol, true);
+      if (stale) benchmarkBars = stale;
+    }
   }
 
   const benchmarkAvailable = benchmarkBars.length > 0;
