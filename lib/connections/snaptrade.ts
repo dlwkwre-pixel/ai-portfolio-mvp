@@ -213,6 +213,28 @@ export async function getLinkedPortfolioIds(userId: string): Promise<Set<string>
   return out;
 }
 
+// Return-health metrics the sync stores with the chart rebuild — used for the linked
+// badge's confidence tooltip ("Return method: … · price coverage …% · verified …").
+// Null on any failure or before the first v8 rebuild.
+export type LinkedReturnHealth = {
+  method: string | null;
+  coverage: number | null;
+  pricedCoverage: number | null;
+  verifiedAt: string | null;
+};
+
+export async function getLinkedReturnHealth(portfolioId: string): Promise<LinkedReturnHealth | null> {
+  if (!portfolioId) return null;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("chart_cache").select("result").eq("cache_key", `benchmirror:${portfolioId}`).maybeSingle();
+    const health = (data?.result as { health?: LinkedReturnHealth } | null)?.health;
+    return health ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Is this specific portfolio a linked mirror? Used by the mutation actions to block
 // manual edits and by the page to show the linked UI. True if it's a recorded default
 // target OR holds any broker-sourced position. Returns false on any failure (fail open).

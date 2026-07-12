@@ -7,7 +7,7 @@ import AddHoldingForm from "./add-holding-form";
 import ImportHoldingsCSV from "./import-holdings-csv";
 import PortfolioPulse from "./portfolio-pulse";
 import ReconcileChip from "./reconcile-chip";
-import { isPortfolioLinked, getBrokerageStatus } from "@/lib/connections/snaptrade";
+import { isPortfolioLinked, getBrokerageStatus, getLinkedReturnHealth } from "@/lib/connections/snaptrade";
 import LinkedChartStart from "./linked-chart-start";
 import AutoResync from "./auto-resync";
 import HoldingsTable from "./holdings-table";
@@ -241,6 +241,29 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
   const isLinkedPortfolio = await isPortfolioLinked(portfolio.id);
   const brokerageLastSyncedAt = isLinkedPortfolio ? (await getBrokerageStatus(user.id)).lastSyncedAt : null;
 
+  // Confidence tooltip for the linked badge: which return method the sync chose and how
+  // complete its price data was — so a surprising number can be understood, not reported.
+  const returnHealth = isLinkedPortfolio ? await getLinkedReturnHealth(portfolio.id) : null;
+  const methodLabels: Record<string, string> = {
+    "broker": "reported by your broker",
+    "net-deposit": "gain vs your deposits",
+    "growth-index": "deposit-free growth (deposits never count as gains)",
+    "money-weighted": "money-weighted",
+    "cost-basis": "gain vs cost basis",
+  };
+  const linkedBadgeTitle = (() => {
+    let t = "Holdings and cash sync from your connected brokerage";
+    if (returnHealth?.method) {
+      t += `. Return method: ${methodLabels[returnHealth.method] ?? returnHealth.method}`;
+      if (returnHealth.pricedCoverage != null) t += ` · price data coverage ${Math.round(returnHealth.pricedCoverage * 100)}%`;
+      if (returnHealth.verifiedAt) {
+        const d = new Date(returnHealth.verifiedAt);
+        if (!isNaN(d.getTime())) t += ` · verified ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+      }
+    }
+    return t;
+  })();
+
   const totalValue = valuation.total_portfolio_value;
   const cashBalance = Number(portfolio.cash_balance ?? 0);
   const cashPct = totalValue > 0 ? (cashBalance / totalValue) * 100 : 0;
@@ -389,8 +412,8 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           {isLinkedPortfolio ? (
                             <>
-                              <span title="Holdings and cash sync from your connected brokerage" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px" }}>
-                                🔗 Synced from your brokerage
+                              <span title={linkedBadgeTitle} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px", cursor: "help" }}>
+                                🔗 Synced from your brokerage{returnHealth?.method ? " ✓" : ""}
                               </span>
                               <AutoResync lastSyncedAt={brokerageLastSyncedAt} />
                             </>
