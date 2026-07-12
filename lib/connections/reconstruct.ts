@@ -196,10 +196,12 @@ export async function reconstructValueSeries(
   const weekdayed = series.filter((pt) => { const wd = new Date(pt.date + "T00:00:00Z").getUTCDay(); return wd !== 0 && wd !== 6; });
   let finalSeries = weekdayed.length >= 2 ? weekdayed : series;
 
-  // Trim the leading near-zero run: before the first buy of the current holdings the
-  // replayed value is ~$0, which charts as months of flat zero and reads as missing data.
-  // Start the line where the portfolio actually begins to exist.
-  const floor = Math.max(1, currentValue * 0.005);
+  // Trim the leading dust run: before the portfolio really starts, the replayed value is
+  // ~$0 or a few dollars of leftover fractional shares. Charting that reads as missing
+  // data, and worse, the benchmark line gets rebased to that dust value (SPY showing "$12"
+  // all chart long). Start the line where the portfolio meaningfully exists: at least $25
+  // or 2% of today's value, whichever is larger.
+  const floor = Math.max(25, currentValue * 0.02);
   const firstReal = finalSeries.findIndex((pt) => pt.value >= floor);
   if (firstReal > 0 && finalSeries.length - firstReal >= 2) finalSeries = finalSeries.slice(firstReal);
 
