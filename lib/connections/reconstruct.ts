@@ -49,7 +49,7 @@ async function setCachedCloses(ticker: string, m: Map<string, number>): Promise<
 
 export type DailyValue = { date: string; value: number };
 
-type Trade = { ticker: string; date: string; signedUnits: number; flow: number };
+type Trade = { ticker: string; date: string; signedUnits: number; flow: number; rei: boolean };
 
 // Daily close history for one ticker → Map<YYYY-MM-DD, close>. Serves from the durable
 // cache first; otherwise pulls a wide (5Y) window via the project's proven multi-source
@@ -146,6 +146,7 @@ export async function reconstructValueSeries(
       date,
       signedUnits: buy ? units : -units,
       flow: isReinvest(a.type) ? 0 : (buy ? amount : -amount),
+      rei: isReinvest(a.type),
     });
   }
 
@@ -212,23 +213,38 @@ export async function reconstructValueSeries(
   const v0 = finalSeries[0]?.value ?? 0;
   const v1 = finalSeries[finalSeries.length - 1]?.value ?? currentValue;
 
-  // IMPLIED daily cash flows, derived from the value line itself: on each day, the money
-  // added/removed = (change in share count) × that day's price, summed over tickers.
-  // Broker dollar fields (deposit records, trade amounts) proved unreliable — sweeps
-  // logged as contributions, zero/missing amounts — and any undercounted flow shows up as
-  // fake gain (a $700-deposit account reading +250%). Share counts × market prices are
-  // the same inputs the chart is built from, so flows and value can never disagree.
-  // (Reinvested dividends land in the flows too — a ~$3 rounding-level distortion.)
+  // IMPLIED daily cash flows. Per ticker per day: use the broker's actual FILL dollars
+  // when a trade reports them (exact), and value only the residual share change at that
+  // day's close (covers records with missing amounts). Reinvested-dividend shares are
+  // income, not external cash, so they're excluded from flows entirely.
+  //
+  // Why hybrid: trusting trade amounts alone undercounts flows when records are missing
+  // dollars (deposits read as +250% gain), while valuing ALL share changes at the close
+  // ignores fill-vs-close gaps — noise that's catastrophic on a small base (a $5 gap on a
+  // $30 day = a fake ±20% "return" chained into the growth index forever, which is how
+  // YTD showed −23% on a growing account).
   const flowByIndex: number[] = new Array(finalSeries.length).fill(0);
   for (let i = 1; i < finalSeries.length; i++) {
     const dPrev = finalSeries[i - 1].date, dCur = finalSeries[i].date;
     let f = 0;
     for (const tk of tickers) {
       const dSh = sharesOn(tk, dCur) - sharesOn(tk, dPrev);
-      if (dSh === 0) continue;
-      let px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], dCur);
-      if (px <= 0) px = currentPrice[tk] ?? 0;
-      if (px > 0) f += dSh * px;
+      const ts = tradesByTicker[tk] ?? [];
+      // Trades in (dPrev, dCur] — weekend/holiday trades roll into the next series day.
+      let fillFlow = 0, knownUnits = 0, reiUnits = 0;
+      for (const t of ts) {
+        if (t.date <= dPrev || t.date > dCur) continue;
+        if (t.rei) { reiUnits += t.signedUnits; continue; }
+        if (t.flow !== 0) { fillFlow += t.flow; knownUnits += t.signedUnits; }
+      }
+      const residualUnits = dSh - knownUnits - reiUnits;
+      let fTk = fillFlow;
+      if (residualUnits !== 0) {
+        let px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], dCur);
+        if (px <= 0) px = currentPrice[tk] ?? 0;
+        if (px > 0) fTk += residualUnits * px;
+      }
+      f += fTk;
     }
     flowByIndex[i] = f;
   }
@@ -238,17 +254,36 @@ export async function reconstructValueSeries(
   // This is "actual stock growth": a deposit moves the value line but not this index.
   // Used for the chart's timeframe stats (3M/1M/…), where raw value change would read
   // deposits as gains (+193% on a $700-deposit account).
+  //
+  // Robustness: growth is only measured once the portfolio is meaningful (≥5% of today's
+  // value / $50) — before that the base is dust and tiny absolute errors chain into huge
+  // fake returns (YTD −23% on a growing account). Days where the flow dwarfs the base
+  // (account tripled by a deposit) are flow-neutral: market growth isn't measurable there.
   const twrSeries: DailyValue[] = [];
   {
+    const meaningfulBase = Math.max(50, currentValue * 0.05);
     let idx = 100;
-    twrSeries.push({ date: finalSeries[0]?.date ?? startDate, value: 100 });
-    for (let i = 1; i < finalSeries.length; i++) {
-      const base = finalSeries[i - 1].value + flowByIndex[i];
-      const g = base > 1 ? finalSeries[i].value / base : 1;
+    let started = false;
+    for (let i = 0; i < finalSeries.length; i++) {
+      if (!started) {
+        if (finalSeries[i].value >= meaningfulBase) {
+          started = true;
+          twrSeries.push({ date: finalSeries[i].date, value: 100 });
+        }
+        continue;
+      }
+      const prev = finalSeries[i - 1].value;
+      const flow = flowByIndex[i];
+      const base = prev + flow;
+      let g = base > 1 ? finalSeries[i].value / base : 1;
+      // Flow-dominated day: the deposit is large vs the existing base — the day's market
+      // move can't be separated from fill effects, so treat it as flat.
+      if (flow !== 0 && Math.abs(flow) > prev * 2) g = 1;
       // Clamp pathological factors (bad print on a tiny base) so one day can't wreck it.
       idx *= Math.min(2, Math.max(0.5, g));
       twrSeries.push({ date: finalSeries[i].date, value: Math.round(idx * 10000) / 10000 });
     }
+    // Nothing meaningful in the window → no index (stats fall back gracefully).
   }
 
   // Modified Dietz over the trimmed window: return = (V1 − V0 − F) / (V0 + Σ w_i·F_i).
