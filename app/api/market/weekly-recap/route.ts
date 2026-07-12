@@ -79,11 +79,11 @@ export async function GET() {
       .order("snapshot_date", { ascending: true }),
     supabase
       .from("portfolio_transactions")
-      .select("ticker, transaction_type, quantity, price_per_share, traded_at")
+      .select("portfolio_id, ticker, transaction_type, quantity, price_per_share, gross_amount, traded_at")
       .in("portfolio_id", portfolioIds)
       .gte("traded_at", monday.toISOString())
       .order("traded_at", { ascending: false })
-      .limit(20),
+      .limit(50),
     // Deposits / withdrawals this week — needed to exclude cash flows from the return.
     // Source of truth is cash_ledger (deposit/withdraw/dividend writes go here).
     supabase
@@ -168,6 +168,28 @@ export async function GET() {
       netFlows += signed;
       weightedFlows += signed * ((endMs - t) / span); // fraction of period the flow was invested
     }
+    // Linked (brokerage-synced) portfolios keep no deposit rows in cash_ledger (the
+    // broker sync owns their history), so their deposits would read as gains here. Their
+    // net BUY minus SELL cash this week is the closest proxy for external money in/out —
+    // on a swept brokerage account, purchases are funded by deposits.
+    try {
+      const { getLinkedPortfolioIds } = await import("@/lib/connections/snaptrade");
+      const linkedIds = await getLinkedPortfolioIds(user.id);
+      if (linkedIds.size > 0) {
+        for (const tx of thisWeekTxns ?? []) {
+          const pid = (tx as { portfolio_id?: string }).portfolio_id;
+          if (!pid || !linkedIds.has(pid)) continue;
+          const t = new Date(tx.traded_at as string).getTime();
+          if (!Number.isFinite(t) || t <= startMs || t > endMs) continue;
+          const gross = Math.abs(Number((tx as { gross_amount?: number | null }).gross_amount ?? 0))
+            || Math.abs(Number(tx.quantity ?? 0) * Number(tx.price_per_share ?? 0));
+          if (!(gross > 0)) continue;
+          const signed = String(tx.transaction_type).toLowerCase() === "sell" ? -gross : gross;
+          netFlows += signed;
+          weightedFlows += signed * ((endMs - t) / span);
+        }
+      }
+    } catch { /* linked helpers unavailable → keep ledger-only flows */ }
     const denom = baselineValue + weightedFlows;
     if (denom > 0) {
       weekReturnPct = ((currentValue - baselineValue - netFlows) / denom) * 100;

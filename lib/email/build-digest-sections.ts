@@ -171,7 +171,20 @@ export async function buildExtraDigestSections(
         });
         // Use TWR (net return) for the portfolio — matches the charts and the
         // performance section, and isn't distorted by deposits.
-        const portfolioPct = cmp.portfolioTwrPct ?? cmp.portfolioReturnPct;
+        let portfolioPct = cmp.portfolioTwrPct ?? cmp.portfolioReturnPct;
+        // Linked portfolios: external flows aren't in cash_ledger (the broker sync owns
+        // them), so snapshot TWR counts deposits as gains. Use the deposit-free growth
+        // index the sync stores with the chart instead.
+        try {
+          const { data: mirrorRow } = await db.from("chart_cache").select("result").eq("cache_key", `benchmirror:${portfolio.id}`).maybeSingle();
+          const twrIndex = (mirrorRow?.result as { twrIndex?: Array<{ date: string; value: number }> } | null)?.twrIndex;
+          if (twrIndex && twrIndex.length >= 2) {
+            let idx0: number | null = null;
+            for (const pt of twrIndex) { if (pt.date.slice(0, 10) <= sevenDaysAgo || idx0 === null) idx0 = pt.value; }
+            const idx1 = twrIndex[twrIndex.length - 1].value;
+            if (idx0 != null && idx0 > 0) portfolioPct = (idx1 / idx0 - 1) * 100;
+          }
+        } catch { /* keep snapshot TWR */ }
         if (portfolioPct != null && cmp.benchmarkReturnPct != null) {
           benchmark = {
             symbol: cmp.benchmarkSymbol,
