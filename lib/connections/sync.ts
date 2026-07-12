@@ -7,7 +7,7 @@ import { reconstructValueSeries } from "./reconstruct";
 // logic changes shape (routing, return method, trimming): the background resync compares
 // the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
 // chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
-const REBUILD_VERSION = 6;
+const REBUILD_VERSION = 7;
 const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
 
 // Sync a linked portfolio's chart + return directly from the broker's data.
@@ -142,7 +142,17 @@ export async function rebuildLinkedPortfolioHistory(
   const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
   let returnPct: number | null = brokerReturn;
   if (returnPct == null) {
+    // Full-span deposit-free growth — the same index the chart's timeframe stats use, so
+    // "All" and "1Y" can never disagree on the same window (money-weighted Dietz scored
+    // late-arriving deposits harder and read +56% while the index said +42% — both true,
+    // different questions, endlessly confusing side by side).
+    let indexGrowthPct: number | null = null;
+    if (recon.twrSeries.length >= 2) {
+      const i0 = recon.twrSeries[0].value, i1 = recon.twrSeries[recon.twrSeries.length - 1].value;
+      if (i0 > 0) indexGrowthPct = (i1 / i0 - 1) * 100;
+    }
     if (!isSplit && depositsClean) returnPct = netDepositPct!;
+    else if (isSplit && isDefaultTarget && recon.pricedCoverage >= 0.85 && indexGrowthPct != null) returnPct = indexGrowthPct;
     else if (isSplit && isDefaultTarget && recon.pricedCoverage >= 0.85 && recon.returnPct != null) returnPct = recon.returnPct;
     else if (positionsCost > 0) returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
     else if (depositsClean) returnPct = netDepositPct!;

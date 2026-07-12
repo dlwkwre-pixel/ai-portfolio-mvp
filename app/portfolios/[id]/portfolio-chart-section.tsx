@@ -105,13 +105,12 @@ export default async function PortfolioChartSection({
     try {
       const admin = createAdminClient();
       const { data: mirrorRow } = await admin.from("chart_cache").select("result").eq("cache_key", `benchmirror:${portfolioId}`).maybeSingle();
-      const mirror = mirrorRow?.result as { series?: { date: string; value: number }[]; benchReturnPct?: number | null; twrIndex?: { date: string; value: number }[] } | null;
-      if (mirror?.series && mirror.series.length >= 2) {
-        benchMirror = mirror.series;
-        if (mirror.benchReturnPct != null && Number.isFinite(Number(mirror.benchReturnPct))) {
-          c.benchmarkReturnPct = Number(mirror.benchReturnPct);
-        }
-      }
+      const mirror = mirrorRow?.result as { series?: { date: string; value: number }[]; twrIndex?: { date: string; value: number }[] } | null;
+      // Keep the mirror LINE (what the same deposits in SPY would be worth), but the SPY
+      // stat stays the plain price return so it pairs with the deposit-free Net Return —
+      // mixing the mirror's money-weighted % with an index-based Net Return made "All"
+      // and "1Y" disagree on identical windows.
+      if (mirror?.series && mirror.series.length >= 2) benchMirror = mirror.series;
       if (mirror?.twrIndex && mirror.twrIndex.length >= 2) linkedTwrIndex = mirror.twrIndex;
     } catch { /* mirror is best-effort */ }
 
