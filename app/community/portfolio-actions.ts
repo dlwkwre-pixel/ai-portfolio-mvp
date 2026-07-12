@@ -325,6 +325,12 @@ export async function syncPublicAllocation(portfolioId: string) {
       });
       returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;
       benchmarkReturnPct = result.benchmarkReturnPct ?? null;
+      // Linked portfolios: the broker-derived money-weighted return is authoritative
+      // (snapshot TWR on a synced value line counts deposits as gains). Only ever set
+      // for linked portfolios, so non-null means use it.
+      const { data: brRow } = await supabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle().then((r) => r, () => ({ data: null }));
+      const brokerPct = brRow?.broker_return_pct != null ? Number(brRow.broker_return_pct) : null;
+      if (brokerPct != null && Number.isFinite(brokerPct)) returnPctAlltime = brokerPct;
     }
   } catch {
     // Non-fatal — share card stats just won't update this sync

@@ -22,11 +22,14 @@ export default async function BenchmarkComparisonSection({
 }: BenchmarkComparisonSectionProps) {
   const supabase = await createClient();
 
-  const { data: snapshots, error } = await supabase
-    .from("portfolio_snapshots")
-    .select("snapshot_date, total_value")
-    .eq("portfolio_id", portfolioId)
-    .order("snapshot_date", { ascending: true });
+  const [{ data: snapshots, error }, { data: pf }] = await Promise.all([
+    supabase
+      .from("portfolio_snapshots")
+      .select("snapshot_date, total_value")
+      .eq("portfolio_id", portfolioId)
+      .order("snapshot_date", { ascending: true }),
+    supabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle(),
+  ]);
 
   if (error) {
     throw new Error(error.message);
@@ -36,6 +39,15 @@ export default async function BenchmarkComparisonSection({
     snapshots: snapshots ?? [],
     benchmarkSymbol: benchmarkSymbol || "SPY",
   });
+
+  // Linked (brokerage-synced) portfolios carry an authoritative money-weighted return
+  // (broker_return_pct, only ever set for linked portfolios). Snapshot-derived math on a
+  // synced value line counts deposits as gains, so it must not be shown for these.
+  const brokerPct = pf?.broker_return_pct != null ? Number(pf.broker_return_pct) : null;
+  if (brokerPct != null && Number.isFinite(brokerPct)) {
+    comparison.portfolioReturnPct = brokerPct;
+    if (comparison.benchmarkReturnPct != null) comparison.excessReturnPct = brokerPct - comparison.benchmarkReturnPct;
+  }
 
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">

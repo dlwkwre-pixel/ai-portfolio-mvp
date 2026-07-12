@@ -135,7 +135,11 @@ export async function POST(request: Request) {
     }));
     if (snaps.length > 0) {
       const latestVal = snaps[snaps.length - 1].total_value;
-      const allTimeReturnPct = calculateTwr(snaps, cashFlows);
+      // Linked portfolios carry an authoritative money-weighted return; snapshot TWR on a
+      // synced value line counts deposits as gains, so prefer broker_return_pct when set.
+      const { data: brRow } = await adminSupabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle().then((r) => r, () => ({ data: null }));
+      const brokerPct = brRow?.broker_return_pct != null ? Number(brRow.broker_return_pct) : null;
+      const allTimeReturnPct = (brokerPct != null && Number.isFinite(brokerPct)) ? brokerPct : calculateTwr(snaps, cashFlows);
       let baselineIdx = -1;
       for (let i = 0; i < snaps.length; i++) {
         if (new Date(snaps[i].snapshot_date) <= periodStart) baselineIdx = i; else break;

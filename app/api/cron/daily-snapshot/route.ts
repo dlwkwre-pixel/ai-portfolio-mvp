@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const { data: portfolios, error: portfoliosError } = await supabase
     .from("portfolios")
-    .select("id, user_id, cash_balance, benchmark_symbol")
+    .select("id, user_id, cash_balance, benchmark_symbol, broker_return_pct")
     .eq("is_active", true);
 
   if (portfoliosError) {
@@ -198,6 +198,11 @@ export async function GET(request: Request) {
                 });
                 returnPctAlltime = result.portfolioTwrPct ?? result.portfolioReturnPct ?? null;
                 benchmarkReturnPct = result.benchmarkReturnPct ?? null;
+                // Linked portfolios: the broker-derived money-weighted return is
+                // authoritative (snapshot TWR on a synced value line counts deposits as
+                // gains). broker_return_pct is only ever set for linked portfolios.
+                const brokerPct = (portfolio as { broker_return_pct?: number | string | null }).broker_return_pct;
+                if (brokerPct != null && Number.isFinite(Number(brokerPct))) returnPctAlltime = Number(brokerPct);
               }
             } catch {
               // Non-fatal — share card stats will be updated on next manual sync
