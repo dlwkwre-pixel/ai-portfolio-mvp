@@ -7,7 +7,7 @@ import { reconstructValueSeries } from "./reconstruct";
 // logic changes shape (routing, return method, trimming): the background resync compares
 // the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
 // chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
-const REBUILD_VERSION = 3;
+const REBUILD_VERSION = 4;
 const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
 
 // Sync a linked portfolio's chart + return directly from the broker's data.
@@ -36,9 +36,10 @@ export async function rebuildLinkedPortfolioHistory(
 ): Promise<number> {
   const admin = createAdminClient();
   const { data: p } = await admin
-    .from("portfolios").select("chart_start_date").eq("id", portfolioId).maybeSingle()
+    .from("portfolios").select("chart_start_date, benchmark_symbol").eq("id", portfolioId).maybeSingle()
     .then((r) => r, () => ({ data: null }));
   const startDatePref = (p?.chart_start_date as string | null)?.slice(0, 10) || null;
+  const benchSymbol = ((p?.benchmark_symbol as string | null) || "SPY").toUpperCase();
 
   // Drop external cash flows (they'd double-count against a value-based chart).
   await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId)
@@ -127,7 +128,7 @@ export async function rebuildLinkedPortfolioHistory(
     || (earliestActivity && earliestActivity > oneYearAgo ? earliestActivity : oneYearAgo);
   if (startDate >= today) startDate = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
 
-  const recon = await reconstructValueSeries(positions, activities, includeCash, currentValue, startDate, today);
+  const recon = await reconstructValueSeries(positions, activities, includeCash, currentValue, startDate, today, benchSymbol);
 
   // Return = money-weighted total return, matching what Robinhood actually shows:
   //  - broker's own number if the paid tier ever exposes it;
@@ -180,6 +181,19 @@ export async function rebuildLinkedPortfolioHistory(
   for (let i = 0; i < rows.length; i += 500) {
     await admin.from("portfolio_snapshots").insert(rows.slice(i, i + 500)).then((r) => r, () => ({}));
   }
+
+  // Store the "same deposits in the benchmark" mirror for the chart's comparison line
+  // (rebasing an index to the starting value is meaningless on a deposit-funded chart).
+  // Overwritten on every rebuild; empty when reconstruction couldn't produce one.
+  await admin.from("chart_cache").upsert({
+    cache_key: `benchmirror:${portfolioId}`,
+    result: useRecon
+      ? { symbol: benchSymbol, series: recon.benchSeries, benchReturnPct: recon.benchReturnPct }
+      : { symbol: benchSymbol, series: [], benchReturnPct: null },
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "cache_key" }).then((r) => r, () => ({}));
+
   return rows.length;
 }
 

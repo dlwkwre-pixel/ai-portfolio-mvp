@@ -37,6 +37,8 @@ type PortfolioChartClientProps = {
   hasEnoughSnapshots: boolean;
   netInvested: number | null;
   isLinked?: boolean;
+  /** Linked portfolios: "same deposits in the benchmark" series for the comparison line. */
+  benchMirror?: { date: string; value: number }[] | null;
   holdings: { ticker: string; opened_at: string | null }[];
 };
 
@@ -103,6 +105,7 @@ export default function PortfolioChartClient({
   endDateLabel,
   hasEnoughSnapshots,
   isLinked = false,
+  benchMirror = null,
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
@@ -199,10 +202,18 @@ export default function PortfolioChartClient({
     // benchmark line shows what the same starting value would be worth if it had
     // tracked the index over this period (rebased to the start, same as the % stat).
     const startBench = displayChartData.find((d) => d.benchmark_return_pct !== null)?.benchmark_return_pct ?? null;
+    // Linked: the benchmark line is the "same deposits in the benchmark" mirror — what
+    // this money would be worth had every deposit bought the index instead. Rebasing the
+    // index to the starting value is meaningless on a deposit-funded value chart.
+    const mirrorByDate = isLinked && benchMirror && benchMirror.length >= 2
+      ? new Map(benchMirror.map((pt) => [pt.date.slice(0, 10), pt.value]))
+      : null;
     return displayChartData.map((d) => {
       const periodTwr = ((1 + d.portfolio_twr_pct / 100) / (1 + startTwr / 100) - 1) * 100;
       let bench_value: number | null = null;
-      if (startBench !== null && d.benchmark_return_pct !== null) {
+      if (mirrorByDate) {
+        bench_value = mirrorByDate.get(d.date.slice(0, 10)) ?? null;
+      } else if (startBench !== null && d.benchmark_return_pct !== null) {
         const periodBench = d.benchmark_return_pct - startBench;
         bench_value = startValue * (1 + periodBench / 100);
       }
@@ -215,7 +226,7 @@ export default function PortfolioChartClient({
         bench_value,
       };
     });
-  }, [displayChartData, isLinked]);
+  }, [displayChartData, isLinked, benchMirror]);
 
   const netTwrStats = useMemo(() => {
     if (activeTimeframe === "All") {
@@ -472,7 +483,7 @@ export default function PortfolioChartClient({
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />
-              {benchmarkSymbol}
+              {isLinked && benchMirror && benchMirror.length >= 2 ? `${benchmarkSymbol} · same deposits` : benchmarkSymbol}
             </span>
             {startDateLabel && endDateLabel && (
               <span className="text-slate-600">{startDateLabel} → {endDateLabel}</span>

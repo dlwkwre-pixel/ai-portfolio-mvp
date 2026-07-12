@@ -105,6 +105,8 @@ export type ReconstructResult = {
   returnPct: number | null;
   coverage: number;        // reconstructed end value / actual current value (1.0 = whole)
   pricedCoverage: number;  // share of current value backed by REAL price history (not flat)
+  benchSeries: DailyValue[];      // "same deposits in the benchmark" mirror line
+  benchReturnPct: number | null;  // that mirror's money-weighted return over the window
 };
 
 // Build the daily value series + windowed return for [startDate, endDate].
@@ -115,6 +117,7 @@ export async function reconstructValueSeries(
   currentValue: number,
   startDate: string,
   endDate: string,
+  benchSymbol = "SPY",
 ): Promise<ReconstructResult> {
   const currentShares: Record<string, number> = {};
   const currentPrice: Record<string, number> = {};
@@ -175,7 +178,7 @@ export async function reconstructValueSeries(
   }
 
   const days = dateList(startDate, endDate);
-  if (days.length === 0) return { series: [], returnPct: null, coverage: 0, pricedCoverage: 0 };
+  if (days.length === 0) return { series: [], returnPct: null, coverage: 0, pricedCoverage: 0, benchSeries: [], benchReturnPct: null };
   const series: DailyValue[] = [];
   for (const day of days) {
     let v = cash; // current cash carried flat (small relative to holdings)
@@ -208,23 +211,67 @@ export async function reconstructValueSeries(
   const v0 = finalSeries[0]?.value ?? 0;
   const v1 = finalSeries[finalSeries.length - 1]?.value ?? currentValue;
 
-  // Modified Dietz over the window: return = (V1 − V0 − F) / (V0 + Σ w_i·F_i), where the
-  // flows F_i are trade cash (buys +, sells −) — NOT deposits, so the polluted deposit
-  // data never enters the return. The window is the TRIMMED series' span: v0 already
-  // includes any buys on/before the trimmed start, so counting those as flows too would
-  // double-count them.
+  // IMPLIED daily cash flows, derived from the value line itself: on each day, the money
+  // added/removed = (change in share count) × that day's price, summed over tickers.
+  // Broker dollar fields (deposit records, trade amounts) proved unreliable — sweeps
+  // logged as contributions, zero/missing amounts — and any undercounted flow shows up as
+  // fake gain (a $700-deposit account reading +250%). Share counts × market prices are
+  // the same inputs the chart is built from, so flows and value can never disagree.
+  // (Reinvested dividends land in the flows too — a ~$3 rounding-level distortion.)
+  const flowByIndex: number[] = new Array(finalSeries.length).fill(0);
+  for (let i = 1; i < finalSeries.length; i++) {
+    const dPrev = finalSeries[i - 1].date, dCur = finalSeries[i].date;
+    let f = 0;
+    for (const tk of tickers) {
+      const dSh = sharesOn(tk, dCur) - sharesOn(tk, dPrev);
+      if (dSh === 0) continue;
+      let px = priceOn(sortedDatesByTicker[tk], priceMaps[tk], dCur);
+      if (px <= 0) px = currentPrice[tk] ?? 0;
+      if (px > 0) f += dSh * px;
+    }
+    flowByIndex[i] = f;
+  }
+
+  // Modified Dietz over the trimmed window: return = (V1 − V0 − F) / (V0 + Σ w_i·F_i).
+  // This is the money-weighted return — gain measured against every dollar put in, timed
+  // when it was put in — which is what "my return" means on a deposit-funded account.
   const effStart = finalSeries[0]?.date ?? startDate;
   const effEnd = finalSeries[finalSeries.length - 1]?.date ?? endDate;
   const spanMs = new Date(effEnd).getTime() - new Date(effStart).getTime();
   let netFlow = 0, weightedFlow = 0;
-  for (const t of trades) {
-    if (t.date <= effStart || t.date > effEnd || t.flow === 0) continue;
-    netFlow += t.flow;
-    const w = spanMs > 0 ? (new Date(effEnd).getTime() - new Date(t.date).getTime()) / spanMs : 0;
-    weightedFlow += w * t.flow;
+  for (let i = 1; i < finalSeries.length; i++) {
+    const f = flowByIndex[i];
+    if (f === 0) continue;
+    netFlow += f;
+    const w = spanMs > 0 ? (new Date(effEnd).getTime() - new Date(finalSeries[i].date).getTime()) / spanMs : 0;
+    weightedFlow += w * f;
   }
   const denom = v0 + weightedFlow;
-  const returnPct = denom > 0 ? Math.round(((v1 - v0 - netFlow) / denom) * 10000) / 100 : null;
+  const denomOk = denom > Math.max(10, v1 * 0.05); // refuse a base too small to be meaningful
+  const returnPct = denomOk ? Math.round(((v1 - v0 - netFlow) / denom) * 10000) / 100 : null;
+
+  // Benchmark mirror: what the SAME money would be worth if every flow had bought the
+  // benchmark instead — the honest comparison line for a deposit-funded value chart
+  // (rebasing an index to the starting value is meaningless when the account grows by
+  // deposits). Same flows, same window → directly comparable, including its own
+  // money-weighted return for the SPY/Excess stats.
+  let benchSeries: DailyValue[] = [];
+  let benchReturnPct: number | null = null;
+  try {
+    const spyCloses = await fetchDailyCloses(benchSymbol);
+    const spyDates = [...spyCloses.keys()].sort();
+    const px0 = priceOn(spyDates, spyCloses, effStart);
+    if (px0 > 0 && finalSeries.length >= 2) {
+      let bmShares = v0 / px0;
+      benchSeries = finalSeries.map((pt, i) => {
+        const px = priceOn(spyDates, spyCloses, pt.date);
+        if (i > 0 && flowByIndex[i] !== 0 && px > 0) bmShares += flowByIndex[i] / px;
+        return { date: pt.date, value: px > 0 ? Math.round(bmShares * px * 100) / 100 : 0 };
+      }).filter((pt) => pt.value > 0);
+      const bm1 = benchSeries[benchSeries.length - 1]?.value ?? 0;
+      if (denomOk && bm1 > 0) benchReturnPct = Math.round(((bm1 - v0 - netFlow) / denom) * 10000) / 100;
+    }
+  } catch { /* benchmark mirror is best-effort */ }
 
   // Overall coverage = how whole the account is (flat-filled holdings count). Priced
   // coverage = how much of the current value has REAL price history (flat-filled excluded)
@@ -240,5 +287,5 @@ export async function reconstructValueSeries(
     }
   }
   const pricedCoverage = currentValue > 0 ? pricedValueNow / currentValue : 0;
-  return { series: finalSeries, returnPct, coverage, pricedCoverage };
+  return { series: finalSeries, returnPct, coverage, pricedCoverage, benchSeries, benchReturnPct };
 }

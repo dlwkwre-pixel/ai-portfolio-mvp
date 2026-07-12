@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
 import { isPortfolioLinked } from "@/lib/connections/snaptrade";
 import PortfolioChartClient from "./portfolio-chart-client";
@@ -91,13 +92,28 @@ export default async function PortfolioChartSection({
     totalCostBasis: linked ? undefined : (totalCostBasis > 0 ? totalCostBasis : undefined),
   });
 
-  // For a linked portfolio, show the broker's OWN return number (authoritative)
-  // instead of a derived one.
+  // For a linked portfolio, show the broker-derived money-weighted return (authoritative)
+  // instead of a derived one, and load the "same deposits in the benchmark" mirror so the
+  // comparison line answers "what if this money had bought SPY instead".
+  let benchMirror: { date: string; value: number }[] | null = null;
   if (linked) {
     const { data: pr } = await supabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle();
     const bpct = pr?.broker_return_pct != null ? Number(pr.broker_return_pct) : null;
+    const c = comparison as { portfolioTwrPct: number | null; portfolioReturnPct: number | null; excessReturnPct: number | null; excessTwrPct: number | null; benchmarkReturnPct: number | null };
+
+    try {
+      const admin = createAdminClient();
+      const { data: mirrorRow } = await admin.from("chart_cache").select("result").eq("cache_key", `benchmirror:${portfolioId}`).maybeSingle();
+      const mirror = mirrorRow?.result as { series?: { date: string; value: number }[]; benchReturnPct?: number | null } | null;
+      if (mirror?.series && mirror.series.length >= 2) {
+        benchMirror = mirror.series;
+        if (mirror.benchReturnPct != null && Number.isFinite(Number(mirror.benchReturnPct))) {
+          c.benchmarkReturnPct = Number(mirror.benchReturnPct);
+        }
+      }
+    } catch { /* mirror is best-effort */ }
+
     if (bpct != null && Number.isFinite(bpct)) {
-      const c = comparison as { portfolioTwrPct: number | null; portfolioReturnPct: number | null; excessReturnPct: number | null; excessTwrPct: number | null; benchmarkReturnPct: number | null };
       c.portfolioTwrPct = bpct;
       c.portfolioReturnPct = bpct;
       if (c.benchmarkReturnPct != null) {
@@ -122,6 +138,7 @@ export default async function PortfolioChartSection({
       hasEnoughSnapshots={comparison.hasEnoughSnapshots}
       netInvested={comparison.netInvested}
       isLinked={linked}
+      benchMirror={benchMirror}
       holdings={(holdingsMeta ?? []).map((h) => ({ ticker: String(h.ticker), opened_at: h.opened_at as string | null }))}
     />
   );
