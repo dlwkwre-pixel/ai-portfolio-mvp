@@ -468,7 +468,7 @@ export default function PortfolioChartClient({
           <>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#a78bfa" : (isNetPositive ? "#34d399" : "#f87171") }} />
-              {chartMode === "twr" ? "Inv. Return (TWR)" : "Net Return"}
+              {chartMode === "twr" ? "Inv. Return (TWR)" : isLinked ? "Portfolio Value" : "Net Return"}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-0.5 w-4" style={{ background: "#64748b", display: "inline-block" }} />

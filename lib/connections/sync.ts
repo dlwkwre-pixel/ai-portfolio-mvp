@@ -3,6 +3,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAccountPositions, fetchAccountCash, fetchAccountActivities, fetchAccountReturnRate } from "./snaptrade";
 import { reconstructValueSeries } from "./reconstruct";
 
+// Version stamp written into synced snapshots' notes. Bump this whenever the rebuild
+// logic changes shape (routing, return method, trimming): the background resync compares
+// the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
+// chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
+const REBUILD_VERSION = 3;
+const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
+
 // Sync a linked portfolio's chart + return directly from the broker's data.
 //
 // SnapTrade's "Portfolio Performance" endpoints (return rates, balance history, custom
@@ -157,7 +164,7 @@ export async function rebuildLinkedPortfolioHistory(
   } else {
     // Fallback: purge our synthetic rows + any implausible legacy row (corrupt index
     // values), then draw a baseline→current line whose growth equals the return above.
-    await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).eq("notes", "Synced from brokerage").then((r) => r, () => ({}));
+    await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId).like("notes", "Synced from brokerage%").then((r) => r, () => ({}));
     await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId)
       .gt("total_value", Math.round(currentValue * 1.6 * 100) / 100).then((r) => r, () => ({}));
     const rp = returnPct != null && Number.isFinite(returnPct) && returnPct > -100 ? returnPct : null;
@@ -168,7 +175,7 @@ export async function rebuildLinkedPortfolioHistory(
   }
   const rows = series.map((pt) => ({
     portfolio_id: portfolioId, total_value: Math.round(pt.value * 100) / 100, cash_balance: 0,
-    snapshot_date: pt.date, notes: "Synced from brokerage",
+    snapshot_date: pt.date, notes: REBUILD_NOTES,
   }));
   for (let i = 0; i < rows.length; i += 500) {
     await admin.from("portfolio_snapshots").insert(rows.slice(i, i + 500)).then((r) => r, () => ({}));
@@ -293,12 +300,20 @@ export async function resyncBrokerageAccount(
 
   const activities = await importAccountActivities(st, userId, creds, accountId, defaultPortfolioId);
 
-  // Rebuild the chart/return only when forced or stale (>4h) — see note above.
+  // Rebuild the chart/return when forced, stale (>4h), or built by an older version of
+  // the rebuild logic (version stamp in the synced snapshots' notes) — so chart fixes
+  // self-apply on the next background sync instead of waiting for a manual "Sync all now".
   let shouldRebuild = opts?.forceRebuild ?? false;
   if (!shouldRebuild) {
     const { data: pr } = await admin.from("portfolios").select("broker_return_as_of").eq("id", defaultPortfolioId).maybeSingle().then((r) => r, () => ({ data: null }));
     const asOf = pr?.broker_return_as_of ? new Date(pr.broker_return_as_of as string).getTime() : 0;
     shouldRebuild = !asOf || Date.now() - asOf > 4 * 60 * 60 * 1000;
+  }
+  if (!shouldRebuild) {
+    const { data: latest } = await admin.from("portfolio_snapshots").select("notes").eq("portfolio_id", defaultPortfolioId)
+      .like("notes", "Synced from brokerage%").order("snapshot_date", { ascending: false }).limit(1).maybeSingle()
+      .then((r) => r, () => ({ data: null }));
+    if (latest && latest.notes !== REBUILD_NOTES) shouldRebuild = true;
   }
   if (shouldRebuild) {
     // Rebuild every portfolio this account feeds (a split account feeds several), each
