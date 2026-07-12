@@ -309,6 +309,21 @@ export async function resyncBrokerageAccount(
     await admin.from("holdings").delete().eq("brokerage_account_id", accountId).ilike("ticker", p.ticker).neq("portfolio_id", target).in("portfolio_id", pids).then((r) => r, () => ({}));
   }
 
+  // Mirror-delete: a position fully sold at the broker disappears here too — otherwise a
+  // stale holding row keeps inflating the live value. Strictly scoped to rows TAGGED with
+  // this brokerage account (manual holdings are never touched), and `positions` comes
+  // from a successful fetch (failures throw before this point), so an empty list means
+  // the account is genuinely empty, not an API hiccup.
+  const currentTickers = new Set(positions.map((p) => p.ticker.toUpperCase()));
+  const { data: taggedRows } = await admin.from("holdings").select("id, ticker, portfolio_id")
+    .eq("brokerage_account_id", accountId).in("portfolio_id", pids).then((r) => r, () => ({ data: null }));
+  for (const h of taggedRows ?? []) {
+    if (!currentTickers.has(String(h.ticker).toUpperCase())) {
+      await admin.from("holdings").delete().eq("id", h.id).then((r) => r, () => ({}));
+      if (h.portfolio_id) touchedPortfolios.add(h.portfolio_id);
+    }
+  }
+
   const cash = await fetchAccountCash(st, creds, accountId);
   await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", userId).then((r) => r, () => ({}));
 
