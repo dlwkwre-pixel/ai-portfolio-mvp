@@ -229,7 +229,23 @@ export async function GET(request: Request) {
           if (baselineIdx < 0) baselineIdx = 0;
           const periodSnaps = snaps.slice(baselineIdx);
           const baselineVal = periodSnaps[0]?.total_value ?? null;
-          const periodTwr = calculateTwr(periodSnaps, cashFlows);
+          let periodTwr = calculateTwr(periodSnaps, cashFlows);
+          // Linked portfolios: snapshot TWR counts deposits as gains (external flows
+          // aren't in cash_ledger for them). Use the deposit-free growth index the sync
+          // stores with the chart, same as the chart's timeframe stats.
+          if (brokerReturnPct != null) {
+            try {
+              const { data: mirrorRow } = await adminSupabase.from("chart_cache").select("result").eq("cache_key", `benchmirror:${pref.portfolio_id}`).maybeSingle();
+              const twrIndex = (mirrorRow?.result as { twrIndex?: Array<{ date: string; value: number }> } | null)?.twrIndex;
+              if (twrIndex && twrIndex.length >= 2) {
+                const startKey = periodStart.toISOString().slice(0, 10);
+                let idx0: number | null = null;
+                for (const pt of twrIndex) { if (pt.date.slice(0, 10) <= startKey || idx0 === null) idx0 = pt.value; }
+                const idx1 = twrIndex[twrIndex.length - 1].value;
+                if (idx0 != null && idx0 > 0) periodTwr = (idx1 / idx0 - 1) * 100;
+              }
+            } catch { /* fall back to snapshot TWR */ }
+          }
           // Deposit-neutral dollar gain implied by the net return over the period
           const periodReturnAbs = baselineVal != null && periodTwr != null ? baselineVal * (periodTwr / 100) : null;
 
