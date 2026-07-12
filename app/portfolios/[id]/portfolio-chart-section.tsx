@@ -96,6 +96,7 @@ export default async function PortfolioChartSection({
   // instead of a derived one, and load the "same deposits in the benchmark" mirror so the
   // comparison line answers "what if this money had bought SPY instead".
   let benchMirror: { date: string; value: number }[] | null = null;
+  let linkedTwrIndex: { date: string; value: number }[] | null = null;
   if (linked) {
     const { data: pr } = await supabase.from("portfolios").select("broker_return_pct").eq("id", portfolioId).maybeSingle();
     const bpct = pr?.broker_return_pct != null ? Number(pr.broker_return_pct) : null;
@@ -104,13 +105,14 @@ export default async function PortfolioChartSection({
     try {
       const admin = createAdminClient();
       const { data: mirrorRow } = await admin.from("chart_cache").select("result").eq("cache_key", `benchmirror:${portfolioId}`).maybeSingle();
-      const mirror = mirrorRow?.result as { series?: { date: string; value: number }[]; benchReturnPct?: number | null } | null;
+      const mirror = mirrorRow?.result as { series?: { date: string; value: number }[]; benchReturnPct?: number | null; twrIndex?: { date: string; value: number }[] } | null;
       if (mirror?.series && mirror.series.length >= 2) {
         benchMirror = mirror.series;
         if (mirror.benchReturnPct != null && Number.isFinite(Number(mirror.benchReturnPct))) {
           c.benchmarkReturnPct = Number(mirror.benchReturnPct);
         }
       }
+      if (mirror?.twrIndex && mirror.twrIndex.length >= 2) linkedTwrIndex = mirror.twrIndex;
     } catch { /* mirror is best-effort */ }
 
     if (bpct != null && Number.isFinite(bpct)) {
@@ -139,6 +141,7 @@ export default async function PortfolioChartSection({
       netInvested={comparison.netInvested}
       isLinked={linked}
       benchMirror={benchMirror}
+      linkedTwrIndex={linkedTwrIndex}
       holdings={(holdingsMeta ?? []).map((h) => ({ ticker: String(h.ticker), opened_at: h.opened_at as string | null }))}
     />
   );

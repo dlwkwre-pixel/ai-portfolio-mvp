@@ -39,6 +39,8 @@ type PortfolioChartClientProps = {
   isLinked?: boolean;
   /** Linked portfolios: "same deposits in the benchmark" series for the comparison line. */
   benchMirror?: { date: string; value: number }[] | null;
+  /** Linked portfolios: deposit-free growth index (base 100) for timeframe stats. */
+  linkedTwrIndex?: { date: string; value: number }[] | null;
   holdings: { ticker: string; opened_at: string | null }[];
 };
 
@@ -106,6 +108,7 @@ export default function PortfolioChartClient({
   hasEnoughSnapshots,
   isLinked = false,
   benchMirror = null,
+  linkedTwrIndex = null,
   holdings,
 }: PortfolioChartClientProps) {
   const [activeTimeframe, setActiveTimeframe] = useState("All");
@@ -240,17 +243,33 @@ export default function PortfolioChartClient({
     const lastBench = filteredChartData[filteredChartData.length - 1].benchmark_return_pct;
     const periodBench = firstBench !== null && lastBench !== null ? lastBench - firstBench : null;
     if (isLinked) {
-      // Windowed value change of the real account value.
-      const firstVal = filteredChartData[0].portfolio_value;
-      const lastVal = filteredChartData[filteredChartData.length - 1].portfolio_value;
-      const periodRet = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : null;
+      // Deposit-free growth over the window (TWR index): actual stock growth, deposits
+      // move the value line but not this number. Falls back to raw value change only if
+      // the index isn't available.
+      let periodRet: number | null = null;
+      if (linkedTwrIndex && linkedTwrIndex.length >= 2) {
+        const startKey = filteredChartData[0].date.slice(0, 10);
+        const endKey = filteredChartData[filteredChartData.length - 1].date.slice(0, 10);
+        let idx0: number | null = null, idx1: number | null = null;
+        for (const pt of linkedTwrIndex) {
+          const k = pt.date.slice(0, 10);
+          if (k <= startKey || idx0 === null) idx0 = pt.value; // last index at/before window start
+          if (k <= endKey) idx1 = pt.value;
+        }
+        if (idx0 != null && idx1 != null && idx0 > 0) periodRet = (idx1 / idx0 - 1) * 100;
+      }
+      if (periodRet === null) {
+        const firstVal = filteredChartData[0].portfolio_value;
+        const lastVal = filteredChartData[filteredChartData.length - 1].portfolio_value;
+        periodRet = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : null;
+      }
       return { twrPct: periodRet, benchPct: periodBench, excess: periodRet !== null && periodBench !== null ? periodRet - periodBench : null };
     }
     const firstTwr = filteredChartData[0].portfolio_twr_pct;
     const lastTwr = filteredChartData[filteredChartData.length - 1].portfolio_twr_pct;
     const periodTwr = ((1 + lastTwr / 100) / (1 + firstTwr / 100) - 1) * 100;
     return { twrPct: periodTwr, benchPct: periodBench, excess: periodBench !== null ? periodTwr - periodBench : null };
-  }, [filteredChartData, activeTimeframe, isLinked, portfolioReturnPct, portfolioTwrPct, benchmarkReturnPct, excessReturnPct, excessTwrPct]);
+  }, [filteredChartData, activeTimeframe, isLinked, linkedTwrIndex, portfolioReturnPct, portfolioTwrPct, benchmarkReturnPct, excessReturnPct, excessTwrPct]);
 
   const currentValue = chartData.length > 0 ? chartData[chartData.length - 1].portfolio_value : null;
   const isNetPositive = (netTwrStats.twrPct ?? 0) >= 0;

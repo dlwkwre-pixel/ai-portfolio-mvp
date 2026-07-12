@@ -7,7 +7,7 @@ import { reconstructValueSeries } from "./reconstruct";
 // logic changes shape (routing, return method, trimming): the background resync compares
 // the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
 // chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
-const REBUILD_VERSION = 4;
+const REBUILD_VERSION = 5;
 const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
 
 // Sync a linked portfolio's chart + return directly from the broker's data.
@@ -188,8 +188,8 @@ export async function rebuildLinkedPortfolioHistory(
   await admin.from("chart_cache").upsert({
     cache_key: `benchmirror:${portfolioId}`,
     result: useRecon
-      ? { symbol: benchSymbol, series: recon.benchSeries, benchReturnPct: recon.benchReturnPct }
-      : { symbol: benchSymbol, series: [], benchReturnPct: null },
+      ? { symbol: benchSymbol, series: recon.benchSeries, benchReturnPct: recon.benchReturnPct, twrIndex: recon.twrSeries }
+      : { symbol: benchSymbol, series: [], benchReturnPct: null, twrIndex: [] },
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: "cache_key" }).then((r) => r, () => ({}));

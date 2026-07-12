@@ -107,6 +107,7 @@ export type ReconstructResult = {
   pricedCoverage: number;  // share of current value backed by REAL price history (not flat)
   benchSeries: DailyValue[];      // "same deposits in the benchmark" mirror line
   benchReturnPct: number | null;  // that mirror's money-weighted return over the window
+  twrSeries: DailyValue[];        // deposit-free growth index (base 100) — pure stock growth
 };
 
 // Build the daily value series + windowed return for [startDate, endDate].
@@ -178,7 +179,7 @@ export async function reconstructValueSeries(
   }
 
   const days = dateList(startDate, endDate);
-  if (days.length === 0) return { series: [], returnPct: null, coverage: 0, pricedCoverage: 0, benchSeries: [], benchReturnPct: null };
+  if (days.length === 0) return { series: [], returnPct: null, coverage: 0, pricedCoverage: 0, benchSeries: [], benchReturnPct: null, twrSeries: [] };
   const series: DailyValue[] = [];
   for (const day of days) {
     let v = cash; // current cash carried flat (small relative to holdings)
@@ -230,6 +231,24 @@ export async function reconstructValueSeries(
       if (px > 0) f += dSh * px;
     }
     flowByIndex[i] = f;
+  }
+
+  // Deposit-free growth index (time-weighted): each day's growth factor is the value
+  // change with that day's flow removed — g_i = V_i / (V_{i-1} + f_i) — chained from 100.
+  // This is "actual stock growth": a deposit moves the value line but not this index.
+  // Used for the chart's timeframe stats (3M/1M/…), where raw value change would read
+  // deposits as gains (+193% on a $700-deposit account).
+  const twrSeries: DailyValue[] = [];
+  {
+    let idx = 100;
+    twrSeries.push({ date: finalSeries[0]?.date ?? startDate, value: 100 });
+    for (let i = 1; i < finalSeries.length; i++) {
+      const base = finalSeries[i - 1].value + flowByIndex[i];
+      const g = base > 1 ? finalSeries[i].value / base : 1;
+      // Clamp pathological factors (bad print on a tiny base) so one day can't wreck it.
+      idx *= Math.min(2, Math.max(0.5, g));
+      twrSeries.push({ date: finalSeries[i].date, value: Math.round(idx * 10000) / 10000 });
+    }
   }
 
   // Modified Dietz over the trimmed window: return = (V1 − V0 − F) / (V0 + Σ w_i·F_i).
@@ -287,5 +306,5 @@ export async function reconstructValueSeries(
     }
   }
   const pricedCoverage = currentValue > 0 ? pricedValueNow / currentValue : 0;
-  return { series: finalSeries, returnPct, coverage, pricedCoverage, benchSeries, benchReturnPct };
+  return { series: finalSeries, returnPct, coverage, pricedCoverage, benchSeries, benchReturnPct, twrSeries };
 }
