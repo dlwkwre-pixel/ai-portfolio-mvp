@@ -44,9 +44,13 @@ export async function rebuildLinkedPortfolioHistory(
     fetchAccountActivities(st, creds, accountId, 500).catch(() => []),
   ]);
 
-  // One brokerage account can feed several portfolios (split by holding period). Rebuild
-  // THIS portfolio from only the tickers assigned to it (its holdings ∩ the account's
-  // positions). Cash lives with the account's default portfolio.
+  // One brokerage account can feed several portfolios (split by holding period). Which
+  // slice of the account belongs to THIS portfolio?
+  //  - The account's DEFAULT portfolio owns everything not claimed by another portfolio —
+  //    including positions the user has fully sold out of. Round-trip trades are where
+  //    realized gains live; excluding them made the chart+return miss most of the profit
+  //    ("started with $400, up 23%" while we showed only current holdings' P&L).
+  //  - A non-default (isolation) portfolio owns exactly its own tickers.
   const { data: myHoldings } = await admin.from("holdings").select("ticker").eq("portfolio_id", portfolioId)
     .then((r) => r, () => ({ data: null }));
   const myTickers = new Set((myHoldings ?? []).map((h) => String(h.ticker).toUpperCase()));
@@ -54,13 +58,29 @@ export async function rebuildLinkedPortfolioHistory(
   // Only filter when this portfolio is a strict subset (a real split); a 1:1 link holds
   // everything, so keep the whole account (also covers the not-yet-migrated case).
   const isSplit = myTickers.size > 0 && [...accountTickers].some((t) => !myTickers.has(t));
-  const positions = isSplit ? allPositions.filter((p) => myTickers.has(p.ticker.toUpperCase())) : allPositions;
-  const activities = isSplit ? allActivities.filter((a) => a.ticker && myTickers.has(a.ticker.toUpperCase())) : allActivities;
 
-  // Cash goes to the account's default (cash) portfolio only.
   const { data: link } = await admin.from("brokerage_account_links").select("default_portfolio_id")
     .eq("snaptrade_account_id", accountId).limit(1).maybeSingle().then((r) => r, () => ({ data: null }));
-  const includeCash = (!isSplit || link?.default_portfolio_id === portfolioId) ? cash : 0;
+  const isDefaultTarget = link?.default_portfolio_id === portfolioId;
+
+  // Tickers claimed by the account's OTHER portfolios (e.g. the isolated ACHR tracker).
+  const otherTickers = new Set<string>();
+  if (isSplit && isDefaultTarget) {
+    const { data: others } = await admin.from("holdings").select("ticker, portfolio_id")
+      .eq("brokerage_account_id", accountId).neq("portfolio_id", portfolioId)
+      .then((r) => r, () => ({ data: null }));
+    for (const h of others ?? []) otherTickers.add(String(h.ticker).toUpperCase());
+  }
+
+  const positions = !isSplit ? allPositions
+    : isDefaultTarget ? allPositions.filter((p) => !otherTickers.has(p.ticker.toUpperCase()))
+    : allPositions.filter((p) => myTickers.has(p.ticker.toUpperCase()));
+  const activities = !isSplit ? allActivities
+    : isDefaultTarget ? allActivities.filter((a) => !a.ticker || !otherTickers.has(a.ticker.toUpperCase()))
+    : allActivities.filter((a) => a.ticker && myTickers.has(a.ticker.toUpperCase()));
+
+  // Cash goes to the account's default (cash) portfolio only.
+  const includeCash = (!isSplit || isDefaultTarget) ? cash : 0;
 
   let positionsValue = 0, positionsCost = 0;
   for (const pos of positions) {
@@ -106,14 +126,16 @@ export async function rebuildLinkedPortfolioHistory(
   //  - broker's own number if the paid tier ever exposes it;
   //  - a whole (1:1) account with clean deposits → (value − net deposits) / net deposits.
   //    Verified exact on a Roth: our 14.68% vs Robinhood 14.76%.
-  //  - otherwise (a split portfolio, or polluted deposits) → cost-basis total return on
-  //    THIS portfolio's holdings, (value − cost) / cost. That's exactly Robinhood's
-  //    per-position "total return" aggregated, which is what you see when you split an
-  //    account by holdings (e.g. one stock isolated reads its own −58%).
+  //  - the DEFAULT slice of a split account → reconstructed Modified-Dietz over the
+  //    window. It includes realized round-trip gains (the "+23%" kind of profit), which
+  //    cost-basis-on-current-holdings misses entirely. Gated on real price coverage.
+  //  - an isolation portfolio (non-default slice, e.g. one stock tracked alone) →
+  //    cost-basis total return on its holdings — Robinhood's per-position number.
   const brokerReturn = await fetchAccountReturnRate(st, creds, accountId);
   let returnPct: number | null = brokerReturn;
   if (returnPct == null) {
     if (!isSplit && depositsClean) returnPct = netDepositPct!;
+    else if (isSplit && isDefaultTarget && recon.pricedCoverage >= 0.85 && recon.returnPct != null) returnPct = recon.returnPct;
     else if (positionsCost > 0) returnPct = ((positionsValue - positionsCost) / positionsCost) * 100;
     else if (depositsClean) returnPct = netDepositPct!;
   }

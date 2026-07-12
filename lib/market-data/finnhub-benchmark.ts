@@ -219,6 +219,29 @@ async function getTwelveDataHistory(symbol: string): Promise<BenchmarkBar[]> {
   }
 }
 
+// Polygon fallback — free tier covers ~2 years of daily aggregates, which is enough for
+// every chart window we draw. Kicks in when FMP's daily quota is exhausted (the failure
+// mode that blanked SPY across all portfolio charts).
+async function getPolygonHistory(symbol: string): Promise<BenchmarkBar[]> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey) return [];
+  try {
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 2 * 365 * 86_400_000).toISOString().slice(0, 10);
+    const url = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(symbol.trim().toUpperCase())}/range/1/day/${from}/${to}?adjusted=true&sort=asc&limit=50000&apiKey=${apiKey}`;
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return [];
+    const data = await response.json() as { results?: Array<{ t: number; c: number }> };
+    if (!Array.isArray(data.results)) return [];
+    const bars: BenchmarkBar[] = data.results
+      .filter((r) => Number.isFinite(r.c) && r.c > 0)
+      .map((r) => ({ date: new Date(r.t).toISOString().slice(0, 10), close: r.c, adjClose: r.c, source: "fmp" as const }));
+    return bars.sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}
+
 async function getAlphaVantageHistory(symbol: string): Promise<BenchmarkBar[]> {
   const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
   if (!apiKey) return [];
@@ -276,6 +299,11 @@ export async function getBenchmarkHistory(
   // Twelve Data fallback — 800 credits/day free, covers all US-listed stocks
   if (bars.length === 0) {
     bars = filterRange(await getTwelveDataHistory(symbol), range);
+  }
+
+  // Polygon fallback — 5 req/min free, ~2y of daily aggregates
+  if (bars.length === 0) {
+    bars = filterRange(await getPolygonHistory(symbol), range);
   }
 
   // Alpha Vantage fallback — 25 req/day free, split-adjusted close

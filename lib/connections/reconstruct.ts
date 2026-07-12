@@ -208,13 +208,17 @@ export async function reconstructValueSeries(
 
   // Modified Dietz over the window: return = (V1 − V0 − F) / (V0 + Σ w_i·F_i), where the
   // flows F_i are trade cash (buys +, sells −) — NOT deposits, so the polluted deposit
-  // data never enters the return.
-  const spanMs = new Date(endDate).getTime() - new Date(startDate).getTime();
+  // data never enters the return. The window is the TRIMMED series' span: v0 already
+  // includes any buys on/before the trimmed start, so counting those as flows too would
+  // double-count them.
+  const effStart = finalSeries[0]?.date ?? startDate;
+  const effEnd = finalSeries[finalSeries.length - 1]?.date ?? endDate;
+  const spanMs = new Date(effEnd).getTime() - new Date(effStart).getTime();
   let netFlow = 0, weightedFlow = 0;
   for (const t of trades) {
-    if (t.date <= startDate || t.date > endDate || t.flow === 0) continue;
+    if (t.date <= effStart || t.date > effEnd || t.flow === 0) continue;
     netFlow += t.flow;
-    const w = spanMs > 0 ? (new Date(endDate).getTime() - new Date(t.date).getTime()) / spanMs : 0;
+    const w = spanMs > 0 ? (new Date(effEnd).getTime() - new Date(t.date).getTime()) / spanMs : 0;
     weightedFlow += w * t.flow;
   }
   const denom = v0 + weightedFlow;
