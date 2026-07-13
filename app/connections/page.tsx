@@ -4,7 +4,9 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import { getUserFeatures } from "@/lib/access/feature-access";
 import { getBrokerageStatus } from "@/lib/connections/snaptrade";
+import { getBankStatus } from "@/lib/connections/plaid";
 import SnaptradeConnect from "./snaptrade-connect";
+import PlaidConnect from "./plaid-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +15,11 @@ export default async function ConnectionsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const [features, { data: portfolios }, brokerageStatus] = await Promise.all([
+  const [features, { data: portfolios }, brokerageStatus, bankStatus] = await Promise.all([
     getUserFeatures(user.id),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
     getBrokerageStatus(user.id),
+    getBankStatus(user.id),
   ]);
 
   const hasBrokerage = features.has("brokerage_connect");
@@ -47,7 +50,7 @@ export default async function ConnectionsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
             {cards.map((c) => {
-              const live = c.on && (c.kind === "brokerage" ? brokerageStatus.configured : false);
+              const live = c.on && (c.kind === "brokerage" ? brokerageStatus.configured : bankStatus.configured);
               return (
                 <div key={c.title} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "14px", padding: "18px", opacity: live ? 1 : 0.92 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
@@ -65,6 +68,8 @@ export default async function ConnectionsPage() {
                   <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "14px" }}>{c.body}</p>
                   {live && c.kind === "brokerage" ? (
                     <SnaptradeConnect status={brokerageStatus} />
+                  ) : live && c.kind === "bank" ? (
+                    <PlaidConnect status={bankStatus} />
                   ) : (
                     <button type="button" disabled title="Coming soon"
                       style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-tertiary)", fontSize: "13px", fontWeight: 600, cursor: "not-allowed", fontFamily: "var(--font-body)" }}>
