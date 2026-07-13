@@ -408,6 +408,49 @@ body {
 
 :focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
+/* ── Accessibility ─────────────────────────────────────────────────────────── */
+/* Respect OS-level motion sensitivity everywhere: kill decorative animation and
+   smooth-scroll for users who ask for reduced motion (WCAG 2.3.3 / vestibular). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link: visually hidden until keyboard-focused, then jumps past the chrome. */
+.bt-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  background: var(--brand-blue);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.bt-skip-link:focus {
+  left: 0;
+}
+
+/* Screen-reader-only utility (for labeling icon-only controls with visible-less text). */
+.bt-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .bt-chart-tooltip {
   background: var(--bg-elevated);
   border: 1px solid var(--border-strong);

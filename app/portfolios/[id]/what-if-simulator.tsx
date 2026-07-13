@@ -165,7 +165,7 @@ export default function WhatIfSimulator({ portfolioId, baseline }: { portfolioId
                     placeholder="0"
                     style={{ width: "92px", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "5px 8px", fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none", textAlign: "right" }}
                   />
-                  <button type="button" onClick={() => removeRow(r.id)} title="Remove" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "15px", lineHeight: 1, padding: "0 4px" }}>×</button>
+                  <button type="button" onClick={() => removeRow(r.id)} title="Remove" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "15px", lineHeight: 1, padding: "0 4px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                 </div>
               );
             })}

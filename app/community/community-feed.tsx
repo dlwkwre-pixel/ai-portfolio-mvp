@@ -227,7 +227,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
                     placeholder={`Option ${i + 1}`} maxLength={60}
                     style={{ flex: 1, background: "var(--bg-base)", border: "1px solid var(--card-border)", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", color: "var(--text-primary)", outline: "none" }} />
                   {pollOpts.length > 2 && (
-                    <button type="button" onClick={() => setPollOpts(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px" }}>×</button>
+                    <button type="button" onClick={() => setPollOpts(prev => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                   )}
                 </div>
               ))}
@@ -472,7 +472,7 @@ function PostCard({ post, myUserId, onTicker, onChange, onRemove }: {
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45, margin: "2px 0 0", whiteSpace: "pre-wrap" }}>{c.body}</p>
               </div>
               {c.user_id === myUserId && (
-                <button type="button" onClick={() => removeComment(c.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "13px", flexShrink: 0 }}>×</button>
+                <button type="button" onClick={() => removeComment(c.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "13px", flexShrink: 0 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
               )}
             </div>
           ))}

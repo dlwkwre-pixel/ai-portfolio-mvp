@@ -73,6 +73,9 @@ export default function FeedbackPrompt({ accountCreatedAt }: { accountCreatedAt:
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Share feedback"
       style={{
         position: "fixed", inset: 0, zIndex: 9998,
         background: "rgba(2,7,18,0.82)", backdropFilter: "blur(6px)",

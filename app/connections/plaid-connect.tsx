@@ -117,7 +117,7 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
         </button>
         {hasAccounts && (
           <button
-            type="button" onClick={() => void refresh()} disabled={busy !== null}
+            type="button" onClick={() => void refresh()} disabled={busy !== null} aria-label="Refresh balances"
             style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: busy === "refresh" ? 0.7 : 1 }}
           >
             {busy === "refresh" ? "…" : "↻"}

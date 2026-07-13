@@ -670,7 +670,7 @@ function StrategyPreviewModal({
                           style={{ background: "none", border: "none", padding: "0 2px", cursor: "pointer", color: "var(--text-muted)", fontSize: "10px", fontFamily: "var(--font-body)" }}
                           onMouseEnter={e => { e.currentTarget.style.color = "#f87171"; }}
                           onMouseLeave={e => { e.currentTarget.style.color = "var(--text-muted)"; }}
-                        >✕</button>
+                        ><span aria-hidden="true">✕</span><span className="bt-sr-only">Remove</span></button>
                       )}
                     </div>
                     <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>{u.update_text}</p>

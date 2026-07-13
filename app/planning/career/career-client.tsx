@@ -877,7 +877,7 @@ export default function CareerClient({
                 <button type="button" onClick={() => setDeleteConfirm(null)} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>
               </div>
             ) : (
-              <button type="button" onClick={() => setDeleteConfirm(s.id)} style={{ padding: "4px", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", opacity: 0.5, lineHeight: 1 }} title="Delete">×</button>
+              <button type="button" onClick={() => setDeleteConfirm(s.id)} style={{ padding: "4px", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", opacity: 0.5, lineHeight: 1 }} title="Delete"><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
             )}
           </div>
         ))}

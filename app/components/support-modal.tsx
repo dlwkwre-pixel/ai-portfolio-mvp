@@ -96,6 +96,9 @@ export default function SupportModal() {
 
       {open && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Contact support"
           style={{
             position: "fixed",
             inset: 0,

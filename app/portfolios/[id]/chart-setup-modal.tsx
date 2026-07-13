@@ -162,7 +162,7 @@ export default function ChartSetupModal({
               Enter when and at what price you bought each holding. Add multiple lots for DCA purchases.
             </p>
           </div>
-          <button onClick={onClose} className="ml-3 mt-0.5 flex-shrink-0 text-slate-500 hover:text-slate-300 transition text-lg leading-none">✕</button>
+          <button onClick={onClose} className="ml-3 mt-0.5 flex-shrink-0 text-slate-500 hover:text-slate-300 transition text-lg leading-none"><span aria-hidden="true">✕</span><span className="bt-sr-only">Close</span></button>
         </div>
 
         {/* Body */}
@@ -246,7 +246,7 @@ export default function ChartSetupModal({
                                   className="rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:text-red-400 transition"
                                   style={{ background: "var(--surface-005)", border: "1px solid var(--line-008)" }}
                                   title="Remove lot"
-                                >✕</button>
+                                ><span aria-hidden="true">✕</span><span className="bt-sr-only">Remove</span></button>
                               ) : (
                                 <div className="rounded-lg px-2 py-1.5" style={{ background: "transparent" }} />
                               )}

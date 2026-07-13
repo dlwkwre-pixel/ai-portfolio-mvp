@@ -832,7 +832,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Child {idx + 1}</span>
                   {eduChildren.length > 1 && (
-                    <button onClick={() => setEduChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove child">×</button>
+                    <button onClick={() => setEduChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove child"><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                   )}
                 </div>
                 <input

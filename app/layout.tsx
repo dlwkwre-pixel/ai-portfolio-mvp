@@ -43,8 +43,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Users must be able to zoom (WCAG 1.4.4) — never lock the scale.
+  maximumScale: 5,
+  userScalable: true,
   // Extend under the notch/status bar so we can paint that area with the brand color
   // (the black-translucent status bar would otherwise let scrolled content show through it).
   viewportFit: "cover",
@@ -69,9 +70,11 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="BuyTune" />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* Keyboard users jump past the persistent chrome straight to page content. */}
+        <a href="#bt-content" className="bt-skip-link">Skip to main content</a>
         <ThemeProvider>
           <PWARegister />
-          {children}
+          <div id="bt-content" style={{ display: "contents" }}>{children}</div>
           <MobileBottomNav />
           <IosInstallGuide />
           <LevelUpWatcher />

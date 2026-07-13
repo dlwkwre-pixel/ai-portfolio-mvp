@@ -47,7 +47,7 @@ export default function PageTutorial({ tutorialId }: { tutorialId: string }) {
   const s = steps[step];
 
   return (
-    <div onClick={dismiss} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(4,13,26,0.78)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-tut-fade 0.25s ease both" }}>
+    <div role="dialog" aria-modal="true" aria-label="Page tutorial" onClick={dismiss} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(4,13,26,0.78)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-tut-fade 0.25s ease both" }}>
       <style>{`@keyframes bt-tut-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-tut-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--card-bg, #0b1524)", border: "1px solid var(--card-border, rgba(255,255,255,0.1))", borderRadius: "var(--radius-lg, 16px)", padding: "26px 26px 20px", width: "100%", maxWidth: "440px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-tut-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>

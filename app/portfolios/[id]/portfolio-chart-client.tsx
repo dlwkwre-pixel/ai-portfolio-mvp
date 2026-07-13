@@ -415,7 +415,11 @@ export default function PortfolioChartClient({
       ) : null}
 
       {chartData.length >= 2 && chartMode === "net" ? (
-        <div className="h-56 min-w-0">
+        <div
+          className="h-56 min-w-0"
+          role="img"
+          aria-label={`${isLinked ? "Portfolio value" : "Net return"} chart${currentValue != null ? `, current value $${currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}${netTwrStats.twrPct != null ? `, ${netTwrStats.twrPct >= 0 ? "up" : "down"} ${Math.abs(netTwrStats.twrPct).toFixed(1)} percent for the ${activeTimeframe} period` : ""}, compared with ${benchmarkSymbol}`}
+        >
           {netChartData.length < 2 ? (
             <div className="flex h-full items-center justify-center rounded-xl border border-white/5 bg-white/2">
               <p className="text-sm text-slate-400">No data for this timeframe.</p>

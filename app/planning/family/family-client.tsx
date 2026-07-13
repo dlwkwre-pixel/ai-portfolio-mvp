@@ -851,7 +851,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.65 0.12 265)" }}>Child {idx + 1}</span>
                     {children.length > 1 && (
-                      <button onClick={() => setChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, lineHeight: 1, padding: "0 2px" }}>×</button>
+                      <button onClick={() => setChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                     )}
                   </div>
                   <input

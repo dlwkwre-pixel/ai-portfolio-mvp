@@ -4021,7 +4021,7 @@ function BudgetTrackerTab({
                           type="button"
                           onClick={() => setMovingKey(null)}
                           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}
-                        >×</button>
+                        ><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
                       </div>
                     )}
                   </div>
@@ -5297,7 +5297,7 @@ function CashFlowOS({
         {importSuccess !== null && !showImport && (
           <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "12px", color: "#22c55e", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
-            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}>×</button>
+            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>
         )}
 
@@ -5501,7 +5501,7 @@ function CashFlowOS({
                                           <option value="" disabled>Select bucket...</option>
                                           {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
                                         </select>
-                                        <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}>×</button>
+                                        <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
                                       </div>
                                     )}
                                   </div>
@@ -5546,7 +5546,7 @@ function CashFlowOS({
                                                   <option value="" disabled>Select bucket...</option>
                                                   {others.map(ei => <option key={ei.id} value={ei.id}>{ei.label}</option>)}
                                                 </select>
-                                                <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}>×</button>
+                                                <button type="button" onClick={() => setMovingKey(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "13px", padding: "2px 4px", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
                                               </div>
                                             )}
                                           </div>
@@ -7990,7 +7990,7 @@ export default function PlanningClient({
                             type="button"
                             onClick={() => setProfileKids((prev) => prev.filter((_, j) => j !== i))}
                             style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "4px", fontSize: "16px", lineHeight: 1, flexShrink: 0 }}
-                          >×</button>
+                          ><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                         )}
                       </div>
                     ))}

@@ -522,7 +522,7 @@ function EstatePlanningTab({
                 }}>
                   {b.allocation_pct}%
                 </div>
-                <button onClick={() => removeBeneficiary(b.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}>×</button>
+                <button onClick={() => removeBeneficiary(b.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
               </div>
             ))}
           </div>
@@ -614,7 +614,7 @@ function EstatePlanningTab({
                     </div>
                   )}
                 </div>
-                <button onClick={() => removeAccount(a.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}>×</button>
+                <button onClick={() => removeAccount(a.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "14px", padding: "2px 6px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
               </div>
             ))}
           </div>

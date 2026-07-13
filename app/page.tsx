@@ -910,6 +910,7 @@ export default function LandingPage() {
           <a href="/legal/terms">Terms</a>
           <a href="/legal/ai-disclaimer">AI Disclaimer</a>
           <a href="/legal/investment-disclaimer">Investment Disclaimer</a>
+          <a href="/accessibility">Accessibility</a>
         </div>
       </footer>
     </>

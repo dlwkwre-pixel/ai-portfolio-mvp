@@ -351,7 +351,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
               {editingId ? "Edit Apartment" : "Add Apartment"}
             </h2>
             <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }}
-              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>×</button>
+              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>
 
           {/* Section: Property Info */}

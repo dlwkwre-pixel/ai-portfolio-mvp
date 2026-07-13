@@ -171,7 +171,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
                         <input value={contribAmt} onChange={(e) => setContribAmt(e.target.value)} placeholder="$" inputMode="decimal" autoFocus style={{ ...inputStyle, width: "78px", padding: "5px 8px" }} />
                         <button type="button" onClick={() => contribute(g.id, 1)} disabled={pending} style={{ fontSize: "11px", fontWeight: 700, color: "var(--green)", background: "none", border: "none", cursor: "pointer" }}>+ Add</button>
                         <button type="button" onClick={() => contribute(g.id, -1)} disabled={pending} style={{ fontSize: "11px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer" }}>− Pull</button>
-                        <button type="button" onClick={() => { setContribId(null); setContribAmt(""); }} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+                        <button type="button" onClick={() => { setContribId(null); setContribAmt(""); }} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}><span aria-hidden="true">✕</span><span className="bt-sr-only">Dismiss</span></button>
                       </span>
                     ) : (
                       <>

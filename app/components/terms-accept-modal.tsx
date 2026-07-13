@@ -29,7 +29,7 @@ export default function TermsAcceptModal() {
   }
 
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-label="Terms of use" style={{
       position: "fixed",
       inset: 0,
       zIndex: 9999,

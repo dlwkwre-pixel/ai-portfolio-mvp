@@ -384,7 +384,7 @@ function PlanRow({ e, committed, busy, highlight, onToggle, onDelete, onHover }:
         </span>
         {committed ? "Committed" : "Considering"}
       </button>
-      <button type="button" onClick={onDelete} disabled={busy} title="Remove" style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "0 2px" }}>×</button>
+      <button type="button" onClick={onDelete} disabled={busy} title="Remove" style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
     </div>
   );
 }
