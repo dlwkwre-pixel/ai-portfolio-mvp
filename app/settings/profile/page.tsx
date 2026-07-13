@@ -5,6 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import ProfileSettingsClient from "./profile-settings-client";
 import BadgesSection from "@/app/[username]/badges-section";
 import EmailSettingsClient from "@/app/settings/emails/email-settings-client";
+import DeleteAccount from "./delete-account";
 import Link from "next/link";
 import { checkAndAwardBadges } from "@/lib/badges/check";
 
@@ -123,6 +124,9 @@ export default async function ProfileSettingsPage() {
                   </Link>
                 )}
               </div>
+
+              {/* 5. Danger zone — permanent account deletion */}
+              <DeleteAccount />
 
             </div>
           </div>

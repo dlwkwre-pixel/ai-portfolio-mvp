@@ -103,6 +103,12 @@ export async function syncBankConnection(
   return accounts.length;
 }
 
+// Revoke a Plaid Item (used by account deletion — removes our access at Plaid's side,
+// and on the Trial frees the Item slot). Best-effort; throws on hard failures.
+export async function removePlaidItem(accessToken: string): Promise<void> {
+  await plaidRequest("/item/remove", { access_token: accessToken });
+}
+
 export type BankAccountRow = {
   account_id: string;
   item_id: string;
