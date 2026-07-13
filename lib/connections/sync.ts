@@ -7,7 +7,7 @@ import { reconstructValueSeries } from "./reconstruct";
 // logic changes shape (routing, return method, trimming): the background resync compares
 // the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
 // chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
-const REBUILD_VERSION = 8;
+const REBUILD_VERSION = 9;
 const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
 
 // Sync a linked portfolio's chart + return directly from the broker's data.

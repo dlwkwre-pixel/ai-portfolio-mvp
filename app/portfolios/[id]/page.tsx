@@ -251,6 +251,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     "money-weighted": "money-weighted",
     "cost-basis": "gain vs cost basis",
   };
+  // Degraded when price history is thin AND the return method actually depends on it —
+  // net-deposit and broker-reported returns don't, so those stay green regardless.
+  const lowPriceCoverage =
+    returnHealth?.pricedCoverage != null && returnHealth.pricedCoverage < 0.85 &&
+    returnHealth.method !== "net-deposit" && returnHealth.method !== "broker";
   const linkedBadgeTitle = (() => {
     let t = "Holdings and cash sync from your connected brokerage";
     if (returnHealth?.method) {
@@ -260,6 +265,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
         const d = new Date(returnHealth.verifiedAt);
         if (!isNaN(d.getTime())) t += ` · verified ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
       }
+      if (lowPriceCoverage) t += ". Some holdings lack price history, so a simpler return method is shown — the value itself is unaffected.";
     }
     return t;
   })();
@@ -412,8 +418,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           {isLinkedPortfolio ? (
                             <>
-                              <span title={linkedBadgeTitle} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "999px", padding: "5px 11px", cursor: "help" }}>
-                                🔗 Synced from your brokerage{returnHealth?.method ? " ✓" : ""}
+                              <span title={linkedBadgeTitle} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, borderRadius: "999px", padding: "5px 11px", cursor: "help", ...(lowPriceCoverage
+                                ? { color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)" }
+                                : { color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)" }) }}>
+                                {lowPriceCoverage ? "🔗 Synced · limited price data" : <>🔗 Synced from your brokerage{returnHealth?.method ? " ✓" : ""}</>}
                               </span>
                               <AutoResync lastSyncedAt={brokerageLastSyncedAt} />
                             </>

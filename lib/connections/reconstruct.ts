@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { BrokeragePosition, BrokerageActivity } from "./snaptrade";
 import { getBenchmarkHistory } from "@/lib/market-data/finnhub-benchmark";
+import { getCryptoDailyCloses, isKnownCryptoTicker } from "@/lib/market-data/coingecko";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,19 +54,28 @@ type Trade = { ticker: string; date: string; signedUnits: number; flow: number; 
 
 // Daily close history for one ticker → Map<YYYY-MM-DD, close>. Serves from the durable
 // cache first; otherwise pulls a wide (5Y) window via the project's proven multi-source
-// fetcher (FMP → Finnhub → Twelve Data → Alpha Vantage) — one entry covers every window —
-// with a single retry to ride out a transient rate-limit. Non-fatal → empty.
-export async function fetchDailyCloses(symbol: string): Promise<Map<string, number>> {
+// fetcher (FMP → Finnhub → Twelve Data → Polygon → Alpha Vantage) — one entry covers
+// every window — with a single retry to ride out a transient rate-limit. Crypto tickers
+// (flagged by the caller from broker asset types, or well-known symbols like BTC/ETH)
+// are priced via CoinGecko instead. Non-fatal → empty.
+export async function fetchDailyCloses(symbol: string, isCrypto = false): Promise<Map<string, number>> {
   const sym = symbol.trim().toUpperCase();
   if (!sym) return new Map();
   const cached = await getCachedCloses(sym);
   if (cached && cached.size > 0) return cached;
   try {
-    let bars = await getBenchmarkHistory(sym, "5Y", false, false);
-    if (bars.length === 0) { await sleep(500); bars = await getBenchmarkHistory(sym, "5Y", false, false); }
     const m = new Map<string, number>();
-    for (const b of bars) {
-      if (b.date && Number.isFinite(b.close) && b.close > 0) m.set(b.date.slice(0, 10), b.close);
+    if (isCrypto || isKnownCryptoTicker(sym)) {
+      // Crypto first (skips the equity chain entirely for flagged coins).
+      const crypto = await getCryptoDailyCloses(sym);
+      for (const [d, c] of crypto) m.set(d, c);
+    }
+    if (m.size === 0 && !isCrypto) {
+      let bars = await getBenchmarkHistory(sym, "5Y", false, false);
+      if (bars.length === 0) { await sleep(500); bars = await getBenchmarkHistory(sym, "5Y", false, false); }
+      for (const b of bars) {
+        if (b.date && Number.isFinite(b.close) && b.close > 0) m.set(b.date.slice(0, 10), b.close);
+      }
     }
     if (m.size > 0) await setCachedCloses(sym, m);
     return m;
@@ -123,10 +133,12 @@ export async function reconstructValueSeries(
   const currentShares: Record<string, number> = {};
   const currentPrice: Record<string, number> = {};
   const tickers = new Set<string>();
+  const cryptoTickers = new Set<string>();
   for (const p of positions) {
     const tk = p.ticker.toUpperCase();
     currentShares[tk] = (currentShares[tk] ?? 0) + p.shares;
     if (p.price != null && p.price > 0) currentPrice[tk] = p.price;
+    if (p.assetType === "crypto") cryptoTickers.add(tk);
     tickers.add(tk);
   }
 
@@ -158,7 +170,7 @@ export async function reconstructValueSeries(
   const CONCURRENCY = 3;
   for (let i = 0; i < tickerList.length; i += CONCURRENCY) {
     const batch = tickerList.slice(i, i + CONCURRENCY);
-    const maps = await Promise.all(batch.map((tk) => fetchDailyCloses(tk)));
+    const maps = await Promise.all(batch.map((tk) => fetchDailyCloses(tk, cryptoTickers.has(tk))));
     batch.forEach((tk, j) => {
       priceMaps[tk] = maps[j];
       sortedDatesByTicker[tk] = [...maps[j].keys()].sort();

@@ -129,6 +129,52 @@ async function resolveCoinGeckoIds(
   return result;
 }
 
+// Is this ticker a well-known crypto symbol? Used as a safe heuristic for tickers whose
+// asset type is unknown (e.g. sold-out positions seen only in activity history) — the
+// full coin-list search is NOT used here, so an equity symbol that happens to collide
+// with some obscure coin can't be mispriced.
+export function isKnownCryptoTicker(ticker: string): boolean {
+  return !!TICKER_TO_COINGECKO_ID[ticker.trim().toUpperCase()];
+}
+
+// Daily close history (up to 365 days — the Demo tier's max) for one crypto ticker →
+// Map<YYYY-MM-DD, priceUsd>. Powers linked-portfolio reconstruction for crypto holdings.
+// Empty map on any failure or when COINGECKO_API_KEY is not set.
+export async function getCryptoDailyCloses(ticker: string): Promise<Map<string, number>> {
+  const empty = new Map<string, number>();
+  const apiKey = getApiKey();
+  if (!apiKey) return empty;
+  try {
+    const ids = await resolveCoinGeckoIds([ticker], apiKey);
+    const id = ids.get(ticker.trim().toUpperCase());
+    if (!id) return empty;
+
+    const url = new URL(`${COINGECKO_BASE}/coins/${encodeURIComponent(id)}/market_chart`);
+    url.searchParams.set("vs_currency", "usd");
+    url.searchParams.set("days", "365");
+    url.searchParams.set("interval", "daily");
+
+    const response = await fetch(url.toString(), {
+      headers: { "x-cg-demo-api-key": apiKey },
+      next: { revalidate: 21600 },
+    });
+    if (!response.ok) return empty;
+
+    const data = (await response.json()) as { prices?: [number, number][] };
+    if (!Array.isArray(data?.prices)) return empty;
+
+    const m = new Map<string, number>();
+    for (const [ts, price] of data.prices) {
+      if (Number.isFinite(ts) && Number.isFinite(price) && price > 0) {
+        m.set(new Date(ts).toISOString().slice(0, 10), price);
+      }
+    }
+    return m;
+  } catch {
+    return empty;
+  }
+}
+
 export async function getCryptoPrices(
   tickers: string[]
 ): Promise<Map<string, CryptoQuote>> {
