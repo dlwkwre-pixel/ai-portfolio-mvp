@@ -33,6 +33,15 @@ export type TrajectoryChartProps = {
   onToggleEvent?: (id: string, included: boolean) => Promise<unknown> | void;
   onMoveEvent?: (id: string, year: number) => Promise<unknown> | void;
   isPrivate?: boolean;
+  /** Years where the conflict engine sees pressure — drawn as amber/red bands. */
+  conflictZones?: TrajectoryConflictZone[];
+};
+
+export type TrajectoryConflictZone = {
+  startYear: number;   // absolute year
+  endYear: number;     // absolute year (inclusive)
+  severity: "critical" | "warning" | "info";
+  label?: string;      // shown as a tooltip on the band
 };
 
 // ── Formatting ───────────────────────────────────────────────────────────────
@@ -101,7 +110,7 @@ export default function TrajectoryChart({
   currentAge, currentYear, retirementAge, baselineRetirementAge,
   onRetirementAgeChange, onResetRetirementAge,
   bands, retirementProb, atRetirement, lastsToAge, depletedAge, drawdownEndAge = 95,
-  events, onToggleEvent, onMoveEvent, isPrivate = false,
+  events, onToggleEvent, onMoveEvent, isPrivate = false, conflictZones = [],
 }: TrajectoryChartProps) {
   const [, startTransition] = useTransition();
   const hasAges = currentAge != null;
@@ -317,6 +326,24 @@ export default function TrajectoryChart({
             {[0.25, 0.5, 0.75].map((f) => (
               <line key={f} x1="0" x2={VBW} y1={(1 - BOT_PAD - f * (1 - TOP_PAD - BOT_PAD)) * VBH} y2={(1 - BOT_PAD - f * (1 - TOP_PAD - BOT_PAD)) * VBH} stroke="rgba(148,163,184,0.07)" strokeWidth="1" />
             ))}
+            {/* Conflict zones: years where the plan is under pressure, from the conflict
+                engine. Drawn behind the fan so the trajectory stays readable. */}
+            {conflictZones.map((z, i) => {
+              const x0 = clamp(xFrac(xOfYearAbs(z.startYear)), 0, 1) * VBW;
+              const x1 = clamp(xFrac(xOfYearAbs(z.endYear + 1)), 0, 1) * VBW;
+              if (x1 <= x0) return null;
+              const color = z.severity === "critical" ? "oklch(0.62 0.21 25)" : z.severity === "warning" ? "oklch(0.75 0.15 75)" : "oklch(0.65 0.05 250)";
+              return (
+                <g key={`cz-${i}`}>
+                  <rect x={x0} y={TOP_PAD * VBH * 0.4} width={x1 - x0} height={(1 - BOT_PAD - TOP_PAD * 0.4) * VBH}
+                    fill={color} opacity={z.severity === "critical" ? 0.10 : 0.08}>
+                    {z.label && <title>{z.label}</title>}
+                  </rect>
+                  <line x1={x0} x2={x0} y1={TOP_PAD * VBH * 0.4} y2={(1 - BOT_PAD) * VBH} stroke={color} strokeOpacity="0.35" strokeWidth="1" strokeDasharray="3 3" />
+                  <line x1={x1} x2={x1} y1={TOP_PAD * VBH * 0.4} y2={(1 - BOT_PAD) * VBH} stroke={color} strokeOpacity="0.35" strokeWidth="1" strokeDasharray="3 3" />
+                </g>
+              );
+            })}
             <path className="trjc-fan" d={paths.fan} fill="oklch(0.62 0.19 262 / 0.11)" />
             <path className="trjc-median" d={paths.median} fill="none" stroke="url(#trjcGrad)" strokeWidth="2.5" pathLength={1} strokeLinejoin="round" strokeLinecap="round" />
             <line x1="0" x2={VBW} y1={(1 - BOT_PAD) * VBH} y2={(1 - BOT_PAD) * VBH} stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
@@ -419,7 +446,7 @@ export default function TrajectoryChart({
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", padding: "8px 4px 6px" }}>
         <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>
-          {dragRetire ? "Drag the retirement line or any pin. Everything recomputes." : "Live from your plan: bands, events, and odds."}
+          {dragRetire ? "Drag the retirement line or any pin. Everything recomputes." : conflictZones.length > 0 ? `Live from your plan · shaded bands = ${conflictZones.length} pressure window${conflictZones.length > 1 ? "s" : ""} your conflict checks flagged` : "Live from your plan: bands, events, and odds."}
         </span>
         <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>optimistic / baseline / pessimistic</span>
       </div>

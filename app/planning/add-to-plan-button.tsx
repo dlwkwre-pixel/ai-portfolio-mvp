@@ -57,9 +57,9 @@ export default function AddToPlanButton({
       <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--green-bg)", border: "1px solid var(--green-border)" }}>
         <svg width="15" height="15" viewBox="0 0 20 20" fill="var(--green)" style={{ flexShrink: 0 }}><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
         <span style={{ fontSize: "12px", color: "var(--text-secondary)", flex: 1 }}>
-          Added to your plan for {year} — it now feeds your forecast.
+          Added to your plan for {year} — it now feeds your forecast and Life Plan timeline.
         </span>
-        <a href="/planning?tab=forecast" style={{ fontSize: "12px", fontWeight: 600, color: "var(--brand-blue)", textDecoration: "none", whiteSpace: "nowrap" }}>View forecast →</a>
+        <a href="/planning?tab=events" style={{ fontSize: "12px", fontWeight: 600, color: "var(--brand-blue)", textDecoration: "none", whiteSpace: "nowrap" }}>See your Life Plan →</a>
       </div>
     );
   }

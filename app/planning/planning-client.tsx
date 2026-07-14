@@ -6119,30 +6119,6 @@ export default function PlanningClient({
       : forecastBands.map((b) => ({ year: b.year, baseline: b.baseline, optimistic: b.optimistic, pessimistic: b.pessimistic }));
   }, [forecastBands, drawdown, retirementPoint, profile?.current_age, activeRetirementAge]);
 
-  // ── The wealth trajectory (shared hero) ────────────────────────────────────
-  // Interactive fan wired to the LIVE plan: forecast bands, real life events
-  // (committed + considering), the what-if retirement handle, and the drawdown
-  // verdict. Rendered on Overview and inside the Life Plan tab. Additive.
-  const trajectoryEl = (tab === "overview" || tab === "events") ? (
-    <TrajectoryChart
-      currentAge={profile?.current_age ?? null}
-      currentYear={currentYear}
-      retirementAge={activeRetirementAge}
-      baselineRetirementAge={profile?.target_retirement_age ?? null}
-      onRetirementAgeChange={(age) => setScenarioRetirementAge(age)}
-      onResetRetirementAge={() => setScenarioRetirementAge(profile?.target_retirement_age ?? null)}
-      bands={trajectoryBands}
-      retirementProb={retirementProb}
-      atRetirement={retirementPoint?.baseline ?? null}
-      lastsToAge={drawdown?.lastsToAge ?? null}
-      depletedAge={drawdown?.depletedAge ?? null}
-      drawdownEndAge={drawdown?.endAge ?? 95}
-      events={allFutureEvents ?? futureEvents}
-      onToggleEvent={async (id, included) => { await setFutureEventIncluded(id, included); }}
-      onMoveEvent={async (id, year) => { await updateFutureEventYear(id, year); }}
-      isPrivate={isPrivate}
-    />
-  ) : null;
   // Counterfactual with the Roth-conversion choice flipped — powers the "with vs without" comparison.
   const drawdownAlt = useMemo<DrawdownResult | null>(
     () => (drawdownParams ? simulateRetirementDrawdown({ ...drawdownParams, rothConversions: !drawdownParams.rothConversions }) : null), [drawdownParams]);
@@ -6596,6 +6572,45 @@ export default function PlanningClient({
       retirementProb, retirementPoint, healthData.total, profile?.current_age,
       activeRetirementAge, currentYear, savingsRate, effectiveIncome, liquidAssets,
       monthlySavings, effectiveExpenses, netWorth, localAssumptions.return_rate]);
+
+  // Conflict zones for the trajectory chart: each alert's flagged years become an
+  // amber/red band, so "where the plan is under pressure" is visible ON the plan.
+  const trajectoryConflictZones = useMemo(() => {
+    const zones: { startYear: number; endYear: number; severity: "critical" | "warning" | "info"; label?: string }[] = [];
+    for (const a of lifePlan.conflictAlerts) {
+      const yrs = (a.years ?? []).filter((y) => Number.isFinite(y) && y >= currentYear - 1);
+      if (yrs.length === 0) continue;
+      zones.push({ startYear: Math.min(...yrs), endYear: Math.max(...yrs), severity: a.severity, label: a.title });
+    }
+    return zones.slice(0, 6); // keep the chart readable
+  }, [lifePlan.conflictAlerts, currentYear]);
+
+  // ── The wealth trajectory (shared hero) ────────────────────────────────────
+  // Interactive fan wired to the LIVE plan: forecast bands, real life events
+  // (committed + considering), the what-if retirement handle, the drawdown verdict,
+  // and the conflict engine's pressure windows. Rendered on Overview and inside the
+  // Life Plan tab. Additive.
+  const trajectoryEl = (tab === "overview" || tab === "events") ? (
+    <TrajectoryChart
+      currentAge={profile?.current_age ?? null}
+      currentYear={currentYear}
+      retirementAge={activeRetirementAge}
+      baselineRetirementAge={profile?.target_retirement_age ?? null}
+      onRetirementAgeChange={(age) => setScenarioRetirementAge(age)}
+      onResetRetirementAge={() => setScenarioRetirementAge(profile?.target_retirement_age ?? null)}
+      bands={trajectoryBands}
+      retirementProb={retirementProb}
+      atRetirement={retirementPoint?.baseline ?? null}
+      lastsToAge={drawdown?.lastsToAge ?? null}
+      depletedAge={drawdown?.depletedAge ?? null}
+      drawdownEndAge={drawdown?.endAge ?? 95}
+      events={allFutureEvents ?? futureEvents}
+      onToggleEvent={async (id, included) => { await setFutureEventIncluded(id, included); }}
+      onMoveEvent={async (id, year) => { await updateFutureEventYear(id, year); }}
+      isPrivate={isPrivate}
+      conflictZones={trajectoryConflictZones}
+    />
+  ) : null;
 
   // Combine historical + deterministic forecast for chart
   const historyForChart = netWorthHistory.map((s) => ({
