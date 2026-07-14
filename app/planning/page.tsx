@@ -6,6 +6,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { ageFromDob } from "./planning-utils";
+import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -159,6 +160,11 @@ export default async function PlanningPage({
     sort_order: item.sort_order,
   }));
 
+  // Connected + manual bank balances join the sheet as read-only "linked:" items —
+  // net worth, buckets, health score, and forecasts all pick them up automatically.
+  const linkedBalanceItems = await getLinkedBalanceItems(user.id);
+  const mergedBalanceItems: BalanceSheetItem[] = [...typedBalanceItems, ...linkedBalanceItems];
+
   const typedCashFlowItems: CashFlowItem[] = (cashFlowItems ?? []).map((item) => ({
     id: item.id,
     user_id: item.user_id,
@@ -281,7 +287,7 @@ export default async function PlanningPage({
         <MobileNav />
         <PlanningClient
           profile={profile}
-          balanceItems={typedBalanceItems}
+          balanceItems={mergedBalanceItems}
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
           portfolioTotalValue={portfolioTotalValue}

@@ -98,6 +98,22 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
     finally { setBusy(null); }
   }
 
+  async function unlink(itemId: string) {
+    setBusy("refresh"); setErr(null); setMsg(null);
+    try {
+      const res = await fetch("/api/connections/plaid/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setErr(d.error ?? "Unlink failed."); return; }
+      setMsg("Bank unlinked — access revoked.");
+      router.refresh();
+    } catch { setErr("Network error."); }
+    finally { setBusy(null); }
+  }
+
   const hasAccounts = status.accounts.length > 0;
   const total = status.accounts.reduce((s, a) => {
     const bal = Number(a.balance_current ?? 0);
@@ -152,6 +168,24 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
             <p style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "8px" }}>
               Balances as of {new Date(lastSynced).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · read-only, BuyTune can never move money
             </p>
+          )}
+          {status.connections.length > 0 && (
+            <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              {status.connections.map((c) => (
+                <div key={c.itemId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                  <span style={{ fontSize: "10.5px", color: "var(--text-tertiary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.institution ?? "Linked bank"}{c.lastError ? " · sync issue" : ""}
+                  </span>
+                  <button
+                    type="button" disabled={busy !== null}
+                    onClick={() => { if (window.confirm(`Unlink ${c.institution ?? "this bank"}? BuyTune's access is revoked and its balances are removed.`)) void unlink(c.itemId); }}
+                    style={{ background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "10.5px", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px", padding: "2px 0", flexShrink: 0 }}
+                  >
+                    Unlink<span className="bt-sr-only"> {c.institution ?? "bank"}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
