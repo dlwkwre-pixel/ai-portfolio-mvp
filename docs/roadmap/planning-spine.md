@@ -1,6 +1,17 @@
 # Planning Spine — Master Life Roadmap + Forecast Write-Back
 
-**Status:** Spec (not yet built). First thrust of the Planning-as-flagship initiative.
+**Status: BUILT (verified 2026-07-13).** Delivered incrementally rather than as the collectLifeEvents() module below — the shipped shape:
+- Forecast write-back: `FutureEvent` gained `recurring_annual`/`end_year`/`included` (Committed vs Considering); the projection, Monte Carlo, and drawdown all consume recurring streams.
+- Every planner bridges into `planning_future_events`: `AddToPlanButton` (car, career, debt, sabbatical, wedding, relocation, business, elder-care, medical, rental) or bespoke actions (home `addFutureEvent` down-payment+equity, `addEducationToForecast`, `addFamilyToForecast`).
+- The living roadmap = the interactive TrajectoryChart (draggable event pins + retirement handle, live recompute) on Overview + Life Plan, with Committed/Considering lists.
+- Conflict engine (`computeConflictAlerts`) sees scenarios + all committed events; rules include clustered costs, home+infant, near-retirement expenses, emergency-reserve stress, career-gap×college, projected funding gaps.
+- **Final piece (commit 042869d):** conflict zones drawn ON the trajectory chart as amber/red bands (alert years → `conflictZones` prop), plus post-commit deep link to the Life Plan.
+
+Remaining ideas from this spec that were consciously NOT built: a separate MasterLifeRoadmap horizontal timeline (superseded by the trajectory chart; the component exists but is unused), per-planner "In your plan → retirement 92%" persistent write-back lines, and explore-preview deltas before committing.
+
+---
+
+*Original spec below (historical).*
 **Goal:** Turn 11 separate planners + 7 hub tabs into **one living plan**. Every life decision a user models should (a) re-draw the single master forecast and (b) appear on one visual lifetime timeline with conflict detection. This is the highest perceived-value move and mostly *unifies what already exists* rather than building new math.
 
 ## Why this first
