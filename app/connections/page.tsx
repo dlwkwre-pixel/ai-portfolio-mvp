@@ -7,6 +7,7 @@ import { getBrokerageStatus } from "@/lib/connections/snaptrade";
 import { getBankStatus } from "@/lib/connections/plaid";
 import SnaptradeConnect from "./snaptrade-connect";
 import PlaidConnect from "./plaid-connect";
+import ManualAccounts from "./manual-accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,13 @@ export default async function ConnectionsPage() {
   const cards = [
     { kind: "brokerage", on: hasBrokerage, emoji: "📈", title: "Brokerage", sub: "Robinhood & other brokerages", body: "Auto-import your holdings read-only, so your portfolio stays in sync without manual entry. Trades still happen in your brokerage app.", color: "#00d395" },
     { kind: "bank", on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#818cf8" },
+    { kind: "manual", on: true, emoji: "📝", title: "Other accounts", sub: "Anything you track by hand", body: "Balances no aggregator can reach — Robinhood spending, HSAs, cash. Quick manual updates that count toward your net worth.", color: "#fbbf24" },
   ];
+
+  // Manual rows live in the same table as Plaid accounts (item_id "manual") so net worth
+  // has one pipeline; the two cards just show their own slice.
+  const plaidAccounts = bankStatus.accounts.filter((a) => a.item_id !== "manual");
+  const manualAccounts = bankStatus.accounts.filter((a) => a.item_id === "manual");
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
@@ -50,7 +57,7 @@ export default async function ConnectionsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
             {cards.map((c) => {
-              const live = c.on && (c.kind === "brokerage" ? brokerageStatus.configured : bankStatus.configured);
+              const live = c.on && (c.kind === "manual" ? true : c.kind === "brokerage" ? brokerageStatus.configured : bankStatus.configured);
               return (
                 <div key={c.title} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "14px", padding: "18px", opacity: live ? 1 : 0.92 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
@@ -69,7 +76,9 @@ export default async function ConnectionsPage() {
                   {live && c.kind === "brokerage" ? (
                     <SnaptradeConnect status={brokerageStatus} />
                   ) : live && c.kind === "bank" ? (
-                    <PlaidConnect status={bankStatus} />
+                    <PlaidConnect status={{ ...bankStatus, accounts: plaidAccounts }} />
+                  ) : live && c.kind === "manual" ? (
+                    <ManualAccounts accounts={manualAccounts} />
                   ) : (
                     <button type="button" disabled title="Coming soon"
                       style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-tertiary)", fontSize: "13px", fontWeight: 600, cursor: "not-allowed", fontFamily: "var(--font-body)" }}>
