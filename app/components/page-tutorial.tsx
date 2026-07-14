@@ -27,6 +27,18 @@ export default function PageTutorial({ tutorialId }: { tutorialId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tutorialId]);
 
+  // Keyboard users can always escape the dialog (WCAG 2.1.2 — no keyboard trap).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      try { localStorage.setItem(`bt-tutorial-${tutorialId}`, "1"); } catch { /* ignore */ }
+      setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, tutorialId]);
+
   if (!tutorial || !open) return null;
 
   const steps = tutorial.steps;

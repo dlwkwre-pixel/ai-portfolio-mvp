@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -50,7 +51,8 @@ export default async function DebtPlanningPage() {
   })) as DebtScenario[];
 
   // Prefill debts from balance-sheet liabilities (APR/min are guesses to refine)
-  const prefillDebts: Debt[] = (balanceItems ?? [])
+  const allBalanceItems = [...(balanceItems ?? []), ...(await getLinkedBalanceItems(user.id))];
+  const prefillDebts: Debt[] = (allBalanceItems)
     .filter((i) => i.is_liability && Number(i.value) > 0 && DEBT_CATEGORIES.has((i.category ?? "").toLowerCase()))
     .map((i) => {
       const balance = Number(i.value);

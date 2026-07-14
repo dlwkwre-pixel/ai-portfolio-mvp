@@ -46,6 +46,15 @@ export default function FeedbackPrompt({ accountCreatedAt }: { accountCreatedAt:
     setOpen(false);
   }
 
+  // Keyboard users can always escape the dialog (WCAG 2.1.2 — no keyboard trap).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   async function submit() {
     if (rating < 1 || submitting) return;
     setSubmitting(true);

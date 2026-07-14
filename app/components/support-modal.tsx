@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 
 const AREAS = [
   { value: "dashboard",  label: "Dashboard" },
@@ -31,6 +31,15 @@ export default function SupportModal() {
     setOpen(false);
     setStatus("idle");
   }
+
+  // Keyboard users can always escape the dialog (WCAG 2.1.2 — no keyboard trap).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function handleSubmit() {
     if (!description.trim()) return;

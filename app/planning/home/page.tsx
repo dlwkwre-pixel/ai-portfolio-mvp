@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
@@ -104,7 +105,10 @@ export default async function HomePlanningPage() {
   const salaryGrowthRate = assumptionsData ? Number(assumptionsData.salary_growth_rate) : 0.02;
   const homeEvents: FutureEvent[] = (homeEventsData ?? []) as FutureEvent[];
   const lifeGoalEvents: FutureEvent[] = (lifeGoalEventsData ?? []) as FutureEvent[];
-  const balanceSheetItems = (balanceSheetData ?? []) as { label: string; category: string; value: number }[];
+  const balanceSheetItems = [
+    ...((balanceSheetData ?? []) as { label: string; category: string; value: number }[]),
+    ...(await getLinkedBalanceItems(user.id)).filter((i) => !i.is_liability),
+  ];
   const liquidAssets = balanceSheetItems
     .filter((i) => i.category === "cash")
     .reduce((s, i) => s + Number(i.value ?? 0), 0);
