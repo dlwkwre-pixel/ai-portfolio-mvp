@@ -7,7 +7,7 @@ import { reconstructValueSeries } from "./reconstruct";
 // logic changes shape (routing, return method, trimming): the background resync compares
 // the stamp on the latest synced snapshot and forces a rebuild when it's outdated — so
 // chart fixes self-apply on the next sync instead of waiting for a manual "Sync all now".
-const REBUILD_VERSION = 9;
+const REBUILD_VERSION = 10;
 const REBUILD_NOTES = `Synced from brokerage (v${REBUILD_VERSION})`;
 
 // Sync a linked portfolio's chart + return directly from the broker's data.
@@ -220,6 +220,58 @@ export async function rebuildLinkedPortfolioHistory(
 
 type Creds = { userId: string; userSecret: string };
 
+// Mirror brokerage-imported trades into holding_lots so tax features (basis, gains,
+// harvesting) run on real lots for linked portfolios. Lots we create are stamped in
+// notes and fully rebuilt each time — manual lots (from the manual trade flow) are
+// never touched, and re-running can't duplicate. Skipped silently if the table is
+// missing. Lots attach to the CURRENT holding row per ticker; fully-sold tickers have
+// no holding to attach to (FK) and are skipped.
+const BROKER_LOT_NOTES = "Imported from your brokerage.";
+
+export async function rebuildHoldingLots(portfolioId: string): Promise<number> {
+  const admin = createAdminClient();
+  try {
+    const [{ data: holdings }, { data: txns }] = await Promise.all([
+      admin.from("holdings").select("id, ticker").eq("portfolio_id", portfolioId),
+      admin.from("portfolio_transactions")
+        .select("ticker, transaction_type, quantity, price_per_share, traded_at")
+        .eq("portfolio_id", portfolioId).eq("notes", BROKER_LOT_NOTES)
+        .order("traded_at", { ascending: true }),
+    ]);
+    if (!holdings || holdings.length === 0 || !txns || txns.length === 0) return 0;
+
+    const holdingByTicker = new Map(holdings.map((h) => [String(h.ticker).toUpperCase(), h.id]));
+    const rows: Record<string, unknown>[] = [];
+    for (const t of txns) {
+      const ticker = String(t.ticker ?? "").toUpperCase();
+      const holdingId = holdingByTicker.get(ticker);
+      const qty = Number(t.quantity), px = Number(t.price_per_share);
+      const type = String(t.transaction_type ?? "").toLowerCase();
+      if (!holdingId || !(qty > 0) || !(px > 0) || (type !== "buy" && type !== "sell")) continue;
+      rows.push({
+        holding_id: holdingId,
+        portfolio_id: portfolioId,
+        ticker,
+        lot_type: type === "sell" ? "SELL" : "BUY",
+        purchased_at: (t.traded_at ? String(t.traded_at) : new Date().toISOString()).slice(0, 10),
+        shares: qty,
+        price_per_share: px,
+        notes: BROKER_LOT_NOTES,
+      });
+    }
+    if (rows.length === 0) return 0;
+
+    await admin.from("holding_lots").delete().eq("portfolio_id", portfolioId).eq("notes", BROKER_LOT_NOTES);
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await admin.from("holding_lots").insert(rows.slice(i, i + 500));
+      if (error) return 0; // table missing / constraint — leave things as they were
+    }
+    return rows.length;
+  } catch {
+    return 0;
+  }
+}
+
 // Import an account's new transaction activity into a target portfolio, deduped by
 // activity id. Dividends/interest/deposits/withdrawals/fees → cash_ledger; buys/sells
 // → portfolio_transactions. Skipped entirely if the dedup table is missing, so it can
@@ -373,7 +425,10 @@ export async function resyncBrokerageAccount(
     const { data: fed } = await admin.from("holdings").select("portfolio_id").eq("brokerage_account_id", accountId)
       .then((r) => r, () => ({ data: null }));
     for (const row of fed ?? []) if (row.portfolio_id && own.has(row.portfolio_id)) targets.add(row.portfolio_id);
-    for (const pid of targets) await rebuildLinkedPortfolioHistory(st, pid, creds, accountId);
+    for (const pid of targets) {
+      await rebuildLinkedPortfolioHistory(st, pid, creds, accountId);
+      await rebuildHoldingLots(pid); // tax lots from imported trades (best-effort)
+    }
   }
   return { updated, added, activities };
 }

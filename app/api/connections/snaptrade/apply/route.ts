@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getSnaptrade, fetchAccountPositions, fetchAccountCash } from "@/lib/connections/snaptrade";
-import { importAccountActivities, rebuildLinkedPortfolioHistory } from "@/lib/connections/sync";
+import { importAccountActivities, rebuildLinkedPortfolioHistory, rebuildHoldingLots } from "@/lib/connections/sync";
 
 export const maxDuration = 60;
 
@@ -100,6 +100,7 @@ export async function POST(req: Request) {
     if (defaultPortfolioId) rebuildTargets.add(defaultPortfolioId);
     for (const pid of rebuildTargets) {
       await rebuildLinkedPortfolioHistory(snaptrade, pid, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }, accountId);
+      await rebuildHoldingLots(pid); // tax lots from imported trades (best-effort)
     }
 
     await admin.from("brokerage_account_links").upsert(
