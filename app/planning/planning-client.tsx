@@ -7,6 +7,7 @@ import PageIntro from "@/app/components/page-intro";
 import PageTutorial from "@/app/components/page-tutorial";
 import LifePlanTab from "./life-plan-tab";
 import TrajectoryChart from "./trajectory-chart";
+import BankSpendingCard from "./bank-spending-card";
 import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
 // never ships in the initial /planning bundle — it's only needed on the Excel-export click.
@@ -8706,18 +8707,22 @@ export default function PlanningClient({
 
       {/* ── Tab: Cash Flow ── */}
       {tab === "cashflow" && (
-        <CashFlowOS
-          cashFlowItems={cashFlowItems}
-          expenseActuals={expenseActuals}
-          budgetHistory={budgetHistory}
-          effectiveIncome={effectiveIncome}
-          monthlyExpenses={monthlyExpenses}
-          monthlySavings={monthlySavings}
-          savingsRate={savingsRate}
-          cashFlowFinnInsight={cashFlowFinnInsight}
-          isPrivate={isPrivate}
-          guided={guided}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <CashFlowOS
+            cashFlowItems={cashFlowItems}
+            expenseActuals={expenseActuals}
+            budgetHistory={budgetHistory}
+            effectiveIncome={effectiveIncome}
+            monthlyExpenses={monthlyExpenses}
+            monthlySavings={monthlySavings}
+            savingsRate={savingsRate}
+            cashFlowFinnInsight={cashFlowFinnInsight}
+            isPrivate={isPrivate}
+            guided={guided}
+          />
+          {/* Live bank spending (Plaid Phase 3) — renders nothing without linked banks. */}
+          <BankSpendingCard isPrivate={isPrivate} />
+        </div>
       )}
 
       {/* ── Tab: Forecast ── */}

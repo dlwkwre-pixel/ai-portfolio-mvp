@@ -74,6 +74,105 @@ export async function getAccountBalances(accessToken: string): Promise<PlaidAcco
   return data.accounts ?? [];
 }
 
+// ── Transactions (Phase 3: cash-flow awareness) ────────────────────────────────
+// /transactions/sync with a per-Item cursor. Both the cursor and a rolling 120-day
+// transaction store live in the chart_cache KV — no new tables/migrations needed, and
+// the store rebuilds itself from Plaid if it's ever lost.
+
+export type BankTransaction = {
+  id: string;
+  date: string;              // YYYY-MM-DD (authorized date when present)
+  name: string;
+  merchant: string | null;
+  amount: number;            // Plaid convention: positive = money OUT, negative = money IN
+  category: string | null;   // personal_finance_category.primary (e.g. FOOD_AND_DRINK)
+  accountId: string;
+  itemId: string;
+  pending: boolean;
+};
+
+type PlaidTxn = {
+  transaction_id: string;
+  date: string;
+  authorized_date?: string | null;
+  name?: string | null;
+  merchant_name?: string | null;
+  amount: number;
+  personal_finance_category?: { primary?: string | null } | null;
+  account_id: string;
+  pending?: boolean;
+};
+
+async function kvGet<T>(key: string): Promise<T | null> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("chart_cache").select("result").eq("cache_key", key).maybeSingle();
+    return (data?.result as T) ?? null;
+  } catch { return null; }
+}
+
+async function kvSet(key: string, result: unknown): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin.from("chart_cache").upsert({
+      cache_key: key, result,
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "cache_key" });
+  } catch { /* non-fatal */ }
+}
+
+// Incrementally sync one Item's transactions into the user's rolling store.
+// Best-effort by design: throws only on unexpected shapes, and callers swallow.
+export async function syncBankTransactions(userId: string, itemId: string, accessToken: string): Promise<number> {
+  let cursor = (await kvGet<{ cursor?: string }>(`plaidcursor:${itemId}`))?.cursor ?? undefined;
+  const added: PlaidTxn[] = [];
+  const modified: PlaidTxn[] = [];
+  const removed: string[] = [];
+
+  for (let page = 0; page < 20; page++) {
+    const res = await plaidRequest<{
+      added: PlaidTxn[]; modified: PlaidTxn[]; removed: { transaction_id: string }[];
+      next_cursor: string; has_more: boolean;
+    }>("/transactions/sync", { access_token: accessToken, count: 250, ...(cursor ? { cursor } : {}) });
+    added.push(...(res.added ?? []));
+    modified.push(...(res.modified ?? []));
+    removed.push(...(res.removed ?? []).map((r) => r.transaction_id));
+    cursor = res.next_cursor;
+    if (!res.has_more) break;
+  }
+  await kvSet(`plaidcursor:${itemId}`, { cursor });
+
+  const storeKey = `plaidtxns:${userId}`;
+  const store = (await kvGet<{ txns?: BankTransaction[] }>(storeKey))?.txns ?? [];
+  const byId = new Map(store.map((t) => [t.id, t]));
+  const normalize = (t: PlaidTxn): BankTransaction => ({
+    id: t.transaction_id,
+    date: (t.authorized_date || t.date || "").slice(0, 10),
+    name: (t.merchant_name || t.name || "Transaction").slice(0, 80),
+    merchant: t.merchant_name?.slice(0, 80) ?? null,
+    amount: Math.round(Number(t.amount) * 100) / 100,
+    category: t.personal_finance_category?.primary ?? null,
+    accountId: t.account_id,
+    itemId,
+    pending: !!t.pending,
+  });
+  for (const t of [...added, ...modified]) { const n = normalize(t); if (n.date) byId.set(n.id, n); }
+  for (const id of removed) byId.delete(id);
+
+  const cutoff = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const txns = [...byId.values()]
+    .filter((t) => t.date >= cutoff)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 800);
+  await kvSet(storeKey, { txns });
+  return added.length + modified.length;
+}
+
+export async function getBankTransactions(userId: string): Promise<BankTransaction[]> {
+  return (await kvGet<{ txns?: BankTransaction[] }>(`plaidtxns:${userId}`))?.txns ?? [];
+}
+
 // Pull fresh balances for one connection and upsert them into bank_accounts.
 // Returns the number of accounts updated. Throws on Plaid errors (caller records them).
 export async function syncBankConnection(
@@ -100,6 +199,11 @@ export async function syncBankConnection(
   await admin.from("bank_connections")
     .update({ last_synced_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() })
     .eq("user_id", userId).eq("item_id", itemId).then((r) => r, () => ({}));
+
+  // Transactions ride along with every balance sync (exchange, manual refresh, daily
+  // cron) — incremental via cursor, so repeat syncs are cheap. Never fails the sync.
+  try { await syncBankTransactions(userId, itemId, accessToken); } catch { /* best-effort */ }
+
   return accounts.length;
 }
 
