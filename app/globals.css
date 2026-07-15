@@ -14,8 +14,8 @@
 
   --text-primary:   #f0f4ff;
   --text-secondary: #94a3b8;
-  --text-tertiary:  #475569;
-  --text-muted:     #2d3748;
+  --text-tertiary:  #6b7c94; /* was #475569 (2.6:1) — WCAG AA */
+  --text-muted:     #5b6b80; /* was #2d3748 (1.7:1) — AA-large */
 
   --brand-blue:     #2563eb;
   --brand-violet:   #7c3aed;
@@ -116,8 +116,8 @@
 
   --text-primary:   #111827;
   --text-secondary: #374151;
-  --text-tertiary:  #6b7280;
-  --text-muted:     #9ca3af;
+  --text-tertiary:  #5f6a7a; /* was #6b7280 (4.4:1) — WCAG AA */
+  --text-muted:     #767f8c; /* was #9ca3af (2.3:1) — AA-large */
 
   --card-bg:        #ffffff;
   --card-border:    rgba(0,0,0,0.08);
