@@ -138,7 +138,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
             </p>
           </div>
         ) : (
-          <p style={{ fontSize: "9.5px", color: "#475569", lineHeight: 1.35 }}>{badge.hint}</p>
+          <p style={{ fontSize: "9.5px", color: "var(--text-tertiary)", lineHeight: 1.35 }}>{badge.hint}</p>
         )}
       </div>
     </div>

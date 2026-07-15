@@ -8,7 +8,7 @@ export default function InvestmentDisclaimerPage() {
       <div style={{ marginBottom: "32px" }}>
         <div style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
         <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: "28px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: "8px" }}>Investment Disclaimer</h1>
-        <p style={{ fontSize: "13px", color: "#475569" }}>Effective date: {EFFECTIVE} &nbsp;·&nbsp; Governing law: Texas, United States</p>
+        <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>Effective date: {EFFECTIVE} &nbsp;·&nbsp; Governing law: Texas, United States</p>
       </div>
 
       <div style={{ padding: "14px 18px", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: "10px", marginBottom: "32px" }}>

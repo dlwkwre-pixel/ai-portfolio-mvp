@@ -80,9 +80,9 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       {/* Footer */}
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "24px 32px", textAlign: "center", fontSize: "12px", color: "#334155" }}>
         © 2026 BuyTune. All rights reserved. &nbsp;·&nbsp;
-        <Link href="/legal/terms" className="legal-link" style={{ color: "#475569" }}>Terms</Link> &nbsp;·&nbsp;
-        <Link href="/legal/privacy" className="legal-link" style={{ color: "#475569" }}>Privacy</Link> &nbsp;·&nbsp;
-        <Link href={backHref} style={{ color: "#475569", textDecoration: "none" }}>{backLabel}</Link>
+        <Link href="/legal/terms" className="legal-link" style={{ color: "var(--text-tertiary)" }}>Terms</Link> &nbsp;·&nbsp;
+        <Link href="/legal/privacy" className="legal-link" style={{ color: "var(--text-tertiary)" }}>Privacy</Link> &nbsp;·&nbsp;
+        <Link href={backHref} style={{ color: "var(--text-tertiary)", textDecoration: "none" }}>{backLabel}</Link>
       </div>
     </div>
   );

@@ -71,18 +71,18 @@ export default function ResetPasswordPage() {
               </svg>
             </div>
             <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Password updated</h2>
-            <p style={{ fontSize: "14px", color: "#64748b" }}>Redirecting you to your dashboard…</p>
+            <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Redirecting you to your dashboard…</p>
           </div>
         ) : (
           <>
             <div className="fu0" style={{ marginBottom: "32px" }}>
               <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Set a new password</h1>
-              <p style={{ fontSize: "14px", color: "#64748b" }}>Choose something strong you&apos;ll remember.</p>
+              <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Choose something strong you&apos;ll remember.</p>
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="fu1">
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>New password</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>New password</label>
                 <input
                   type="password"
                   value={password}
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
                 )}
               </div>
               <div className="fu2">
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>Confirm password</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>Confirm password</label>
                 <input
                   type="password"
                   value={confirm}

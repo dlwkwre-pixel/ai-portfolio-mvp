@@ -866,7 +866,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
               { key: "hot"     as const, label: "Hot",     count: hotCount,     color: "#ef4444", glow: true,  alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
               { key: "active"  as const, label: "Active",  count: activeCount,  color: "#3b82f6", glow: false, alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
               { key: "warming" as const, label: "Warming", count: warmingCount, color: "#f59e0b", glow: false, alpha: "0.08", alphaBold: "0.18", border: "0.22", borderBold: "0.55" },
-              { key: "signals" as const, label: "Any",     count: signalCount,  color: "#64748b", glow: false, alpha: "0.06", alphaBold: "0.14", border: "0.18", borderBold: "0.45" },
+              { key: "signals" as const, label: "Any",     count: signalCount,  color: "var(--text-tertiary)", glow: false, alpha: "0.06", alphaBold: "0.14", border: "0.18", borderBold: "0.45" },
             ].filter(({ count }) => count > 0).map(({ key, label, count, color, glow, alpha, alphaBold, border, borderBold }) => {
               const active = signalFilter === key;
               const hex = color.replace("#", "");

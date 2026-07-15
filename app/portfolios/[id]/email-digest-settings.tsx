@@ -173,7 +173,7 @@ export default function EmailDigestSettings({
           </span>
           <button
             onClick={() => setShowUnsubBanner(false)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: "16px", padding: "0 4px" }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "16px", padding: "0 4px" }}
           >
             ×
           </button>

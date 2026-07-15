@@ -130,10 +130,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               </svg>
             </div>
             <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Wrong account</h1>
-            <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.65, marginBottom: "6px" }}>
+            <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.65, marginBottom: "6px" }}>
               This portfolio link is for <strong style={{ color: "#94a3b8" }}>{hint}</strong>.
             </p>
-            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.6, marginBottom: "28px" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-tertiary)", lineHeight: 1.6, marginBottom: "28px" }}>
               You&apos;re signed in as a different account. Sign out and sign back in as <strong style={{ color: "#94a3b8" }}>{hint}</strong> to view this portfolio.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>

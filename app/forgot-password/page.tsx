@@ -62,10 +62,10 @@ export default function ForgotPasswordPage() {
               </svg>
             </div>
             <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Check your email</h2>
-            <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.65, marginBottom: "8px" }}>
+            <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.65, marginBottom: "8px" }}>
               We sent a reset link to <strong style={{ color: "#94a3b8" }}>{email}</strong>.
             </p>
-            <p style={{ fontSize: "13px", color: "#475569", lineHeight: 1.6 }}>
+            <p style={{ fontSize: "13px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>
               The link expires in 1 hour. Check your spam folder if you don&apos;t see it.
             </p>
             <Link href="/login" style={{ display: "inline-block", marginTop: "28px", fontSize: "13px", color: "#93c5fd", textDecoration: "none", fontWeight: 500 }}>
@@ -76,12 +76,12 @@ export default function ForgotPasswordPage() {
           <>
             <div className="fu0" style={{ marginBottom: "32px" }}>
               <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Forgot password?</h1>
-              <p style={{ fontSize: "14px", color: "#64748b" }}>Enter your email and we&apos;ll send a reset link.</p>
+              <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Enter your email and we&apos;ll send a reset link.</p>
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="fu1">
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>Email address</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>Email address</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" autoFocus />
               </div>
               {error && (
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
               <button type="submit" disabled={loading} className="sbtn">{loading ? "Sending…" : "Send reset link"}</button>
             </form>
 
-            <p style={{ textAlign: "center", fontSize: "13px", color: "#475569", marginTop: "24px" }}>
+            <p style={{ textAlign: "center", fontSize: "13px", color: "var(--text-tertiary)", marginTop: "24px" }}>
               Remember it?{" "}
               <Link href="/login" style={{ color: "#93c5fd", textDecoration: "none", fontWeight: 500 }}>Back to sign in</Link>
             </p>

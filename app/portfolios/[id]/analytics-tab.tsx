@@ -164,7 +164,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
               </div>
               <SplitBar segments={[
                 { label: "Value", pct: data.factors.style.value, color: "#10b981" },
-                { label: "Blend", pct: data.factors.style.blend, color: "#64748b" },
+                { label: "Blend", pct: data.factors.style.blend, color: "var(--text-tertiary)" },
                 { label: "Growth", pct: data.factors.style.growth, color: "#7c3aed" },
               ]} />
             </div>

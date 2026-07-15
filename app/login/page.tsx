@@ -141,12 +141,12 @@ function LoginForm() {
             </div>
           </div>
 
-          <p style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.6, marginTop: "18px" }}>
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.6, marginTop: "18px" }}>
             <strong style={{color:"#94a3b8",fontWeight:500}}>BuyTune recommends. You decide and act.</strong> No auto-trading, ever.
           </p>
         </div>
 
-        <div style={{ position: "relative", zIndex: 1, fontSize: "12px", color: "#64748b" }}>© 2026 BuyTune. All rights reserved.</div>
+        <div style={{ position: "relative", zIndex: 1, fontSize: "12px", color: "var(--text-tertiary)" }}>© 2026 BuyTune. All rights reserved.</div>
       </div>
 
       {/* Right panel */}
@@ -186,7 +186,7 @@ function LoginForm() {
             </div>
           </form>
 
-          <p style={{ textAlign: "center", fontSize: "11px", color: "#64748b", marginTop: "16px", lineHeight: 1.6 }}>
+          <p style={{ textAlign: "center", fontSize: "11px", color: "var(--text-tertiary)", marginTop: "16px", lineHeight: 1.6 }}>
             Free · No credit card required · No brokerage connection needed
           </p>
 

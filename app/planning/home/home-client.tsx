@@ -5908,7 +5908,7 @@ export default function HomeClient({
                   { label: "Down Payment", value: fmt(inputs.down_payment) },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "#94a3b8", marginTop: "1px" }}>{value}</div>
                   </div>
                 ))}
@@ -5922,7 +5922,7 @@ export default function HomeClient({
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Export to Excel
                 </button>
-                <button onClick={() => setShowAmortModal(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1px solid var(--line-008)", background: "transparent", color: "#64748b", fontSize: "18px", cursor: "pointer", transition: "color 0.15s, background 0.15s" }}>
+                <button onClick={() => setShowAmortModal(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "8px", border: "1px solid var(--line-008)", background: "transparent", color: "var(--text-tertiary)", fontSize: "18px", cursor: "pointer", transition: "color 0.15s, background 0.15s" }}>
                   ×
                 </button>
               </div>
@@ -5937,7 +5937,7 @@ export default function HomeClient({
                 { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", sub: "loan half paid off", accent: "#00d395" },
               ].map(({ label, value, sub, accent }, i) => (
                 <div key={label} style={{ padding: "14px 18px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined }}>
-                  <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#475569", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
                   <div style={{ fontSize: "10px", color: "#334155", marginTop: "3px", fontFamily: "var(--font-body)" }}>{sub}</div>
                 </div>
@@ -5984,11 +5984,11 @@ export default function HomeClient({
                         <td style={{ textAlign: "left", paddingLeft: "17px", color: isHoldYear ? "#60a5fa" : "#475569", fontWeight: isHoldYear ? 700 : 400 }}>
                           {row.year}{isHoldYear ? " ★" : ""}
                         </td>
-                        <td style={{ color: "#64748b" }}>{row.balance < 100 ? <span style={{ color: "#1e3a5f" }}>Paid off</span> : fmtK(row.balance)}</td>
+                        <td style={{ color: "var(--text-tertiary)" }}>{row.balance < 100 ? <span style={{ color: "#1e3a5f" }}>Paid off</span> : fmtK(row.balance)}</td>
                         <td style={{ color: "#3b82f6" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualPrincipal)}</td>
                         <td style={{ color: "oklch(0.68 0.16 25)" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualInterest)}</td>
-                        <td style={{ color: "#475569" }}>{fmtK(row.cumulativeInterest)}</td>
-                        <td style={{ color: "#64748b" }}>{fmtK(row.homeValue)}</td>
+                        <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.cumulativeInterest)}</td>
+                        <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.homeValue)}</td>
                         <td style={{ color: "#00d395", fontWeight: 600 }}>{fmtK(row.equity)}</td>
                         <td>
                           <span style={{

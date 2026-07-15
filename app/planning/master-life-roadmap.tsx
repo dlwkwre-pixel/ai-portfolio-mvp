@@ -29,7 +29,7 @@ const CAT = (c: string): { color: string; label: string } => {
   if (c === "career") return { color: "#06b6d4", label: "Career" };
   if (c === "relocation") return { color: "#818cf8", label: "Relocation" };
   if (c === "debt") return { color: "#fb7185", label: "Debt" };
-  return { color: "#64748b", label: "Other" };
+  return { color: "var(--text-tertiary)", label: "Other" };
 };
 
 function fmtK(n: number): string {

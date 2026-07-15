@@ -92,9 +92,9 @@ export default function MarketRibbon() {
           <div key={i} style={{
             display: "flex", alignItems: "center", gap: "8px",
             fontFamily: "'DM Mono', monospace", fontSize: "11px",
-            whiteSpace: "nowrap", color: "#475569",
+            whiteSpace: "nowrap", color: "var(--text-tertiary)",
           }}>
-            <span style={{ color: "#64748b", fontWeight: 500 }}>{q.ticker}</span>
+            <span style={{ color: "var(--text-tertiary)", fontWeight: 500 }}>{q.ticker}</span>
             {loading || q.price === 0 ? (
               <span style={{ color: "#1e293b" }}>—</span>
             ) : (

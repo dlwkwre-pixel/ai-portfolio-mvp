@@ -17,7 +17,7 @@ export default function OfflinePage() {
       <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "24px", fontWeight: 700, marginBottom: "8px" }}>
         You're offline
       </h1>
-      <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "320px", lineHeight: 1.6, marginBottom: "24px" }}>
+      <p style={{ fontSize: "15px", color: "var(--text-tertiary)", maxWidth: "320px", lineHeight: 1.6, marginBottom: "24px" }}>
         BuyTune needs an internet connection to fetch live market data and run AI analysis.
       </p>
       <button

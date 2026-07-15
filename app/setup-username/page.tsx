@@ -116,7 +116,7 @@ export default function UsernameSetupPage() {
           <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "8px" }}>
             Pick your username
           </h1>
-          <p style={{ fontSize: "14px", color: "#64748b", lineHeight: 1.6 }}>
+          <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>
             This is how you'll appear publicly in the BuyTune community.<br />Your email stays private.
           </p>
         </div>
@@ -124,11 +124,11 @@ export default function UsernameSetupPage() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Username field */}
           <div className="fu2">
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>
               Username
             </label>
             <div style={{ position: "relative" }}>
-              <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontFamily: "'DM Mono', monospace", fontSize: "14px", color: "#475569", pointerEvents: "none" }}>
+              <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontFamily: "'DM Mono', monospace", fontSize: "14px", color: "var(--text-tertiary)", pointerEvents: "none" }}>
                 @
               </div>
               <input
@@ -144,7 +144,7 @@ export default function UsernameSetupPage() {
               />
               {/* Status indicator */}
               <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)" }}>
-                {checking && <span style={{ fontSize: "11px", color: "#475569" }}>checking...</span>}
+                {checking && <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>checking...</span>}
                 {!checking && available === true && (
                   <span style={{ fontSize: "11px", color: "#00d395", display: "flex", alignItems: "center", gap: "4px" }}>
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
@@ -163,7 +163,7 @@ export default function UsernameSetupPage() {
 
           {/* Display name */}
           <div className="fu3">
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>
               Display name <span style={{ color: "#334155" }}>(optional)</span>
             </label>
             <input
@@ -178,7 +178,7 @@ export default function UsernameSetupPage() {
 
           {/* Bio */}
           <div className="fu3">
-            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "6px" }}>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", marginBottom: "6px" }}>
               Bio <span style={{ color: "#334155" }}>(optional)</span>
             </label>
             <textarea

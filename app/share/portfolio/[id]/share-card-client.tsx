@@ -208,7 +208,7 @@ export default function ShareCardClient({
           <div
             style={{
               fontSize: "9px",
-              color: "#475569",
+              color: "var(--text-tertiary)",
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
@@ -231,7 +231,7 @@ export default function ShareCardClient({
             {pub.public_name}
           </h1>
           {pub.public_description && (
-            <p style={{ fontSize: "12px", color: "#64748b", margin: "0", lineHeight: 1.5 }}>
+            <p style={{ fontSize: "12px", color: "var(--text-tertiary)", margin: "0", lineHeight: 1.5 }}>
               {pub.public_description}
             </p>
           )}
@@ -256,7 +256,7 @@ export default function ShareCardClient({
                 <div
                   style={{
                     fontSize: "9px",
-                    color: "#475569",
+                    color: "var(--text-tertiary)",
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
@@ -292,7 +292,7 @@ export default function ShareCardClient({
                   <div
                     style={{
                       fontSize: "9px",
-                      color: "#475569",
+                      color: "var(--text-tertiary)",
                       fontWeight: 700,
                       textTransform: "uppercase",
                       letterSpacing: "0.08em",
@@ -306,7 +306,7 @@ export default function ShareCardClient({
                       fontFamily: "'DM Mono', monospace",
                       fontSize: "clamp(24px, 6vw, 30px)",
                       fontWeight: 600,
-                      color: "#64748b",
+                      color: "var(--text-tertiary)",
                       letterSpacing: "-0.8px",
                       lineHeight: 1,
                     }}
@@ -350,7 +350,7 @@ export default function ShareCardClient({
                   justifyContent: "space-between",
                 }}
               >
-                <span style={{ fontSize: "12px", color: "#64748b" }}>
+                <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
                   vs {pub.benchmark_symbol ?? "market"} all-time
                 </span>
                 <span
@@ -390,7 +390,7 @@ export default function ShareCardClient({
                 <div
                   style={{
                     fontSize: "9px",
-                    color: "#475569",
+                    color: "var(--text-tertiary)",
                     fontWeight: 700,
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
@@ -440,7 +440,7 @@ export default function ShareCardClient({
                           width: "36px",
                           fontSize: "10px",
                           fontFamily: "'DM Mono', monospace",
-                          color: "#475569",
+                          color: "var(--text-tertiary)",
                           textAlign: "right",
                           flexShrink: 0,
                         }}
@@ -469,7 +469,7 @@ export default function ShareCardClient({
                 background: "oklch(0.15 0.012 250)",
                 border: "1px solid oklch(0.2 0.012 250)",
                 fontSize: "13px",
-                color: "#475569",
+                color: "var(--text-tertiary)",
                 textAlign: "center",
               }}
             >

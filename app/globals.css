@@ -180,6 +180,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ── Legacy Tailwind gray text → contrast-safe tokens ──
+   text-slate-500 (4.2:1) and text-slate-600 (2.6:1) fail WCAG AA on the dark base and
+   are baked into ~285 call sites. These unlayered rules beat Tailwind's layered
+   utilities by the cascade, remapping both to --text-tertiary (AA in both themes)
+   without touching any component. text-slate-400 already passes and keeps its value. */
+.text-slate-500, .text-slate-600 { color: var(--text-tertiary); }
+
 /* ── Light-mode overrides for Tailwind white-alpha utilities ──
    These utilities (bg-white/N, border-white/N) bake in white, which is
    invisible on a light background. The rules below are unlayered, so they beat
