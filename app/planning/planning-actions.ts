@@ -623,6 +623,9 @@ export async function addFutureEvent(formData: FormData): Promise<{ error?: stri
   // working even before the recurring migration is applied.
   const row: Record<string, unknown> = { user_id: user.id, label, event_year, amount_impact, category, sort_order };
   if (recurring_annual != null) { row.recurring_annual = recurring_annual; row.end_year = end_year; }
+  // "Preview first" adds the event as Considering (excluded from the forecast) so the
+  // user can toggle its pin on the trajectory and watch the impact live before committing.
+  if (String(formData.get("included") ?? "") === "false") row.included = false;
   // New events start as "Considering" (draft) so adding a plan never silently
   // moves the retirement number. Callers can pass included="true" to commit now.
   row.included = String(formData.get("included") ?? "") === "true";
