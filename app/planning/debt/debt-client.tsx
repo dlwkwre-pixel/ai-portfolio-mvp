@@ -239,7 +239,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {debts.map((d, i) => (
               <div key={i} data-debt-grid style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 0.8fr 1fr 28px", gap: "8px", alignItems: "center" }}>
-                <input style={inputStyle} placeholder="e.g. Chase card" value={d.name} onChange={(e) => updateDebt(i, { name: e.target.value })} />
+                <input aria-label="e.g. Chase card" style={inputStyle} placeholder="e.g. Chase card" value={d.name} onChange={(e) => updateDebt(i, { name: e.target.value })} />
                 <input style={inputStyle} type="number" min="0" placeholder="0" value={d.balance || ""} onChange={(e) => updateDebt(i, { balance: Number(e.target.value) })} />
                 <input style={inputStyle} type="number" min="0" step="0.1" placeholder="0" value={d.apr || ""} onChange={(e) => updateDebt(i, { apr: Number(e.target.value) })} />
                 <input style={inputStyle} type="number" min="0" placeholder="0" value={d.min_payment || ""} onChange={(e) => updateDebt(i, { min_payment: Number(e.target.value) })} />

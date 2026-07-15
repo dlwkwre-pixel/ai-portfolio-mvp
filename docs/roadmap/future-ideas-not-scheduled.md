@@ -26,24 +26,25 @@ the endpoint before committing.
    built; lowest ROI of the set, recommend skipping (overlaps existing surfaces).
 9. ✅ **Insider-transaction tracker** — ALREADY BUILT (Research "Insider Activity" panel + per-holding
    InsiderPanel + fed into AI). getFinnhubInsiderTransactions, /api/insider/[ticker].
-10. **Per-portfolio stress test** — STILL TODO. Fold a compact stress card into the Analytics tab
-    (recommended; keep the account-wide one on the dashboard). FREE, cheap.
+10. ✅ **Per-portfolio stress test** — SHIPPED. StressTestSection renders on both the portfolio
+    detail page and the dashboard (account-wide).
 
-## PAID / blocked — out of scope unless we accept a cost
+## PAID / blocked — status updated 2026-07-14
 
-11. **Brokerage account sync (SnapTrade / Plaid)** — auto-import real holdings + transactions. The
-    single most-requested-type feature, but every aggregator with real coverage is paid. DROPPED
-    until we're willing to pay for an aggregator.
-12. **Robinhood integration** — no public/free developer API. ON HOLD until Robinhood ships one.
-13. **ESG / sustainability scoring** — requires a paid ESG data vendor.
-14. **ETF expense-ratio / fee-drag analyzer** — needs reliable fund expense + holdings data; not
-    dependable on our free tier (would need a paid fund-data source for accuracy).
-15. **Multi-currency / international accounts** — needs a live FX-rate feed (paid for reliable rates)
-    and broader instrument coverage.
-16. **Crypto holdings support** — needs a crypto price feed (free options exist but rate-limited and
-    unreliable; treat as a separate evaluation).
-17. **Real-time intraday streaming quotes** — websocket/real-time tiers are paid; we use cached
-    REST quotes by design.
+11. ✅ **Brokerage account sync (SnapTrade)** — SHIPPED 2026-07. Read-only Robinhood sync on the
+    free tier (1 user / 5 connections): reconcile-in-place import, split-account support, linked
+    mirrors (edit-locked), auto-sync (cron + on-open), reconstructed value/return model, tax lots.
+    Paid (~.50/user/mo) only when a second user connects.
+12. ✅ **Plaid bank connections** — SHIPPED 2026-07 (Trial = 10 free Items): balances + manual
+    accounts + transactions → Cash Flow (spending card, Subscription Radar), net-worth/planning
+    integration. Robinhood's *banking* side is NOT on Plaid — manual account covers it.
+13. **ESG / sustainability scoring** — requires a paid ESG data vendor. Still blocked.
+14. **ETF expense-ratio / fee-drag analyzer** — needs reliable paid fund data. Still blocked.
+15. **Multi-currency / international accounts** — needs a paid FX feed. Still blocked.
+16. ✅ **Crypto holdings support** — SHIPPED for linked portfolios: CoinGecko daily closes power
+    reconstruction/returns; live quotes already existed for valuation.
+17. **Real-time intraday streaming quotes** — websocket/real-time tiers are paid; cached REST by
+    design. Still out of scope.
 
 ## Notes
 - The FREE list is genuinely shippable; the only reason these aren't in the active backlog is

@@ -1718,7 +1718,7 @@ function AddItemRow({
               <option key={val} value={val}>{lbl}</option>
             ))}
           </select>
-          <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" required style={{ ...inputStyle, width: "120px" }} />
+          <input aria-label="Value ($)" name="value" type="number" min="0" step="0.01" placeholder="Value ($)" required style={{ ...inputStyle, width: "120px" }} />
           {sectionType !== "liability" && LIQUID_ASSET_CATS.has(cat) && (
             <select key={cat} name="tax_treatment" style={selectStyle} defaultValue={defaultTaxTreatment(cat)} title="How this account is taxed — used for tax-aware retirement modeling">
               {TAX_TREATMENT_OPTIONS.map(([val, lbl]) => (
@@ -1736,7 +1736,7 @@ function AddItemRow({
           <select name="frequency" style={selectStyle} defaultValue="monthly">
             {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
           </select>
-          <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" required style={{ ...inputStyle, width: "120px" }} />
+          <input aria-label="Amount" name="amount" type="number" min="0" step="0.01" placeholder="Amount" required style={{ ...inputStyle, width: "120px" }} />
         </>
       )}
 
@@ -1823,7 +1823,7 @@ function LineItemRow({
               {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
             </select>
             <input name="amount" type="number" min="0" step="0.01" defaultValue={cf.amount} style={{ ...inputStyle, width: "120px" }} />
-            <input name="due_day" type="number" min="1" max="31" defaultValue={cf.due_day ?? ""} placeholder="Due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
+            <input aria-label="Due day (1–31)" name="due_day" type="number" min="1" max="31" defaultValue={cf.due_day ?? ""} placeholder="Due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
             {cf.type === "income" && (
               <>
                 <input type="hidden" name="is_variable" value={isVar ? "1" : "0"} />
@@ -2183,17 +2183,17 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Retire At</label>
-                    <input name="target_retirement_age" type="number" min="40" max="85" defaultValue={profile?.target_retirement_age ?? 65} placeholder="65" style={fieldStyle} />
+                    <input aria-label="65" name="target_retirement_age" type="number" min="40" max="85" defaultValue={profile?.target_retirement_age ?? 65} placeholder="65" style={fieldStyle} />
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Gross Monthly Income</label>
-                    <input name="gross_monthly_income" type="number" min="0" step="100" placeholder="e.g. 8500" defaultValue={profile?.gross_monthly_income ?? ""} style={fieldStyle} />
+                    <input aria-label="e.g. 8500" name="gross_monthly_income" type="number" min="0" step="100" placeholder="e.g. 8500" defaultValue={profile?.gross_monthly_income ?? ""} style={fieldStyle} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Monthly Expenses</label>
-                    <input name="monthly_expenses" type="number" min="0" step="100" placeholder="e.g. 3500" defaultValue={profile?.monthly_expenses ?? ""} style={fieldStyle} />
+                    <input aria-label="e.g. 3500" name="monthly_expenses" type="number" min="0" step="100" placeholder="e.g. 3500" defaultValue={profile?.monthly_expenses ?? ""} style={fieldStyle} />
                   </div>
                 </div>
                 <div>
@@ -2234,9 +2234,9 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
             )}
             <form ref={incomeFormRef} onSubmit={(e) => handleAddCf(e, "income", incomeFormRef as React.RefObject<HTMLFormElement>, setWizardIncome)}
               style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
-              <input name="label" placeholder="Income source (e.g. Salary)" style={fieldStyle} />
+              <input aria-label="Income source" name="label" placeholder="Income source (e.g. Salary)" style={fieldStyle} />
               <div style={{ display: "flex", gap: "8px" }}>
-                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
+                <input aria-label="Amount" name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
                 <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
                   {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
                 </select>
@@ -2270,9 +2270,9 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
             )}
             <form ref={expenseFormRef} onSubmit={(e) => handleAddCf(e, "expense", expenseFormRef as React.RefObject<HTMLFormElement>, setWizardExpenses)}
               style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
-              <input name="label" placeholder="Expense (e.g. Rent, Groceries)" style={fieldStyle} />
+              <input aria-label="Expense" name="label" placeholder="Expense (e.g. Rent, Groceries)" style={fieldStyle} />
               <div style={{ display: "flex", gap: "8px" }}>
-                <input name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
+                <input aria-label="Amount" name="amount" type="number" min="0" step="0.01" placeholder="Amount" style={{ ...fieldStyle, flex: 1 }} />
                 <select name="frequency" defaultValue="monthly" style={{ ...fieldStyle, flex: "0 0 auto", width: "auto" }}>
                   {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
                 </select>
@@ -2311,13 +2311,13 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
                 <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--green)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Asset</div>
                 <form ref={assetFormRef} onSubmit={(e) => handleAddBalance(e, "asset", assetFormRef as React.RefObject<HTMLFormElement>)}
                   style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <input name="label" placeholder="e.g. Savings account" style={fieldStyle} />
+                  <input aria-label="e.g. Savings account" name="label" placeholder="e.g. Savings account" style={fieldStyle} />
                   <select name="category" defaultValue="cash" style={fieldStyle}>
                     {ASSET_CATEGORIES.map(([val, lbl]) => (
                       <option key={val} value={val}>{lbl}</option>
                     ))}
                   </select>
-                  <input name="value" type="number" min="0" step="0.01" placeholder="Value ($)" style={fieldStyle} />
+                  <input aria-label="Value ($)" name="value" type="number" min="0" step="0.01" placeholder="Value ($)" style={fieldStyle} />
                   <button type="submit" disabled={itemPending} style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "7px 0" }}>Add Asset</button>
                 </form>
               </div>
@@ -2325,8 +2325,8 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
                 <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--red)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Debt</div>
                 <form ref={debtFormRef} onSubmit={(e) => handleAddBalance(e, "debt", debtFormRef as React.RefObject<HTMLFormElement>)}
                   style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <input name="label" placeholder="e.g. Student loan" style={fieldStyle} />
-                  <input name="value" type="number" min="0" step="0.01" placeholder="Balance owed ($)" style={fieldStyle} />
+                  <input aria-label="e.g. Student loan" name="label" placeholder="e.g. Student loan" style={fieldStyle} />
+                  <input aria-label="Balance owed ($)" name="value" type="number" min="0" step="0.01" placeholder="Balance owed ($)" style={fieldStyle} />
                   <button type="submit" disabled={itemPending} style={{ ...btnSecondaryStyle, fontSize: "11px", padding: "7px 0", borderColor: "rgba(239,68,68,0.4)", color: "var(--red)" }}>Add Debt</button>
                 </form>
               </div>
@@ -8036,15 +8036,15 @@ export default function PlanningClient({
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Name</label>
-                      <input name="partner_name" type="text" placeholder="e.g. Alex" defaultValue={profile?.partner_name ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                      <input aria-label="e.g. Alex" name="partner_name" type="text" placeholder="e.g. Alex" defaultValue={profile?.partner_name ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Age</label>
-                      <input name="partner_age" type="number" min="18" max="100" placeholder="e.g. 34" defaultValue={profile?.partner_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                      <input aria-label="e.g. 34" name="partner_age" type="number" min="18" max="100" placeholder="e.g. 34" defaultValue={profile?.partner_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Partner Retire At</label>
-                      <input name="partner_target_retirement_age" type="number" min="40" max="85" placeholder="e.g. 62" defaultValue={profile?.partner_target_retirement_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
+                      <input aria-label="e.g. 62" name="partner_target_retirement_age" type="number" min="40" max="85" placeholder="e.g. 62" defaultValue={profile?.partner_target_retirement_age ?? ""} style={{ ...inputStyle, minWidth: "unset", width: "100%" }} />
                     </div>
                   </div>
                 </div>

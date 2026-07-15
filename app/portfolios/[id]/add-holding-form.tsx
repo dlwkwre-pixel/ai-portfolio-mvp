@@ -110,18 +110,18 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
 
             <div>
               <label className={labelClass}>Shares *</label>
-              <input name="shares" type="number" step="0.000001" min="0" placeholder="10" className={inputClass} required />
+              <input aria-label="10" name="shares" type="number" step="0.000001" min="0" placeholder="10" className={inputClass} required />
             </div>
 
             <div>
               <label className={labelClass}>{assetType === "manual" ? "Purchase NAV *" : "Avg Cost Basis *"}</label>
-              <input name="average_cost_basis" type="number" step="0.000001" min="0" placeholder="185.50" className={inputClass} required />
+              <input aria-label="185.50" name="average_cost_basis" type="number" step="0.000001" min="0" placeholder="185.50" className={inputClass} required />
             </div>
 
             {assetType === "manual" && (
               <div>
                 <label className={labelClass}>Current NAV *</label>
-                <input name="manual_price" type="number" step="0.000001" min="0" placeholder="192.40" className={inputClass} required />
+                <input aria-label="192.40" name="manual_price" type="number" step="0.000001" min="0" placeholder="192.40" className={inputClass} required />
                 <p className="mt-1 text-xs text-slate-500">Latest price per share from your statement.</p>
               </div>
             )}
@@ -133,7 +133,7 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
 
             <div className="sm:col-span-2 lg:col-span-3">
               <label className={labelClass}>Notes</label>
-              <textarea name="notes" placeholder="Starter position, long-term compounder..." className={`${inputClass} min-h-16`} />
+              <textarea aria-label="Starter position, long-term compounder" name="notes" placeholder="Starter position, long-term compounder..." className={`${inputClass} min-h-16`} />
             </div>
 
             {errorMessage && (
@@ -234,7 +234,7 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
 
           <div>
             <label className={labelClass}>Company Name</label>
-            <input name="company_name" type="text" defaultValue={holding.company_name || ""} placeholder="Apple Inc." className={inputClass} />
+            <input aria-label="Apple Inc." name="company_name" type="text" defaultValue={holding.company_name || ""} placeholder="Apple Inc." className={inputClass} />
           </div>
 
           <div>
@@ -262,7 +262,7 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
           {assetType === "manual" && (
             <div>
               <label className={labelClass}>Current NAV</label>
-              <input name="manual_price" type="number" step="0.000001" min="0" defaultValue={holding.manual_price ?? ""} placeholder="192.40" className={inputClass} required />
+              <input aria-label="192.40" name="manual_price" type="number" step="0.000001" min="0" defaultValue={holding.manual_price ?? ""} placeholder="192.40" className={inputClass} required />
             </div>
           )}
 
@@ -278,7 +278,7 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
 
           <div className="sm:col-span-2">
             <label className={labelClass}>Notes</label>
-            <input name="notes" type="text" defaultValue={holding.notes || ""} placeholder="Optional notes" className={inputClass} />
+            <input aria-label="Optional notes" name="notes" type="text" defaultValue={holding.notes || ""} placeholder="Optional notes" className={inputClass} />
           </div>
 
           {errorMessage && (

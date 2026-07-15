@@ -660,7 +660,7 @@ export default function ConceptClient() {
                     ))}
                   </div>
                   <div style={{ display: "flex", gap: "8px" }}>
-                    <input disabled placeholder="Ask Atlas about your plan (concept preview)" style={{ flex: 1, padding: "12px 14px", borderRadius: "12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: "13px", fontFamily: "var(--font-body)", outline: "none" }} />
+                    <input aria-label="Ask Atlas about your plan (concept preview)" disabled placeholder="Ask Atlas about your plan (concept preview)" style={{ flex: 1, padding: "12px 14px", borderRadius: "12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)", fontSize: "13px", fontFamily: "var(--font-body)", outline: "none" }} />
                     <button type="button" disabled style={{ padding: "0 18px", borderRadius: "12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-tertiary)", fontSize: "12.5px", fontWeight: 700, fontFamily: "var(--font-body)" }}>Send</button>
                   </div>
                 </div>

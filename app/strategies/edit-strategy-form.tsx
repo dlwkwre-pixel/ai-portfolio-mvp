@@ -49,7 +49,7 @@ export default function NewStrategyForm() {
           >
             <div>
               <label className={labelClass}>Strategy Name *</label>
-              <input name="name" type="text" placeholder="Growth Core" className={inputClass} required />
+              <input aria-label="Growth Core" name="name" type="text" placeholder="Growth Core" className={inputClass} required />
             </div>
 
             <div>
@@ -82,7 +82,7 @@ export default function NewStrategyForm() {
 
             <div>
               <label className={labelClass}>Max Position %</label>
-              <input name="max_position_pct" type="number" step="0.01" min="0" placeholder="15" className={inputClass} />
+              <input aria-label="15" name="max_position_pct" type="number" step="0.01" min="0" placeholder="15" className={inputClass} />
             </div>
 
             <div>
@@ -97,12 +97,12 @@ export default function NewStrategyForm() {
 
             <div>
               <label className={labelClass}>Cash Max %</label>
-              <input name="cash_max_pct" type="number" step="0.01" min="0" placeholder="20" className={inputClass} />
+              <input aria-label="20" name="cash_max_pct" type="number" step="0.01" min="0" placeholder="20" className={inputClass} />
             </div>
 
             <div className="md:col-span-2">
               <label className={labelClass}>Description</label>
-              <textarea name="description" placeholder="Concentrated growth strategy focused on quality compounders." spellCheck={true} className={`${inputClass} min-h-20`} />
+              <textarea aria-label="Concentrated growth strategy focused on quality compounders." name="description" placeholder="Concentrated growth strategy focused on quality compounders." spellCheck={true} className={`${inputClass} min-h-20`} />
             </div>
 
             <div className="md:col-span-2">

@@ -378,7 +378,7 @@ function EstatePlanningTab({
               </div>
               <div>
                 <div style={labelStyle}>Notes / instructions</div>
-                <textarea name="notes" defaultValue={estateProfile?.notes ?? ""} rows={3} placeholder="e.g. Safe deposit box location, digital password manager, specific bequests…" style={{ ...inputStyle, resize: "vertical" }} />
+                <textarea aria-label="e.g. Safe deposit box location, digital password manager, specific bequests" name="notes" defaultValue={estateProfile?.notes ?? ""} rows={3} placeholder="e.g. Safe deposit box location, digital password manager, specific bequests…" style={{ ...inputStyle, resize: "vertical" }} />
               </div>
             </div>
 

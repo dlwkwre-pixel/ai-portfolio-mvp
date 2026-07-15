@@ -470,7 +470,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
               >
                 <div>
                   <label className={lbl}>Strategy name *</label>
-                  <input name="name" type="text" placeholder="My Strategy" className={inp} required />
+                  <input aria-label="My Strategy" name="name" type="text" placeholder="My Strategy" className={inp} required />
                 </div>
                 <div>
                   <label className={lbl}>Style</label>
@@ -498,7 +498,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 </div>
                 <div>
                   <label className={lbl}>Max single holding %</label>
-                  <input name="max_position_pct" type="number" step="1" min="0" max="100" placeholder="15" className={inp} />
+                  <input aria-label="15" name="max_position_pct" type="number" step="1" min="0" max="100" placeholder="15" className={inp} />
                 </div>
                 <div>
                   <label className={lbl}>Keep in cash (min) %</label>
@@ -506,18 +506,18 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 </div>
                 <div>
                   <label className={lbl}>Keep in cash (max) %</label>
-                  <input name="cash_max_pct" type="number" step="1" min="0" placeholder="20" className={inp} />
+                  <input aria-label="20" name="cash_max_pct" type="number" step="1" min="0" placeholder="20" className={inp} />
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className={lbl}>Description</label>
-                  <textarea name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[56px]`} />
+                  <textarea aria-label="A brief description of this strategy's focus." name="description" placeholder="A brief description of this strategy's focus." className={`${inp} min-h-[56px]`} />
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label className={lbl}>AI instructions</label>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "5px" }}>
                     Sent to the AI when analyzing portfolios using this strategy.
                   </p>
-                  <textarea name="prompt_text" placeholder="Prioritize quality growth companies with durable moats..." className={`${inp} min-h-[72px]`} />
+                  <textarea aria-label="Prioritize quality growth companies with durable moats" name="prompt_text" placeholder="Prioritize quality growth companies with durable moats..." className={`${inp} min-h-[72px]`} />
                 </div>
                 {manualError && (
                   <div style={{ gridColumn: "1 / -1", fontSize: "12px", color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", borderRadius: "var(--radius-md)", padding: "8px 12px" }}>{manualError}</div>
