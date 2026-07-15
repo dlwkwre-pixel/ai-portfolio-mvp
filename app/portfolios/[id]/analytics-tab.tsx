@@ -19,7 +19,9 @@ type FactorTilt = {
   weightedMomentum: number | null;
   headline: string;
 };
-type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; holdings?: SimHolding[]; totalValue: number };
+type HarvestCandidate = { ticker: string; purchasedAt: string; shares: number; costPerShare: number; price: number; loss: number; longTerm: boolean; washSaleRisk: boolean };
+type Harvest = { taxable: boolean; totalLoss: number; stLoss: number; ltLoss: number; candidates: HarvestCandidate[] };
+type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; holdings?: SimHolding[]; totalValue: number; harvest?: Harvest | null };
 
 const PALETTE = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b", "#84cc16", "#a855f7"];
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -246,6 +248,54 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           </>
         )}
       </div>
+
+      {/* Tax-loss harvesting scanner (taxable accounts with real lots) */}
+      {data.harvest && data.harvest.taxable && data.harvest.candidates.length > 0 && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+          <h2 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", display: "flex", alignItems: "center" }}>
+            Tax-loss harvesting <Hint text="Lots trading below what you paid. Selling them realizes a loss that can offset capital gains (and up to $3,000/yr of ordinary income). ⚠ wash sale = you bought this ticker within the last 30 days, so selling now would disallow the loss. Not tax advice — timing and your full tax picture matter." />
+          </h2>
+          <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 12px" }}>
+            Harvestable losses: <strong style={{ fontFamily: "var(--font-mono)", color: "var(--red, #f87171)" }}>${data.harvest.totalLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+            {" "}(<span style={{ fontFamily: "var(--font-mono)" }}>${data.harvest.stLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> short-term · <span style={{ fontFamily: "var(--font-mono)" }}>${data.harvest.ltLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> long-term)
+          </p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px" }}>
+              <thead>
+                <tr>
+                  {["Ticker", "Bought", "Shares", "Cost", "Now", "Loss", "Term", ""].map((h) => (
+                    <th key={h} style={{ textAlign: h === "Ticker" ? "left" : "right", padding: "5px 8px", fontSize: "9.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.harvest.candidates.map((c, i) => (
+                  <tr key={`${c.ticker}-${c.purchasedAt}-${i}`}>
+                    <td style={{ padding: "7px 8px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", borderBottom: "1px solid var(--border-subtle)" }}>{c.ticker}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>{c.purchasedAt}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>{c.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>${c.costPerShare.toLocaleString()}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>${c.price.toLocaleString()}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--red, #f87171)", borderBottom: "1px solid var(--border-subtle)" }}>−${c.loss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontSize: "10px", color: c.longTerm ? "var(--text-tertiary)" : "#f59e0b", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>{c.longTerm ? "Long" : "Short"}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>
+                      {c.washSaleRisk && <span title="You bought this ticker in the last 30 days — selling at a loss now would trigger the wash-sale rule and disallow the deduction." style={{ fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "2px 7px", cursor: "help" }}>⚠ wash sale</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "10px 0 0", lineHeight: 1.5 }}>
+            Informational only, not tax advice. Losses shown are per-lot and unrealized; trades happen at your brokerage.
+          </p>
+        </div>
+      )}
+      {data.harvest && !data.harvest.taxable && (
+        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", margin: "-6px 0 0", padding: "0 4px" }}>
+          Tax-loss harvesting isn&apos;t shown for tax-advantaged accounts (losses inside an IRA/401k aren&apos;t deductible).
+        </p>
+      )}
 
       {/* What-if trade simulator */}
       {data.holdings && data.holdings.length > 0 && (

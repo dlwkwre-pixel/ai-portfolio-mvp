@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
 import { getBankTransactions } from "@/lib/connections/plaid";
+import { detectSubscriptions } from "@/lib/planning/subscription-radar";
 
 export const maxDuration = 30;
 
@@ -66,6 +67,9 @@ export async function GET() {
     .slice(0, 5)
     .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }));
 
+  // Subscription Radar: recurring charges detected across the whole rolling window.
+  const subscriptions = detectSubscriptions(txns);
+
   return NextResponse.json({
     hasData: true,
     month: {
@@ -74,6 +78,7 @@ export async function GET() {
       income: Math.round(income * 100) / 100,
       topCategories,
     },
+    subscriptions,
     recent: txns.slice(0, 12).map((t) => ({
       id: t.id,
       date: t.date,

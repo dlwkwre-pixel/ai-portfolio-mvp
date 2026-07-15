@@ -1,14 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { addCashFlowItem } from "./planning-actions";
 
-// "Spending from your bank" — live cash-flow awareness from linked banks (Plaid Phase 3).
-// Fully self-contained: fetches its own data and renders NOTHING unless the user has
-// bank access and transactions, so Cash Flow is untouched for everyone else.
+// "Spending from your bank" — live cash-flow awareness from linked banks (Plaid Phase 3)
+// plus the Subscription Radar: recurring charges detected in the transaction window,
+// each one addable to the budget with a click. Fully self-contained: fetches its own
+// data and renders NOTHING unless the user has bank access and transactions.
+
+type Subscription = {
+  merchant: string; cadence: "weekly" | "biweekly" | "monthly" | "quarterly";
+  avgAmount: number; monthlyEquivalent: number; count: number;
+  lastDate: string; lastAmount: number; priceIncreased: boolean;
+};
 
 type Payload = {
   hasData: boolean;
   month?: { key: string; spend: number; income: number; topCategories: { name: string; amount: number }[] };
+  subscriptions?: Subscription[];
   recent?: { id: string; date: string; name: string; amount: number; category: string; pending: boolean }[];
 };
 
@@ -18,6 +27,8 @@ function money(n: number): string {
 
 export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: boolean }) {
   const [data, setData] = useState<Payload | null>(null);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [addingKey, setAddingKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,8 +39,25 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
     return () => { cancelled = true; };
   }, []);
 
+  async function addToBudget(s: Subscription) {
+    if (addingKey) return;
+    setAddingKey(s.merchant);
+    try {
+      const fd = new FormData();
+      fd.set("label", s.merchant);
+      fd.set("type", "expense");
+      fd.set("frequency", "monthly");
+      fd.set("amount", String(s.monthlyEquivalent));
+      fd.set("category", "subscriptions");
+      const r = await addCashFlowItem(fd);
+      if (!r?.error) setAdded((prev) => new Set(prev).add(s.merchant));
+    } catch { /* leave button re-tryable */ }
+    finally { setAddingKey(null); }
+  }
+
   if (!data?.month) return null;
-  const { month, recent = [] } = data;
+  const { month, recent = [], subscriptions = [] } = data;
+  const subsMonthly = subscriptions.reduce((s, x) => s + x.monthlyEquivalent, 0);
   const maxCat = Math.max(1, ...month.topCategories.map((c) => c.amount));
   const monthName = new Date(`${month.key}-15T00:00:00`).toLocaleDateString(undefined, { month: "long" });
   const ph = (s: string) => (isPrivate ? "$••••" : s);
@@ -62,6 +90,40 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
                 <div style={{ width: `${(c.amount / maxCat) * 100}%`, height: "100%", borderRadius: "3px", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", width: "76px", textAlign: "right", flexShrink: 0 }}>{ph(money(c.amount))}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {subscriptions.length > 0 && (
+        <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>🔁 Subscription Radar</span>
+            <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)" }}>
+              {subscriptions.length} recurring · <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{ph(money(subsMonthly))}</span>/mo
+            </span>
+          </div>
+          {subscriptions.map((s) => (
+            <div key={s.merchant} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0", borderTop: "1px solid var(--border-subtle)" }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {s.merchant}
+                  {s.priceIncreased && <span title="This charge has gone up since the start of the window" style={{ marginLeft: "6px", fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "1px 6px" }}>↑ price</span>}
+                </div>
+                <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>{s.cadence} · {s.count}× in window</div>
+              </div>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", flexShrink: 0 }}>{ph(money(s.monthlyEquivalent))}/mo</span>
+              {added.has(s.merchant) ? (
+                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--green, #00d395)", flexShrink: 0 }}>✓ in budget</span>
+              ) : (
+                <button
+                  type="button" disabled={addingKey !== null} onClick={() => void addToBudget(s)}
+                  title="Add this as a monthly expense line in your budget"
+                  style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--brand-blue, #60a5fa)", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "7px", padding: "4px 8px", cursor: "pointer", flexShrink: 0, opacity: addingKey === s.merchant ? 0.6 : 1 }}
+                >
+                  {addingKey === s.merchant ? "Adding…" : "+ Budget"}
+                </button>
+              )}
             </div>
           ))}
         </div>
