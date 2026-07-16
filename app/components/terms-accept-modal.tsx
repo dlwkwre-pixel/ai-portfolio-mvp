@@ -136,14 +136,12 @@ export default function TermsAcceptModal() {
           </div>
           <span style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
             I have read and agree to BuyTune&apos;s{" "}
-            <Link href="/terms" target="_blank" style={{ color: "var(--brand-blue)" }}>
-              Terms of Service
-            </Link>
-            {" "}and{" "}
-            <Link href="/privacy" target="_blank" style={{ color: "var(--brand-blue)" }}>
-              Privacy Policy
-            </Link>
-            . I understand that BuyTune does not provide investment advice.
+            <Link href="/terms" target="_blank" style={{ color: "var(--brand-blue)" }}>Terms of Service</Link>,{" "}
+            <Link href="/privacy" target="_blank" style={{ color: "var(--brand-blue)" }}>Privacy Policy</Link>,{" "}
+            <Link href="/legal/investment-disclaimer" target="_blank" style={{ color: "var(--brand-blue)" }}>Investment Disclaimer</Link>,{" "}
+            <Link href="/legal/ai-disclaimer" target="_blank" style={{ color: "var(--brand-blue)" }}>AI Disclaimer</Link>, and{" "}
+            <Link href="/legal/financial-planning-disclaimer" target="_blank" style={{ color: "var(--brand-blue)" }}>Financial Planning Disclaimer</Link>
+            . I understand that BuyTune is a software tool, is not a registered investment adviser, and does not provide investment, legal, or tax advice.
           </span>
         </label>
 

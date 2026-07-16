@@ -5,7 +5,7 @@ import AgreementsClient, { type AgreementUser } from "./agreements-client";
 export const dynamic = "force-dynamic";
 
 // Keep in sync with the value written in app/actions/terms-actions.ts + app/api/accept-terms.
-const CURRENT_TERMS_VERSION = "2026-05-18";
+const CURRENT_TERMS_VERSION = "2026-07-14";
 
 export default async function AdminAgreementsPage() {
   const supabase = await createClient();

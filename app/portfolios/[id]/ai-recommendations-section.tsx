@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import AIRecommendationRunsList from "./ai-recommendation-runs-list";
 import RunAiControls from "./run-ai-controls";
 import HealthReportCard, { type HealthReport } from "./health-report-card";
+import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 
 type AIRecommendationsSectionProps = {
   portfolioId: string;
@@ -291,6 +292,7 @@ export default async function AIRecommendationsSection({
           </p>
         </div>
       )}
+      <AdviceDisclaimer context="analysis" />
     </section>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 import Sparkline from "@/app/components/sparkline";
 import StockChart from "@/app/components/stock-chart";
 import ScenariosPanel from "./scenarios-panel";
@@ -1420,6 +1421,7 @@ function DetailView({
                       Quick offline-model take — not live and not personalized to your strategy. Tap <strong style={{ color: "oklch(0.68 0.20 295)" }}>Live Grok deep-dive</strong> above for a current, web-searched call.
                     </div>
                   )}
+                  {shown && !grokLoading && <AdviceDisclaimer context="analysis" />}
                 </div>
               )}
             </div>

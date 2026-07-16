@@ -8,6 +8,7 @@ import PageTutorial from "@/app/components/page-tutorial";
 import LifePlanTab from "./life-plan-tab";
 import TrajectoryChart from "./trajectory-chart";
 import BankSpendingCard from "./bank-spending-card";
+import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 import { type RoadmapEvent, type RoadmapMilestone, type TrajectoryPoint } from "./master-life-roadmap";
 // NOTE: xlsx-js-style (~hundreds of KB) is dynamically imported inside exportForecastXLSX so it
 // never ships in the initial /planning bundle — it's only needed on the Excel-export click.
@@ -9869,6 +9870,7 @@ export default function PlanningClient({
             @keyframes atlasFade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
           `}</style>
           </div>{/* end inner chat div */}
+          <AdviceDisclaimer context="planning" />
         </div>
       )}
     </div>

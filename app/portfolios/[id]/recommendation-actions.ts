@@ -1179,6 +1179,13 @@ Total search budget: 6–10 searches per run. Prioritize breadth in Phase 1 — 
     "TRIM/SELL PROCEEDS RULE: If you recommend a trim or sell, you MUST also recommend where the proceeds are deployed (a BUY/ADD/scale_in) UNLESS the portfolio's cash position is already AT or ABOVE cash_max_pct. Never generate a trim/sell without a corresponding redeployment — selling without buying creates uninvested drag, which violates the capital allocation mandate.",
     "COMBINED BUY SIZING: The sum of all buy/add sizing_dollars must not exceed available cash.",
     "For trim/sell, always specify share_quantity not exceeding shares owned.",
+    // ── Framing (legal posture): keep the analytical rigor and the structured action
+    // fields, but write the human-readable rationale/thesis as EDUCATIONAL ANALYSIS, not
+    // as personal financial advice or a command. In prose, prefer 'the analysis favors',
+    // 'the model's base case', 'one consideration is' over imperatives like 'buy now' or
+    // 'you should sell'. This is a research/education tool, not a registered adviser; the
+    // action_type and sizing fields drive the app UI and stay exactly as specified.
+    "RATIONALE VOICE: In the rationale and thesis text, use analytical/educational framing (what the analysis and data suggest, the base/bull/bear cases, considerations and risks) rather than direct personal-advice commands. Do NOT address the reader with imperatives like 'you should buy'. State the model's reasoning. The structured action_type/sizing fields are unaffected.",
     "Return only valid JSON with no markdown fences.",
   ].join(" ");
 

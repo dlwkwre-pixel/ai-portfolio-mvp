@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-const TERMS_VERSION = "2026-05-18";
+const TERMS_VERSION = "2026-07-14";
 
 export async function acceptTerms(): Promise<void> {
   const supabase = await createClient();

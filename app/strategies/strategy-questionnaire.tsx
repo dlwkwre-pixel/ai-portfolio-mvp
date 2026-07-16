@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createStrategy } from "./actions";
+import AdviceDisclaimer from "@/app/components/advice-disclaimer";
 import { saveFinnProfile } from "./finn-profile-actions";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1453,6 +1454,8 @@ export default function StrategyQuestionnaire({
 
           {/* Tier 3: Confidence meter */}
           <ConfidenceMeter signalCount={detectedSignalsMap.size} />
+
+          <AdviceDisclaimer context="analysis" />
 
           {/* Tier 3: Psychology brief */}
           <PsychologyBrief strategy={generatedStrategy} />
