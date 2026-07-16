@@ -2,6 +2,7 @@
 
 import OpenAI from "openai";
 import { callGemini } from "@/lib/ai/gemini";
+import { logAiUsage } from "@/lib/ai/usage";
 import { getTickerMarketContext, getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -1319,6 +1320,15 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
       output_items: outputItems.length,
       usage,
     }));
+    // Meter the run — real token counts + search sources when the API reports them.
+    await logAiUsage({
+      provider: "grok",
+      model: "grok-4.20-0309-reasoning",
+      route: "recommendations",
+      promptTokens: usage?.input_tokens ?? usage?.prompt_tokens ?? null,
+      completionTokens: usage?.output_tokens ?? usage?.completion_tokens ?? null,
+      searchCount: searches.length,
+    });
   } catch {
     // non-fatal — logging should never break a run
   }

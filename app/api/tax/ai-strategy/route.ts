@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { logAiUsage } from "@/lib/ai/usage";
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -75,6 +76,13 @@ Keep the response practical, not overly long. Use clear section headers. End wit
     });
 
     const analysis = completion.choices[0]?.message?.content ?? "No analysis generated.";
+    await logAiUsage({
+      provider: model.startsWith("grok") ? "grok" : "groq",
+      model,
+      route: "tax-ai-strategy",
+      promptTokens: completion.usage?.prompt_tokens ?? null,
+      completionTokens: completion.usage?.completion_tokens ?? null,
+    });
     return NextResponse.json({ analysis });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

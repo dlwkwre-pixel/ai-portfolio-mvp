@@ -16,6 +16,7 @@ import CombinedChart from "./combined-chart";
 import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
 import NotificationCenter from "@/app/components/notification-center";
+import PricingSurveyCard from "@/app/components/pricing-survey-card";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -73,6 +74,19 @@ export default async function DashboardPage({
     .maybeSingle();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const profileData = rawProfile as Record<string, any> | null;
+
+  // Willingness-to-pay pulse: show until answered. Graceful if the table isn't
+  // migrated yet (query error → treat as answered so the card stays hidden).
+  let surveyResponded = true;
+  try {
+    const { data: surveyRow, error: surveyErr } = await supabase
+      .from("pricing_survey_responses")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    surveyResponded = !!surveyRow || !!surveyErr;
+  } catch { /* keep hidden */ }
+
   const onboardingStatus = (profileData?.onboarding_status ?? "not_started") as string;
   const onboardingStep = Number(profileData?.onboarding_step ?? 1);
   const termsAccepted = !!(profileData?.terms_accepted_at);
@@ -347,6 +361,7 @@ export default async function DashboardPage({
           </div>
 
           <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            <PricingSurveyCard hasResponded={surveyResponded} />
             {portfolioIds.length > 0 && (
               <div style={{ marginBottom: "16px", padding: "16px 20px", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)" }}>
                 <Suspense fallback={

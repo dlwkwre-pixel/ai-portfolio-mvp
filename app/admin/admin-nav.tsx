@@ -22,10 +22,14 @@ const ICONS: Record<string, React.ReactNode> = {
   agreements: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm5.707 6.707a1 1 0 00-1.414-1.414L7 10.586l-.293-.293a1 1 0 00-1.414 1.414l1 1a1 1 0 001.414 0l2-2z" clipRule="evenodd" /></svg>
   ),
+  metrics: (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M12 9a1 1 0 01-1-1V3c0-.553.45-1.008.997-.93a7.004 7.004 0 015.933 5.933c.078.547-.378.997-.93.997h-5z" /><path d="M8.003 4.07C8.55 3.992 9 4.447 9 5v5a1 1 0 001 1h5c.552 0 1.008.45.93.997A7.001 7.001 0 012.055 9.997a7.002 7.002 0 015.948-5.927z" /></svg>
+  ),
 };
 
 const TABS = [
   { href: "/admin", label: "Overview", icon: "overview", exact: true },
+  { href: "/admin/metrics", label: "Metrics", icon: "metrics" },
   { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
   { href: "/admin/agreements", label: "Agreements", icon: "agreements" },
   { href: "/admin/notify", label: "Notifications", icon: "notifications" },

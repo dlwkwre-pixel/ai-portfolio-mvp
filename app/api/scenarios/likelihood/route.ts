@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { logAiUsage } from "@/lib/ai/usage";
 
 export type LikelihoodResult = {
   rating: "very_low" | "low" | "moderate" | "high" | "very_high";
@@ -79,6 +80,13 @@ Respond ONLY as valid JSON (no markdown):
     });
 
     const raw = completion.choices[0]?.message?.content ?? "";
+    await logAiUsage({
+      provider: isGrok ? "grok" : "groq",
+      model,
+      route: "scenario-likelihood",
+      promptTokens: completion.usage?.prompt_tokens ?? null,
+      completionTokens: completion.usage?.completion_tokens ?? null,
+    });
     const cleaned = raw.replace(/^```(?:json)?\s*/m, "").replace(/```\s*$/m, "").trim();
 
     let result: LikelihoodResult;

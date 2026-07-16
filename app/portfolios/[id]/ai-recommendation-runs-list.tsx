@@ -63,6 +63,9 @@ type LocalRec = RecommendationItem & { _syncing?: boolean };
 
 const PAGE_SIZE = 25;
 const HOLD_LIKE = new Set(["hold", "rebalance", "raise_cash"]);
+// Signals scoring below this confidence fold into a collapsed "Low Conviction"
+// section — surfaced, but never presented as equals to high-conviction calls.
+const LOW_CONFIDENCE_FLOOR = 55;
 const STATUS_TABS = ["open", "all", "proposed", "watchlist", "executed", "rejected", "archived"] as const;
 
 // Keep in sync with the API route's TAB_STATUSES
@@ -389,6 +392,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
 
   // Grouped view — monitoring section collapsed by default
   const [monitoringCollapsed, setMonitoringCollapsed] = useState(true);
+  const [lowConvCollapsed, setLowConvCollapsed] = useState(true);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
@@ -648,10 +652,10 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
     actionCounts[a] = (actionCounts[a] ?? 0) + 1;
   });
 
-  // ── Grouped render items (Active Signals / Position Monitoring) ────────────
+  // ── Grouped render items (Active Signals / Low Conviction / Monitoring) ────
   type RenderItem =
     | { kind: "card"; item: LocalRec }
-    | { kind: "section"; label: string; count: number; collapsible: boolean };
+    | { kind: "section"; label: string; count: number; collapsible: boolean; sectionKey?: "monitoring" | "lowconv" };
 
   const showGrouped = statusFilter === "open" && !isBulkMode && !isLoading && !fetchError;
   const renderItems: RenderItem[] = [];
@@ -659,12 +663,22 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
   if (showGrouped && localRecs.length > 0) {
     const actives   = localRecs.filter(r => !HOLD_LIKE.has((r.action_type ?? "").toLowerCase()));
     const monitors  = localRecs.filter(r =>  HOLD_LIKE.has((r.action_type ?? "").toLowerCase()));
-    if (actives.length > 0) {
-      renderItems.push({ kind: "section", label: "Active Signals", count: actives.length, collapsible: false });
-      actives.forEach(item => renderItems.push({ kind: "card", item }));
+    // Confidence floor: weak signals fold behind a collapsed section instead of
+    // being presented as equals to high-conviction calls. Unscored items stay visible.
+    const strong = actives.filter(r => r.confidence_score == null || r.confidence_score >= LOW_CONFIDENCE_FLOOR);
+    const weak   = actives.filter(r => r.confidence_score != null && r.confidence_score < LOW_CONFIDENCE_FLOOR);
+    if (strong.length > 0) {
+      renderItems.push({ kind: "section", label: "Active Signals", count: strong.length, collapsible: false });
+      strong.forEach(item => renderItems.push({ kind: "card", item }));
+    }
+    if (weak.length > 0) {
+      renderItems.push({ kind: "section", label: `Low Conviction (below ${LOW_CONFIDENCE_FLOOR}%)`, count: weak.length, collapsible: true, sectionKey: "lowconv" });
+      if (!lowConvCollapsed) {
+        weak.forEach(item => renderItems.push({ kind: "card", item }));
+      }
     }
     if (monitors.length > 0) {
-      renderItems.push({ kind: "section", label: "Position Monitoring", count: monitors.length, collapsible: true });
+      renderItems.push({ kind: "section", label: "Position Monitoring", count: monitors.length, collapsible: true, sectionKey: "monitoring" });
       if (!monitoringCollapsed) {
         monitors.forEach(item => renderItems.push({ kind: "card", item }));
       }
@@ -803,13 +817,13 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                     {ri.collapsible ? (
                       <button
                         type="button"
-                        onClick={() => setMonitoringCollapsed(v => !v)}
+                        onClick={() => ri.sectionKey === "lowconv" ? setLowConvCollapsed(v => !v) : setMonitoringCollapsed(v => !v)}
                         className="flex w-full items-center gap-2 rounded-xl border border-white/6 bg-white/2 px-3 py-2.5 text-left hover:bg-white/3 transition"
                       >
                         <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{ri.label}</span>
                         <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] tabular-nums text-slate-600">{ri.count}</span>
                         <svg viewBox="0 0 20 20" fill="currentColor"
-                          className={`ml-auto h-3.5 w-3.5 shrink-0 text-slate-600 transition-transform ${monitoringCollapsed ? "" : "rotate-180"}`}>
+                          className={`ml-auto h-3.5 w-3.5 shrink-0 text-slate-600 transition-transform ${(ri.sectionKey === "lowconv" ? lowConvCollapsed : monitoringCollapsed) ? "" : "rotate-180"}`}>
                           <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                         </svg>
                       </button>

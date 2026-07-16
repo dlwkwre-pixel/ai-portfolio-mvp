@@ -6,6 +6,8 @@
 //
 // The export is named callGemini for historical reasons / to avoid churn.
 
+import { logAiUsage, tokensFromChars } from "@/lib/ai/usage";
+
 const GEMINI_ENDPOINT = (key: string, model = "gemini-2.0-flash") =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
@@ -18,6 +20,8 @@ export type GeminiOptions = {
   model?: string;
   groqFirst?: boolean; // try Groq before Gemini
   groqOnly?: boolean;  // skip Gemini entirely (e.g. research page)
+  usageTag?: string;   // feature tag for ai_usage metering (e.g. "market-pulse")
+  usageUserId?: string | null; // attribute the call to a user when known
 };
 
 function getGeminiKeys(): string[] {
@@ -82,10 +86,10 @@ async function tryGroqModel(model: string, prompt: string, opts: GeminiOptions):
   }
 }
 
-async function tryGroq(prompt: string, opts: GeminiOptions): Promise<string | null> {
+async function tryGroq(prompt: string, opts: GeminiOptions): Promise<{ text: string; model: string } | null> {
   for (const model of GROQ_MODELS) {
     const result = await tryGroqModel(model, prompt, opts);
-    if (result !== null) return result;
+    if (result !== null) return { text: result, model };
   }
   return null;
 }
@@ -98,25 +102,41 @@ async function tryAllGemini(prompt: string, opts: GeminiOptions): Promise<string
   return null;
 }
 
+// Both providers here are free-tier ($0 cost) — metering exists for quota visibility
+// on /admin/metrics, so a failed log must never affect the caller.
+async function meter(provider: "gemini" | "groq", model: string, prompt: string, text: string, opts: GeminiOptions): Promise<string> {
+  await logAiUsage({
+    provider,
+    model,
+    route: opts.usageTag ?? "untagged",
+    userId: opts.usageUserId ?? null,
+    promptTokens: tokensFromChars(prompt.length),
+    completionTokens: tokensFromChars(text.length),
+  });
+  return text;
+}
+
 export async function callGemini(prompt: string, opts: GeminiOptions = {}): Promise<string | null> {
+  const geminiModel = opts.model ?? "gemini-2.0-flash";
+
   // Research and other heavy routes set groqOnly to skip Gemini's maxed-out free quota.
   if (opts.groqOnly) {
     const groqResult = await tryGroq(prompt, opts);
-    if (groqResult !== null) return groqResult;
+    if (groqResult !== null) return meter("groq", groqResult.model, prompt, groqResult.text, opts);
     console.error("[ai] Groq exhausted (groqOnly) — no response");
     return null;
   }
 
   if (opts.groqFirst) {
     const groqResult = await tryGroq(prompt, opts);
-    if (groqResult !== null) return groqResult;
+    if (groqResult !== null) return meter("groq", groqResult.model, prompt, groqResult.text, opts);
     const geminiResult = await tryAllGemini(prompt, opts);
-    if (geminiResult !== null) return geminiResult;
+    if (geminiResult !== null) return meter("gemini", geminiModel, prompt, geminiResult, opts);
   } else {
     const geminiResult = await tryAllGemini(prompt, opts);
-    if (geminiResult !== null) return geminiResult;
+    if (geminiResult !== null) return meter("gemini", geminiModel, prompt, geminiResult, opts);
     const groqResult = await tryGroq(prompt, opts);
-    if (groqResult !== null) return groqResult;
+    if (groqResult !== null) return meter("groq", groqResult.model, prompt, groqResult.text, opts);
   }
 
   console.error("[ai] all providers exhausted — no response");

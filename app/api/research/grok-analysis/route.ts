@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { extractJsonObject } from "@/lib/ai/gemini";
+import { logAiUsage } from "@/lib/ai/usage";
 import OpenAI from "openai";
 
 // On-demand Grok deep-dive for a single stock — uses live web + X search like
@@ -80,9 +81,22 @@ Run 2-4 targeted live searches (recent news, latest analyst actions/price target
         { role: "user", content: userPrompt },
       ],
       tools: [{ type: "web_search" }, { type: "x_search" }],
-    } as never) as { output_text?: string };
+    } as never) as { output_text?: string; usage?: { input_tokens?: number; output_tokens?: number }; output?: unknown[] };
 
     const raw = response.output_text?.trim();
+
+    await logAiUsage({
+      provider: "grok",
+      model: "grok-4-fast",
+      route: "grok-analysis",
+      promptTokens: response.usage?.input_tokens ?? null,
+      completionTokens: response.usage?.output_tokens ?? null,
+      // The prompt asks for 2-4 live searches; count actual search calls when present.
+      searchCount: Array.isArray(response.output)
+        ? response.output.filter((o) => /search/.test(String((o as { type?: string })?.type ?? ""))).length
+        : 3,
+    });
+
     if (!raw) return NextResponse.json({ error: "Grok returned an empty response." }, { status: 502 });
 
     const analysis = extractJsonObject<Record<string, unknown>>(raw);

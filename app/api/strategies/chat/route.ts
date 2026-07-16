@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
+import { logAiUsage } from "@/lib/ai/usage";
 import { getFredMacroSignals } from "@/lib/market-data/fred";
 import { getFinnhubQuote, getFinnhubMetrics } from "@/lib/market-data/finnhub";
 import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
@@ -300,6 +301,15 @@ export async function POST(req: NextRequest) {
 
         const text = completion.choices[0]?.message?.content ?? "";
         console.log(`[strategy-builder] phase=${phase} provider=${config.provider} model=${config.model} user=${user.id.slice(0, 8)} tokens=${text.length}`);
+        await logAiUsage({
+          provider: config.provider.includes("grok") || config.provider.includes("xai") ? "grok"
+            : config.provider.includes("gemini") ? "gemini" : "groq",
+          model: config.model,
+          route: "strategy-chat",
+          userId: user.id,
+          promptTokens: completion.usage?.prompt_tokens ?? null,
+          completionTokens: completion.usage?.completion_tokens ?? null,
+        });
         return NextResponse.json({ text });
       } catch (err) {
         console.error(`[strategy-builder] phase=${phase} provider=${config.provider} failed:`, err instanceof Error ? err.message : err);

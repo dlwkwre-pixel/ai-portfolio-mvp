@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAiUsage } from "@/lib/ai/usage";
 import { fetchAggregatedHeadlines } from "@/lib/market-data/news-aggregator";
 
 
@@ -185,9 +186,17 @@ export async function GET(request: Request) {
       )
     );
 
-    for (const result of results) {
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
       if (result.status === "fulfilled") {
         const raw = result.value.choices[0]?.message?.content ?? "";
+        await logAiUsage({
+          provider: calls[i].model.startsWith("grok") ? "grok" : "groq",
+          model: calls[i].model,
+          route: "cron-scenarios",
+          promptTokens: result.value.usage?.prompt_tokens ?? null,
+          completionTokens: result.value.usage?.completion_tokens ?? null,
+        });
         const parsed = parseScenarios(raw);
         allScenarios = [...allScenarios, ...parsed];
       }
