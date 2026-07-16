@@ -32,6 +32,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Grok live search costs real money per call — signed-in users only. The research
+    // page already requires a session, so legitimate callers are unaffected; this just
+    // closes the anonymous token-burn hole (IP rate limit alone still allowed ~860 paid
+    // calls/day from a single address).
+    {
+      const authClient = await createClient();
+      const { data: { user } } = await authClient.auth.getUser();
+      if (!user) return NextResponse.json({ error: "Sign in to run AI analysis." }, { status: 401 });
+    }
     const { ticker, company_name, price, change_pct } = await req.json().catch(() => ({})) as {
       ticker?: string; company_name?: string; price?: number; change_pct?: number;
     };

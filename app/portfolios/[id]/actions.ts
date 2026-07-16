@@ -745,8 +745,13 @@ export async function resetPerformanceHistory(portfolioId: string): Promise<void
     .maybeSingle();
   if (!portfolio) throw new Error("Portfolio not found.");
 
-  // Delete all existing snapshots for this portfolio
-  await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
+  // Delete all existing snapshots for this portfolio.
+  // Must use the admin client: portfolio_snapshots has no user-role DELETE policy, so a
+  // user-client delete is a silent no-op — this reset previously never cleared anything
+  // and just stacked a new baseline point on top of the old history.
+  const admin = createAdminClient();
+  const { error: wipeErr } = await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
+  if (wipeErr) throw new Error(`Could not clear history: ${wipeErr.message}`);
 
   // Get current holdings for a fresh baseline snapshot
   const { data: holdings } = await supabase
@@ -1108,8 +1113,15 @@ export async function reconstructPortfolioChart(portfolioId: string): Promise<Re
       }
     }
 
-    await supabase.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
-    await supabase.from("cash_ledger").delete().eq("portfolio_id", portfolioId);
+    // Wipe-then-rebuild must actually wipe. portfolio_snapshots has no user-role DELETE
+    // policy (silent no-op on the user client), which made every reconstruct run STACK a
+    // full new snapshot series on top of the old one — the source of duplicate same-day
+    // snapshots. Ownership was verified above; use the admin client and fail loudly.
+    const admin = createAdminClient();
+    const { error: snapWipeErr } = await admin.from("portfolio_snapshots").delete().eq("portfolio_id", portfolioId);
+    if (snapWipeErr) return { success: false, error: `Could not clear old snapshots: ${snapWipeErr.message}` };
+    const { error: cashWipeErr } = await admin.from("cash_ledger").delete().eq("portfolio_id", portfolioId);
+    if (cashWipeErr) return { success: false, error: `Could not clear old cash flows: ${cashWipeErr.message}` };
     await supabase.from("portfolios").update({ cash_balance: 0 }).eq("id", portfolioId).eq("user_id", user.id);
 
     if (cashLedgerRows.length > 0) {
