@@ -36,6 +36,7 @@ Adapted from everything-claude-code for the BuyTune.io Next.js/TypeScript codeba
 - Every mutation verifies user ownership: `.eq("user_id", user.id)` or via RLS
 - RLS is the safety net, not the primary check — both are required
 - New tables must have a SQL file in `supabase/` before shipping the feature
+- `supabase/` root = NOT yet run against the live DB; after running a file in the SQL editor, `git mv` it to `supabase/applied/` (see supabase/README.md)
 - Use `.maybeSingle()` when 0 rows is valid; `.single()` when 0 rows is an error
 
 ## UI / Design
