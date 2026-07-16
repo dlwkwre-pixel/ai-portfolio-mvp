@@ -68,7 +68,7 @@ function LoginForm() {
           <div style={{ width: "36px", height: "36px", minWidth: "36px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,99,235,0.4)" }}>
             <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
           </span>
         </Link>
@@ -78,7 +78,7 @@ function LoginForm() {
             <div style={{ width: "5px", height: "5px", minWidth: "5px", borderRadius: "50%", background: "#3b82f6", animation: "pulse 2s ease infinite" }} />
             <span style={{ fontSize: "11px", color: "#93c5fd", fontWeight: 500 }}>Portfolio · Planning · Tax · Community</span>
           </div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.25, marginBottom: "14px" }}>
             Every tool your<br />
             portfolio needs,<br />
             <span style={{ color: "#93c5fd" }}>in one place.</span>
@@ -156,13 +156,13 @@ function LoginForm() {
             <div style={{ width: "30px", height: "30px", minWidth: "30px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
+            <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
               Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
             </span>
           </Link>
 
           <div className="fu0" style={{ marginBottom: "32px" }}>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Welcome back</h1>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Welcome back</h1>
             <p style={{ fontSize: "14px", color: "#94a3b8" }}>Sign in to your portfolio workspace</p>
           </div>
 

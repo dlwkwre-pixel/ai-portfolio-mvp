@@ -45,7 +45,7 @@
   --nav-active-border: rgba(37,99,235,0.2);
   --nav-active-text: #93c5fd;
 
-  --font-display:   'Syne', sans-serif;
+  --font-display:   var(--font-syne), 'Syne', sans-serif;
   --font-body:      'DM Sans', sans-serif;
   --font-mono:      'DM Mono', monospace;
 
