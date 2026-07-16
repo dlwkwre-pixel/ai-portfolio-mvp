@@ -6,6 +6,7 @@ import { validateTicker, validateLength, validateEnum, validateDate } from "@/li
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
 import { isExternalCashFlow } from "@/lib/portfolio/benchmark";
 import { isPortfolioLinked } from "@/lib/connections/snaptrade";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Linked (brokerage-mirrored) portfolios are read-only for manual holding edits —
 // the broker is the source of truth and sync overwrites them. Unlinked portfolios
@@ -811,22 +812,24 @@ export async function trimSnapshotsBefore(portfolioId: string, cutoffDate: strin
   // Normalize to ISO date string (YYYY-MM-DD) for comparison
   const cutoff = new Date(cutoffDate).toISOString().slice(0, 10);
 
-  const { data: toDelete } = await supabase
+  // portfolio_snapshots has no user-role DELETE policy (only the service role writes to
+  // it — see lib/connections/sync.ts), so a user-client delete silently affects 0 rows
+  // and the trim never persisted (data reappeared on reload). Delete through the admin
+  // client AFTER the ownership check above, and report the rows actually removed so the
+  // UI can't claim a false success.
+  const admin = createAdminClient();
+  const { data: deletedRows, error } = await admin
     .from("portfolio_snapshots")
-    .select("id")
+    .delete()
     .eq("portfolio_id", portfolioId)
-    .lt("snapshot_date", cutoff + "T00:00:00");
+    .lt("snapshot_date", cutoff + "T00:00:00")
+    .select("id");
 
-  const count = toDelete?.length ?? 0;
-  if (count > 0) {
-    await supabase
-      .from("portfolio_snapshots")
-      .delete()
-      .eq("portfolio_id", portfolioId)
-      .lt("snapshot_date", cutoff + "T00:00:00");
-  }
+  if (error) throw new Error(`Could not remove snapshots: ${error.message}`);
 
+  const count = deletedRows?.length ?? 0;
   revalidatePath(`/portfolios/${portfolioId}`);
+  revalidatePath("/dashboard");
   return { deleted: count };
 }
 
@@ -839,22 +842,22 @@ export async function removePolygonBackfill(portfolioId: string): Promise<{ dele
     .from("portfolios").select("id").eq("id", portfolioId).eq("user_id", user.id).maybeSingle();
   if (!portfolio) throw new Error("Portfolio not found.");
 
-  const { data: toDelete } = await supabase
+  // Same as trimSnapshotsBefore: user-role deletes on portfolio_snapshots are a silent
+  // no-op, so delete through the admin client after the ownership check and count the
+  // rows actually removed.
+  const admin = createAdminClient();
+  const { data: deletedRows, error } = await admin
     .from("portfolio_snapshots")
-    .select("id")
+    .delete()
     .eq("portfolio_id", portfolioId)
-    .eq("notes", "Polygon backfill");
+    .eq("notes", "Polygon backfill")
+    .select("id");
 
-  const count = toDelete?.length ?? 0;
-  if (count > 0) {
-    await supabase
-      .from("portfolio_snapshots")
-      .delete()
-      .eq("portfolio_id", portfolioId)
-      .eq("notes", "Polygon backfill");
-  }
+  if (error) throw new Error(`Could not remove snapshots: ${error.message}`);
 
+  const count = deletedRows?.length ?? 0;
   revalidatePath(`/portfolios/${portfolioId}`);
+  revalidatePath("/dashboard");
   return { deleted: count };
 }
 
