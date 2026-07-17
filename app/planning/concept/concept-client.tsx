@@ -278,7 +278,7 @@ export default function ConceptClient() {
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "19px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.3px", margin: 0 }}>
             The Trajectory Room
           </h1>
-          <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", border: "1px solid rgba(167,139,250,0.35)", background: "rgba(124,58,237,0.1)", padding: "3px 8px", borderRadius: "999px" }}>Concept · sample data</span>
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", border: "1px solid rgba(167,139,250,0.35)", background: "rgba(124,58,237,0.1)", padding: "3px 8px", borderRadius: "999px" }}>Concept · sample data</span>
           <button type="button" onClick={() => { setFirstRun((v) => !v); if (!firstRun) setDrawKey((k) => k + 1); }}
             style={{ marginLeft: "auto", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "999px", padding: "6px 13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
             {firstRun ? "Back to full view" : "View first-run state"}
@@ -308,7 +308,7 @@ export default function ConceptClient() {
                   { label: "Invest monthly", value: qsMonthly, set: setQsMonthly, w: "120px" },
                 ].map((f) => (
                   <div key={f.label} style={{ textAlign: "left" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px" }}>{f.label}</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px" }}>{f.label}</div>
                     <input value={f.value} onChange={(e) => f.set(e.target.value)} type="number" inputMode="numeric"
                       style={{ width: f.w, padding: "11px 12px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated, rgba(255,255,255,0.03))", color: "var(--text-primary)", fontSize: "15px", fontFamily: "var(--font-mono)", outline: "none", boxSizing: "border-box" }} />
                   </div>
@@ -328,7 +328,7 @@ export default function ConceptClient() {
             <div className="trj-sec trj-spine" style={{ position: "sticky", top: 0, zIndex: 30, marginBottom: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 18px", borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retirement odds</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retirement odds</span>
                   <span style={{ width: "34px", height: "3px", borderRadius: "2px", background: "linear-gradient(135deg, #2563eb, #7c3aed)" }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
@@ -342,11 +342,11 @@ export default function ConceptClient() {
                   )}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>At retirement ({retireAge})</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>At retirement ({retireAge})</span>
                   <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "16px", color: "var(--text-primary)" }}>{fmtMoney(rolledWealth)}</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Needs</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Needs</span>
                   <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "16px", color: "var(--text-secondary)" }}>{fmtMoney(sim.required)}</span>
                 </div>
                 {sim.depleteAge != null && (
@@ -397,7 +397,7 @@ export default function ConceptClient() {
                     <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
                       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
                       <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retireAge}</span>
-                      <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>⇄</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>⇄</span>
                     </div>
                   </div>
 
@@ -418,7 +418,7 @@ export default function ConceptClient() {
                           boxShadow: isSel ? `0 0 0 5px oklch(0.65 0.15 ${ev.hue} / 0.25)` : "none",
                         }}>{ev.emoji}</div>
                         <div style={{ position: "absolute", top: "34px", left: "50%", transform: "translateX(-50%)", textAlign: "center", whiteSpace: "nowrap", pointerEvents: "none" }}>
-                          <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 700, color: ev.committed ? `oklch(0.75 0.13 ${ev.hue})` : "var(--text-tertiary)" }}>{fmtMoney(ev.amount)}</div>
+                          <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: ev.committed ? `oklch(0.75 0.13 ${ev.hue})` : "var(--text-tertiary)" }}>{fmtMoney(ev.amount)}</div>
                         </div>
                         {/* Popover */}
                         {isSel && (
@@ -433,7 +433,7 @@ export default function ConceptClient() {
                                 color: ev.committed ? "#00d395" : "var(--text-secondary)" }}>
                               {ev.committed ? "Committed · counts" : "Considering · tap to commit"}
                             </button>
-                            <div style={{ fontSize: "9.5px", color: "var(--text-tertiary)", marginTop: "7px", lineHeight: 1.4 }}>Drag the pin to move the year.</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "7px", lineHeight: 1.4 }}>Drag the pin to move the year.</div>
                           </div>
                         )}
                       </div>
@@ -447,7 +447,7 @@ export default function ConceptClient() {
                       <>
                         <div style={{ position: "absolute", top: `${TOP_PAD * 100}%`, bottom: `${BOT_PAD * 100}%`, left: `${xFrac(hoverAge) * 100}%`, width: "1px", background: "rgba(148,163,184,0.28)", pointerEvents: "none", zIndex: 2 }} />
                         <div style={{ position: "absolute", top: "6px", left: `${clamp(xFrac(hoverAge) * 100, 12, 86)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 2, background: "var(--bg-elevated)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "7px 11px", whiteSpace: "nowrap" }}>
-                          <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>Age {hoverAge}</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>Age {hoverAge}</span>
                           <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{fmtMoney(sim.median[i])}</span>
                           <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "7px" }}>{fmtMoney(sim.p10[i])} – {fmtMoney(sim.p90[i])}</span>
                         </div>
@@ -458,7 +458,7 @@ export default function ConceptClient() {
                   {/* Age axis */}
                   <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "space-between", padding: "0 2px", pointerEvents: "none" }}>
                     {[nowAge, 45, 55, 65, 75, 85, planEnd].filter((a, idx, arr) => arr.indexOf(a) === idx).map((a) => (
-                      <span key={a} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{a === nowAge ? `now · ${a}` : a}</span>
+                      <span key={a} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{a === nowAge ? `now · ${a}` : a}</span>
                     ))}
                   </div>
                 </div>
@@ -467,17 +467,17 @@ export default function ConceptClient() {
               {/* Assumption dials */}
               <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 4px 8px", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.05))", marginTop: "6px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retire at</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retire at</span>
                   <input type="range" min={50} max={78} value={retireAge} onChange={(e) => setRetireAge(Number(e.target.value))} style={{ width: "120px", accentColor: "#7c3aed" }} />
                   <span style={{ fontSize: "13px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", minWidth: "24px" }}>{retireAge}</span>
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Invest monthly</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Invest monthly</span>
                   <input type="range" min={500} max={8000} step={100} value={monthlySave} onChange={(e) => setMonthlySave(Number(e.target.value))} style={{ width: "130px", accentColor: "#2563eb" }} />
                   <span style={{ fontSize: "13px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", minWidth: "52px" }}>{fmtMoney(monthlySave)}</span>
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Returns</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Returns</span>
                   {([["cautious", "4.5%"], ["base", "5.8%"], ["bold", "7.0%"]] as const).map(([k, lbl]) => (
                     <button key={k} type="button" onClick={() => setReturnPreset(k)}
                       style={{ padding: "5px 11px", borderRadius: "999px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: "10.5px", fontWeight: 700,
@@ -516,17 +516,17 @@ export default function ConceptClient() {
               {lens === "overview" && (
                 <div key="overview" className="trj-sec" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "12px" }}>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Net worth today</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Net worth today</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "24px", color: "var(--text-primary)" }}>{fmtMoney(281_000)}</div>
                     <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--green)", marginTop: "3px" }}>+$14.2k this quarter</div>
                   </div>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Savings rate</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Savings rate</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "24px", color: "var(--text-primary)" }}>22%</div>
                     <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "3px" }}>{fmtMoney(monthlySave)}/mo into the plan</div>
                   </div>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px" }}>Do next</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "10px" }}>Do next</div>
                     {[
                       `Commit or drop the sabbatical: it costs 3 points of odds`,
                       `Raise monthly investing to ${fmtMoney(monthlySave + 500)}`,
@@ -544,7 +544,7 @@ export default function ConceptClient() {
               {lens === "money" && (
                 <div key="money" className="trj-sec" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>What you own powers the curve</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>What you own powers the curve</div>
                     {[
                       { label: "Invested", v: 185_000, hue: 262 },
                       { label: "Home equity", v: 96_000, hue: 250 },
@@ -563,7 +563,7 @@ export default function ConceptClient() {
                     ))}
                   </div>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>Where this month went · {fmtMoney(9_400)} in</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>Where this month went · {fmtMoney(9_400)} in</div>
                     {[
                       { label: "Essentials", v: 3_850, semantic: false },
                       { label: "Lifestyle", v: 1_900, semantic: false },
@@ -617,7 +617,7 @@ export default function ConceptClient() {
               {lens === "estate" && (
                 <div key="estate" className="trj-sec" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>Estate readiness</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>Estate readiness</div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "10px" }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "24px", color: "#f59e0b" }}>42</span>
                       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>/100</span>
@@ -634,7 +634,7 @@ export default function ConceptClient() {
                       { label: "Durable power of attorney", done: false },
                     ].map((r) => (
                       <div key={r.label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border-subtle, rgba(255,255,255,0.04))" }}>
-                        <span style={{ width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 800,
+                        <span style={{ width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800,
                           background: r.done ? "rgba(0,211,149,0.15)" : "rgba(255,255,255,0.05)", color: r.done ? "var(--green)" : "var(--text-tertiary)", border: `1px solid ${r.done ? "rgba(0,211,149,0.4)" : "var(--card-border)"}` }}>{r.done ? "✓" : "·"}</span>
                         <span style={{ fontSize: "12.5px", color: r.done ? "var(--text-secondary)" : "var(--text-primary)", fontWeight: r.done ? 400 : 600 }}>{r.label}</span>
                         {!r.done && <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: "#f59e0b" }}>Missing</span>}
@@ -648,7 +648,7 @@ export default function ConceptClient() {
               {lens === "atlas" && (
                 <div key="atlas" className="trj-sec" style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "680px" }}>
                   <div style={{ borderRadius: "14px", border: "1px solid rgba(167,139,250,0.25)", background: "rgba(124,58,237,0.06)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", marginBottom: "8px" }}>Atlas reads your whole trajectory</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", marginBottom: "8px" }}>Atlas reads your whole trajectory</div>
                     <p style={{ fontSize: "13px", color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600 }}>{atlasLine}</p>
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>
                       Your committed plan needs {fmtMoney(sim.required)} at {retireAge}. The median path gets you {fmtMoney(sim.wAtRet)}. Every answer below is computed against that curve, not canned advice.

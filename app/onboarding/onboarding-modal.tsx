@@ -486,7 +486,7 @@ export default function OnboardingModal({
                 <div style={{
                   width: "18px", height: "18px", borderRadius: "50%", flexShrink: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "9px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                  fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
                   color: isComplete ? "#fff" : isCurrent ? "#fff" : "var(--text-muted)",
                   background: isComplete ? "var(--green)" : isCurrent ? "var(--brand-blue)" : "var(--card-bg)",
                   border: `1px solid ${isComplete ? "var(--green)" : isCurrent ? "var(--brand-blue)" : "var(--card-border)"}`,
@@ -1000,7 +1000,7 @@ export default function OnboardingModal({
                           { label: "Horizon", value: finnGenerated.holding_period_bias },
                         ].map((item) => (
                           <div key={item.label} style={{ padding: "3px 8px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "6px" }}>
-                            <span style={{ fontSize: "9px", color: "rgba(167,139,250,0.45)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}: </span>
+                            <span style={{ fontSize: "10px", color: "rgba(167,139,250,0.45)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}: </span>
                             <span style={{ fontSize: "10px", color: "rgba(196,181,253,0.85)" }}>{item.value}</span>
                           </div>
                         ))}

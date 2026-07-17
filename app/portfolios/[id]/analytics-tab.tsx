@@ -60,7 +60,7 @@ function SplitBar({ segments }: { segments: { label: string; pct: number; color:
 function FactorStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div style={{ flex: 1, minWidth: "78px", padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-      <div style={{ fontSize: "9.5px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center" }}>
+      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center" }}>
         {label}{hint && <Hint text={hint} />}
       </div>
       <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)", marginTop: "3px" }}>{value}</div>
@@ -221,15 +221,15 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
               <div style={{ display: "inline-grid", gridTemplateColumns: `44px repeat(${corr.tickers.length}, 1fr)`, gap: "2px", minWidth: "100%" }}>
                 <div />
                 {corr.tickers.map((t) => (
-                  <div key={`h-${t}`} style={{ fontSize: "8.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "center", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</div>
+                  <div key={`h-${t}`} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "center", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</div>
                 ))}
                 {corr.tickers.map((rt, i) => (
                   <div key={`row-${rt}`} style={{ display: "contents" }}>
-                    <div style={{ fontSize: "8.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: "5px" }}>{rt}</div>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: "5px" }}>{rt}</div>
                     {corr.matrix[i].map((v, j) => (
                       <div key={`${i}-${j}`} title={`${corr.tickers[i]} ↔ ${corr.tickers[j]}: ${v.toFixed(2)}`} style={{
                         aspectRatio: "1", minWidth: "26px", display: "flex", alignItems: "center", justifyContent: "center",
-                        borderRadius: "4px", fontSize: "9px", fontWeight: 700, fontFamily: "var(--font-mono)",
+                        borderRadius: "4px", fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
                         background: i === j ? "rgba(99,102,241,0.18)" : corrColor(v),
                         color: i === j ? "var(--accent, #818cf8)" : (v >= 0.4 || v < -0.15 ? "#fff" : "var(--text-secondary)"),
                       }}>{i === j ? "—" : v.toFixed(1)}</div>
@@ -264,7 +264,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
               <thead>
                 <tr>
                   {["Ticker", "Bought", "Shares", "Cost", "Now", "Loss", "Term", ""].map((h) => (
-                    <th key={h} style={{ textAlign: h === "Ticker" ? "left" : "right", padding: "5px 8px", fontSize: "9.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h} style={{ textAlign: h === "Ticker" ? "left" : "right", padding: "5px 8px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", borderBottom: "1px solid var(--card-border)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -279,7 +279,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
                     <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--red)", borderBottom: "1px solid var(--border-subtle)" }}>−${c.loss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", fontSize: "10px", color: c.longTerm ? "var(--text-tertiary)" : "#f59e0b", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>{c.longTerm ? "Long" : "Short"}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>
-                      {c.washSaleRisk && <span title="You bought this ticker in the last 30 days — selling at a loss now would trigger the wash-sale rule and disallow the deduction." style={{ fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "2px 7px", cursor: "help" }}>⚠ wash sale</span>}
+                      {c.washSaleRisk && <span title="You bought this ticker in the last 30 days — selling at a loss now would trigger the wash-sale rule and disallow the deduction." style={{ fontSize: "10px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "2px 7px", cursor: "help" }}>⚠ wash sale</span>}
                     </td>
                   </tr>
                 ))}

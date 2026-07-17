@@ -137,7 +137,7 @@ function ConfidenceRing({ score }: { score: number }) {
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{score}</span>
-        <span style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", letterSpacing: "0.04em", marginTop: "1px" }}>/ 100</span>
+        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", letterSpacing: "0.04em", marginTop: "1px" }}>/ 100</span>
       </div>
     </div>
   );
@@ -294,7 +294,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
               <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "5px" }}>
                   <ConfidenceRing score={analysis.finn_confidence} />
-                  <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", letterSpacing: "0.04em", textTransform: "uppercase" }}>Atlas Confidence</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", letterSpacing: "0.04em", textTransform: "uppercase" }}>Atlas Confidence</span>
                 </div>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "7px" }}>
                   {analysis.factors.map((f, i) => <FactorBar key={f.name} factor={f} idx={i} />)}
@@ -303,7 +303,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
 
               {/* Strategy Thesis */}
               <div style={{ background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "var(--radius-md)", padding: "12px 14px" }}>
-                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: FV.accent, margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: FV.accent, margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                   Why This Strategy Exists
                 </p>
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, fontFamily: "var(--font-body)" }}>
@@ -313,7 +313,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
 
               {/* Weaknesses */}
               <div>
-                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                   Weaknesses
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -328,7 +328,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
 
               {/* Failure Conditions */}
               <div style={{ paddingBottom: "4px" }}>
-                <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+                <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                   What Would Break This Strategy
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -345,7 +345,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
               {(analysis.bull_case?.length > 0 || analysis.bear_case?.length > 0) && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   <div style={{ background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--green)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--green)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                       Bull Case
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -358,7 +358,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
                     </div>
                   </div>
                   <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--red)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                       Bear Case
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -621,7 +621,7 @@ function ImproveStrategyPanel({
           {/* Confidence delta badge */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "var(--surface-003)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
             <div>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Atlas Confidence</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Atlas Confidence</div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", color: "var(--text-muted)", fontWeight: 500 }}>{currentConfidence ?? "—"}</span>
                 <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M10 1l4 4-4 4" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -634,7 +634,7 @@ function ImproveStrategyPanel({
               </div>
             </div>
             <div style={{ marginLeft: "auto", textAlign: "right" }}>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Net factor Δ</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Net factor Δ</div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: deltaSummary > 0 ? "var(--green)" : deltaSummary < 0 ? "var(--red)" : "var(--text-muted)" }}>
                 {deltaSummary > 0 ? `+${deltaSummary}` : deltaSummary}
               </span>
@@ -644,14 +644,14 @@ function ImproveStrategyPanel({
           {/* Parameter changes */}
           {result.changes.length > 0 && (
             <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                 Parameter Changes
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--line-006)" }}>
                 {result.changes.map((c, i) => (
                   <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "6px", alignItems: "start", padding: "8px 10px", background: "var(--surface-002)", borderBottom: i < result.changes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px", fontFamily: "var(--font-body)" }}>{c.label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px", fontFamily: "var(--font-body)" }}>{c.label}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.4 }}>{c.reason}</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, paddingTop: "1px" }}>
@@ -666,7 +666,7 @@ function ImproveStrategyPanel({
 
           {/* Score deltas */}
           <div>
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>
               Factor Impact
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -678,7 +678,7 @@ function ImproveStrategyPanel({
 
           {/* Narrative */}
           <div style={{ background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.16)", borderRadius: "var(--radius-md)", padding: "10px 13px" }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
               Atlas Rationale
             </p>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontFamily: "var(--font-body)" }}>
@@ -689,7 +689,7 @@ function ImproveStrategyPanel({
           {/* Tradeoffs */}
           {result.tradeoffs.length > 0 && (
             <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--amber)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                 Tradeoffs
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -827,26 +827,26 @@ export default function StrategyCardItem({
                 {card.name}
               </span>
               {isArchived ? (
-                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
                   Archived
                 </span>
               ) : (
                 <>
-                  <span style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
                     {rs.label}
                   </span>
                   {card.style && (
-                    <span style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                       {card.style}
                     </span>
                   )}
                   {health && (
-                    <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: health.bg, border: `1px solid ${health.border}`, color: health.color }}>
+                    <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: health.bg, border: `1px solid ${health.border}`, color: health.color }}>
                       {health.label}
                     </span>
                   )}
                   {regimeFit && (
-                    <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: regimeFit.bg, border: `1px solid ${regimeFit.border}`, color: regimeFit.color }}>
+                    <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "var(--radius-full)", background: regimeFit.bg, border: `1px solid ${regimeFit.border}`, color: regimeFit.color }}>
                       {regimeFit.label}
                     </span>
                   )}
@@ -874,7 +874,7 @@ export default function StrategyCardItem({
             {chips.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: "8px" }}>
                 {chips.map((chip) => (
-                  <span key={chip} style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--surface-004)", border: "1px solid var(--line-006)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                  <span key={chip} style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--surface-004)", border: "1px solid var(--line-006)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                     {chip}
                   </span>
                 ))}
@@ -939,7 +939,7 @@ export default function StrategyCardItem({
                       ["Time horizon", v.holding_period_bias ?? "—"],
                     ].map(([label, value]) => (
                       <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px" }}>{label}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "2px" }}>{label}</div>
                         <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{value}</div>
                       </div>
                     ))}
@@ -1091,7 +1091,7 @@ export default function StrategyCardItem({
                             ["Version", `v${v.version_number}`],
                           ].map(([label, value]) => (
                             <div key={String(label)} style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "7px 10px" }}>
-                              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "3px" }}>{label}</div>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "3px" }}>{label}</div>
                               <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{value}</div>
                             </div>
                           ))}
@@ -1104,7 +1104,7 @@ export default function StrategyCardItem({
                 {/* AI instructions */}
                 {v?.prompt_text && (
                   <div style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
+                    <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{v.prompt_text}</p>
                   </div>
                 )}

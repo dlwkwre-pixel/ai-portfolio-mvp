@@ -95,7 +95,7 @@ export default function FinnProfileCard({
     }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: FV.accent }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: FV.accent }}>
           Atlas Investor Profile
         </span>
         <span style={{ flex: 1 }} />
@@ -143,7 +143,7 @@ export default function FinnProfileCard({
       {/* Memory insights */}
       {insights.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: `1px solid ${FV.border}`, paddingTop: "12px" }}>
-          <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: FV.accent }}>
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: FV.accent }}>
             Atlas has noticed
           </span>
           {insights.map((insight, i) => (

@@ -218,7 +218,7 @@ export default async function AIRecommendationsSection({
                   <p className="text-xl font-bold tabular-nums leading-none" style={{ color: scoreColor ?? undefined }}>
                     {healthScore}
                   </p>
-                  <p className="mt-0.5 text-[9px] uppercase tracking-widest" style={{ color: scoreColor ?? undefined, opacity: 0.7 }}>
+                  <p className="mt-0.5 text-[10px] uppercase tracking-widest" style={{ color: scoreColor ?? undefined, opacity: 0.7 }}>
                     Health
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export default async function AIRecommendationsSection({
                     {" · "}
                     {new Date(run.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
                   </span>
-                  <span className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{
+                  <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{
                     background: run.status === "completed" ? "rgba(0,211,149,0.08)" : "rgba(100,116,139,0.1)",
                     color: run.status === "completed" ? "#00d395" : "#64748b",
                   }}>

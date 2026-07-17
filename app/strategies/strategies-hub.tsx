@@ -185,7 +185,7 @@ function badgeStyle(badge: string | null) {
 
 function Chip({ label }: { label: string }) {
   return (
-    <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
+    <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)" }}>
       {label}
     </span>
   );
@@ -416,7 +416,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 }}>
                 {m.label}
                 {m.badge && (
-                  <span style={{ fontSize: "8px", fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: active ? "rgba(96,165,250,0.95)" : "var(--text-muted)" }}>{m.badge}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: active ? "rgba(96,165,250,0.95)" : "var(--text-muted)" }}>{m.badge}</span>
                 )}
               </button>
             );
@@ -540,7 +540,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
         {/* ── Templates body: popular row + view-all ── */}
         {method === "templates" && (
         <div style={{ marginTop: "4px" }}>
-          <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
+          <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "8px" }}>
             Popular starting points
           </p>
           <div
@@ -579,7 +579,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                     <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "nowrap", overflow: "hidden" }}>
                       <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.name}</span>
                       {t.badge && bs && (
-                        <span style={{ fontSize: "8px", padding: "1px 5px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: "10px", padding: "1px 5px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0, whiteSpace: "nowrap" }}>
                           {t.badge}
                         </span>
                       )}
@@ -647,7 +647,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
               <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M3 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM8.5 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM15.5 8.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" />
               </svg>
-              <span style={{ fontSize: "9px", fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>View<br/>all 8</span>
+              <span style={{ fontSize: "10px", fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>View<br/>all 8</span>
             </button>
           </div>
         </div>
@@ -685,7 +685,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
                           <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{t.name}</span>
                           {t.badge && bs && (
-                            <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0 }}>{t.badge}</span>
+                            <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: bs.bg, border: `1px solid ${bs.border}`, color: bs.color, fontWeight: 600, flexShrink: 0 }}>{t.badge}</span>
                           )}
                         </div>
                         <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.4, margin: 0 }}>{t.description}</p>

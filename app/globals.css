@@ -61,6 +61,15 @@
   --radius-xl:      18px;
   --radius-full:    9999px;
 
+  /* Type scale — 5 steps, ≥1.2 ratio. Nothing user-facing below --text-2xs;
+     numeric chart ticks (SVG) are the only sanctioned exception. New code uses
+     these instead of inline pixel values. */
+  --text-2xs:       10px;   /* dense chip/badge labels — the floor */
+  --text-xs:        11.5px; /* captions, secondary labels */
+  --text-sm:        12.5px; /* small body, table cells */
+  --text-base:      14px;   /* body */
+  --text-lg:        17px;   /* section titles */
+
   --space-1:  4px;  --space-2:  8px;  --space-3:  12px;
   --space-4:  16px; --space-5:  20px; --space-6:  24px;
   --space-8:  32px; --space-10: 40px;
@@ -359,6 +368,8 @@ body {
 .bt-btn-ghost { background: var(--card-bg); color: var(--text-secondary); border: 1px solid var(--card-border); }
 .bt-btn-ghost:hover { background: var(--card-hover); color: var(--text-primary); }
 .bt-btn-sm { padding: 5px 11px; font-size: 0.75rem; border-radius: var(--radius-sm); }
+.bt-btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.bt-btn-danger:hover { background: var(--red-bg); filter: brightness(1.15); }
 
 /* ── Badges ── */
 .bt-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: var(--radius-sm); font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }

@@ -144,7 +144,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                     </h1>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
                       <span style={{
-                        fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em",
+                        fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em",
                         textTransform: "uppercase", padding: "2px 7px",
                         borderRadius: "var(--radius-full)",
                         background: "var(--surface-004)",
@@ -155,7 +155,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                       </span>
                       {portfolio.risk_level && (
                         <span style={{
-                          fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+                          fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em",
                           textTransform: "uppercase", padding: "2px 7px",
                           borderRadius: "var(--radius-full)",
                           background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color,
@@ -165,7 +165,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                       )}
                       {portfolio.style && (
                         <span style={{
-                          fontSize: "9px", color: "var(--text-tertiary)",
+                          fontSize: "10px", color: "var(--text-tertiary)",
                           background: "transparent", border: "1px solid var(--card-border)",
                           padding: "2px 7px", borderRadius: "var(--radius-full)",
                         }}>

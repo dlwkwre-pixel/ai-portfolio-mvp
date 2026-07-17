@@ -181,7 +181,7 @@ export default function LifePlanTab({
               <circle cx="52" cy="52" r="45" fill="none" stroke="url(#lp-ring)" strokeWidth="7" strokeLinecap="round" strokeDasharray={2 * Math.PI * 45} strokeDashoffset={2 * Math.PI * 45 * (1 - readinessScore / 100)} style={{ transition: "stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1)" }} />
             </svg>
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Ready</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Ready</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "30px", color: "var(--text-primary)", lineHeight: 1 }}>{readinessScore}</span>
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function LifePlanTab({
             return (
               <div key={i} style={{ borderRadius: "12px", border: `1px solid color-mix(in oklch, ${color} 26%, transparent)`, background: `color-mix(in oklch, ${color} 6%, var(--bg-card))`, padding: "13px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color, background: `color-mix(in oklch, ${color} 14%, transparent)`, padding: "2px 7px", borderRadius: "20px" }}>{a.severity}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color, background: `color-mix(in oklch, ${color} 14%, transparent)`, padding: "2px 7px", borderRadius: "20px" }}>{a.severity}</span>
                   {a.years[0] != null && <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>{a.years[0]}{a.years.length > 1 ? `–${a.years[a.years.length - 1]}` : ""}</span>}
                 </div>
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>{a.title}</div>
@@ -309,7 +309,7 @@ export default function LifePlanTab({
                   background: `oklch(0.6 0.15 ${stage.hue} / 0.09)`, border: `1px solid oklch(0.6 0.15 ${stage.hue} / 0.28)` }}>
                 <span style={{ fontSize: "22px", flexShrink: 0 }}>{planner.emoji}</span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: `oklch(0.75 0.14 ${stage.hue})` }}>Suggested</div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: `oklch(0.75 0.14 ${stage.hue})` }}>Suggested</div>
                   <div style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--text-primary)" }}>{planner.label}</div>
                 </div>
                 <span style={{ marginLeft: "auto", color: `oklch(0.75 0.14 ${stage.hue})`, flexShrink: 0 }}>→</span>
@@ -414,12 +414,12 @@ function Timeline({ events, currentYear, retirementYear, highlightId, onPick }: 
         {retirementYear != null && retirementYear <= maxY && (
           <div style={{ position: "absolute", top: "8px", bottom: "8px", left: xOf(retirementYear) }}>
             <div style={{ position: "absolute", top: 0, bottom: 0, width: "2px", background: "linear-gradient(180deg, #7c3aed, rgba(124,58,237,0.15))", borderRadius: "2px" }} />
-            <div style={{ position: "absolute", top: "-2px", left: "6px", whiteSpace: "nowrap", fontSize: "9.5px", fontWeight: 700, color: "var(--violet-light, #a78bfa)", fontFamily: "var(--font-mono)" }}>Retire {retirementYear}</div>
+            <div style={{ position: "absolute", top: "-2px", left: "6px", whiteSpace: "nowrap", fontSize: "10px", fontWeight: 700, color: "var(--violet-light, #a78bfa)", fontFamily: "var(--font-mono)" }}>Retire {retirementYear}</div>
           </div>
         )}
         {/* now marker */}
         <div style={{ position: "absolute", top: "78px", left: xOf(currentYear), width: "8px", height: "8px", marginLeft: "-4px", borderRadius: "50%", background: "var(--text-secondary)", border: "2px solid var(--bg-base)" }} />
-        <div style={{ position: "absolute", top: "94px", left: xOf(currentYear), fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>now</div>
+        <div style={{ position: "absolute", top: "94px", left: xOf(currentYear), fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>now</div>
 
         {/* event markers */}
         {events.map((e) => {
@@ -442,8 +442,8 @@ function Timeline({ events, currentYear, retirementYear, highlightId, onPick }: 
                 boxShadow: hi ? `0 0 0 4px oklch(0.65 0.15 ${hue} / 0.3)` : "none" }} />
               {/* label */}
               <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", [inflow ? "top" : "bottom"]: "-30px", whiteSpace: "nowrap", textAlign: "center" }}>
-                <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 700, color: committed ? (inflow ? "oklch(0.74 0.18 150)" : `oklch(0.72 0.14 ${hue})`) : "var(--text-tertiary)" }}>{inflow ? "+" : ""}{fmt(e.amount_impact)}</div>
-                <div style={{ fontSize: "8.5px", color: "var(--text-muted)", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</div>
+                <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: committed ? (inflow ? "oklch(0.74 0.18 150)" : `oklch(0.72 0.14 ${hue})`) : "var(--text-tertiary)" }}>{inflow ? "+" : ""}{fmt(e.amount_impact)}</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{e.label}</div>
               </div>
             </div>
           );

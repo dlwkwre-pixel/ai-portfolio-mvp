@@ -146,7 +146,7 @@ export default function CongressSection({
             <span
               style={{
                 flexShrink: 0,
-                fontSize: "9px",
+                fontSize: "10px",
                 fontWeight: 700,
                 padding: "2px 6px",
                 borderRadius: "4px",
@@ -200,7 +200,7 @@ export function CongressTickerCard({ ticker }: { ticker: string }) {
   return (
     <>
       <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>🏛️ Congress Trades</span>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>🏛️ Congress Trades</span>
         <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
       </div>
       <div style={{ padding: "8px 18px 14px" }}>
@@ -223,7 +223,7 @@ export function CongressTickerCard({ ticker }: { ticker: string }) {
               {data.trades.slice(0, 8).map((t, i) => (
                 <div key={`${t.person}-${i}`} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
                   <span style={{
-                    flexShrink: 0, fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", fontFamily: "var(--font-mono)",
+                    flexShrink: 0, fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", fontFamily: "var(--font-mono)",
                     color: t.txType === "buy" ? "var(--green)" : t.txType === "sell" ? "#f87171" : "var(--text-tertiary)",
                     background: t.txType === "buy" ? "rgba(16,185,129,0.1)" : t.txType === "sell" ? "rgba(248,113,113,0.1)" : "var(--bg-elevated)",
                     border: `1px solid ${t.txType === "buy" ? "rgba(16,185,129,0.2)" : t.txType === "sell" ? "rgba(248,113,113,0.2)" : "var(--border-subtle)"}`,

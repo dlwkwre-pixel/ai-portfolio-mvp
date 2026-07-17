@@ -224,7 +224,7 @@ export default async function AdminOverview() {
                 background: i === WEEKS - 1 ? "linear-gradient(180deg,#2563eb,#7c3aed)" : "rgba(99,102,241,0.28)",
                 borderRadius: "6px 6px 2px 2px",
               }} />
-              <span style={{ fontSize: "9.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{i === WEEKS - 1 ? "now" : `-${WEEKS - 1 - i}w`}</span>
+              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{i === WEEKS - 1 ? "now" : `-${WEEKS - 1 - i}w`}</span>
             </div>
           ))}
         </div>

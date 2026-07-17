@@ -270,7 +270,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
             {months.map((m, i) => (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", height: "100%", justifyContent: "flex-end" }}>
                 <div title={`${m.month}: ${fmt(m.amount)}`} className="bt-inc-bar" style={{ width: "100%", maxWidth: "26px", height: `${Math.max(2, (m.amount / maxMonth) * 70)}px`, background: m.amount > 0 ? "linear-gradient(180deg,#34d399,#10b981)" : "rgba(148,163,184,0.15)", borderRadius: "3px 3px 0 0", animationDelay: `${i * 40}ms` }} />
-                <span style={{ fontSize: "8.5px", color: "var(--text-muted)" }}>{m.month}</span>
+                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{m.month}</span>
               </div>
             ))}
           </div>

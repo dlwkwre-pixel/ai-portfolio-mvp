@@ -171,7 +171,7 @@ export default function MasterLifeRoadmap({
         {/* Retirement marker */}
         {retirementYear != null && retirementYear <= endYear && (
           <div style={{ position: "absolute", left: `${xPct(retirementYear)}%`, top: 0, bottom: "18px", width: "1px", background: "color-mix(in oklch, var(--green) 60%, transparent)", transform: "translateX(-0.5px)" }}>
-            <span style={{ position: "absolute", top: "-2px", left: "4px", whiteSpace: "nowrap", fontSize: "9px", fontWeight: 700, color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Retire {retirementYear}</span>
+            <span style={{ position: "absolute", top: "-2px", left: "4px", whiteSpace: "nowrap", fontSize: "10px", fontWeight: 700, color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Retire {retirementYear}</span>
           </div>
         )}
 
@@ -198,7 +198,7 @@ export default function MasterLifeRoadmap({
         {milestones.filter((m) => m.kind === "wealth").map((m) => (
           <div key={`${m.year}-${m.label}`} style={{ position: "absolute", left: `${xPct(m.year)}%`, bottom: "18px", transform: "translateX(-50%)" }}>
             <div style={{ width: "1px", height: "8px", background: "var(--text-muted)" }} />
-            <span style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{m.label}</span>
+            <span style={{ position: "absolute", top: "-14px", left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{m.label}</span>
           </div>
         ))}
       </div>

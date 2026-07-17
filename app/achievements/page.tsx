@@ -94,7 +94,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               width: "15px", height: "15px", borderRadius: "50%",
-              fontSize: "9.5px", fontWeight: 700, lineHeight: 1, cursor: "help",
+              fontSize: "10px", fontWeight: 700, lineHeight: 1, cursor: "help",
               color: earned ? color : "#64748b",
               background: "rgba(255,255,255,0.05)",
               border: `1px solid ${earned ? `${color}40` : "rgba(255,255,255,0.1)"}`,
@@ -118,7 +118,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
         <p style={{ fontSize: "12px", fontWeight: 600, color: earned ? "var(--text-primary)" : "#64748b", letterSpacing: "-0.1px", lineHeight: 1.2, marginBottom: "3px" }}>
           {badge.name}
         </p>
-        <p style={{ fontSize: "9px", color: earned ? color : "#3b475a", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+        <p style={{ fontSize: "10px", color: earned ? color : "#3b475a", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
           {TIER_LABEL[badge.tier]}
         </p>
 
@@ -133,12 +133,12 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
             <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
               <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
             </div>
-            <p style={{ fontSize: "9.5px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
+            <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
               {current} / {target}
             </p>
           </div>
         ) : (
-          <p style={{ fontSize: "9.5px", color: "var(--text-tertiary)", lineHeight: 1.35 }}>{badge.hint}</p>
+          <p style={{ fontSize: "10px", color: "var(--text-tertiary)", lineHeight: 1.35 }}>{badge.hint}</p>
         )}
       </div>
     </div>

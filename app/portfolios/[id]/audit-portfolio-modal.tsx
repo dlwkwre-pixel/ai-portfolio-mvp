@@ -182,7 +182,7 @@ function SectionHeader({ label, count, color }: { label: string; count: number; 
     <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0 6px" }}>
       <span
         style={{
-          fontSize: "9px",
+          fontSize: "10px",
           fontWeight: 600,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
@@ -991,7 +991,7 @@ function ModalHeader({
           </h2>
           <span
             style={{
-              fontSize: "9px",
+              fontSize: "10px",
               fontWeight: 600,
               letterSpacing: "0.08em",
               textTransform: "uppercase",

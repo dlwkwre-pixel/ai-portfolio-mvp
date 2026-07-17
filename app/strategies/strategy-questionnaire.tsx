@@ -565,7 +565,7 @@ function StrategyDNAChart({ profile }: { profile: DNAProfile }) {
     >
       <div className="mb-3 flex items-center gap-2">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accent, animation: "finnPulse 2.5s ease-in-out infinite" }} />
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Strategy DNA</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Strategy DNA</p>
       </div>
       <div className="space-y-2.5">
         {entries.map(({ key, label, value }) => {
@@ -604,7 +604,7 @@ function ContradictionCard({ title, body, resolution }: { title: string; body: s
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="none">
           <path d="M5 1v4M5 7.5v.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "var(--red)" }}>Atlas — Objective Conflict</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--red)" }}>Atlas — Objective Conflict</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -623,7 +623,7 @@ function InsightCard({ title, body }: { title: string; body: string }) {
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="currentColor" style={{ color: FV.accentBright }}>
           <path d="M5 0l.58 3.42L9 5l-3.42.58L5 10l-.58-3.42L1 5l3.42-.58L5 0z" />
         </svg>
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Insight</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Insight</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -641,14 +641,14 @@ function StrategySnapshotCard({ strategy, mode, onToggle }: {
       style={{ background: "var(--surface-002)", animation: "bt-fade-up 0.4s 0.1s ease both" }}
     >
       <div className="mb-2.5 flex items-center justify-between">
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Strategy Snapshot</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Strategy Snapshot</p>
         <div className="flex items-center gap-0.5 rounded-md p-0.5" style={{ background: "var(--surface-004)" }}>
           {(["simple", "pro"] as const).map(m => (
             <button
               key={m}
               type="button"
               onClick={() => mode !== m && onToggle()}
-              className="rounded px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest transition-colors"
+              className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-colors"
               style={{
                 background: mode === m ? "rgba(255,255,255,0.09)" : "transparent",
                 color:      mode === m ? "#f0f4ff" : "#475569",
@@ -692,7 +692,7 @@ function ConfidenceMeter({ signalCount }: { signalCount: number }) {
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Atlas Confidence</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Atlas Confidence</span>
           <span className="text-[10px] font-semibold" style={{ color: conf.color }}>{conf.level}</span>
         </div>
         <p className="text-[11px] text-slate-500">{conf.reason}</p>
@@ -721,7 +721,7 @@ function PsychologyBrief({ strategy }: { strategy: GeneratedStrategy }) {
             <path d="M6 5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             <circle cx="6" cy="8.75" r="0.6" fill="currentColor" />
           </svg>
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">Psychology Brief</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Psychology Brief</span>
         </div>
         <svg
           className="h-3.5 w-3.5 text-slate-600"
@@ -734,11 +734,11 @@ function PsychologyBrief({ strategy }: { strategy: GeneratedStrategy }) {
       {open && (
         <div className="border-t border-white/6 px-4 pb-4 pt-3 space-y-3">
           <div>
-            <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-slate-600">Drawdown Reality</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Drawdown Reality</p>
             <p className="text-[12px] leading-relaxed text-slate-300">{brief.drawdown}</p>
           </div>
           <div>
-            <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-slate-600">Psychological Challenge</p>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">Psychological Challenge</p>
             <p className="text-[12px] leading-relaxed text-slate-300">{brief.challenge}</p>
           </div>
         </div>
@@ -769,18 +769,18 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
     >
       <div className="mb-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Scenario Sandbox</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Scenario Sandbox</span>
           {active && (
             <button
               type="button"
               onClick={() => setActive(null)}
-              className="text-[9px] text-slate-500 underline-offset-2 transition hover:text-slate-300"
+              className="text-[10px] text-slate-500 underline-offset-2 transition hover:text-slate-300"
             >
               Clear
             </button>
           )}
         </div>
-        <span className="text-[9px] text-slate-700">Explore risk pivots without changing your strategy</span>
+        <span className="text-[10px] text-slate-700">Explore risk pivots without changing your strategy</span>
       </div>
       <div className="flex gap-1.5">
         {RISK_LEVELS.map(r => {
@@ -800,7 +800,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
               }}
             >
               {r}
-              {isCurrent && <span className="ml-1 text-[8px] text-slate-600"> current</span>}
+              {isCurrent && <span className="ml-1 text-[10px] text-slate-600"> current</span>}
             </button>
           );
         })}
@@ -808,7 +808,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
 
       {scenarioDNA && (
         <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>
             DNA under {active} scenario
           </p>
           {DNA_DIMENSIONS.map(d => {
@@ -857,8 +857,8 @@ function StressSimulator({ strategy }: { strategy: GeneratedStrategy }) {
       style={{ background: "var(--surface-002)", animation: "bt-fade-up 0.4s 0.3s ease both" }}
     >
       <div className="mb-2.5 flex items-center gap-2">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Stress Scenarios</span>
-        <span className="text-[9px] text-slate-700">estimated impact at {riskKey.toLowerCase()} risk</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Stress Scenarios</span>
+        <span className="text-[10px] text-slate-700">estimated impact at {riskKey.toLowerCase()} risk</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
         {STRESS_SCENARIOS_META.map(s => {
@@ -872,15 +872,15 @@ function StressSimulator({ strategy }: { strategy: GeneratedStrategy }) {
               <p className="mb-2 text-[10px] font-semibold text-slate-400">{s.label}</p>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-slate-600">Drawdown</span>
+                  <span className="text-[10px] text-slate-600">Drawdown</span>
                   <span className="text-[10px] font-medium text-red-400 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{data.drawdown}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-slate-600">Recovery</span>
+                  <span className="text-[10px] text-slate-600">Recovery</span>
                   <span className="text-[10px] text-slate-400 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>{data.recovery}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] text-slate-600">Resilience</span>
+                  <span className="text-[10px] text-slate-600">Resilience</span>
                   <span className="text-[10px] font-semibold" style={{ color: resilienceColor(data.resilience) }}>{data.resilience}</span>
                 </div>
               </div>
@@ -903,7 +903,7 @@ function FinnEvolutionLog({ original, current }: { original: GeneratedStrategy; 
     >
       <div className="mb-2.5 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accentBright, animation: "finnPulse 2.5s ease-in-out infinite" }} />
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Adjustments</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Adjustments</span>
       </div>
       <div className="relative pl-3.5">
         <div className="absolute inset-y-0 left-0 w-px" style={{ background: FV.border }} />
@@ -1290,7 +1290,7 @@ export default function StrategyQuestionnaire({
         <div className="border-b border-white/6 px-5 py-2.5" style={{ animation: "bt-fade-in 0.4s ease both" }}>
           <div className="mb-1.5 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accent, animation: "finnPulse 2s ease-in-out infinite" }} />
-            <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-600">Strategy Build</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Strategy Build</span>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1.5">
             {SIGNALS_META.map(sig => {
@@ -1476,7 +1476,7 @@ export default function StrategyQuestionnaire({
                 <span className="text-xs font-medium uppercase tracking-widest text-slate-500">Name</span>
                 {isBrandedName && (
                   <span
-                    className="rounded px-1 py-px text-[8px] font-semibold uppercase tracking-widest"
+                    className="rounded px-1 py-px text-[10px] font-semibold uppercase tracking-widest"
                     style={{ background: FV.bgMed, color: FV.accentBright, animation: "bt-fade-in 0.4s ease both" }}
                   >
                     Atlas

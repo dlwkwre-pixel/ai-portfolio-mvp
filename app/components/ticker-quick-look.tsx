@@ -39,7 +39,7 @@ function fmtMarketCap(n: number | null): string | null {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "3px" }}>
+      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "3px" }}>
         {label}
       </div>
       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
@@ -175,13 +175,13 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
               <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap" }}>
                 {bullPct != null && (
                   <div style={{ flex: "1 1 0", minWidth: "120px", background: "var(--surface-003)", border: "1px solid var(--line-006)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Analyst Sentiment</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Analyst Sentiment</div>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: bullPct >= 60 ? "var(--green)" : bullPct >= 40 ? "#f59e0b" : "var(--red)" }}>{bullPct}% Bullish</div>
                   </div>
                 )}
                 {target != null && (
                   <div style={{ flex: "1 1 0", minWidth: "120px", background: "var(--surface-003)", border: "1px solid var(--line-006)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Price Target</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>Price Target</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
                       ${target.toFixed(2)}
                       {upside != null && (
@@ -198,7 +198,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
             {/* Recent news */}
             {news.length > 0 && (
               <div style={{ marginBottom: "16px" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px" }}>Recent News</div>
+                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px" }}>Recent News</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
                   {news.map((n, i) => (
                     <a
@@ -206,7 +206,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
                       style={{ display: "block", fontSize: "11.5px", lineHeight: 1.45, color: "var(--text-secondary)", textDecoration: "none", paddingLeft: "10px", borderLeft: "2px solid rgba(96,165,250,0.3)" }}
                     >
                       {n.headline}
-                      <span style={{ display: "block", fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{n.source}</span>
+                      <span style={{ display: "block", fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{n.source}</span>
                     </a>
                   ))}
                 </div>

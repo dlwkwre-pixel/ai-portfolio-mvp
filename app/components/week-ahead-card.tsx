@@ -171,7 +171,7 @@ export default function WeekAheadCard() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "3px", marginBottom: "2px" }}>
-                      <span style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      <span style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                         {idx.label}
                       </span>
                       <InfoTooltip text={INDEX_INFO[idx.symbol] ?? `${idx.label} index level and today's move.`} align={align} width={220}>
@@ -185,11 +185,11 @@ export default function WeekAheadCard() {
                     </div>
                     {chg != null && (
                       <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "1px" }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600, color: chgColor }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: chgColor }}>
                           {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
                         </span>
                         {isVol && positive != null && (
-                          <span style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.03em" }}>
                             {positive ? "calmer" : "fear"}
                           </span>
                         )}
@@ -254,7 +254,7 @@ export default function WeekAheadCard() {
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--nav-active-text)" }}>
                       {e.symbol}
                     </span>
-                    <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>
                       {dayLabel(e.date)}{e.hour === "bmo" ? " AM" : e.hour === "amc" ? " PM" : ""}
                     </span>
                   </button>

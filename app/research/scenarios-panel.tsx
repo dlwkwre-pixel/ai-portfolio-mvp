@@ -60,7 +60,7 @@ function SignalBadge({ cfg, level, count }: {
         onMouseEnter={show}
         onMouseLeave={() => setTipPos(null)}
         style={{
-          fontSize: "9px",
+          fontSize: "10px",
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
@@ -282,7 +282,7 @@ function ScenarioCard({
               <span
                 title="Generated daily by AI based on current news headlines"
                 style={{
-                  fontSize: "9px",
+                  fontSize: "10px",
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
@@ -303,7 +303,7 @@ function ScenarioCard({
           <div style={{ display: "flex", gap: "4px", marginTop: "5px", flexWrap: "wrap" }}>
             {scenario.tags.map((tag) => (
               <span key={tag} style={{
-                fontSize: "9px", fontWeight: 600,
+                fontSize: "10px", fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
                 padding: "1px 6px",
@@ -316,7 +316,7 @@ function ScenarioCard({
               </span>
             ))}
             <span style={{
-              fontSize: "9px", color: "var(--text-muted)",
+              fontSize: "10px", color: "var(--text-muted)",
               padding: "1px 6px",
             }}>
               {scenario.timeHorizon} horizon
@@ -396,7 +396,7 @@ function ScenarioCard({
           {(signal?.headlines?.length ?? 0) > 0 && (
             <div style={{ marginBottom: "16px" }}>
               <div style={{
-                fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
+                fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
                 letterSpacing: "0.1em", color: cfg.color, marginBottom: "8px",
               }}>
                 Current Signals ({signal!.count} headline{signal!.count !== 1 ? "s" : ""})
@@ -438,7 +438,7 @@ function ScenarioCard({
               marginBottom: "8px",
             }}>
               <span style={{
-                fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
+                fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
                 letterSpacing: "0.1em", color: "var(--green)",
               }}>
                 Positioned to Benefit
@@ -520,7 +520,7 @@ function ScenarioCard({
                           </span>
                         )}
                         {clickable && (
-                          <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)" }}>View →</span>
+                          <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)" }}>View →</span>
                         )}
                       </div>
                       <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.4 }}>
@@ -541,7 +541,7 @@ function ScenarioCard({
                 marginBottom: "8px",
               }}>
                 <span style={{
-                  fontSize: "9px", fontWeight: 700, textTransform: "uppercase",
+                  fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
                   letterSpacing: "0.1em", color: "var(--red)",
                 }}>
                   Likely to Underperform
@@ -623,7 +623,7 @@ function ScenarioCard({
                             </span>
                           )}
                           {clickable && (
-                            <span style={{ marginLeft: "auto", fontSize: "9px", color: "var(--text-muted)" }}>View →</span>
+                            <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)" }}>View →</span>
                           )}
                         </div>
                         <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.4 }}>
@@ -674,7 +674,7 @@ function ScenarioCard({
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
                         ✦ Atlas Analysis
                       </span>
                     </div>
@@ -705,7 +705,7 @@ function ScenarioCard({
                       { label: "Blockers", items: likelihood.key_risks, color: "var(--red)" },
                     ].map(({ label, items, color }) => (
                       <div key={label}>
-                        <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color, marginBottom: "5px" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color, marginBottom: "5px" }}>
                           {label}
                         </div>
                         <ul style={{ margin: 0, padding: "0 0 0 12px" }}>
@@ -939,7 +939,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
                   <span style={{
                     marginLeft: "4px",
                     fontFamily: "var(--font-mono)",
-                    fontSize: "9px",
+                    fontSize: "10px",
                     color: active ? "var(--brand-blue)" : "#3b82f6",
                   }}>
                     {cnt}

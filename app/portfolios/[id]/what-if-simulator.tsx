@@ -74,7 +74,7 @@ function MetricRow({ label, hint, before, after, suffix = "", invert = false, de
       <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center" }}>
         {label}
         <InfoTooltip text={hint} align="start" width={230}>
-          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
         </InfoTooltip>
       </span>
       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "right" }}>
@@ -202,7 +202,7 @@ export default function WhatIfSimulator({ portfolioId, baseline }: { portfolioId
               <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "8px", display: "flex", alignItems: "center" }}>
                 Estimated downside
                 <InfoTooltip text="Rough dollar loss if the market falls, using your portfolio's beta. A higher-beta portfolio falls more than the market; a lower-beta one falls less. Estimate only." align="start" width={240}>
-                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
                 </InfoTooltip>
               </div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -216,7 +216,7 @@ export default function WhatIfSimulator({ portfolioId, baseline }: { portfolioId
                       <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>Market −{d}%</div>
                       <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--red)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>−{fmt(aLoss)}</div>
                       {Math.abs(aLoss - bLoss) > 1 && (
-                        <div style={{ fontSize: "9.5px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>was −{fmt(bLoss)}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>was −{fmt(bLoss)}</div>
                       )}
                     </div>
                   );

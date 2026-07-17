@@ -284,11 +284,11 @@ function ApeWisdomPanel({ sp }: { sp: RedditPulse }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-white/5 bg-white/2 p-2">
-          <p className="text-[9px] uppercase tracking-widest text-slate-500">Mentions (7d)</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Mentions (7d)</p>
           <p className="text-sm font-semibold tabular-nums text-slate-200">{sp.mentions ?? 0}</p>
         </div>
         <div className="rounded-lg border border-white/5 bg-white/2 p-2">
-          <p className="text-[9px] uppercase tracking-widest text-slate-500">24h Change</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">24h Change</p>
           <p className={`text-sm font-semibold tabular-nums ${cc}`}>
             {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
           </p>
@@ -327,13 +327,13 @@ function RedditPulsePanel({ sp }: { sp: RedditPulse }) {
       </div>
       <div className="mb-2 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-white/5 bg-white/2 p-2">
-          <p className="text-[9px] uppercase tracking-widest text-slate-500">Conviction</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Conviction</p>
           <p className={`text-sm font-semibold tabular-nums ${sp.conviction_score >= 60 ? "text-emerald-400" : sp.conviction_score >= 35 ? "text-amber-400" : "text-slate-300"}`}>
             {sp.conviction_score}<span className="text-xs text-slate-500">/100</span>
           </p>
         </div>
         <div className="rounded-lg border border-white/5 bg-white/2 p-2">
-          <p className="text-[9px] uppercase tracking-widest text-slate-500">Hype Risk</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Hype Risk</p>
           <p className={`text-sm font-semibold tabular-nums ${sp.hype_score >= 65 ? "text-red-400" : sp.hype_score >= 40 ? "text-amber-400" : "text-slate-300"}`}>
             {sp.hype_score}<span className="text-xs text-slate-500">/100</span>
           </p>
@@ -821,7 +821,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                         className="flex w-full items-center gap-2 rounded-xl border border-white/6 bg-white/2 px-3 py-2.5 text-left hover:bg-white/3 transition"
                       >
                         <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{ri.label}</span>
-                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] tabular-nums text-slate-600">{ri.count}</span>
+                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-600">{ri.count}</span>
                         <svg viewBox="0 0 20 20" fill="currentColor"
                           className={`ml-auto h-3.5 w-3.5 shrink-0 text-slate-600 transition-transform ${(ri.sectionKey === "lowconv" ? lowConvCollapsed : monitoringCollapsed) ? "" : "rotate-180"}`}>
                           <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
@@ -830,7 +830,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                     ) : (
                       <div className="flex items-center gap-2 px-1 py-1">
                         <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{ri.label}</span>
-                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[9px] tabular-nums text-slate-600">{ri.count}</span>
+                        <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-600">{ri.count}</span>
                       </div>
                     )}
                   </div>
@@ -929,7 +929,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                         {/* Row 2: thesis signal · thesis preview · sizing chips */}
                         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                           {thesisSignal && (
-                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${thesisSignal.badgeClass}`}>
+                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${thesisSignal.badgeClass}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${thesisSignal.dotColor}`} />
                               {thesisSignal.label}
                             </span>
@@ -1098,7 +1098,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                               <div className="grid gap-2 sm:grid-cols-2">
                                 {allSections.map((s, i) => (
                                   <div key={i} className="rounded-xl border border-white/5 bg-white/2 p-3">
-                                    <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
+                                    <p className={`mb-1.5 text-[10px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
                                     <p className="text-sm leading-6 text-slate-300">{s.content}</p>
                                   </div>
                                 ))}
@@ -1107,14 +1107,14 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                                 <div className="grid gap-2 sm:grid-cols-2">
                                   {riskSections.map((s, i) => (
                                     <div key={i} className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
-                                      <p className={`mb-1.5 text-[9px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
+                                      <p className={`mb-1.5 text-[10px] font-semibold uppercase tracking-widest ${s.labelClass}`}>{s.label}</p>
                                       <p className="text-sm leading-6 text-slate-300">{s.content}</p>
                                     </div>
                                   ))}
                                 </div>
                               ) : item.risks ? (
                                 <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
-                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
+                                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
                                   <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
                                 </div>
                               ) : null}
@@ -1134,20 +1134,20 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                             <div className="grid gap-2 sm:grid-cols-2">
                               {item.thesis && (
                                 <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
+                                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-blue-400">Thesis</p>
                                   <p className="text-sm leading-6 text-slate-200">{item.thesis}</p>
                                 </div>
                               )}
                               {item.rationale && (
                                 <div className="rounded-xl border border-white/5 bg-white/2 p-3">
-                                  <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
+                                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Rationale</p>
                                   <p className="text-sm leading-6 text-slate-300">{item.rationale}</p>
                                 </div>
                               )}
                             </div>
                             {item.risks && (
                               <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 p-3">
-                                <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
+                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-amber-400">Risks</p>
                                 <p className="text-sm leading-6 text-slate-300">{item.risks}</p>
                               </div>
                             )}
@@ -1165,7 +1165,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                           { label: "Shares",     value: item.share_quantity != null ? fmtN(item.share_quantity, 4) : null },
                         ].map(m => m.value ? (
                           <div key={m.label} className="min-w-0 rounded-xl border border-white/5 bg-white/2 px-2 py-2 text-center">
-                            <p className="truncate text-[9px] uppercase tracking-widest text-slate-600">{m.label}</p>
+                            <p className="truncate text-[10px] uppercase tracking-widest text-slate-600">{m.label}</p>
                             <p className="mt-0.5 truncate text-sm font-semibold text-white">{m.value}</p>
                           </div>
                         ) : null)}
@@ -1182,7 +1182,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                               { label: "Bull Case", price: item.bull_price, pct: item.bull_return_pct, border: "border-blue-500/12", bg: "bg-blue-500/5", labelColor: "text-blue-400", pctColor: "text-blue-400" },
                             ].map(c => c.price != null || c.pct != null ? (
                               <div key={c.label} className={`min-w-0 rounded-xl border ${c.border} ${c.bg} px-2 py-2`}>
-                                <p className={`text-[9px] uppercase tracking-widest ${c.labelColor} truncate`}>{c.label}</p>
+                                <p className={`text-[10px] uppercase tracking-widest ${c.labelColor} truncate`}>{c.label}</p>
                                 {c.pct != null && <p className={`mt-0.5 truncate text-sm font-bold tabular-nums ${c.pctColor}`}>{fmtPct(c.pct)}</p>}
                                 {c.price != null && <p className="truncate text-[11px] tabular-nums text-slate-400">{fmt$(c.price)}</p>}
                               </div>
@@ -1194,7 +1194,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                       {/* Target change reason */}
                       {item.target_change_reason && (
                         <div className="mt-2 rounded-xl border border-amber-500/12 bg-amber-500/5 px-3 py-2">
-                          <p className="text-[9px] uppercase tracking-widest text-amber-500 mb-1">Target Updated</p>
+                          <p className="text-[10px] uppercase tracking-widest text-amber-500 mb-1">Target Updated</p>
                           <p className="text-xs leading-5 text-slate-300">{item.target_change_reason}</p>
                         </div>
                       )}
@@ -1215,13 +1215,13 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                         <div className="mt-2 flex flex-wrap gap-2">
                           {item.target_price_2 && (
                             <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/5 px-3 py-2">
-                              <p className="text-[9px] uppercase tracking-widest text-emerald-400">Target 2</p>
+                              <p className="text-[10px] uppercase tracking-widest text-emerald-400">Target 2</p>
                               <p className="text-sm font-semibold text-white">{fmt$(item.target_price_2)}</p>
                             </div>
                           )}
                           {item.stop_price && (
                             <div className="rounded-xl border border-red-500/10 bg-red-500/5 px-3 py-2">
-                              <p className="text-[9px] uppercase tracking-widest text-red-400">Stop</p>
+                              <p className="text-[10px] uppercase tracking-widest text-red-400">Stop</p>
                               <p className="text-sm font-semibold text-white">{fmt$(item.stop_price)}</p>
                             </div>
                           )}
@@ -1240,25 +1240,25 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                             <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Outcome</p>
                             <div className="flex flex-wrap items-center gap-3">
                               <div>
-                                <p className="text-[9px] uppercase tracking-widest text-slate-600">Executed</p>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-600">Executed</p>
                                 <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">{fmt$(item.executed_price)}</p>
-                                <p className="text-[9px] text-slate-600">{execDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}{daysSince > 0 ? ` · ${daysSince}d ago` : ""}</p>
+                                <p className="text-[10px] text-slate-600">{execDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}{daysSince > 0 ? ` · ${daysSince}d ago` : ""}</p>
                               </div>
                               {liveP != null && (
                                 <>
                                   <div>
-                                    <p className="text-[9px] uppercase tracking-widest text-slate-600">Current</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-600">Current</p>
                                     <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">{fmt$(liveP)}</p>
                                   </div>
                                   <div>
-                                    <p className="text-[9px] uppercase tracking-widest text-slate-600">Return</p>
+                                    <p className="text-[10px] uppercase tracking-widest text-slate-600">Return</p>
                                     <p className={`mt-0.5 text-lg font-bold tabular-nums ${retPositive ? "text-emerald-400" : "text-red-400"}`}>
                                       {retPositive ? "+" : ""}{ret!.toFixed(1)}%
                                     </p>
                                   </div>
                                   {item.target_price_1 != null && (
                                     <div>
-                                      <p className="text-[9px] uppercase tracking-widest text-slate-600">To Target</p>
+                                      <p className="text-[10px] uppercase tracking-widest text-slate-600">To Target</p>
                                       <p className="mt-0.5 text-sm font-semibold tabular-nums text-slate-300">
                                         {(((item.target_price_1 - liveP) / liveP) * 100).toFixed(1)}%
                                       </p>

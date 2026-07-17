@@ -185,7 +185,7 @@ export default function ContributionsClient({ schedules, portfolios }: {
                     <div style={{ flex: 1, minWidth: "160px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>{s.label}</span>
-                        {!s.active && <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "1px 7px" }}>Paused</span>}
+                        {!s.active && <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "1px 7px" }}>Paused</span>}
                       </div>
                       <div style={{ fontSize: "11.5px", color: "var(--text-tertiary)", marginTop: "2px" }}>
                         {cadenceLabel(s.cadence, s.anchor_day)}{pName ? ` · ${pName}` : ""}

@@ -354,7 +354,7 @@ function AnalystBar({ rec }: { rec: ScreenerTicker["analystRec"] }) {
         <div style={{ width: `${holdPct}%`, background: "var(--violet)", flexShrink: 0 }} />
         <div style={{ width: `${sellPct}%`, background: "var(--red)",   flexShrink: 0 }} />
       </div>
-      <div style={{ display: "flex", gap: "7px", fontSize: "9px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+      <div style={{ display: "flex", gap: "7px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)" }}>
         <span style={{ color: "var(--green)" }}>B {rec.buy}</span>
         <span style={{ color: "var(--violet)" }}>H {rec.hold}</span>
         <span style={{ color: "var(--red)" }}>S {rec.sell}</span>
@@ -778,11 +778,11 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
       <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
           <div style={{ width: "8px", height: "8px", background: "rgba(255,255,255,0.22)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Est</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
           <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Actual</span>
         </div>
       </div>
 
@@ -791,7 +791,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
           {/* Y-axis */}
           <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
             {gridLines.map((g, gi) => (
-              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
+              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                 {g.label}
               </div>
             ))}
@@ -833,7 +833,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
                         boxShadow: "0 4px 16px rgba(0,0,0,0.45)",
                         pointerEvents: "none",
                       }}>
-                        <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
                         {e.estimate != null && <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>}
                         {e.actual != null && (
                           <div style={{ fontSize: "10px", fontWeight: 600, color: barColor, fontFamily: "var(--font-mono)" }}>
@@ -869,7 +869,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
         <div style={{ display: "flex", gap: "4px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
           {valid.map((e, i) => (
             <div key={i} style={{ flex: 1, textAlign: "center" }}>
-              <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>
+              <span style={{ fontSize: "10px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>
                 {e.quarter}
               </span>
             </div>
@@ -918,7 +918,7 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
       {items.map((item, i) => (
         <div key={i} style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
-          <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>
+          <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>
             {item.label}
           </div>
           <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: item.color, lineHeight: 1 }}>
@@ -1198,7 +1198,7 @@ function DetailView({
           }}>
             {result.profile?.marketCap && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
                 <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
                   {Number(result.profile.marketCap) >= 1_000_000
                     ? `$${safeFixed(Number(result.profile.marketCap) / 1_000_000, 2)}T`
@@ -1210,13 +1210,13 @@ function DetailView({
             )}
             {result.metrics?.peRatio && result.metrics.peRatio > 0 && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
                 <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{safeFixed(result.metrics.peRatio, 1)}x</div>
               </div>
             )}
             {result.metrics?.weekHigh52 && result.metrics?.weekLow52 && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
                 <div className="num" style={{ lineHeight: 1.45 }}>
                   <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)" }}>{formatPrice(result.metrics.weekLow52)}</div>
                   <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)" }}>{formatPrice(result.metrics.weekHigh52)}</div>
@@ -1225,7 +1225,7 @@ function DetailView({
             )}
             {result.profile?.industry && (
               <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
                 <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3, overflowWrap: "anywhere", wordBreak: "break-word" }}>{result.profile.industry}</div>
               </div>
             )}
@@ -1242,7 +1242,7 @@ function DetailView({
               const bearPct = total > 0 ? ((rec.strongSell + rec.sell) / total) * 100 : 0;
               return (
                 <div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
                   <div style={{ display: "flex", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px", background: "var(--bg-elevated, rgba(255,255,255,0.06))" }}>
                     <div style={{ width: `${bullPct}%`, background: "var(--green)" }} />
                     <div style={{ width: `${holdPct}%`, background: "var(--violet)" }} />
@@ -1258,7 +1258,7 @@ function DetailView({
             })()}
             {result.priceTarget && (
               <div>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
                 <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(result.priceTarget.targetMean)}</div>
                 {upside !== null && (
                   <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
@@ -1285,7 +1285,7 @@ function DetailView({
           <div style={{ padding: "10px 18px 0" }}>
             <div style={{ border: "1px solid rgba(37,99,235,0.28)", borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.06)", padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: myPosition.rec ? "10px" : "4px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--brand-blue)" }}>In your portfolio</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--brand-blue)" }}>In your portfolio</span>
                 {myPosition.owned && myPosition.shares != null && (
                   <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{myPosition.shares} shares</span>
                 )}
@@ -1301,7 +1301,7 @@ function DetailView({
                     {myPosition.rec.verdict}
                   </span>
                   {myPosition.rec.conviction && (
-                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                       {myPosition.rec.conviction} conviction
                     </span>
                   )}
@@ -1339,11 +1339,11 @@ function DetailView({
                 <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "color-mix(in oklch, " + accent + " 14%, transparent)", border: `1px solid color-mix(in oklch, ${accent} 28%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="8" height="8" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill={`color-mix(in oklch, ${accent} 20%, transparent)`} stroke={accent} strokeWidth="1.5"/><path d="M8 17h4" stroke={accent} strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>{isGrok ? "Grok · live web + X" : "Quick take · offline model"}</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>{isGrok ? "Grok · live web + X" : "Quick take · offline model"}</span>
 
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
                   {shown && (
-                    <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{new Date(shown.cached_at).toLocaleDateString()}</span>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{new Date(shown.cached_at).toLocaleDateString()}</span>
                   )}
                   {/* Grok deep-dive button — only when not already showing Grok */}
                   {!isGrok && (
@@ -1371,13 +1371,13 @@ function DetailView({
                     <div style={{ padding: "4px 12px", borderRadius: "var(--radius-full)", background: verdictBg, border: `1px solid ${verdictBorder}`, fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: verdictColor, letterSpacing: "0.04em" }}>
                       {shown.verdict}
                     </div>
-                    <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                       {shown.conviction} conviction
                     </span>
                     {shown.price_target && (
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
                         <div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{shown.timeframe} target</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{shown.timeframe} target</div>
                           <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
                             <span className="num" style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>{formatPrice(shown.price_target)}</span>
                             {upside !== null && (
@@ -1395,27 +1395,27 @@ function DetailView({
                   {/* Bull / Bear */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bull case</div>
+                      <div style={{ fontSize: "10px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bull case</div>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.bull_case}</p>
                     </div>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bear case</div>
+                      <div style={{ fontSize: "10px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Bear case</div>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.bear_case}</p>
                     </div>
                   </div>
                   {/* Catalysts + Risks */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Catalysts</div>
+                      <div style={{ fontSize: "10px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Catalysts</div>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.key_catalysts}</p>
                     </div>
                     <div>
-                      <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
+                      <div style={{ fontSize: "10px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 700, marginBottom: "5px" }}>Key risks</div>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{shown.key_risks}</p>
                     </div>
                   </div>
                   {isGrok ? (
-                    <div style={{ marginTop: "10px", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Powered by Grok with live web + X search.</div>
+                    <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Powered by Grok with live web + X search.</div>
                   ) : (
                     <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
                       Quick offline-model take — not live and not personalized to your strategy. Tap <strong style={{ color: "oklch(0.68 0.20 295)" }}>Live Grok deep-dive</strong> above for a current, web-searched call.
@@ -1431,7 +1431,7 @@ function DetailView({
 
       {/* AI Digest */}
       <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>AI Digest</span>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>AI Digest</span>
         <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
       </div>
       <div style={{ padding: "10px 18px 20px" }}>
@@ -1449,33 +1449,33 @@ function DetailView({
             {digest.profile && (digest.profile.finnhubIndustry || digest.profile.country) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
                 {digest.profile.finnhubIndustry && (
-                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
                     {digest.profile.finnhubIndustry}
                   </span>
                 )}
                 {digest.profile.country && (
-                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
                     {digest.profile.country}
                   </span>
                 )}
                 {digest.profile.ipo && (
-                  <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
                     IPO {digest.profile.ipo.slice(0, 4)}
                   </span>
                 )}
               </div>
             )}
             <div style={{ marginBottom: "11px" }}>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.company_overview}</div>
             </div>
             <div style={{ marginBottom: "11px" }}>
-              <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
+              <div style={{ fontSize: "10px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.news_digest}</div>
             </div>
             {digest.raw_earnings?.length > 0 && (
               <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
+                <div style={{ fontSize: "10px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
                 <EarningsChart earnings={digest.raw_earnings} />
                 {digest.earnings_snapshot && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.earnings_snapshot}</div>
@@ -1484,7 +1484,7 @@ function DetailView({
             )}
             {digest.raw_metrics && (
               <div style={{ marginBottom: "14px" }}>
-                <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
+                <div style={{ fontSize: "10px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
                 <FinancialMetricsGrid metrics={digest.raw_metrics} />
                 {digest.financial_snapshot && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{digest.financial_snapshot}</div>
@@ -1494,7 +1494,7 @@ function DetailView({
             {/* Analyst consensus removed here — the "Analyst Ratings" breakdown
                 above (next to Price Target) already covers this. */}
             <div style={{ marginBottom: "8px" }}>
-              <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
               <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{digest.market_outlook}</div>
             </div>
             <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
@@ -1506,7 +1506,7 @@ function DetailView({
 
       {/* News */}
       <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>
           {result.news.length > 0 ? `News · ${result.news.length}` : "News"}
         </span>
         <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
@@ -1533,7 +1533,7 @@ function DetailView({
 
       {/* Reddit Pulse */}
       <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
         <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
       </div>
       <div style={{ padding: "10px 18px 18px" }}>
@@ -1574,18 +1574,18 @@ function DetailView({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "12px" }}>
                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions</div>
                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{sp.mentions ?? 0}</div>
                     </div>
                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: changeColor }}>
                         {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
                       </div>
                     </div>
                     {sp.rank != null && (
                       <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Rank</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Rank</div>
                         <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>#{sp.rank}</div>
                       </div>
                     )}
@@ -1646,7 +1646,7 @@ function DetailView({
                     { label: "Hype Risk",  value: sp.hype_score,       color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--violet)" : "var(--text-secondary)" },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color }}>{value}<span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/100</span></div>
                     </div>
                   ))}
@@ -1655,7 +1655,7 @@ function DetailView({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                     {sp.top_bullish_themes.length > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish</div>
+                        <div style={{ fontSize: "10px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish</div>
                         {sp.top_bullish_themes.slice(0, 3).map((t, i) => (
                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
                         ))}
@@ -1663,7 +1663,7 @@ function DetailView({
                     )}
                     {sp.top_bearish_themes.length > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish</div>
+                        <div style={{ fontSize: "10px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish</div>
                         {sp.top_bearish_themes.slice(0, 3).map((t, i) => (
                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
                         ))}
@@ -1675,7 +1675,7 @@ function DetailView({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                     {sp.top_risks.length > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
+                        <div style={{ fontSize: "10px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
                         {sp.top_risks.slice(0, 3).map((t, i) => (
                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
                         ))}
@@ -1683,7 +1683,7 @@ function DetailView({
                     )}
                     {sp.top_catalysts.length > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
+                        <div style={{ fontSize: "10px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
                         {sp.top_catalysts.slice(0, 3).map((t, i) => (
                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
                         ))}
@@ -1693,7 +1693,7 @@ function DetailView({
                 )}
                 {sp.subreddit_breakdown.length > 0 && (
                   <div style={{ marginBottom: "14px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
                     {sp.subreddit_breakdown.map((sub) => (
                       <div key={sub.subreddit} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                         <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>r/{sub.subreddit}</span>
@@ -1743,7 +1743,7 @@ function DetailView({
 
       {/* Insider Activity */}
       <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Insider Activity</span>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>Insider Activity</span>
         <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
       </div>
       <div style={{ padding: "14px 18px", paddingBottom: "40px" }}>
@@ -1787,7 +1787,7 @@ function DetailView({
                 </div>
               </div>
               <div style={{ marginBottom: "12px" }}>
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>Recent Transactions</div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>Recent Transactions</div>
                 {transactions.map((tx, i) => {
                   const isBuy = tx.transactionCode === "P";
                   const value = tx.share * tx.transactionPrice;

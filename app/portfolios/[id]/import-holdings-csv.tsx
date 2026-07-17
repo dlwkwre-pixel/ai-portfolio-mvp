@@ -378,7 +378,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                               {!err && row.asset_type !== "manual" && row.asset_type !== "crypto" && missingTickers.has(row.ticker) && (
                                 <button type="button" onClick={() => markNonTradeable(row.id)}
                                   title="BuyTune couldn't find this on the market. If it's a non-tradeable / advisor fund, mark it and enter its NAV. If it's a typo, fix the symbol."
-                                  style={{ display: "block", marginTop: "3px", fontSize: "9px", color: "var(--amber)", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", lineHeight: 1.2 }}>
+                                  style={{ display: "block", marginTop: "3px", fontSize: "10px", color: "var(--amber)", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", lineHeight: 1.2 }}>
                                   ⚠ Not found · Non-tradeable?
                                 </button>
                               )}

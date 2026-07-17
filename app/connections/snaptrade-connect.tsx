@@ -260,7 +260,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.2)" }}>
                       <span style={{ fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "62px" }}>Cash</span>
                       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flex: 1, minWidth: 0 }}>{fmtUsd(cashAmount)}</span>
-                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", flexShrink: 0, minWidth: "44px" }}>cash</span>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", flexShrink: 0, minWidth: "44px" }}>cash</span>
                       <select value={cashTarget} onChange={(e) => setCashTarget(e.target.value)} style={{ ...sel, flexShrink: 0, width: "170px" }}>
                         <option value={SKIP}>Skip</option>
                         {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -277,7 +277,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                         style={{ fontSize: "12px", color: "var(--text-tertiary)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "default" }}>
                         {fmtShares(r.shares)} sh{r.value ? ` · ~$${Math.round(r.value).toLocaleString()}` : ""}
                       </span>
-                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #818cf8)", flexShrink: 0, minWidth: "44px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #818cf8)", flexShrink: 0, minWidth: "44px" }}>
                         {r.currentPortfolioId ? "update" : "add"}
                       </span>
                       <select value={r.target} onChange={(e) => setRows((prev) => prev.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))} style={{ ...sel, flexShrink: 0, width: "170px" }}>

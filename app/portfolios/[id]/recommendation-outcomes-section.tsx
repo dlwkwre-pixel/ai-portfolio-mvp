@@ -103,7 +103,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: row.thesis ? "6px" : "0" }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: actionColor[row.action_type] ?? "var(--text-secondary)", background: actionBg[row.action_type] ?? "var(--bg-elevated)", border: `1px solid ${(actionColor[row.action_type] ?? "var(--border-subtle)") + "30"}`, padding: "1px 6px", borderRadius: "var(--radius-sm)", flexShrink: 0 }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: actionColor[row.action_type] ?? "var(--text-secondary)", background: actionBg[row.action_type] ?? "var(--bg-elevated)", border: `1px solid ${(actionColor[row.action_type] ?? "var(--border-subtle)") + "30"}`, padding: "1px 6px", borderRadius: "var(--radius-sm)", flexShrink: 0 }}>
                   {row.action_type}
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>

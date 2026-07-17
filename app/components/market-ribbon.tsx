@@ -111,7 +111,7 @@ export default function MarketRibbon() {
       {updatedAt && (
         <div style={{
           textAlign: "center",
-          fontSize: "9px",
+          fontSize: "10px",
           color: "#1e293b",
           marginTop: "5px",
           letterSpacing: "0.05em",

@@ -33,7 +33,7 @@ function PercentileBar({ label, stat, unit, hint, higherWord, lowerWord }: {
         <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center" }}>
           {label}
           <InfoTooltip text={hint} align="start" width={240}>
-            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
           </InfoTooltip>
         </span>
         <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 700 }}>
@@ -81,7 +81,7 @@ export default function PeerBenchmarkCard() {
       <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px", display: "flex", alignItems: "center" }}>
         🪞 How you compare
         <InfoTooltip text="Anonymized comparison against other BuyTune investors. We only ever use aggregate numbers — never anyone's identity, balances, or dollar amounts." align="start" width={250}>
-          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
         </InfoTooltip>
       </div>
       <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "8px" }}>Against {data.userCount.toLocaleString()} investors · anonymized, no balances</div>

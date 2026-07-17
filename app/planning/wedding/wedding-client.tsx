@@ -224,7 +224,7 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
                   <path d={savePath} fill="none" stroke={reachesInTime || end >= totalBudget ? "var(--green, #22c55e)" : "var(--red, #ef4444)"} strokeWidth="2" strokeLinecap="round" />
                   {crossM != null && reachesInTime && <circle cx={x(crossM)} cy={targetY} r="3.5" fill="var(--green, #22c55e)" />}
                 </svg>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
                   <span>today · {fmt(funded)}</span>
                   <span style={{ color: "var(--text-tertiary)" }}>— — budget {fmt(totalBudget)}</span>
                   <span>wedding · {fmt(Math.round(end))}</span>
@@ -292,7 +292,7 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
 function Metric({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
     <div>
-      <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "5px" }}>{label}</div>
+      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "5px" }}>{label}</div>
       <div style={{ fontSize: "22px", fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.5px", color: accent ?? "var(--text-primary)", lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "5px" }}>{sub}</div>}
     </div>

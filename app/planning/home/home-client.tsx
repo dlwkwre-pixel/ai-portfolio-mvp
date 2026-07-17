@@ -2403,9 +2403,9 @@ export default function HomeClient({
                     },
                   ] as { label: string; value: string; sub?: string }[]).map(({ label, value, sub }, i) => (
                     <div key={label} style={{ padding: "10px 14px", borderRight: i < 3 ? "1px solid var(--border-subtle)" : undefined }}>
-                      <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{value}</p>
-                      {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "1px 0 0", fontFamily: "var(--font-body)" }}>{sub}</p>}
+                      {sub && <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0", fontFamily: "var(--font-body)" }}>{sub}</p>}
                     </div>
                   ))}
                 </div>
@@ -2428,7 +2428,7 @@ export default function HomeClient({
                   </svg>
                   {ownerPanelOpen ? "Hide" : "Edit"} Current Home Details
                   {(!profile?.owner_home_value && bsHomeValue > 0) && (
-                    <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(99,102,241,0.2)", marginLeft: "4px" }}>
+                    <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(99,102,241,0.2)", marginLeft: "4px" }}>
                       auto-filled
                     </span>
                   )}
@@ -2441,7 +2441,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Current Home Value</label>
                           {!profile?.owner_home_value && bsHomeValue > 0 && (
-                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerHomeValue} onChange={(e) => setOwnerHomeValue(Number(e.target.value))} style={inputS} />
@@ -2450,7 +2450,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Mortgage Balance</label>
                           {!profile?.owner_mortgage_balance && bsMortgageBalance > 0 && (
-                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerMortgageBalance} onChange={(e) => setOwnerMortgageBalance(Number(e.target.value))} style={inputS} />
@@ -2459,7 +2459,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Monthly Payment (PITI)</label>
                           {!profile?.owner_monthly_payment && bsMonthlyPayment > 0 && (
-                            <span style={{ fontSize: "9px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
                           )}
                         </div>
                         <input type="number" min="0" step="50" value={ownerMonthlyPayment} onChange={(e) => setOwnerMonthlyPayment(Number(e.target.value))} style={inputS} />
@@ -2683,7 +2683,7 @@ export default function HomeClient({
 
               {/* Readiness Breakdown */}
               <div style={{ padding: "12px 16px 10px", borderTop: "1px solid var(--border-subtle)" }}>
-                <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 9px" }}>Readiness Breakdown</p>
+                <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 9px" }}>Readiness Breakdown</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {([
                     { label: "Down Payment", score: gm.dpReadiness, sub: gm.cashSurplus >= 0 ? `${fmtK(gm.cashSurplus)} surplus` : `${fmtK(-gm.cashSurplus)} short` },
@@ -2696,7 +2696,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "3px" }}>
                           <span style={{ fontSize: "10px", fontWeight: 500, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{label}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            {sub && <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{sub}</span>}
+                            {sub && <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{sub}</span>}
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: barColor, minWidth: "28px", textAlign: "right" as const }}>{score}%</span>
                           </div>
                         </div>
@@ -2724,7 +2724,7 @@ export default function HomeClient({
                 <div style={{ padding: "10px 16px 12px", borderTop: "1px solid var(--border-subtle)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {gm.strengths.length > 0 && (
                     <div>
-                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Strengths</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Strengths</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         {gm.strengths.map((st, i) => (
                           <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
@@ -2736,7 +2736,7 @@ export default function HomeClient({
                   )}
                   {gm.risks.length > 0 && (
                     <div>
-                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Risks</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Risks</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         {gm.risks.map((rsk, i) => (
                           <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
@@ -2815,7 +2815,7 @@ export default function HomeClient({
                 </div>
                 <p style={{ ...sectionHead, margin: 0 }}>Atlas Advisor Summary</p>
               </div>
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
             </div>
             <div style={{ padding: "14px 16px 16px" }}>
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 0 14px", fontFamily: "var(--font-body)" }}>{finnSummary}</p>
@@ -2862,13 +2862,13 @@ export default function HomeClient({
                     <svg width="14" height="14" viewBox="0 0 20 20" fill={accentColor}><path d="M10 2l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 14.27l-4.77 2.44.91-5.32L2.27 7.62l5.34-.78z"/></svg>
                   </div>
                   <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.09em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 2px" }}>BuyTune Recommendation</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.09em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 2px" }}>BuyTune Recommendation</p>
                     <p style={{ fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, letterSpacing: "-0.02em" }}>{rp.label} Home</p>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
                   <div style={{ textAlign: "right" as const }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 2px" }}>Confidence</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 2px" }}>Confidence</p>
                     <p style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: accentColor, letterSpacing: "-0.02em", margin: 0 }}>{rp.confidence}%</p>
                   </div>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: accentColor, background: accentBg, border: `1px solid ${accentBorder}`, padding: "5px 12px", borderRadius: "7px", fontFamily: "var(--font-body)" }}>{rp.verdict}</span>
@@ -2882,7 +2882,7 @@ export default function HomeClient({
                   { label: "Equity at Yr " + inputs.hold_years, value: fmtK(rp.equityAtHold) },
                 ].map(({ label, value }, i) => (
                   <div key={label} style={{ padding: "10px 14px", borderRight: i < 3 ? "1px solid var(--border-subtle)" : undefined }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
                     <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{value}</p>
                   </div>
                 ))}
@@ -2890,7 +2890,7 @@ export default function HomeClient({
               <div style={{ display: "grid", gridTemplateColumns: rp.concerns.length > 0 ? "1fr 1fr" : "1fr", gap: "12px", padding: "12px 16px" }}>
                 {rp.reasons.length > 0 && (
                   <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Why this path</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: accentColor, fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Why this path</p>
                     {rp.reasons.map((r, i) => (
                       <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 4px", lineHeight: 1.4, paddingLeft: "12px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                         <span style={{ position: "absolute" as const, left: 0, color: accentColor, fontWeight: 700 }}>✓</span>{r}
@@ -2900,7 +2900,7 @@ export default function HomeClient({
                 )}
                 {rp.concerns.length > 0 && (
                   <div>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Consider</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Consider</p>
                     {rp.concerns.map((c, i) => (
                       <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 4px", lineHeight: 1.4, paddingLeft: "12px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                         <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
@@ -2961,12 +2961,12 @@ export default function HomeClient({
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
                         <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: pathAccent, fontFamily: "var(--font-body)", margin: 0 }}>{path.label}</p>
                         {isTarget && (
-                          <span style={{ fontSize: "8px", fontWeight: 700, color: pathAccent, background: `color-mix(in oklch, ${pathAccent} 14%, transparent)`, padding: "1px 5px", borderRadius: "4px", letterSpacing: "0.04em", fontFamily: "var(--font-body)" }}>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: pathAccent, background: `color-mix(in oklch, ${pathAccent} 14%, transparent)`, padding: "1px 5px", borderRadius: "4px", letterSpacing: "0.04em", fontFamily: "var(--font-body)" }}>
                             ACTIVE
                           </span>
                         )}
                         {!isTarget && (
-                          <span style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", opacity: 0.6 }}>
+                          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", opacity: 0.6 }}>
                             click to apply
                           </span>
                         )}
@@ -2975,21 +2975,21 @@ export default function HomeClient({
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 10px", fontFamily: "var(--font-body)" }}>{fmt(path.dp)} down · {path.purchaseYear}</p>
                       <div style={{ display: "flex", flexDirection: "column" as const, gap: "8px" }}>
                         <div>
-                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Monthly Cost</p>
+                          <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Monthly Cost</p>
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{fmt(path.totalMonthly)}/mo</p>
                         </div>
                         <div>
-                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Goal Readiness</p>
+                          <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Goal Readiness</p>
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: probColor, margin: 0 }}>{path.prob}%</p>
                         </div>
                         <div>
-                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Retirement Impact</p>
+                          <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Retirement Impact</p>
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: retirColor, margin: 0 }}>
                             {path.retirDelta != null ? `${path.retirDelta >= 0 ? "+" : ""}${path.retirDelta}pp` : "—"}
                           </p>
                         </div>
                         <div>
-                          <p style={{ fontSize: "9px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Equity @ Yr {inputs.hold_years}</p>
+                          <p style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 1px", fontFamily: "var(--font-body)" }}>Equity @ Yr {inputs.hold_years}</p>
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{fmtK(path.equityAtHold)}</p>
                         </div>
                       </div>
@@ -3067,7 +3067,7 @@ export default function HomeClient({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Monthly Housing Cost</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Monthly Housing Cost</p>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" as const }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-tertiary)" }}>{fmt(rentNow)}</span>
                     <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>to</span>
@@ -3078,7 +3078,7 @@ export default function HomeClient({
                   </p>
                 </div>
                 <div style={{ padding: "14px 16px" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Savings Rate</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Savings Rate</p>
                   {savingsRateBefore != null && savingsRateAfter != null ? (
                     <>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
@@ -3095,7 +3095,7 @@ export default function HomeClient({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
                 <div style={{ padding: "14px 16px", borderRight: "1px solid var(--border-subtle)" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Emergency Fund</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Emergency Fund</p>
                   {emergencyBefore != null && emergencyAfter != null ? (
                     <>
                       <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
@@ -3110,7 +3110,7 @@ export default function HomeClient({
                   ) : <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-muted)", margin: 0 }}>—</p>}
                 </div>
                 <div style={{ padding: "14px 16px" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Net Worth at Yr {inputs.hold_years}</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 6px" }}>Net Worth at Yr {inputs.hold_years}</p>
                   {equityAtHold != null && rentPortfolioAtHold != null ? (
                     <>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmtK(equityAtHold)}</p>
@@ -3149,7 +3149,7 @@ export default function HomeClient({
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
                         <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Retirement</span>
                         {li.retirRisk && (
-                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.retirRisk), background: riskBg(li.retirRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.retirRisk} Risk</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.retirRisk), background: riskBg(li.retirRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.retirRisk} Risk</span>
                         )}
                       </div>
                       <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
@@ -3169,7 +3169,7 @@ export default function HomeClient({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
                         <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Career Flexibility</span>
-                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.careerRisk), background: riskBg(li.careerRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.careerRisk} Risk</span>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(li.careerRisk), background: riskBg(li.careerRisk), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{li.careerRisk} Risk</span>
                       </div>
                       <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
                         Savings rate {li.savingsRateBefore}% → {li.savingsRateAfter}%
@@ -3193,7 +3193,7 @@ export default function HomeClient({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" as const }}>
                           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{edu.label}</span>
-                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(er), background: riskBg(er), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{er} Risk</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: riskColor(er), background: riskBg(er), padding: "2px 7px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>{er} Risk</span>
                         </div>
                         <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5, fontFamily: "var(--font-body)" }}>
                           {edu.event_year} · {fmtK(edu.cost)} target · {edu.fundedBefore}% → {edu.fundedAfter}% funded
@@ -3244,9 +3244,9 @@ export default function HomeClient({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))" }}>
                 {cells.map(({ label, value, sub, highlight }, i) => (
                   <div key={label} style={{ padding: "12px 14px", borderRight: "1px solid var(--border-subtle)", borderBottom: i < cells.length - (cells.length % 3 === 0 ? 3 : cells.length % 3) ? "1px solid var(--border-subtle)" : undefined }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
+                    <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 4px" }}>{label}</p>
                     <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: highlight ? "oklch(0.68 0.18 25)" : "var(--text-primary)", margin: "0 0 2px" }}>{value}</p>
-                    {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                    {sub && <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
                   </div>
                 ))}
               </div>
@@ -3280,7 +3280,7 @@ export default function HomeClient({
                       <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: m.done ? "oklch(0.70 0.18 155)" : "var(--bg-elevated)", border: `2px solid ${m.done ? "oklch(0.70 0.18 155)" : "var(--text-muted)"}`, flexShrink: 0, marginBottom: "6px" }} />
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: m.done ? "oklch(0.70 0.18 155)" : "var(--text-primary)" }}>{m.year}</span>
                       <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginTop: "2px", textAlign: "center" as const, lineHeight: 1.3 }}>{m.label}</span>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px", textAlign: "center" as const }}>{m.sub}</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px", textAlign: "center" as const }}>{m.sub}</span>
                     </div>
                     {i < milestones.length - 1 && (
                       <div style={{ flex: 1, height: "2px", marginTop: "4px", background: "var(--border-subtle)", alignSelf: "flex-start" }} />
@@ -3318,7 +3318,7 @@ export default function HomeClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>{opt.probBefore}%</span>
                           <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{opt.probAfter}%</span>
-                          <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>+{delta}%</span>
                         </>
                       ) : (
                         <span style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.70 0.18 155)", background: "color-mix(in oklch, oklch(0.70 0.18 155) 8%, transparent)", padding: "3px 8px", borderRadius: "6px", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" as const }}>{opt.metric}</span>
@@ -3362,9 +3362,9 @@ export default function HomeClient({
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", borderBottom: "1px solid var(--border-subtle)" }}>
                   {stats.map(({ label, value, sub }, i) => (
                     <div key={label} style={{ padding: "10px 14px", borderRight: i < stats.length - 1 ? "1px solid var(--border-subtle)" : undefined }}>
-                      <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 3px" }}>{label}</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 1px" }}>{value}</p>
-                      {sub && <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
+                      {sub && <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, fontFamily: "var(--font-body)" }}>{sub}</p>}
                     </div>
                   ))}
                 </div>
@@ -3373,7 +3373,7 @@ export default function HomeClient({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
                   {positives.length > 0 && (
                     <div>
-                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Market Strengths</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Market Strengths</p>
                       {positives.map((f, i) => (
                         <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                           <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>+</span>{f.label}
@@ -3383,7 +3383,7 @@ export default function HomeClient({
                   )}
                   {negatives.length > 0 && (
                     <div>
-                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Watch Out</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.68 0.18 25)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Watch Out</p>
                       {negatives.map((f, i) => (
                         <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                           <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.68 0.18 25)", fontWeight: 700 }}>·</span>{f.label}
@@ -3463,7 +3463,7 @@ export default function HomeClient({
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", padding: "10px 16px 12px" }}>
                         {strengths.length > 0 && (
                           <div>
-                            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
+                            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.70 0.18 155)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Why yes</p>
                             {strengths.map((s, i) => (
                               <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                                 <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.70 0.18 155)", fontWeight: 700 }}>✓</span>{s}
@@ -3473,7 +3473,7 @@ export default function HomeClient({
                         )}
                         {concerns.length > 0 && (
                           <div>
-                            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
+                            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.75 0.18 70)", fontFamily: "var(--font-body)", margin: "0 0 5px" }}>Consider</p>
                             {concerns.map((c, i) => (
                               <p key={i} style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 3px", lineHeight: 1.4, paddingLeft: "10px", position: "relative" as const, fontFamily: "var(--font-body)" }}>
                                 <span style={{ position: "absolute" as const, left: 0, color: "oklch(0.75 0.18 70)", fontWeight: 700 }}>·</span>{c}
@@ -3507,10 +3507,10 @@ export default function HomeClient({
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
                                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>{sc.probBefore}%</span>
-                                <span style={{ color: "var(--text-muted)", fontSize: "9px" }}>→</span>
+                                <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>→</span>
                                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: deltaColor }}>{sc.probAfter}%</span>
                                 {delta !== 0 && (
-                                  <span style={{ fontSize: "9px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
+                                  <span style={{ fontSize: "10px", fontWeight: 700, color: deltaColor, background: `color-mix(in oklch, ${deltaColor} 10%, transparent)`, padding: "1px 5px", borderRadius: "4px", fontFamily: "var(--font-body)" }}>
                                     {delta > 0 ? "+" : ""}{delta}pp
                                   </span>
                                 )}
@@ -3539,7 +3539,7 @@ export default function HomeClient({
             RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  10%, transparent)", border: "color-mix(in oklch, oklch(0.68 0.18 25)  22%, transparent)" },
           };
           const rankColors = ["oklch(0.80 0.14 80)", "var(--text-secondary)", "var(--text-tertiary)", "var(--text-muted)"];
-          const thS: React.CSSProperties = { padding: "6px 10px", textAlign: "right", fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", whiteSpace: "nowrap" as const, fontFamily: "var(--font-body)" };
+          const thS: React.CSSProperties = { padding: "6px 10px", textAlign: "right", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", whiteSpace: "nowrap" as const, fontFamily: "var(--font-body)" };
           const tdS: React.CSSProperties = { padding: "8px 10px", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", borderTop: "1px solid var(--border-subtle)" };
           const hasRetir = computed.retirBaselineAssets != null;
           const hasProb = computed.retirBaselineProb != null;
@@ -3610,7 +3610,7 @@ export default function HomeClient({
                             </td>
                           )}
                           <td style={{ ...tdS, paddingRight: "16px" }}>
-                            <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
+                            <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
                               {rp.verdict}
                             </span>
                           </td>
@@ -3620,7 +3620,7 @@ export default function HomeClient({
                   </tbody>
                 </table>
               </div>
-              <p style={{ fontSize: "9px", color: "var(--text-muted)", padding: "8px 16px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: "10px", color: "var(--text-muted)", padding: "8px 16px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
                 Score = retirement (30%) + wealth (25%) + affordability (25%) + break-even (10%) + liquidity (10%). Click any scenario row to load it.
               </p>
             </div>
@@ -3659,7 +3659,7 @@ export default function HomeClient({
                     background: isOver ? "oklch(0.45 0.18 25)" : "oklch(0.55 0.15 155)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                   }}>
-                    <span style={{ fontSize: "9px", color: "#fff", fontWeight: 700 }}>{isOver ? "!" : "✓"}</span>
+                    <span style={{ fontSize: "10px", color: "#fff", fontWeight: 700 }}>{isOver ? "!" : "✓"}</span>
                   </div>
                   <div>
                     <div style={{ fontSize: "11px", fontWeight: 600, color: isOver ? "oklch(0.75 0.12 25)" : "oklch(0.80 0.12 155)", fontFamily: "var(--font-body)" }}>
@@ -3711,13 +3711,13 @@ export default function HomeClient({
                       >
                         <div>
                           <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{range.label}</div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px", lineHeight: 1.4 }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px", lineHeight: 1.4 }}>
                             <span title="Debt-to-Income ratio: what % of your gross monthly income goes to debt payments. Conservative = 28%, Moderate = 33%, Aggressive = 40%.">{Math.round(range.dtiRatio * 100)}% DTI</span>
                           </div>
                         </div>
                         <div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(range.price)}</div>
-                          <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px" }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px" }}>
                             {fmtK(range.downPayment)} down · {fmt(range.monthlyEst)}/mo est.
                           </div>
                         </div>
@@ -3734,7 +3734,7 @@ export default function HomeClient({
                     );
                   })}
                 </div>
-                <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
                   Estimates assume 20% down, 1.2% tax, 0.4% insurance. Adjust inputs above for precision.
                 </p>
               </div>
@@ -3820,17 +3820,17 @@ export default function HomeClient({
                       {/* Source badges */}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                         {zipData.censusAvailable && (
-                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
                             Census {zipData.dataVintage}
                           </span>
                         )}
                         {zipData.fredAvailable && (
-                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
                             FRED live rate
                           </span>
                         )}
                         {zipData.hudAvailable && (
-                          <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "10px", background: "rgba(100,116,139,0.12)", color: "var(--text-muted)", border: "1px solid rgba(100,116,139,0.2)", fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(100,116,139,0.12)", color: "var(--text-muted)", border: "1px solid rgba(100,116,139,0.2)", fontWeight: 600 }}>
                             HUD FMR {zipData.rentSource === "hud_fmr" ? "(rent fallback)" : "(backup available)"}
                           </span>
                         )}
@@ -3845,7 +3845,7 @@ export default function HomeClient({
                           { label: "Effective Tax Rate", value: zipData.effectiveTaxRatePct ? `${zipData.effectiveTaxRatePct}%/yr` : "—" },
                         ].map(({ label, value }) => (
                           <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", padding: "6px 8px" }}>
-                            <div style={{ fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
+                            <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
                             <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
                           </div>
                         ))}
@@ -3881,7 +3881,7 @@ export default function HomeClient({
                         </div>
                       )}
 
-                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
                         Applied to inputs above. Adjust any field to customize. Appreciation rate kept from prior inputs.
                       </p>
                     </div>
@@ -4102,7 +4102,7 @@ export default function HomeClient({
             {/* ── SECTION: ANALYSIS ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Analysis</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Analysis</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -4119,19 +4119,19 @@ export default function HomeClient({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                     <p style={{ ...sectionHead, margin: 0 }}>Financial Resilience</p>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Avg</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Avg</span>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: avgColor }}>{avgScore}/10</span>
                     </div>
                   </div>
                   {/* Strength / Weakness summary */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                     <div style={{ padding: "9px 11px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, oklch(0.70 0.18 155) 6%, var(--bg-elevated))", border: "1px solid color-mix(in oklch, oklch(0.70 0.18 155) 18%, transparent)" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "oklch(0.70 0.18 155)", marginBottom: "4px" }}>Primary Strength</div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "oklch(0.70 0.18 155)", marginBottom: "4px" }}>Primary Strength</div>
                       <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{strongest.level} Shock</div>
                       <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.3 }}>{strongest.scenario} — score {strongest.score}/10</div>
                     </div>
                     <div style={{ padding: "9px 11px", borderRadius: "var(--radius-md)", background: `color-mix(in oklch, ${scoreColor(weakest.score)} 6%, var(--bg-elevated))`, border: `1px solid color-mix(in oklch, ${scoreColor(weakest.score)} 18%, transparent)` }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: scoreColor(weakest.score), marginBottom: "4px" }}>Primary Weakness</div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: scoreColor(weakest.score), marginBottom: "4px" }}>Primary Weakness</div>
                       <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)" }}>{weakest.level} Shock</div>
                       <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", lineHeight: 1.3 }}>{weakest.scenario} — score {weakest.score}/10</div>
                     </div>
@@ -4163,7 +4163,7 @@ export default function HomeClient({
                   </div>
                   {/* Surprise Costs */}
                   <div style={{ marginTop: "16px", borderTop: "1px solid var(--border-subtle)", paddingTop: "14px" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "9px" }}>Homeownership Surprise Costs</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "9px" }}>Homeownership Surprise Costs</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
                       {[
                         { item: "HVAC replacement",         range: "$5,000 – $12,000",  freq: "10–15 yr life" },
@@ -4277,7 +4277,7 @@ export default function HomeClient({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                     <p style={{ ...sectionHead, margin: 0 }}>Link to Financial Plan</p>
                     {linkedEvents.length > 0 && (
-                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "10px", background: "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)", color: "oklch(0.70 0.18 155)", border: "1px solid color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "10px", background: "color-mix(in oklch, oklch(0.70 0.18 155) 10%, transparent)", color: "oklch(0.70 0.18 155)", border: "1px solid color-mix(in oklch, oklch(0.70 0.18 155) 25%, transparent)" }}>
                         Linked
                       </span>
                     )}
@@ -4349,7 +4349,7 @@ export default function HomeClient({
                   {/* Other scenarios' events */}
                   {otherEvents.length > 0 && (
                     <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>Other linked scenarios</div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>Other linked scenarios</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                         {otherEvents.map((ev) => (
                           <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)" }}>
@@ -4375,7 +4375,7 @@ export default function HomeClient({
             {/* ── SECTION: LOAN BREAKDOWN ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Loan Breakdown</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Loan Breakdown</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -4398,12 +4398,12 @@ export default function HomeClient({
                     { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "var(--green)", sub: "loan half paid off", tip: "The year your remaining loan balance drops to 50% of the original loan amount — the halfway point to owning it outright." },
                   ].map(({ label, value, color, sub, tip }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>
                         {label}
                         <span className="has-tip" data-tip={tip}>i</span>
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
-                      {sub && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
+                      {sub && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px", fontFamily: "var(--font-body)" }}>{sub}</div>}
                     </div>
                   ))}
                 </div>
@@ -4456,7 +4456,7 @@ export default function HomeClient({
                     <thead style={{ position: "sticky", top: 0, background: "var(--bg-elevated)", zIndex: 1 }}>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                         {["Yr", "Balance", "Principal Paid", "Interest Paid", "Total Interest", "Home Value", "Equity", "Equity %"].map((h) => (
-                          <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+                          <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
                             {h}
                           </th>
                         ))}
@@ -4518,8 +4518,8 @@ export default function HomeClient({
               return (
                 <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "var(--radius-lg)", padding: "20px 20px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>BuyTune Verdict</span>
-                    <span title="How strongly the data supports this verdict. High = clear signal. Medium = worth watching. Low = inputs produce a mixed picture." style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}`, fontFamily: "var(--font-body)", cursor: "help" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>BuyTune Verdict</span>
+                    <span title="How strongly the data supports this verdict. High = clear signal. Medium = worth watching. Low = inputs produce a mixed picture." style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: cc.bg, color: cc.text, border: `1px solid ${cc.border}`, fontFamily: "var(--font-body)", cursor: "help" }}>
                       {v.confidence} Confidence
                     </span>
                   </div>
@@ -4566,7 +4566,7 @@ export default function HomeClient({
                       <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
                       <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
                     </svg>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
                   </div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${vc} 40%, transparent)`, paddingLeft: "12px" }}>
                     {narrative}
@@ -4610,30 +4610,30 @@ export default function HomeClient({
                 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                     <p style={{ ...sectionHead, margin: 0 }}>Best Financial Outcome</p>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: "rgba(245,158,11,0.10)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.22)" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 8px", borderRadius: "20px", background: "rgba(245,158,11,0.10)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.22)" }}>
                       AI Engine
                     </span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "start", gap: "16px", marginBottom: "14px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Recommended Path</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Recommended Path</div>
                       <div style={{ fontFamily: "var(--font-display)", fontSize: "24px", fontWeight: 800, color: topColor, letterSpacing: "-0.8px", lineHeight: 1.1 }}>
                         {top.name}
                       </div>
                       {retirAdvantage != null && Math.abs(retirAdvantage) > 1000 && (
                         <div style={{ marginTop: "6px" }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "2px" }}>Expected Advantage</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "2px" }}>Expected Advantage</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: topColor }}>
                             {retirAdvantage > 0 ? "+" : ""}{fmtK(retirAdvantage)}
                           </div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>vs {second.name}</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>vs {second.name}</div>
                         </div>
                       )}
                     </div>
                     <div style={{ textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px" }}>Confidence</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px" }}>Confidence</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color: topColor, lineHeight: 1 }}>{Math.round(confidence)}%</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>score lead: +{scoreDiff}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>score lead: +{scoreDiff}</div>
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px" }}>
@@ -4658,7 +4658,7 @@ export default function HomeClient({
             {/* ── Section: Readiness Dashboard ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Readiness Dashboard</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Readiness Dashboard</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -4693,7 +4693,7 @@ export default function HomeClient({
                       </div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Goal prob.</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Goal prob.</div>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: probColor, lineHeight: 1 }}>{goalMetrics.prob}%</span>
                     </div>
                   </div>
@@ -4702,23 +4702,23 @@ export default function HomeClient({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                     {/* Projected income */}
                     <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Income</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Income</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(goalMetrics.projectedAnnualIncome)}/yr</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>projected gross</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>projected gross</div>
                     </div>
                     {/* Cash available */}
                     <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Cash ready</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Cash ready</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>{fmtK(goalMetrics.projectedCash)}</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>need {fmtK(goalMetrics.totalNeeded)}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>need {fmtK(goalMetrics.totalNeeded)}</div>
                     </div>
                     {/* Surplus / deficit */}
                     <div style={{ background: cashOk ? "rgba(0,211,149,0.06)" : "rgba(239,68,68,0.06)", borderRadius: "10px", padding: "10px 12px", border: `1px solid ${cashOk ? "rgba(0,211,149,0.15)" : "rgba(239,68,68,0.15)"}` }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{cashOk ? "Surplus" : "Deficit"}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{cashOk ? "Surplus" : "Deficit"}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: cashOk ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" }}>
                         {cashOk ? "+" : ""}{fmtK(goalMetrics.cashSurplus)}
                       </div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>after down pmt</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>after down pmt</div>
                     </div>
                   </div>
 
@@ -4726,13 +4726,13 @@ export default function HomeClient({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
                     {/* Emergency fund after purchase */}
                     <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Emergency fund after</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Emergency fund after</div>
                       {efMonths !== null ? (
                         <>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: efOk ? "var(--text-primary)" : "oklch(0.68 0.18 25)" }}>
                             {efMonths > 0 ? `${efMonths.toFixed(1)} mo` : "depleted"}
                           </div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>{efOk ? "healthy buffer" : "below 3-mo min"}</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{efOk ? "healthy buffer" : "below 3-mo min"}</div>
                         </>
                       ) : (
                         <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>add expenses to calc</div>
@@ -4740,13 +4740,13 @@ export default function HomeClient({
                     </div>
                     {/* Future DTI */}
                     <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Housing DTI</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Housing DTI</div>
                       {goalMetrics.futureDTI !== null ? (
                         <>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: goalMetrics.futureDTI <= 36 ? "oklch(0.70 0.18 155)" : goalMetrics.futureDTI <= 43 ? "oklch(0.80 0.14 80)" : "oklch(0.68 0.18 25)" }}>
                             {goalMetrics.futureDTI.toFixed(0)}%
                           </div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
                             {goalMetrics.dtiStatus === "excellent" ? "well within limit" : goalMetrics.dtiStatus === "good" ? "within limit" : goalMetrics.dtiStatus === "caution" ? "caution zone" : "exceeds limit"}
                           </div>
                         </>
@@ -4773,7 +4773,7 @@ export default function HomeClient({
                     <div data-card style={cardS}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                         <p style={{ ...sectionHead, margin: 0 }}>Affordability</p>
-                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}`, fontFamily: "var(--font-body)" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: ratingStyle.bg, color: scoreColor, border: `1px solid ${ratingStyle.border}`, fontFamily: "var(--font-body)" }}>
                           {rating}
                         </span>
                       </div>
@@ -4791,7 +4791,7 @@ export default function HomeClient({
                             <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 48px 22px", alignItems: "center", gap: "7px" }}>
                               <div>
                                 <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{label}</div>
-                                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
+                                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
                               </div>
                               <div style={{ height: "3px", borderRadius: "1.5px", background: "var(--border-subtle)", overflow: "hidden" }}>
                                 <div style={{ height: "100%", width: `${cs}%`, borderRadius: "1.5px", background: cColor }} />
@@ -4815,7 +4815,7 @@ export default function HomeClient({
                     <div data-card style={cardS}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "10px" }}>
                         <p style={{ ...sectionHead, margin: 0 }}>Readiness</p>
-                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}`, fontFamily: "var(--font-body)" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: rBadge.bg, color: rColor, border: `1px solid ${rBadge.border}`, fontFamily: "var(--font-body)" }}>
                           {rating}
                         </span>
                       </div>
@@ -4833,7 +4833,7 @@ export default function HomeClient({
                             <div key={label} style={{ display: "grid", gridTemplateColumns: "1fr 48px 22px", alignItems: "center", gap: "7px" }}>
                               <div>
                                 <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>{label}</div>
-                                <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
+                                <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "1px", lineHeight: 1.3 }}>{detail}</div>
                               </div>
                               <div style={{ height: "3px", borderRadius: "1.5px", background: "var(--border-subtle)", overflow: "hidden" }}>
                                 <div style={{ height: "100%", width: `${cs}%`, borderRadius: "1.5px", background: cColor }} />
@@ -4857,7 +4857,7 @@ export default function HomeClient({
               const highReady = rScore > aScore;
               return (
                 <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)" }}>
-                  <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "6px" }}>
                     Why these two scores differ
                   </div>
                   <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6, margin: 0 }}>
@@ -4873,7 +4873,7 @@ export default function HomeClient({
             {/* ── SECTION: BREAKEVEN & TIMELINE ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Breakeven &amp; Timeline</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Breakeven &amp; Timeline</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -4885,11 +4885,11 @@ export default function HomeClient({
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                       <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Buying</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                       <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "var(--green)" }} />
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Renting</span>
                     </div>
                   </div>
                 </div>
@@ -4905,7 +4905,7 @@ export default function HomeClient({
                         style={{
                           display: "flex", alignItems: "center", justifyContent: "center",
                           width: "32px", height: "28px", borderRadius: "6px",
-                          fontSize: "9px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
+                          fontSize: "10px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
                           background: isBreakEven
                             ? "rgba(255,255,255,0.12)"
                             : buyingWins ? "rgba(59,130,246,0.16)" : "rgba(0,211,149,0.13)",
@@ -4968,7 +4968,7 @@ export default function HomeClient({
             {/* ── SECTION: RETIREMENT & HEALTH ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Impact Analysis</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Impact Analysis</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -4992,7 +4992,7 @@ export default function HomeClient({
                       {/* Primary: dollar impact */}
                       <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "14px", padding: "14px 16px", borderRadius: "var(--radius-md)", background: heroBg, border: `1px solid color-mix(in oklch, ${heroColor} 18%, transparent)` }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "5px" }}>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "5px" }}>
                             {isPositive ? "Projected Retirement Advantage" : "Projected Retirement Cost"}
                           </div>
                           <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
@@ -5004,7 +5004,7 @@ export default function HomeClient({
                         </div>
                         {/* Secondary: probability comparison */}
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Retirement Probability</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Retirement Probability</div>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-secondary)", fontWeight: 600 }}>{computed.retirBaselineProb}%</span>
                             <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><path d="M1 5h14M9 1l5 4-5 4" stroke={probColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -5025,7 +5025,7 @@ export default function HomeClient({
                           { label: "Difference", val: diff, color: heroColor, prefix: isPositive ? "+" : "" },
                         ].map(({ label, val, color, prefix = "" }) => (
                           <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px", textAlign: "center" }}>
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
                             <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{prefix}{fmtK(Math.abs(val))}</div>
                           </div>
                         ))}
@@ -5037,14 +5037,14 @@ export default function HomeClient({
                 {(computed.retirBaselineAssets == null || computed.retirWithHomeAssets == null) && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "16px", marginBottom: "14px" }}>
                     <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Without Home</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>Without Home</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: "var(--text-secondary)", lineHeight: 1 }}>{computed.retirBaselineProb}%</div>
                     </div>
                     <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
                       <path d="M1 6h18M13 1l6 5-6 5" stroke={computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     <div style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px", textAlign: "center" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>With Home</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>With Home</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: computed.retirWithHomeProb != null && computed.retirWithHomeProb >= computed.retirBaselineProb ? "oklch(0.70 0.18 155)" : "oklch(0.78 0.15 80)", lineHeight: 1 }}>
                         {computed.retirWithHomeProb ?? "—"}%
                       </div>
@@ -5060,7 +5060,7 @@ export default function HomeClient({
             {/* ── SECTION: COST ANALYSIS ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Cost Analysis</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Cost Analysis</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -5111,7 +5111,7 @@ export default function HomeClient({
                       <div style={{ marginTop: "10px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md)", background: `color-mix(in oklch, ${cashColor} 6%, var(--bg-elevated))`, border: `1px solid color-mix(in oklch, ${cashColor} 20%, transparent)` }}>
                         <div>
                           <div style={{ fontSize: "10px", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "2px" }}>Cash Remaining After Housing</div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>
                             {isPositive ? `${Math.round((cashLeft / effectiveNetMonthly) * 100)}% of net income available for savings, living, and other goals` : "Housing costs exceed net income"}
                           </div>
                         </div>
@@ -5119,7 +5119,7 @@ export default function HomeClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: cashColor, lineHeight: 1 }}>
                             {isPositive ? "+" : ""}{fmt(cashLeft)}
                           </span>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>/mo</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>/mo</div>
                         </div>
                       </div>
                     );
@@ -5150,7 +5150,7 @@ export default function HomeClient({
                   { label: "Monthly Rent", value: fmt(inputs.monthly_rent), sub: "alternative" },
                 ]).map(({ label, value, sub }) => (
                   <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
                   </div>
@@ -5189,7 +5189,7 @@ export default function HomeClient({
                       { label: "Total move cost", value: fmt(Math.round(totalMoveCosts)), sub: "one-time", bold: true },
                     ].map(({ label, value, sub, bold }) => (
                       <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: bold ? "18px" : "15px", fontWeight: bold ? 800 : 700, color: bold ? "oklch(0.68 0.18 25)" : "var(--text-primary)" }}>{value}</div>
                         <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
                       </div>
@@ -5197,14 +5197,14 @@ export default function HomeClient({
                   </div>
                   <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" as const }}>
                     <div style={{ flex: 1, minWidth: "140px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Monthly delta</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Monthly delta</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: monthlyDelta > 0 ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)" }}>
                         {monthlyDelta > 0 ? "+" : ""}{fmt(Math.round(monthlyDelta))}/mo
                       </div>
                       <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{monthlyDelta > 0 ? "more than current" : monthlyDelta < 0 ? "less than current" : "same as current"}</div>
                     </div>
                     <div style={{ flex: 1, minWidth: "140px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>
                         {upsizing ? "Break-even (stay ≥)" : "Recoup move costs in"}
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: "var(--text-primary)" }}>
@@ -5231,7 +5231,7 @@ export default function HomeClient({
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", alignItems: "end" }}>
                   <div>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>
                       Renting wins if rent is below
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "26px", fontWeight: 700, color: inputs.monthly_rent < computed.equivalentRent ? "oklch(0.68 0.18 25)" : "oklch(0.70 0.18 155)", lineHeight: 1 }}>
@@ -5279,9 +5279,9 @@ export default function HomeClient({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                 {computed.opportunityCost.map(({ years, value }) => (
                   <div key={years} style={{ textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 6px" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{years} yr</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{years} yr</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(value)}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{Math.round((value / inputs.down_payment - 1) * 100)}% gain</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{Math.round((value / inputs.down_payment - 1) * 100)}% gain</div>
                   </div>
                 ))}
               </div>
@@ -5293,7 +5293,7 @@ export default function HomeClient({
             {/* ── SECTION: PROJECTION ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Projection</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Projection</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -5308,9 +5308,9 @@ export default function HomeClient({
                     { label: "Projected Gain", value: `+${fmt(computed.lastPoint.homeValue - inputs.purchase_price)}`, color: "oklch(0.70 0.18 155)", sub: `+${((computed.lastPoint.homeValue / inputs.purchase_price - 1) * 100).toFixed(0)}% total` },
                   ].map(({ label, value, color, sub }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>{label}</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "5px" }}>{label}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "4px" }}>{sub}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px" }}>{sub}</div>
                     </div>
                   ))}
                 </div>
@@ -5373,7 +5373,7 @@ export default function HomeClient({
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ textAlign: "center" }}>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "2px" }}>{label}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "2px" }}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -5393,7 +5393,7 @@ export default function HomeClient({
                     { label: "Less: net sale proceeds", val: -Math.max(0, computed.realOwnershipCost.netSaleProceeds), color: "oklch(0.70 0.18 155)" },
                   ].map(({ label, val, color }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>
                         {val < 0 ? "-" : ""}{fmtK(Math.abs(val))}
                       </div>
@@ -5403,12 +5403,12 @@ export default function HomeClient({
                 <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "12px" }} />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Net cost of owning</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Net cost of owning</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.realOwnershipCost.trueNetOwnershipCost)}</div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>cash in − sale proceeds</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Rent path total</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>Rent path total</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: computed.realOwnershipCost.rentAlternativeTotalCost < computed.realOwnershipCost.trueNetOwnershipCost ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" }}>
                       {fmtK(computed.realOwnershipCost.rentAlternativeTotalCost)}
                     </div>
@@ -5426,7 +5426,7 @@ export default function HomeClient({
             {/* ── SECTION: INTELLIGENCE ── */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "4px" }}>
               <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Atlas &amp; Risk</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Atlas &amp; Risk</span>
               <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
             </div>
 
@@ -5434,7 +5434,7 @@ export default function HomeClient({
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                 <p style={{ ...sectionHead, margin: 0 }}>Atlas Home Advisor</p>
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)" }}>Rule-Based</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)" }}>Rule-Based</span>
               </div>
               {/* Advisor opinion paragraph */}
               {(() => {
@@ -5525,7 +5525,7 @@ export default function HomeClient({
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
                     <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: riskColor, flexShrink: 0 }} />
                     <p style={{ ...sectionHead, margin: 0 }}>Biggest Risk</p>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: `color-mix(in oklch, ${riskColor} 12%, transparent)`, color: riskColor, border: `1px solid color-mix(in oklch, ${riskColor} 25%, transparent)`, marginLeft: "auto", fontFamily: "var(--font-body)" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 7px", borderRadius: "20px", background: `color-mix(in oklch, ${riskColor} 12%, transparent)`, color: riskColor, border: `1px solid color-mix(in oklch, ${riskColor} 25%, transparent)`, marginLeft: "auto", fontFamily: "var(--font-body)" }}>
                       {risk.severity === "high" ? "High" : "Medium"}
                     </span>
                   </div>
@@ -5561,7 +5561,7 @@ export default function HomeClient({
           const hasAff     = cols.some((c) => c.affordabilityScore != null);
 
           const rowLabel = (text: string) => (
-            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", padding: "9px 14px", whiteSpace: "nowrap" as const, borderBottom: "1px solid var(--border-subtle)" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-body)", padding: "9px 14px", whiteSpace: "nowrap" as const, borderBottom: "1px solid var(--border-subtle)" }}>
               {text}
             </div>
           );
@@ -5576,7 +5576,7 @@ export default function HomeClient({
               {/* Section header */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
                 <div style={{ height: "1px", width: "16px", background: "var(--border-subtle)" }} />
-                <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Scenario Comparison Center</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>Scenario Comparison Center</span>
                 <div style={{ height: "1px", flex: 1, background: "var(--border-subtle)" }} />
               </div>
 
@@ -5603,10 +5603,10 @@ export default function HomeClient({
                           style={{ background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%" }}
                         >
                           <div style={{ fontSize: "11px", fontWeight: 700, color: isActive ? "#60a5fa" : "var(--text-primary)", fontFamily: "var(--font-display)", letterSpacing: "-0.2px", marginBottom: "4px" }}>{s.name}</div>
-                          <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
+                          <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
                             {s.verdictData.verdict}
                           </span>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px" }}>{s.verdictData.confidence} confidence</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px" }}>{s.verdictData.confidence} confidence</div>
                         </button>
                       </div>
                     );
@@ -5632,7 +5632,7 @@ export default function HomeClient({
                       return (
                         <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, oklch(0.80 0.14 80) 5%, transparent)" : "transparent" }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: isBest ? "oklch(0.80 0.14 80)" : "var(--text-secondary)" }}>{fmt(Math.round(s.totalMonthly))}/mo</span>
-                          {isBest && <div style={{ fontSize: "8px", color: "oklch(0.80 0.14 80)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Lowest</div>}
+                          {isBest && <div style={{ fontSize: "10px", color: "oklch(0.80 0.14 80)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Lowest</div>}
                         </div>
                       );
                     })}
@@ -5650,7 +5650,7 @@ export default function HomeClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.breakEvenYear == null ? "var(--text-muted)" : isBest ? "#60a5fa" : "var(--text-secondary)" }}>
                             {s.breakEvenYear != null ? `Yr ${s.breakEvenYear}` : "None"}
                           </span>
-                          {isBest && <div style={{ fontSize: "8px", color: "#60a5fa", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Fastest</div>}
+                          {isBest && <div style={{ fontSize: "10px", color: "#60a5fa", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Fastest</div>}
                         </div>
                       );
                     })}
@@ -5668,7 +5668,7 @@ export default function HomeClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.retirWithHomeAssets == null ? "var(--text-muted)" : isBest ? "oklch(0.70 0.18 155)" : "var(--text-secondary)" }}>
                             {s.retirWithHomeAssets != null ? fmtK(s.retirWithHomeAssets) : "—"}
                           </span>
-                          {isBest && s.retirWithHomeAssets != null && <div style={{ fontSize: "8px", color: "oklch(0.70 0.18 155)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Highest</div>}
+                          {isBest && s.retirWithHomeAssets != null && <div style={{ fontSize: "10px", color: "oklch(0.70 0.18 155)", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Highest</div>}
                         </div>
                       );
                     })}
@@ -5691,7 +5691,7 @@ export default function HomeClient({
                             {delta != null ? `${delta >= 0 ? "+" : ""}${delta}pp` : "—"}
                           </span>
                           {delta != null && (
-                            <div style={{ fontSize: "8px", color: "var(--text-muted)", marginTop: "2px" }}>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
                               {positive ? "Improves" : neutral ? "Neutral" : "Reduces"} probability
                             </div>
                           )}
@@ -5718,15 +5718,15 @@ export default function HomeClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor }}>
                             {aff ? aff.score : "—"}
                           </span>
-                          {aff && <div style={{ fontSize: "9px", color: scoreColor, marginTop: "2px", opacity: 0.8 }}>{aff.rating}</div>}
-                          {isBest && aff && <div style={{ fontSize: "8px", color: scoreColor, marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Best</div>}
+                          {aff && <div style={{ fontSize: "10px", color: scoreColor, marginTop: "2px", opacity: 0.8 }}>{aff.rating}</div>}
+                          {isBest && aff && <div style={{ fontSize: "10px", color: scoreColor, marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Best</div>}
                         </div>
                       );
                     })}
                   </div>
                 )}
 
-                <p style={{ fontSize: "9px", color: "var(--text-muted)", padding: "7px 14px 9px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: "10px", color: "var(--text-muted)", padding: "7px 14px 9px", borderTop: "1px solid var(--border-subtle)", margin: 0, lineHeight: 1.5 }}>
                   Highlighted cells indicate the best-performing scenario for each metric. Click a scenario name to load it.
                 </p>
               </div>
@@ -5908,7 +5908,7 @@ export default function HomeClient({
                   { label: "Down Payment", value: fmt(inputs.down_payment) },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: "#94a3b8", marginTop: "1px" }}>{value}</div>
                   </div>
                 ))}
@@ -5937,7 +5937,7 @@ export default function HomeClient({
                 { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", sub: "loan half paid off", accent: "#00d395" },
               ].map(({ label, value, sub, accent }, i) => (
                 <div key={label} style={{ padding: "14px 18px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined }}>
-                  <div style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{label}</div>
+                  <div style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
                   <div style={{ fontSize: "10px", color: "#334155", marginTop: "3px", fontFamily: "var(--font-body)" }}>{sub}</div>
                 </div>

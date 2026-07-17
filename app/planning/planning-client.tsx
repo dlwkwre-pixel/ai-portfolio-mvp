@@ -1397,7 +1397,7 @@ function InfoTooltip({ text, align = "center" }: { text: string; align?: "center
         style={{
           background: "none", border: "1px solid var(--text-tertiary)", cursor: "pointer",
           color: "var(--text-tertiary)", padding: 0, margin: "0 3px",
-          fontSize: "9px", fontFamily: "var(--font-body)", fontWeight: 600,
+          fontSize: "10px", fontFamily: "var(--font-body)", fontWeight: 600,
           lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center",
           width: "13px", height: "13px", borderRadius: "50%", flexShrink: 0,
         }}
@@ -1854,14 +1854,14 @@ function LineItemRow({
       <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         {!isBalance && (cf as CashFlowItem).is_variable && (
-          <span style={{ fontSize: "9px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
         {isBalance && !bal.is_liability && bal.category !== "cash" && (() => {
           const b = effectiveTaxBucket(bal);
           if (!b) return null;
           const meta = TAX_BUCKET_META[b];
           return (
-            <span title={meta.note} style={{ fontSize: "9px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
+            <span title={meta.note} style={{ fontSize: "10px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
           );
         })()}
       </span>
@@ -1869,7 +1869,7 @@ function LineItemRow({
       {item.id.startsWith("linked:") ? (
         // Synced from a connected/manual account — the source of truth lives on the
         // Connections page, so it can't be edited or deleted here.
-        <span title="This balance syncs from your Connections page — update or unlink it there." style={{ fontSize: "9px", fontWeight: 600, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.3)", padding: "2px 7px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "help" }}>
+        <span title="This balance syncs from your Connections page — update or unlink it there." style={{ fontSize: "10px", fontWeight: 600, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.3)", padding: "2px 7px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "help" }}>
           Synced
         </span>
       ) : (
@@ -3399,11 +3399,11 @@ function CashFlowHealthCard({
                     }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", alignItems: "center" }}>
-                      <span style={{ fontSize: "9px", color: isActive ? "var(--text-secondary)" : "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      <span style={{ fontSize: "10px", color: isActive ? "var(--text-secondary)" : "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                         {details?.icon} {f.name}
                       </span>
                       <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: fColor }}>{f.score}/{f.max}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: fColor }}>{f.score}/{f.max}</span>
                         <svg width="7" height="7" viewBox="0 0 20 20" fill={fColor}
                           style={{ transition: "transform 0.2s", transform: isActive ? "rotate(180deg)" : "none", flexShrink: 0 }}>
                           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -3464,14 +3464,14 @@ function CashFlowHealthCard({
           { label: "Monthly Savings",   to: Math.abs(monthlySavings), color: monthlySavings >= 0 ? "var(--green)" : "var(--red)", prefix: monthlySavings < 0 ? "-$" : "$" },
         ] as { label: string; to: number; color: string; prefix: string }[]).map(({ label, to, color, prefix }) => (
           <div key={label}>
-            <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
+            <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color, lineHeight: 1 }}>
               <CountUp to={to} prefix={prefix} isPrivate={isPrivate} duration={900} />
             </div>
           </div>
         ))}
         <div>
-          <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings Rate</div>
+          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings Rate</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, lineHeight: 1, color: savingsRate >= 20 ? "var(--green)" : savingsRate >= 10 ? "var(--amber)" : savingsRate > 0 ? "var(--red)" : "var(--text-muted)" }}>
             {effectiveIncome > 0
               ? <CountUp to={savingsRate} suffix="%" decimals={1} duration={850} isPrivate={isPrivate} />
@@ -3982,13 +3982,13 @@ function BudgetTrackerTab({
                     return (
                       <div key={i} title={`${MONTH_NAMES[h.period_month - 1]} ${h.period_year}: $${h.actual_amount.toLocaleString()}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
                         <div style={{ width: "18px", height: `${barHeight}px`, borderRadius: "2px", background: over ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.5)" }} />
-                        <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1].slice(0, 1)}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1].slice(0, 1)}</span>
                       </div>
                     );
                   })}
                   <div style={{ width: "1px", background: "var(--border-subtle)", height: "24px", margin: "0 2px" }} />
                   <div style={{ width: "18px", height: "20px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: $${fcast.toLocaleString()}`}>
-                    <span style={{ position: "absolute", bottom: "-14px", fontSize: "9px", color: "var(--text-muted)" }}>F</span>
+                    <span style={{ position: "absolute", bottom: "-14px", fontSize: "10px", color: "var(--text-muted)" }}>F</span>
                   </div>
                 </div>
               )}
@@ -4223,7 +4223,7 @@ function ForecastVarianceTrendCard({
 
       <div style={{ paddingTop: "12px", borderTop: "1px solid var(--border-subtle)", display: "flex", alignItems: "flex-start", gap: "20px", flexWrap: "wrap" }}>
         <div style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Avg Monthly Variance</div>
+          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Avg Monthly Variance</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: avgVariance > 100 ? "var(--red)" : avgVariance < -100 ? "var(--green)" : "var(--text-secondary)" }}>
             {avgVariance >= 0 ? "+" : ""}{isPrivate ? "••••" : `$${Math.abs(Math.round(avgVariance)).toLocaleString()}`}
           </div>
@@ -4354,7 +4354,7 @@ function BalanceSheetOS({
             { label: "Debt Ratio",   val: totalAssets > 0 ? `${debtRatio.toFixed(0)}%` : "—", color: drColor },
           ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
             <div key={label}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
             </div>
           ))}
@@ -4364,8 +4364,8 @@ function BalanceSheetOS({
             {effectiveExpenses > 0 && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Emergency Fund</span>
-                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{isPrivate ? "••" : emergencyMonths.toFixed(1)}mo{emergencyMonths >= 3 ? " — on track" : " — target 3m"}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Emergency Fund</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{isPrivate ? "••" : emergencyMonths.toFixed(1)}mo{emergencyMonths >= 3 ? " — on track" : " — target 3m"}</span>
                 </div>
                 <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
@@ -4377,8 +4377,8 @@ function BalanceSheetOS({
             {totalLiabilities > 0 && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Debt-to-Asset Ratio</span>
-                  <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: below 20%</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Debt-to-Asset Ratio</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: below 20%</span>
                 </div>
                 <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: `${(20/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
@@ -4397,7 +4397,7 @@ function BalanceSheetOS({
           <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnInsight}</p>
         </div>
       </div>
@@ -4407,7 +4407,7 @@ function BalanceSheetOS({
         <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px", animationDelay: "110ms" }}>
           {assetBuckets.length > 0 && (
             <div style={{ marginBottom: liabBuckets.length > 0 ? "20px" : 0 }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Asset Allocation</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Asset Allocation</div>
               {(() => {
                 const total = assetBuckets.reduce((s, b) => s + b.value, 0);
                 return (
@@ -4434,7 +4434,7 @@ function BalanceSheetOS({
           )}
           {liabBuckets.length > 0 && (
             <div>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Liability Breakdown</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>Liability Breakdown</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
                 {liabBuckets.map((b, i) => {
                   const w = totalLiabilities > 0 ? (b.val / totalLiabilities) * 100 : 0;
@@ -4462,7 +4462,7 @@ function BalanceSheetOS({
       {taxBuckets.total > 0 && (
         <div className="bso-z" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "20px", marginBottom: "10px", animationDelay: "130ms" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Tax Diversification</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Tax Diversification</span>
             <InfoTooltip text="Where your money sits across the three tax buckets. Having balances in each gives you levers to control how much income is taxable in retirement — and which accounts to draw from first. Tag accounts in the list below (or we infer it from the account type)." />
           </div>
           {(() => {
@@ -4520,8 +4520,8 @@ function BalanceSheetOS({
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pa.name}</span>
-                  <span style={{ fontSize: "9px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
-                  <span title={meta.note} style={{ fontSize: "9px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
+                  <span title={meta.note} style={{ fontSize: "10px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{ph(fmtFull(pa.value))}</span>
               </div>
@@ -4572,7 +4572,7 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: "3px", marginBottom: "2px" }}>
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
-          <div key={d} style={{ textAlign: "center", fontSize: "9px", fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-body)", paddingBottom: "2px" }}>{d}</div>
+          <div key={d} style={{ textAlign: "center", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-body)", paddingBottom: "2px" }}>{d}</div>
         ))}
         {cells.map((day, i) => {
           const items = day ? (dayMap.get(day) ?? []) : [];
@@ -4589,7 +4589,7 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
               }}>
               {day && (
                 <>
-                  <div style={{ textAlign: "center", fontSize: "9px", fontFamily: "var(--font-mono)", color: isToday ? "oklch(0.65 0.18 260)" : "var(--text-tertiary)" }}>{day}</div>
+                  <div style={{ textAlign: "center", fontSize: "10px", fontFamily: "var(--font-mono)", color: isToday ? "oklch(0.65 0.18 260)" : "var(--text-tertiary)" }}>{day}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "1px" }}>
                     {items.map((it, j) => (
                       <div key={j} style={{ height: "3px", borderRadius: "2px", background: it.type === "income" ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" }} />
@@ -4969,7 +4969,7 @@ function CashFlowOS({
             { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—",           color: srColor },
           ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
             <div key={label}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
             </div>
           ))}
@@ -4977,8 +4977,8 @@ function CashFlowOS({
         {effectiveIncome > 0 && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
-              <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
+              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
             </div>
             <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
               <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
@@ -5001,7 +5001,7 @@ function CashFlowOS({
           animationDelay: "30ms", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
         }}>
           <div style={{ flex: 1, minWidth: "160px" }}>
-            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Surplus this month</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Surplus this month</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
               You&apos;re {ph(fmt(monthlySavings))} ahead — where should it go?
             </p>
@@ -5037,7 +5037,7 @@ function CashFlowOS({
             </svg>
           </div>
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
           </div>
         </div>
@@ -5068,7 +5068,7 @@ function CashFlowOS({
             <circle cx="10" cy="15.5" r="0.8" fill="oklch(0.72 0.18 55)"/>
           </svg>
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
               {pacingAlerts.map((a, i) => (
                 <span key={a.label}>{i > 0 ? " " : ""}<strong style={{ color: "var(--text-primary)" }}>{a.label}</strong> is on track to exceed budget by {ph(fmt(a.overage))}.{i < pacingAlerts.length - 1 ? "" : ""}</span>
@@ -5126,7 +5126,7 @@ function CashFlowOS({
                 })}
                 {/* Center label */}
                 <text x="98" y="90" textAnchor="middle" dominantBaseline="middle"
-                  style={{ fontSize: "9px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  style={{ fontSize: "10px", fill: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
                   {highlightedCat ?? "Expenses"}
                 </text>
                 <text x="98" y="111" textAnchor="middle" dominantBaseline="middle"
@@ -5142,7 +5142,7 @@ function CashFlowOS({
 
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
                 {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
               </div>
 
@@ -5212,7 +5212,7 @@ function CashFlowOS({
                           <span style={{ color: "var(--text-muted)" }}> / {ph(fmt(cat.budgeted * mult))}</span>
                         </span>
                         {variance !== null && (
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)", background: over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap" }}>
                             {ph(fmt(Math.abs(variance) * mult))} {over ? "over" : "under"}
                           </span>
                         )}
@@ -5284,7 +5284,7 @@ function CashFlowOS({
       }}>
         {/* Period + statement import */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
-          <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)" }}>Period</span>
+          <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)" }}>Period</span>
           <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
             style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px" }}>
             {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -5371,7 +5371,7 @@ function CashFlowOS({
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{cat.label}</span>
                         <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>({items.length})</span>
                         {catVariance !== null && (
-                          <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                          <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: "3px", whiteSpace: "nowrap", background: catVariance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: catVariance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
                             {Math.round(catVariance) === 0 ? "on budget" : `${ph(fmt(Math.abs(catVariance)))} ${catVariance > 0 ? "over" : "under"}`}
                           </span>
                         )}
@@ -5379,7 +5379,7 @@ function CashFlowOS({
                       <span style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
                         <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(catTotal))}/mo</span>
                         {loggedInCat > 0 && (
-                          <span style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{loggedInCat}/{items.length}</span>
+                          <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{loggedInCat}/{items.length}</span>
                         )}
                         <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", color: "var(--text-tertiary)", flexShrink: 0 }}>
                           <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -5397,7 +5397,7 @@ function CashFlowOS({
                           const mKeyWhole = `${item.id}:whole`;
 
                           const rowLabel: React.CSSProperties = {
-                            fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
+                            fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
                             letterSpacing: "0.09em", width: "44px", flexShrink: 0,
                             fontFamily: "var(--font-body)", paddingTop: "11px",
                           };
@@ -5430,7 +5430,7 @@ function CashFlowOS({
                                       ))}
                                     </select>
                                     {item.category && (
-                                      <span style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>manual</span>
+                                      <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>manual</span>
                                     )}
                                   </div>
                                 </div>
@@ -5468,7 +5468,7 @@ function CashFlowOS({
                                 )}
                                 {history.length >= 3 && (
                                   <button onClick={() => handleSync(item.id)} disabled={syncingId === item.id} title="Update forecast to 3-month avg"
-                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "9px", fontWeight: 500, background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)", cursor: "pointer" }}>
+                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 500, background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)", cursor: "pointer" }}>
                                     {syncingId === item.id ? "Syncing…" : "Sync"}
                                   </button>
                                 )}
@@ -5483,13 +5483,13 @@ function CashFlowOS({
                                       <div key={hi} title={`${MONTH_NAMES[h.period_month - 1]} ${h.period_year}: $${h.actual_amount.toLocaleString()}`}
                                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
                                         <div style={{ width: "13px", height: `${barH}px`, borderRadius: "2px", background: h.actual_amount > fcast ? "rgba(239,68,68,0.5)" : "rgba(34,197,94,0.45)" }} />
-                                        <span style={{ fontSize: "8px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1][0]}</span>
+                                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{MONTH_NAMES[h.period_month - 1][0]}</span>
                                       </div>
                                     );
                                   })}
                                   <div style={{ width: "1px", background: "var(--border-subtle)", height: "16px", margin: "0 1px" }} />
                                   <div style={{ width: "13px", height: "14px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: ${fmt(fcast)}`}>
-                                    <span style={{ position: "absolute", bottom: "-11px", fontSize: "8px", color: "var(--text-muted)" }}>F</span>
+                                    <span style={{ position: "absolute", bottom: "-11px", fontSize: "10px", color: "var(--text-muted)" }}>F</span>
                                   </div>
                                 </div>
                               )}
@@ -5500,12 +5500,12 @@ function CashFlowOS({
                                 return (
                                   <div style={{ marginTop: "5px" }}>
                                     <button type="button" onClick={() => setMovingKey(isMoving ? null : mKeyWhole)}
-                                      style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "9px", padding: "2px 6px", lineHeight: 1, fontFamily: "var(--font-body)" }}>
+                                      style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "1px solid transparent", borderRadius: "4px", cursor: "pointer", color: isMoving ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "2px 6px", lineHeight: 1, fontFamily: "var(--font-body)" }}>
                                       → Move ${actual.actual_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </button>
                                     {isMoving && (
                                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                                        <span style={{ fontSize: "9px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
+                                        <span style={{ fontSize: "10px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
                                         <select defaultValue="" onChange={e => {
                                           const destId = e.target.value;
                                           if (!destId) return;
@@ -5550,7 +5550,7 @@ function CashFlowOS({
                                             </div>
                                             {isMov && (
                                               <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "10px" }}>
-                                                <span style={{ fontSize: "9px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
+                                                <span style={{ fontSize: "10px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
                                                 <select defaultValue="" onChange={e => {
                                                   const destId = e.target.value;
                                                   if (!destId) return;
@@ -7814,7 +7814,7 @@ export default function PlanningClient({
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "6px" }}>
                     {healthData.factors.map((f) => (
                       <div key={f.name}>
-                        <div style={{ fontSize: "8px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {f.name.split(" ")[0]}
                         </div>
                         <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden" }}>
@@ -7874,7 +7874,7 @@ export default function PlanningClient({
                       style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
                     />
                     {formIncomeType === "retired" && (
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Social Security, pension & annuities — before portfolio withdrawals. No payroll tax applied.</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Social Security, pension & annuities — before portfolio withdrawals. No payroll tax applied.</div>
                     )}
                   </div>
                   <div>
@@ -7885,7 +7885,7 @@ export default function PlanningClient({
                       <option value="semimonthly">Twice a month (24/yr)</option>
                       <option value="monthly">Monthly (12/yr)</option>
                     </select>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Used for your 401(k) per-paycheck math.</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Used for your 401(k) per-paycheck math.</div>
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "5px", fontFamily: "var(--font-body)" }}>Risk Tolerance</label>
@@ -7938,7 +7938,7 @@ export default function PlanningClient({
                         placeholder="e.g. 23500"
                         style={{ ...inputStyle, minWidth: "unset", width: "100%" }}
                       />
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>{(() => { const cl = contributionLimits(); return `HSA (${fmt(cl.hsaSelf)}), IRA (${fmt(cl.ira)}), etc. — your 401(k) is added automatically from the 401(k) planner, so don't enter it here`; })()}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>{(() => { const cl = contributionLimits(); return `HSA (${fmt(cl.hsaSelf)}), IRA (${fmt(cl.ira)}), etc. — your 401(k) is added automatically from the 401(k) planner, so don't enter it here`; })()}</div>
                     </div>
                   </div>
                   {formGross > 0 && (() => {
@@ -7947,7 +7947,7 @@ export default function PlanningClient({
                     const computedNet = Math.round(t.netMonthly);
                     return (
                       <div style={{ marginTop: "10px", padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.06)", border: "1px solid oklch(0.55 0.15 265 / 0.18)", borderRadius: "var(--radius-md)" }}>
-                        <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.60 0.15 265)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.60 0.15 265)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "6px" }}>
                           {[
                             { label: "Federal Income Tax", val: fmt(Math.round(t.federalIncomeTax / 12)) + "/mo" },
@@ -7955,15 +7955,15 @@ export default function PlanningClient({
                             { label: `State Tax${formStateCode ? ` (${formStateCode})` : ""}`, val: fmt(Math.round(t.stateTax / 12)) + "/mo" },
                           ].map(({ label, val }) => (
                             <div key={label}>
-                              <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
+                              <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>{label}</div>
                               <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>{val}</div>
                             </div>
                           ))}
                           <div>
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>
                               Est. Net Monthly
                               {!showNetOverride && (
-                                <button type="button" onClick={() => { setShowNetOverride(true); setNetOverride(computedNet); }} style={{ background: "none", border: "none", color: "oklch(0.60 0.15 265)", cursor: "pointer", fontSize: "9px", padding: "0 0 0 5px", fontFamily: "var(--font-body)" }}>override</button>
+                                <button type="button" onClick={() => { setShowNetOverride(true); setNetOverride(computedNet); }} style={{ background: "none", border: "none", color: "oklch(0.60 0.15 265)", cursor: "pointer", fontSize: "10px", padding: "0 0 0 5px", fontFamily: "var(--font-body)" }}>override</button>
                               )}
                             </div>
                             {showNetOverride ? (
@@ -7982,11 +7982,11 @@ export default function PlanningClient({
                           </div>
                         </div>
                         {formPreTax > 0 && (
-                          <div style={{ fontSize: "9px", color: "oklch(0.60 0.15 265)", marginTop: "5px", fontFamily: "var(--font-body)" }}>
+                          <div style={{ fontSize: "10px", color: "oklch(0.60 0.15 265)", marginTop: "5px", fontFamily: "var(--font-body)" }}>
                             Pre-tax deductions ({fmt(formPreTax)}/yr) reduce your taxable income by {fmt(Math.round(t.federalMarginalRate * formPreTax))} in federal tax.
                           </div>
                         )}
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "5px", fontFamily: "var(--font-body)" }}>Planning calculations use {showNetOverride && netOverride !== null ? "your override" : "est. net monthly"}. Estimates only — not tax advice.</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "5px", fontFamily: "var(--font-body)" }}>Planning calculations use {showNetOverride && netOverride !== null ? "your override" : "est. net monthly"}. Estimates only — not tax advice.</div>
                       </div>
                     );
                   })()}
@@ -8094,7 +8094,7 @@ export default function PlanningClient({
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--green)", fontWeight: 500 }}>
                             {fmt(netOverride !== null ? netOverride : Math.round(t.netMonthly))}
                           </div>
-                          <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>
                             {netOverride !== null ? "your override" : `${Math.round(t.federalEffectiveRate * 100 + t.stateEffectiveRate * 100)}% effective total tax`}
                           </div>
                         </div>
@@ -8162,7 +8162,7 @@ export default function PlanningClient({
                   const r = risk!;
                   return (
                     <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.14)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
                         Biggest Risk
                       </div>
@@ -8180,7 +8180,7 @@ export default function PlanningClient({
                   const o = opportunity!;
                   return (
                     <div style={{ background: "rgba(37,99,235,0.04)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.60 0.18 250)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.60 0.18 250)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
                         Biggest Opportunity
                       </div>
@@ -8209,7 +8209,7 @@ export default function PlanningClient({
                   <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Ranked by financial impact — act on these first</div>
                 </div>
                 {commandPriorities.some((p) => p.urgent) && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "20px", fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", flexShrink: 0 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "20px", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", flexShrink: 0 }}>
                     <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 25)", display: "inline-block" }} />
                     Needs attention
                   </span>
@@ -8286,7 +8286,7 @@ export default function PlanningClient({
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", fontWeight: 600 }}>{f.score}/{f.max}</span>
                           {f.direction !== "strength" && (
                             <button type="button" onClick={() => setTab(f.tabKey as Tab)}
-                              style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "9px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-tertiary)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                              style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 500, fontFamily: "var(--font-body)", background: "transparent", border: "1px solid var(--border)", color: "var(--text-tertiary)", cursor: "pointer", whiteSpace: "nowrap" }}>
                               Fix →
                             </button>
                           )}
@@ -8402,7 +8402,7 @@ export default function PlanningClient({
                 {/* 3-column metrics */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "8px" }}>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Target Price</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Target Price</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
                       {pHide(fmt(hs.purchase_price))}
                     </div>
@@ -8411,7 +8411,7 @@ export default function PlanningClient({
                     </div>
                   </div>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Cost</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Cost</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
                       {pHide(fmt(Math.round(totalMonthlyCost)))}
                     </div>
@@ -8420,7 +8420,7 @@ export default function PlanningClient({
                     </div>
                   </div>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings After</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Savings After</div>
                     {newSavingsRate !== null ? (
                       <>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: newSavingsRate >= 15 ? "oklch(0.72 0.19 145)" : newSavingsRate >= 5 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 25)" }}>
@@ -8481,7 +8481,7 @@ export default function PlanningClient({
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     {sorted.map((m, i) => (
                       <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: i < sorted.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
-                        <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: `color-mix(in oklch, ${m.color} 15%, transparent)`, border: `1px solid color-mix(in oklch, ${m.color} 30%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 700, color: m.color }}>
+                        <div style={{ flexShrink: 0, width: "26px", height: "26px", borderRadius: "50%", background: `color-mix(in oklch, ${m.color} 15%, transparent)`, border: `1px solid color-mix(in oklch, ${m.color} 30%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: m.color }}>
                           {m.icon}
                         </div>
                         <div style={{ flex: 1, minWidth: 0, fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", fontFamily: "var(--font-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.label}</div>
@@ -8537,7 +8537,7 @@ export default function PlanningClient({
                 {/* Metrics grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>FI Year</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>FI Year</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: fiAlreadyReached ? "var(--green)" : "var(--text-primary)" }}>
                       {fiAlreadyReached ? "Now" : lifePlan.fiYear != null ? String(lifePlan.fiYear) : "60+yr"}
                     </div>
@@ -8546,14 +8546,14 @@ export default function PlanningClient({
                     )}
                   </div>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Gap to FI</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Gap to FI</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: fiAlreadyReached ? "var(--green)" : "var(--text-primary)" }}>
                       {fiAlreadyReached ? "Achieved" : pHide(fmt(fiGap))}
                     </div>
                     {!fiAlreadyReached && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>remaining</div>}
                   </div>
                   <div style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: speedup != null && speedup > 0 ? "oklch(0.72 0.19 145 / 0.06)" : "var(--card-bg)", border: `1px solid ${speedup != null && speedup > 0 ? "oklch(0.72 0.19 145 / 0.2)" : "var(--border-subtle)"}` }}>
-                    <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>+5% Savings Rate</div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>+5% Savings Rate</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: speedup != null && speedup > 0 ? "var(--green)" : "var(--text-muted)" }}>
                       {speedup != null && speedup > 0 ? `${speedup} yr${speedup !== 1 ? "s" : ""} earlier` : "—"}
                     </div>
@@ -8672,7 +8672,7 @@ export default function PlanningClient({
                     { label: "Debt Change", value: pHide(`${liabChange <= 0 ? "" : "+"}${fmt(Math.round(liabChange))}`), color: liabChange <= 0 ? "var(--green)" : "var(--red)" },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--border-subtle)" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
+                      <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{label}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
                     </div>
                   ))}
@@ -8742,7 +8742,7 @@ export default function PlanningClient({
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>
                 {(() => {
                   const proj = retirementPoint.baseline;
@@ -8838,7 +8838,7 @@ export default function PlanningClient({
                             {positive ? "+" : ""}{fmt(impact)}
                           </div>
                         )}
-                        <div style={{ fontSize: "9px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "2px" }}>at retirement</div>
                       </button>
                     );
                   })}
@@ -8847,7 +8847,7 @@ export default function PlanningClient({
 
               {/* Retire/Market chips */}
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", paddingTop: whatIfImpacts ? "10px" : "0", borderTop: whatIfImpacts ? "1px solid var(--border-subtle)" : "none" }}>
-                <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Retire / Market</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Retire / Market</span>
                 {[
                   { label: "Retire 5yr Earlier", action: () => setScenarioRetirementAge(Math.max(profile.current_age! + 1, (activeRetirementAge ?? 65) - 5)) },
                   { label: "Retire 5yr Later",   action: () => setScenarioRetirementAge(Math.min(85, (activeRetirementAge ?? 65) + 5)) },
@@ -9098,7 +9098,7 @@ export default function PlanningClient({
                     } />
                   </span>
                   {retirementTarget != null && retirementPoint != null && (
-                    <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5 }}>
+                    <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5 }}>
                       <span style={{ display: "block" }}>need {fmt(retirementTarget)}</span>
                       <span style={{ display: "block", color: retirementPoint.baseline >= retirementTarget ? "var(--green)" : "var(--amber)" }}>
                         proj. {fmt(retirementPoint.baseline)}
@@ -9106,7 +9106,7 @@ export default function PlanningClient({
                     </div>
                   )}
                   {afterTaxRetirementAssets != null && retirementTaxDrag != null && retirementTaxDrag > 0 && (
-                    <div style={{ marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--border-subtle)", fontSize: "9px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5, display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
+                    <div style={{ marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--border-subtle)", fontSize: "10px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textAlign: "center", lineHeight: 1.5, display: "flex", flexDirection: "column", alignItems: "center", gap: "1px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "3px" }}>
                         after tax
                         <InfoTooltip text={`A tax-deferred dollar (Traditional 401k/IRA) is worth less than a Roth or taxable dollar because withdrawals are taxed as ordinary income. Discounting your tax-deferred balances by an assumed ${Math.round(EFFECTIVE_RETIREMENT_TAX_RATE * 100)}% effective retirement tax rate, your projected ${fmt(retirementPoint.baseline)} is worth about ${fmt(afterTaxRetirementAssets)} of real spending power. This is an estimate and does not change the probability above.`} />
@@ -9307,7 +9307,7 @@ export default function PlanningClient({
                     { label: `Left at ${drawdown.endAge}`, val: pHide(fmt(drawdown.years[drawdown.years.length - 1].total)), color: drawdown.success ? "var(--green)" : "var(--red)" },
                   ]).map((s) => (
                     <div key={s.label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
-                      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
@@ -9403,7 +9403,7 @@ export default function PlanningClient({
                         ...(drawdownMc.medianDepletionAge != null ? [{ label: "If short, median age", val: `${drawdownMc.medianDepletionAge}`, color: "var(--amber)" }] : []),
                       ]).map((s) => (
                         <div key={s.label}>
-                          <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
+                          <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: s.color }}>{s.val}</div>
                         </div>
                       ))}
@@ -9485,7 +9485,7 @@ export default function PlanningClient({
                       <tr key={p.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: isRetirement ? "rgba(167,139,250,0.06)" : "transparent" }}>
                         <td style={{ padding: "8px 10px", color: "var(--text-secondary)", textAlign: "right" }}>
                           {p.year === 0 ? "Now" : `+${p.year}yr`}
-                          {isRetirement && <span style={{ marginLeft: "6px", fontSize: "9px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>RETIRE</span>}
+                          {isRetirement && <span style={{ marginLeft: "6px", fontSize: "10px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>RETIRE</span>}
                         </td>
                         {age !== null && <td style={{ padding: "8px 10px", color: "var(--text-secondary)", textAlign: "right" }}>{age}</td>}
                         <td style={{ padding: "8px 10px", color: "var(--green)", textAlign: "right" }}>{fmt(p.annualIncome)}</td>

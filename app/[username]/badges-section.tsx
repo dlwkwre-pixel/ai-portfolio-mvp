@@ -56,15 +56,15 @@ function BadgeTile({ badge, earned, earnedAt }: { badge: Badge; earned: boolean;
         <p style={{ fontSize: "11px", fontWeight: 600, color: earned ? "var(--text-primary, #f0f4ff)" : "#475569", letterSpacing: "-0.1px", lineHeight: 1.2, marginBottom: "3px" }}>
           {badge.name}
         </p>
-        <p style={{ fontSize: "9px", color: earned ? color : "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>
+        <p style={{ fontSize: "10px", color: earned ? color : "#334155", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>
           {TIER_LABEL[badge.tier] ?? badge.tier}
         </p>
         {/* How it was earned — shown for both earned and locked */}
-        <p style={{ fontSize: "9px", color: earned ? "#475569" : "#2d3748", lineHeight: 1.4, marginBottom: earned && earnedAt ? "2px" : 0 }}>
+        <p style={{ fontSize: "10px", color: earned ? "#475569" : "#2d3748", lineHeight: 1.4, marginBottom: earned && earnedAt ? "2px" : 0 }}>
           {badge.hint}
         </p>
         {earned && earnedAt && (
-          <p style={{ fontSize: "9px", color: "#334155", marginTop: "1px" }}>
+          <p style={{ fontSize: "10px", color: "#334155", marginTop: "1px" }}>
             {new Date(earnedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
           </p>
         )}

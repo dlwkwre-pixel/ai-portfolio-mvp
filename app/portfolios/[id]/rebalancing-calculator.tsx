@@ -290,7 +290,7 @@ export default function RebalancingCalculator({
                     display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px",
                     paddingLeft: "13px", paddingTop: "2px", borderTop: "1px solid rgba(255,255,255,0.04)",
                   }}>
-                    <span style={{ fontSize: "9.5px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Tax-smart trim
                     </span>
                     <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: tt.gain >= 0 ? "#f59e0b" : "#00d395" }}>
@@ -307,12 +307,12 @@ export default function RebalancingCalculator({
                       <span style={{
                         display: "inline-flex", alignItems: "center", justifyContent: "center",
                         width: "13px", height: "13px", borderRadius: "50%", cursor: "help",
-                        fontSize: "8.5px", fontWeight: 700, color: "var(--text-muted)",
+                        fontSize: "10px", fontWeight: 700, color: "var(--text-muted)",
                         border: "1px solid var(--border-subtle)",
                       }}>i</span>
                     </InfoTooltip>
                     {tt.hasShortTermGain && (
-                      <span style={{ fontSize: "9.5px", color: "#f59e0b", fontWeight: 600 }}>
+                      <span style={{ fontSize: "10px", color: "#f59e0b", fontWeight: 600 }}>
                         ⚠ includes short-term
                       </span>
                     )}
@@ -380,7 +380,7 @@ export default function RebalancingCalculator({
                   <span style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center",
                     width: "14px", height: "14px", borderRadius: "50%", cursor: "help",
-                    fontSize: "9px", fontWeight: 700, color: "var(--text-muted)",
+                    fontSize: "10px", fontWeight: 700, color: "var(--text-muted)",
                     border: "1px solid var(--border-subtle)", flexShrink: 0,
                   }}>i</span>
                 </InfoTooltip>

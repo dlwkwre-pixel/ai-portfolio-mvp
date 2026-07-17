@@ -221,8 +221,8 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
           })}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px" }}>
-          <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Taxable income {fmt(Math.round(h.taxableIncome))}</span>
-          {!atTop && <span style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Next bracket at {fmt(h.currentCeiling)}</span>}
+          <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Taxable income {fmt(Math.round(h.taxableIncome))}</span>
+          {!atTop && <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Next bracket at {fmt(h.currentCeiling)}</span>}
         </div>
 
         {/* What the room is worth */}
@@ -246,7 +246,7 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
                 </div>
               </div>
             ))}
-            <p style={{ fontSize: "9.5px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
+            <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
               Estimates on {new Date().getFullYear()} federal brackets for planning only — not tax advice. Roth conversions and harvested income are themselves taxable; confirm with a tax professional.
             </p>
           </div>
@@ -331,7 +331,7 @@ function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; defer
               {chips.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", paddingLeft: "17px" }}>
                   {chips.map(([at, v]) => (
-                    <span key={at} style={{ fontSize: "9.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "1px 8px" }}>
+                    <span key={at} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--border-subtle)", borderRadius: "999px", padding: "1px 8px" }}>
                       {ASSET_LABELS[at] ?? at} {fmt(Math.round(v))}
                     </span>
                   ))}
@@ -437,9 +437,9 @@ function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate
           { label: "Left in Traditional", value: fmt(Math.round(remaining)), sub: remaining > 0 ? "still pre-tax" : "fully converted", color: remaining > 0 ? "var(--text-secondary)" : "var(--green)" },
         ].map((s) => (
           <div key={s.label} style={{ padding: "10px 12px", background: "var(--bg-elevated, rgba(255,255,255,0.03))", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-muted)", margin: "0 0 4px" }}>{s.label}</p>
+            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-muted)", margin: "0 0 4px" }}>{s.label}</p>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: s.color, margin: 0, transition: "color .2s" }}>{s.value}</p>
-            <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "2px 0 0" }}>{s.sub}</p>
+            <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "2px 0 0" }}>{s.sub}</p>
           </div>
         ))}
       </div>
@@ -451,7 +451,7 @@ function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate
             : `At ${fmt(annual)}/year you'd pay tax at roughly ${Math.round(effRate * 100)}% now, then that money grows and comes out tax-free. Converting in lower-income years (early retirement, a sabbatical, a down year) is when this pays off most.`}
         </p>
       </div>
-      <p style={{ fontSize: "9.5px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
+      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "8px 0 0", lineHeight: 1.5 }}>
         Estimate on {new Date().getFullYear()} federal brackets, ignoring state tax and any IRMAA / ACA-subsidy effects. Not tax advice — confirm with a professional before converting.
       </p>
     </div>
@@ -773,31 +773,31 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
               {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
                 <div>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Short-Term</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Short-Term</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: stcgNet > 0 ? "var(--red)" : stcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{stcgNet !== 0 ? (stcgNet > 0 ? "+" : "") + fmt(stcgNet) : "—"}</p>
                 </div>
               )}
               {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
                 <div>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Long-Term</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Long-Term</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: ltcgNet > 0 ? "var(--red)" : ltcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{ltcgNet !== 0 ? (ltcgNet > 0 ? "+" : "") + fmt(ltcgNet) : "—"}</p>
                 </div>
               )}
               {washSaleWarnings.length > 0 && (
                 <div>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Wash Sales</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Wash Sales</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{washSaleWarnings.length}</p>
                 </div>
               )}
               {totalTLHAvailable < 0 && (
                 <div>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>TLH Available</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>TLH Available</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--green)", margin: 0 }}>{fmt(Math.abs(totalTLHAvailable))}</p>
                 </div>
               )}
               {dividendIncome > 0 && (
                 <div>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Dividends</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Dividends</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", margin: 0 }}>{fmt(Math.round(dividendIncome))}</p>
                 </div>
               )}
@@ -821,7 +821,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{ flex: 1, padding: "6px 10px", fontSize: "11px", fontWeight: tab === t.id ? 700 : 500, background: tab === t.id ? "linear-gradient(135deg,#2563eb,#4f46e5)" : "transparent", border: "none", borderRadius: "var(--radius-full)", cursor: "pointer", color: tab === t.id ? "#fff" : "var(--text-tertiary)", transition: "all 0.15s ease", whiteSpace: "nowrap" as const, position: "relative" as const }}>
               {t.label}
               {t.id === "trades" && washSaleWarnings.length > 0 && (
-                <span style={{ marginLeft: "4px", fontSize: "9px", padding: "0 5px", borderRadius: "var(--radius-full)", background: tab === t.id ? "rgba(255,255,255,0.25)" : "rgba(239,68,68,0.15)", color: tab === t.id ? "#fff" : "var(--red)" }}>{washSaleWarnings.length}</span>
+                <span style={{ marginLeft: "4px", fontSize: "10px", padding: "0 5px", borderRadius: "var(--radius-full)", background: tab === t.id ? "rgba(255,255,255,0.25)" : "rgba(239,68,68,0.15)", color: tab === t.id ? "#fff" : "var(--red)" }}>{washSaleWarnings.length}</span>
               )}
             </button>
           ))}
@@ -886,9 +886,9 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       { label: `State tax${taxProfile?.stateCode ? ` (${taxProfile.stateCode})` : ""}`, value: activeEstimate.stateTax, sub: quickTaxEstimate ? "Not included in quick estimate" : `${(activeEstimate.stateEffectiveRate * 100).toFixed(1)}% effective` },
                     ].map(({ label, value, sub }) => (
                       <div key={label} style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>{label}</p>
+                        <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>{label}</p>
                         <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmt(Math.round(value))}</p>
-                        <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>{sub}</p>
+                        <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{sub}</p>
                       </div>
                     ))}
                   </div>
@@ -904,11 +904,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       <p style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", margin: "0 0 6px" }}>Quarterly estimated payments required</p>
                       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
                         <div>
-                          <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "0 0 2px" }}>Each quarter</p>
+                          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 2px" }}>Each quarter</p>
                           <p style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{fmt(Math.round(activeEstimate.totalTax / 4))}</p>
                         </div>
                         <div>
-                          <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "0 0 2px" }}>Payment due dates</p>
+                          <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "0 0 2px" }}>Payment due dates</p>
                           <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0 }}>Apr 15 · Jun 16 · Sep 15 · Jan 15</p>
                         </div>
                       </div>
@@ -956,15 +956,15 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                     <div style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                      <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Annual property tax (est.)</p>
+                      <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Annual property tax (est.)</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmt(annualPropertyTax)}</p>
-                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>{fmt(Math.round(annualPropertyTax / 12))}/mo · 1.1% of home value</p>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{fmt(Math.round(annualPropertyTax / 12))}/mo · 1.1% of home value</p>
                     </div>
                     {annualMortgageInterest > 0 && (
                       <div style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                        <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Mortgage interest (est.)</p>
+                        <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Mortgage interest (est.)</p>
                         <p style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 2px" }}>{fmt(annualMortgageInterest)}</p>
-                        <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>{taxProfile.ownerInterestRate}% on {fmt(Math.round(taxProfile.ownerMortgageBalance ?? 0))} balance</p>
+                        <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{taxProfile.ownerInterestRate}% on {fmt(Math.round(taxProfile.ownerMortgageBalance ?? 0))} balance</p>
                       </div>
                     )}
                   </div>
@@ -1009,7 +1009,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
                             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Short-term profits</p>
-                            <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(239,68,68,0.1)", color: "var(--red)", fontWeight: 600 }}>held &lt; 1 year</span>
+                            <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(239,68,68,0.1)", color: "var(--red)", fontWeight: 600 }}>held &lt; 1 year</span>
                           </div>
                           <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{stcgLots.length} sales · net {stcgNet >= 0 ? "+" : ""}{fmt(stcgNet)} · taxed at your ordinary income rate ({Math.round(cgStcgRate * 100)}%)</p>
                         </div>
@@ -1023,7 +1023,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
                             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Long-term profits</p>
-                            <span style={{ fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(0,211,149,0.1)", color: "var(--green)", fontWeight: 600 }}>held &gt; 1 year</span>
+                            <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(0,211,149,0.1)", color: "var(--green)", fontWeight: 600 }}>held &gt; 1 year</span>
                           </div>
                           <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{ltcgLots.length} sales · net {ltcgNet >= 0 ? "+" : ""}{fmt(ltcgNet)} · lower {Math.round(cgLtcgRate * 100)}% rate{cgNiit ? " + 3.8% NIIT" : ""}</p>
                         </div>
@@ -1064,7 +1064,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     <p style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 8px" }}>What&apos;s my tax bracket?</p>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const, marginBottom: "10px" }}>
                       <div style={{ flex: "1 1 160px" }}>
-                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Annual income (gross)</p>
+                        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Annual income (gross)</p>
                         <input
                           type="number" min="0" step="1000"
                           value={quickAnnualIncome ?? ""}
@@ -1074,7 +1074,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         />
                       </div>
                       <div style={{ flex: "1 1 140px" }}>
-                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Filing status</p>
+                        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 4px" }}>Filing status</p>
                         <select
                           value={quickFilingStatus}
                           onChange={e => setQuickFilingStatus(e.target.value as FilingStatus)}
@@ -1099,7 +1099,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     )}
                     <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" as const }}>
                       <div>
-                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Short-term rate (ordinary income)</p>
+                        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Short-term rate (ordinary income)</p>
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" as const }}>
                           {STCG_BRACKETS.map(b => {
                             const autoSelected = quickTaxEstimate && Math.round(quickTaxEstimate.federalMarginalRate * 100) === Math.round(b.rate * 100);
@@ -1111,7 +1111,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         </div>
                       </div>
                       <div>
-                        <p style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Long-term rate</p>
+                        <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-tertiary)", margin: "0 0 5px" }}>Long-term rate</p>
                         <div style={{ display: "flex", gap: "4px" }}>
                           {LTCG_RATES.map(b => {
                             const autoSelected = quickTaxEstimate && Math.abs(cgLtcgRateResolved - b.rate) < 0.001;
@@ -1176,7 +1176,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                             <div style={{ height: "5px", borderRadius: "3px", background: "var(--bg-base)", overflow: "hidden", marginBottom: "4px" }}>
                               <div style={{ height: "100%", width: `${pct}%`, background: over ? "var(--red)" : "#8b5cf6", borderRadius: "3px" }} />
                             </div>
-                            <p style={{ fontSize: "9px", color: over ? "var(--red)" : "var(--text-muted)", margin: 0 }}>
+                            <p style={{ fontSize: "10px", color: over ? "var(--red)" : "var(--text-muted)", margin: 0 }}>
                               {over
                                 ? `Over the ${fmt(r.annualLimit)} annual limit — you may owe an excess-contribution penalty. Confirm with the IRS limits for your age/income.`
                                 : `${fmt(r.contributed)} of ${fmt(r.annualLimit)} limit · ${fmt(Math.max(0, r.annualLimit - r.contributed))} room left`}
@@ -1186,7 +1186,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       </div>
                     );
                   })}
-                  <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "2px 0 0", lineHeight: 1.5 }}>
                     Tracked from cash deposits into your tax-advantaged portfolios. Limits shown are the standard under-50 figures — your actual limit depends on age and income. Roth contributions are after-tax (no deduction); Traditional IRA / 401(k) contributions may reduce taxable income.
                   </p>
                 </div>
@@ -1208,14 +1208,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     <div style={{ padding: "12px 14px", background: estimatedItemized <= stdDeduction ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized <= stdDeduction ? "rgba(0,211,149,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Standard deduction</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(stdDeduction)}</p>
-                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>Automatic — everyone gets this</p>
-                      {estimatedItemized <= stdDeduction && <p style={{ fontSize: "9px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Best for you</p>}
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Automatic — everyone gets this</p>
+                      {estimatedItemized <= stdDeduction && <p style={{ fontSize: "10px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Best for you</p>}
                     </div>
                     <div style={{ padding: "12px 14px", background: estimatedItemized > stdDeduction ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized > stdDeduction ? "rgba(0,211,149,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Estimated itemized</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(estimatedItemized)}</p>
-                      <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>Mortgage interest + SALT cap</p>
-                      {estimatedItemized > stdDeduction && <p style={{ fontSize: "9px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Better for you</p>}
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Mortgage interest + SALT cap</p>
+                      {estimatedItemized > stdDeduction && <p style={{ fontSize: "10px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Better for you</p>}
                     </div>
                   </div>
 
@@ -1314,7 +1314,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                             </p>
                             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" as const, marginBottom: totalRemaining > 0 ? "10px" : "0" }}>
                               <div style={{ minWidth: "120px" }}>
-                                <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>401k so far</div>
+                                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>401k so far</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
                                   <input
@@ -1324,11 +1324,11 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                                     onChange={(e) => setPretax401k(Math.min(limit401k, Number(e.target.value) || 0))}
                                     style={{ width: "80px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "4px 6px", fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none" }}
                                   />
-                                  <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>/ {fmt(limit401k)}</span>
+                                  <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/ {fmt(limit401k)}</span>
                                 </div>
                               </div>
                               <div style={{ minWidth: "120px" }}>
-                                <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>HSA so far</div>
+                                <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: "var(--text-muted)", marginBottom: "4px" }}>HSA so far</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>$</span>
                                   <input
@@ -1338,23 +1338,23 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                                     onChange={(e) => setPretaxHSA(Math.min(limitHSA, Number(e.target.value) || 0))}
                                     style={{ width: "80px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "6px", padding: "4px 6px", fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", outline: "none" }}
                                   />
-                                  <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>/ {fmt(limitHSA)}</span>
+                                  <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/ {fmt(limitHSA)}</span>
                                 </div>
                               </div>
                             </div>
                             {totalRemaining > 0 && (
                               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const }}>
                                 <div style={{ padding: "7px 10px", background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 265)" }}>{fmt(totalRemaining)}</div>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
                                     {remaining401k > 0 && `401k ${fmt(remaining401k)}`}{remaining401k > 0 && remainingHSA > 0 && " · "}{remainingHSA > 0 && `HSA ${fmt(remainingHSA)}`}
                                   </div>
                                 </div>
                                 <div style={{ padding: "7px 10px", background: "rgba(0,211,149,0.06)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Potential tax savings</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Potential tax savings</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--green)" }}>{fmt(potentialSaving)}</div>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>if you max out remaining</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>if you max out remaining</div>
                                 </div>
                               </div>
                             )}
@@ -1404,7 +1404,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       </div>
                       <div style={{ textAlign: "right" as const }}>
                         <p style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--red)", margin: 0 }}>{opp.unrealizedLoss !== null ? fmt(opp.unrealizedLoss) : "—"}</p>
-                        <p style={{ fontSize: "9px", color: "var(--green)", margin: "2px 0 0" }}>saves ~{opp.unrealizedLoss !== null ? fmt(Math.abs(opp.unrealizedLoss) * cgStcgRate) : "—"}</p>
+                        <p style={{ fontSize: "10px", color: "var(--green)", margin: "2px 0 0" }}>saves ~{opp.unrealizedLoss !== null ? fmt(Math.abs(opp.unrealizedLoss) * cgStcgRate) : "—"}</p>
                       </div>
                     </div>
                   ))}
@@ -1424,7 +1424,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     <thead>
                       <tr style={{ background: "rgba(239,68,68,0.04)" }}>
                         {["Stock", "Sold", "Bought Back", "Days Between", "Disallowed Loss"].map(h => (
-                          <th key={h} style={{ padding: "8px 14px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "9px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid rgba(239,68,68,0.12)", whiteSpace: "nowrap" as const }}>{h}</th>
+                          <th key={h} style={{ padding: "8px 14px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "10px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid rgba(239,68,68,0.12)", whiteSpace: "nowrap" as const }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1506,7 +1506,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     <thead>
                       <tr style={{ background: "var(--bg-surface)" }}>
                         {["Stock", "Portfolio", "Sold", "Acquired", "Held", "Term", "Shares", "Cost Basis", "Proceeds", "Gain / Loss"].map(h => (
-                          <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "9px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" as const }}>{h}</th>
+                          <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "10px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" as const }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1604,7 +1604,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
                     {["Rate", "Single Filers", "Married Filing Jointly", "Head of Household"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "9px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "10px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1631,7 +1631,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
                     {["Rate","Single","Married Filing Jointly"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "9px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left" as const, fontWeight: 600, color: "var(--text-tertiary)", fontSize: "10px", textTransform: "uppercase" as const, letterSpacing: "0.06em", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1682,7 +1682,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </div>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Atlas — Tax Analysis</p>
-                  <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>AI-powered {selectedYear} tax strategy</p>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>AI-powered {selectedYear} tax strategy</p>
                 </div>
               </div>
               <button type="button" onClick={() => setFinnPanelOpen(false)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center", borderRadius: "6px" }}>
@@ -1750,5 +1750,5 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
 function TermBadge({ term }: { term: "short" | "long" | "unknown" }) {
   const s = { short: { bg: "rgba(239,68,68,0.1)", color: "var(--red)", label: "Short" }, long: { bg: "rgba(0,211,149,0.1)", color: "var(--green)", label: "Long" }, unknown: { bg: "var(--bg-elevated)", color: "var(--text-muted)", label: "?" } }[term];
-  return <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "var(--radius-full)", background: s.bg, color: s.color }}>{s.label}</span>;
+  return <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "var(--radius-full)", background: s.bg, color: s.color }}>{s.label}</span>;
 }

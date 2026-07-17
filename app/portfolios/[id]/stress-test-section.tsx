@@ -186,12 +186,12 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
                   {s.exposed?.length > 0 && (
                     <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                       {s.exposed.map((t) => (
-                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color, background: `rgba(${color === "#f59e0b" ? "245,158,11" : color === "var(--red)" ? "248,113,113" : color === "#fb923c" ? "251,146,60" : "148,163,184"},0.1)`, border: `1px solid ${color}30`, padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
+                        <span key={t} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color, background: `rgba(${color === "#f59e0b" ? "245,158,11" : color === "var(--red)" ? "248,113,113" : color === "#fb923c" ? "251,146,60" : "148,163,184"},0.1)`, border: `1px solid ${color}30`, padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
                           {t}
                         </span>
                       ))}
                       {s.hedges?.length > 0 && s.hedges.map((t) => (
-                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--green)", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
+                        <span key={t} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--green)", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
                           {t} ✓
                         </span>
                       ))}

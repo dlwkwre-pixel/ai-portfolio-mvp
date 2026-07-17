@@ -826,7 +826,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
           {/* Per-child rows */}
           <div style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Children</p>
+            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Children</p>
             {eduChildren.map((child, idx) => (
               <div key={child.id} style={{ marginBottom: 12, padding: "12px", background: "oklch(0.13 0.02 250 / 0.6)", borderRadius: 10, border: "1px solid oklch(0.25 0.03 250 / 0.4)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -892,7 +892,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
           {/* College Type */}
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>College Type</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>College Type</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 14 }}>
             {Object.entries(PRESETS).map(([key, p]) => {
               const active = preset === key;
@@ -908,7 +908,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {profileKids.length > 0 && (
             <>
               <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Profile</p>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Profile</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
                 {profileKids.map((kid, i) => (
                   <button key={i} onClick={() => importFamilyChild({ id: `profile-${i}`, name: kid.name || `Child ${i + 1}`, age: kid.age })} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}>
@@ -924,7 +924,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {familyChildren.length > 0 && (
             <>
               <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Family Planning</p>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Family Planning</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
                 {familyChildren.map((child) => (
                   <button key={child.id} onClick={() => importFamilyChild(child)} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}>
@@ -940,7 +940,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {scenarios.length > 0 && (
             <>
               <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Saved Scenarios</p>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Saved Scenarios</p>
               {scenarios.map((s) => (
                 <div key={s.id} onClick={() => selectEduScenario(s.id)} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover)" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                   <div>
@@ -958,7 +958,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
           {/* Scenario Form */}
           <div style={{ height: "1px", background: "var(--border-subtle)", margin: "14px 0" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 12px" }}>{editingId ? "Edit Scenario" : "Scenario Details"}</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 12px" }}>{editingId ? "Edit Scenario" : "Scenario Details"}</p>
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 4 }}>Scenario Name</label>
             <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", color: "var(--text-primary)", fontSize: 13, boxSizing: "border-box" }} />
@@ -1006,7 +1006,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
 
           {/* At a Glance — live snapshot */}
           <div style={{ height: "1px", background: "var(--border-subtle, rgba(255,255,255,0.08))", margin: "14px 0 14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             {[
               {
@@ -1031,7 +1031,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--bg-card, var(--bg-elevated))", border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))" }}>
-                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color }}>{value}</div>
               </div>
             ))}
@@ -1048,7 +1048,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>Atlas</span>
-                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${computed.contextVerdictColor}22`, color: computed.contextVerdictColor }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${computed.contextVerdictColor}22`, color: computed.contextVerdictColor }}>
                     {computed.contextVerdictSubtitle}
                   </span>
                 </div>
@@ -1125,7 +1125,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {/* Impact Analysis divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 
@@ -1319,7 +1319,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {/* Scenario Analysis divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Scenario Analysis</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Scenario Analysis</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 

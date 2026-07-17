@@ -16,7 +16,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -111,7 +111,7 @@ export default function EmergencyFundClient({ monthlyExpenses, liquidAssets }: {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px" }}>
             {TIERS.map((t) => (
-              <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: calc.monthsCovered >= t ? statusColor : "var(--text-muted)" }}>{t}mo</span>
+              <span key={t} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: calc.monthsCovered >= t ? statusColor : "var(--text-muted)" }}>{t}mo</span>
             ))}
           </div>
         </div>

@@ -272,7 +272,7 @@ export default function TrajectoryChart({
       {/* Header: the north-star readout */}
       <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "10px", padding: "0 4px" }}>
         <div>
-          <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>Retirement odds</div>
+          <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>Retirement odds</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "27px", lineHeight: 1, color: probColor, letterSpacing: "-0.03em" }}>
               {retirementProb == null ? "—" : ph(`${Math.round(rolledProb)}%`)}
@@ -286,13 +286,13 @@ export default function TrajectoryChart({
         </div>
         {atRetirement != null && (
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>At retirement{retirementAge != null ? ` (${retirementAge})` : ""}</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>At retirement{retirementAge != null ? ` (${retirementAge})` : ""}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "16px", color: "var(--text-primary)" }}>{ph(fmtMoney(rolledWealth))}</div>
           </div>
         )}
         {(depletedAge != null || (lastsToAge != null && lastsToAge > 0)) && (
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>Drawdown to {drawdownEndAge}</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "2px" }}>Drawdown to {drawdownEndAge}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "16px", color: depletedAge != null ? "#ff5c5c" : "#00d395" }}>
               {depletedAge != null ? `Depletes at ${depletedAge}` : `Lasts to ${lastsToAge}`}
             </div>
@@ -352,7 +352,7 @@ export default function TrajectoryChart({
           {/* Y-axis dollar labels, aligned to the gridlines */}
           <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }}>
             {[0, 0.25, 0.5, 0.75].map((f) => (
-              <span key={f} style={{ position: "absolute", left: "3px", top: `${(1 - BOT_PAD - f * (1 - TOP_PAD - BOT_PAD)) * 100}%`, transform: "translateY(-50%)", fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-tertiary)", background: "var(--card-bg)", padding: "0 3px", borderRadius: "3px", opacity: 0.9 }}>
+              <span key={f} style={{ position: "absolute", left: "3px", top: `${(1 - BOT_PAD - f * (1 - TOP_PAD - BOT_PAD)) * 100}%`, transform: "translateY(-50%)", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-tertiary)", background: "var(--card-bg)", padding: "0 3px", borderRadius: "3px", opacity: 0.9 }}>
                 {ph(fmtMoney(f * yMax))}
               </span>
             ))}
@@ -368,7 +368,7 @@ export default function TrajectoryChart({
               <div style={{ position: "absolute", top: "2px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
                 <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
                 <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retX}</span>
-                {dragRetire && <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>⇄</span>}
+                {dragRetire && <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>⇄</span>}
               </div>
             </div>
           )}
@@ -394,7 +394,7 @@ export default function TrajectoryChart({
                   boxShadow: isSel ? `0 0 0 5px oklch(0.65 0.15 ${hue} / 0.25)` : "none",
                 }}>{emojiFor(ev.category)}</div>
                 <div style={{ position: "absolute", top: "32px", left: "50%", transform: "translateX(-50%)", textAlign: "center", whiteSpace: "nowrap", pointerEvents: "none" }}>
-                  <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", fontWeight: 700, color: committed ? `oklch(0.75 0.13 ${hue})` : "var(--text-tertiary)" }}>{ph(fmtMoney(ev.amount_impact))}</div>
+                  <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700, color: committed ? `oklch(0.75 0.13 ${hue})` : "var(--text-tertiary)" }}>{ph(fmtMoney(ev.amount_impact))}</div>
                 </div>
                 {isSel && (
                   <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
@@ -410,7 +410,7 @@ export default function TrajectoryChart({
                         {busyPin === ev.id ? "…" : committed ? "Committed · counts" : "Considering · tap to commit"}
                       </button>
                     )}
-                    {onMoveEvent && <div style={{ fontSize: "9.5px", color: "var(--text-tertiary)", marginTop: "7px", lineHeight: 1.4 }}>Drag the pin to move the year.</div>}
+                    {onMoveEvent && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "7px", lineHeight: 1.4 }}>Drag the pin to move the year.</div>}
                   </div>
                 )}
               </div>
@@ -425,7 +425,7 @@ export default function TrajectoryChart({
               <>
                 <div style={{ position: "absolute", top: `${TOP_PAD * 100}%`, bottom: `${BOT_PAD * 100}%`, left: `${xFrac(hoverX) * 100}%`, width: "1px", background: "rgba(148,163,184,0.28)", pointerEvents: "none", zIndex: 2 }} />
                 <div style={{ position: "absolute", top: "38px", left: `${clamp(xFrac(hoverX) * 100, 14, 84)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 8, background: "var(--bg-elevated)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "6px 10px", whiteSpace: "nowrap", boxShadow: "0 6px 20px rgba(0,0,0,0.45)" }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>{hasAges ? `Age ${hoverX}` : `+${hoverX}yr`}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>{hasAges ? `Age ${hoverX}` : `+${hoverX}yr`}</span>
                   <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{ph(fmtMoney(b.baseline))}</span>
                   <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "7px" }}>{ph(`${fmtMoney(b.pessimistic)} – ${fmtMoney(b.optimistic)}`)}</span>
                 </div>
@@ -436,7 +436,7 @@ export default function TrajectoryChart({
           {/* Axis */}
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "space-between", padding: "0 2px", pointerEvents: "none" }}>
             {axisTicks.map((x) => (
-              <span key={x} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>
+              <span key={x} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>
                 {x === startX ? (hasAges ? `now · ${x}` : "now") : hasAges ? x : `+${x}yr`}
               </span>
             ))}

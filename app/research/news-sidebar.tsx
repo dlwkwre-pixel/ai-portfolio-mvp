@@ -69,7 +69,7 @@ export default function NewsSidebar() {
                 <span style={{
                   padding: "1px 5px", borderRadius: "3px",
                   background: "var(--bg-surface)", color: "var(--text-tertiary)",
-                  fontSize: "9px", fontWeight: 600,
+                  fontSize: "10px", fontWeight: 600,
                   textTransform: "uppercase", letterSpacing: "0.04em",
                 }}>
                   {item.source}

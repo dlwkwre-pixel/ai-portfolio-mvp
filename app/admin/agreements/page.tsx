@@ -45,7 +45,7 @@ export default async function AdminAgreementsPage() {
 
   const stat = (label: string, value: string | number, color?: string) => (
     <div style={{ flex: "1 1 130px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "12px 14px" }}>
-      <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>{label}</div>
+      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>{label}</div>
       <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "20px", color: color ?? "var(--text-primary)" }}>{value}</div>
     </div>
   );

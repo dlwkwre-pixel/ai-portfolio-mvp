@@ -207,7 +207,7 @@ export default function ShareCardClient({
         <div style={{ padding: "24px 24px 0" }}>
           <div
             style={{
-              fontSize: "9px",
+              fontSize: "10px",
               color: "var(--text-tertiary)",
               fontWeight: 700,
               letterSpacing: "0.1em",
@@ -255,7 +255,7 @@ export default function ShareCardClient({
               >
                 <div
                   style={{
-                    fontSize: "9px",
+                    fontSize: "10px",
                     color: "var(--text-tertiary)",
                     fontWeight: 700,
                     textTransform: "uppercase",
@@ -291,7 +291,7 @@ export default function ShareCardClient({
                 >
                   <div
                     style={{
-                      fontSize: "9px",
+                      fontSize: "10px",
                       color: "var(--text-tertiary)",
                       fontWeight: 700,
                       textTransform: "uppercase",
@@ -389,7 +389,7 @@ export default function ShareCardClient({
               >
                 <div
                   style={{
-                    fontSize: "9px",
+                    fontSize: "10px",
                     color: "var(--text-tertiary)",
                     fontWeight: 700,
                     textTransform: "uppercase",
@@ -405,7 +405,7 @@ export default function ShareCardClient({
                       <div
                         style={{
                           width: "36px",
-                          fontSize: "9px",
+                          fontSize: "10px",
                           fontWeight: 700,
                           fontFamily: "'DM Mono', monospace",
                           color: BAR_COLORS[i % BAR_COLORS.length],

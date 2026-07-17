@@ -508,7 +508,7 @@ export default function CarClient({
     marginBottom: "4px", display: "block",
   };
   const sectionLabel: React.CSSProperties = {
-    fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.12em",
+    fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.12em",
     color: "var(--text-muted)", margin: "0 0 8px", fontFamily: "var(--font-body)",
   };
 
@@ -603,7 +603,7 @@ export default function CarClient({
                     <button key={key} type="button" onClick={() => setScenarioMode(key)}
                       style={{ padding: "7px 8px", borderRadius: "var(--radius-sm)", fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer", textAlign: "left", border: `1px solid ${scenarioMode === key ? CAR_COLOR : "var(--border-subtle)"}`, background: scenarioMode === key ? `color-mix(in oklch, ${CAR_COLOR} 18%, transparent)` : "transparent", color: scenarioMode === key ? CAR_COLOR : "var(--text-secondary)" }}>
                       <div>{label}</div>
-                      <div style={{ fontSize: "9px", fontWeight: 400, color: scenarioMode === key ? CAR_COLOR : "var(--text-muted)", marginTop: "1px", opacity: 0.8 }}>{sub}</div>
+                      <div style={{ fontSize: "10px", fontWeight: 400, color: scenarioMode === key ? CAR_COLOR : "var(--text-muted)", marginTop: "1px", opacity: 0.8 }}>{sub}</div>
                     </button>
                   ))}
                 </div>
@@ -649,7 +649,7 @@ export default function CarClient({
                   <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>MPG</span>
                     {form.current_year && form.current_make && form.current_model && (
-                      <button type="button" onClick={() => lookupMpgFromForm("current")} disabled={mpgLoading !== null} style={{ fontSize: "9px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
+                      <button type="button" onClick={() => lookupMpgFromForm("current")} disabled={mpgLoading !== null} style={{ fontSize: "10px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
                         {mpgLoading === "current" ? "Looking up…" : "Auto-fill"}
                       </button>
                     )}
@@ -666,7 +666,7 @@ export default function CarClient({
               <div>
                 <label style={labelStyle}>Market value</label>
                 <input style={inputStyle} type="number" min={0} value={form.current_car_value} onChange={(e) => setField("current_car_value", Number(e.target.value))} placeholder="Check KBB" />
-                <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>
                   Check{" "}
                   <a href="https://www.kbb.com" target="_blank" rel="noopener noreferrer" style={{ color: CAR_COLOR, textDecoration: "underline" }}>KBB</a>
                   {" "}or{" "}
@@ -696,7 +696,7 @@ export default function CarClient({
                   {(currentCarData.engine || currentCarData.drive || currentCarData.drive_type) && (
                     <div style={{ padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {[currentCarData.engine, currentCarData.drive ?? currentCarData.drive_type, currentCarData.fuel].filter(Boolean).map((v) => (
-                        <span key={v} style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
+                        <span key={v} style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
                       ))}
                     </div>
                   )}
@@ -744,7 +744,7 @@ export default function CarClient({
                   <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>MPG</span>
                     {form.new_year && form.new_make && form.new_model && (
-                      <button type="button" onClick={() => lookupMpgFromForm("new")} disabled={mpgLoading !== null} style={{ fontSize: "9px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
+                      <button type="button" onClick={() => lookupMpgFromForm("new")} disabled={mpgLoading !== null} style={{ fontSize: "10px", fontWeight: 600, color: CAR_COLOR, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "var(--font-body)", textDecoration: "underline" }}>
                         {mpgLoading === "new" ? "Looking up…" : "Auto-fill"}
                       </button>
                     )}
@@ -801,7 +801,7 @@ export default function CarClient({
                   {(newCarData.engine || newCarData.drive || newCarData.drive_type) && (
                     <div style={{ padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {[newCarData.engine, newCarData.drive ?? newCarData.drive_type, newCarData.fuel].filter(Boolean).map((v) => (
-                        <span key={v} style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
+                        <span key={v} style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", background: "var(--bg-card)", padding: "2px 6px", borderRadius: "4px", border: "1px solid var(--border-subtle)" }}>{v}</span>
                       ))}
                     </div>
                   )}
@@ -855,7 +855,7 @@ export default function CarClient({
                   { label: "Trade-in", value: fmtK(result.currentEquity), color: "var(--text-primary)" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
                   </div>
                 ))}
@@ -888,26 +888,26 @@ export default function CarClient({
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Atlas Assessment</span>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${meta.color}22`, color: meta.color, fontFamily: "var(--font-body)" }}>{result.verdictConfidence}</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Atlas Assessment</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${meta.color}22`, color: meta.color, fontFamily: "var(--font-body)" }}>{result.verdictConfidence}</span>
                   </div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: "46px", fontWeight: 800, letterSpacing: "-1.5px", lineHeight: 1, color: meta.color, marginBottom: "12px" }}>{meta.label}</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Monthly Δ</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Monthly Δ</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: result.monthlyCostDelta <= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
                         {result.monthlyCostDelta >= 0 ? "+" : ""}{fmt(result.monthlyCostDelta)}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>5-yr TCO Δ</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>5-yr TCO Δ</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: result.tco5yrDelta <= 0 ? "var(--green)" : "oklch(0.78 0.17 70)", marginTop: "2px" }}>
                         {result.tco5yrDelta >= 0 ? "+" : ""}{fmtK(result.tco5yrDelta)}
                       </div>
                     </div>
                     {result.breakEvenMonth != null && (
                       <div>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Break-even</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Break-even</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "var(--green)", marginTop: "2px" }}>Month {result.breakEvenMonth}</div>
                       </div>
                     )}
@@ -928,7 +928,7 @@ export default function CarClient({
                         </svg>
                         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 800, color: meta.color, lineHeight: 1 }}>{displayPct}%</div>
-                          <div style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>of current</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>of current</div>
                         </div>
                       </div>
                     );
@@ -958,7 +958,7 @@ export default function CarClient({
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{result.finnNarrative}</p>
                 </div>
               </div>
@@ -986,7 +986,7 @@ export default function CarClient({
                 {!isFirst && currentCarData && (
                   <div style={{ borderRight: (isFirst || isTrack) ? "none" : "1px solid var(--border-subtle)", padding: "0 16px 16px" }}>
                     {currentCarData.photo_url && <img src={currentCarData.photo_url} alt="current car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Current Car</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: "8px", fontFamily: "var(--font-body)" }}>Current Car</div>
                     {([
                       { label: "City MPG", value: currentCarData.city_mpg ? `${currentCarData.city_mpg} mpg` : null },
                       { label: "Hwy MPG", value: currentCarData.hwy_mpg ? `${currentCarData.hwy_mpg} mpg` : null },
@@ -1004,7 +1004,7 @@ export default function CarClient({
                 {!isTrack && newCarData && (
                   <div style={{ padding: "0 16px 16px" }}>
                     {newCarData.photo_url && <img src={newCarData.photo_url} alt="new car" style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "10px" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-                    <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: CAR_COLOR, marginBottom: "8px", fontFamily: "var(--font-body)" }}>New Car</div>
+                    <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: CAR_COLOR, marginBottom: "8px", fontFamily: "var(--font-body)" }}>New Car</div>
                     {([
                       { label: "City MPG", value: newCarData.city_mpg ? `${newCarData.city_mpg} mpg` : null },
                       { label: "Hwy MPG", value: newCarData.hwy_mpg ? `${newCarData.hwy_mpg} mpg` : null },
@@ -1097,9 +1097,9 @@ export default function CarClient({
                   { label: "Private Sale", value: fmt(result.currentPrivateSaleValue), sub: "~12% premium" },
                 ].map(({ label, value, sub }) => (
                   <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>{value}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{sub}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{sub}</div>
                   </div>
                 ))}
               </div>
@@ -1123,7 +1123,7 @@ export default function CarClient({
                   { label: "Total Cost", value: fmt(Math.round(result.newFinancedAmount + result.totalInterestPaid)), color: "var(--text-primary)" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
                   </div>
                 ))}
@@ -1137,7 +1137,7 @@ export default function CarClient({
                       <thead>
                         <tr>
                           {["Mo", "Payment", "Principal", "Interest", "Balance"].map((h) => (
-                            <th key={h} style={{ padding: "4px 8px", textAlign: "right", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", fontFamily: "var(--font-body)", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
+                            <th key={h} style={{ padding: "4px 8px", textAlign: "right", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", fontFamily: "var(--font-body)", borderBottom: "1px solid var(--border-subtle)" }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -1184,8 +1184,8 @@ export default function CarClient({
                     fill="none" stroke={CAR_COLOR} strokeWidth="2" vectorEffect="non-scaling-stroke"
                   />
                 </svg>
-                <div style={{ position: "absolute", left: 0, bottom: 0, fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 1</div>
-                <div style={{ position: "absolute", right: 0, bottom: 0, fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 84</div>
+                <div style={{ position: "absolute", left: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 1</div>
+                <div style={{ position: "absolute", right: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 84</div>
               </div>
               <div style={{ display: "flex", gap: "16px", marginTop: "10px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>

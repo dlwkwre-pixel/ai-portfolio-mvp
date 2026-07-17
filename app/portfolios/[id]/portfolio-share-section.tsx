@@ -152,7 +152,7 @@ export default function PortfolioShareSection({
           </span>
           {publicPortfolio && (
             <span style={{
-              fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em",
+              fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em",
               textTransform: "uppercase", padding: "1px 7px",
               borderRadius: "var(--radius-full)",
               background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.2)",

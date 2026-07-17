@@ -115,7 +115,7 @@ export default function PortfolioTabs({
             <span style={{ opacity: isActive ? 1 : 0.5 }}>{tab.icon}</span>
             {tab.label}
             {tab.id === "ai" && (
-              <span className="bt-badge bt-badge-ai" style={{ fontSize: "8px", padding: "1px 5px" }}>
+              <span className="bt-badge bt-badge-ai" style={{ fontSize: "10px", padding: "1px 5px" }}>
                 AI
               </span>
             )}

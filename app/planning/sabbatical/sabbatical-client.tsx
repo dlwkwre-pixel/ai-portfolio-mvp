@@ -366,7 +366,7 @@ export default function TimeOffClient({
     marginBottom: "4px", display: "block",
   };
   const sectionLabel: React.CSSProperties = {
-    fontSize: "9px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.12em",
+    fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.12em",
     color: "var(--text-muted)", margin: "0 0 8px", fontFamily: "var(--font-body)",
   };
 
@@ -483,7 +483,7 @@ export default function TimeOffClient({
                   <div>
                     <label style={labelStyle}>Target date (optional)</label>
                     <input style={inputStyle} type="month" value={form.vacation_target_date ?? ""} onChange={(e) => setField("vacation_target_date", e.target.value || null)} />
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Set a deadline to calculate how much to save monthly</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Set a deadline to calculate how much to save monthly</div>
                   </div>
 
                   <div style={{ height: "1px", background: "var(--border-subtle)" }} />
@@ -515,7 +515,7 @@ export default function TimeOffClient({
                   <div>
                     <label style={labelStyle}>Monthly stipend / freelance</label>
                     <input style={inputStyle} type="number" min={0} value={form.monthly_stipend} onChange={(e) => setField("monthly_stipend", Number(e.target.value))} />
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Part-time or consulting income during the break</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Part-time or consulting income during the break</div>
                   </div>
 
                   <div style={{ height: "1px", background: "var(--border-subtle)" }} />
@@ -539,7 +539,7 @@ export default function TimeOffClient({
                   <div>
                     <label style={labelStyle}>Monthly income on return</label>
                     <input style={inputStyle} type="number" min={0} value={form.monthly_income_after_return} onChange={(e) => setField("monthly_income_after_return", Number(e.target.value))} />
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Same as current if returning to same role</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "3px", fontFamily: "var(--font-body)" }}>Same as current if returning to same role</div>
                   </div>
                 </>
               )}
@@ -573,9 +573,9 @@ export default function TimeOffClient({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                 {glanceItems.map(({ label, value, sub, color }) => (
                   <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px", fontFamily: "var(--font-body)" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color, lineHeight: 1, marginBottom: "3px" }}>{value}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{sub}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{sub}</div>
                   </div>
                 ))}
               </div>
@@ -608,8 +608,8 @@ export default function TimeOffClient({
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Atlas Assessment</span>
-                    <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${meta.color}22`, color: meta.color, fontFamily: "var(--font-body)" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Atlas Assessment</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: `${meta.color}22`, color: meta.color, fontFamily: "var(--font-body)" }}>
                       {(vacationResult ?? sabbaticalResult)?.verdictConfidence}
                     </span>
                   </div>
@@ -622,16 +622,16 @@ export default function TimeOffClient({
                     {breakType === "vacation" && vacationResult && (
                       <>
                         <div>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Total Cost</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Total Cost</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: meta.color, marginTop: "2px" }}>{fmt(vacationResult.totalCost)}</div>
                         </div>
                         <div>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>% of Savings</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>% of Savings</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: vacationResult.depletionPct > 30 ? "var(--red)" : meta.color, marginTop: "2px" }}>{vacationResult.depletionPct}%</div>
                         </div>
                         {!vacationResult.isFunded && (
                           <div>
-                            <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Still Need</div>
+                            <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Still Need</div>
                             <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "var(--red)", marginTop: "2px" }}>{fmt(vacationResult.shortfall)}</div>
                           </div>
                         )}
@@ -640,17 +640,17 @@ export default function TimeOffClient({
                     {breakType === "sabbatical" && sabbaticalResult && (
                       <>
                         <div>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Runway</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Runway</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: sabbaticalResult.canAfford ? meta.color : "var(--red)", marginTop: "2px" }}>{sabbaticalResult.runwayMonths > 99 ? "∞" : `${sabbaticalResult.runwayMonths.toFixed(0)} months`}</div>
                         </div>
                         {sabbaticalResult.recoveryMonths != null && (
                           <div>
-                            <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Recovery</div>
+                            <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Recovery</div>
                             <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: sabbaticalResult.recoveryMonths <= 18 ? meta.color : "oklch(0.78 0.15 75)", marginTop: "2px" }}>{sabbaticalResult.recoveryMonths} months</div>
                           </div>
                         )}
                         <div>
-                          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Net Cost</div>
+                          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Net Cost</div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>{fmtK(sabbaticalResult.totalDepletion)}</div>
                         </div>
                       </>
@@ -672,7 +672,7 @@ export default function TimeOffClient({
                         </svg>
                         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 800, color: meta.color, lineHeight: 1 }}>{Math.round(pct * 100)}%</div>
-                          <div style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>of savings</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>of savings</div>
                         </div>
                       </div>
                     );
@@ -689,7 +689,7 @@ export default function TimeOffClient({
                         </svg>
                         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 800, color: meta.color, lineHeight: 1 }}>{Math.round(Math.min(100, (sabbaticalResult.runwayMonths / Math.max(1, form.sabbatical_months)) * 100))}%</div>
-                          <div style={{ fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>funded</div>
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", textAlign: "center", marginTop: "1px" }}>funded</div>
                         </div>
                       </div>
                     );
@@ -725,7 +725,7 @@ export default function TimeOffClient({
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "9px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{(vacationResult ?? sabbaticalResult)!.finnNarrative}</p>
                 </div>
               </div>
@@ -795,7 +795,7 @@ export default function TimeOffClient({
                       ...(vacationResult.monthsToSave != null && !vacationResult.isFunded ? [{ label: "Ready in", value: `${vacationResult.monthsToSave} months`, color: "var(--text-secondary)" }] : []),
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
                       </div>
                     ))}
@@ -882,9 +882,9 @@ export default function TimeOffClient({
                         fill="none" stroke="url(#sab-line-grad)" strokeWidth="2" vectorEffect="non-scaling-stroke"
                       />
                     </svg>
-                    <div style={{ position: "absolute", left: 0, bottom: 0, fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 0</div>
-                    <div style={{ position: "absolute", right: 0, bottom: 0, fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month {sabbaticalResult.timeline.length - 1}</div>
-                    <div style={{ position: "absolute", top: 0, left: "4px", fontSize: "9px", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)", fontWeight: 600 }}>Break →</div>
+                    <div style={{ position: "absolute", left: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 0</div>
+                    <div style={{ position: "absolute", right: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month {sabbaticalResult.timeline.length - 1}</div>
+                    <div style={{ position: "absolute", top: 0, left: "4px", fontSize: "10px", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)", fontWeight: 600 }}>Break →</div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "14px" }}>
                     {[
@@ -893,7 +893,7 @@ export default function TimeOffClient({
                       { label: "Recovery point", value: sabbaticalResult.breakEvenMonth != null ? `Month ${sabbaticalResult.breakEvenMonth}` : "Open-ended" },
                     ].map(({ label, value }) => (
                       <div key={label} style={{ padding: "8px 10px", borderRadius: "var(--radius-sm)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "3px", fontFamily: "var(--font-body)" }}>{label}</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
                       </div>
                     ))}

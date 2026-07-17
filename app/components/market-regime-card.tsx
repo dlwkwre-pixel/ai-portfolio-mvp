@@ -245,7 +245,7 @@ function SignalRow({
         </span>
         {learn && (
           <span style={{
-            flexShrink: 0, fontSize: "9px", padding: "1px 5px",
+            flexShrink: 0, fontSize: "10px", padding: "1px 5px",
             borderRadius: "3px", border: "1px solid var(--border-subtle)",
             color: active ? "var(--text-secondary)" : "var(--text-muted)",
             fontFamily: "var(--font-mono)",
@@ -451,7 +451,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
       </p>
 
       {/* Dimension bars — clickable to reveal composition */}
-      <p style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+      <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
         Dimensions · click to explore
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "12px" }}>
@@ -513,7 +513,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
 
       {showSignals && (
         <div style={{ marginTop: "8px" }}>
-          <p style={{ fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px", paddingLeft: "6px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          <p style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "4px", paddingLeft: "6px", textTransform: "uppercase", letterSpacing: "0.07em" }}>
             Click a signal to learn more
           </p>
           {Object.entries(regime.signals).map(([key, value]) => (
@@ -555,13 +555,13 @@ export default function MarketRegimeCard({ compact = false }: Props) {
                 <div style={{ display: "flex", gap: "6px" }}>
                   {avg15 !== null && (
                     <div style={{ padding: "4px 10px", background: "var(--bg-elevated)", border: `1px solid ${scoreColor(avg15)}33`, borderRadius: "var(--radius-sm)", textAlign: "center" }}>
-                      <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>15d avg</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>15d avg</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(avg15), lineHeight: 1 }}>{avg15}</div>
                     </div>
                   )}
                   {avg30 !== null && (
                     <div style={{ padding: "4px 10px", background: "var(--bg-elevated)", border: `1px solid ${scoreColor(avg30)}33`, borderRadius: "var(--radius-sm)", textAlign: "center" }}>
-                      <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>30d avg</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>30d avg</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: scoreColor(avg30), lineHeight: 1 }}>{avg30}</div>
                     </div>
                   )}
@@ -593,7 +593,7 @@ export default function MarketRegimeCard({ compact = false }: Props) {
                         zIndex: 10, pointerEvents: "none",
                         left: "50%", transform: "translateX(-50%)",
                       }}>
-                        <p style={{ fontSize: "9px", color: "var(--text-muted)", margin: 0 }}>{dateLabel}</p>
+                        <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{dateLabel}</p>
                         <p style={{ fontSize: "10px", fontWeight: 600, color: dotCfg?.color ?? "#64748b", margin: 0 }}>
                           {h.label} · {h.score}
                         </p>

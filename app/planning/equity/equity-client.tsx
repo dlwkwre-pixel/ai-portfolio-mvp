@@ -156,7 +156,7 @@ export default function EquityClient({
             { label: `Est. tax at vest (${ratePct}%)`, value: fmt(estTax), tone: "var(--text-secondary)" },
           ].map((c) => (
             <div key={c.label} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "12px 14px" }}>
-              <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>{c.label}</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "4px" }}>{c.label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "20px", color: c.tone }}>{c.value}</div>
             </div>
           ))}

@@ -16,7 +16,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={240}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "9px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -234,7 +234,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
               <path d={`${chart.path} L${chart.W},${chart.H} L0,${chart.H} Z`} fill={lasts ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)"} />
               <path d={chart.path} fill="none" stroke={lasts ? "#22c55e" : "#ef4444"} strokeWidth="2" strokeLinejoin="round" />
             </svg>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "4px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "4px" }}>
               <span>age {retireAge}</span><span>age {planAge}</span>
             </div>
             <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: lasts ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${lasts ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)"}`, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>

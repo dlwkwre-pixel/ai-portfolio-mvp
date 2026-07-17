@@ -127,7 +127,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
                     <div style={{ flex: 1, minWidth: "150px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <Link href={`/research?ticker=${encodeURIComponent(it.ticker)}`} style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "15px", color: "var(--brand-blue)", textDecoration: "none" }}>{it.ticker}</Link>
-                        {hit && <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--green)", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", padding: "2px 7px", borderRadius: "999px" }}>Target hit</span>}
+                        {hit && <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--green)", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", padding: "2px 7px", borderRadius: "999px" }}>Target hit</span>}
                       </div>
                       {it.company_name && <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "240px" }}>{it.company_name}</div>}
                     </div>
@@ -150,13 +150,13 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
                   {scanResult && (
                     <div style={{ marginTop: "10px", padding: "11px 12px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "var(--radius-md)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
-                        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: sigMeta?.color }}>{sigMeta?.label}</span>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: sigMeta?.color }}>{sigMeta?.label}</span>
                       </div>
                       <p style={{ fontSize: "12.5px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 6px", lineHeight: 1.45 }}>{scanResult.headline}</p>
                       <ul style={{ margin: 0, paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "3px" }}>
                         {scanResult.points.map((p, i) => <li key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>{p}</li>)}
                       </ul>
-                      <p style={{ fontSize: "9.5px", color: "var(--text-muted)", marginTop: "8px" }}>AI read of recent headlines — not advice.</p>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>AI read of recent headlines — not advice.</p>
                     </div>
                   )}
 

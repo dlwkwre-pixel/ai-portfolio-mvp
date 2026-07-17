@@ -138,18 +138,18 @@ export default function ProfileClient({
                 <div key={s.id} className="bt-card bt-lift" style={{ position: "relative" }}>
                   {!s.is_public && isOwnProfile && (
                     <div style={{ position: "absolute", top: "12px", right: "12px" }}>
-                      <span style={{ fontSize: "9px", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>Private</span>
+                      <span style={{ fontSize: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-muted)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>Private</span>
                     </div>
                   )}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
                     <h3 style={{ fontFamily: "var(--font-display)", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</h3>
                     {s.risk_level && (
-                      <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)", background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color }}>
                         {s.risk_level}
                       </span>
                     )}
                     {s.style && (
-                      <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
                         {s.style}
                       </span>
                     )}

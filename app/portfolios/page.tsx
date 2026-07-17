@@ -158,14 +158,14 @@ export default async function PortfoliosPage() {
                             <span className={accountPillClass(portfolio.account_type)}>
                               {formatAccountType(portfolio.account_type)}
                             </span>
-                            <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
+                            <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
                               {portfolio.benchmark_symbol || "SPY"}
                             </span>
-                            <span style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", textTransform: "capitalize" }}>
+                            <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", textTransform: "capitalize" }}>
                               {portfolio.status}
                             </span>
                             {linkedIds.has(portfolio.id) && (
-                              <span title="Synced from your connected brokerage" style={{ fontSize: "9px", fontWeight: 700, color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
+                              <span title="Synced from your connected brokerage" style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
                                 ✓ Synced
                               </span>
                             )}

@@ -71,11 +71,11 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
         </div>
         <div style={{ display: "flex", gap: "18px" }}>
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Spent</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Spent</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--red)" }}>{ph(money(month.spend))}</div>
           </div>
           <div>
-            <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Received</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Received</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--green)" }}>{ph(money(month.income))}</div>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {s.merchant}
-                  {s.priceIncreased && <span title="This charge has gone up since the start of the window" style={{ marginLeft: "6px", fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "1px 6px" }}>↑ price</span>}
+                  {s.priceIncreased && <span title="This charge has gone up since the start of the window" style={{ marginLeft: "6px", fontSize: "10px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "1px 6px" }}>↑ price</span>}
                 </div>
                 <div style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>{s.cadence} · {s.count}× in window</div>
               </div>

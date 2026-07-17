@@ -322,10 +322,10 @@ export default function DashboardClient({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                         <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-                        <span className="hidden sm:inline-flex" style={{ fontSize: "9px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.accountTypeLabel}</span>
-                        <span className="hidden sm:inline-flex" style={{ fontSize: "9px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.benchmarkSymbol}</span>
+                        <span className="hidden sm:inline-flex" style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.accountTypeLabel}</span>
+                        <span className="hidden sm:inline-flex" style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.benchmarkSymbol}</span>
                         {p.aiRecs.length > 0 && (
-                          <span style={{ fontSize: "9px", background: "rgba(124,58,237,0.1)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>
+                          <span style={{ fontSize: "10px", background: "rgba(124,58,237,0.1)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>
                             {p.aiRecs.length} rec{p.aiRecs.length > 1 ? "s" : ""}
                           </span>
                         )}

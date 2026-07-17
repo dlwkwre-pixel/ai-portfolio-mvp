@@ -193,7 +193,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                       )}
                       {hourTag && (
                         <span style={{
-                          fontSize: "9px", fontWeight: 600,
+                          fontSize: "10px", fontWeight: 600,
                           color: hourTag === "BMO" ? "#60a5fa" : hourTag === "AMC" ? "#f59e0b" : "var(--text-muted)",
                           background: hourTag === "BMO" ? "rgba(96,165,250,0.08)" : hourTag === "AMC" ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.04)",
                           border: `1px solid ${hourTag === "BMO" ? "rgba(96,165,250,0.2)" : hourTag === "AMC" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.08)"}`,
@@ -202,7 +202,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                           {hourTag}
                         </span>
                       )}
-                      <span style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: isUrgent || isExpanded ? "#a78bfa" : "var(--text-muted)", minWidth: "28px", textAlign: "right" }}>
+                      <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isUrgent || isExpanded ? "#a78bfa" : "var(--text-muted)", minWidth: "28px", textAlign: "right" }}>
                         {e.daysAway === 0 ? "today" : e.daysAway === 1 ? "tmrw" : `${e.daysAway}d`}
                       </span>
                       <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", transition: "transform 0.2s ease", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}>
@@ -259,7 +259,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                                             {detail.recommendations.sell > 0 && <div style={{ flex: detail.recommendations.sell, background: "var(--red)" }} />}
                                             {detail.recommendations.strongSell > 0 && <div style={{ flex: detail.recommendations.strongSell, background: "var(--red)" }} />}
                                           </div>
-                                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                                             <span style={{ color: "var(--green)" }}>SB{detail.recommendations.strongBuy} B{detail.recommendations.buy}</span>
                                             <span style={{ color: "#f59e0b" }}>H{detail.recommendations.hold}</span>
                                             <span style={{ color: "var(--red)" }}>S{detail.recommendations.sell} SS{detail.recommendations.strongSell}</span>

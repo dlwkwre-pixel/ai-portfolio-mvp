@@ -61,7 +61,7 @@ export default async function AIScorecardCard({ portfolioId }: { portfolioId: st
           const isSell = r.action_type === "sell" || r.action_type === "trim";
           return (
             <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: actionColor[r.action_type] ?? "var(--text-secondary)", flexShrink: 0, width: "34px" }}>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: actionColor[r.action_type] ?? "var(--text-secondary)", flexShrink: 0, width: "34px" }}>
                 {r.action_type}
               </span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", width: "52px", flexShrink: 0 }}>{r.ticker}</span>

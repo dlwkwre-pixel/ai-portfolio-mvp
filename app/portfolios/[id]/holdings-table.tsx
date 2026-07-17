@@ -181,18 +181,18 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
       <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
           <div style={{ width: "8px", height: "8px", background: "rgba(255,255,255,0.22)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Est</span>
+          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Est</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
           <div style={{ width: "8px", height: "8px", background: "var(--green)", borderRadius: "1px" }} />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Actual</span>
+          <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Actual</span>
         </div>
       </div>
       <div style={{ border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", padding: "10px 12px 6px", background: "var(--bg-surface)" }}>
         <div style={{ display: "flex", gap: "8px" }}>
           <div style={{ width: `${yAxisW}px`, flexShrink: 0, position: "relative", height: `${chartH}px` }}>
             {gridLines.map((g, gi) => (
-              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
+              <div key={gi} style={{ position: "absolute", bottom: `${g.pct}%`, right: 0, transform: "translateY(50%)", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                 {g.label}
               </div>
             ))}
@@ -212,7 +212,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
                   <div key={i} style={{ flex: 1, height: "100%", position: "relative" }} onMouseEnter={() => setHoverIdx(i)} onMouseLeave={() => setHoverIdx(null)}>
                     {isHovered && (
                       <div style={{ position: "absolute", bottom: `${Math.max(actualH, estH) + 10}px`, left: "50%", transform: "translateX(-50%)", background: "var(--bg-elevated)", border: "1px solid var(--border-strong)", borderRadius: "var(--radius-sm)", padding: "5px 8px", zIndex: 20, whiteSpace: "nowrap", boxShadow: "0 4px 16px rgba(0,0,0,0.45)", pointerEvents: "none" }}>
-                        <div style={{ fontSize: "9px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "4px", textAlign: "center" }}>{e.quarter}</div>
                         {e.estimate != null && <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Est: {fmtEps(e.estimate)}</div>}
                         {e.actual != null && <div style={{ fontSize: "10px", fontWeight: 600, color: barColor, fontFamily: "var(--font-mono)" }}>Act: {fmtEps(e.actual)}{e.beat === true ? " ✓" : e.beat === false ? " ✗" : ""}</div>}
                       </div>
@@ -230,7 +230,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
         <div style={{ display: "flex", gap: "4px", marginTop: "6px", paddingLeft: `${yAxisW + 8}px` }}>
           {valid.map((e, i) => (
             <div key={i} style={{ flex: 1, textAlign: "center" }}>
-              <span style={{ fontSize: "8px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>{e.quarter}</span>
+              <span style={{ fontSize: "10px", color: hoverIdx === i ? "var(--text-primary)" : "var(--text-muted)", fontWeight: hoverIdx === i ? 600 : 400, transition: "color 150ms ease" }}>{e.quarter}</span>
             </div>
           ))}
         </div>
@@ -274,7 +274,7 @@ function FinancialMetricsGrid({ metrics }: { metrics: RawMetrics }) {
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
       {items.map((item, i) => (
         <div key={i} style={{ padding: "8px 10px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
-          <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{item.label}</div>
+          <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{item.label}</div>
           <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: item.color, lineHeight: 1 }}>{item.value}</div>
         </div>
       ))}
@@ -320,7 +320,7 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
   if (transactions.length === 0) {
     return (
       <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "12px 18px" }}>
-        <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "4px" }}>Insider Activity</p>
+        <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "4px" }}>Insider Activity</p>
         <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>No open-market transactions in the last 90 days for {ticker}.</p>
       </div>
     );
@@ -334,8 +334,8 @@ function InsiderPanel({ ticker, data }: { ticker: string; data: InsiderData }) {
   return (
     <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "12px 18px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-        <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>Insider Activity · 90 days</span>
-        <span style={{ fontSize: "9px", fontWeight: 600, padding: "2px 8px", borderRadius: "999px", background: signalBg, border: `1px solid ${signalBorder}`, color: signalColor }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>Insider Activity · 90 days</span>
+        <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "999px", background: signalBg, border: `1px solid ${signalBorder}`, color: signalColor }}>
           {signalLabel} · {netBuys}B / {netSells}S
         </span>
       </div>
@@ -482,12 +482,12 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                   >
                     {holding.ticker}
                     {insiderData[holding.ticker]?.signal === "buy" && (
-                      <span title="Net insider buying (90d)" className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1 leading-4">
+                      <span title="Net insider buying (90d)" className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-1 leading-4">
                         INS▲
                       </span>
                     )}
                     {insiderData[holding.ticker]?.signal === "sell" && (
-                      <span title="Net insider selling (90d)" className="text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded px-1 leading-4">
+                      <span title="Net insider selling (90d)" className="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 rounded px-1 leading-4">
                         INS▼
                       </span>
                     )}
@@ -636,7 +636,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))", gap: "1px", background: "var(--border-subtle)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: "14px" }}>
                                 {md.profile?.marketCap && (
                                   <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mkt Cap</div>
                                     <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
                                       {md.profile.marketCap >= 1_000_000
                                         ? `$${(md.profile.marketCap / 1_000_000).toFixed(2)}T`
@@ -648,13 +648,13 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 )}
                                 {md.metrics?.peRatio && md.metrics.peRatio > 0 && (
                                   <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>P/E (TTM)</div>
                                     <div className="num" style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{md.metrics.peRatio.toFixed(1)}x</div>
                                   </div>
                                 )}
                                 {md.metrics?.weekHigh52 && md.metrics?.weekLow52 && (
                                   <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>52-Wk Range</div>
                                     <div className="num" style={{ lineHeight: 1.45 }}>
                                       <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--red)" }}>{formatPrice(md.metrics.weekLow52)}</div>
                                       <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--green)" }}>{formatPrice(md.metrics.weekHigh52)}</div>
@@ -663,7 +663,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 )}
                                 {md.profile?.industry && (
                                   <div style={{ padding: "10px 12px", background: "var(--bg-elevated)" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Industry</div>
                                     <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-secondary)", lineHeight: 1.3 }}>{md.profile.industry}</div>
                                   </div>
                                 )}
@@ -688,7 +688,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                             <div style={{ padding: "0 18px 14px", display: "grid", gridTemplateColumns: rec && md.priceTarget ? "1fr 1fr" : "1fr", gap: "16px" }}>
                               {rec && total > 0 && (
                                 <div>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Ratings</div>
                                   <div style={{ display: "flex", gap: "3px", height: "4px", borderRadius: "2px", overflow: "hidden", marginBottom: "8px" }}>
                                     <div style={{ width: `${bullPct}%`, background: "var(--green)", flexShrink: 0 }} />
                                     <div style={{ width: `${holdPct}%`, background: "var(--amber)", flexShrink: 0 }} />
@@ -703,7 +703,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                               )}
                               {md.priceTarget && (
                                 <div>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Target</div>
                                   <div className="num" style={{ fontSize: "17px", fontWeight: 600, color: "var(--text-primary)" }}>{formatPrice(md.priceTarget.targetMean)}</div>
                                   {upside !== null && (
                                     <div className="num" style={{ fontSize: "11px", color: upside >= 0 ? "var(--green)" : "var(--red)", marginTop: "2px" }}>
@@ -722,14 +722,14 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                         {/* Price chart */}
                         {holding.asset_type !== "cash" && (
                           <div style={{ padding: "0 18px 14px" }}>
-                            <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Chart</div>
+                            <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Price Chart</div>
                             <StockChart key={holding.ticker} ticker={holding.ticker} height={160} defaultRange="1D" showRangeControls />
                           </div>
                         )}
 
                         {/* AI Digest */}
                         <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>AI Digest</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>AI Digest</span>
                           <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
                         </div>
                         <div style={{ padding: "10px 18px 20px" }}>
@@ -746,33 +746,33 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 {dig.profile && (dig.profile.finnhubIndustry || dig.profile.country) && (
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
                                     {dig.profile.finnhubIndustry && (
-                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
                                         {dig.profile.finnhubIndustry}
                                       </span>
                                     )}
                                     {dig.profile.country && (
-                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
                                         {dig.profile.country}
                                       </span>
                                     )}
                                     {dig.profile.ipo && (
-                                      <span style={{ fontSize: "9px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
+                                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "var(--bg-surface)", color: "var(--text-muted)", border: "1px solid var(--border-subtle)" }}>
                                         IPO {dig.profile.ipo.slice(0, 4)}
                                       </span>
                                     )}
                                   </div>
                                 )}
                                 <div style={{ marginBottom: "11px" }}>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Company</div>
                                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.company_overview}</div>
                                 </div>
                                 <div style={{ marginBottom: "11px" }}>
-                                  <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
+                                  <div style={{ fontSize: "10px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Recent Activity</div>
                                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.news_digest}</div>
                                 </div>
                                 {dig.raw_earnings?.length > 0 && (
                                   <div style={{ marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
+                                    <div style={{ fontSize: "10px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>EPS vs Estimates</div>
                                     <EarningsChart earnings={dig.raw_earnings} />
                                     {dig.earnings_snapshot && (
                                       <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{dig.earnings_snapshot}</div>
@@ -781,7 +781,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 )}
                                 {dig.raw_metrics && (
                                   <div style={{ marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
+                                    <div style={{ fontSize: "10px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Financial Health</div>
                                     <FinancialMetricsGrid metrics={dig.raw_metrics} />
                                     {dig.financial_snapshot && (
                                       <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "8px" }}>{dig.financial_snapshot}</div>
@@ -790,12 +790,12 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 )}
                                 {dig.raw_recommendation && (
                                   <div style={{ marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Consensus</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "8px" }}>Analyst Consensus</div>
                                     <AnalystConsensusBar rec={dig.raw_recommendation} />
                                   </div>
                                 )}
                                 <div style={{ marginBottom: "8px" }}>
-                                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>Outlook</div>
                                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.55 }}>{dig.market_outlook}</div>
                                 </div>
                                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px" }}>
@@ -810,7 +810,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                         {marketData[holding.ticker]?.news?.length > 0 && (
                           <>
                             <div style={{ padding: "4px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-                              <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                                 News · {marketData[holding.ticker].news.length}
                               </span>
                               <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
@@ -830,7 +830,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
 
                         {/* Reddit Pulse */}
                         <div style={{ padding: "14px 18px 6px", display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
+                          <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Reddit Pulse</span>
                           <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
                         </div>
                         <div style={{ padding: "10px 18px 18px" }}>
@@ -865,18 +865,18 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                   </div>
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "12px" }}>
                                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions</div>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Mentions</div>
                                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>{sp.mentions ?? 0}</div>
                                     </div>
                                     <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>24h Change</div>
                                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: changeColor }}>
                                         {(sp.mention_change_pct ?? 0) >= 0 ? "+" : ""}{sp.mention_change_pct ?? 0}%
                                       </div>
                                     </div>
                                     {sp.rank != null && (
                                       <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Rank</div>
+                                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Rank</div>
                                         <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>#{sp.rank}</div>
                                       </div>
                                     )}
@@ -938,7 +938,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                     { label: "Hype Risk", value: sp.hype_score, color: sp.hype_score >= 65 ? "var(--red)" : sp.hype_score >= 40 ? "var(--amber)" : "var(--text-secondary)" },
                                   ].map(({ label, value, color }) => (
                                     <div key={label} style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
-                                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>{label}</div>
                                       <div className="num" style={{ fontSize: "16px", fontWeight: 600, color }}>{value}<span style={{ fontSize: "10px", color: "var(--text-muted)" }}>/100</span></div>
                                     </div>
                                   ))}
@@ -947,7 +947,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                                     {sp.top_bullish_themes.length > 0 && (
                                       <div>
-                                        <div style={{ fontSize: "9px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish</div>
+                                        <div style={{ fontSize: "10px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bullish</div>
                                         {sp.top_bullish_themes.slice(0, 3).map((t, i) => (
                                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
                                         ))}
@@ -955,7 +955,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                     )}
                                     {sp.top_bearish_themes.length > 0 && (
                                       <div>
-                                        <div style={{ fontSize: "9px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish</div>
+                                        <div style={{ fontSize: "10px", color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Bearish</div>
                                         {sp.top_bearish_themes.slice(0, 3).map((t, i) => (
                                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px", lineHeight: 1.3 }}>· {t}</div>
                                         ))}
@@ -967,7 +967,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
                                     {sp.top_risks.length > 0 && (
                                       <div>
-                                        <div style={{ fontSize: "9px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
+                                        <div style={{ fontSize: "10px", color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Risks</div>
                                         {sp.top_risks.slice(0, 3).map((t, i) => (
                                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
                                         ))}
@@ -975,7 +975,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                     )}
                                     {sp.top_catalysts.length > 0 && (
                                       <div>
-                                        <div style={{ fontSize: "9px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
+                                        <div style={{ fontSize: "10px", color: "var(--brand-blue)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "5px" }}>Catalysts</div>
                                         {sp.top_catalysts.slice(0, 3).map((t, i) => (
                                           <div key={i} style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "3px" }}>· {t}</div>
                                         ))}
@@ -985,7 +985,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 )}
                                 {sp.subreddit_breakdown.length > 0 && (
                                   <div style={{ marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "6px" }}>By Subreddit</div>
                                     {sp.subreddit_breakdown.map((sub) => (
                                       <div key={sub.subreddit} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                                         <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>r/{sub.subreddit}</span>

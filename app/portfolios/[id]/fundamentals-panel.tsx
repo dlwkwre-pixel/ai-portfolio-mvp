@@ -88,7 +88,7 @@ function MetricCell({
     >
       <div
         style={{
-          fontSize: "9px",
+          fontSize: "10px",
           color: "var(--text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.07em",
@@ -191,7 +191,7 @@ export default function FundamentalsPanel({ ticker, currentPrice }: Fundamentals
         >
           <span
             style={{
-              fontSize: "9px",
+              fontSize: "10px",
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.12em",
@@ -303,7 +303,7 @@ export default function FundamentalsPanel({ ticker, currentPrice }: Fundamentals
         <div
           style={{
             marginTop: "10px",
-            fontSize: "9px",
+            fontSize: "10px",
             color: "var(--text-muted)",
             textAlign: "right",
           }}

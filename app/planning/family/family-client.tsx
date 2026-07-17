@@ -821,7 +821,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           {/* From Profile import chips */}
           {profileKids.length > 0 && (
             <div style={{ marginBottom: "14px" }}>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 8px" }}>From Profile</p>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 8px" }}>From Profile</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
                 {profileKids.map((kid, i) => (
                   <button
@@ -907,7 +907,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           {scenarios.length > 0 && (
             <>
               <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Scenarios</p>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Scenarios</p>
               <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "4px" }}>
                 {scenarios.map((s) => (
                   <div key={s.id} onClick={() => selectScenario(s.id)} style={{ padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: activeScenarioId === s.id && editingId == null ? "var(--bg-hover, var(--bg-elevated))" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -927,7 +927,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
           {/* New / Edit form */}
           <div style={{ height: "1px", background: "var(--border-subtle)", margin: "18px 0 14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>{editingId ? "Edit Scenario" : "New Scenario"}</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>{editingId ? "Edit Scenario" : "New Scenario"}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
             <div>
               <label style={labelS}>Scenario Name</label>
@@ -936,7 +936,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Monthly Costs by Phase</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Monthly Costs by Phase</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
             {([{ label: "Infant (Ages 0–2) $/mo", field: "monthly_infant_cost" as const, color: PHASE_COLORS.Infant }, { label: "Child (Ages 3–12) $/mo", field: "monthly_child_cost" as const, color: PHASE_COLORS.Child }, { label: "Teen (Ages 13–17) $/mo", field: "monthly_teen_cost" as const, color: PHASE_COLORS.Teen }] as const).map(({ label, field, color }) => (
               <div key={field}>
@@ -950,7 +950,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           </div>
 
           <div style={{ height: "1px", background: "var(--border-subtle)", marginBottom: "14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Household Context</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Household Context</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" }}>
             <div>
               <label style={labelS}>Monthly Household Expenses ($)</label>
@@ -975,7 +975,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
           {/* At a Glance — live snapshot */}
           <div style={{ height: "1px", background: "var(--border-subtle, rgba(255,255,255,0.08))", margin: "14px 0 14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             {[
               {
@@ -1008,7 +1008,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ padding: "10px 12px", borderRadius: "8px", background: "var(--bg-card, var(--bg-elevated))", border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))" }}>
-                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color }}>{value}</div>
               </div>
             ))}
@@ -1027,7 +1027,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--text-muted)" }}>Atlas</span>
-                  <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: meta.border, color: meta.color }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "99px", background: meta.border, color: meta.color }}>
                     {computed.verdictConfidence} Conviction
                   </span>
                 </div>
@@ -1050,7 +1050,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               {computed.readinessScore != null && (
                 <div style={{ textAlign: "center", flexShrink: 0 }}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "36px", fontWeight: 900, color: meta.color, lineHeight: 1 }}>{computed.readinessScore}</div>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: "3px" }}>Readiness</div>
+                  <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginTop: "3px" }}>Readiness</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: meta.color, marginTop: "2px" }}>/ 100</div>
                 </div>
               )}
@@ -1079,7 +1079,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   },
                 ].map(({ label, value, sub, color }) => (
                   <div key={label}>
-                    <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
+                    <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
                     <div style={{ fontSize: "10px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "1px" }}>{sub}</div>
                   </div>
@@ -1184,7 +1184,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           {/* Impact Analysis divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 
@@ -1255,7 +1255,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     return (
                       <div key={label} className="bt-timing-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: "var(--radius-md, 8px)", background: isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--bg-elevated, transparent))" : "var(--bg-elevated, var(--bg-card))", border: `1px solid ${isBest ? "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" : "var(--card-border, var(--border))"}`, animation: `bt-fade-up 0.3s ease-out ${0.05 + ti * 0.06}s both` }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          {isBest && <span style={{ fontSize: "9px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>}
+                          {isBest && <span style={{ fontSize: "10px", fontWeight: 700, color: "oklch(0.72 0.18 145)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Best</span>}
                           <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: isNow ? 600 : 400 }}>{label}</span>
                         </div>
                         <div style={{ textAlign: "right" }}>
@@ -1294,10 +1294,10 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                     <div key={label} className="bt-eco-tile" style={{ padding: "12px", borderRadius: "var(--radius-md, 8px)", background: "var(--bg-elevated, var(--bg-base))", border: "1px solid var(--card-border, var(--border))", animation: `bt-fade-up 0.28s ease-out ${0.05 + ei * 0.04}s both` }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "4px" }}>
                         <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{icon}</span>
-                        <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
+                        <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
-                      <div style={{ fontSize: "9px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "2px" }}>{sub}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-tertiary, var(--text-muted))", marginTop: "2px" }}>{sub}</div>
                     </div>
                   ))}
                 </div>
@@ -1553,7 +1553,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           {/* Readiness & Risk divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Readiness & Risk</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Readiness & Risk</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 

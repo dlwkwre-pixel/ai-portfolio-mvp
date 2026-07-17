@@ -181,7 +181,7 @@ function RiskBadge({ risk }: { risk: string | null }) {
   const rs = riskColor(risk);
   return (
     <span style={{
-      fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
+      fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em",
       textTransform: "uppercase", padding: "2px 7px", borderRadius: "var(--radius-full)",
       background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color, flexShrink: 0,
     }}>
@@ -194,7 +194,7 @@ function StyleBadge({ style }: { style: string | null }) {
   if (!style) return null;
   return (
     <span style={{
-      fontSize: "9px", color: "var(--text-tertiary)", background: "transparent",
+      fontSize: "10px", color: "var(--text-tertiary)", background: "transparent",
       border: "1px solid var(--card-border)", padding: "2px 7px",
       borderRadius: "var(--radius-full)", flexShrink: 0,
     }}>
@@ -206,7 +206,7 @@ function StyleBadge({ style }: { style: string | null }) {
 function OwnBadge() {
   return (
     <span style={{
-      fontSize: "9px", fontWeight: 600, letterSpacing: "0.04em",
+      fontSize: "10px", fontWeight: 600, letterSpacing: "0.04em",
       padding: "2px 7px", borderRadius: "var(--radius-full)",
       background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)",
       color: "#93c5fd", flexShrink: 0,
@@ -219,7 +219,7 @@ function OwnBadge() {
 function OfficialBadge() {
   return (
     <span title="BuyTune Official Strategy" style={{
-      fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em",
+      fontSize: "10px", fontWeight: 700, letterSpacing: "0.05em",
       padding: "2px 8px", borderRadius: "var(--radius-full)",
       background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.3)",
       color: "#fbbf24", flexShrink: 0, textTransform: "uppercase",
@@ -655,7 +655,7 @@ function StrategyPreviewModal({
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       {u.change_type && (
                         <span style={{
-                          fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+                          fontSize: "10px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
                           padding: "1px 6px", borderRadius: "var(--radius-full)",
                           background: u.change_type === "add" ? "rgba(16,185,129,0.1)" : u.change_type === "remove" ? "rgba(239,68,68,0.1)" : u.change_type === "rebalance" ? "rgba(234,179,8,0.1)" : "rgba(255,255,255,0.06)",
                           color: u.change_type === "add" ? "#34d399" : u.change_type === "remove" ? "#f87171" : u.change_type === "rebalance" ? "#fbbf24" : "var(--text-tertiary)",
@@ -747,7 +747,7 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
         </span>
         {item.risk_level && (
           <span style={{
-            fontSize: "8px", fontWeight: 700, textTransform: "uppercase",
+            fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
             padding: "1px 5px", borderRadius: "var(--radius-full)",
             background: rs.bg, border: `1px solid ${rs.border}`, color: rs.color, flexShrink: 0,
           }}>
@@ -1466,7 +1466,7 @@ function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id
             {p.is_own && <OwnBadge />}
             <span
               title="Only allocation percentages are shared. Dollar amounts, cost basis, and account balance are never visible."
-              style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--surface-004)", border: "1px solid var(--line-008)", color: "var(--text-muted)", cursor: "help" }}
+              style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-full)", background: "var(--surface-004)", border: "1px solid var(--line-008)", color: "var(--text-muted)", cursor: "help" }}
             >
               % only
             </span>
@@ -1784,7 +1784,7 @@ export default function CommunityClient({
               {TAB_LABELS[tab]}
               {badge > 0 && (
                 <span style={{
-                  fontSize: "9px", fontWeight: 600,
+                  fontSize: "10px", fontWeight: 600,
                   background: isActive ? "rgba(37,99,235,0.15)" : "var(--card-bg)",
                   border: `1px solid ${isActive ? "rgba(37,99,235,0.3)" : "var(--card-border)"}`,
                   color: isActive ? "#93c5fd" : "var(--text-muted)",

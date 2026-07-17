@@ -910,7 +910,7 @@ export default function CareerClient({
           {inputs.current_monthly_income > 0 && (
             <div style={{ marginBottom: "16px", padding: "9px 12px", borderRadius: "var(--radius-md)", background: isPayCut ? "color-mix(in oklch, oklch(0.45 0.18 25) 12%, transparent)" : "color-mix(in oklch, oklch(0.55 0.15 155) 10%, transparent)", border: `1px solid ${isPayCut ? "color-mix(in oklch, oklch(0.45 0.18 25) 28%, transparent)" : "color-mix(in oklch, oklch(0.55 0.15 155) 22%, transparent)"}`, display: "flex", alignItems: "flex-start", gap: "8px" }}>
               <div style={{ width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, marginTop: "1px", background: isPayCut ? "oklch(0.45 0.18 25)" : "oklch(0.55 0.15 155)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "9px", color: "#fff", fontWeight: 700 }}>{isPayCut ? "▼" : "▲"}</span>
+                <span style={{ fontSize: "10px", color: "#fff", fontWeight: 700 }}>{isPayCut ? "▼" : "▲"}</span>
               </div>
               <div>
                 <div style={{ fontSize: "11px", fontWeight: 600, color: isPayCut ? "oklch(0.75 0.12 25)" : "oklch(0.80 0.12 155)", fontFamily: "var(--font-body)" }}>
@@ -1074,7 +1074,7 @@ export default function CareerClient({
               ].map(({ label, val }) => (
                 <div key={label}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 800, color: scoreColor(val) }}>{val}</div>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "1px" }}>{label}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "1px" }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -1082,7 +1082,7 @@ export default function CareerClient({
 
           {/* At a Glance — live snapshot */}
           <div style={{ height: "1px", background: "var(--border-subtle)", margin: "6px 0 14px" }} />
-          <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
+          <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>At a Glance</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             {[
               {
@@ -1107,7 +1107,7 @@ export default function CareerClient({
               },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 800, color }}>{value}</div>
               </div>
             ))}
@@ -1131,18 +1131,18 @@ export default function CareerClient({
                 {(verdict === "SWITCH" || verdict === "WAIT") && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginTop: "10px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Lifetime Advantage</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Lifetime Advantage</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: computed.lifetimeDelta >= 0 ? verdictMeta.color : "var(--red)" }}>{(computed.lifetimeDelta >= 0 ? "+" : "") + fmtK(computed.lifetimeDelta)}</div>
                     </div>
                     {computed.breakEvenYear != null && (
                       <div>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Break-even</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Break-even</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: verdictMeta.color }}>Year {computed.breakEvenYear}</div>
                       </div>
                     )}
                     {computed.retirCurrentProb != null && computed.retirNewProb != null && (
                       <div>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Retirement Impact</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>Retirement Impact</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: computed.retirDeltaPp >= 0 ? verdictMeta.color : "var(--red)" }}>{computed.retirDeltaPp >= 0 ? "+" : ""}{computed.retirDeltaPp}pp</div>
                       </div>
                     )}
@@ -1199,8 +1199,8 @@ export default function CareerClient({
               <div style={{ textAlign: "center", minWidth: "72px" }}>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "42px", fontWeight: 800, color: verdictMeta.color, lineHeight: 1 }}>{overallScore}</div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lifestyleEngaged ? "Overall" : "Score"}</div>
-                {lifestyleEngaged && <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "3px" }}>{computed.overallRoiScore} fin / {lifestyleScore} life</div>}
-                <div style={{ fontSize: "9px", color: scoreColor(overallScore), marginTop: "2px", fontWeight: 600 }}>{scoreLabel(overallScore)}</div>
+                {lifestyleEngaged && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "3px" }}>{computed.overallRoiScore} fin / {lifestyleScore} life</div>}
+                <div style={{ fontSize: "10px", color: scoreColor(overallScore), marginTop: "2px", fontWeight: 600 }}>{scoreLabel(overallScore)}</div>
               </div>
             </div>
           </div>
@@ -1257,7 +1257,7 @@ export default function CareerClient({
           {/* Impact Analysis divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Impact Analysis</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 
@@ -1275,10 +1275,10 @@ export default function CareerClient({
                   <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                       <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{icon}</span>
-                      <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
+                      <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>{label}</span>
                     </div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>{value}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
                   </div>
                 ))}
               </div>
@@ -1298,23 +1298,23 @@ export default function CareerClient({
                   <p style={{ fontSize: "11px", fontWeight: 700, color: accent, marginBottom: "10px", letterSpacing: "0.02em" }}>{title}</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Year 10 Income</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Year 10 Income</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>{fmtK(yr10)}</div>
                     </div>
                     {retirAssets > 0 && (
                       <div>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Retirement Assets</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Retirement Assets</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>{fmtK(retirAssets)}</div>
                       </div>
                     )}
                     {retirProb != null && (
                       <div>
-                        <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Retire Probability</div>
+                        <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Retire Probability</div>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, marginTop: "2px", color: retirProb >= 80 ? "var(--green)" : retirProb >= 60 ? "oklch(0.78 0.17 70)" : "var(--red)" }}>{retirProb}%</div>
                       </div>
                     )}
                     <div>
-                      <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Transition Risk</div>
+                      <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)" }}>Transition Risk</div>
                       <div style={{ fontSize: "13px", fontWeight: 700, color: riskColor, marginTop: "2px" }}>{risk}</div>
                     </div>
                   </div>
@@ -1363,9 +1363,9 @@ export default function CareerClient({
                 { label: "New Career Total", value: fmtK(computed.lifetimeNewGross), color: "#3b82f6", note: inputs.transition_cost > 0 ? `−${fmtK(inputs.transition_cost)} costs` : null },
               ].map(({ label, value, color, note }) => (
                 <div key={label}>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>{label}</div>
+                  <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 700, color }}>{value}</div>
-                  {note && <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>{note}</div>}
+                  {note && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>{note}</div>}
                 </div>
               ))}
             </div>
@@ -1418,7 +1418,7 @@ export default function CareerClient({
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ textAlign: "center" }}>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color }}>{value}</div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "2px" }}>{label}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: "2px" }}>{label}</div>
                   </div>
                 ))}
               </div>
@@ -1429,7 +1429,7 @@ export default function CareerClient({
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: "14px" }}>
               <p style={{ ...sectionHead, margin: 0 }}>Modeled Outcomes</p>
-              <span style={{ fontSize: "9px", color: "var(--text-muted)", fontStyle: "italic" }}>scenario modeling</span>
+              <span style={{ fontSize: "10px", color: "var(--text-muted)", fontStyle: "italic" }}>scenario modeling</span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "12px" }}>
               {[
@@ -1439,7 +1439,7 @@ export default function CareerClient({
               ].map(({ pct: p, label, color, bg }) => (
                 <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: bg, textAlign: "center" }}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 800, color }}>{p}</div>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginTop: "2px" }}>{label}</div>
+                  <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginTop: "2px" }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -1467,11 +1467,11 @@ export default function CareerClient({
                 <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: bg, border: `1px solid ${border}` }}>
                   <p style={{ fontSize: "10px", fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "10px" }}>{label}</p>
                   <div style={{ marginBottom: "8px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Break-even</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Break-even</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginTop: "2px" }}>{be != null ? `Year ${be}` : "Never"}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lifetime Impact</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Lifetime Impact</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, marginTop: "2px", color: delta >= 0 ? "oklch(0.72 0.18 145)" : "oklch(0.70 0.18 25)" }}>{(delta >= 0 ? "+" : "") + fmtK(delta)}</div>
                   </div>
                 </div>
@@ -1490,9 +1490,9 @@ export default function CareerClient({
                 { label: "Per Year", value: (computed.annualEquivalent >= 0 ? "+" : "") + fmtK(computed.annualEquivalent), color: computed.annualEquivalent >= 0 ? "var(--green)" : "var(--red)", sub: "equivalent reward/yr" },
               ].map(({ label, value, color, sub }) => (
                 <div key={label} style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)", textAlign: "center" }}>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
+                  <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color }}>{value}</div>
-                  <div style={{ fontSize: "9px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -1545,7 +1545,7 @@ export default function CareerClient({
           {/* Readiness & Risk divider */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
-            <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Readiness & Risk</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Readiness & Risk</span>
             <div style={{ flex: 1, height: "1px", background: "var(--border-subtle)" }} />
           </div>
 
@@ -1556,7 +1556,7 @@ export default function CareerClient({
               <div style={{ textAlign: "right" }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 800, color: scoreColor(computed.overallRoiScore) }}>{computed.overallRoiScore}</span>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}> / 100</span>
-                <div style={{ fontSize: "9px", color: scoreColor(computed.overallRoiScore), fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{scoreLabel(computed.overallRoiScore)}</div>
+                <div style={{ fontSize: "10px", color: scoreColor(computed.overallRoiScore), fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{scoreLabel(computed.overallRoiScore)}</div>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
@@ -1606,7 +1606,7 @@ export default function CareerClient({
                 { label: computed.gapDeficit > 0 ? "Cash Shortfall" : "Runway", value: computed.gapDeficit > 0 ? fmt(computed.gapDeficit) : fmt(inputs.liquid_assets - computed.gapCost), sub: computed.gapDeficit > 0 ? "additional savings needed" : "remaining after gap", color: computed.gapDeficit > 0 ? "var(--red)" : "var(--green)" },
               ].map(({ label, value, sub, color }) => (
                 <div key={label}>
-                  <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
+                  <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color }}>{value}</div>
                   <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{sub}</div>
                 </div>
@@ -1651,7 +1651,7 @@ export default function CareerClient({
                   <div key={label}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        {i === 0 && <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Biggest lever</span>}
+                        {i === 0 && <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Biggest lever</span>}
                         <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>{label}</span>
                       </div>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: isPositive ? "var(--green)" : "var(--red)", flexShrink: 0 }}>

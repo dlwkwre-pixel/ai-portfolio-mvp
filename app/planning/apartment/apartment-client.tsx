@@ -565,7 +565,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
                       <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)", wordBreak: "break-word" }}>{l.name}</span>
                       {l.is_favorite && <span style={{ fontSize: "14px", color: "oklch(0.75 0.18 55)" }}>★</span>}
                       {isCheapest && listings.length > 1 && (
-                        <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--green)", background: "rgba(34,197,94,0.12)", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.05em", textTransform: "uppercase" }}>Lowest Cost</span>
+                        <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", background: "rgba(34,197,94,0.12)", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.05em", textTransform: "uppercase" }}>Lowest Cost</span>
                       )}
                     </div>
                     <div style={{ display: "flex", gap: "6px", marginTop: "4px", flexWrap: "wrap" }}>
@@ -585,7 +585,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
 
                 {/* True monthly hero */}
                 <div style={{ textAlign: "center", padding: "12px 0", borderTop: "1px solid var(--border-subtle)", borderBottom: "1px solid var(--border-subtle)" }}>
-                  <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>True Monthly Cost</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>True Monthly Cost</div>
                   <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                     {fmt(c.trueMonthly)}
                   </div>
@@ -601,24 +601,24 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   {c.rentBurdenPct !== null && (
                     <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-sm)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Rent Burden</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Rent Burden</div>
                       <div style={{ fontSize: "16px", fontWeight: 600, color: verdict.color, fontFamily: "var(--font-mono)" }}>{fmtPct(c.rentBurdenPct)}</div>
                     </div>
                   )}
                   {l.square_feet && (
                     <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-sm)", padding: "8px 10px" }}>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>$/Sq Ft</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>$/Sq Ft</div>
                       <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
                         {c.pricePerSqft !== null ? `$${c.pricePerSqft.toFixed(2)}` : "–"}
                       </div>
                     </div>
                   )}
                   <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-sm)", padding: "8px 10px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Upfront</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Upfront</div>
                     <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(c.upfrontTotal)}</div>
                   </div>
                   <div style={{ background: "var(--bg-surface)", borderRadius: "var(--radius-sm)", padding: "8px 10px" }}>
-                    <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Lease</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Lease</div>
                     <div style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{l.lease_term_months}mo</div>
                   </div>
                 </div>
@@ -709,7 +709,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
                         {l.is_favorite && <span style={{ color: "oklch(0.75 0.18 55)", marginRight: "4px" }}>★</span>}
                         {l.name}
                         {l.floorplan_name && <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "4px" }}>({l.floorplan_name})</span>}
-                        {isCheapest && <span style={{ fontSize: "9px", fontWeight: 700, color: "var(--green)", marginLeft: "6px" }}>LOWEST</span>}
+                        {isCheapest && <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", marginLeft: "6px" }}>LOWEST</span>}
                       </td>
                       <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
                         <span style={{ color: status.color, fontSize: "11px" }}>{status.label}</span>

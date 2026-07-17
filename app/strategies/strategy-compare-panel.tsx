@@ -65,7 +65,7 @@ function ParamChip({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-      <span style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+      <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
         {label}
       </span>
       <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
@@ -90,7 +90,7 @@ function StrategyHeader({ card, label }: { card: StrategyCard; label: "A" | "B" 
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
         <span style={{
-          fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+          fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
           padding: "2px 7px", borderRadius: "4px",
           background: isA ? "rgba(37,99,235,0.15)" : "rgba(168,85,247,0.15)",
           color: isA ? "#60a5fa" : "#c084fc",
@@ -132,7 +132,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor(scoreA), lineHeight: 1 }}>
           {scoreA}
         </div>
-        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
           Atlas Confidence A
         </div>
       </div>
@@ -149,7 +149,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: scoreColor(scoreB), lineHeight: 1 }}>
           {scoreB}
         </div>
-        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: "3px", fontFamily: "var(--font-body)" }}>
           Atlas Confidence B
         </div>
       </div>
@@ -209,7 +209,7 @@ function FactorRow({
         </div>
         {delta !== 0 && (
           <div style={{
-            fontSize: "9px", fontWeight: 700, fontFamily: "var(--font-mono)",
+            fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
             color: aWins ? "#60a5fa" : "#c084fc",
             marginTop: "2px",
           }}>
@@ -346,14 +346,14 @@ export default function StrategyComparePanel({
 
             {/* Factor table */}
             <div>
-              <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                 Factor Comparison
               </p>
               {/* Column headers */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 1fr", gap: "8px", marginBottom: "4px" }}>
-                <div style={{ textAlign: "right", fontSize: "9px", fontWeight: 700, color: "#60a5fa", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy A</div>
+                <div style={{ textAlign: "right", fontSize: "10px", fontWeight: 700, color: "#60a5fa", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy A</div>
                 <div />
-                <div style={{ fontSize: "9px", fontWeight: 700, color: "#c084fc", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy B</div>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "#c084fc", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy B</div>
               </div>
               <div>
                 {factorRowData.map((f, i) => (
@@ -366,7 +366,7 @@ export default function StrategyComparePanel({
             {advantages && (advantages.forA.length > 0 || advantages.forB.length > 0) && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                 <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.14)", borderRadius: "10px", padding: "12px 14px" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#60a5fa", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#60a5fa", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                     A&apos;s Strengths
                   </p>
                   {advantages.forA.length > 0 ? (
@@ -383,7 +383,7 @@ export default function StrategyComparePanel({
                   )}
                 </div>
                 <div style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.14)", borderRadius: "10px", padding: "12px 14px" }}>
-                  <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#c084fc", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#c084fc", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                     B&apos;s Strengths
                   </p>
                   {advantages.forB.length > 0 ? (
@@ -410,7 +410,7 @@ export default function StrategyComparePanel({
                   { thesis: analysisB.thesis, accent: "#c084fc", bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.14)", label: "B — Why This Exists" },
                 ].map(({ thesis, accent, bg, border, label }) => (
                   <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "10px", padding: "12px 14px" }}>
-                    <p style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                    <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                       {label}
                     </p>
                     <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontFamily: "var(--font-body)" }}>

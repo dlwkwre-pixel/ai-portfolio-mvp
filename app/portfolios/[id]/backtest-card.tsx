@@ -57,7 +57,7 @@ function Chart({ portfolio, benchmark, startValue }: { portfolio: Pt[]; benchmar
 function StatCol({ label, you, bench, invert = false }: { label: string; you: string; bench?: string; invert?: boolean }) {
   return (
     <div style={{ flex: 1, minWidth: "84px" }}>
-      <div style={{ fontSize: "9.5px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
+      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
       <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>{you}</div>
       {bench != null && <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{bench}</div>}
     </div>

@@ -181,7 +181,7 @@ export default function MondayPrepCard() {
                       {formatValue(h.total_value)}
                     </span>
                     {h.weight_pct >= 10 && (
-                      <span style={{ fontSize: "9px", color: "rgba(96,165,250,0.7)", background: "rgba(96,165,250,0.08)", padding: "0 4px", borderRadius: "3px" }}>
+                      <span style={{ fontSize: "10px", color: "rgba(96,165,250,0.7)", background: "rgba(96,165,250,0.08)", padding: "0 4px", borderRadius: "3px" }}>
                         {h.weight_pct.toFixed(0)}%
                       </span>
                     )}

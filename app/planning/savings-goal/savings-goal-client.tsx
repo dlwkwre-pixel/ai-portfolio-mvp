@@ -167,7 +167,7 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
                   <path d={path} fill="none" stroke={end >= target ? "var(--green, #22c55e)" : "var(--amber, #f59e0b)"} strokeWidth="2" strokeLinecap="round" />
                   {crossM != null && reaches && <circle cx={x(crossM)} cy={targetY} r="3.5" fill="var(--green, #22c55e)" />}
                 </svg>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>
                   <span>today · {fmt(saved)}</span>
                   <span style={{ color: "var(--text-tertiary)" }}>— — target {fmt(target)}</span>
                   <span>by date · {fmt(Math.round(end))}</span>
@@ -198,7 +198,7 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
 function Metric({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
   return (
     <div>
-      <div style={{ fontSize: "9px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "5px" }}>{label}</div>
+      <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "5px" }}>{label}</div>
       <div style={{ fontSize: "20px", fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.5px", color: accent ?? "var(--text-primary)", lineHeight: 1.1 }}>{value}</div>
       {sub && <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "5px" }}>{sub}</div>}
     </div>
