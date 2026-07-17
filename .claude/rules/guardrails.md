@@ -47,6 +47,7 @@ Adapted from everything-claude-code for the BuyTune.io Next.js/TypeScript codeba
 - Border radii use `--radius-sm/md/lg/xl/full`, not ad-hoc pixel values
 - Tailwind v4: arbitrary values with CSS vars use paren syntax `bg-(--bg-base)` — the bracket form `bg-[var(--x)]` silently generates NO utility
 - All numeric values use DM Mono font (`var(--font-mono)`)
+- Headings use `var(--font-display)` (DM Sans); Syne appears ONLY in the BuyTune.io wordmark via `var(--font-logo)` — never for headings (its wide letterforms read as stretched at large sizes; user-confirmed 2026-07-16)
 - New buttons/chips/section headers use the primitives in `app/components/ui-primitives.tsx` (Button, Chip, SectionHeader) — no more bespoke inline-styled buttons; migrate old ones opportunistically when touching a file
 - Touch targets minimum 44px on mobile
 - Mobile-first: all new components tested at 375px
