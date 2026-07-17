@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { parseDay } from "@/lib/dates";
 
 type BenchmarkComparisonChartProps = {
   data: {
@@ -34,7 +35,9 @@ function formatPercent(value: unknown) {
 }
 
 function compactDateLabel(value: string) {
-  const parsed = new Date(value);
+  // Benchmark rows carry bare "YYYY-MM-DD" dates — parse at local noon or the
+  // label shows the previous day in US timezones (see lib/dates.ts).
+  const parsed = parseDay(value);
 
   if (Number.isNaN(parsed.getTime())) {
     return value;

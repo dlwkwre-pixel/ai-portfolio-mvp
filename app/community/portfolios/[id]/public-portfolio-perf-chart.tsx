@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { formatDay } from "@/lib/dates";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ResponsiveContainer,
@@ -25,8 +26,9 @@ function filterByDays(data: PerfPoint[], days: number): PerfPoint[] {
 }
 
 function fmtDate(v: string) {
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // snapshot_date is a bare "YYYY-MM-DD" — parse at local noon so the label
+  // doesn't show the previous day in US timezones (see lib/dates.ts).
+  return formatDay(v);
 }
 
 function fmtPct(v: number) {

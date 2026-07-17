@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { trimSnapshotsBefore } from "@/app/portfolios/[id]/actions";
+import { parseDay, formatDay } from "@/lib/dates";
 
 export type CombinedChartPoint = { date: string; total: number };
 
@@ -22,7 +23,9 @@ function filterByDays(data: CombinedChartPoint[], days: number): CombinedChartPo
   const cutoff = days === -1
     ? new Date(new Date().getFullYear(), 0, 1)
     : new Date(Date.now() - days * 86_400_000);
-  return data.filter(d => new Date(d.date) >= cutoff);
+  // parseDay: bare "YYYY-MM-DD" through new Date() is UTC midnight, which
+  // compares (and displays) a day early in US timezones.
+  return data.filter(d => parseDay(d.date) >= cutoff);
 }
 
 function formatMoney(v: number) {
@@ -40,8 +43,7 @@ function formatChange(delta: number) {
 }
 
 function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return formatDay(iso);
 }
 
 type TooltipProps = {
@@ -90,6 +92,7 @@ export default function CombinedChartClient({
   });
   const [showTrim, setShowTrim] = useState(false);
   const [trimDate, setTrimDate] = useState("");
+  const [trimConfirm, setTrimConfirm] = useState(false);
   const [trimStatus, setTrimStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -98,14 +101,21 @@ export default function CombinedChartClient({
 
   function handleTrim() {
     if (!trimDate || portfolioIds.length === 0) return;
+    // Destructive and unrecoverable across every portfolio — require an explicit
+    // second click that names the blast radius before anything is deleted.
+    if (!trimConfirm) {
+      setTrimConfirm(true);
+      return;
+    }
     startTransition(async () => {
       let total = 0;
       for (const pid of portfolioIds) {
         const result = await trimSnapshotsBefore(pid, trimDate);
         total += result.deleted;
       }
-      setTrimStatus(`Removed ${total} snapshot${total !== 1 ? "s" : ""} before ${new Date(trimDate + "T12:00:00").toLocaleDateString()}. Refresh to see the updated chart.`);
+      setTrimStatus(`Removed ${total} snapshot${total !== 1 ? "s" : ""} before ${parseDay(trimDate).toLocaleDateString()}. Refresh to see the updated chart.`);
       setShowTrim(false);
+      setTrimConfirm(false);
     });
   }
 
@@ -252,28 +262,53 @@ export default function CombinedChartClient({
       )}
 
       {showTrim && view === "portfolio" && (
-        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--surface-004)", border: "1px solid var(--line-008)", fontSize: "11px" }}>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
-            Remove all chart history before this date across all portfolios.
-          </p>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              type="date"
-              value={trimDate}
-              onChange={(e) => setTrimDate(e.target.value)}
-              style={{ background: "var(--surface-008)", border: "1px solid var(--line-015)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
-            />
-            <button
-              onClick={handleTrim}
-              disabled={isPending || !trimDate}
-              style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", background: "none", border: "none", cursor: "pointer", opacity: isPending || !trimDate ? 0.4 : 1 }}
-            >
-              {isPending ? "Trimming…" : "Remove those snapshots"}
-            </button>
-            <button onClick={() => setShowTrim(false)} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
-              Cancel
-            </button>
-          </div>
+        <div style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--surface-004)", border: `1px solid ${trimConfirm ? "rgba(245,158,11,0.45)" : "var(--line-008)"}`, fontSize: "11px" }}>
+          {trimConfirm ? (
+            <>
+              <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
+                Permanently remove all chart history before{" "}
+                <strong style={{ color: "#f59e0b" }}>{trimDate ? parseDay(trimDate).toLocaleDateString() : ""}</strong>{" "}
+                across <strong style={{ color: "#f59e0b" }}>{portfolioIds.length === 1 ? "your portfolio" : `all ${portfolioIds.length} portfolios`}</strong>? This can&apos;t be undone.
+              </p>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={handleTrim}
+                  disabled={isPending}
+                  style={{ fontSize: "11px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.4)", borderRadius: "8px", padding: "5px 12px", cursor: "pointer", opacity: isPending ? 0.4 : 1, minHeight: "30px" }}
+                >
+                  {isPending ? "Removing…" : "Yes, remove permanently"}
+                </button>
+                <button onClick={() => setTrimConfirm(false)} disabled={isPending} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
+                  Go back
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>
+                Remove all chart history before this date across all portfolios.
+              </p>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  type="date"
+                  value={trimDate}
+                  onChange={(e) => setTrimDate(e.target.value)}
+                  aria-label="Remove snapshots before this date"
+                  style={{ background: "var(--surface-008)", border: "1px solid var(--line-015)", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", color: "var(--text-primary)" }}
+                />
+                <button
+                  onClick={handleTrim}
+                  disabled={isPending || !trimDate}
+                  style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", background: "none", border: "none", cursor: "pointer", opacity: isPending || !trimDate ? 0.4 : 1 }}
+                >
+                  Remove those snapshots
+                </button>
+                <button onClick={() => { setShowTrim(false); setTrimConfirm(false); }} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
