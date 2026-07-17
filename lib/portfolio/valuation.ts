@@ -38,7 +38,51 @@ export type PortfolioValuation = {
   valued_holdings: ValuedHolding[];
 };
 
+// ── Valuation result cache ──
+// Every page that shows portfolio value used to recompute the whole valuation
+// (quote batches + 300ms inter-batch sleeps) from scratch, so dashboard →
+// portfolio detail re-paid the full cost seconds apart. Caching the RESULT for
+// 60s (matching the quote revalidate window) makes the dashboard visit act as
+// the preload for every subsequent click: same navigation-feels-instant effect
+// as prefetching all destinations, with zero extra API calls.
+// Keyed by the full holdings input + cash, so any trade/edit produces a new key
+// and is never served stale. Per-serverless-instance (warm lambdas share it;
+// cold starts just recompute) — a deliberate, safe best-effort cache.
+const VALUATION_TTL_MS = 60_000;
+const valuationCache = new Map<string, { expires: number; promise: Promise<PortfolioValuation> }>();
+
+function valuationKey(args: { holdings: HoldingRow[]; cashBalance: number }): string {
+  const parts = args.holdings
+    .map((h) => `${h.id}|${h.ticker}|${h.asset_type}|${h.shares}|${h.average_cost_basis}|${h.manual_price ?? ""}`)
+    .sort()
+    .join(";");
+  return `${parts}#${args.cashBalance}`;
+}
+
 export async function getPortfolioValuation(args: {
+  holdings: HoldingRow[];
+  cashBalance: number;
+}): Promise<PortfolioValuation> {
+  const key = valuationKey(args);
+  const now = Date.now();
+  const hit = valuationCache.get(key);
+  if (hit && hit.expires > now) return hit.promise;
+
+  // prune expired entries so the map can't grow unbounded
+  if (valuationCache.size > 200) {
+    for (const [k, v] of valuationCache) if (v.expires <= now) valuationCache.delete(k);
+  }
+
+  const promise = computeValuation(args).catch((err) => {
+    // never cache a failure
+    valuationCache.delete(key);
+    throw err;
+  });
+  valuationCache.set(key, { expires: now + VALUATION_TTL_MS, promise });
+  return promise;
+}
+
+async function computeValuation(args: {
   holdings: HoldingRow[];
   cashBalance: number;
 }): Promise<PortfolioValuation> {
@@ -67,6 +111,7 @@ export async function getPortfolioValuation(args: {
 
   for (let i = 0; i < stockHoldings.length; i += BATCH_SIZE) {
     const batch = stockHoldings.slice(i, i + BATCH_SIZE);
+    const batchStart = Date.now();
     const batchResults = await Promise.all(
       batch.map(async (holding) => {
         try {
@@ -80,7 +125,12 @@ export async function getPortfolioValuation(args: {
     );
     quoteResults.push(...batchResults);
     if (i + BATCH_SIZE < stockHoldings.length) {
-      await sleep(BATCH_DELAY_MS);
+      // The delay exists to respect Finnhub's rate limit — but when a batch
+      // resolves near-instantly it was served from the fetch cache and never
+      // touched Finnhub, so sleeping is pure wasted latency. Only pace real
+      // network batches.
+      const wasNetwork = Date.now() - batchStart > 100;
+      if (wasNetwork) await sleep(BATCH_DELAY_MS);
     }
   }
 
