@@ -37,11 +37,15 @@ export default async function CombinedChart({
     await supabase.from("portfolio_snapshots").insert(toInsert);
   }
 
-  // Fetch all snapshots for these portfolios
+  // Fetch snapshots windowed to 2 years — the chart's longest timeframe is "All",
+  // but unbounded history (daily + intraday rows × portfolios) grows without limit
+  // and every dashboard load would drag the whole table over the wire.
+  const windowStart = new Date(Date.now() - 2 * 365 * 86_400_000).toISOString();
   const { data: snapshots } = await supabase
     .from("portfolio_snapshots")
     .select("portfolio_id, snapshot_date, total_value")
     .in("portfolio_id", portfolioIds)
+    .gte("snapshot_date", windowStart)
     .order("snapshot_date", { ascending: true });
 
   if (!snapshots || snapshots.length < 2) return null;
