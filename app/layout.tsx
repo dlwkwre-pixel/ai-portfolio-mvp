@@ -7,6 +7,7 @@ import MobileBottomNav from "@/app/components/mobile-bottom-nav";
 import IosInstallGuide from "@/app/components/ios-install-guide";
 import LevelUpWatcher from "@/app/components/level-up-watcher";
 import ActivityTracker from "@/app/components/activity-tracker";
+import CacheWarmer from "@/app/components/cache-warmer";
 import BehavioralGuardrail from "@/app/components/behavioral-guardrail";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -97,6 +98,7 @@ export default function RootLayout({
           <IosInstallGuide />
           <LevelUpWatcher />
           <ActivityTracker />
+          <CacheWarmer />
           <BehavioralGuardrail />
           <Analytics />
           <SpeedInsights />

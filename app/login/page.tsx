@@ -22,6 +22,9 @@ function LoginForm() {
     setError("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setError(error.message); setLoading(false); return; }
+    // Head start: kick the portfolio-valuation warm-up NOW so the expensive math
+    // runs while the dashboard redirect + render round-trip is still in flight.
+    fetch("/api/warm", { method: "POST", keepalive: true }).catch(() => {});
     router.push(next);
     router.refresh();
   }
