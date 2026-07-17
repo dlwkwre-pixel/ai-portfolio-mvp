@@ -326,7 +326,7 @@ export default function ConceptClient() {
           <>
             {/* ══════════ THE NORTH-STAR SPINE ══════════ */}
             <div className="trj-sec trj-spine" style={{ position: "sticky", top: 0, zIndex: 30, marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 18px", borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--bg-elevated, #0d1120)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 18px", borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retirement odds</span>
                   <span style={{ width: "34px", height: "3px", borderRadius: "2px", background: "linear-gradient(135deg, #2563eb, #7c3aed)" }} />
@@ -394,7 +394,7 @@ export default function ConceptClient() {
                     onPointerDown={dragRetire}
                     style={{ position: "absolute", top: 0, bottom: `${BOT_PAD * 100 - 4}%`, left: `${xFrac(retireAge) * 100}%`, width: "44px", marginLeft: "-22px", cursor: "ew-resize", touchAction: "none", zIndex: 4, outline: "none" }}>
                     <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(167,139,250,0.9), rgba(167,139,250,0.12))", borderRadius: "2px" }} />
-                    <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated, #0d1120)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
+                    <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
                       <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
                       <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retireAge}</span>
                       <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>⇄</span>
@@ -412,7 +412,7 @@ export default function ConceptClient() {
                         style={{ position: "absolute", left: `${xFrac(ev.age) * 100}%`, top: `${yFrac(sim.median[i]) * 100}%`, transform: "translate(-50%, -50%)", zIndex: isSel ? 6 : 5, cursor: "grab" }}>
                         <div style={{
                           width: "30px", height: "30px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px",
-                          background: "var(--bg-elevated, #0d1120)",
+                          background: "var(--bg-elevated)",
                           border: ev.committed ? `2px solid oklch(0.68 0.15 ${ev.hue})` : `2px dashed oklch(0.6 0.1 ${ev.hue} / 0.8)`,
                           opacity: ev.committed ? 1 : 0.75,
                           boxShadow: isSel ? `0 0 0 5px oklch(0.65 0.15 ${ev.hue} / 0.25)` : "none",
@@ -423,7 +423,7 @@ export default function ConceptClient() {
                         {/* Popover */}
                         {isSel && (
                           <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
-                            style={{ position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay, #111827)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trj-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
+                            style={{ position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trj-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
                             <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>{ev.emoji} {ev.label}</div>
                             <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginBottom: "9px" }}>Age {ev.age} · {fmtFull(ev.amount)}</div>
                             <button type="button" onClick={() => toggleCommit(ev.id)}
@@ -446,7 +446,7 @@ export default function ConceptClient() {
                     return (
                       <>
                         <div style={{ position: "absolute", top: `${TOP_PAD * 100}%`, bottom: `${BOT_PAD * 100}%`, left: `${xFrac(hoverAge) * 100}%`, width: "1px", background: "rgba(148,163,184,0.28)", pointerEvents: "none", zIndex: 2 }} />
-                        <div style={{ position: "absolute", top: "6px", left: `${clamp(xFrac(hoverAge) * 100, 12, 86)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 2, background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "7px 11px", whiteSpace: "nowrap" }}>
+                        <div style={{ position: "absolute", top: "6px", left: `${clamp(xFrac(hoverAge) * 100, 12, 86)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 2, background: "var(--bg-elevated)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "7px 11px", whiteSpace: "nowrap" }}>
                           <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>Age {hoverAge}</span>
                           <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{fmtMoney(sim.median[i])}</span>
                           <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "7px" }}>{fmtMoney(sim.p10[i])} – {fmtMoney(sim.p90[i])}</span>
@@ -518,7 +518,7 @@ export default function ConceptClient() {
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
                     <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Net worth today</div>
                     <div style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "24px", color: "var(--text-primary)" }}>{fmtMoney(281_000)}</div>
-                    <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "#00d395", marginTop: "3px" }}>+$14.2k this quarter</div>
+                    <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--green)", marginTop: "3px" }}>+$14.2k this quarter</div>
                   </div>
                   <div style={{ borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)", padding: "16px 18px" }}>
                     <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "6px" }}>Savings rate</div>
@@ -635,7 +635,7 @@ export default function ConceptClient() {
                     ].map((r) => (
                       <div key={r.label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border-subtle, rgba(255,255,255,0.04))" }}>
                         <span style={{ width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 800,
-                          background: r.done ? "rgba(0,211,149,0.15)" : "rgba(255,255,255,0.05)", color: r.done ? "#00d395" : "var(--text-tertiary)", border: `1px solid ${r.done ? "rgba(0,211,149,0.4)" : "var(--card-border)"}` }}>{r.done ? "✓" : "·"}</span>
+                          background: r.done ? "rgba(0,211,149,0.15)" : "rgba(255,255,255,0.05)", color: r.done ? "var(--green)" : "var(--text-tertiary)", border: `1px solid ${r.done ? "rgba(0,211,149,0.4)" : "var(--card-border)"}` }}>{r.done ? "✓" : "·"}</span>
                         <span style={{ fontSize: "12.5px", color: r.done ? "var(--text-secondary)" : "var(--text-primary)", fontWeight: r.done ? 400 : 600 }}>{r.label}</span>
                         {!r.done && <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: "#f59e0b" }}>Missing</span>}
                       </div>

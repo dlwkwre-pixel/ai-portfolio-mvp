@@ -296,8 +296,8 @@ function AnalystConsensusBar({ rec }: { rec: RawRecommendation }) {
   const consensusLabel = bullCount > h && bullCount > bearCount ? "Bullish" : bearCount > bullCount ? "Bearish" : "Neutral";
   const consensusColor = bullCount > bearCount ? "var(--green)" : bearCount > bullCount ? "var(--red)" : "var(--amber)";
   const segments = [
-    { count: sb, color: "#00d395" }, { count: b, color: "#4ade80" },
-    { count: h, color: "#f59e0b" }, { count: s, color: "#fb7185" }, { count: ss, color: "#ef4444" },
+    { count: sb, color: "var(--green)" }, { count: b, color: "#4ade80" },
+    { count: h, color: "#f59e0b" }, { count: s, color: "var(--red)" }, { count: ss, color: "var(--red)" },
   ].filter(seg => seg.count > 0);
 
   return (

@@ -286,7 +286,7 @@ export default async function AchievementsPage() {
                     </div>
                     <div style={{ flexShrink: 0 }}>
                       {c.done ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, color: "#34d399", fontFamily: "var(--font-mono)" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, color: "var(--green)", fontFamily: "var(--font-mono)" }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                           +{c.xp}
                         </span>

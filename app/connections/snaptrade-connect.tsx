@@ -169,18 +169,18 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       {success && (
         <div style={{ padding: "14px 15px", borderRadius: "14px", border: "1px solid rgba(0,211,149,0.35)", background: "rgba(0,211,149,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "8px" }}>
-            <span style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,211,149,0.2)", color: "#00d395", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>✓</span>
+            <span style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,211,149,0.2)", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>✓</span>
             <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--text-primary)" }}>Import complete</span>
             <button type="button" aria-label="Dismiss" onClick={() => setSuccess(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "13px", fontFamily: "var(--font-body)" }}>✕</button>
           </div>
           <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-            <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.updated}</span> holding{success.updated === 1 ? "" : "s"} updated to your live shares &amp; cost basis
-            {success.added > 0 && <>, <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.added}</span> new added</>}
+            <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 700 }}>{success.updated}</span> holding{success.updated === 1 ? "" : "s"} updated to your live shares &amp; cost basis
+            {success.added > 0 && <>, <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 700 }}>{success.added}</span> new added</>}
             {success.skipped > 0 && <>, {success.skipped} skipped</>}.
           </div>
           {success.activities > 0 && (
             <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "4px" }}>
-              <span style={{ fontFamily: "var(--font-mono)", color: "#00d395", fontWeight: 700 }}>{success.activities}</span> transaction{success.activities === 1 ? "" : "s"} imported (buys, sells, dividends, transfers) — your returns &amp; income now reflect them.
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)", fontWeight: 700 }}>{success.activities}</span> transaction{success.activities === 1 ? "" : "s"} imported (buys, sells, dividends, transfers) — your returns &amp; income now reflect them.
             </div>
           )}
           {success.portfolios.length > 0 && (
@@ -188,7 +188,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
               <span style={{ fontSize: "10.5px", color: "var(--text-tertiary)" }}>Next, review your refreshed holdings:</span>
               {success.portfolios.map((p) => (
                 <a key={p.id} href={`/portfolios/${p.id}`}
-                  style={{ fontSize: "11.5px", fontWeight: 600, color: "#00d395", textDecoration: "none", border: "1px solid rgba(0,211,149,0.3)", background: "rgba(0,211,149,0.1)", borderRadius: "999px", padding: "3px 10px" }}>
+                  style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--green)", textDecoration: "none", border: "1px solid rgba(0,211,149,0.3)", background: "rgba(0,211,149,0.1)", borderRadius: "999px", padding: "3px 10px" }}>
                   {p.name} →
                 </a>
               ))}
@@ -209,7 +209,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
               <div key={a.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "9px", background: "var(--bg-base)", border: `1px solid ${synced ? "rgba(0,211,149,0.25)" : "var(--border-subtle)"}` }}>
                 <span title={a.label} style={{ flex: 1, minWidth: 0, fontSize: "12.5px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default" }}>{a.label}</span>
                 {synced && (
-                  <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "6px", padding: "2px 7px" }}>✓ Synced</span>
+                  <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "6px", padding: "2px 7px" }}>✓ Synced</span>
                 )}
                 <button type="button" onClick={() => startReview(a)} disabled={busy !== null}
                   style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #818cf8)", opacity: busy ? 0.6 : 1 }}>
@@ -233,7 +233,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
         <div onClick={() => { if (busy === null) { setReviewAccount(null); setRows([]); } }}
           style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(2,6,15,0.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
           <div onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: "660px", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+            style={{ width: "100%", maxWidth: "660px", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--bg-elevated)", border: "1px solid var(--card-border)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
             {/* Header */}
             <div style={{ padding: "16px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -260,7 +260,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.2)" }}>
                       <span style={{ fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "62px" }}>Cash</span>
                       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flex: 1, minWidth: 0 }}>{fmtUsd(cashAmount)}</span>
-                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#00d395", flexShrink: 0, minWidth: "44px" }}>cash</span>
+                      <span style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", flexShrink: 0, minWidth: "44px" }}>cash</span>
                       <select value={cashTarget} onChange={(e) => setCashTarget(e.target.value)} style={{ ...sel, flexShrink: 0, width: "170px" }}>
                         <option value={SKIP}>Skip</option>
                         {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

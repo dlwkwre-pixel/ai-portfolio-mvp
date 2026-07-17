@@ -148,7 +148,7 @@ export default function IosInstallGuide() {
             position: "fixed", left: "12px", right: "12px",
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
             zIndex: 1200, maxWidth: "440px", margin: "0 auto",
-            background: "#0e1626", border: "1px solid rgba(255,255,255,0.12)",
+            background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: "16px", padding: "14px 14px 13px", boxShadow: "0 18px 44px rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", gap: "13px",
             animation: "bt-ios-rise 0.35s cubic-bezier(0.16,1,0.3,1) both",
@@ -173,7 +173,7 @@ export default function IosInstallGuide() {
       {modalOpen && (
         <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(4,13,26,0.92)", backdropFilter: "blur(7px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-ios-fade 0.25s ease both" }}>
           <style>{`@keyframes bt-ios-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-ios-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#0e1626", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
               <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(37,99,235,0.18), rgba(124,58,237,0.14))", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>📲</div>
               <div style={{ flex: 1 }}>

@@ -322,7 +322,7 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
           <ReturnStack
             cashInvested={calc.cashInvested}
             parts={[
-              { label: "Cash flow", value: calc.cashFlowAnnual, color: "#22c55e" },
+              { label: "Cash flow", value: calc.cashFlowAnnual, color: "var(--green)" },
               { label: "Loan paydown", value: calc.principalY1, color: "#3b82f6" },
               { label: "Appreciation", value: calc.appreciationY1, color: "#7c3aed" },
               { label: "Tax effect", value: calc.taxEffect, color: calc.taxEffect >= 0 ? "#14b8a6" : "#ef4444" },
@@ -346,7 +346,7 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
             </svg>
             <div style={{ display: "flex", gap: "16px", margin: "8px 0 14px", fontSize: "10.5px" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "#7c3aed" }} /> Property value</span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "#22c55e" }} /> Your equity</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "var(--green)" }} /> Your equity</span>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", fontFamily: "var(--font-mono)" }}>

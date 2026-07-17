@@ -211,7 +211,7 @@ export default function RebalancingCalculator({
                 )}
               </>
             ) : (
-              <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", color: "#00d395" }}>
+              <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", color: "var(--green)" }}>
                 All positions within bounds
               </span>
             )}
@@ -393,7 +393,7 @@ export default function RebalancingCalculator({
 
           {/* Tax-advantaged accounts: no capital-gains drag */}
           {!isTaxable && accountType && overCount > 0 && (
-            <p style={{ fontSize: "10px", color: "#00d395", marginTop: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
+            <p style={{ fontSize: "10px", color: "var(--green)", marginTop: "10px", display: "flex", alignItems: "center", gap: "5px" }}>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d395" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               Tax-advantaged account — rebalance freely, sells don&apos;t trigger capital-gains tax.
             </p>

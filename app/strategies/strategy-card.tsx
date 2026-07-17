@@ -15,7 +15,7 @@ const TURNOVER_PREFERENCES = ["Low", "Moderate", "High"];
 const HOLDING_PERIOD_BIASES = ["Short-term","Swing","Medium-term","Long-term","Very Long-term","Flexible"];
 
 const inp = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
-const sel = "w-full rounded-xl border border-white/10 bg-[#07090f] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+const sel = "w-full rounded-xl border border-white/10 bg-(--bg-base) px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const lbl = "mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

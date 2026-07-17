@@ -2782,7 +2782,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
       {step === "paste" && (
         <>
           {allParsed.length > 0 && (
-            <div style={{ padding: "6px 10px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "#22c55e", fontFamily: "var(--font-body)" }}>
+            <div style={{ padding: "6px 10px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
               {allParsed.length} transactions already loaded — paste another statement to add to the mix.
             </div>
           )}
@@ -3837,11 +3837,11 @@ function BudgetTrackerTab({
           background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: "12px", color: "#22c55e", fontFamily: "var(--font-body)" }}>
+          <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
             {statementSuccess} actual{statementSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.
           </span>
           <button type="button" onClick={() => setStatementSuccess(null)}
-            style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}>
+            style={{ background: "none", border: "none", color: "var(--green)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}>
             ×
           </button>
         </div>
@@ -5310,8 +5310,8 @@ function CashFlowOS({
         )}
         {importSuccess !== null && !showImport && (
           <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "12px", color: "#22c55e", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
-            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
+            <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
+            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--green)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>
         )}
 
@@ -9210,7 +9210,7 @@ export default function PlanningClient({
               {showMonteCarlo ? (
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                    <div style={{ width: "16px", height: "2px", background: "#00d395" }} /> Historical
+                    <div style={{ width: "16px", height: "2px", background: "var(--green)" }} /> Historical
                   </div>
                   {["90th", "75th", "Median", "25th", "10th"].map((l, i) => (
                     <div key={l} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
@@ -9220,8 +9220,8 @@ export default function PlanningClient({
                 </>
               ) : (
                 [
-                  { color: "#00d395", label: "Historical", dashed: false },
-                  { color: "#00d395", label: "Optimistic", dashed: true },
+                  { color: "var(--green)", label: "Historical", dashed: false },
+                  { color: "var(--green)", label: "Optimistic", dashed: true },
                   { color: "#a78bfa", label: "Baseline", dashed: true },
                   { color: "#f59e0b", label: "Pessimistic", dashed: true },
                   ...(whatIfScenario ? [{ color: "#fb923c", label: { home: "Buy a Home", child: "Have a Child", career: "Career +20%" }[whatIfScenario], dashed: false }] : []),

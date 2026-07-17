@@ -58,8 +58,8 @@ export default function NotifyForm() {
         >
           {isPending ? "Sending…" : "Send to all users"}
         </button>
-        {sent && <span style={{ fontSize: "13px", color: "var(--green, #34d399)" }}>Sent — it&apos;s live in everyone&apos;s bell ✓</span>}
-        {error && <span style={{ fontSize: "13px", color: "#f87171" }}>{error}</span>}
+        {sent && <span style={{ fontSize: "13px", color: "var(--green)" }}>Sent — it&apos;s live in everyone&apos;s bell ✓</span>}
+        {error && <span style={{ fontSize: "13px", color: "var(--red)" }}>{error}</span>}
       </div>
 
       <p style={{ fontSize: "12px", color: "var(--text-tertiary, #64748b)", lineHeight: 1.6, marginTop: "4px" }}>

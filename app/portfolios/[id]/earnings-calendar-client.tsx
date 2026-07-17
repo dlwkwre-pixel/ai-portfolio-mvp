@@ -71,9 +71,9 @@ function recConsensus(r: Recommendations): { label: string; color: string } {
   const bullish = r.strongBuy + r.buy;
   const bearish = r.sell + r.strongSell;
   const pct = bullish / total;
-  if (pct >= 0.6) return { label: "Buy", color: "#00d395" };
+  if (pct >= 0.6) return { label: "Buy", color: "var(--green)" };
   if (pct >= 0.45) return { label: "Hold", color: "#f59e0b" };
-  if (bearish / total >= 0.4) return { label: "Sell", color: "#f87171" };
+  if (bearish / total >= 0.4) return { label: "Sell", color: "var(--red)" };
   return { label: "Mixed", color: "#60a5fa" };
 }
 
@@ -229,7 +229,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                         )}
 
                         {detail === "error" && (
-                          <p style={{ fontSize: "11px", color: "#f87171" }}>Failed to load data. Try again.</p>
+                          <p style={{ fontSize: "11px", color: "var(--red)" }}>Failed to load data. Try again.</p>
                         )}
 
                         {detail && detail !== "loading" && detail !== "error" && (
@@ -253,16 +253,16 @@ export default function EarningsCalendarClient({ rows }: Props) {
                                         <>
                                           {/* Rating bar */}
                                           <div style={{ display: "flex", height: "4px", borderRadius: "2px", overflow: "hidden", gap: "1px", marginBottom: "6px" }}>
-                                            {detail.recommendations.strongBuy > 0 && <div style={{ flex: detail.recommendations.strongBuy, background: "#00d395" }} />}
-                                            {detail.recommendations.buy > 0 && <div style={{ flex: detail.recommendations.buy, background: "#34d399" }} />}
+                                            {detail.recommendations.strongBuy > 0 && <div style={{ flex: detail.recommendations.strongBuy, background: "var(--green)" }} />}
+                                            {detail.recommendations.buy > 0 && <div style={{ flex: detail.recommendations.buy, background: "var(--green)" }} />}
                                             {detail.recommendations.hold > 0 && <div style={{ flex: detail.recommendations.hold, background: "#f59e0b" }} />}
-                                            {detail.recommendations.sell > 0 && <div style={{ flex: detail.recommendations.sell, background: "#f87171" }} />}
-                                            {detail.recommendations.strongSell > 0 && <div style={{ flex: detail.recommendations.strongSell, background: "#ef4444" }} />}
+                                            {detail.recommendations.sell > 0 && <div style={{ flex: detail.recommendations.sell, background: "var(--red)" }} />}
+                                            {detail.recommendations.strongSell > 0 && <div style={{ flex: detail.recommendations.strongSell, background: "var(--red)" }} />}
                                           </div>
                                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                                            <span style={{ color: "#00d395" }}>SB{detail.recommendations.strongBuy} B{detail.recommendations.buy}</span>
+                                            <span style={{ color: "var(--green)" }}>SB{detail.recommendations.strongBuy} B{detail.recommendations.buy}</span>
                                             <span style={{ color: "#f59e0b" }}>H{detail.recommendations.hold}</span>
-                                            <span style={{ color: "#f87171" }}>S{detail.recommendations.sell} SS{detail.recommendations.strongSell}</span>
+                                            <span style={{ color: "var(--red)" }}>S{detail.recommendations.sell} SS{detail.recommendations.strongSell}</span>
                                           </div>
                                         </>
                                       )}

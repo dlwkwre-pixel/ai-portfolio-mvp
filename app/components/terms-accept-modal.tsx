@@ -79,7 +79,7 @@ export default function TermsAcceptModal() {
         }}>
           <div style={{
             fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
-            letterSpacing: "0.07em", color: "#f87171", marginBottom: "5px",
+            letterSpacing: "0.07em", color: "var(--red)", marginBottom: "5px",
           }}>
             Not Financial or Investment Advice
           </div>

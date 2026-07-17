@@ -158,7 +158,7 @@ export default function SupportWidget() {
               </div>
 
               {status === "error" && (
-                <div style={{ fontSize: "12px", color: "var(--red, #ef4444)", padding: "8px 10px", borderRadius: "6px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <div style={{ fontSize: "12px", color: "var(--red)", padding: "8px 10px", borderRadius: "6px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
                   Something went wrong. Please try again.
                 </div>
               )}

@@ -139,7 +139,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
       </p>
 
       {error && (
-        <div style={{ marginTop: "12px", padding: "10px 14px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "#f87171" }}>
+        <div style={{ marginTop: "12px", padding: "10px 14px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--red)" }}>
           {error}
         </div>
       )}
@@ -148,7 +148,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
         <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "10px" }}>
           {result.overallRisk && (
             <div style={{ padding: "10px 14px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: "var(--radius-md)" }}>
-              <span style={{ fontSize: "10px", fontWeight: 600, color: "#f87171", textTransform: "uppercase", letterSpacing: "0.06em" }}>Biggest vulnerability</span>
+              <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Biggest vulnerability</span>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.5 }}>{result.overallRisk}</p>
             </div>
           )}
@@ -186,12 +186,12 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
                   {s.exposed?.length > 0 && (
                     <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                       {s.exposed.map((t) => (
-                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color, background: `rgba(${color === "#f59e0b" ? "245,158,11" : color === "#f87171" ? "248,113,113" : color === "#fb923c" ? "251,146,60" : "148,163,184"},0.1)`, border: `1px solid ${color}30`, padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
+                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color, background: `rgba(${color === "#f59e0b" ? "245,158,11" : color === "var(--red)" ? "248,113,113" : color === "#fb923c" ? "251,146,60" : "148,163,184"},0.1)`, border: `1px solid ${color}30`, padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
                           {t}
                         </span>
                       ))}
                       {s.hedges?.length > 0 && s.hedges.map((t) => (
-                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "#00d395", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
+                        <span key={t} style={{ fontSize: "9px", fontFamily: "var(--font-mono)", color: "var(--green)", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", padding: "1px 5px", borderRadius: "var(--radius-sm)" }}>
                           {t} ✓
                         </span>
                       ))}

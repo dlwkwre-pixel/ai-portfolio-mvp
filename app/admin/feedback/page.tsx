@@ -68,9 +68,9 @@ export default async function FeedbackDashboard() {
   const neutral = rows.filter((r) => r.rating === 3).length;
   const negative = rows.filter((r) => r.rating <= 2).length;
   const sentiments = [
-    { label: "Positive", count: positive, color: "#10b981", note: "4–5★" },
+    { label: "Positive", count: positive, color: "var(--green)", note: "4–5★" },
     { label: "Neutral", count: neutral, color: "#f59e0b", note: "3★" },
-    { label: "Negative", count: negative, color: "#ef4444", note: "1–2★" },
+    { label: "Negative", count: negative, color: "var(--red)", note: "1–2★" },
   ];
 
   return (

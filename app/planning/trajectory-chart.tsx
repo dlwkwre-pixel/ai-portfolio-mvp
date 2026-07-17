@@ -365,7 +365,7 @@ export default function TrajectoryChart({
               onPointerDown={dragRetire}
               style={{ position: "absolute", top: 0, bottom: `${BOT_PAD * 100 - 4}%`, left: `${xFrac(retX) * 100}%`, width: "44px", marginLeft: "-22px", cursor: dragRetire ? "ew-resize" : "default", touchAction: "none", zIndex: 4, outline: "none" }}>
               <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(167,139,250,0.9), rgba(167,139,250,0.1))", borderRadius: "2px" }} />
-              <div style={{ position: "absolute", top: "2px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated, #0d1120)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
+              <div style={{ position: "absolute", top: "2px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
                 <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
                 <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retX}</span>
                 {dragRetire && <span style={{ fontSize: "9px", color: "var(--text-tertiary)" }}>⇄</span>}
@@ -388,7 +388,7 @@ export default function TrajectoryChart({
                 style={{ position: "absolute", left: `${xFrac(x) * 100}%`, top: `${yFrac(bands[i].baseline) * 100}%`, transform: "translate(-50%, -50%)", zIndex: isSel ? 6 : 5, cursor: onMoveEvent ? "grab" : "pointer", opacity: busyPin === ev.id ? 0.6 : 1 }}>
                 <div style={{
                   width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px",
-                  background: "var(--bg-elevated, #0d1120)",
+                  background: "var(--bg-elevated)",
                   border: committed ? `2px solid oklch(0.68 0.15 ${hue})` : `2px dashed oklch(0.6 0.1 ${hue} / 0.8)`,
                   opacity: committed ? 1 : 0.75,
                   boxShadow: isSel ? `0 0 0 5px oklch(0.65 0.15 ${hue} / 0.25)` : "none",
@@ -398,7 +398,7 @@ export default function TrajectoryChart({
                 </div>
                 {isSel && (
                   <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
-                    style={{ position: "absolute", bottom: "38px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay, #111827)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trjc-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
+                    style={{ position: "absolute", bottom: "38px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trjc-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
                     <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emojiFor(ev.category)} {ev.label}</div>
                     <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginBottom: "9px" }}>{yr} · {ph(fmtMoney(ev.amount_impact))}{ev.recurring_annual ? "/yr" : ""}</div>
                     {onToggleEvent && (
@@ -424,7 +424,7 @@ export default function TrajectoryChart({
             return (
               <>
                 <div style={{ position: "absolute", top: `${TOP_PAD * 100}%`, bottom: `${BOT_PAD * 100}%`, left: `${xFrac(hoverX) * 100}%`, width: "1px", background: "rgba(148,163,184,0.28)", pointerEvents: "none", zIndex: 2 }} />
-                <div style={{ position: "absolute", top: "38px", left: `${clamp(xFrac(hoverX) * 100, 14, 84)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 8, background: "var(--bg-elevated, #0d1120)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "6px 10px", whiteSpace: "nowrap", boxShadow: "0 6px 20px rgba(0,0,0,0.45)" }}>
+                <div style={{ position: "absolute", top: "38px", left: `${clamp(xFrac(hoverX) * 100, 14, 84)}%`, transform: "translateX(-50%)", pointerEvents: "none", zIndex: 8, background: "var(--bg-elevated)", border: "1px solid var(--card-border)", borderRadius: "10px", padding: "6px 10px", whiteSpace: "nowrap", boxShadow: "0 6px 20px rgba(0,0,0,0.45)" }}>
                   <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", marginRight: "8px" }}>{hasAges ? `Age ${hoverX}` : `+${hoverX}yr`}</span>
                   <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{ph(fmtMoney(b.baseline))}</span>
                   <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginLeft: "7px" }}>{ph(`${fmtMoney(b.pessimistic)} – ${fmtMoney(b.optimistic)}`)}</span>

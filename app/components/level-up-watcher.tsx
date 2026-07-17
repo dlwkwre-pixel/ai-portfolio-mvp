@@ -76,7 +76,7 @@ export default function LevelUpWatcher() {
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative", width: "100%", maxWidth: "340px", textAlign: "center",
-          background: "#0e1626", border: "1px solid rgba(255,255,255,0.12)",
+          background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: "20px", padding: "28px 24px 22px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)",
           animation: "bt-lvl-pop 0.45s cubic-bezier(0.16,1,0.3,1) both",
         }}

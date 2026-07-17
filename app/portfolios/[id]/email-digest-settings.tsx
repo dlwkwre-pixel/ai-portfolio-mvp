@@ -465,9 +465,9 @@ export default function EmailDigestSettings({
         </button>
 
         {saved && <span style={{ fontSize: "12px", color: "#4ade80" }}>Saved</span>}
-        {saveError && <span style={{ fontSize: "12px", color: "#f87171" }}>{saveError}</span>}
+        {saveError && <span style={{ fontSize: "12px", color: "var(--red)" }}>{saveError}</span>}
         {testResult?.ok && <span style={{ fontSize: "12px", color: "#4ade80" }}>Test email sent!</span>}
-        {testResult?.error && <span style={{ fontSize: "12px", color: "#f87171" }}>{testResult.error}</span>}
+        {testResult?.error && <span style={{ fontSize: "12px", color: "var(--red)" }}>{testResult.error}</span>}
       </div>
 
       {/* Last sent info */}

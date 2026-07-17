@@ -68,7 +68,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
         </div>
         <div style={{ display: "flex", gap: "6px" }}>
           {accuracyRate !== null && (
-            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: accuracyRate >= 50 ? "rgba(0,211,149,0.1)" : "rgba(248,113,113,0.1)", border: `1px solid ${accuracyRate >= 50 ? "rgba(0,211,149,0.25)" : "rgba(248,113,113,0.25)"}`, color: accuracyRate >= 50 ? "#00d395" : "#f87171", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: accuracyRate >= 50 ? "rgba(0,211,149,0.1)" : "rgba(248,113,113,0.1)", border: `1px solid ${accuracyRate >= 50 ? "rgba(0,211,149,0.25)" : "rgba(248,113,113,0.25)"}`, color: accuracyRate >= 50 ? "var(--green)" : "var(--red)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
               {accuracyRate}% accurate
             </span>
           )}
@@ -81,7 +81,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
       {/* Legend */}
       <div style={{ display: "flex", gap: "12px", marginBottom: "14px", flexWrap: "wrap" }}>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00d395", display: "inline-block" }} /> BUY: profitable vs cost basis · SELL: price hit target
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", display: "inline-block" }} /> BUY: profitable vs cost basis · SELL: price hit target
         </span>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#60a5fa", display: "inline-block" }} /> Pending: &lt;7 days old or no target

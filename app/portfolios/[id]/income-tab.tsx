@@ -140,7 +140,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
             <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#34d399", display: "flex", alignItems: "center" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--green)", display: "flex", alignItems: "center" }}>
                 Projected annual income<Hint text="Estimated forward dividends: each holding's current market value × its trailing dividend yield. A forward run-rate, not a guarantee — companies can cut or raise payouts." />
               </div>
               <div style={{ fontSize: "30px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>{fmt(data.projectedAnnual ?? 0)}</div>
@@ -186,7 +186,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
                 <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)" }}>Recently paid — log it</div>
                 {unlogged.length >= 2 && (
                   <button type="button" onClick={logAll} disabled={logging != null}
-                    style={{ flexShrink: 0, padding: "4px 10px", borderRadius: "7px", fontSize: "10.5px", fontWeight: 700, fontFamily: "var(--font-body)", cursor: logging != null ? "default" : "pointer", border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.12)", color: "#34d399", opacity: logging != null ? 0.6 : 1 }}>
+                    style={{ flexShrink: 0, padding: "4px 10px", borderRadius: "7px", fontSize: "10.5px", fontWeight: 700, fontFamily: "var(--font-body)", cursor: logging != null ? "default" : "pointer", border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.12)", color: "var(--green)", opacity: logging != null ? 0.6 : 1 }}>
                     {logging === "__all__" ? "Logging…" : `Log all (${unlogged.length})`}
                   </button>
                 )}

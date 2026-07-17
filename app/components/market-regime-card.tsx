@@ -16,11 +16,11 @@ const LEVEL_CONFIG: Record<RegimeLevel, {
   borderColor: string;
   dotGlow: string;
 }> = {
-  "risk-on":      { color: "#00d395", bgColor: "rgba(0,211,149,0.04)",   borderColor: "rgba(0,211,149,0.15)",   dotGlow: "0 0 8px rgba(0,211,149,0.6)" },
-  "constructive": { color: "#34d399", bgColor: "rgba(52,211,153,0.04)",  borderColor: "rgba(52,211,153,0.15)",  dotGlow: "0 0 6px rgba(52,211,153,0.5)" },
+  "risk-on":      { color: "var(--green)", bgColor: "rgba(0,211,149,0.04)",   borderColor: "rgba(0,211,149,0.15)",   dotGlow: "0 0 8px rgba(0,211,149,0.6)" },
+  "constructive": { color: "var(--green)", bgColor: "rgba(52,211,153,0.04)",  borderColor: "rgba(52,211,153,0.15)",  dotGlow: "0 0 6px rgba(52,211,153,0.5)" },
   "cautious":     { color: "#f59e0b", bgColor: "rgba(245,158,11,0.04)",  borderColor: "rgba(245,158,11,0.15)",  dotGlow: "0 0 6px rgba(245,158,11,0.5)" },
   "defensive":    { color: "#fb923c", bgColor: "rgba(251,146,60,0.04)",  borderColor: "rgba(251,146,60,0.15)",  dotGlow: "0 0 6px rgba(251,146,60,0.5)" },
-  "risk-off":     { color: "#f87171", bgColor: "rgba(248,113,113,0.04)", borderColor: "rgba(248,113,113,0.15)", dotGlow: "0 0 8px rgba(248,113,113,0.6)" },
+  "risk-off":     { color: "var(--red)", bgColor: "rgba(248,113,113,0.04)", borderColor: "rgba(248,113,113,0.15)", dotGlow: "0 0 8px rgba(248,113,113,0.6)" },
 };
 
 // ─── Static educational data ───────────────────────────────────────────────────

@@ -717,7 +717,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
         <select
           value={sortBy}
           onChange={e => setSortBy(e.target.value)}
-          className="rounded-xl border border-white/8 bg-[#040d1a] px-3 py-1.5 text-xs text-slate-300 outline-none"
+          className="rounded-xl border border-white/8 bg-(--bg-base) px-3 py-1.5 text-xs text-slate-300 outline-none"
         >
           <option value="priority">Sort: Priority</option>
           <option value="confidence">Sort: Confidence</option>
@@ -1034,7 +1034,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                                   More
                                 </button>
                                 {openMoreId === item.id && (
-                                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-[#0a1628] p-1 shadow-xl">
+                                  <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-xl border border-white/10 bg-[var(--bg-elevated)] p-1 shadow-xl">
                                     <button type="button"
                                       onClick={() => handleAction(item.id, "archived")}
                                       className="w-full rounded-lg px-3 py-2 text-left text-xs text-slate-400 transition hover:bg-white/5 hover:text-white">
@@ -1380,7 +1380,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
       {/* Bulk action bar — sticky at bottom */}
       {isBulkMode && selectedIds.size > 0 && (
         <div className="sticky bottom-4 z-30 mx-auto max-w-2xl">
-          <div className="rounded-2xl border border-white/15 bg-[#0a1628]/95 px-4 py-3 shadow-2xl backdrop-blur-md">
+          <div className="rounded-2xl border border-white/15 bg-[var(--bg-elevated)]/95 px-4 py-3 shadow-2xl backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-white">{selectedIds.size} selected</span>
               <div className="mx-2 h-4 w-px bg-white/10" />

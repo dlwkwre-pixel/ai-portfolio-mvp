@@ -66,7 +66,7 @@ export default function AutoResync({ lastSyncedAt, minGapSeconds = 900 }: { last
     >
       {syncing ? (
         <>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#00d395", animation: "bt-pulse 1.4s ease-in-out infinite" }} />
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", animation: "bt-pulse 1.4s ease-in-out infinite" }} />
           Syncing…
         </>
       ) : (

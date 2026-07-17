@@ -96,7 +96,7 @@ export default function ManualAccounts({ accounts }: { accounts: BankAccountRow[
         </div>
       )}
 
-      {err && <p style={{ fontSize: "12px", color: "var(--red, #f87171)", marginTop: "10px" }}>{err}</p>}
+      {err && <p style={{ fontSize: "12px", color: "var(--red)", marginTop: "10px" }}>{err}</p>}
 
       {accounts.length > 0 && (
         <div style={{ marginTop: "14px" }}>
@@ -114,14 +114,14 @@ export default function ManualAccounts({ accounts }: { accounts: BankAccountRow[
                     onKeyDown={(e) => { if (e.key === "Enter") void updateBalance(a); if (e.key === "Escape") setEditId(null); }}
                     style={{ width: "110px", padding: "6px 8px", fontSize: "12.5px" }} />
                   <button type="button" disabled={busy} onClick={() => void updateBalance(a)}
-                    style={{ border: "none", background: "none", color: "#00d395", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Save</button>
+                    style={{ border: "none", background: "none", color: "var(--green)", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Save</button>
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={() => { setEditId(a.account_id); setEditBal(String(a.balance_current ?? "")); }}
                   title="Update balance"
-                  style={{ border: "none", background: "none", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: "12.5px", fontWeight: 600, color: a.type === "credit" || a.type === "loan" ? "var(--red, #f87171)" : "var(--text-primary)", textDecoration: "underline dotted", textUnderlineOffset: "3px", padding: "4px" }}
+                  style={{ border: "none", background: "none", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: "12.5px", fontWeight: 600, color: a.type === "credit" || a.type === "loan" ? "var(--red)" : "var(--text-primary)", textDecoration: "underline dotted", textUnderlineOffset: "3px", padding: "4px" }}
                 >
                   {a.type === "credit" || a.type === "loan" ? `−${money(a.balance_current)}` : money(a.balance_current)}
                   <span className="bt-sr-only">, tap to update balance for {a.name}</span>

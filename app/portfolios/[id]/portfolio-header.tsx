@@ -177,7 +177,7 @@ export function PortfolioStatCards({
                 </button>
               </div>
               {cashError && (
-                <p style={{ marginTop: "4px", fontSize: "11px", color: "#f87171" }}>
+                <p style={{ marginTop: "4px", fontSize: "11px", color: "var(--red)" }}>
                   {cashError}
                 </p>
               )}

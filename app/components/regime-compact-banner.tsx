@@ -10,11 +10,11 @@ type RegimeData = {
 };
 
 const LEVEL_CFG: Record<string, { color: string; bg: string; border: string }> = {
-  "risk-on":      { color: "#00d395", bg: "rgba(0,211,149,0.07)",   border: "rgba(0,211,149,0.18)"  },
+  "risk-on":      { color: "var(--green)", bg: "rgba(0,211,149,0.07)",   border: "rgba(0,211,149,0.18)"  },
   "constructive": { color: "#3b82f6", bg: "rgba(59,130,246,0.07)",  border: "rgba(59,130,246,0.18)" },
   "cautious":     { color: "#f59e0b", bg: "rgba(245,158,11,0.07)",  border: "rgba(245,158,11,0.18)" },
   "defensive":    { color: "#f97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.18)" },
-  "risk-off":     { color: "#ef4444", bg: "rgba(239,68,68,0.07)",   border: "rgba(239,68,68,0.18)"  },
+  "risk-off":     { color: "var(--red)", bg: "rgba(239,68,68,0.07)",   border: "rgba(239,68,68,0.18)"  },
 };
 
 export default function RegimeCompactBanner() {

@@ -141,8 +141,8 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
         )}
       </div>
 
-      {err && <p style={{ fontSize: "12px", color: "var(--red, #f87171)", marginTop: "10px" }}>{err}</p>}
-      {msg && <p style={{ fontSize: "12px", color: "#00d395", marginTop: "10px" }}>{msg}</p>}
+      {err && <p style={{ fontSize: "12px", color: "var(--red)", marginTop: "10px" }}>{err}</p>}
+      {msg && <p style={{ fontSize: "12px", color: "var(--green)", marginTop: "10px" }}>{msg}</p>}
 
       {hasAccounts && (
         <div style={{ marginTop: "14px" }}>

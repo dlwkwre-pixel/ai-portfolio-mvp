@@ -360,7 +360,7 @@ export default function Plan401kSection({
                 {isPending ? "Saving…" : "Save 401(k) settings"}
               </button>
               {saved && <span style={{ fontSize: "12px", color: "var(--accent)" }}>Saved — take-home updated everywhere ✓</span>}
-              {error && <span style={{ fontSize: "12px", color: "#f87171" }}>{error}</span>}
+              {error && <span style={{ fontSize: "12px", color: "var(--red)" }}>{error}</span>}
             </div>
           </div>
           ) : (
@@ -409,7 +409,7 @@ export default function Plan401kSection({
             {matchLimitPct > 0 && (
               result.capturesFullMatch ? (
                 <div style={{ ...card, borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#34d399", marginBottom: "4px" }}>✓ Full match captured</div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--green)", marginBottom: "4px" }}>✓ Full match captured</div>
                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                     Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — none left on the table.
                   </div>
@@ -573,7 +573,7 @@ export default function Plan401kSection({
                         <td style={{ textAlign: "left", padding: "8px", color: "var(--text-primary)", fontWeight: isCurrent ? 700 : 500 }}>
                           {fmtPct(s.pct)}
                           {isCurrent && <span style={{ color: "var(--accent)", fontSize: "10px", marginLeft: "6px" }}>YOU</span>}
-                          {isFullMatch && !isCurrent && <span style={{ color: "#34d399", fontSize: "10px", marginLeft: "6px" }}>FULL MATCH</span>}
+                          {isFullMatch && !isCurrent && <span style={{ color: "var(--green)", fontSize: "10px", marginLeft: "6px" }}>FULL MATCH</span>}
                         </td>
                         <td style={{ ...mono, padding: "8px", color: "var(--text-secondary)" }}>{fmt(s.employeeAnnual)}</td>
                         <td style={{ ...mono, padding: "8px", color: s.employerAnnual > 0 ? "#34d399" : "var(--text-tertiary)" }}>

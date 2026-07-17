@@ -126,7 +126,7 @@ export default function NotificationCenter({ placement = "down" }: { placement?:
             width: "8px",
             height: "8px",
             borderRadius: "50%",
-            background: "#ef4444",
+            background: "var(--red)",
             border: "1.5px solid var(--bg-base)",
             display: "block",
           }} />

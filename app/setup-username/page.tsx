@@ -81,7 +81,7 @@ export default function UsernameSetupPage() {
   const isValid = username.length >= 3 && available === true;
 
   return (
-    <main style={{ minHeight: "100vh", background: "#07090f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: "var(--bg-base)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -146,7 +146,7 @@ export default function UsernameSetupPage() {
               <div style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)" }}>
                 {checking && <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>checking...</span>}
                 {!checking && available === true && (
-                  <span style={{ fontSize: "11px", color: "#00d395", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--green)", display: "flex", alignItems: "center", gap: "4px" }}>
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
                     available
                   </span>

@@ -215,7 +215,7 @@ export function CongressTickerCard({ ticker }: { ticker: string }) {
             {data.summary && (
               <div style={{ display: "flex", gap: "14px", marginBottom: "10px", fontSize: "12px", fontFamily: "var(--font-mono)" }}>
                 <span style={{ color: "var(--green)" }}>{data.summary.buys} buy{data.summary.buys === 1 ? "" : "s"}</span>
-                <span style={{ color: "#f87171" }}>{data.summary.sells} sell{data.summary.sells === 1 ? "" : "s"}</span>
+                <span style={{ color: "var(--red)" }}>{data.summary.sells} sell{data.summary.sells === 1 ? "" : "s"}</span>
                 <span style={{ color: "var(--text-tertiary)" }}>{data.summary.people.length} member{data.summary.people.length === 1 ? "" : "s"}</span>
               </div>
             )}

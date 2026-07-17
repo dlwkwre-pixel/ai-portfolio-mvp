@@ -163,7 +163,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
                 Value ↔ Growth <Hint text="Value = cheaper on earnings/book (low P/E, low P/B). Growth = pricier, faster-growing (high P/E, strong revenue/EPS growth). Blend is in between." />
               </div>
               <SplitBar segments={[
-                { label: "Value", pct: data.factors.style.value, color: "#10b981" },
+                { label: "Value", pct: data.factors.style.value, color: "var(--green)" },
                 { label: "Blend", pct: data.factors.style.blend, color: "var(--text-tertiary)" },
                 { label: "Growth", pct: data.factors.style.growth, color: "#7c3aed" },
               ]} />
@@ -256,7 +256,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
             Tax-loss harvesting <Hint text="Lots trading below what you paid. Selling them realizes a loss that can offset capital gains (and up to $3,000/yr of ordinary income). ⚠ wash sale = you bought this ticker within the last 30 days, so selling now would disallow the loss. Not tax advice — timing and your full tax picture matter." />
           </h2>
           <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: "0 0 12px" }}>
-            Harvestable losses: <strong style={{ fontFamily: "var(--font-mono)", color: "var(--red, #f87171)" }}>${data.harvest.totalLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
+            Harvestable losses: <strong style={{ fontFamily: "var(--font-mono)", color: "var(--red)" }}>${data.harvest.totalLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
             {" "}(<span style={{ fontFamily: "var(--font-mono)" }}>${data.harvest.stLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> short-term · <span style={{ fontFamily: "var(--font-mono)" }}>${data.harvest.ltLoss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> long-term)
           </p>
           <div style={{ overflowX: "auto" }}>
@@ -276,7 +276,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
                     <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>{c.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>${c.costPerShare.toLocaleString()}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", borderBottom: "1px solid var(--border-subtle)" }}>${c.price.toLocaleString()}</td>
-                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--red, #f87171)", borderBottom: "1px solid var(--border-subtle)" }}>−${c.loss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                    <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--red)", borderBottom: "1px solid var(--border-subtle)" }}>−${c.loss.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", fontSize: "10px", color: c.longTerm ? "var(--text-tertiary)" : "#f59e0b", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>{c.longTerm ? "Long" : "Short"}</td>
                     <td style={{ padding: "7px 8px", textAlign: "right", borderBottom: "1px solid var(--border-subtle)", whiteSpace: "nowrap" }}>
                       {c.washSaleRisk && <span title="You bought this ticker in the last 30 days — selling at a loss now would trigger the wash-sale rule and disallow the deduction." style={{ fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "2px 7px", cursor: "help" }}>⚠ wash sale</span>}

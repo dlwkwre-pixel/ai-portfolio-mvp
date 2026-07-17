@@ -113,7 +113,7 @@ export default function NewPortfolioForm() {
   }
 
   const inputClass = "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
-  const selectClass = "w-full rounded-xl border border-white/10 bg-[#040d1a] px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+  const selectClass = "w-full rounded-xl border border-white/10 bg-(--bg-base) px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
   const labelClass = "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-400";
 
   return (

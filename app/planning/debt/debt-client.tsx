@@ -312,7 +312,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
               </svg>
               {extra > 0 && (
                 <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "10.5px" }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "var(--green, #22c55e)" }} /> Your plan</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "var(--green)" }} /> Your plan</span>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "rgba(148,163,184,0.6)" }} /> Minimums only</span>
                 </div>
               )}

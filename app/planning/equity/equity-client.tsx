@@ -199,7 +199,7 @@ export default function EquityClient({
               <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>{r.priceKnown ? fmt(r.grossValue) : "—"}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", marginTop: "7px", fontSize: "11.5px", color: "var(--text-tertiary)" }}>
-              <span><span style={{ fontFamily: "var(--font-mono)", color: "#00d395" }}>{r.vestedShares.toLocaleString()}</span> / {r.total.toLocaleString()} vested</span>
+              <span><span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{r.vestedShares.toLocaleString()}</span> / {r.total.toLocaleString()} vested</span>
               {r.priceKnown && <span>Vested value <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{fmt(r.vestedValue)}</span></span>}
               {r.next && <span>Next vest {fmtDate(r.next)}</span>}
               {!r.priceKnown && <span style={{ color: "#f59e0b" }}>Add a ticker or current price to value this</span>}

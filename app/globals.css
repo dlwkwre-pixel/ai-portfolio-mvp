@@ -187,6 +187,19 @@
    without touching any component. text-slate-400 already passes and keeps its value. */
 .text-slate-500, .text-slate-600 { color: var(--text-tertiary); }
 
+/* ── One green, one red ──
+   Five greens circulated for "up" (emerald-300/400/500 classes + hex literals).
+   Route the Tailwind classes through the semantic tokens so gains/losses are ONE
+   hue everywhere and theme-correct (light theme swaps --green/--red to darker,
+   AA-passing values). Alpha-tint variants (bg-emerald-500/10) are separate class
+   names and intentionally untouched; destructive button reds (bg-red-500) stay
+   distinct from market-loss red on purpose. */
+.text-emerald-300, .text-emerald-400, .text-emerald-500 { color: var(--green); }
+.bg-emerald-400, .bg-emerald-500 { background-color: var(--green); }
+.border-emerald-500 { border-color: var(--green); }
+.border-emerald-900 { border-color: var(--green-border); }
+.text-red-300, .text-red-400 { color: var(--red); }
+
 /* ── Light-mode overrides for Tailwind white-alpha utilities ──
    These utilities (bg-white/N, border-white/N) bake in white, which is
    invisible on a light background. The rules below are unlayered, so they beat

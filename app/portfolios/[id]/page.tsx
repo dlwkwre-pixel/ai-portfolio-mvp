@@ -122,7 +122,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     if (account) {
       const hint = decodeURIComponent(account);
       return (
-        <main style={{ minHeight: "100vh", background: "#07090f", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
+        <main style={{ minHeight: "100vh", background: "var(--bg-base)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
           <div style={{ maxWidth: "400px", width: "100%", textAlign: "center" }}>
             <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -420,7 +420,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                             <>
                               <span title={linkedBadgeTitle} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 600, borderRadius: "999px", padding: "5px 11px", cursor: "help", ...(lowPriceCoverage
                                 ? { color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)" }
-                                : { color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)" }) }}>
+                                : { color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)" }) }}>
                                 {lowPriceCoverage ? "🔗 Synced · limited price data" : <>🔗 Synced from your brokerage{returnHealth?.method ? " ✓" : ""}</>}
                               </span>
                               <AutoResync lastSyncedAt={brokerageLastSyncedAt} />

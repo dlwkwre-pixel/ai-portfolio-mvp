@@ -55,7 +55,7 @@ export default function DcaCard() {
           <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>Set up auto-invest</div>
           <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Schedule recurring contributions and we&apos;ll remind you to invest, every time.</div>
         </div>
-        <span style={{ fontSize: "13px", color: "var(--accent, #34d399)", fontWeight: 600, flexShrink: 0 }}>→</span>
+        <span style={{ fontSize: "13px", color: "var(--accent, var(--green))", fontWeight: 600, flexShrink: 0 }}>→</span>
       </Link>
     );
   }
@@ -79,7 +79,7 @@ export default function DcaCard() {
           {data.count > 1 ? ` · +${data.count - 1} more` : ""} · {fmt(data.monthlyPace)}/mo pace
         </div>
       </div>
-      <span style={{ fontSize: "13px", color: "var(--accent, #34d399)", fontWeight: 600, flexShrink: 0 }}>→</span>
+      <span style={{ fontSize: "13px", color: "var(--accent, var(--green))", fontWeight: 600, flexShrink: 0 }}>→</span>
     </Link>
   );
 }

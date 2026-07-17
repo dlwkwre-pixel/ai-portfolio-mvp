@@ -275,7 +275,7 @@ const ASSET_LABELS: Record<string, string> = { stock: "Stocks", equity: "Stocks"
 const BUCKET_META: Record<"taxable" | "deferred" | "free", { label: string; color: string; tip: string }> = {
   taxable:  { label: "Taxable",      color: "#38bdf8", tip: "Brokerage / individual accounts. You owe tax on dividends and realized gains each year. Best home for tax-efficient holdings you may want to sell flexibly." },
   deferred: { label: "Tax-deferred", color: "#a78bfa", tip: "Traditional 401(k) / IRA / HSA. Contributions are pre-tax and grow untaxed; withdrawals in retirement are taxed as ordinary income. Best home for income-heavy or tax-inefficient assets (bonds, REITs)." },
-  free:     { label: "Tax-free",     color: "#34d399", tip: "Roth IRA / Roth 401(k). Funded with after-tax dollars; qualified growth and withdrawals are 100% tax-free. Best home for your highest-growth assets." },
+  free:     { label: "Tax-free",     color: "var(--green)", tip: "Roth IRA / Roth 401(k). Funded with after-tax dollars; qualified growth and withdrawals are 100% tax-free. Best home for your highest-growth assets." },
 };
 
 function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; deferred: AssetBucket; free: AssetBucket } }) {
@@ -426,7 +426,7 @@ function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate
             </button>
           )}
         </div>
-        <input type="range" min={1} max={10} value={years} onChange={(e) => setYears(Number(e.target.value))} style={{ width: "100%", accentColor: "#34d399" }} />
+        <input type="range" min={1} max={10} value={years} onChange={(e) => setYears(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--green)" }} />
       </div>
 
       {/* Results */}
@@ -1484,7 +1484,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Recorded Trades in {selectedYear}</p>
                   {tradesSaved && (
-                    <span style={{ fontSize: "10px", color: "#22c55e", fontWeight: 600, opacity: 1, transition: "opacity 0.3s" }}>✓ Saved</span>
+                    <span style={{ fontSize: "10px", color: "var(--green)", fontWeight: 600, opacity: 1, transition: "opacity 0.3s" }}>✓ Saved</span>
                   )}
                 </div>
                 <div style={{ display: "flex", gap: "4px" }}>

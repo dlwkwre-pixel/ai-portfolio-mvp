@@ -452,7 +452,7 @@ function getConfidence(signalCount: number): {
 } {
   if (signalCount <= 1) return { level: "Low",      bars: 1, color: "#f59e0b",      reason: "Limited preference data. Defaults applied."  };
   if (signalCount <= 3) return { level: "Moderate", bars: 2, color: FV.accentBright, reason: "Partial profile. Some assumptions were made." };
-  return                       { level: "High",     bars: 3, color: "#00d395",      reason: "Full profile. Strategy is well-calibrated."   };
+  return                       { level: "High",     bars: 3, color: "var(--green)",      reason: "Full profile. Strategy is well-calibrated."   };
 }
 
 function getPsychologyBrief(s: GeneratedStrategy): { drawdown: string; challenge: string } {
@@ -520,7 +520,7 @@ function computeEvolution(original: GeneratedStrategy, current: GeneratedStrateg
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const selectClass =
-  "w-full rounded-xl border border-white/10 bg-[#040d1a] px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+  "w-full rounded-xl border border-white/10 bg-(--bg-base) px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
 const labelClass =
   "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500";
 
@@ -604,7 +604,7 @@ function ContradictionCard({ title, body, resolution }: { title: string; body: s
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="none">
           <path d="M5 1v4M5 7.5v.5" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
-        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#ef4444" }}>Atlas — Objective Conflict</span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: "var(--red)" }}>Atlas — Objective Conflict</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -1229,8 +1229,8 @@ export default function StrategyQuestionnaire({
     <div
       className={
         variant === "inline"
-          ? "w-full max-h-[560px] flex flex-col rounded-2xl border border-white/10 bg-[#07090f]"
-          : "w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-[#040d1a] shadow-2xl"
+          ? "w-full max-h-[560px] flex flex-col rounded-2xl border border-white/10 bg-(--bg-base)"
+          : "w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-white/10 bg-(--bg-base) shadow-2xl"
       }
       style={{
         boxShadow: isBusy

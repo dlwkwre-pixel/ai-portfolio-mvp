@@ -949,7 +949,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                   </div>
                   <div style={{ display: "flex", gap: 4 }}>
                     <button onClick={(e) => { e.stopPropagation(); startEdit(s); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: 12, padding: "2px 6px" }}>Edit</button>
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: 12, padding: "2px 6px" }}>Del</button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }} disabled={deleting} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red)", fontSize: 12, padding: "2px 6px" }}>Del</button>
                   </div>
                 </div>
               ))}

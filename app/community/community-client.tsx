@@ -498,7 +498,7 @@ function StrategyPreviewModal({
                             return (
                               <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
                                 {strategyWon
-                                  ? <><span style={{ color: "#34d399", fontWeight: 600 }}>Strategy outperformed</span> your portfolio by <span style={{ fontFamily: "var(--font-mono)", color: "#34d399" }}>+{Math.abs(diff).toFixed(2)}%</span></>
+                                  ? <><span style={{ color: "var(--green)", fontWeight: 600 }}>Strategy outperformed</span> your portfolio by <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>+{Math.abs(diff).toFixed(2)}%</span></>
                                   : diff === 0
                                   ? "Tied — identical returns over this period."
                                   : <><span style={{ color: "#f59e0b", fontWeight: 600 }}>You outperformed</span> this strategy by <span style={{ fontFamily: "var(--font-mono)", color: "#f59e0b" }}>+{Math.abs(diff).toFixed(2)}%</span></>

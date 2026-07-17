@@ -83,7 +83,7 @@ export default function AgreementsClient({ users, currentVersion }: { users: Agr
             <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "9px 12px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
               <span style={{ flex: "1 1 200px", minWidth: 0, fontSize: "13px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</span>
               <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", flexShrink: 0,
-                color: accepted ? "#00d395" : "#f59e0b", background: accepted ? "rgba(0,211,149,0.1)" : "rgba(245,158,11,0.1)", border: `1px solid ${accepted ? "rgba(0,211,149,0.3)" : "rgba(245,158,11,0.3)"}`, borderRadius: "6px", padding: "2px 7px" }}>
+                color: accepted ? "var(--green)" : "#f59e0b", background: accepted ? "rgba(0,211,149,0.1)" : "rgba(245,158,11,0.1)", border: `1px solid ${accepted ? "rgba(0,211,149,0.3)" : "rgba(245,158,11,0.3)"}`, borderRadius: "6px", padding: "2px 7px" }}>
                 {accepted ? "Accepted" : "Pending"}
               </span>
               <span style={{ fontSize: "11.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flexShrink: 0, minWidth: "90px", textAlign: "right" }}>{fmt(u.termsAcceptedAt)}</span>

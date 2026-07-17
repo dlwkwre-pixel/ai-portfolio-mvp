@@ -4395,7 +4395,7 @@ export default function HomeClient({
                     { label: "Monthly Payment (P&I)", value: fmt(computed.amortStats.monthlyPayment), color: "var(--text-primary)", sub: "principal + interest only", tip: "Does not include property tax, insurance, or HOA — just the loan payment." },
                     { label: "Total Interest Paid", value: fmtK(computed.amortStats.totalInterest), color: "oklch(0.68 0.18 25)", sub: "over full loan term", tip: "The extra cost of borrowing over the life of the loan, on top of the home price." },
                     { label: "More Going to You", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#3b82f6", sub: "principal beats interest", tip: "The year your payment starts building more equity than it costs in interest. Before this year, the bank is the primary beneficiary of your payment." },
-                    { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "#00d395", sub: "loan half paid off", tip: "The year your remaining loan balance drops to 50% of the original loan amount — the halfway point to owning it outright." },
+                    { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "var(--green)", sub: "loan half paid off", tip: "The year your remaining loan balance drops to 50% of the original loan amount — the halfway point to owning it outright." },
                   ].map(({ label, value, color, sub, tip }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: "3px", fontFamily: "var(--font-body)" }}>
@@ -4417,7 +4417,7 @@ export default function HomeClient({
                       { label: "80% equity", year: computed.amortStats.equity80Year, note: "strong position" },
                     ].filter(m => m.year != null).map(({ label, year, note }) => (
                       <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: "rgba(0,211,149,0.08)", border: "1px solid rgba(0,211,149,0.2)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
-                        <span style={{ color: "#00d395", fontWeight: 600 }}>Year {year}</span>
+                        <span style={{ color: "var(--green)", fontWeight: 600 }}>Year {year}</span>
                         <span style={{ color: "var(--text-tertiary)" }}>· {label}</span>
                         <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>({note})</span>
                       </div>
@@ -4453,7 +4453,7 @@ export default function HomeClient({
                 {/* Table */}
                 <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "340px" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", fontFamily: "var(--font-mono)" }}>
-                    <thead style={{ position: "sticky", top: 0, background: "#091525", zIndex: 1 }}>
+                    <thead style={{ position: "sticky", top: 0, background: "var(--bg-elevated)", zIndex: 1 }}>
                       <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                         {["Yr", "Balance", "Principal Paid", "Interest Paid", "Total Interest", "Home Value", "Equity", "Equity %"].map((h) => (
                           <th key={h} style={{ padding: "5px 8px 7px", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
@@ -4479,7 +4479,7 @@ export default function HomeClient({
                             <td style={{ padding: "5px 8px", color: "oklch(0.70 0.15 25)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
                             <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
                             <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
-                            <td style={{ padding: "5px 8px", color: "#00d395", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                            <td style={{ padding: "5px 8px", color: "var(--green)", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
                             <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "var(--text-tertiary)" }}>
                               {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
                             </td>
@@ -4509,7 +4509,7 @@ export default function HomeClient({
                 RENT: { text: "oklch(0.68 0.18 25)",  bg: "color-mix(in oklch, oklch(0.68 0.18 25)  8%, var(--card-bg))", border: "color-mix(in oklch, oklch(0.68 0.18 25)  22%, transparent)" },
               };
               const confPalette = {
-                High:   { bg: "rgba(0,211,149,0.10)",   text: "#00d395",           border: "rgba(0,211,149,0.25)" },
+                High:   { bg: "rgba(0,211,149,0.10)",   text: "var(--green)",           border: "rgba(0,211,149,0.25)" },
                 Medium: { bg: "rgba(245,158,11,0.10)",  text: "#f59e0b",           border: "rgba(245,158,11,0.25)" },
                 Low:    { bg: "rgba(148,163,184,0.10)", text: "var(--text-muted)", border: "rgba(148,163,184,0.2)" },
               };
@@ -4888,7 +4888,7 @@ export default function HomeClient({
                       <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Buying</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#00d395" }} />
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "var(--green)" }} />
                       <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Renting</span>
                     </div>
                   </div>
@@ -5332,7 +5332,7 @@ export default function HomeClient({
                     const buyWins = computed.lastPoint!.homeEquity > computed.lastPoint!.rentPortfolio;
                     const diff = Math.abs(computed.lastPoint!.homeEquity - computed.lastPoint!.rentPortfolio);
                     return (
-                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", background: buyWins ? "rgba(59,130,246,0.10)" : "rgba(0,211,149,0.10)", color: buyWins ? "#3b82f6" : "#00d395", border: `1px solid ${buyWins ? "rgba(59,130,246,0.2)" : "rgba(0,211,149,0.2)"}`, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", background: buyWins ? "rgba(59,130,246,0.10)" : "rgba(0,211,149,0.10)", color: buyWins ? "#3b82f6" : "var(--green)", border: `1px solid ${buyWins ? "rgba(59,130,246,0.2)" : "rgba(0,211,149,0.2)"}`, whiteSpace: "nowrap", flexShrink: 0 }}>
                         {buyWins ? "Buying" : "Renting"} ahead by {fmtK(diff)}
                       </span>
                     );
@@ -5369,7 +5369,7 @@ export default function HomeClient({
                     {[
                       { label: `Equity at yr ${inputs.hold_years}`, value: fmtK(computed.lastPoint.homeEquity), color: "#3b82f6" },
                       { label: "Home value", value: fmtK(computed.lastPoint.homeValue), color: "var(--text-secondary)" },
-                      { label: isOwnerMode ? "Stay & invest" : "Renter portfolio", value: fmtK(computed.lastPoint.rentPortfolio), color: "#00d395" },
+                      { label: isOwnerMode ? "Stay & invest" : "Renter portfolio", value: fmtK(computed.lastPoint.rentPortfolio), color: "var(--green)" },
                     ].map(({ label, value, color }) => (
                       <div key={label} style={{ textAlign: "center" }}>
                         <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color }}>{value}</div>
@@ -5989,7 +5989,7 @@ export default function HomeClient({
                         <td style={{ color: "oklch(0.68 0.16 25)" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualInterest)}</td>
                         <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.cumulativeInterest)}</td>
                         <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.homeValue)}</td>
-                        <td style={{ color: "#00d395", fontWeight: 600 }}>{fmtK(row.equity)}</td>
+                        <td style={{ color: "var(--green)", fontWeight: 600 }}>{fmtK(row.equity)}</td>
                         <td>
                           <span style={{
                             display: "inline-block", padding: "1px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,

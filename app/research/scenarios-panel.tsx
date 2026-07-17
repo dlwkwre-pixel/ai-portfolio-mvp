@@ -22,7 +22,7 @@ const SIGNAL_CONFIG: Record<SignalLevel, { label: string; color: string; bg: str
   cold:    { label: "No Signal",  color: "var(--text-muted)",    bg: "rgba(255,255,255,0.04)", dot: "var(--border)",  tooltip: "No news triggers detected. This scenario is not currently in play." },
   warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b",        tooltip: "1–4 headlines matched. Early signs this scenario may be developing — worth watching." },
   active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6",        tooltip: "5–11 headlines matched. This scenario is building real momentum across the news cycle." },
-  hot:     { label: "Hot Signal", color: "#ef4444",              bg: "rgba(239,68,68,0.12)",  dot: "#ef4444",        tooltip: "12+ headlines matched. This scenario is dominating coverage and may be actively playing out." },
+  hot:     { label: "Hot Signal", color: "var(--red)",              bg: "rgba(239,68,68,0.12)",  dot: "var(--red)",        tooltip: "12+ headlines matched. This scenario is dominating coverage and may be actively playing out." },
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -863,7 +863,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
         {!loading && (
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {[
-              { key: "hot"     as const, label: "Hot",     count: hotCount,     color: "#ef4444", glow: true,  alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
+              { key: "hot"     as const, label: "Hot",     count: hotCount,     color: "var(--red)", glow: true,  alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
               { key: "active"  as const, label: "Active",  count: activeCount,  color: "#3b82f6", glow: false, alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
               { key: "warming" as const, label: "Warming", count: warmingCount, color: "#f59e0b", glow: false, alpha: "0.08", alphaBold: "0.18", border: "0.22", borderBold: "0.55" },
               { key: "signals" as const, label: "Any",     count: signalCount,  color: "var(--text-tertiary)", glow: false, alpha: "0.06", alphaBold: "0.14", border: "0.18", borderBold: "0.45" },

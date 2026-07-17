@@ -72,11 +72,11 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
         <div style={{ display: "flex", gap: "18px" }}>
           <div>
             <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Spent</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--red, #f87171)" }}>{ph(money(month.spend))}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--red)" }}>{ph(money(month.spend))}</div>
           </div>
           <div>
             <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>Received</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--green, #00d395)" }}>{ph(money(month.income))}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 800, color: "var(--green)" }}>{ph(money(month.income))}</div>
           </div>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", flexShrink: 0 }}>{ph(money(s.monthlyEquivalent))}/mo</span>
               {added.has(s.merchant) ? (
-                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--green, #00d395)", flexShrink: 0 }}>✓ in budget</span>
+                <span style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--green)", flexShrink: 0 }}>✓ in budget</span>
               ) : (
                 <button
                   type="button" disabled={addingKey !== null} onClick={() => void addToBudget(s)}

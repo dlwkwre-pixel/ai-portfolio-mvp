@@ -165,7 +165,7 @@ export default async function PortfoliosPage() {
                               {portfolio.status}
                             </span>
                             {linkedIds.has(portfolio.id) && (
-                              <span title="Synced from your connected brokerage" style={{ fontSize: "9px", fontWeight: 700, color: "#00d395", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
+                              <span title="Synced from your connected brokerage" style={{ fontSize: "9px", fontWeight: 700, color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
                                 ✓ Synced
                               </span>
                             )}

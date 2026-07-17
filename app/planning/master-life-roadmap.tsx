@@ -25,10 +25,10 @@ const CAT = (c: string): { color: string; label: string } => {
   if (c === "education") return { color: "#a78bfa", label: "Education" };
   if (c === "vehicle") return { color: "#f59e0b", label: "Vehicle" };
   if (c === "wedding") return { color: "#f472b6", label: "Wedding" };
-  if (c === "windfall") return { color: "#00d395", label: "Windfall" };
+  if (c === "windfall") return { color: "var(--green)", label: "Windfall" };
   if (c === "career") return { color: "#06b6d4", label: "Career" };
   if (c === "relocation") return { color: "#818cf8", label: "Relocation" };
-  if (c === "debt") return { color: "#fb7185", label: "Debt" };
+  if (c === "debt") return { color: "var(--red)", label: "Debt" };
   return { color: "var(--text-tertiary)", label: "Other" };
 };
 

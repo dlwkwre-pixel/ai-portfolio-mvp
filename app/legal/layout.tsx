@@ -18,7 +18,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
   const backLabel = user ? "Back to app" : "Back to BuyTune";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#07090f", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
