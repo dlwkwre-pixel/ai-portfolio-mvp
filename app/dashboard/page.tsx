@@ -17,6 +17,7 @@ import DashboardHeaderClient from "./dashboard-header-client";
 import MacroStrip from "./macro-strip";
 import NotificationCenter from "@/app/components/notification-center";
 import PricingSurveyCard from "@/app/components/pricing-survey-card";
+import AiOutcomeCard from "./ai-outcome-card";
 
 function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -373,6 +374,9 @@ export default async function DashboardPage({
                 </Suspense>
               </div>
             )}
+            <Suspense fallback={null}>
+              <AiOutcomeCard portfolios={activePortfolios.map((p) => ({ id: p.id, name: p.name }))} />
+            </Suspense>
             <Suspense fallback={null}>
               <MacroStrip />
             </Suspense>

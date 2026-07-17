@@ -1716,6 +1716,29 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
         notes: "Initial AI recommendation created.",
       });
 
+      // Best-effort: stamp the market price at recommendation time (reference_price)
+      // from the valuation already in the AI context. Separate update on purpose —
+      // a DB without supabase/recommendation-reference-price.sql never breaks the run.
+      // This is the baseline that lets skipped recs be scored against followed ones.
+      try {
+        const ctxHoldings: { ticker?: string; current_price?: number | null }[] =
+          (context as any).current_valuation?.holdings ?? [];
+        const refPrices = new Map<string, number>();
+        for (const h of ctxHoldings) {
+          const p = Number(h.current_price);
+          if (h.ticker && Number.isFinite(p) && p > 0) refPrices.set(String(h.ticker).toUpperCase(), p);
+        }
+        await Promise.all(validatedRecs.map((item, i) => {
+          const ref = refPrices.get(String(item.ticker ?? "").toUpperCase());
+          const id = insertedItemIds[i];
+          if (!ref || !id) return Promise.resolve();
+          return supabase.from("recommendation_items")
+            .update({ reference_price: ref })
+            .eq("id", id)
+            .then((r) => r, () => ({}));
+        }));
+      } catch { /* non-fatal by design */ }
+
       // Auto-log actionable AI calls into the Decision Journal so the user can
       // react (run the devil's advocate, reflect later) without manual entry.
       // Best-effort + non-fatal: skips silently if the migration isn't applied.

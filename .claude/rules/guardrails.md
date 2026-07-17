@@ -42,7 +42,12 @@ Adapted from everything-claude-code for the BuyTune.io Next.js/TypeScript codeba
 ## UI / Design
 
 - Dark theme only — use CSS tokens, never raw hex in component files
+- Gains/up = `var(--green)`, losses/down/errors = `var(--red)` — never Tailwind emerald/green/red literals (unlayered remaps in globals.css catch legacy classes)
+- Font sizes use the type-scale tokens (`--text-2xs` … `--text-lg`); floor is 10px — nothing user-facing smaller (numeric SVG chart ticks exempt)
+- Border radii use `--radius-sm/md/lg/xl/full`, not ad-hoc pixel values
+- Tailwind v4: arbitrary values with CSS vars use paren syntax `bg-(--bg-base)` — the bracket form `bg-[var(--x)]` silently generates NO utility
 - All numeric values use DM Mono font (`var(--font-mono)`)
+- New buttons/chips/section headers use the primitives in `app/components/ui-primitives.tsx` (Button, Chip, SectionHeader) — no more bespoke inline-styled buttons; migrate old ones opportunistically when touching a file
 - Touch targets minimum 44px on mobile
 - Mobile-first: all new components tested at 375px
 - Run `$impeccable craft` or `$impeccable shape` for significant new UI surfaces
