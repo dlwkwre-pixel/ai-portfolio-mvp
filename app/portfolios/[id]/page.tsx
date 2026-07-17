@@ -129,7 +129,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
               </svg>
             </div>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Wrong account</h1>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Wrong account</h1>
             <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.65, marginBottom: "6px" }}>
               This portfolio link is for <strong style={{ color: "#94a3b8" }}>{hint}</strong>.
             </p>

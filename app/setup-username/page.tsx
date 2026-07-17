@@ -107,13 +107,13 @@ export default function UsernameSetupPage() {
           <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BrandGlyph size={14} strokeWidth={2.6} />
           </div>
-          <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: "#fff" }}>
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
           </span>
         </div>
 
         <div className="fu1" style={{ marginBottom: "32px", textAlign: "center" }}>
-          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "8px" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "8px" }}>
             Pick your username
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>

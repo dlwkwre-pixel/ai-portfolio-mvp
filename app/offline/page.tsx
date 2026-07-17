@@ -14,7 +14,7 @@ export default function OfflinePage() {
       <div style={{ width: "56px", height: "56px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "24px" }}>
         <BrandGlyph size={24} strokeWidth={2.4} />
       </div>
-      <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "24px", fontWeight: 700, marginBottom: "8px" }}>
+      <h1 style={{ fontFamily: "var(--font-display)", fontSize: "24px", fontWeight: 700, marginBottom: "8px" }}>
         You're offline
       </h1>
       <p style={{ fontSize: "15px", color: "var(--text-tertiary)", maxWidth: "320px", lineHeight: 1.6, marginBottom: "24px" }}>

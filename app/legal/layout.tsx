@@ -46,7 +46,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
           <div style={{ width: "26px", height: "26px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <BrandGlyph size={11} strokeWidth={3.4} />
           </div>
-          <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: "14px", color: "#f0f4ff", letterSpacing: "-0.2px" }}>
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "14px", color: "#f0f4ff", letterSpacing: "-0.2px" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>
           </span>
         </Link>

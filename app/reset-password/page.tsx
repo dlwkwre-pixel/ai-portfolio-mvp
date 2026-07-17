@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
             <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px" }}>
+            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px" }}>
               Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
             </span>
           </Link>
@@ -70,13 +70,13 @@ export default function ResetPasswordPage() {
                 <path d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Password updated</h2>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Password updated</h2>
             <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Redirecting you to your dashboard…</p>
           </div>
         ) : (
           <>
             <div className="fu0" style={{ marginBottom: "32px" }}>
-              <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Set a new password</h1>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Set a new password</h1>
               <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Choose something strong you&apos;ll remember.</p>
             </div>
 

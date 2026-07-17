@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
 /* ── Dark theme (default) ── */
@@ -45,8 +45,13 @@
   --nav-active-border: rgba(37,99,235,0.2);
   --nav-active-text: #93c5fd;
 
-  --font-display:   var(--font-syne), 'Syne', sans-serif;
-  --font-body:      'DM Sans', sans-serif;
+  /* Syne is a deliberately WIDE display face — it reads as "stretched" at large
+     heading sizes (user-confirmed on landing + login). It now lives only in the
+     wordmark via --font-logo; all headings run on DM Sans (self-hosted via
+     next/font as --font-dm, with the Google import as fallback). */
+  --font-display:   var(--font-dm), 'DM Sans', sans-serif;
+  --font-logo:      var(--font-syne), 'Syne', sans-serif;
+  --font-body:      var(--font-dm), 'DM Sans', sans-serif;
   --font-mono:      'DM Mono', monospace;
 
   --shadow-sm:      0 1px 3px rgba(0,0,0,0.4);

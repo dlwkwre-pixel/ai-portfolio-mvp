@@ -219,7 +219,7 @@ export default function ShareCardClient({
           </div>
           <h1
             style={{
-              fontFamily: "'Syne', system-ui, sans-serif",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
               fontSize: "clamp(19px, 5vw, 25px)",
               fontWeight: 800,
               color: "#f0f4ff",

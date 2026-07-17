@@ -59,11 +59,11 @@ export default function SignupPage() {
           <div style={{ width:"36px", height:"36px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
-          <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"17px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+          <span style={{ fontFamily:"var(--font-logo)", fontWeight:700, fontSize:"17px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
         </Link>
 
         <div style={{ position:"relative", zIndex:1 }}>
-          <h2 style={{ fontFamily:"'Syne',sans-serif", fontSize:"32px", fontWeight:800, color:"#fff", letterSpacing:"-0.8px", lineHeight:1.15, marginBottom:"20px" }}>
+          <h2 style={{ fontFamily:"var(--font-display)", fontSize:"32px", fontWeight:800, color:"#fff", letterSpacing:"-0.8px", lineHeight:1.15, marginBottom:"20px" }}>
             Start investing<br/>with an edge.
           </h2>
           {[
@@ -89,11 +89,11 @@ export default function SignupPage() {
             <div style={{ width:"28px", height:"28px", background:"linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius:"7px", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:"15px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+            <span style={{ fontFamily:"var(--font-logo)", fontWeight:700, fontSize:"15px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
           </Link>
 
           <div className="fu0" style={{ marginBottom:"32px" }}>
-            <h1 style={{ fontFamily:"'Syne',sans-serif", fontSize:"26px", fontWeight:700, color:"#fff", letterSpacing:"-0.5px", marginBottom:"6px" }}>Create your account</h1>
+            <h1 style={{ fontFamily:"var(--font-display)", fontSize:"26px", fontWeight:700, color:"#fff", letterSpacing:"-0.5px", marginBottom:"6px" }}>Create your account</h1>
             <p style={{ fontSize:"14px", color:"#64748b" }}>Free to start — no credit card required</p>
           </div>
 

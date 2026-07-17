@@ -68,7 +68,7 @@ function LoginForm() {
           <div style={{ width: "36px", height: "36px", minWidth: "36px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,99,235,0.4)" }}>
             <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
-          <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
             Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
           </span>
         </Link>
@@ -156,7 +156,7 @@ function LoginForm() {
             <div style={{ width: "30px", height: "30px", minWidth: "30px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
+            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
               Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
             </span>
           </Link>

@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
             <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px" }}>
+            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px" }}>
               Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
             </span>
           </Link>
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
                 <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Check your email</h2>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Check your email</h2>
             <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.65, marginBottom: "8px" }}>
               We sent a reset link to <strong style={{ color: "#94a3b8" }}>{email}</strong>.
             </p>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
         ) : (
           <>
             <div className="fu0" style={{ marginBottom: "32px" }}>
-              <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Forgot password?</h1>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Forgot password?</h1>
               <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Enter your email and we&apos;ll send a reset link.</p>
             </div>
 
