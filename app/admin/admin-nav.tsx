@@ -25,6 +25,9 @@ const ICONS: Record<string, React.ReactNode> = {
   metrics: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M12 9a1 1 0 01-1-1V3c0-.553.45-1.008.997-.93a7.004 7.004 0 015.933 5.933c.078.547-.378.997-.93.997h-5z" /><path d="M8.003 4.07C8.55 3.992 9 4.447 9 5v5a1 1 0 001 1h5c.552 0 1.008.45.93.997A7.001 7.001 0 012.055 9.997a7.002 7.002 0 015.948-5.927z" /></svg>
   ),
+  access: (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
+  ),
 };
 
 const TABS = [
@@ -35,6 +38,7 @@ const TABS = [
   { href: "/admin/notify", label: "Notifications", icon: "notifications" },
   { href: "/admin/feedback", label: "Feedback", icon: "feedback" },
   { href: "/admin/connections", label: "Connections", icon: "connections" },
+  { href: "/admin/access", label: "Access", icon: "access" },
 ];
 
 export default function AdminNav() {

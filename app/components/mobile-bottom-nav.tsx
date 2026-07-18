@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useBlockedPages, sectionForHref } from "@/app/components/use-blocked-pages";
 import NotificationCenter from "./notification-center";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -120,6 +121,9 @@ function itemFor(href: string): NavItem | undefined {
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  // Admin page denylist: blocked sections vanish from the bar and the More sheet.
+  const blockedPages = useBlockedPages();
+  const visibleItems = ALL_ITEMS.filter((it) => { const s = sectionForHref(it.href); return !s || !blockedPages.has(s); });
   const [moreOpen, setMoreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [barHrefs, setBarHrefs] = useState<string[]>(DEFAULT_BAR);
@@ -143,8 +147,10 @@ export default function MobileBottomNav() {
 
   if (PUBLIC_PAGES.includes(pathname)) return null;
 
-  const barItems = barHrefs.map(itemFor).filter(Boolean) as NavItem[];
-  const moreItems = ALL_ITEMS.filter((i) => !barHrefs.includes(i.href));
+  // Saved bar slots may reference a section that has since been blocked — drop those too.
+  const barItems = (barHrefs.map(itemFor).filter(Boolean) as NavItem[])
+    .filter((it) => { const s = sectionForHref(it.href); return !s || !blockedPages.has(s); });
+  const moreItems = visibleItems.filter((i) => !barHrefs.includes(i.href));
 
   const isMoreActive = moreItems.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
@@ -263,7 +269,7 @@ export default function MobileBottomNav() {
           {editing ? (
             <div style={{ padding: "12px 16px 4px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                {ALL_ITEMS.map(({ href, label, Icon }) => {
+                {visibleItems.map(({ href, label, Icon }) => {
                   const onBar = barHrefs.includes(href);
                   return (
                     <button

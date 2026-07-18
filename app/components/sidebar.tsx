@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useBlockedPages, sectionForHref } from "@/app/components/use-blocked-pages";
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -151,6 +152,8 @@ export default function Sidebar({
   const router = useRouter();
   const supabase = createClient();
   const [signingOut, setSigningOut] = useTransition();
+  // Admin page denylist: blocked sections vanish from the nav for this account.
+  const blockedPages = useBlockedPages();
   const [portfoliosOpen, setPortfoliosOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const [streak, setStreak] = useState<number | null>(null);
@@ -311,7 +314,7 @@ export default function Sidebar({
 
         <div className="label" style={{ padding: "8px 8px 3px" }}>Workspace</div>
 
-        {navItems.map((item) => {
+        {navItems.filter((item) => { const s = sectionForHref(item.href); return !s || !blockedPages.has(s); }).map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
@@ -404,7 +407,7 @@ export default function Sidebar({
 
         <div className="label" style={{ padding: "10px 8px 3px", marginTop: "4px" }}>Discover</div>
 
-        {discoverItems.map((item) => {
+        {discoverItems.filter((item) => { const s = sectionForHref(item.href); return !s || !blockedPages.has(s); }).map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
