@@ -65,8 +65,8 @@ export default function PerformanceDisplay({
           <div
             key={stat.label}
             style={{
-              background: stat.highlight ? "rgba(37,99,235,0.07)" : "var(--bg-elevated)",
-              border: `1px solid ${stat.highlight ? "rgba(37,99,235,0.18)" : "var(--border-subtle)"}`,
+              background: stat.highlight ? "rgba(14,165,160,0.07)" : "var(--bg-elevated)",
+              border: `1px solid ${stat.highlight ? "rgba(14,165,160,0.18)" : "var(--border-subtle)"}`,
               borderRadius: "var(--radius-md)",
               padding: "11px 13px",
             }}

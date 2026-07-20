@@ -1829,7 +1829,7 @@ function LineItemRow({
               <>
                 <input type="hidden" name="is_variable" value={isVar ? "1" : "0"} />
                 <button type="button" onClick={() => setIsVar((v) => !v)} title="Income that fluctuates month to month"
-                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 10px", height: "34px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isVar ? "var(--brand-blue)" : "var(--border-subtle)"}`, background: isVar ? "rgba(37,99,235,0.1)" : "var(--bg-base)", color: isVar ? "var(--brand-blue)" : "var(--text-secondary)" }}>
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 10px", height: "34px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isVar ? "var(--brand-blue)" : "var(--border-subtle)"}`, background: isVar ? "rgba(14,165,160,0.1)" : "var(--bg-base)", color: isVar ? "var(--brand-blue)" : "var(--text-secondary)" }}>
                   <span style={{ width: "14px", height: "14px", borderRadius: "4px", border: `1.5px solid ${isVar ? "var(--brand-blue)" : "var(--border-default)"}`, background: isVar ? "var(--brand-blue)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {isVar && <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                   </span>
@@ -1854,7 +1854,7 @@ function LineItemRow({
       <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         {!isBalance && (cf as CashFlowItem).is_variable && (
-          <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
         {isBalance && !bal.is_liability && bal.category !== "cash" && (() => {
           const b = effectiveTaxBucket(bal);
@@ -1869,7 +1869,7 @@ function LineItemRow({
       {item.id.startsWith("linked:") ? (
         // Synced from a connected/manual account — the source of truth lives on the
         // Connections page, so it can't be edited or deleted here.
-        <span title="This balance syncs from your Connections page — update or unlink it there." style={{ fontSize: "10px", fontWeight: 600, color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.3)", padding: "2px 7px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "help" }}>
+        <span title="This balance syncs from your Connections page — update or unlink it there." style={{ fontSize: "10px", fontWeight: 600, color: "#5fbf9a", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.3)", padding: "2px 7px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "help" }}>
           Synced
         </span>
       ) : (
@@ -2706,7 +2706,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
       {step === "review" && (
         <>
           {existingCount > 0 && (
-            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>
+            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>
               {existingCount} categor{existingCount !== 1 ? "ies" : "y"} already in your budget — pre-deselected. Re-check to add alongside or update manually.
             </div>
           )}
@@ -2723,7 +2723,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
               <div key={row.id} style={{
                 borderBottom: "1px solid var(--border-subtle)",
                 opacity: row.selected ? 1 : 0.45,
-                background: row.existingId ? "rgba(99,102,241,0.03)" : "transparent",
+                background: row.existingId ? "rgba(63,174,74,0.03)" : "transparent",
               }}>
                 <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", alignItems: "center", padding: "7px 6px", gap: "8px" }}>
                   <input type="checkbox" checked={row.selected} onChange={() => updateRow(idx, { selected: !row.selected })}
@@ -3002,8 +3002,8 @@ function CompareTab({
     }));
   }, [resA.bands, resB.bands]);
 
-  const BLUE = "#2563eb";
-  const VIOLET = "#7c3aed";
+  const BLUE = "#0ea5a0";
+  const VIOLET = "#3fae4a";
 
   function delta(a: number | null, b: number | null) {
     if (a == null || b == null) return null;
@@ -3957,7 +3957,7 @@ function BudgetTrackerTab({
                     title="Update forecasted amount to your 3-month actual average"
                     style={{
                       padding: "3px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 500,
-                      background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)",
+                      background: "rgba(63,174,74,0.1)", color: "#5fbf9a", border: "1px solid rgba(63,174,74,0.2)",
                       cursor: "pointer",
                     }}
                   >
@@ -3987,7 +3987,7 @@ function BudgetTrackerTab({
                     );
                   })}
                   <div style={{ width: "1px", background: "var(--border-subtle)", height: "24px", margin: "0 2px" }} />
-                  <div style={{ width: "18px", height: "20px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: $${fcast.toLocaleString()}`}>
+                  <div style={{ width: "18px", height: "20px", borderRadius: "2px", background: "rgba(63,174,74,0.25)", position: "relative" }} title={`Forecast: $${fcast.toLocaleString()}`}>
                     <span style={{ position: "absolute", bottom: "-14px", fontSize: "10px", color: "var(--text-muted)" }}>F</span>
                   </div>
                 </div>
@@ -4392,8 +4392,8 @@ function BalanceSheetOS({
       </div>
 
       {/* Atlas strip */}
-      <div className="bso-z" style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
-        <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+      <div className="bso-z" style={{ background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
+        <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
           <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
         <div>
@@ -4520,7 +4520,7 @@ function BalanceSheetOS({
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pa.name}</span>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
                   <span title={meta.note} style={{ fontSize: "10px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{ph(fmtFull(pa.value))}</span>
@@ -4583,8 +4583,8 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
               onMouseLeave={() => setTip(null)}
               style={{
                 minHeight: "26px", borderRadius: "4px", padding: "2px 1px",
-                background: isToday ? "rgba(99,102,241,0.1)" : items.length > 0 ? "rgba(255,255,255,0.03)" : "transparent",
-                border: isToday ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
+                background: isToday ? "rgba(63,174,74,0.1)" : items.length > 0 ? "rgba(255,255,255,0.03)" : "transparent",
+                border: isToday ? "1px solid rgba(63,174,74,0.3)" : "1px solid transparent",
                 cursor: items.length > 0 ? "default" : "default",
               }}>
               {day && (
@@ -5026,11 +5026,11 @@ function CashFlowOS({
       {/* Atlas Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
         <div className="cfo-zone" style={{
-          background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)",
+          background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)",
           borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
           animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start",
         }}>
-          <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+          <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
             <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
               <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
               <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
@@ -5294,7 +5294,7 @@ function CashFlowOS({
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
-            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(37,99,235,0.1)" : "var(--card-bg)", color: showImport ? "#93c5fd" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.1)" : "var(--card-bg)", color: showImport ? "#7fd9d4" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
             <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             Log from Statement
           </button>
@@ -5468,7 +5468,7 @@ function CashFlowOS({
                                 )}
                                 {history.length >= 3 && (
                                   <button onClick={() => handleSync(item.id)} disabled={syncingId === item.id} title="Update forecast to 3-month avg"
-                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 500, background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)", cursor: "pointer" }}>
+                                    style={{ padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: 500, background: "rgba(63,174,74,0.1)", color: "#5fbf9a", border: "1px solid rgba(63,174,74,0.2)", cursor: "pointer" }}>
                                     {syncingId === item.id ? "Syncing…" : "Sync"}
                                   </button>
                                 )}
@@ -5488,7 +5488,7 @@ function CashFlowOS({
                                     );
                                   })}
                                   <div style={{ width: "1px", background: "var(--border-subtle)", height: "16px", margin: "0 1px" }} />
-                                  <div style={{ width: "13px", height: "14px", borderRadius: "2px", background: "rgba(99,102,241,0.25)", position: "relative" }} title={`Forecast: ${fmt(fcast)}`}>
+                                  <div style={{ width: "13px", height: "14px", borderRadius: "2px", background: "rgba(63,174,74,0.25)", position: "relative" }} title={`Forecast: ${fmt(fcast)}`}>
                                     <span style={{ position: "absolute", bottom: "-11px", fontSize: "10px", color: "var(--text-muted)" }}>F</span>
                                   </div>
                                 </div>
@@ -7678,7 +7678,7 @@ export default function PlanningClient({
             .cmd-kpi-tile:hover { background: var(--bg-elevated) !important; }
             .cmd-health-bar { animation: cmd-bar-in 0.9s cubic-bezier(0.22,1,0.36,1) both; transform-origin: left; }
             .cmd-cta-btn { transition: background 0.15s, border-color 0.15s, color 0.15s; }
-            .cmd-cta-btn:hover { background: rgba(37,99,235,0.1) !important; border-color: rgba(37,99,235,0.3) !important; color: var(--text-primary) !important; }
+            .cmd-cta-btn:hover { background: rgba(14,165,160,0.1) !important; border-color: rgba(14,165,160,0.3) !important; color: var(--text-primary) !important; }
             @media (min-width: 640px) {
               .cmd-kpi-grid { grid-template-columns: repeat(5,1fr) !important; }
               .cmd-kpi-health { grid-column: auto !important; }
@@ -7734,7 +7734,7 @@ export default function PlanningClient({
                   </p>
                 )}
                 {hasP && lifePlan.nextAction && (
-                  <a href={lifePlan.nextAction.href} style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "13px", padding: "7px 13px", borderRadius: "var(--radius-md)", border: "1px solid rgba(37,99,235,0.3)", background: "rgba(37,99,235,0.08)", color: "var(--text-primary)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", textDecoration: "none" }}>
+                  <a href={lifePlan.nextAction.href} style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginTop: "13px", padding: "7px 13px", borderRadius: "var(--radius-md)", border: "1px solid rgba(14,165,160,0.3)", background: "rgba(14,165,160,0.08)", color: "var(--text-primary)", fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)", textDecoration: "none" }}>
                     {lifePlan.nextAction.title} →
                   </a>
                 )}
@@ -8179,7 +8179,7 @@ export default function PlanningClient({
                 {(showBoth ? opportunity : (!risk ? opportunity : null)) && (() => {
                   const o = opportunity!;
                   return (
-                    <div style={{ background: "rgba(37,99,235,0.04)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                    <div style={{ background: "rgba(14,165,160,0.04)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
                       <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.60 0.18 250)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
                         Biggest Opportunity
@@ -8188,7 +8188,7 @@ export default function PlanningClient({
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{o.why}</div>
                       <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "oklch(0.72 0.19 145)", marginBottom: "8px", fontWeight: 600 }}>↑ {o.impact}</div>
                       <button type="button" onClick={() => setTab(o.tabKey as Tab)}
-                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)", color: "oklch(0.60 0.18 250)", cursor: "pointer" }}>
+                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.18)", color: "oklch(0.60 0.18 250)", cursor: "pointer" }}>
                         {o.ctaLabel} →
                       </button>
                     </div>
@@ -8228,8 +8228,8 @@ export default function PlanningClient({
                   const bg = isUrgent ? "var(--red-bg)" : isTop ? "var(--nav-active-bg)" : "var(--card-bg)";
                   const borderColor = isUrgent ? "var(--red-border)" : isTop ? "var(--nav-active-border)" : "var(--border-subtle)";
                   const accentColor = isUrgent ? "var(--red)" : isTop ? "var(--brand-blue)" : "oklch(0.72 0.19 145)";
-                  const ctaBg = isUrgent ? "rgba(239,68,68,0.1)" : isTop ? "rgba(37,99,235,0.1)" : "rgba(255,255,255,0.05)";
-                  const ctaBorder = isUrgent ? "rgba(239,68,68,0.25)" : isTop ? "rgba(37,99,235,0.22)" : "var(--border)";
+                  const ctaBg = isUrgent ? "rgba(239,68,68,0.1)" : isTop ? "rgba(14,165,160,0.1)" : "rgba(255,255,255,0.05)";
+                  const ctaBorder = isUrgent ? "rgba(239,68,68,0.25)" : isTop ? "rgba(14,165,160,0.22)" : "var(--border)";
                   return (
                     <div key={pri.id} style={{ borderRadius: "var(--radius-md)", background: bg, border: `1px solid ${borderColor}`, padding: "12px 14px" }}>
                       <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
@@ -8307,9 +8307,9 @@ export default function PlanningClient({
           </div>
 
           {/* ── Section 3: Atlas Insight ── */}
-          <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "16px 20px", animationDelay: "100ms" }}>
+          <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "16px 20px", animationDelay: "100ms" }}>
             <div style={{ display: "flex", gap: "13px", alignItems: "flex-start" }}>
-              <div style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "50%", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
                   <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
                   <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
@@ -8321,7 +8321,7 @@ export default function PlanningClient({
                   {finnInsight}
                 </p>
                 <button type="button" onClick={() => setTab("finn")}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", color: "oklch(0.65 0.18 260)", cursor: "pointer" }}>
+                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", color: "oklch(0.65 0.18 260)", cursor: "pointer" }}>
                   Ask Atlas a question
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
                 </button>
@@ -8351,7 +8351,7 @@ export default function PlanningClient({
               <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "90ms" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
                         <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" fill="rgba(99,102,241,0.15)" strokeLinejoin="round"/>
                         <path d="M7 18v-6h6v6" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -8363,7 +8363,7 @@ export default function PlanningClient({
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.05em", background: isReady ? "rgba(0,211,149,0.08)" : "rgba(99,102,241,0.1)", color: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", border: `1px solid ${isReady ? "rgba(0,211,149,0.2)" : "rgba(99,102,241,0.2)"}` }}>
+                    <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.05em", background: isReady ? "rgba(0,211,149,0.08)" : "rgba(63,174,74,0.1)", color: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", border: `1px solid ${isReady ? "rgba(0,211,149,0.2)" : "rgba(63,174,74,0.2)"}` }}>
                       {isReady ? "READY" : "GOAL"}
                     </span>
                     <a href="/planning/home" style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textDecoration: "none" }}>
@@ -8733,12 +8733,12 @@ export default function PlanningClient({
           {/* Confidence Narrative */}
           {retirementPoint && profile?.current_age != null && (
             <div style={{
-              background: "rgba(99,102,241,0.04)",
-              border: "1px solid rgba(99,102,241,0.22)",
+              background: "rgba(63,174,74,0.04)",
+              border: "1px solid rgba(63,174,74,0.22)",
               borderRadius: "var(--radius-lg)", padding: "11px 15px",
             }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+                <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
@@ -9214,7 +9214,7 @@ export default function PlanningClient({
                   </div>
                   {["90th", "75th", "Median", "25th", "10th"].map((l, i) => (
                     <div key={l} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                      <div style={{ width: "16px", height: "2px", borderTop: `2px dashed ${i === 4 ? "#f59e0b" : "#a78bfa"}`, opacity: i === 2 ? 1 : 0.6 }} /> {l}
+                      <div style={{ width: "16px", height: "2px", borderTop: `2px dashed ${i === 4 ? "#f59e0b" : "#6fd08a"}`, opacity: i === 2 ? 1 : 0.6 }} /> {l}
                     </div>
                   ))}
                 </>
@@ -9222,7 +9222,7 @@ export default function PlanningClient({
                 [
                   { color: "var(--green)", label: "Historical", dashed: false },
                   { color: "var(--green)", label: "Optimistic", dashed: true },
-                  { color: "#a78bfa", label: "Baseline", dashed: true },
+                  { color: "#6fd08a", label: "Baseline", dashed: true },
                   { color: "#f59e0b", label: "Pessimistic", dashed: true },
                   ...(whatIfScenario ? [{ color: "#fb923c", label: { home: "Buy a Home", child: "Have a Child", career: "Career +20%" }[whatIfScenario], dashed: false }] : []),
                 ].map(({ color, label, dashed }) => (
@@ -9482,7 +9482,7 @@ export default function PlanningClient({
                     const isRetirement = p.year === activeYearsToRetire;
                     const age = profile?.current_age ? profile.current_age + p.year : null;
                     return (
-                      <tr key={p.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: isRetirement ? "rgba(167,139,250,0.06)" : "transparent" }}>
+                      <tr key={p.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: isRetirement ? "rgba(111,208,138,0.06)" : "transparent" }}>
                         <td style={{ padding: "8px 10px", color: "var(--text-secondary)", textAlign: "right" }}>
                           {p.year === 0 ? "Now" : `+${p.year}yr`}
                           {isRetirement && <span style={{ marginLeft: "6px", fontSize: "10px", color: "var(--violet)", fontFamily: "var(--font-body)" }}>RETIRE</span>}
@@ -9520,7 +9520,7 @@ export default function PlanningClient({
                 </thead>
                 <tbody>
                   {sensitivityGrid.retirementAges.map((retAge, ri) => (
-                    <tr key={retAge} style={{ borderBottom: "1px solid var(--border-subtle)", background: retAge === activeRetirementAge ? "rgba(167,139,250,0.05)" : "transparent" }}>
+                    <tr key={retAge} style={{ borderBottom: "1px solid var(--border-subtle)", background: retAge === activeRetirementAge ? "rgba(111,208,138,0.05)" : "transparent" }}>
                       <td style={{ padding: "7px 10px", color: retAge === activeRetirementAge ? "var(--violet)" : "var(--text-secondary)", fontWeight: retAge === activeRetirementAge ? 600 : 400, whiteSpace: "nowrap" }}>
                         {retAge}{retAge === activeRetirementAge ? " ★" : ""}
                       </td>
@@ -9648,7 +9648,7 @@ export default function PlanningClient({
           }}>
             <div style={{
               width: "38px", height: "38px", borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+              background: "linear-gradient(135deg, #3fae4a 0%, #0e9488 100%)",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
               <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>A</span>
@@ -9686,7 +9686,7 @@ export default function PlanningClient({
                   {isFinn && (
                     <div style={{
                       width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
-                      background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                      background: "linear-gradient(135deg, #3fae4a 0%, #0e9488 100%)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
                       <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>A</span>
@@ -9720,7 +9720,7 @@ export default function PlanningClient({
               <div style={{ display: "flex", alignItems: "flex-end", gap: "10px" }}>
                 <div className="atlas-thinking-orb" style={{
                   width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
-                  background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+                  background: "linear-gradient(135deg, #3fae4a 0%, #0e9488 100%)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "13px", color: "#fff" }}>A</span>
@@ -9863,8 +9863,8 @@ export default function PlanningClient({
               50% { opacity: 0; }
             }
             @keyframes atlasGlow {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
-              50% { box-shadow: 0 0 0 5px rgba(124,58,237,0.18); }
+              0%, 100% { box-shadow: 0 0 0 0 rgba(63,174,74,0); }
+              50% { box-shadow: 0 0 0 5px rgba(63,174,74,0.18); }
             }
             .atlas-thinking-orb { animation: atlasGlow 1.8s ease-in-out infinite; }
             @keyframes atlasFade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }

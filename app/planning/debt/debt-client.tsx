@@ -11,7 +11,7 @@ import InfoTooltip from "@/app/components/info-tooltip";
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -269,8 +269,8 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
                     {([["avalanche", "Avalanche", "Highest APR first — saves the most"], ["snowball", "Snowball", "Smallest balance first — fastest wins"]] as const).map(([val, lbl, hint]) => (
                       <button key={val} type="button" onClick={() => { setStrategy(val); setSaved(false); }}
                         style={{ flex: 1, padding: "10px 12px", borderRadius: "10px", cursor: "pointer", textAlign: "left",
-                          border: `1px solid ${strategy === val ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`,
-                          background: strategy === val ? "rgba(37,99,235,0.1)" : "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+                          border: `1px solid ${strategy === val ? "var(--brand-blue, #0ea5a0)" : "var(--border-subtle)"}`,
+                          background: strategy === val ? "rgba(14,165,160,0.1)" : "var(--bg-base)", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
                         <div style={{ fontSize: "13px", fontWeight: 700 }}>{lbl}</div>
                         <div style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{hint}</div>
                       </button>
@@ -358,7 +358,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
                   const pm = result.payoffMonth[idx];
                   return (
                     <div key={idx} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 0", borderBottom: rank < order.length - 1 ? "1px solid var(--border-subtle)" : "none" }}>
-                      <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(37,99,235,0.12)", color: "var(--brand-blue, #2563eb)", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{rank + 1}</span>
+                      <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(14,165,160,0.12)", color: "var(--brand-blue, #0ea5a0)", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{rank + 1}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "13px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name || "Debt"}</div>
                         <div style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{fmt(d.balance)} · {d.apr.toFixed(1)}% APR</div>
@@ -420,7 +420,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
             {/* Save row */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
               <input style={{ ...inputStyle, width: "200px" }} value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Plan name" />
-              <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(37,99,235,0.5)" : "var(--brand-blue, #2563eb)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
+              <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(14,165,160,0.5)" : "var(--brand-blue, #0ea5a0)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
                 {pending ? "Saving…" : active ? "Update plan" : "Save plan"}
               </button>
               {active && (

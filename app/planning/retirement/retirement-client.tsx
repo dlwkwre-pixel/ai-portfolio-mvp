@@ -16,7 +16,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={240}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -211,7 +211,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
               const selected = claimAge === s.age;
               return (
                 <button key={s.age} type="button" onClick={() => setClaimAge(s.age)} style={{ textAlign: "left", padding: "12px 13px", borderRadius: "10px", cursor: "pointer", fontFamily: "var(--font-body)",
-                  border: `1px solid ${selected ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`, background: selected ? "rgba(37,99,235,0.1)" : "var(--bg-base)" }}>
+                  border: `1px solid ${selected ? "var(--brand-blue, #0ea5a0)" : "var(--border-subtle)"}`, background: selected ? "rgba(14,165,160,0.1)" : "var(--bg-base)" }}>
                   <div style={{ fontSize: "11px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Age {s.age}{s.age === FRA ? " (FRA)" : s.age === 62 ? " (earliest)" : " (max)"}</div>
                   <div style={{ fontSize: "20px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)", marginTop: "2px" }}>{fmt(s.monthly)}<span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 600 }}>/mo</span></div>
                   <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>{fmt(s.lifetime)} to {planAge}</div>
@@ -219,7 +219,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
               );
             })}
           </div>
-          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
             {breakeven != null
               ? `Claiming at 70 pays ${fmt(m70)}/mo vs ${fmt(m62)}/mo at 62. Waiting pulls ahead in total dollars once you live past about age ${breakeven}. If your health and family history point past ${breakeven}, delaying usually wins; if you need income early or have reason to expect a shorter horizon, claiming sooner can be the better call.`
               : `Claiming at 70 pays ${fmt(m70)}/mo vs ${fmt(m62)}/mo at 62 — a ${fmt(m70 - m62)}/mo difference for life.`}
@@ -254,7 +254,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
               <div style={{ fontSize: "18px", fontWeight: 800, fontFamily: "var(--font-mono)", marginTop: "3px", color: "var(--text-primary)" }}>{sim62.depletionAge === null ? `Lasts past ${planAge}` : `Runs out at ${sim62.depletionAge}`}</div>
               <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>{fmt(m62)}/mo · {sim62.depletionAge === null ? `${fmt(sim62.finalBalance)} left` : "shortfall"}</div>
             </div>
-            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
+            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)" }}>
               <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Claim at 70</div>
               <div style={{ fontSize: "18px", fontWeight: 800, fontFamily: "var(--font-mono)", marginTop: "3px", color: "var(--text-primary)" }}>{sim70.depletionAge === null ? `Lasts past ${planAge}` : `Runs out at ${sim70.depletionAge}`}</div>
               <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>{fmt(m70)}/mo · {sim70.depletionAge === null ? `${fmt(sim70.finalBalance)} left` : "shortfall"}</div>
@@ -272,7 +272,7 @@ export default function RetirementClient({ prefill }: { prefill: Prefill }) {
               { n: 3, t: "Roth last", d: "Tax-free with no RMDs, so it compounds longest. Best preserved for late-life flexibility, big one-off costs, and legacy." },
             ].map((s) => (
               <div key={s.n} style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(37,99,235,0.12)", color: "var(--brand-blue, #2563eb)", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>{s.n}</span>
+                <span style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(14,165,160,0.12)", color: "var(--brand-blue, #0ea5a0)", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>{s.n}</span>
                 <div><span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)" }}>{s.t}</span><span style={{ fontSize: "12px", color: "var(--text-secondary)" }}> — {s.d}</span></div>
               </div>
             ))}

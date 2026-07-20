@@ -132,9 +132,9 @@ export default function StockChart({
                 fontSize: "10px",
                 fontWeight: range === r ? 600 : 400,
                 fontFamily: "var(--font-mono)",
-                border: `1px solid ${range === r ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
-                background: range === r ? "rgba(37,99,235,0.1)" : "transparent",
-                color: range === r ? "#93c5fd" : "var(--text-tertiary)",
+                border: `1px solid ${range === r ? "rgba(14,165,160,0.4)" : "var(--card-border)"}`,
+                background: range === r ? "rgba(14,165,160,0.1)" : "transparent",
+                color: range === r ? "#7fd9d4" : "var(--text-tertiary)",
                 cursor: "pointer",
                 transition: "color 120ms ease, background 120ms ease, border-color 120ms ease",
               }}

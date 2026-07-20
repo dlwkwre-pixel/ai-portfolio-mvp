@@ -74,7 +74,7 @@ export default function UsernameSetupPage() {
   }
 
   function randomColor() {
-    const colors = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626"];
+    const colors = ["#0ea5a0", "#3fae4a", "#0891b2", "#059669", "#d97706", "#dc2626"];
     return colors[Math.floor(Math.random() * colors.length)];
   }
 
@@ -91,13 +91,13 @@ export default function UsernameSetupPage() {
         .fu2 { animation: fadeUp 0.5s 0.16s ease both; }
         .fu3 { animation: fadeUp 0.5s 0.24s ease both; }
         .fu4 { animation: fadeUp 0.5s 0.32s ease both; }
-        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: all 0.15s; }
-        .ifield:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-        .ifield::placeholder { color: #334155; }
+        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(20,30,20,0.14); border-radius: 10px; color: oklch(0.2 0.03 150); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: all 0.15s; }
+        .ifield:focus { border-color: #0ea5a0; box-shadow: 0 0 0 3px rgba(14,165,160,0.12); }
+        .ifield::placeholder { color: oklch(0.6 0.02 150); }
         .ifield.valid { border-color: rgba(0,211,149,0.4); }
         .ifield.invalid { border-color: rgba(255,92,92,0.4); }
-        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: all 0.2s; }
-        .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(37,99,235,0.5); transform: translateY(-1px); }
+        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(14,165,160,0.35); transition: all 0.2s; }
+        .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(14,165,160,0.5); transform: translateY(-1px); }
         .sbtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
       `}</style>
 
@@ -107,13 +107,13 @@ export default function UsernameSetupPage() {
           <div style={{ width: "32px", height: "32px", background: "var(--brand-gradient)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BrandGlyph size={14} strokeWidth={2.6} />
           </div>
-          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>
-            Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "oklch(0.2 0.03 150)" }}>
+            Buy<span style={{ color: "#3fae4a" }}>Tune</span>.io
           </span>
         </div>
 
         <div className="fu1" style={{ marginBottom: "32px", textAlign: "center" }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "8px" }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "oklch(0.2 0.03 150)", letterSpacing: "-0.5px", marginBottom: "8px" }}>
             Pick your username
           </h1>
           <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>
@@ -152,7 +152,7 @@ export default function UsernameSetupPage() {
                   </span>
                 )}
                 {!checking && available === false && (
-                  <span style={{ fontSize: "11px", color: "#ff5c5c" }}>taken</span>
+                  <span style={{ fontSize: "11px", color: "#b13333" }}>taken</span>
                 )}
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function UsernameSetupPage() {
           </div>
 
           {error && (
-            <div style={{ background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#ff5c5c" }}>
+            <div style={{ background: "rgba(220,68,68,0.08)", border: "1px solid rgba(220,68,68,0.2)", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#b13333" }}>
               {error}
             </div>
           )}

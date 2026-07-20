@@ -34,7 +34,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
   const verdictColor: Record<Verdict, string> = {
     correct: "#00d395",
     incorrect: "#f87171",
-    pending: "#60a5fa",
+    pending: "#3fc9c3",
     "no-data": "var(--text-muted)",
   };
 
@@ -48,12 +48,12 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
   const actionBg: Record<string, string> = {
     buy: "rgba(0,211,149,0.08)", add: "rgba(0,211,149,0.08)",
     sell: "rgba(248,113,113,0.08)", trim: "rgba(248,113,113,0.08)",
-    hold: "rgba(96,165,250,0.08)", watch: "rgba(167,139,250,0.08)",
+    hold: "rgba(96,165,250,0.08)", watch: "rgba(111,208,138,0.08)",
   };
   const actionColor: Record<string, string> = {
     buy: "#00d395", add: "#00d395",
     sell: "#f87171", trim: "#f87171",
-    hold: "#60a5fa", watch: "#a78bfa",
+    hold: "#3fc9c3", watch: "#6fd08a",
   };
 
   return (
@@ -84,7 +84,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", display: "inline-block" }} /> BUY: profitable vs cost basis · SELL: price hit target
         </span>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#60a5fa", display: "inline-block" }} /> Pending: &lt;7 days old or no target
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3fc9c3", display: "inline-block" }} /> Pending: &lt;7 days old or no target
         </span>
       </div>
 
@@ -150,7 +150,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
                 {row.target_price_1 !== null && (
                   <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
                     {isSell ? "Sell target" : "AI target"}{" "}
-                    <strong style={{ color: "#a78bfa" }}>${row.target_price_1.toFixed(2)}</strong>
+                    <strong style={{ color: "#6fd08a" }}>${row.target_price_1.toFixed(2)}</strong>
                     {!isSell && row.vsTarget !== null && (
                       <span style={{ color: "var(--text-muted)", marginLeft: "4px" }}>
                         ({row.vsTarget > 0 ? "+" : ""}{row.vsTarget.toFixed(1)}% to target)

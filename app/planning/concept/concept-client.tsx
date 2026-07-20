@@ -259,7 +259,7 @@ export default function ConceptClient() {
         @media (hover: hover) and (pointer: fine) {
           .trj-pin:hover { transform: translate(-50%, -50%) scale(1.12) !important; }
           .trj-lens:hover { color: var(--text-primary) !important; }
-          .trj-chip:hover { border-color: rgba(37,99,235,0.5) !important; color: var(--text-primary) !important; }
+          .trj-chip:hover { border-color: rgba(14,165,160,0.5) !important; color: var(--text-primary) !important; }
         }
         @media (prefers-reduced-motion: reduce) {
           .trj-sec, .trj-median, .trj-band { animation: none !important; }
@@ -278,7 +278,7 @@ export default function ConceptClient() {
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "19px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.3px", margin: 0 }}>
             The Trajectory Room
           </h1>
-          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", border: "1px solid rgba(167,139,250,0.35)", background: "rgba(124,58,237,0.1)", padding: "3px 8px", borderRadius: "999px" }}>Concept · sample data</span>
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #6fd08a)", border: "1px solid rgba(111,208,138,0.35)", background: "rgba(63,174,74,0.1)", padding: "3px 8px", borderRadius: "999px" }}>Concept · sample data</span>
           <button type="button" onClick={() => { setFirstRun((v) => !v); if (!firstRun) setDrawKey((k) => k + 1); }}
             style={{ marginLeft: "auto", fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "999px", padding: "6px 13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
             {firstRun ? "Back to full view" : "View first-run state"}
@@ -294,7 +294,7 @@ export default function ConceptClient() {
               <path d={paths.median} fill="none" stroke="oklch(0.6 0.12 275 / 0.35)" strokeWidth="2" strokeDasharray="6 7" />
             </svg>
             <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "480px", padding: "40px 22px", textAlign: "center" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", marginBottom: "10px" }}>Your money has a trajectory</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--violet-light, #6fd08a)", marginBottom: "10px" }}>Your money has a trajectory</div>
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", margin: "0 0 8px", maxWidth: "22ch", lineHeight: 1.15 }}>
                 Three numbers. Then you can see the next 50 years.
               </h2>
@@ -316,7 +316,7 @@ export default function ConceptClient() {
               </div>
               <button type="button"
                 onClick={() => { setMonthlySave(Number(qsMonthly) || 2100); setFirstRun(false); setDrawKey((k) => k + 1); }}
-                style={{ padding: "13px 26px", borderRadius: "12px", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "14px", fontWeight: 700, color: "#fff", background: "var(--brand-gradient)", boxShadow: "0 4px 20px rgba(37,99,235,0.3)" }}>
+                style={{ padding: "13px 26px", borderRadius: "12px", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "14px", fontWeight: 700, color: "#fff", background: "var(--brand-gradient)", boxShadow: "0 4px 20px rgba(14,165,160,0.3)" }}>
                 Draw my trajectory
               </button>
               <p style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "12px" }}>No forms. No jargon. Refine it whenever you want.</p>
@@ -393,10 +393,10 @@ export default function ConceptClient() {
                     onKeyDown={(e) => { if (e.key === "ArrowLeft") setRetireAge((v) => clamp(v - 1, 50, 78)); if (e.key === "ArrowRight") setRetireAge((v) => clamp(v + 1, 50, 78)); }}
                     onPointerDown={dragRetire}
                     style={{ position: "absolute", top: 0, bottom: `${BOT_PAD * 100 - 4}%`, left: `${xFrac(retireAge) * 100}%`, width: "44px", marginLeft: "-22px", cursor: "ew-resize", touchAction: "none", zIndex: 4, outline: "none" }}>
-                    <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(167,139,250,0.9), rgba(167,139,250,0.12))", borderRadius: "2px" }} />
-                    <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
-                      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
-                      <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retireAge}</span>
+                    <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(111,208,138,0.9), rgba(111,208,138,0.12))", borderRadius: "2px" }} />
+                    <div style={{ position: "absolute", top: "4px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(111,208,138,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
+                      <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #6fd08a)" }} />
+                      <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #6fd08a)" }}>Retire {retireAge}</span>
                       <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>⇄</span>
                     </div>
                   </div>
@@ -468,12 +468,12 @@ export default function ConceptClient() {
               <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 4px 8px", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.05))", marginTop: "6px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retire at</span>
-                  <input type="range" min={50} max={78} value={retireAge} onChange={(e) => setRetireAge(Number(e.target.value))} style={{ width: "120px", accentColor: "#7c3aed" }} />
+                  <input type="range" min={50} max={78} value={retireAge} onChange={(e) => setRetireAge(Number(e.target.value))} style={{ width: "120px", accentColor: "#3fae4a" }} />
                   <span style={{ fontSize: "13px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", minWidth: "24px" }}>{retireAge}</span>
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Invest monthly</span>
-                  <input type="range" min={500} max={8000} step={100} value={monthlySave} onChange={(e) => setMonthlySave(Number(e.target.value))} style={{ width: "130px", accentColor: "#2563eb" }} />
+                  <input type="range" min={500} max={8000} step={100} value={monthlySave} onChange={(e) => setMonthlySave(Number(e.target.value))} style={{ width: "130px", accentColor: "#0ea5a0" }} />
                   <span style={{ fontSize: "13px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", minWidth: "52px" }}>{fmtMoney(monthlySave)}</span>
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -481,9 +481,9 @@ export default function ConceptClient() {
                   {([["cautious", "4.5%"], ["base", "5.8%"], ["bold", "7.0%"]] as const).map(([k, lbl]) => (
                     <button key={k} type="button" onClick={() => setReturnPreset(k)}
                       style={{ padding: "5px 11px", borderRadius: "999px", cursor: "pointer", fontFamily: "var(--font-mono)", fontSize: "10.5px", fontWeight: 700,
-                        border: `1px solid ${returnPreset === k ? "rgba(37,99,235,0.55)" : "var(--card-border)"}`,
-                        background: returnPreset === k ? "rgba(37,99,235,0.13)" : "transparent",
-                        color: returnPreset === k ? "#93c5fd" : "var(--text-tertiary)" }}>{lbl}</button>
+                        border: `1px solid ${returnPreset === k ? "rgba(14,165,160,0.55)" : "var(--card-border)"}`,
+                        background: returnPreset === k ? "rgba(14,165,160,0.13)" : "transparent",
+                        color: returnPreset === k ? "#7fd9d4" : "var(--text-tertiary)" }}>{lbl}</button>
                   ))}
                 </div>
                 <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>Spending {fmtMoney(88000)}/yr in retirement</span>
@@ -491,10 +491,10 @@ export default function ConceptClient() {
             </div>
 
             {/* ══════════ ATLAS, AMBIENT ══════════ */}
-            <div className="trj-sec" style={{ display: "flex", alignItems: "center", gap: "11px", padding: "11px 15px", borderRadius: "12px", border: "1px solid rgba(167,139,250,0.22)", background: "rgba(124,58,237,0.06)", marginBottom: "16px", animationDelay: "0.1s" }}>
-          <span style={{ width: "26px", height: "26px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(124,58,237,0.18)", border: "1px solid rgba(167,139,250,0.35)", fontSize: "12px" }}>◈</span>
+            <div className="trj-sec" style={{ display: "flex", alignItems: "center", gap: "11px", padding: "11px 15px", borderRadius: "12px", border: "1px solid rgba(111,208,138,0.22)", background: "rgba(63,174,74,0.06)", marginBottom: "16px", animationDelay: "0.1s" }}>
+          <span style={{ width: "26px", height: "26px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(63,174,74,0.18)", border: "1px solid rgba(111,208,138,0.35)", fontSize: "12px" }}>◈</span>
               <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
-                <span style={{ fontWeight: 700, color: "var(--violet-light, #a78bfa)" }}>Atlas</span>
+                <span style={{ fontWeight: 700, color: "var(--violet-light, #6fd08a)" }}>Atlas</span>
                 <span style={{ color: "var(--text-tertiary)" }}> · </span>{atlasLine}
               </p>
             </div>
@@ -506,7 +506,7 @@ export default function ConceptClient() {
                   <button key={k} type="button" onClick={() => setLens(k)} className="trj-lens"
                     style={{ padding: "10px 15px", fontSize: "12.5px", fontWeight: lens === k ? 700 : 500, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "var(--font-body)",
                       color: lens === k ? "var(--text-primary)" : "var(--text-tertiary)", background: "none", border: "none",
-                      borderBottom: `2px solid ${lens === k ? "#7c3aed" : "transparent"}`, marginBottom: "-1px", transition: "color 0.15s" }}>
+                      borderBottom: `2px solid ${lens === k ? "#3fae4a" : "transparent"}`, marginBottom: "-1px", transition: "color 0.15s" }}>
                     {lbl}
                   </button>
                 ))}
@@ -533,7 +533,7 @@ export default function ConceptClient() {
                       "Add a will: estate readiness is 42/100",
                     ].map((t, i) => (
                       <div key={i} style={{ display: "flex", gap: "8px", alignItems: "baseline", padding: "4px 0", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.45 }}>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--violet-light, #a78bfa)", fontWeight: 700 }}>{i + 1}</span>{t}
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--violet-light, #6fd08a)", fontWeight: 700 }}>{i + 1}</span>{t}
                       </div>
                     ))}
                   </div>
@@ -647,8 +647,8 @@ export default function ConceptClient() {
               {/* ATLAS LENS */}
               {lens === "atlas" && (
                 <div key="atlas" className="trj-sec" style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "680px" }}>
-                  <div style={{ borderRadius: "14px", border: "1px solid rgba(167,139,250,0.25)", background: "rgba(124,58,237,0.06)", padding: "16px 18px" }}>
-                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", marginBottom: "8px" }}>Atlas reads your whole trajectory</div>
+                  <div style={{ borderRadius: "14px", border: "1px solid rgba(111,208,138,0.25)", background: "rgba(63,174,74,0.06)", padding: "16px 18px" }}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--violet-light, #6fd08a)", marginBottom: "8px" }}>Atlas reads your whole trajectory</div>
                     <p style={{ fontSize: "13px", color: "var(--text-primary)", margin: "0 0 8px", lineHeight: 1.6, fontWeight: 600 }}>{atlasLine}</p>
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.6 }}>
                       Your committed plan needs {fmtMoney(sim.required)} at {retireAge}. The median path gets you {fmtMoney(sim.wAtRet)}. Every answer below is computed against that curve, not canned advice.

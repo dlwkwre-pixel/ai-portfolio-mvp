@@ -6,13 +6,13 @@ export default function TermsPage() {
   return (
     <article>
       <div style={{ marginBottom: "32px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
+        <div style={{ fontSize: "10px", fontWeight: 700, color: "#0ea5a0", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: "28px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: "8px" }}>Terms of Service</h1>
         <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>Effective date: {EFFECTIVE} &nbsp;·&nbsp; Governing law: Texas, United States</p>
       </div>
 
-      <div style={{ padding: "14px 18px", background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.18)", borderRadius: "10px", marginBottom: "32px" }}>
-        <p style={{ fontSize: "13px", color: "#93c5fd", lineHeight: 1.7 }}>
+      <div style={{ padding: "14px 18px", background: "rgba(14,165,160,0.07)", border: "1px solid rgba(14,165,160,0.18)", borderRadius: "10px", marginBottom: "32px" }}>
+        <p style={{ fontSize: "13px", color: "#7fd9d4", lineHeight: 1.7 }}>
           <strong>Important:</strong> BuyTune is educational and analytical software. It is not a registered investment advisor, broker-dealer, or fiduciary. Nothing on this platform constitutes investment advice. Please read these terms carefully before using the platform.
         </p>
       </div>

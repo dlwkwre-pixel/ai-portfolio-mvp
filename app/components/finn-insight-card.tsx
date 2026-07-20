@@ -43,8 +43,8 @@ export default function FinnInsightCard({ insights, portfolioId }: { insights: F
         <div
           key={insight.id}
           style={{
-            background: "rgba(124,58,237,0.04)",
-            border: "1px solid rgba(124,58,237,0.14)",
+            background: "rgba(63,174,74,0.04)",
+            border: "1px solid rgba(63,174,74,0.14)",
             borderRadius: "var(--radius-lg)",
             padding: "12px 14px",
             position: "relative",

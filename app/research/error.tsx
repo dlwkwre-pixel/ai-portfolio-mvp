@@ -64,7 +64,7 @@ export default function ResearchError({
             style={{
               padding: "9px 18px",
               borderRadius: "var(--radius-md)",
-              background: "var(--brand-blue, #2563eb)",
+              background: "var(--brand-blue, #0ea5a0)",
               color: "#fff",
               border: "none",
               fontSize: "13px",

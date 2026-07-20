@@ -13,7 +13,7 @@ import { BrandGlyph } from "@/app/components/brand-mark";
 const DISMISS_KEY = "bt-ios-install-dismissed";
 
 // ── iOS glyphs ──────────────────────────────────────────────────────────────
-function ShareGlyph({ size = 22, color = "#2563eb" }: { size?: number; color?: string }) {
+function ShareGlyph({ size = 22, color = "#0ea5a0" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 15V3" />
@@ -22,7 +22,7 @@ function ShareGlyph({ size = 22, color = "#2563eb" }: { size?: number; color?: s
     </svg>
   );
 }
-function AddBoxGlyph({ size = 22, color = "#2563eb" }: { size?: number; color?: string }) {
+function AddBoxGlyph({ size = 22, color = "#0ea5a0" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="4" />
@@ -36,9 +36,9 @@ function AppMark({ size = 58 }: { size?: number }) {
   return (
     <div style={{
       width: size, height: size, borderRadius: `${Math.round(size * 0.24)}px`,
-      background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
+      background: "linear-gradient(135deg, #0ea5a0 0%, #3fae4a 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      boxShadow: "0 8px 20px rgba(37,99,235,0.35)",
+      boxShadow: "0 8px 20px rgba(14,165,160,0.35)",
     }}>
       <BrandGlyph size={Math.round(size * 0.62)} stroke="#fff" strokeWidth={2.4} />
     </div>
@@ -57,7 +57,7 @@ const STEPS: StepDef[] = [
     body: "In Safari, tap the Share icon in the toolbar — at the bottom on iPhone, at the top on iPad.",
     art: (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
-        <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.28)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(14,165,160,0.12)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <ShareGlyph size={26} />
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function IosInstallGuide() {
           <style>{`@keyframes bt-ios-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-ios-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
-              <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(37,99,235,0.18), rgba(124,58,237,0.14))", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>📲</div>
+              <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(14,165,160,0.18), rgba(63,174,74,0.14))", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>📲</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Add to Home Screen</div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{step + 1} of {STEPS.length}</div>
@@ -193,7 +193,7 @@ export default function IosInstallGuide() {
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginBottom: "18px" }}>
               {STEPS.map((_, i) => (
-                <div key={i} style={{ height: "5px", flex: i === step ? "0 0 22px" : "0 0 5px", borderRadius: "3px", background: i === step ? "var(--brand-blue, #2563eb)" : i < step ? "rgba(37,99,235,0.4)" : "var(--border, rgba(255,255,255,0.12))", transition: "all 0.25s ease" }} />
+                <div key={i} style={{ height: "5px", flex: i === step ? "0 0 22px" : "0 0 5px", borderRadius: "3px", background: i === step ? "var(--brand-blue, #0ea5a0)" : i < step ? "rgba(14,165,160,0.4)" : "var(--border, rgba(255,255,255,0.12))", transition: "all 0.25s ease" }} />
               ))}
             </div>
 

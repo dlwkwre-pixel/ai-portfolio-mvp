@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
   /* Sections */
   .section { margin-bottom: 28px; }
-  .section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #2563eb; font-family: Arial, sans-serif; padding-bottom: 6px; border-bottom: 1px solid #dbeafe; margin-bottom: 14px; }
+  .section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #0ea5a0; font-family: Arial, sans-serif; padding-bottom: 6px; border-bottom: 1px solid #dbeafe; margin-bottom: 14px; }
 
   /* KPI grid */
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }

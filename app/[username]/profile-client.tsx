@@ -169,7 +169,7 @@ export default function ProfileClient({
                     )}
                     {/* Save */}
                     {isLoggedIn && !s.is_own && (
-                      <button type="button" onClick={() => handleSave(s.id)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 8px", borderRadius: "var(--radius-md)", fontSize: "12px", background: s.is_saved ? "rgba(37,99,235,0.1)" : "none", border: `1px solid ${s.is_saved ? "rgba(37,99,235,0.2)" : "transparent"}`, color: s.is_saved ? "#93c5fd" : "var(--text-tertiary)", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                      <button type="button" onClick={() => handleSave(s.id)} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 8px", borderRadius: "var(--radius-md)", fontSize: "12px", background: s.is_saved ? "rgba(14,165,160,0.1)" : "none", border: `1px solid ${s.is_saved ? "rgba(14,165,160,0.2)" : "transparent"}`, color: s.is_saved ? "#7fd9d4" : "var(--text-tertiary)", cursor: "pointer", fontFamily: "var(--font-body)" }}>
                         <svg width="12" height="12" viewBox="0 0 20 20" fill={s.is_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
                           <path d="M5 3a2 2 0 00-2 2v12l7-3 7 3V5a2 2 0 00-2-2H5z"/>
                         </svg>

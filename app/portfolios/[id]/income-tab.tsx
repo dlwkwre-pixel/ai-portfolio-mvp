@@ -34,7 +34,7 @@ const fmtDate = (iso: string) => {
 function Hint({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={240}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -131,7 +131,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
       <style>{`@keyframes bt-inc-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}} .bt-inc-bar{transform-origin:bottom;animation:bt-inc-grow .6s cubic-bezier(0.16,1,0.3,1) both}`}</style>
 
       {/* Hero */}
-      <div style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(37,99,235,0.05))", border: "1px solid rgba(16,185,129,0.22)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+      <div style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(14,165,160,0.05))", border: "1px solid rgba(16,185,129,0.22)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
         {noPayers ? (
           <div>
             <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>No dividend payers detected</div>
@@ -168,7 +168,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
               <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "6px" }}>Upcoming</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {events.upcoming.map((ev) => (
-                  <div key={`u-${ev.ticker}-${ev.exDate}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.16)" }}>
+                  <div key={`u-${ev.ticker}-${ev.exDate}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.16)" }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "52px" }}>{ev.ticker}</span>
                     <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)", flex: 1 }}>{ev.payDate ? `pays ${fmtDate(ev.payDate)}` : `ex-date ${fmtDate(ev.exDate)}`}</span>
                     <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>~{fmt(ev.estAmount)}</span>

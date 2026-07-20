@@ -54,7 +54,7 @@ function deriveHealthLabel(v: StrategyCard["latest_version"], risk: string | nul
   if (v.turnover_preference === "Low" && (v.holding_period_bias === "Long-term" || v.holding_period_bias === "Very Long-term"))
     return { label: "Low turnover", color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
   if (v.holding_period_bias === "Very Long-term" || v.holding_period_bias === "Long-term")
-    return { label: "Long-term", color: "rgba(96,165,250,0.85)", bg: "rgba(37,99,235,0.08)", border: "rgba(37,99,235,0.2)" };
+    return { label: "Long-term", color: "rgba(96,165,250,0.85)", bg: "rgba(14,165,160,0.08)", border: "rgba(14,165,160,0.2)" };
   return null;
 }
 
@@ -105,8 +105,8 @@ function formatRelativeDate(dateStr: string): string {
 const FV = {
   bg:     "rgba(109,40,217,0.06)",
   border: "rgba(109,40,217,0.18)",
-  accent: "#7c3aed",
-  dim:    "rgba(124,58,237,0.5)",
+  accent: "#3fae4a",
+  dim:    "rgba(63,174,74,0.5)",
 } as const;
 
 function scoreColor(s: number) {
@@ -541,8 +541,8 @@ function ImproveStrategyPanel({
         style={{
           display: "flex", alignItems: "center", gap: "6px",
           padding: "7px 14px", borderRadius: "var(--radius-xl)",
-          border: "1px solid rgba(124,58,237,0.22)", background: "rgba(109,40,217,0.08)",
-          color: "#7c3aed", fontFamily: "var(--font-body)",
+          border: "1px solid rgba(63,174,74,0.22)", background: "rgba(109,40,217,0.08)",
+          color: "#3fae4a", fontFamily: "var(--font-body)",
           fontSize: "12px", fontWeight: 600, cursor: "pointer",
           transition: "background 0.15s",
         }}
@@ -563,8 +563,8 @@ function ImproveStrategyPanel({
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7c3aed", boxShadow: "0 0 6px rgba(124,58,237,0.5)" }} />
-          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Improve Strategy</span>
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#3fae4a", boxShadow: "0 0 6px rgba(63,174,74,0.5)" }} />
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#3fae4a", fontFamily: "var(--font-body)" }}>Improve Strategy</span>
         </div>
         <button type="button" onClick={() => { setOpen(false); setResult(null); setActiveMode(null); }}
           style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "2px" }}>
@@ -587,9 +587,9 @@ function ImproveStrategyPanel({
                 style={{
                   display: "flex", alignItems: "center", gap: "4px",
                   padding: "5px 11px", borderRadius: "var(--radius-xl)",
-                  border: isActive ? "1px solid rgba(124,58,237,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                  border: isActive ? "1px solid rgba(63,174,74,0.4)" : "1px solid rgba(255,255,255,0.08)",
                   background: isActive ? "rgba(109,40,217,0.15)" : "rgba(255,255,255,0.03)",
-                  color: isActive ? "#7c3aed" : "var(--text-secondary)",
+                  color: isActive ? "#3fae4a" : "var(--text-secondary)",
                   fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: isActive ? 700 : 400,
                   cursor: loading ? "default" : "pointer", opacity: loading && !isActive ? 0.5 : 1,
                   transition: "background 0.12s, border-color 0.12s, color 0.12s",
@@ -605,7 +605,7 @@ function ImproveStrategyPanel({
       {/* Thinking state */}
       {loading && (
         <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" }}>
-          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#7c3aed", animation: "finnPulse 1.2s ease-in-out infinite" }} />
+          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#3fae4a", animation: "finnPulse 1.2s ease-in-out infinite" }} />
           <span style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
             {IMPROVE_THINKING[thinkIdx]}
           </span>
@@ -644,7 +644,7 @@ function ImproveStrategyPanel({
           {/* Parameter changes */}
           {result.changes.length > 0 && (
             <div>
-              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
+              <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#3fae4a", margin: "0 0 8px", fontFamily: "var(--font-body)" }}>
                 Parameter Changes
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: "1px", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--line-006)" }}>
@@ -656,7 +656,7 @@ function ImproveStrategyPanel({
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, paddingTop: "1px" }}>
                       <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", textDecoration: "line-through", marginBottom: "2px" }}>{c.from}</div>
-                      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "#7c3aed" }}>{c.to}</div>
+                      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "#3fae4a" }}>{c.to}</div>
                     </div>
                   </div>
                 ))}
@@ -678,7 +678,7 @@ function ImproveStrategyPanel({
 
           {/* Narrative */}
           <div style={{ background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.16)", borderRadius: "var(--radius-md)", padding: "10px 13px" }}>
-            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#3fae4a", margin: "0 0 6px", fontFamily: "var(--font-body)" }}>
               Atlas Rationale
             </p>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontFamily: "var(--font-body)" }}>
@@ -715,7 +715,7 @@ function ImproveStrategyPanel({
           ) : (
             <div style={{ display: "flex", gap: "8px" }}>
               <button type="button" onClick={applyChanges} disabled={applying}
-                style={{ padding: "7px 18px", borderRadius: "var(--radius-xl)", border: "none", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 700, cursor: applying ? "default" : "pointer", opacity: applying ? 0.7 : 1 }}>
+                style={{ padding: "7px 18px", borderRadius: "var(--radius-xl)", border: "none", background: "linear-gradient(135deg,#3fae4a,#0e9488)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 700, cursor: applying ? "default" : "pointer", opacity: applying ? 0.7 : 1 }}>
                 {applying ? "Applying…" : "Apply Changes"}
               </button>
               <button type="button" onClick={() => { setResult(null); setActiveMode(null); }}
@@ -802,9 +802,9 @@ export default function StrategyCardItem({
     <>
       <style>{`
         @keyframes newCardGlow {
-          0%   { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
-          25%  { box-shadow: 0 0 0 3px rgba(37,99,235,0.25), 0 0 20px rgba(37,99,235,0.12); }
-          100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+          0%   { box-shadow: 0 0 0 0 rgba(14,165,160,0); }
+          25%  { box-shadow: 0 0 0 3px rgba(14,165,160,0.25), 0 0 20px rgba(14,165,160,0.12); }
+          100% { box-shadow: 0 0 0 0 rgba(14,165,160,0); }
         }
       `}</style>
       <div
@@ -1103,7 +1103,7 @@ export default function StrategyCardItem({
 
                 {/* AI instructions */}
                 {v?.prompt_text && (
-                  <div style={{ background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
+                  <div style={{ background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
                     <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{v.prompt_text}</p>
                   </div>

@@ -8,7 +8,7 @@ const FV = {
   bg:     "rgba(109,40,217,0.05)",
   bgMed:  "rgba(109,40,217,0.10)",
   border: "rgba(109,40,217,0.18)",
-  accent: "#7c3aed",
+  accent: "#3fae4a",
 } as const;
 
 const FACTORS = [
@@ -81,8 +81,8 @@ function StrategyHeader({ card, label }: { card: StrategyCard; label: "A" | "B" 
   return (
     <div style={{
       padding: "14px 16px",
-      background: isA ? "rgba(37,99,235,0.06)" : "rgba(168,85,247,0.06)",
-      border: `1px solid ${isA ? "rgba(37,99,235,0.15)" : "rgba(168,85,247,0.15)"}`,
+      background: isA ? "rgba(14,165,160,0.06)" : "rgba(168,85,247,0.06)",
+      border: `1px solid ${isA ? "rgba(14,165,160,0.15)" : "rgba(168,85,247,0.15)"}`,
       borderRadius: "10px",
       display: "flex",
       flexDirection: "column",
@@ -92,8 +92,8 @@ function StrategyHeader({ card, label }: { card: StrategyCard; label: "A" | "B" 
         <span style={{
           fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
           padding: "2px 7px", borderRadius: "4px",
-          background: isA ? "rgba(37,99,235,0.15)" : "rgba(168,85,247,0.15)",
-          color: isA ? "#60a5fa" : "#c084fc",
+          background: isA ? "rgba(14,165,160,0.15)" : "rgba(168,85,247,0.15)",
+          color: isA ? "#3fc9c3" : "#c084fc",
           fontFamily: "var(--font-mono)", flexShrink: 0, marginTop: "2px",
         }}>
           {label}
@@ -155,7 +155,7 @@ function ConfidenceVs({ scoreA, scoreB }: { scoreA: number; scoreB: number }) {
       </div>
       {/* Net advantage line */}
       {delta !== 0 && (
-        <div style={{ gridColumn: "1 / -1", textAlign: "center", fontSize: "10px", color: delta > 0 ? "#60a5fa" : "#c084fc", fontFamily: "var(--font-body)", fontWeight: 600, borderTop: "1px solid var(--line-006)", paddingTop: "10px" }}>
+        <div style={{ gridColumn: "1 / -1", textAlign: "center", fontSize: "10px", color: delta > 0 ? "#3fc9c3" : "#c084fc", fontFamily: "var(--font-body)", fontWeight: 600, borderTop: "1px solid var(--line-006)", paddingTop: "10px" }}>
           {delta > 0 ? "Strategy A" : "Strategy B"} leads overall by {Math.abs(delta)} points
         </div>
       )}
@@ -210,7 +210,7 @@ function FactorRow({
         {delta !== 0 && (
           <div style={{
             fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
-            color: aWins ? "#60a5fa" : "#c084fc",
+            color: aWins ? "#3fc9c3" : "#c084fc",
             marginTop: "2px",
           }}>
             {aWins ? `A +${delta}` : `B +${Math.abs(delta)}`}
@@ -351,7 +351,7 @@ export default function StrategyComparePanel({
               </p>
               {/* Column headers */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 1fr", gap: "8px", marginBottom: "4px" }}>
-                <div style={{ textAlign: "right", fontSize: "10px", fontWeight: 700, color: "#60a5fa", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy A</div>
+                <div style={{ textAlign: "right", fontSize: "10px", fontWeight: 700, color: "#3fc9c3", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy A</div>
                 <div />
                 <div style={{ fontSize: "10px", fontWeight: 700, color: "#c084fc", fontFamily: "var(--font-body)", letterSpacing: "0.06em", textTransform: "uppercase" }}>Strategy B</div>
               </div>
@@ -365,15 +365,15 @@ export default function StrategyComparePanel({
             {/* Advantage summaries */}
             {advantages && (advantages.forA.length > 0 || advantages.forB.length > 0) && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.14)", borderRadius: "10px", padding: "12px 14px" }}>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#60a5fa", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
+                <div style={{ background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.14)", borderRadius: "10px", padding: "12px 14px" }}>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#3fc9c3", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                     A&apos;s Strengths
                   </p>
                   {advantages.forA.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       {advantages.forA.map(s => (
                         <div key={s} style={{ display: "flex", gap: "5px", alignItems: "flex-start" }}>
-                          <span style={{ color: "#60a5fa", fontSize: "10px", flexShrink: 0 }}>↑</span>
+                          <span style={{ color: "#3fc9c3", fontSize: "10px", flexShrink: 0 }}>↑</span>
                           <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>{s}</span>
                         </div>
                       ))}
@@ -406,7 +406,7 @@ export default function StrategyComparePanel({
             {(analysisA.thesis || analysisB.thesis) && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                 {[
-                  { thesis: analysisA.thesis, accent: "#60a5fa", bg: "rgba(37,99,235,0.05)", border: "rgba(37,99,235,0.14)", label: "A — Why This Exists" },
+                  { thesis: analysisA.thesis, accent: "#3fc9c3", bg: "rgba(14,165,160,0.05)", border: "rgba(14,165,160,0.14)", label: "A — Why This Exists" },
                   { thesis: analysisB.thesis, accent: "#c084fc", bg: "rgba(168,85,247,0.05)", border: "rgba(168,85,247,0.14)", label: "B — Why This Exists" },
                 ].map(({ thesis, accent, bg, border, label }) => (
                   <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "10px", padding: "12px 14px" }}>

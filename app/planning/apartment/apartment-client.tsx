@@ -71,7 +71,7 @@ function compute(l: ApartmentListing, monthlyIncome: number | null, cheapestTrue
 
 const STATUS_META: Record<ListingStatus, { label: string; color: string; bg: string }> = {
   considering: { label: "Considering",  color: "var(--text-muted)",   bg: "rgba(255,255,255,0.05)" },
-  touring:     { label: "Touring",      color: "oklch(0.65 0.18 220)", bg: "rgba(59,130,246,0.12)"  },
+  touring:     { label: "Touring",      color: "oklch(0.65 0.18 220)", bg: "rgba(14,165,160,0.12)"  },
   applied:     { label: "Applied",      color: "oklch(0.75 0.18 55)",  bg: "rgba(245,158,11,0.12)"  },
   offer:       { label: "Offer",        color: "var(--green)",         bg: "rgba(34,197,94,0.12)"   },
   pass:        { label: "Passed",       color: "var(--text-muted)",    bg: "rgba(255,255,255,0.05)" },

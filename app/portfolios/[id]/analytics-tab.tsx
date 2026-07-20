@@ -29,7 +29,7 @@ const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
 function Hint({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={240}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -155,7 +155,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           <h2 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", display: "flex", alignItems: "center" }}>
             Factor tilt <Hint text="What kind of stocks you actually own, by value: their size (large/mid/small cap), their style (value vs growth), and your blended P/E, beta, yield and 12-month momentum. Built from free fundamentals — funds and uncovered tickers are excluded." />
           </h2>
-          <p style={{ fontSize: "12px", color: "var(--accent, #818cf8)", fontWeight: 600, margin: "0 0 14px", textTransform: "capitalize" }}>{data.factors.headline}</p>
+          <p style={{ fontSize: "12px", color: "var(--accent, #5fbf9a)", fontWeight: 600, margin: "0 0 14px", textTransform: "capitalize" }}>{data.factors.headline}</p>
 
           {data.factors.styleCoveragePct > 0 && (
             <div style={{ marginBottom: "16px" }}>
@@ -165,7 +165,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
               <SplitBar segments={[
                 { label: "Value", pct: data.factors.style.value, color: "var(--green)" },
                 { label: "Blend", pct: data.factors.style.blend, color: "var(--text-tertiary)" },
-                { label: "Growth", pct: data.factors.style.growth, color: "#7c3aed" },
+                { label: "Growth", pct: data.factors.style.growth, color: "#3fae4a" },
               ]} />
             </div>
           )}
@@ -176,7 +176,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
                 Company size <Hint text="Large-cap ≥ $10B (steadier), mid-cap $2–10B, small-cap < $2B (more volatile, more upside). A heavy small-cap tilt means bumpier rides." />
               </div>
               <SplitBar segments={[
-                { label: "Large", pct: data.factors.size.large, color: "#2563eb" },
+                { label: "Large", pct: data.factors.size.large, color: "#0ea5a0" },
                 { label: "Mid", pct: data.factors.size.mid, color: "#06b6d4" },
                 { label: "Small", pct: data.factors.size.small, color: "#f59e0b" },
               ]} />
@@ -230,8 +230,8 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
                       <div key={`${i}-${j}`} title={`${corr.tickers[i]} ↔ ${corr.tickers[j]}: ${v.toFixed(2)}`} style={{
                         aspectRatio: "1", minWidth: "26px", display: "flex", alignItems: "center", justifyContent: "center",
                         borderRadius: "4px", fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)",
-                        background: i === j ? "rgba(99,102,241,0.18)" : corrColor(v),
-                        color: i === j ? "var(--accent, #818cf8)" : (v >= 0.4 || v < -0.15 ? "#fff" : "var(--text-secondary)"),
+                        background: i === j ? "rgba(63,174,74,0.18)" : corrColor(v),
+                        color: i === j ? "var(--accent, #5fbf9a)" : (v >= 0.4 || v < -0.15 ? "#fff" : "var(--text-secondary)"),
                       }}>{i === j ? "—" : v.toFixed(1)}</div>
                     ))}
                   </div>

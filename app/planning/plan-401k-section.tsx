@@ -454,7 +454,7 @@ export default function Plan401kSection({
           </div>
 
           {/* Atlas recommendation — what rate to pick, given match + taxes + budget */}
-          <div style={{ ...card, borderColor: "rgba(37,99,235,0.35)", background: "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.05))" }}>
+          <div style={{ ...card, borderColor: "rgba(14,165,160,0.35)", background: "linear-gradient(135deg, rgba(14,165,160,0.08), rgba(63,174,74,0.05))" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: "220px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: "6px" }}>Atlas suggests</div>
@@ -566,7 +566,7 @@ export default function Plan401kSection({
                         key={s.pct}
                         style={{
                           borderTop: "1px solid var(--card-border)",
-                          background: isCurrent ? "rgba(37,99,235,0.08)" : "transparent",
+                          background: isCurrent ? "rgba(14,165,160,0.08)" : "transparent",
                           textAlign: "right",
                         }}
                       >

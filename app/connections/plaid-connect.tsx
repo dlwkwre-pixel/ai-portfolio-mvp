@@ -127,7 +127,7 @@ export default function PlaidConnect({ status }: { status: BankStatus }) {
       <div style={{ display: "flex", gap: "8px" }}>
         <button
           type="button" onClick={() => void connect()} disabled={busy !== null}
-          style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid rgba(129,140,248,0.4)", background: "rgba(129,140,248,0.12)", color: "#818cf8", fontSize: "13px", fontWeight: 700, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: busy === "link" ? 0.7 : 1 }}
+          style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid rgba(129,140,248,0.4)", background: "rgba(129,140,248,0.12)", color: "#5fbf9a", fontSize: "13px", fontWeight: 700, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: busy === "link" ? 0.7 : 1 }}
         >
           {busy === "link" ? "Opening secure link…" : hasAccounts ? "✓ Connected · add another bank" : "Connect a bank"}
         </button>

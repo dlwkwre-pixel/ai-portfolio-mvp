@@ -111,9 +111,9 @@ export default function BacktestCard({ portfolioId }: { portfolioId: string }) {
             {RANGES.map((r) => (
               <button key={r} type="button" onClick={() => run(r)} disabled={loading}
                 style={{ padding: "5px 12px", borderRadius: "999px", fontSize: "11px", fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "var(--font-mono)",
-                  border: `1px solid ${range === r ? "rgba(124,58,237,0.5)" : "var(--card-border)"}`,
-                  background: range === r ? "rgba(124,58,237,0.12)" : "transparent",
-                  color: range === r ? "var(--accent, #818cf8)" : "var(--text-tertiary)" }}>
+                  border: `1px solid ${range === r ? "rgba(63,174,74,0.5)" : "var(--card-border)"}`,
+                  background: range === r ? "rgba(63,174,74,0.12)" : "transparent",
+                  color: range === r ? "var(--accent, #5fbf9a)" : "var(--text-tertiary)" }}>
                 {r}
               </button>
             ))}
@@ -141,7 +141,7 @@ export default function BacktestCard({ portfolioId }: { portfolioId: string }) {
               {/* Legend */}
               <div style={{ display: "flex", gap: "16px", margin: "8px 0 14px", fontSize: "10.5px" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}>
-                  <span style={{ width: "14px", height: "2px", background: "#7c3aed", display: "inline-block" }} /> Your allocation
+                  <span style={{ width: "14px", height: "2px", background: "#3fae4a", display: "inline-block" }} /> Your allocation
                 </span>
                 {b && (
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}>

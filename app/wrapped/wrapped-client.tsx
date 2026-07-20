@@ -74,7 +74,7 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
           <div style={{ display: "inline-flex", width: "44px", height: "44px", borderRadius: "13px", background: "var(--brand-gradient)", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <BrandGlyph size={26} stroke="#fff" strokeWidth={3.4} />
           </div>
-          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent, #818cf8)" }}>{stats.year} in Review</div>
+          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent, #5fbf9a)" }}>{stats.year} in Review</div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 800, letterSpacing: "-0.5px", margin: "4px 0 0", textTransform: "capitalize" }}>{stats.name}&apos;s year</h1>
         </div>
 
@@ -86,9 +86,9 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
           <div key={s.key} className="bt-wr-card" style={{
             animationDelay: `${i * 90}ms`,
             borderRadius: "20px", padding: "26px 24px", textAlign: "center",
-            background: s.hero ? "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)" : "var(--card-bg)",
+            background: s.hero ? "linear-gradient(135deg, #0ea5a0 0%, #3fae4a 100%)" : "var(--card-bg)",
             border: s.hero ? "none" : "1px solid var(--card-border)",
-            boxShadow: s.hero ? "0 14px 40px rgba(37,99,235,0.3)" : "none",
+            boxShadow: s.hero ? "0 14px 40px rgba(14,165,160,0.3)" : "none",
           }}>
             <div style={{ fontSize: "26px", marginBottom: "8px" }}>{s.emoji}</div>
             <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: s.hero ? "rgba(255,255,255,0.85)" : "var(--text-tertiary)", marginBottom: "8px" }}>{s.label}</div>

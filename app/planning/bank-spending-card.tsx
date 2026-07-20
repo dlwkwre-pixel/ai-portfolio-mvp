@@ -87,7 +87,7 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
             <div key={c.name} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "11.5px", color: "var(--text-secondary)", width: "128px", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
               <div style={{ flex: 1, height: "6px", borderRadius: "3px", background: "var(--bg-elevated)", overflow: "hidden" }}>
-                <div style={{ width: `${(c.amount / maxCat) * 100}%`, height: "100%", borderRadius: "3px", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
+                <div style={{ width: `${(c.amount / maxCat) * 100}%`, height: "100%", borderRadius: "3px", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
               </div>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "11.5px", fontWeight: 600, color: "var(--text-primary)", width: "76px", textAlign: "right", flexShrink: 0 }}>{ph(money(c.amount))}</span>
             </div>
@@ -119,7 +119,7 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
                 <button
                   type="button" disabled={addingKey !== null} onClick={() => void addToBudget(s)}
                   title="Add this as a monthly expense line in your budget"
-                  style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--brand-blue, #60a5fa)", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "7px", padding: "4px 8px", cursor: "pointer", flexShrink: 0, opacity: addingKey === s.merchant ? 0.6 : 1 }}
+                  style={{ fontSize: "10.5px", fontWeight: 700, color: "var(--brand-blue, #3fc9c3)", background: "none", border: "1px solid var(--border-subtle)", borderRadius: "7px", padding: "4px 8px", cursor: "pointer", flexShrink: 0, opacity: addingKey === s.merchant ? 0.6 : 1 }}
                 >
                   {addingKey === s.merchant ? "Adding…" : "+ Budget"}
                 </button>
@@ -131,7 +131,7 @@ export default function BankSpendingCard({ isPrivate = false }: { isPrivate?: bo
 
       {recent.length > 0 && (
         <details>
-          <summary style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--brand-blue, #60a5fa)", cursor: "pointer", listStyle: "none" }}>
+          <summary style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--brand-blue, #3fc9c3)", cursor: "pointer", listStyle: "none" }}>
             Recent transactions ({recent.length})
           </summary>
           <div style={{ marginTop: "8px" }}>

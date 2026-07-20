@@ -6,7 +6,7 @@ import Link from "next/link";
 import PublicPortfolioPerfChart from "./public-portfolio-perf-chart";
 import PublicPortfolioActions from "./public-portfolio-actions";
 
-const ALLOC_COLORS = ["#3b82f6", "#7c3aed", "#0891b2", "#065f46", "#92400e", "#4338ca"];
+const ALLOC_COLORS = ["#0ea5a0", "#3fae4a", "#0891b2", "#065f46", "#92400e", "#4338ca"];
 const ALLOC_CASH_COLOR = "rgba(255,255,255,0.2)";
 
 function riskColor(r: string | null) {
@@ -202,7 +202,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                     <Link href={`/${owner.username}`} style={{ display: "flex", alignItems: "center", gap: "9px", textDecoration: "none" }}>
                       <div style={{
                         width: "32px", height: "32px", minWidth: "32px",
-                        borderRadius: "50%", background: owner.avatar_color ?? "#2563eb",
+                        borderRadius: "50%", background: owner.avatar_color ?? "#0ea5a0",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: "13px", fontWeight: 700, color: "#fff",
                       }}>

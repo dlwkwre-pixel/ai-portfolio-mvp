@@ -20,14 +20,14 @@ export type TrajectoryPoint = { year: number; nw: number };
 export type ConflictZone = { startYear: number; endYear: number; severity: "critical" | "warning" | "info"; label?: string };
 
 const CAT = (c: string): { color: string; label: string } => {
-  if (c.startsWith("home")) return { color: "#3b82f6", label: "Home" };
+  if (c.startsWith("home")) return { color: "#0ea5a0", label: "Home" };
   if (c === "family") return { color: "#ec4899", label: "Family" };
-  if (c === "education") return { color: "#a78bfa", label: "Education" };
+  if (c === "education") return { color: "#6fd08a", label: "Education" };
   if (c === "vehicle") return { color: "#f59e0b", label: "Vehicle" };
   if (c === "wedding") return { color: "#f472b6", label: "Wedding" };
   if (c === "windfall") return { color: "var(--green)", label: "Windfall" };
   if (c === "career") return { color: "#06b6d4", label: "Career" };
-  if (c === "relocation") return { color: "#818cf8", label: "Relocation" };
+  if (c === "relocation") return { color: "#5fbf9a", label: "Relocation" };
   if (c === "debt") return { color: "var(--red)", label: "Debt" };
   return { color: "var(--text-tertiary)", label: "Other" };
 };

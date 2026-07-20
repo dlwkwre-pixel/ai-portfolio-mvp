@@ -16,7 +16,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -131,8 +131,8 @@ export default function EmergencyFundClient({ monthlyExpenses, liquidAssets }: {
               {STABILITY.map((s) => (
                 <button key={s.key} type="button" onClick={() => setStabilityKey(s.key)}
                   style={{ textAlign: "left", padding: "9px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)",
-                    border: `1px solid ${stabilityKey === s.key ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`,
-                    background: stabilityKey === s.key ? "rgba(37,99,235,0.1)" : "var(--bg-base)",
+                    border: `1px solid ${stabilityKey === s.key ? "var(--brand-blue, #0ea5a0)" : "var(--border-subtle)"}`,
+                    background: stabilityKey === s.key ? "rgba(14,165,160,0.1)" : "var(--bg-base)",
                     color: stabilityKey === s.key ? "var(--text-primary)" : "var(--text-secondary)" }}>
                   <strong>{s.months} months</strong> — {s.label}
                 </button>

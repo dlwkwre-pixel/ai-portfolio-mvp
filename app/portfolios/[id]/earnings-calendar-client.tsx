@@ -74,7 +74,7 @@ function recConsensus(r: Recommendations): { label: string; color: string } {
   if (pct >= 0.6) return { label: "Buy", color: "var(--green)" };
   if (pct >= 0.45) return { label: "Hold", color: "#f59e0b" };
   if (bearish / total >= 0.4) return { label: "Sell", color: "var(--red)" };
-  return { label: "Mixed", color: "#60a5fa" };
+  return { label: "Mixed", color: "#3fc9c3" };
 }
 
 export default function EarningsCalendarClient({ rows }: Props) {
@@ -85,7 +85,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
     return (
       <div className="bt-card">
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-          <svg width="12" height="12" viewBox="0 0 20 20" fill="#a78bfa">
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="#6fd08a">
             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
           </svg>
           <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Upcoming Earnings</h2>
@@ -129,7 +129,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
     <div className="bt-card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <svg width="12" height="12" viewBox="0 0 20 20" fill="#a78bfa">
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="#6fd08a">
             <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
           </svg>
           <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Upcoming Earnings</h2>
@@ -165,11 +165,11 @@ export default function EarningsCalendarClient({ rows }: Props) {
                         gap: "10px",
                         padding: "8px 10px",
                         background: isExpanded
-                          ? "rgba(124,58,237,0.1)"
+                          ? "rgba(63,174,74,0.1)"
                           : isUrgent
-                          ? "rgba(124,58,237,0.06)"
+                          ? "rgba(63,174,74,0.06)"
                           : "var(--bg-elevated)",
-                        border: `1px solid ${isExpanded ? "rgba(124,58,237,0.35)" : isUrgent ? "rgba(124,58,237,0.2)" : "var(--border-subtle)"}`,
+                        border: `1px solid ${isExpanded ? "rgba(63,174,74,0.35)" : isUrgent ? "rgba(63,174,74,0.2)" : "var(--border-subtle)"}`,
                         borderRadius: isExpanded ? "var(--radius-md) var(--radius-md) 0 0" : "var(--radius-md)",
                         cursor: "pointer",
                         textAlign: "left",
@@ -177,7 +177,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                         transition: "var(--transition-base)",
                       }}
                     >
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: isUrgent || isExpanded ? "#a78bfa" : "var(--text-primary)", minWidth: "44px" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700, color: isUrgent || isExpanded ? "#6fd08a" : "var(--text-primary)", minWidth: "44px" }}>
                         {e.symbol}
                       </span>
                       <span style={{ fontSize: "11px", color: "var(--text-secondary)", flex: 1 }}>
@@ -194,7 +194,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                       {hourTag && (
                         <span style={{
                           fontSize: "10px", fontWeight: 600,
-                          color: hourTag === "BMO" ? "#60a5fa" : hourTag === "AMC" ? "#f59e0b" : "var(--text-muted)",
+                          color: hourTag === "BMO" ? "#3fc9c3" : hourTag === "AMC" ? "#f59e0b" : "var(--text-muted)",
                           background: hourTag === "BMO" ? "rgba(96,165,250,0.08)" : hourTag === "AMC" ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.04)",
                           border: `1px solid ${hourTag === "BMO" ? "rgba(96,165,250,0.2)" : hourTag === "AMC" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.08)"}`,
                           padding: "1px 6px", borderRadius: "var(--radius-sm)", letterSpacing: "0.04em",
@@ -202,7 +202,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                           {hourTag}
                         </span>
                       )}
-                      <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isUrgent || isExpanded ? "#a78bfa" : "var(--text-muted)", minWidth: "28px", textAlign: "right" }}>
+                      <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: isUrgent || isExpanded ? "#6fd08a" : "var(--text-muted)", minWidth: "28px", textAlign: "right" }}>
                         {e.daysAway === 0 ? "today" : e.daysAway === 1 ? "tmrw" : `${e.daysAway}d`}
                       </span>
                       <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--text-muted)", transition: "transform 0.2s ease", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}>
@@ -213,8 +213,8 @@ export default function EarningsCalendarClient({ rows }: Props) {
                     {/* Expanded detail panel */}
                     {isExpanded && (
                       <div style={{
-                        background: "rgba(124,58,237,0.04)",
-                        border: "1px solid rgba(124,58,237,0.25)",
+                        background: "rgba(63,174,74,0.04)",
+                        border: "1px solid rgba(63,174,74,0.25)",
                         borderTop: "none",
                         borderRadius: "0 0 var(--radius-md) var(--radius-md)",
                         padding: "12px",
@@ -275,7 +275,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                                     <p style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>
                                       Analyst price target
                                     </p>
-                                    <p style={{ fontSize: "14px", fontWeight: 700, color: "#a78bfa", marginBottom: "4px" }}>
+                                    <p style={{ fontSize: "14px", fontWeight: 700, color: "#6fd08a", marginBottom: "4px" }}>
                                       ${detail.priceTarget.targetMean.toFixed(2)}
                                       <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-muted)", marginLeft: "4px" }}>mean</span>
                                     </p>

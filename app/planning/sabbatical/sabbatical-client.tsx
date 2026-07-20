@@ -589,7 +589,7 @@ export default function TimeOffClient({
           {/* Empty state — only when no scenarios and not in form */}
           {!showAnalysis && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: "14px", textAlign: "center" }}>
-              <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
               </div>
               <div>
@@ -716,9 +716,9 @@ export default function TimeOffClient({
 
           {/* Atlas narrative */}
           {showAnalysis && (vacationResult ?? sabbaticalResult) && (
-            <div style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+            <div style={{ background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
-                <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
+                <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
                     <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
                     <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
@@ -876,7 +876,7 @@ export default function TimeOffClient({
                           <stop offset="100%" stopColor="oklch(0.72 0.19 145)" />
                         </linearGradient>
                       </defs>
-                      <rect x={0} y={0} width={Number(form.sabbatical_months)} height={80} fill="rgba(99,102,241,0.05)" />
+                      <rect x={0} y={0} width={Number(form.sabbatical_months)} height={80} fill="rgba(63,174,74,0.05)" />
                       <polyline
                         points={sabbaticalResult.timeline.map((t, i) => `${i},${Math.round(80 - (t.balance / maxTimeline) * 72)}`).join(" ")}
                         fill="none" stroke="url(#sab-line-grad)" strokeWidth="2" vectorEffect="non-scaling-stroke"

@@ -110,8 +110,8 @@ type ComputedFamily = {
 };
 
 const PHASE_COLORS: Record<"Infant" | "Child" | "Teen", string> = {
-  Infant: "#6366f1",
-  Child: "#3b82f6",
+  Infant: "#159f6f",
+  Child: "#0ea5a0",
   Teen: "#06b6d4",
 };
 
@@ -1381,7 +1381,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   { label: "Without Child", value: fmtK(computed.projectedNWBefore), color: "#94a3b8" },
-                  { label: "With Child", value: fmtK(Math.max(0, computed.projectedNWAfter)), color: "#3b82f6" },
+                  { label: "With Child", value: fmtK(Math.max(0, computed.projectedNWAfter)), color: "#0ea5a0" },
                   { label: "Difference", value: (computed.projectedNWAfter - computed.projectedNWBefore >= 0 ? "+" : "") + fmtK(computed.projectedNWAfter - computed.projectedNWBefore), color: computed.projectedNWAfter >= computed.projectedNWBefore ? "var(--green)" : "var(--red)" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "10px 12px", background: "var(--bg-elevated, var(--bg-base))", borderRadius: 8 }}>

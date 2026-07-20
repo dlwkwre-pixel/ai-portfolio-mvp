@@ -59,7 +59,7 @@ const FV = {
   borderFaint: "rgba(109,40,217,0.11)",
   glowRing:    "rgba(109,40,217,0.22)",
   glowOuter:   "rgba(109,40,217,0.08)",
-  accent:      "#7c3aed",
+  accent:      "#3fae4a",
   accentBright:"#8b5cf6",
   accentDim:   "#6d28d9",
 } as const;
@@ -1358,7 +1358,7 @@ export default function StrategyQuestionnaire({
                 style={
                   msg.role === "assistant"
                     ? { background: FV.bg, border: `1px solid ${FV.borderFaint}`, color: "#cbd5e1" }
-                    : { background: "rgba(37,99,235,0.25)", border: "1px solid rgba(37,99,235,0.25)", color: "#fff" }
+                    : { background: "rgba(14,165,160,0.25)", border: "1px solid rgba(14,165,160,0.25)", color: "#fff" }
                 }
               >
                 {animatingIdx === i ? (

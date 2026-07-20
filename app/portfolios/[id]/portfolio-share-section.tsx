@@ -357,8 +357,8 @@ export default function PortfolioShareSection({
                       display: "flex", alignItems: "center", gap: "4px",
                       padding: "6px 12px", borderRadius: "var(--radius-md)",
                       fontSize: "11px", fontWeight: 500, textDecoration: "none",
-                      background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)",
-                      color: "#93c5fd", fontFamily: "var(--font-body)",
+                      background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.2)",
+                      color: "#7fd9d4", fontFamily: "var(--font-body)",
                       transition: "background 150ms ease",
                     }}
                   >
@@ -376,9 +376,9 @@ export default function PortfolioShareSection({
                       display: "flex", alignItems: "center", gap: "4px",
                       padding: "6px 12px", borderRadius: "var(--radius-md)",
                       fontSize: "11px", fontWeight: 500, fontFamily: "var(--font-body)",
-                      background: shareCopied ? "rgba(74,222,128,0.08)" : "rgba(37,99,235,0.08)",
-                      border: `1px solid ${shareCopied ? "rgba(74,222,128,0.2)" : "rgba(37,99,235,0.2)"}`,
-                      color: shareCopied ? "#4ade80" : "#93c5fd",
+                      background: shareCopied ? "rgba(74,222,128,0.08)" : "rgba(14,165,160,0.08)",
+                      border: `1px solid ${shareCopied ? "rgba(74,222,128,0.2)" : "rgba(14,165,160,0.2)"}`,
+                      color: shareCopied ? "#4ade80" : "#7fd9d4",
                       cursor: "pointer", transition: "all 150ms ease",
                     }}
                   >

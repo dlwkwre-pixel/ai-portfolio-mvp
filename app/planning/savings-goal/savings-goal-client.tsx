@@ -84,7 +84,7 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
         {/* Verdict hero */}
         {(() => {
           const pctFunded = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
-          const heroColor = calc.onTrack == null ? "var(--brand-blue, #2563eb)" : calc.onTrack ? "var(--green)" : "var(--amber, #f59e0b)";
+          const heroColor = calc.onTrack == null ? "var(--brand-blue, #0ea5a0)" : calc.onTrack ? "var(--green)" : "var(--amber, #f59e0b)";
           const heroLabel = calc.onTrack == null ? (calc.monthsToReach != null ? `Ready in ${calc.monthsToReach} months` : "Set a date or monthly amount") : calc.onTrack ? "On track" : "Behind pace";
           return (
             <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${heroColor} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${heroColor} 28%, transparent)` }}>
@@ -117,7 +117,7 @@ export default function SavingsGoalClient({ liquidAssets }: { liquidAssets: numb
               <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Italy trip" />
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
                 {PRESETS.map((p) => (
-                  <button key={p} type="button" onClick={() => setName(p)} style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "20px", border: "1px solid var(--border-subtle)", background: name === p ? "rgba(37,99,235,0.12)" : "var(--bg-base)", color: name === p ? "var(--brand-blue, #2563eb)" : "var(--text-tertiary)", cursor: "pointer", fontFamily: "var(--font-body)" }}>{p}</button>
+                  <button key={p} type="button" onClick={() => setName(p)} style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "20px", border: "1px solid var(--border-subtle)", background: name === p ? "rgba(14,165,160,0.12)" : "var(--bg-base)", color: name === p ? "var(--brand-blue, #0ea5a0)" : "var(--text-tertiary)", cursor: "pointer", fontFamily: "var(--font-body)" }}>{p}</button>
                 ))}
               </div>
             </div>

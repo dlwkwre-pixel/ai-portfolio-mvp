@@ -134,10 +134,10 @@ function formatMoney(value: number) {
 
 function accountTypeDot(type: string | null) {
   const t = (type || "").toLowerCase();
-  if (["brokerage", "taxable"].includes(t)) return "#3b82f6";
+  if (["brokerage", "taxable"].includes(t)) return "#0ea5a0";
   if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#00d395";
   if (["margin", "speculative"].includes(t)) return "#f59e0b";
-  if (["paper_trade", "paper trade"].includes(t)) return "#a78bfa";
+  if (["paper_trade", "paper trade"].includes(t)) return "#6fd08a";
   return "#64748b";
 }
 
@@ -307,7 +307,7 @@ export default function Sidebar({
         <div style={{
           margin: "12px 10px",
           background: "rgba(255,255,255,0.07)",
-          border: "1px solid rgba(37,99,235,0.16)",
+          border: "1px solid rgba(14,165,160,0.16)",
           borderRadius: "10px",
           padding: "11px 13px",
         }}>

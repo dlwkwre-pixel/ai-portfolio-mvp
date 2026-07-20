@@ -74,7 +74,7 @@ export default function HealthReportCard({ report, updatedAt }: { report: Health
 
       {/* Suggested focus — highlighted */}
       {report.suggested_focus && (
-        <div style={{ margin: "0 12px 12px", padding: "11px 13px", borderRadius: "10px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", display: "flex", gap: "9px", alignItems: "flex-start" }}>
+        <div style={{ margin: "0 12px 12px", padding: "11px 13px", borderRadius: "10px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.2)", display: "flex", gap: "9px", alignItems: "flex-start" }}>
           <svg width="14" height="14" viewBox="0 0 20 20" fill="var(--brand-blue)" style={{ flexShrink: 0, marginTop: "1px" }}><path d="M10 1a6 6 0 00-3.6 10.8c.4.3.6.7.6 1.2v.5a1 1 0 001 1h4a1 1 0 001-1v-.5c0-.5.2-.9.6-1.2A6 6 0 0010 1zM7.5 17a1 1 0 011-1h3a1 1 0 110 2h-3a1 1 0 01-1-1z" /></svg>
           <div style={{ minWidth: 0 }}>
             <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--brand-blue)", margin: "0 0 2px" }}>Focus next</p>

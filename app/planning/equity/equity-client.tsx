@@ -194,7 +194,7 @@ export default function EquityClient({
           <div key={r.g.id} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "13px 15px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <span style={{ fontWeight: 700, fontSize: "14px", color: "var(--text-primary)" }}>{r.g.label || r.g.ticker || r.g.company_name || "Grant"}</span>
-              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--accent, #818cf8)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: "6px", padding: "2px 6px" }}>{TYPE_META[r.g.grant_type].label}</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--accent, #5fbf9a)", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "6px", padding: "2px 6px" }}>{TYPE_META[r.g.grant_type].label}</span>
               {r.g.ticker && <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{r.g.ticker}{r.priceKnown ? ` · ${fmtFull(r.price)}` : ""}</span>}
               <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>{r.priceKnown ? fmt(r.grossValue) : "—"}</span>
             </div>
@@ -204,7 +204,7 @@ export default function EquityClient({
               {r.next && <span>Next vest {fmtDate(r.next)}</span>}
               {!r.priceKnown && <span style={{ color: "#f59e0b" }}>Add a ticker or current price to value this</span>}
               <span style={{ marginLeft: "auto", display: "flex", gap: "10px" }}>
-                <button onClick={() => startEdit(r.g)} disabled={pending} style={{ background: "none", border: "none", color: "var(--accent, #818cf8)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>Edit</button>
+                <button onClick={() => startEdit(r.g)} disabled={pending} style={{ background: "none", border: "none", color: "var(--accent, #5fbf9a)", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>Edit</button>
                 <button onClick={() => remove(r.g.id)} disabled={pending} style={{ background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "11px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Delete</button>
               </span>
             </div>

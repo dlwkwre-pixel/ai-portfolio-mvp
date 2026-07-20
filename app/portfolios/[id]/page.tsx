@@ -91,10 +91,10 @@ function formatRiskLevel(v: string | null) {
 
 function accountDotColor(v: string | null) {
   const t = (v || "").toLowerCase();
-  if (["brokerage","taxable"].includes(t)) return "#3b82f6";
+  if (["brokerage","taxable"].includes(t)) return "#0ea5a0";
   if (["roth_ira","traditional_ira","retirement"].includes(t)) return "#00d395";
   if (["margin","speculative"].includes(t)) return "#f59e0b";
-  if (["paper_trade","paper trade"].includes(t)) return "#a78bfa";
+  if (["paper_trade","paper trade"].includes(t)) return "#6fd08a";
   return "#64748b";
 }
 
@@ -124,7 +124,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
       return (
         <main style={{ minHeight: "100vh", background: "var(--bg-base)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
           <div style={{ maxWidth: "400px", width: "100%", textAlign: "center" }}>
-            <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
               </svg>
@@ -443,7 +443,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                       )}
                       {isLinkedPortfolio && (
                         <div style={{ marginBottom: "10px", fontSize: "11px", color: "var(--text-tertiary)", padding: "8px 11px", borderRadius: "var(--radius-sm)", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", lineHeight: 1.5 }}>
-                          This portfolio mirrors your brokerage. Holdings, cash, and chart history sync from the broker, manual edits are off. Manage positions at your broker, then re-import from <a href="/connections" style={{ color: "var(--accent, #818cf8)", textDecoration: "none" }}>Connections</a>.
+                          This portfolio mirrors your brokerage. Holdings, cash, and chart history sync from the broker, manual edits are off. Manage positions at your broker, then re-import from <a href="/connections" style={{ color: "var(--accent, #5fbf9a)", textDecoration: "none" }}>Connections</a>.
                           <LinkedChartStart portfolioId={portfolio.id} startDate={(portfolio as { chart_start_date?: string | null }).chart_start_date ?? null} />
                         </div>
                       )}
@@ -583,7 +583,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               {activeTab === "ai" && (
                 <div className="bt-tab-enter" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <MarketRegimeCard compact />
-                  <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.12)", borderRadius: "var(--radius-lg)", padding: "20px 24px" }}>
+                  <div style={{ background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-lg)", padding: "20px 24px" }}>
                     <h2 style={{ fontFamily: "var(--font-display)", fontSize: "18px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.2px", marginBottom: "6px" }}>
                       AI Portfolio Analysis
                     </h2>

@@ -45,7 +45,7 @@ export function Chip({
   const toneStyle: React.CSSProperties =
     tone === "up" ? { background: "var(--green-bg)", color: "var(--green)", borderColor: "var(--green-border)" }
     : tone === "down" ? { background: "var(--red-bg)", color: "var(--red)", borderColor: "var(--red-border)" }
-    : tone === "brand" ? { background: "rgba(37,99,235,0.12)", color: "var(--brand-blue)", borderColor: "rgba(37,99,235,0.25)" }
+    : tone === "brand" ? { background: "rgba(14,165,160,0.12)", color: "var(--brand-blue)", borderColor: "rgba(14,165,160,0.25)" }
     : { background: "var(--surface-005)", color: "var(--text-secondary)", borderColor: "var(--border-subtle)" };
   return (
     <span

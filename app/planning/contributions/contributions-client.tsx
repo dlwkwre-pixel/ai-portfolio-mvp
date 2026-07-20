@@ -93,7 +93,7 @@ export default function ContributionsClient({ schedules, portfolios }: {
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px", margin: "8px 0 2px", display: "flex", alignItems: "center" }}>
             Auto-Invest Plan
             <InfoTooltip align="start" width={250} text="Schedule recurring contributions (dollar-cost averaging). BuyTune sends an in-app reminder on each due date so you invest consistently — the single biggest driver of long-term returns.">
-              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "8px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "8px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
             </InfoTooltip>
           </h1>
           <p style={{ fontSize: "13px", color: "var(--text-tertiary)", margin: 0 }}>
@@ -104,7 +104,7 @@ export default function ContributionsClient({ schedules, portfolios }: {
         {/* Pace summary */}
         {active.length > 0 && (
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: "150px", padding: "14px 16px", background: "linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.06))", border: "1px solid rgba(124,58,237,0.2)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ flex: 1, minWidth: "150px", padding: "14px 16px", background: "linear-gradient(135deg, rgba(14,165,160,0.08), rgba(63,174,74,0.06))", border: "1px solid rgba(63,174,74,0.2)", borderRadius: "var(--radius-lg)" }}>
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Monthly pace</div>
               <div style={{ fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", fontFamily: "var(--font-mono)", marginTop: "3px" }}>{fmt(monthlyPace)}</div>
             </div>
@@ -118,7 +118,7 @@ export default function ContributionsClient({ schedules, portfolios }: {
         {/* Add button / form */}
         {!showForm ? (
           <button type="button" onClick={() => { resetForm(); setShowForm(true); }}
-            style={{ width: "100%", padding: "12px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #818cf8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", marginBottom: "18px" }}>
+            style={{ width: "100%", padding: "12px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #5fbf9a)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", marginBottom: "18px" }}>
             + New contribution
           </button>
         ) : (
@@ -193,14 +193,14 @@ export default function ContributionsClient({ schedules, portfolios }: {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(s.amount)}</div>
-                      <div style={{ fontSize: "10.5px", color: due.soon && s.active ? "var(--accent, #818cf8)" : "var(--text-muted)", fontWeight: due.soon ? 700 : 400 }}>{s.active ? due.text : "—"}</div>
+                      <div style={{ fontSize: "10.5px", color: due.soon && s.active ? "var(--accent, #5fbf9a)" : "var(--text-muted)", fontWeight: due.soon ? 700 : 400 }}>{s.active ? due.text : "—"}</div>
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
                     <button type="button" onClick={() => toggle(s.id, !s.active)} disabled={pending} style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
                       {s.active ? "Pause" : "Resume"}
                     </button>
-                    <button type="button" onClick={() => openEdit(s)} disabled={pending} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>Edit</button>
+                    <button type="button" onClick={() => openEdit(s)} disabled={pending} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>Edit</button>
                     <button type="button" onClick={() => remove(s.id)} disabled={pending} style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Delete</button>
                   </div>
                 </div>

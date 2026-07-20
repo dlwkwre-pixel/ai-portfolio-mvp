@@ -50,9 +50,9 @@ export default function PublicPortfolioActions({
         style={{
           padding: "7px 16px", borderRadius: "var(--radius-full)",
           fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)",
-          background: isFollowing ? "transparent" : "rgba(37,99,235,0.1)",
-          border: `1px solid ${isFollowing ? "var(--card-border)" : "rgba(37,99,235,0.3)"}`,
-          color: isFollowing ? "var(--text-tertiary)" : "#93c5fd",
+          background: isFollowing ? "transparent" : "rgba(14,165,160,0.1)",
+          border: `1px solid ${isFollowing ? "var(--card-border)" : "rgba(14,165,160,0.3)"}`,
+          color: isFollowing ? "var(--text-tertiary)" : "#7fd9d4",
           cursor: "pointer",
           transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
         }}

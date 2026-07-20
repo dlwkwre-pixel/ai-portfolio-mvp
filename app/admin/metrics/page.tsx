@@ -193,7 +193,7 @@ export default async function MetricsPage() {
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{ fontSize: "12px", color: "var(--text-secondary)", width: "96px", flexShrink: 0, textTransform: "capitalize" }}>{m}</span>
                   <div style={{ flex: 1, height: "8px", borderRadius: "99px", background: "var(--surface-005)", overflow: "hidden" }}>
-                    <div style={{ width: `${(n / maxModule) * 100}%`, height: "100%", borderRadius: "99px", background: "linear-gradient(90deg,#2563eb,#4f46e5)" }} />
+                    <div style={{ width: `${(n / maxModule) * 100}%`, height: "100%", borderRadius: "99px", background: "linear-gradient(90deg,#0ea5a0,#0e9488)" }} />
                   </div>
                   <span style={{ ...mono, fontSize: "12px", width: "32px", textAlign: "right" }}>{n}</span>
                 </div>

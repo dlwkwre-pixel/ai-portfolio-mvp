@@ -280,7 +280,7 @@ export default function MobileBottomNav() {
                         display: "flex", flexDirection: "column", alignItems: "center",
                         gap: "6px", padding: "12px 6px",
                         borderRadius: "var(--radius-md)",
-                        background: onBar ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+                        background: onBar ? "rgba(14,165,160,0.1)" : "var(--card-bg)",
                         border: `1px solid ${onBar ? "var(--nav-active-border)" : "var(--card-border)"}`,
                         color: onBar ? "var(--brand-blue)" : "var(--text-secondary)",
                         cursor: "pointer", position: "relative",

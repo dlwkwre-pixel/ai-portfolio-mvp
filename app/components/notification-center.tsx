@@ -185,7 +185,7 @@ export default function NotificationCenter({ placement = "down" }: { placement?:
                     style={{
                       padding: "11px 14px",
                       borderBottom: "1px solid var(--border-subtle)",
-                      background: isRead ? "transparent" : "rgba(37,99,235,0.06)",
+                      background: isRead ? "transparent" : "rgba(14,165,160,0.06)",
                       display: "flex",
                       gap: "10px",
                       alignItems: "flex-start",
@@ -196,7 +196,7 @@ export default function NotificationCenter({ placement = "down" }: { placement?:
                       width: "6px",
                       height: "6px",
                       borderRadius: "50%",
-                      background: isRead ? "transparent" : "#3b82f6",
+                      background: isRead ? "transparent" : "#0ea5a0",
                       marginTop: "5px",
                       flexShrink: 0,
                     }} />

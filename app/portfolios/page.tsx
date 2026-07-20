@@ -20,10 +20,10 @@ function formatAccountType(value: string | null) {
 
 function accountDotColor(value: string | null) {
   const t = (value || "").toLowerCase();
-  if (["brokerage", "taxable"].includes(t)) return "#3b82f6";
+  if (["brokerage", "taxable"].includes(t)) return "#0ea5a0";
   if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#00d395";
   if (["margin", "speculative"].includes(t)) return "#f59e0b";
-  if (["paper_trade", "paper trade"].includes(t)) return "#a78bfa";
+  if (["paper_trade", "paper trade"].includes(t)) return "#6fd08a";
   return "#64748b";
 }
 
@@ -231,7 +231,7 @@ export default async function PortfoliosPage() {
             {/* Empty state */}
             {activePortfolios.length === 0 && archivedPortfolios.length === 0 && (
               <div className="bt-card" style={{ padding: "48px", textAlign: "center" }}>
-                <div style={{ width: "48px", height: "48px", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                <div style={{ width: "48px", height: "48px", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.2)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
                   <svg width="22" height="22" viewBox="0 0 20 20" fill="currentColor" style={{ color: "var(--brand-blue)" }}>
                     <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
                   </svg>

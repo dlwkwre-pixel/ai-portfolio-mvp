@@ -212,7 +212,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                   <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", borderRadius: "6px", padding: "2px 7px" }}>✓ Synced</span>
                 )}
                 <button type="button" onClick={() => startReview(a)} disabled={busy !== null}
-                  style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #818cf8)", opacity: busy ? 0.6 : 1 }}>
+                  style={{ ...btn, flexShrink: 0, padding: "6px 12px", border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--accent, #5fbf9a)", opacity: busy ? 0.6 : 1 }}>
                   {busy === "preview" ? "…" : synced ? "Re-import" : "Review & import"}
                 </button>
               </div>
@@ -277,7 +277,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                         style={{ fontSize: "12px", color: "var(--text-tertiary)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: "default" }}>
                         {fmtShares(r.shares)} sh{r.value ? ` · ~$${Math.round(r.value).toLocaleString()}` : ""}
                       </span>
-                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #818cf8)", flexShrink: 0, minWidth: "44px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: r.currentPortfolioId ? "#00d395" : "var(--accent, #5fbf9a)", flexShrink: 0, minWidth: "44px" }}>
                         {r.currentPortfolioId ? "update" : "add"}
                       </span>
                       <select value={r.target} onChange={(e) => setRows((prev) => prev.map((x, j) => (j === i ? { ...x, target: e.target.value } : x)))} style={{ ...sel, flexShrink: 0, width: "170px" }}>

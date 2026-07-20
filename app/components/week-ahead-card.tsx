@@ -106,8 +106,8 @@ export default function WeekAheadCard() {
   return (
     <div
       style={{
-        background: "rgba(37,99,235,0.03)",
-        border: "1px solid rgba(37,99,235,0.12)",
+        background: "rgba(14,165,160,0.03)",
+        border: "1px solid rgba(14,165,160,0.12)",
         borderRadius: "var(--radius-lg)",
         padding: "14px 16px",
         overflow: "visible",

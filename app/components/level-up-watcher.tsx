@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 const SEEN_KEY = "bt-seen-level";
-const CONFETTI = ["#2563eb", "#7c3aed", "#34d399", "#fbbf24", "#f472b6"];
+const CONFETTI = ["#0ea5a0", "#3fae4a", "#34d399", "#fbbf24", "#f472b6"];
 
 // Watches the user's level and celebrates when it goes up. Decoupled from the actions that
 // award XP — it just compares the current level to the last one this device saw. Mounted
@@ -84,11 +84,11 @@ export default function LevelUpWatcher() {
         <div style={{
           width: "72px", height: "72px", margin: "0 auto 16px", borderRadius: "20px",
           background: "var(--brand-gradient)", display: "flex",
-          alignItems: "center", justifyContent: "center", boxShadow: "0 10px 28px rgba(37,99,235,0.45)",
+          alignItems: "center", justifyContent: "center", boxShadow: "0 10px 28px rgba(14,165,160,0.45)",
         }}>
           <span style={{ fontSize: "30px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-mono)" }}>{celebrating}</span>
         </div>
-        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent, #818cf8)", marginBottom: "4px" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent, #5fbf9a)", marginBottom: "4px" }}>
           Level up
         </div>
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: "21px", fontWeight: 800, color: "#fff", margin: "0 0 6px" }}>

@@ -65,7 +65,7 @@ export default function DcaCard() {
     <Link href="/planning/contributions" style={{
       display: "flex", alignItems: "center", gap: "12px", marginTop: "16px",
       padding: "13px 16px", borderRadius: "var(--radius-lg)", textDecoration: "none",
-      background: due.soon ? "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(37,99,235,0.06))" : "var(--card-bg)",
+      background: due.soon ? "linear-gradient(135deg, rgba(16,185,129,0.1), rgba(14,165,160,0.06))" : "var(--card-bg)",
       border: `1px solid ${due.soon ? "rgba(16,185,129,0.25)" : "var(--card-border)"}`,
     }}>
       <div style={iconWrap}>{Icon}</div>

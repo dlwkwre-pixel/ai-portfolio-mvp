@@ -20,7 +20,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -211,7 +211,7 @@ export default function BusinessClient({ liquidAssets, currentMonthlyIncome }: {
           <span style={sectionTitle}>If it goes slower (or faster)<HintDot text="The same plan under a conservative case (75% of revenue, 1.5× ramp) and an optimistic case (120% revenue, faster ramp). Plan for the conservative one." /></span>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>
             <ScenarioCard title="Conservative" tone="var(--red)" r={conservative} cashAvailable={cashAvailable} />
-            <ScenarioCard title="Base case" tone="var(--accent, #818cf8)" r={calc} cashAvailable={cashAvailable} />
+            <ScenarioCard title="Base case" tone="var(--accent, #5fbf9a)" r={calc} cashAvailable={cashAvailable} />
             <ScenarioCard title="Optimistic" tone="var(--green)" r={optimistic} cashAvailable={cashAvailable} />
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function BusinessClient({ liquidAssets, currentMonthlyIncome }: {
         <div style={cardStyle}>
           <span style={sectionTitle}>Business vs. staying employed (5 yr)</span>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)" }}>
+            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)" }}>
               <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Business take-home</div>
               <div style={{ fontSize: "20px", fontWeight: 800, fontFamily: "var(--font-mono)", marginTop: "3px" }}>{fmtSigned(Math.round(calc.cum5yr))}</div>
               <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>cumulative profit, after tax</div>

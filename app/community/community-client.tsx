@@ -130,7 +130,7 @@ type CopyToast = { message: string; portfolioId?: string } | null;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ALLOC_COLORS = ["#3b82f6", "#7c3aed", "#0891b2", "#065f46", "#92400e", "#4338ca"];
+const ALLOC_COLORS = ["#0ea5a0", "#3fae4a", "#0891b2", "#065f46", "#92400e", "#4338ca"];
 const ALLOC_CASH_COLOR = "rgba(255,255,255,0.12)";
 const ALLOC_REST_COLOR = "rgba(255,255,255,0.06)";
 
@@ -165,9 +165,9 @@ function FilterChip({ active, label, onClick }: { active: boolean; label: string
     <button onClick={onClick} style={{
       flexShrink: 0, padding: "5px 11px", borderRadius: "var(--radius-full)",
       fontSize: "11px", fontWeight: active ? 600 : 400, fontFamily: "var(--font-body)",
-      border: `1px solid ${active ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`,
-      background: active ? "rgba(37,99,235,0.12)" : "transparent",
-      color: active ? "#93c5fd" : "var(--text-tertiary)",
+      border: `1px solid ${active ? "rgba(14,165,160,0.45)" : "var(--card-border)"}`,
+      background: active ? "rgba(14,165,160,0.12)" : "transparent",
+      color: active ? "#7fd9d4" : "var(--text-tertiary)",
       cursor: "pointer", whiteSpace: "nowrap",
       transition: "color 150ms ease, background 150ms ease, border-color 150ms ease",
     }}>
@@ -208,8 +208,8 @@ function OwnBadge() {
     <span style={{
       fontSize: "10px", fontWeight: 600, letterSpacing: "0.04em",
       padding: "2px 7px", borderRadius: "var(--radius-full)",
-      background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)",
-      color: "#93c5fd", flexShrink: 0,
+      background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.2)",
+      color: "#7fd9d4", flexShrink: 0,
     }}>
       Yours
     </span>
@@ -374,9 +374,9 @@ function StrategyPreviewModal({
                 style={{
                   padding: "5px 14px", borderRadius: "var(--radius-full)",
                   fontSize: "12px", fontWeight: 500, flexShrink: 0,
-                  background: strategy.author.is_following ? "transparent" : "rgba(37,99,235,0.1)",
-                  border: `1px solid ${strategy.author.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
-                  color: strategy.author.is_following ? "var(--text-tertiary)" : "#93c5fd",
+                  background: strategy.author.is_following ? "transparent" : "rgba(14,165,160,0.1)",
+                  border: `1px solid ${strategy.author.is_following ? "var(--card-border)" : "rgba(14,165,160,0.25)"}`,
+                  color: strategy.author.is_following ? "var(--text-tertiary)" : "#7fd9d4",
                   cursor: "pointer", fontFamily: "var(--font-body)",
                   transition: "color 150ms ease, background 150ms ease",
                 }}
@@ -446,7 +446,7 @@ function StrategyPreviewModal({
                 onClick={() => setCompareOpen(o => !o)}
                 style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", fontWeight: 500 }}
               >
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#60a5fa", flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#3fc9c3", flexShrink: 0 }}>
                   <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
                 </svg>
                 How would I have done?
@@ -546,9 +546,9 @@ function StrategyPreviewModal({
                 style={{
                   display: "flex", alignItems: "center", gap: "5px",
                   padding: "7px 14px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500,
-                  background: strategy.is_saved ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
-                  border: `1px solid ${strategy.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
-                  color: strategy.is_saved ? "#93c5fd" : "var(--text-secondary)",
+                  background: strategy.is_saved ? "rgba(14,165,160,0.1)" : "var(--card-bg)",
+                  border: `1px solid ${strategy.is_saved ? "rgba(14,165,160,0.25)" : "var(--card-border)"}`,
+                  color: strategy.is_saved ? "#7fd9d4" : "var(--text-secondary)",
                   cursor: "pointer", fontFamily: "var(--font-body)",
                   transition: "color 150ms ease, background 150ms ease",
                 }}
@@ -615,9 +615,9 @@ function StrategyPreviewModal({
                     <button key={ct} type="button" onClick={() => setChangeType(ct)}
                       style={{
                         padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "10px", fontWeight: changeType === ct ? 700 : 400,
-                        background: changeType === ct ? "rgba(37,99,235,0.12)" : "transparent",
-                        border: `1px solid ${changeType === ct ? "rgba(37,99,235,0.35)" : "var(--card-border)"}`,
-                        color: changeType === ct ? "#93c5fd" : "var(--text-muted)",
+                        background: changeType === ct ? "rgba(14,165,160,0.12)" : "transparent",
+                        border: `1px solid ${changeType === ct ? "rgba(14,165,160,0.35)" : "var(--card-border)"}`,
+                        color: changeType === ct ? "#7fd9d4" : "var(--text-muted)",
                         cursor: "pointer", fontFamily: "var(--font-body)", textTransform: "capitalize",
                       }}
                     >{ct}</button>
@@ -681,8 +681,8 @@ function StrategyPreviewModal({
                             title={copiedTicker === t ? "Copied!" : "Copy ticker"}
                             style={{
                               padding: "2px 7px", borderRadius: "var(--radius-full)",
-                              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)",
-                              color: copiedTicker === t ? "#34d399" : "#93c5fd",
+                              background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.2)",
+                              color: copiedTicker === t ? "#34d399" : "#7fd9d4",
                               fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 700,
                               cursor: "pointer", transition: "color 120ms ease",
                             }}
@@ -722,8 +722,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
 
   const cardStyle: React.CSSProperties = {
     flexShrink: 0, width: "190px",
-    background: isFirst ? "rgba(37,99,235,0.06)" : "var(--card-bg)",
-    border: `1px solid ${isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"}`,
+    background: isFirst ? "rgba(14,165,160,0.06)" : "var(--card-bg)",
+    border: `1px solid ${isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"}`,
     borderRadius: "var(--radius-lg)",
     padding: "12px 14px",
     display: "flex", flexDirection: "column", gap: "8px",
@@ -787,8 +787,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
         href={item.href}
         aria-label={item.ariaLabel}
         style={cardStyle}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(37,99,235,0.35)" : "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"; (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.35)" : "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"; (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
       >
         {inner}
       </Link>
@@ -801,8 +801,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
       aria-label={item.ariaLabel}
       onClick={item.onClick}
       style={cardStyle}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(37,99,235,0.35)" : "rgba(255,255,255,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(37,99,235,0.18)" : "var(--card-border)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.35)" : "rgba(255,255,255,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
       onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
       onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
       onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
@@ -888,7 +888,7 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
               color: "var(--text-primary)", lineHeight: 1.25,
               transition: "color 120ms ease",
             }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#93c5fd"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#7fd9d4"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
             >
               {s.name}
@@ -939,9 +939,9 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
           <button type="button" onClick={(e) => { e.stopPropagation(); onFollow(s.author.user_id); }}
             style={{
               padding: "3px 9px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 500, flexShrink: 0,
-              background: s.author.is_following ? "transparent" : "rgba(37,99,235,0.1)",
-              border: `1px solid ${s.author.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
-              color: s.author.is_following ? "var(--text-tertiary)" : "#93c5fd",
+              background: s.author.is_following ? "transparent" : "rgba(14,165,160,0.1)",
+              border: `1px solid ${s.author.is_following ? "var(--card-border)" : "rgba(14,165,160,0.25)"}`,
+              color: s.author.is_following ? "var(--text-tertiary)" : "#7fd9d4",
               cursor: "pointer", fontFamily: "var(--font-body)",
               transition: "color 150ms ease, background 150ms ease",
             }}
@@ -1034,9 +1034,9 @@ function StrategyCard({ s, onLike, onSave, onFollow, onComment, onCopy, onPrevie
             style={{
               display: "flex", alignItems: "center", gap: "4px", padding: "4px 8px", borderRadius: "var(--radius-md)",
               fontSize: "11px", fontWeight: 500,
-              background: s.is_saved ? "rgba(37,99,235,0.1)" : "none",
-              border: `1px solid ${s.is_saved ? "rgba(37,99,235,0.25)" : "var(--card-border)"}`,
-              color: s.is_saved ? "#93c5fd" : "var(--text-tertiary)",
+              background: s.is_saved ? "rgba(14,165,160,0.1)" : "none",
+              border: `1px solid ${s.is_saved ? "rgba(14,165,160,0.25)" : "var(--card-border)"}`,
+              color: s.is_saved ? "#7fd9d4" : "var(--text-tertiary)",
               cursor: "pointer", fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease",
             }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.94)"; }}
@@ -1149,21 +1149,21 @@ function MarketPulseCard() {
   return (
     <div style={{
       padding: "14px 16px", marginBottom: "24px",
-      background: "rgba(37,99,235,0.04)",
-      border: "1px solid rgba(37,99,235,0.14)",
+      background: "rgba(14,165,160,0.04)",
+      border: "1px solid rgba(14,165,160,0.14)",
       borderRadius: "var(--radius-lg)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
         <div style={{
           width: "20px", height: "20px", borderRadius: "6px",
-          background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)",
+          background: "rgba(14,165,160,0.12)", border: "1px solid rgba(14,165,160,0.2)",
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
           </svg>
         </div>
-        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#93c5fd" }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7fd9d4" }}>
           Atlas&apos;s Market Pulse
         </span>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "auto" }}>
@@ -1205,7 +1205,7 @@ function LeaderboardRow({ rank, name, sub, pct, author, onClick, href }: {
   const rankColors = ["#fbbf24", "#94a3b8", "#cd7c3e"];
   const isGold = rank === 0;
   const rankColor = rank < 3 ? rankColors[rank] : "var(--text-muted)";
-  const barColor = isGold ? "#fbbf24" : rank === 1 ? "#94a3b8" : rank === 2 ? "#cd7c3e" : "rgba(37,99,235,0.5)";
+  const barColor = isGold ? "#fbbf24" : rank === 1 ? "#94a3b8" : rank === 2 ? "#cd7c3e" : "rgba(14,165,160,0.5)";
 
   const inner = (
     <div style={{
@@ -1530,9 +1530,9 @@ function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id
           <button type="button" onClick={(e) => { e.stopPropagation(); onFollow(p.id); }}
             style={{
               padding: "5px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 500,
-              background: p.is_following ? "transparent" : "rgba(37,99,235,0.1)",
-              border: `1px solid ${p.is_following ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
-              color: p.is_following ? "var(--text-tertiary)" : "#93c5fd",
+              background: p.is_following ? "transparent" : "rgba(14,165,160,0.1)",
+              border: `1px solid ${p.is_following ? "var(--card-border)" : "rgba(14,165,160,0.25)"}`,
+              color: p.is_following ? "var(--text-tertiary)" : "#7fd9d4",
               cursor: "pointer", fontFamily: "var(--font-body)", transition: "color 150ms ease, background 150ms ease",
             }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.95)"; }}
@@ -1548,7 +1548,7 @@ function PortfolioCard({ p, onFollow, onCopy }: { p: PortfolioRow; onFollow: (id
             style={{
               display: "flex", alignItems: "center", gap: "4px", padding: "5px 11px", borderRadius: "var(--radius-md)",
               fontSize: "11px", fontWeight: 500,
-              background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", color: "#93c5fd",
+              background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.2)", color: "#7fd9d4",
               cursor: copying ? "not-allowed" : "pointer", opacity: copying ? 0.6 : 1,
               fontFamily: "var(--font-body)", transition: "opacity 150ms ease",
             }}
@@ -1785,9 +1785,9 @@ export default function CommunityClient({
               {badge > 0 && (
                 <span style={{
                   fontSize: "10px", fontWeight: 600,
-                  background: isActive ? "rgba(37,99,235,0.15)" : "var(--card-bg)",
-                  border: `1px solid ${isActive ? "rgba(37,99,235,0.3)" : "var(--card-border)"}`,
-                  color: isActive ? "#93c5fd" : "var(--text-muted)",
+                  background: isActive ? "rgba(14,165,160,0.15)" : "var(--card-bg)",
+                  border: `1px solid ${isActive ? "rgba(14,165,160,0.3)" : "var(--card-border)"}`,
+                  color: isActive ? "#7fd9d4" : "var(--text-muted)",
                   padding: "1px 5px", borderRadius: "var(--radius-full)",
                   fontFamily: "var(--font-mono)",
                 }}>
@@ -1823,7 +1823,7 @@ export default function CommunityClient({
                   fontSize: "12px", fontFamily: "var(--font-body)", outline: "none",
                   transition: "border-color 150ms ease, box-shadow 150ms ease",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(14,165,160,0.1)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
               />
             </div>
@@ -1943,7 +1943,7 @@ export default function CommunityClient({
           /* Empty: no one followed — show suggestions from trending */
           <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
             <div style={{ padding: "28px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
                   <path d="M17 20h-2v-2a3 3 0 00-5.356-1.857M7 20H5v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -2092,7 +2092,7 @@ export default function CommunityClient({
           <span style={{ fontSize: "12px", color: "var(--text-secondary)", flex: 1 }}>{copyToast.message}</span>
           {copyToast.portfolioId && (
             <Link href={`/portfolios/${copyToast.portfolioId}`}
-              style={{ fontSize: "11px", fontWeight: 600, color: "#93c5fd", textDecoration: "none", flexShrink: 0, padding: "3px 8px", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: "var(--radius-md)" }}
+              style={{ fontSize: "11px", fontWeight: 600, color: "#7fd9d4", textDecoration: "none", flexShrink: 0, padding: "3px 8px", background: "rgba(14,165,160,0.12)", border: "1px solid rgba(14,165,160,0.2)", borderRadius: "var(--radius-md)" }}
             >Open</Link>
           )}
           <button type="button" onClick={() => setCopyToast(null)}

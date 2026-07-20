@@ -109,7 +109,7 @@ export default async function CommunityPage({
       user_id: s.user_id,
       username: profileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
       display_name: profileMap.get(s.user_id)?.display_name ?? null,
-      avatar_color: profileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
+      avatar_color: profileMap.get(s.user_id)?.avatar_color ?? "#0ea5a0",
       is_following: followingIds.has(s.user_id),
       is_friend: followingIds.has(s.user_id) && theyFollowMeIds.has(s.user_id),
     },
@@ -172,7 +172,7 @@ export default async function CommunityPage({
         user_id: p.owner_user_id,
         username: owner?.username ?? p.owner_user_id.slice(0, 8),
         display_name: owner?.display_name ?? null,
-        avatar_color: owner?.avatar_color ?? "#2563eb",
+        avatar_color: owner?.avatar_color ?? "#0ea5a0",
         is_following: followingIds.has(p.owner_user_id),
       },
     };
@@ -243,7 +243,7 @@ export default async function CommunityPage({
       user_id: s.user_id,
       username: allProfileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
       display_name: allProfileMap.get(s.user_id)?.display_name ?? null,
-      avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
+      avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#0ea5a0",
       is_following: followingIds.has(s.user_id),
     },
   }));
@@ -258,7 +258,7 @@ export default async function CommunityPage({
     author: {
       user_id: p.owner_user_id,
       username: allProfileMap.get(p.owner_user_id)?.username ?? p.owner_user_id.slice(0, 8),
-      avatar_color: allProfileMap.get(p.owner_user_id)?.avatar_color ?? "#2563eb",
+      avatar_color: allProfileMap.get(p.owner_user_id)?.avatar_color ?? "#0ea5a0",
     },
   }));
 
@@ -275,7 +275,7 @@ export default async function CommunityPage({
       user_id: s.user_id,
       username: allProfileMap.get(s.user_id)?.username ?? s.user_id.slice(0, 8),
       display_name: allProfileMap.get(s.user_id)?.display_name ?? null,
-      avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#2563eb",
+      avatar_color: allProfileMap.get(s.user_id)?.avatar_color ?? "#0ea5a0",
     },
   }));
 
@@ -288,7 +288,7 @@ export default async function CommunityPage({
     author: {
       user_id: p.owner_user_id,
       username: allProfileMap.get(p.owner_user_id)?.username ?? p.owner_user_id.slice(0, 8),
-      avatar_color: allProfileMap.get(p.owner_user_id)?.avatar_color ?? "#2563eb",
+      avatar_color: allProfileMap.get(p.owner_user_id)?.avatar_color ?? "#0ea5a0",
     },
   }));
 

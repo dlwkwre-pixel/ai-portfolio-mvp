@@ -33,7 +33,7 @@ export default async function ConnectionsPage() {
 
   const cards = [
     { kind: "brokerage", on: hasBrokerage, emoji: "📈", title: "Brokerage", sub: "Robinhood & other brokerages", body: "Auto-import your holdings read-only, so your portfolio stays in sync without manual entry. Trades still happen in your brokerage app.", color: "var(--green)" },
-    { kind: "bank", on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#818cf8" },
+    { kind: "bank", on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#5fbf9a" },
     { kind: "manual", on: true, emoji: "📝", title: "Other accounts", sub: "Anything you track by hand", body: "Balances no aggregator can reach — Robinhood spending, HSAs, cash. Quick manual updates that count toward your net worth.", color: "#fbbf24" },
   ];
 

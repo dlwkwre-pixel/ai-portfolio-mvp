@@ -41,12 +41,12 @@ export default function AccessibilityPage() {
         <p>
           If any part of BuyTune is difficult to use with assistive technology, we want to know and we will
           prioritize a fix. Use the in-app <strong>Support</strong> option, or email{" "}
-          <a href="mailto:support@buytune.io" style={{ color: "var(--brand-blue, #2563eb)", textDecoration: "underline" }}>support@buytune.io</a>{" "}
+          <a href="mailto:support@buytune.io" style={{ color: "var(--brand-blue, #0ea5a0)", textDecoration: "underline" }}>support@buytune.io</a>{" "}
           with the page and the problem you hit. Please include the assistive technology and browser you were using.
         </p>
 
         <p style={{ marginTop: "10px" }}>
-          <Link href="/" style={{ color: "var(--brand-blue, #2563eb)", textDecoration: "underline" }}>← Back to BuyTune</Link>
+          <Link href="/" style={{ color: "var(--brand-blue, #0ea5a0)", textDecoration: "underline" }}>← Back to BuyTune</Link>
         </p>
       </section>
     </main>

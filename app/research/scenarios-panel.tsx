@@ -21,7 +21,7 @@ function signalLevel(count: number): SignalLevel {
 const SIGNAL_CONFIG: Record<SignalLevel, { label: string; color: string; bg: string; dot: string; tooltip: string }> = {
   cold:    { label: "No Signal",  color: "var(--text-muted)",    bg: "rgba(255,255,255,0.04)", dot: "var(--border)",  tooltip: "No news triggers detected. This scenario is not currently in play." },
   warming: { label: "Warming",    color: "#f59e0b",              bg: "rgba(245,158,11,0.1)",  dot: "#f59e0b",        tooltip: "1–4 headlines matched. Early signs this scenario may be developing — worth watching." },
-  active:  { label: "Active",     color: "#3b82f6",              bg: "rgba(59,130,246,0.12)", dot: "#3b82f6",        tooltip: "5–11 headlines matched. This scenario is building real momentum across the news cycle." },
+  active:  { label: "Active",     color: "#0ea5a0",              bg: "rgba(14,165,160,0.12)", dot: "#0ea5a0",        tooltip: "5–11 headlines matched. This scenario is building real momentum across the news cycle." },
   hot:     { label: "Hot Signal", color: "var(--red)",              bg: "rgba(239,68,68,0.12)",  dot: "var(--red)",        tooltip: "12+ headlines matched. This scenario is dominating coverage and may be actively playing out." },
 };
 
@@ -29,9 +29,9 @@ const CATEGORY_COLORS: Record<string, string> = {
   energy:       "#f59e0b",
   monetary:     "#8b5cf6",
   geopolitical: "#ef4444",
-  tech:         "#3b82f6",
+  tech:         "#0ea5a0",
   economy:      "#10b981",
-  policy:       "#6366f1",
+  policy:       "#159f6f",
   markets:      "#ec4899",
 };
 
@@ -289,7 +289,7 @@ function ScenarioCard({
                   padding: "2px 6px",
                   borderRadius: "var(--radius-full)",
                   background: "rgba(139,92,246,0.12)",
-                  color: "#a78bfa",
+                  color: "#6fd08a",
                   border: "1px solid rgba(139,92,246,0.3)",
                   cursor: "help",
                 }}
@@ -642,7 +642,7 @@ function ScenarioCard({
             {likelihoodLoading && (
               <div style={{
                 display: "flex", alignItems: "center", gap: "8px",
-                padding: "8px 0", color: "#a78bfa", fontSize: "11px",
+                padding: "8px 0", color: "#6fd08a", fontSize: "11px",
               }}>
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                   <circle cx="7" cy="7" r="5" stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="24" strokeDashoffset="8">
@@ -656,7 +656,7 @@ function ScenarioCard({
             {likelihood && (() => {
               const RATING_COLOR: Record<string, string> = {
                 very_low: "#64748b", low: "#94a3b8", moderate: "#f59e0b",
-                high: "#3b82f6", very_high: "#ef4444",
+                high: "#0ea5a0", very_high: "#ef4444",
               };
               const RATING_LABEL: Record<string, string> = {
                 very_low: "Very Low", low: "Low", moderate: "Moderate",
@@ -674,7 +674,7 @@ function ScenarioCard({
                   {/* Header row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a78bfa" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6fd08a" }}>
                         ✦ Atlas Analysis
                       </span>
                     </div>
@@ -864,7 +864,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {[
               { key: "hot"     as const, label: "Hot",     count: hotCount,     color: "var(--red)", glow: true,  alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
-              { key: "active"  as const, label: "Active",  count: activeCount,  color: "#3b82f6", glow: false, alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
+              { key: "active"  as const, label: "Active",  count: activeCount,  color: "#0ea5a0", glow: false, alpha: "0.1",  alphaBold: "0.2",  border: "0.25", borderBold: "0.6" },
               { key: "warming" as const, label: "Warming", count: warmingCount, color: "#f59e0b", glow: false, alpha: "0.08", alphaBold: "0.18", border: "0.22", borderBold: "0.55" },
               { key: "signals" as const, label: "Any",     count: signalCount,  color: "var(--text-tertiary)", glow: false, alpha: "0.06", alphaBold: "0.14", border: "0.18", borderBold: "0.45" },
             ].filter(({ count }) => count > 0).map(({ key, label, count, color, glow, alpha, alphaBold, border, borderBold }) => {
@@ -926,7 +926,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
                 fontWeight: active ? 600 : 400,
                 cursor: "pointer",
                 border: active ? "1px solid var(--brand-blue)" : "1px solid var(--border-subtle)",
-                background: active ? "rgba(37,99,235,0.15)" : "var(--bg-card)",
+                background: active ? "rgba(14,165,160,0.15)" : "var(--bg-card)",
                 color: active ? "var(--brand-blue)" : "var(--text-secondary)",
                 transition: "all 0.12s",
                 whiteSpace: "nowrap",
@@ -940,7 +940,7 @@ export default function ScenariosPanel({ onTickerClick }: { onTickerClick?: (tic
                     marginLeft: "4px",
                     fontFamily: "var(--font-mono)",
                     fontSize: "10px",
-                    color: active ? "var(--brand-blue)" : "#3b82f6",
+                    color: active ? "var(--brand-blue)" : "#0ea5a0",
                   }}>
                     {cnt}
                   </span>

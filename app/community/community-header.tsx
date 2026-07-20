@@ -175,8 +175,8 @@ function ShareModal({
           {step === "picker" && (
             <>
               <PickerCard
-                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#93c5fd" }}><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" /></svg>}
-                iconBg="rgba(37,99,235,0.12)" iconBorder="rgba(37,99,235,0.2)"
+                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style={{ color: "#7fd9d4" }}><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" /></svg>}
+                iconBg="rgba(14,165,160,0.12)" iconBorder="rgba(14,165,160,0.2)"
                 title="Share a Strategy"
                 description={ownStrategies.length === 0 ? "No strategies yet. Create one on the Strategies page." : "Let others see your investing thesis and approach."}
                 disabled={ownStrategies.length === 0}
@@ -184,7 +184,7 @@ function ShareModal({
               />
               <PickerCard
                 icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" strokeWidth="1.5"><path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" /></svg>}
-                iconBg="rgba(124,58,237,0.12)" iconBorder="rgba(124,58,237,0.2)"
+                iconBg="rgba(63,174,74,0.12)" iconBorder="rgba(63,174,74,0.2)"
                 title="Share a Portfolio"
                 description={ownPortfolios.length === 0 ? "No portfolios yet. Add one to share it." : "Allocation percentages only. Dollar amounts stay private."}
                 disabled={ownPortfolios.length === 0}
@@ -238,7 +238,7 @@ function ShareModal({
                     <label style={labelStyle}>Public title</label>
                     <input type="text" value={publicName} onChange={(e) => setPublicName(e.target.value)} maxLength={100}
                       placeholder="Give your portfolio a public name..." style={inputStyle}
-                      onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
+                      onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(14,165,160,0.1)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
@@ -246,7 +246,7 @@ function ShareModal({
                     <label style={labelStyle}>Description <span style={{ textTransform: "none", fontWeight: 400, color: "var(--text-muted)" }}>(optional)</span></label>
                     <textarea value={publicDesc} onChange={(e) => setPublicDesc(e.target.value)} maxLength={500} rows={3}
                       placeholder="Describe your allocation approach..." style={{ ...inputStyle, resize: "none", lineHeight: 1.55 }}
-                      onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.1)"; }}
+                      onFocus={(e) => { e.target.style.borderColor = "var(--brand-blue)"; e.target.style.boxShadow = "0 0 0 3px rgba(14,165,160,0.1)"; }}
                       onBlur={(e) => { e.target.style.borderColor = "var(--card-border)"; e.target.style.boxShadow = "none"; }}
                     />
                   </div>
@@ -284,7 +284,7 @@ function PickerCard({ icon, iconBg, iconBorder, title, description, disabled, on
         textAlign: "left", fontFamily: "var(--font-body)", width: "100%",
         transition: "border-color 150ms ease, background 150ms ease",
       }}
-      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = "rgba(37,99,235,0.3)"; e.currentTarget.style.background = "var(--card-hover)"; } }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = "rgba(14,165,160,0.3)"; e.currentTarget.style.background = "var(--card-hover)"; } }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--card-border)"; e.currentTarget.style.background = "var(--card-bg)"; }}
     >
       <div style={{ width: "36px", height: "36px", minWidth: "36px", borderRadius: "var(--radius-md)", background: iconBg, border: `1px solid ${iconBorder}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -315,7 +315,7 @@ function SubmitButton({ onClick, loading, disabled, label }: { onClick: () => vo
     <button type="button" onClick={onClick} disabled={loading || disabled}
       style={{
         width: "100%", padding: "10px 16px",
-        background: loading || disabled ? "rgba(37,99,235,0.25)" : "var(--brand-gradient)",
+        background: loading || disabled ? "rgba(14,165,160,0.25)" : "var(--brand-gradient)",
         border: "none", borderRadius: "var(--radius-md)",
         color: loading || disabled ? "rgba(255,255,255,0.5)" : "#fff",
         fontSize: "13px", fontWeight: 600, cursor: loading || disabled ? "not-allowed" : "pointer",
@@ -382,7 +382,7 @@ export default function CommunityHeader({
         {/* Subtle glow */}
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "radial-gradient(ellipse at 20% -30%, rgba(37,99,235,0.09) 0%, transparent 60%)",
+          background: "radial-gradient(ellipse at 20% -30%, rgba(14,165,160,0.09) 0%, transparent 60%)",
           pointerEvents: "none",
         }} />
 
@@ -429,11 +429,11 @@ export default function CommunityHeader({
               border: "none", borderRadius: "var(--radius-md)",
               color: "#fff", fontSize: "12px", fontWeight: 600,
               fontFamily: "var(--font-body)", cursor: "pointer", flexShrink: 0,
-              boxShadow: "0 2px 10px rgba(37,99,235,0.28)",
+              boxShadow: "0 2px 10px rgba(14,165,160,0.28)",
               transition: "box-shadow 150ms ease, transform 150ms ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 18px rgba(37,99,235,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(37,99,235,0.28)"; e.currentTarget.style.transform = ""; }}
+            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 18px rgba(14,165,160,0.45)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 10px rgba(14,165,160,0.28)"; e.currentTarget.style.transform = ""; }}
             onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
             onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
             onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}

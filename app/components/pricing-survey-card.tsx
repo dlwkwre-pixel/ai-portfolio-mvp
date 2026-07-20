@@ -74,7 +74,7 @@ export default function PricingSurveyCard({ hasResponded }: { hasResponded: bool
     cursor: "pointer",
     border: "1px solid",
     borderColor: active ? "var(--brand-blue)" : "var(--border-subtle)",
-    background: active ? "rgba(37,99,235,0.15)" : "transparent",
+    background: active ? "rgba(14,165,160,0.15)" : "transparent",
     color: active ? "var(--brand-blue)" : "var(--text-secondary)",
     transition: "all 120ms",
     minHeight: "32px",

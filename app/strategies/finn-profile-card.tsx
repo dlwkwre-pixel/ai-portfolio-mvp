@@ -39,7 +39,7 @@ const FV = {
   bg:          "rgba(109,40,217,0.05)",
   bgMed:       "rgba(109,40,217,0.10)",
   border:      "rgba(109,40,217,0.18)",
-  accent:      "#7c3aed",
+  accent:      "#3fae4a",
   accentBright:"#8b5cf6",
 } as const;
 

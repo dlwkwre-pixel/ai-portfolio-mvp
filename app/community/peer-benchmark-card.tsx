@@ -33,7 +33,7 @@ function PercentileBar({ label, stat, unit, hint, higherWord, lowerWord }: {
         <span style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center" }}>
           {label}
           <InfoTooltip text={hint} align="start" width={240}>
-            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
           </InfoTooltip>
         </span>
         <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 700 }}>
@@ -41,7 +41,7 @@ function PercentileBar({ label, stat, unit, hint, higherWord, lowerWord }: {
         </span>
       </div>
       <div style={{ position: "relative", height: "7px", borderRadius: "4px", background: "rgba(148,163,184,0.14)", overflow: "hidden" }}>
-        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(2, Math.min(100, stat.percentile))}%`, background: "linear-gradient(90deg,#2563eb,#7c3aed)", borderRadius: "4px", transition: "width .6s cubic-bezier(0.16,1,0.3,1)" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(2, Math.min(100, stat.percentile))}%`, background: "linear-gradient(90deg,#0ea5a0,#3fae4a)", borderRadius: "4px", transition: "width .6s cubic-bezier(0.16,1,0.3,1)" }} />
         {/* median marker */}
         <div style={{ position: "absolute", left: "50%", top: "-2px", bottom: "-2px", width: "1.5px", background: "rgba(255,255,255,0.35)" }} />
       </div>
@@ -81,7 +81,7 @@ export default function PeerBenchmarkCard() {
       <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px", display: "flex", alignItems: "center" }}>
         🪞 How you compare
         <InfoTooltip text="Anonymized comparison against other BuyTune investors. We only ever use aggregate numbers — never anyone's identity, balances, or dollar amounts." align="start" width={250}>
-          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
         </InfoTooltip>
       </div>
       <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "8px" }}>Against {data.userCount.toLocaleString()} investors · anonymized, no balances</div>
@@ -123,7 +123,7 @@ export default function PeerBenchmarkCard() {
               Popular names you don&apos;t own:{" "}
               {data.notHeld.map((t, i) => (
                 <span key={t.ticker}>
-                  <Link href={`/research?ticker=${encodeURIComponent(t.ticker)}`} style={{ color: "var(--accent, #818cf8)", fontFamily: "var(--font-mono)", fontWeight: 700, textDecoration: "none" }}>${t.ticker}</Link>
+                  <Link href={`/research?ticker=${encodeURIComponent(t.ticker)}`} style={{ color: "var(--accent, #5fbf9a)", fontFamily: "var(--font-mono)", fontWeight: 700, textDecoration: "none" }}>${t.ticker}</Link>
                   <span style={{ color: "var(--text-muted)" }}> ({t.pct}%)</span>
                   {i < data.notHeld!.length - 1 ? ", " : ""}
                 </span>

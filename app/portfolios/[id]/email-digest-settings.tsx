@@ -210,7 +210,7 @@ export default function EmailDigestSettings({
             width: "44px",
             height: "24px",
             borderRadius: "12px",
-            background: enabled ? "#2563eb" : "var(--border-default)",
+            background: enabled ? "#0ea5a0" : "var(--border-default)",
             position: "relative",
             flexShrink: 0,
             transition: "background 0.2s",
@@ -257,8 +257,8 @@ export default function EmailDigestSettings({
                     gap: "12px",
                     padding: "12px 14px",
                     borderRadius: "9px",
-                    border: `1px solid ${frequency === f.value ? "#2563eb" : "var(--border-subtle)"}`,
-                    background: frequency === f.value ? "rgba(37,99,235,0.08)" : "var(--bg-base)",
+                    border: `1px solid ${frequency === f.value ? "#0ea5a0" : "var(--border-subtle)"}`,
+                    background: frequency === f.value ? "rgba(14,165,160,0.08)" : "var(--bg-base)",
                     cursor: "pointer",
                     transition: "all 0.15s",
                   }}
@@ -269,7 +269,7 @@ export default function EmailDigestSettings({
                     value={f.value}
                     checked={frequency === f.value}
                     onChange={() => setFrequency(f.value)}
-                    style={{ accentColor: "#2563eb", width: "15px", height: "15px", flexShrink: 0 }}
+                    style={{ accentColor: "#0ea5a0", width: "15px", height: "15px", flexShrink: 0 }}
                   />
                   <div>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{f.label}</div>
@@ -279,7 +279,7 @@ export default function EmailDigestSettings({
               ))}
             </div>
             {localCronTime && (
-              <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.14)", borderRadius: "7px", fontSize: "12px", color: "var(--text-secondary)" }}>
+              <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.14)", borderRadius: "7px", fontSize: "12px", color: "var(--text-secondary)" }}>
                 Sends around <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{localCronTime}</span> your time
               </div>
             )}
@@ -318,8 +318,8 @@ export default function EmailDigestSettings({
                         gap: "12px",
                         padding: "11px 14px",
                         borderRadius: "9px",
-                        border: `1px solid ${content[opt.key] ? "rgba(37,99,235,0.3)" : "var(--border-subtle)"}`,
-                        background: content[opt.key] ? "rgba(37,99,235,0.06)" : "var(--bg-base)",
+                        border: `1px solid ${content[opt.key] ? "rgba(14,165,160,0.3)" : "var(--border-subtle)"}`,
+                        background: content[opt.key] ? "rgba(14,165,160,0.06)" : "var(--bg-base)",
                         cursor: "pointer",
                         transition: "all 0.15s",
                       }}
@@ -327,8 +327,8 @@ export default function EmailDigestSettings({
                       <div
                         style={{
                           width: "16px", height: "16px", borderRadius: "4px",
-                          border: `1.5px solid ${content[opt.key] ? "#2563eb" : "var(--border-default)"}`,
-                          background: content[opt.key] ? "#2563eb" : "transparent",
+                          border: `1.5px solid ${content[opt.key] ? "#0ea5a0" : "var(--border-default)"}`,
+                          background: content[opt.key] ? "#0ea5a0" : "transparent",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           flexShrink: 0, transition: "all 0.15s",
                         }}
@@ -358,16 +358,16 @@ export default function EmailDigestSettings({
               style={{
                 display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px",
                 borderRadius: "9px",
-                border: `1px solid ${attachPdf ? "rgba(37,99,235,0.3)" : "var(--border-subtle)"}`,
-                background: attachPdf ? "rgba(37,99,235,0.06)" : "var(--bg-base)",
+                border: `1px solid ${attachPdf ? "rgba(14,165,160,0.3)" : "var(--border-subtle)"}`,
+                background: attachPdf ? "rgba(14,165,160,0.06)" : "var(--bg-base)",
                 cursor: "pointer", transition: "all 0.15s",
               }}
             >
               <div
                 style={{
                   width: "16px", height: "16px", borderRadius: "4px",
-                  border: `1.5px solid ${attachPdf ? "#2563eb" : "var(--border-default)"}`,
-                  background: attachPdf ? "#2563eb" : "transparent",
+                  border: `1.5px solid ${attachPdf ? "#0ea5a0" : "var(--border-default)"}`,
+                  background: attachPdf ? "#0ea5a0" : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   flexShrink: 0, transition: "all 0.15s",
                 }}
@@ -432,7 +432,7 @@ export default function EmailDigestSettings({
             padding: "9px 20px",
             borderRadius: "8px",
             border: "none",
-            background: isPending ? "rgba(37,99,235,0.5)" : "#2563eb",
+            background: isPending ? "rgba(14,165,160,0.5)" : "#0ea5a0",
             color: "#fff",
             fontSize: "13px",
             fontWeight: 600,

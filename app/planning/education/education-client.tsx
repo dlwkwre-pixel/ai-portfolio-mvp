@@ -1222,7 +1222,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>{computed.yearsUntilCollege} years to enrollment</div>
               </div>
               <div style={{ display: "flex", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
-                {[{ label: "529 Balance", color: "#3b82f6" }, { label: "College Cost Target", color: "#f97316" }].map(({ label, color }) => (
+                {[{ label: "529 Balance", color: "#0ea5a0" }, { label: "College Cost Target", color: "#f97316" }].map(({ label, color }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-secondary)" }}>
                     <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
                     {label}

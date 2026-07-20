@@ -24,14 +24,14 @@ export default async function LegalLayout({ children }: { children: ReactNode })
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         .legal-nav-link { font-size: 12px; color: #475569; text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
         .legal-nav-link:hover { color: #e2e8f0; background: rgba(255,255,255,0.05); }
-        .legal-nav-link.active { color: #93c5fd; background: rgba(37,99,235,0.1); }
+        .legal-nav-link.active { color: #7fd9d4; background: rgba(14,165,160,0.1); }
         .legal-section { margin-bottom: 36px; }
-        .legal-h2 { font-size: 14px; font-weight: 700; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .legal-h2 { font-size: 14px; font-weight: 700; color: #7fd9d4; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .legal-h3 { font-size: 13px; font-weight: 600; color: #cbd5e1; margin: 16px 0 6px; }
         .legal-p { font-size: 13px; color: #94a3b8; line-height: 1.75; margin-bottom: 10px; }
         .legal-ul { font-size: 13px; color: #94a3b8; line-height: 1.75; margin: 6px 0 10px 20px; }
         .legal-ul li { margin-bottom: 4px; }
-        .legal-link { color: #60a5fa; text-decoration: none; }
+        .legal-link { color: #3fc9c3; text-decoration: none; }
         .legal-link:hover { text-decoration: underline; }
         .legal-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
         @media (max-width: 768px) {
@@ -47,14 +47,14 @@ export default async function LegalLayout({ children }: { children: ReactNode })
             <BrandGlyph size={11} strokeWidth={3.4} />
           </div>
           <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "14px", color: "#f0f4ff", letterSpacing: "-0.2px" }}>
-            Buy<span style={{ color: "#7c3aed" }}>Tune</span>
+            Buy<span style={{ color: "#3fae4a" }}>Tune</span>
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "2px", flexWrap: "wrap" }}>
           {LEGAL_PAGES.map((p) => (
             <Link key={p.href} href={p.href} className="legal-nav-link">{p.label}</Link>
           ))}
-          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#60a5fa", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px" }}>
+          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#3fc9c3", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px" }}>
             {backLabel} →
           </Link>
         </div>

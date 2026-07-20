@@ -252,12 +252,12 @@ const SECTION_COLORS: Record<string, string> = {
 
 function FilterChip({ active, label, onClick, accent }: { active: boolean; label: string; onClick: () => void; accent?: "purple" }) {
   const purple = accent === "purple";
-  const activeColor   = purple ? "rgba(139,92,246,0.45)" : "rgba(37,99,235,0.45)";
-  const activeBg      = purple ? "rgba(139,92,246,0.12)" : "rgba(37,99,235,0.12)";
-  const activeText    = purple ? "#c4b5fd" : "#93c5fd";
-  const activeShadow  = purple ? "0 0 0 1px rgba(139,92,246,0.1)" : "0 0 0 1px rgba(37,99,235,0.1)";
+  const activeColor   = purple ? "rgba(139,92,246,0.45)" : "rgba(14,165,160,0.45)";
+  const activeBg      = purple ? "rgba(139,92,246,0.12)" : "rgba(14,165,160,0.12)";
+  const activeText    = purple ? "#c4b5fd" : "#7fd9d4";
+  const activeShadow  = purple ? "0 0 0 1px rgba(139,92,246,0.1)" : "0 0 0 1px rgba(14,165,160,0.1)";
   const inactiveColor = purple ? "rgba(139,92,246,0.3)" : "var(--card-border)";
-  const inactiveText  = purple ? "#a78bfa" : "var(--text-tertiary)";
+  const inactiveText  = purple ? "#6fd08a" : "var(--text-tertiary)";
 
   return (
     <button
@@ -441,7 +441,7 @@ function StockCard({ t, onClick }: { t: ScreenerTicker; onClick: (ticker: string
         transition: "border-color 150ms ease, background 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1)",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
+        e.currentTarget.style.borderColor = "rgba(14,165,160,0.35)";
         e.currentTarget.style.background = "var(--card-hover)";
       }}
       onMouseLeave={(e) => {
@@ -591,7 +591,7 @@ function BuyModal({
         <div style={{
           padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: "linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.03))",
+          background: "linear-gradient(135deg, rgba(14,165,160,0.06), rgba(63,174,74,0.03))",
         }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
@@ -689,7 +689,7 @@ function BuyModal({
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "10px 12px",
-                background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.15)",
+                background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.15)",
                 borderRadius: "var(--radius-md)",
               }}>
                 <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Total cost</span>
@@ -1278,12 +1278,12 @@ function DetailView({
       {myPosition && (myPosition.owned || myPosition.rec) && (() => {
         const v = myPosition.rec?.verdict ?? null;
         const vColor = v === "BUY" ? "var(--green)" : (v === "SELL" || v === "TRIM") ? "var(--red)" : "var(--violet)";
-        const vBg = v === "BUY" ? "rgba(34,197,94,0.1)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
-        const vBorder = v === "BUY" ? "rgba(34,197,94,0.22)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
+        const vBg = v === "BUY" ? "rgba(34,197,94,0.1)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.1)" : "rgba(63,174,74,0.12)";
+        const vBorder = v === "BUY" ? "rgba(34,197,94,0.22)" : (v === "SELL" || v === "TRIM") ? "rgba(239,68,68,0.22)" : "rgba(63,174,74,0.28)";
         const pid = myPosition.rec?.portfolio_id ?? myPosition.portfolio_id;
         return (
           <div style={{ padding: "10px 18px 0" }}>
-            <div style={{ border: "1px solid rgba(37,99,235,0.28)", borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.06)", padding: "12px 16px" }}>
+            <div style={{ border: "1px solid rgba(14,165,160,0.28)", borderRadius: "var(--radius-lg)", background: "rgba(14,165,160,0.06)", padding: "12px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: myPosition.rec ? "10px" : "4px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--brand-blue)" }}>In your portfolio</span>
                 {myPosition.owned && myPosition.shares != null && (
@@ -1326,8 +1326,8 @@ function DetailView({
         const busy = grokLoading || (aiAnalysisLoading && !aiAnalysis);
         const accent = isGrok ? "oklch(0.62 0.21 295)" : "oklch(0.65 0.18 260)"; // violet for Grok
         const verdictColor = shown?.verdict === "BUY" ? "var(--green)" : shown?.verdict === "SELL" ? "var(--red)" : "var(--violet)";
-        const verdictBg    = shown?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(124,58,237,0.12)";
-        const verdictBorder = shown?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(124,58,237,0.28)";
+        const verdictBg    = shown?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(63,174,74,0.12)";
+        const verdictBorder = shown?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(63,174,74,0.28)";
         const upside = shown?.price_target && result.quote.c > 0
           ? ((shown.price_target - result.quote.c) / result.quote.c) * 100
           : null;
@@ -1449,7 +1449,7 @@ function DetailView({
             {digest.profile && (digest.profile.finnhubIndustry || digest.profile.country) && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
                 {digest.profile.finnhubIndustry && (
-                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(14,165,160,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(14,165,160,0.25)" }}>
                     {digest.profile.finnhubIndustry}
                   </span>
                 )}
@@ -1603,7 +1603,7 @@ function DetailView({
             return (
               <div>
                 {sp.stale && (
-                  <div style={{ padding: "5px 10px", background: "rgba(124,58,237,0.12)", border: "1px solid var(--violet-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--violet)", marginBottom: "12px" }}>
+                  <div style={{ padding: "5px 10px", background: "rgba(63,174,74,0.12)", border: "1px solid var(--violet-border)", borderRadius: "var(--radius-sm)", fontSize: "11px", color: "var(--violet)", marginBottom: "12px" }}>
                     Showing cached data — Reddit unavailable
                   </div>
                 )}
@@ -2083,7 +2083,7 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
             }}
             onFocus={(e) => {
               e.target.style.borderColor = "var(--brand-blue)";
-              e.target.style.boxShadow   = "0 0 0 3px rgba(37,99,235,0.1)";
+              e.target.style.boxShadow   = "0 0 0 3px rgba(14,165,160,0.1)";
             }}
             onBlur={(e) => {
               e.target.style.borderColor = "var(--card-border)";

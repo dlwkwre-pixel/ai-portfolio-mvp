@@ -14,7 +14,7 @@ function fmt(n: number) {
 const DOC_STATUSES = [
   { value: "none",       label: "Not started",  color: "var(--text-muted)" },
   { value: "draft",      label: "Draft",         color: "#f59e0b" },
-  { value: "signed",     label: "Signed",        color: "#3b82f6" },
+  { value: "signed",     label: "Signed",        color: "#0ea5a0" },
   { value: "notarized",  label: "Notarized",     color: "#8b5cf6" },
   { value: "filed",      label: "Filed",         color: "var(--green)" },
 ] as const;
@@ -276,16 +276,16 @@ function EstatePlanningTab({
       {firstMissingLabel && (
         <div style={{
           display: "flex", alignItems: "center", gap: "14px", padding: "14px 18px",
-          borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.07)",
-          border: "1px solid rgba(37,99,235,0.2)",
+          borderRadius: "var(--radius-lg)", background: "rgba(14,165,160,0.07)",
+          border: "1px solid rgba(14,165,160,0.2)",
         }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
               <path d="M10 3v14M3 10l7 7 7-7" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#60a5fa", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Recommended Next Step</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#3fc9c3", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Recommended Next Step</div>
             <div style={{ fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Start your {firstMissingLabel}</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "1px" }}>Click Edit below to update your document status</div>
           </div>

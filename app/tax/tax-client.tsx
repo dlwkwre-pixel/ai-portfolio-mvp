@@ -88,12 +88,12 @@ function LearnPanel({ title, label, children }: { title: string; label?: string;
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, color: "oklch(0.62 0.15 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "10px", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-body)", marginTop: "4px" }}
+        style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, color: "oklch(0.62 0.15 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "10px", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-body)", marginTop: "4px" }}
       >
         {open ? "✕ Hide" : (label ?? "? What is this")}
       </button>
       <div style={{ maxHeight: open ? "400px" : "0", overflow: "hidden", transition: "max-height 0.3s ease" }}>
-        <div style={{ padding: "10px 14px", marginTop: "8px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.12)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
+        <div style={{ padding: "10px 14px", marginTop: "8px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.12)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
           <p style={{ margin: "0 0 4px", fontWeight: 600, color: "var(--text-primary)", fontSize: "11px" }}>{title}</p>
           {children}
         </div>
@@ -114,7 +114,7 @@ function ActionItem({ type, text, detail, cta, onCta }: {
   const styles = {
     save: { dot: "var(--green)", bg: "rgba(0,211,149,0.04)", border: "rgba(0,211,149,0.15)" },
     warn: { dot: "#f59e0b", bg: "rgba(245,158,11,0.04)", border: "rgba(245,158,11,0.18)" },
-    info: { dot: "oklch(0.62 0.15 260)", bg: "rgba(99,102,241,0.04)", border: "rgba(99,102,241,0.15)" },
+    info: { dot: "oklch(0.62 0.15 260)", bg: "rgba(63,174,74,0.04)", border: "rgba(63,174,74,0.15)" },
   };
   const s = styles[type];
   return (
@@ -192,7 +192,7 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
   return (
     <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 18px 12px" }}>
-        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>🪜</div>
+        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>🪜</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Bracket headroom</p>
           <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: "1px 0 0" }}>
@@ -239,7 +239,7 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
                 : { t: `Realize up to ${fmt(room)} of income at ${ratePct}%`, d: `Pull income forward (bonus, gains, IRA withdrawal) while staying in the ${ratePct}% bracket.` },
             ].map((opt, i) => (
               <div key={i} style={{ display: "flex", gap: "9px", alignItems: "flex-start", padding: "9px 11px", background: "var(--bg-elevated, rgba(255,255,255,0.02))", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
-                <span style={{ color: "var(--accent, #818cf8)", fontWeight: 700, fontSize: "12px", lineHeight: 1.4, flexShrink: 0 }}>{i + 1}</span>
+                <span style={{ color: "var(--accent, #5fbf9a)", fontWeight: 700, fontSize: "12px", lineHeight: 1.4, flexShrink: 0 }}>{i + 1}</span>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>{opt.t}</p>
                   <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "2px 0 0", lineHeight: 1.5 }}>{opt.d}</p>
@@ -263,8 +263,8 @@ function Hint({ text, width = 230 }: { text: string; width?: number }) {
       <span style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         width: "15px", height: "15px", borderRadius: "50%", marginLeft: "5px", cursor: "help",
-        background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)",
-        color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700, lineHeight: 1,
+        background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)",
+        color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700, lineHeight: 1,
       }}>?</span>
     </InfoTooltip>
   );
@@ -274,7 +274,7 @@ function Hint({ text, width = 230 }: { text: string; width?: number }) {
 const ASSET_LABELS: Record<string, string> = { stock: "Stocks", equity: "Stocks", etf: "ETFs", crypto: "Crypto", manual: "Funds", cash: "Cash", other: "Other" };
 const BUCKET_META: Record<"taxable" | "deferred" | "free", { label: string; color: string; tip: string }> = {
   taxable:  { label: "Taxable",      color: "#38bdf8", tip: "Brokerage / individual accounts. You owe tax on dividends and realized gains each year. Best home for tax-efficient holdings you may want to sell flexibly." },
-  deferred: { label: "Tax-deferred", color: "#a78bfa", tip: "Traditional 401(k) / IRA / HSA. Contributions are pre-tax and grow untaxed; withdrawals in retirement are taxed as ordinary income. Best home for income-heavy or tax-inefficient assets (bonds, REITs)." },
+  deferred: { label: "Tax-deferred", color: "#6fd08a", tip: "Traditional 401(k) / IRA / HSA. Contributions are pre-tax and grow untaxed; withdrawals in retirement are taxed as ordinary income. Best home for income-heavy or tax-inefficient assets (bonds, REITs)." },
   free:     { label: "Tax-free",     color: "var(--green)", tip: "Roth IRA / Roth 401(k). Funded with after-tax dollars; qualified growth and withdrawals are 100% tax-free. Best home for your highest-growth assets." },
 };
 
@@ -296,7 +296,7 @@ function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; defer
     <div className="tax-card" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
       <style>{`@keyframes bt-al-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } } .bt-al-seg { transform-origin: left; animation: bt-al-grow .7s cubic-bezier(0.16,1,0.3,1) both; }`}</style>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
-        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>📍</div>
+        <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", flexShrink: 0 }}>📍</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center" }}>
             Asset location <Hint text="Asset location is about WHICH account type holds each investment. Placing the right assets in taxable, tax-deferred, and tax-free accounts can cut lifetime taxes without changing what you own." width={250} />
@@ -343,7 +343,7 @@ function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; defer
       </div>
 
       {/* Guidance */}
-      <div style={{ marginTop: "14px", padding: "10px 13px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "var(--radius-md)" }}>
+      <div style={{ marginTop: "14px", padding: "10px 13px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "var(--radius-md)" }}>
         <p style={{ fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0 }}>{guidance}</p>
         <p style={{ fontSize: "10.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: "6px 0 0" }}>
           Rule of thumb: highest-growth assets → Roth, income / tax-inefficient (bonds, REITs) → tax-deferred, tax-efficient index funds → taxable.
@@ -421,7 +421,7 @@ function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate
           <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--text-tertiary)" }}>Over {years} year{years > 1 ? "s" : ""}</span>
           {h.roomToNext !== Infinity && (
             <button type="button" onClick={() => setAnnual(Math.max(1000, Math.round(h.roomToNext / 1000) * 1000))}
-              style={{ fontSize: "10px", color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+              style={{ fontSize: "10px", color: "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
               Fill {ratePct}% bracket ({fmt(Math.round(h.roomToNext))})
             </button>
           )}
@@ -726,13 +726,13 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
         {/* ── HERO BAND ── */}
         <div style={{ position: "relative", padding: "4px 0 22px", marginBottom: "2px", overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% -10%, rgba(37,99,235,0.2) 0%, transparent 68%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% -10%, rgba(14,165,160,0.2) 0%, transparent 68%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", zIndex: 1 }}>
 
             {/* Year chips */}
             <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" as const, marginBottom: "18px" }}>
               {data.years.map(y => (
-                <Link key={y} href={`/tax?year=${y}`} style={{ padding: "3px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: y === selectedYear ? 700 : 400, textDecoration: "none", background: y === selectedYear ? "rgba(37,99,235,0.18)" : "transparent", color: y === selectedYear ? "oklch(0.75 0.18 265)" : "var(--text-muted)", border: `1px solid ${y === selectedYear ? "rgba(37,99,235,0.45)" : "rgba(255,255,255,0.07)"}`, transition: "all 0.12s" }}>
+                <Link key={y} href={`/tax?year=${y}`} style={{ padding: "3px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: y === selectedYear ? 700 : 400, textDecoration: "none", background: y === selectedYear ? "rgba(14,165,160,0.18)" : "transparent", color: y === selectedYear ? "oklch(0.75 0.18 265)" : "var(--text-muted)", border: `1px solid ${y === selectedYear ? "rgba(14,165,160,0.45)" : "rgba(255,255,255,0.07)"}`, transition: "all 0.12s" }}>
                   {y}
                 </Link>
               ))}
@@ -757,12 +757,12 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {grandTotal > 0 && (
               <div style={{ marginBottom: "14px" }}>
                 <div style={{ display: "flex", height: "4px", borderRadius: "4px", overflow: "hidden", background: "var(--surface-006)", gap: "2px" }}>
-                  {incomeTaxTotal > 0 && <div style={{ width: barMounted ? `${incomeBarPct}%` : "0%", background: "linear-gradient(90deg,#3b82f6,#60a5fa)", borderRadius: "4px 0 0 4px", transition: "width 1s ease-out", flexShrink: 0 }} />}
+                  {incomeTaxTotal > 0 && <div style={{ width: barMounted ? `${incomeBarPct}%` : "0%", background: "linear-gradient(90deg,#0ea5a0,#3fc9c3)", borderRadius: "4px 0 0 4px", transition: "width 1s ease-out", flexShrink: 0 }} />}
                   {propertyTaxTotal > 0 && <div style={{ width: barMounted ? `${propBarPct}%` : "0%", background: "#f59e0b", transition: "width 1s ease-out 0.1s", flexShrink: 0 }} />}
                   {investTaxTotal > 0 && <div style={{ width: barMounted ? `${investBarPct}%` : "0%", background: "linear-gradient(90deg,#8b5cf6,#6d28d9)", borderRadius: "0 4px 4px 0", transition: "width 1s ease-out 0.2s", flexShrink: 0 }} />}
                 </div>
                 <div style={{ display: "flex", gap: "12px", marginTop: "7px", flexWrap: "wrap" as const }}>
-                  {incomeTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#3b82f6", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Income {fmt(incomeTaxTotal)}</span></div>}
+                  {incomeTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#0ea5a0", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Income {fmt(incomeTaxTotal)}</span></div>}
                   {propertyTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#f59e0b", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Property {fmt(propertyTaxTotal)}</span></div>}
                   {investTaxTotal > 0 && <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#8b5cf6", flexShrink: 0 }} /><span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Investing {fmt(investTaxTotal)}</span></div>}
                 </div>
@@ -858,7 +858,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {/* ── INCOME TAX ── */}
             <SectionCard
               icon="💼"
-              color="#3b82f6"
+              color="#0ea5a0"
               label="Income Tax"
               amount={incomeTaxTotal}
               sub={activeEstimate
@@ -873,7 +873,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {quickTaxEstimate && (
-                    <div style={{ padding: "9px 12px", background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.18)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "9px 12px", background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.18)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
                         Federal-only estimate based on your income entry below. No state tax included. <Link href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none", fontWeight: 600 }}>Save your profile in Planning →</Link> for a full estimate with state tax, deductions, and income type.
                       </p>
@@ -1304,7 +1304,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     const potentialSaving = Math.round(totalRemaining * activeEstimate.federalMarginalRate);
                     const mRate = Math.round(activeEstimate.federalMarginalRate * 100);
                     return (
-                      <div style={{ padding: "12px 14px", background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: "var(--radius-md)" }}>
+                      <div style={{ padding: "12px 14px", background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.15)", borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                           <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.62 0.15 260)", flexShrink: 0, marginTop: "5px" }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1344,7 +1344,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                             </div>
                             {totalRemaining > 0 && (
                               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const }}>
-                                <div style={{ padding: "7px 10px", background: "rgba(99,102,241,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                <div style={{ padding: "7px 10px", background: "rgba(63,174,74,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 265)" }}>{fmt(totalRemaining)}</div>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
@@ -1674,7 +1674,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       {/* ── Atlas FLOATING PANEL ── */}
       {finnPanelOpen && (
         <div style={{ position: "fixed", bottom: "80px", right: "12px", left: "12px", maxWidth: "480px", marginLeft: "auto", zIndex: 60 }}>
-          <div className="finn-panel" style={{ background: "var(--card-bg)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(99,102,241,0.1)" }}>
+          <div className="finn-panel" style={{ background: "var(--card-bg)", border: "1px solid rgba(63,174,74,0.3)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(63,174,74,0.1)" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                 <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--brand-gradient)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1719,7 +1719,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     {finnOutput}
                   </div>
                   {!finnLoading && (
-                    <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.65 0.15 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: "8px", padding: "5px 14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                    <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.65 0.15 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "8px", padding: "5px 14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
                       Re-run analysis
                     </button>
                   )}
@@ -1734,7 +1734,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       <button
         type="button"
         onClick={() => setFinnPanelOpen(v => !v)}
-        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "var(--brand-gradient)", border: finnPanelOpen ? "1px solid rgba(99,102,241,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(37,99,235,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
+        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "var(--brand-gradient)", border: finnPanelOpen ? "1px solid rgba(63,174,74,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(14,165,160,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
       >
         {finnPanelOpen ? (
           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" /></svg>

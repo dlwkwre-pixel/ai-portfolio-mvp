@@ -33,14 +33,14 @@ export default function ChallengesWidget() {
           <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>This week</span>
           <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{done}/{data.challenges.length} done</span>
         </div>
-        <Link href="/achievements" style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #6366f1)", textDecoration: "none", flexShrink: 0 }}>
+        <Link href="/achievements" style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #159f6f)", textDecoration: "none", flexShrink: 0 }}>
           Lv {data.level} · {toNext.toLocaleString()} to next →
         </Link>
       </div>
 
       {/* Level progress bar */}
       <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.08)", overflow: "hidden", marginBottom: "14px" }}>
-        <div style={{ width: `${data.pct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
+        <div style={{ width: `${data.pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "9px" }}>
@@ -53,10 +53,10 @@ export default function ChallengesWidget() {
             <div style={{
               width: "30px", height: "30px", borderRadius: "9px", flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: c.done ? "rgba(16,185,129,0.14)" : "rgba(99,102,241,0.12)",
-              border: `1px solid ${c.done ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.22)"}`,
+              background: c.done ? "rgba(16,185,129,0.14)" : "rgba(63,174,74,0.12)",
+              border: `1px solid ${c.done ? "rgba(16,185,129,0.3)" : "rgba(63,174,74,0.22)"}`,
             }}>
-              <BadgeIcon icon={c.icon as Parameters<typeof BadgeIcon>[0]["icon"]} size={15} color={c.done ? "#34d399" : "#818cf8"} />
+              <BadgeIcon icon={c.icon as Parameters<typeof BadgeIcon>[0]["icon"]} size={15} color={c.done ? "#34d399" : "#5fbf9a"} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>

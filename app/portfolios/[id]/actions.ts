@@ -832,6 +832,18 @@ export async function trimSnapshotsBefore(portfolioId: string, cutoffDate: strin
 
   if (error) throw new Error(`Could not remove snapshots: ${error.message}`);
 
+  // Deleting rows is not enough on brokerage-linked portfolios: the SnapTrade
+  // auto-resync rebuilds the FULL value series from broker history on the next
+  // portfolio visit, resurrecting everything the user just trimmed. sync.ts
+  // starts its rebuild at portfolios.chart_start_date — so stamp the cutoff
+  // there and the trim survives every future sync (harmless for unlinked
+  // portfolios; best-effort if the column migration is missing).
+  await admin
+    .from("portfolios")
+    .update({ chart_start_date: cutoff })
+    .eq("id", portfolioId)
+    .then((r) => r, () => ({}));
+
   const count = deletedRows?.length ?? 0;
   revalidatePath(`/portfolios/${portfolioId}`);
   revalidatePath("/dashboard");

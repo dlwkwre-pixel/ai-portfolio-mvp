@@ -52,7 +52,7 @@ function useCountUp(target: number, duration = 1400): number {
   return value;
 }
 
-const BAR_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
+const BAR_COLORS = ["#0ea5a0", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
 
 export default function ShareCardClient({
   pub,
@@ -87,7 +87,7 @@ export default function ShareCardClient({
     ? "0 0 0 1px rgba(74,222,128,0.18), 0 32px 80px rgba(0,0,0,0.6), 0 0 80px rgba(74,222,128,0.05)"
     : ret <= -5
     ? "0 0 0 1px rgba(248,113,113,0.18), 0 32px 80px rgba(0,0,0,0.6), 0 0 80px rgba(248,113,113,0.05)"
-    : "0 0 0 1px rgba(59,130,246,0.15), 0 32px 80px rgba(0,0,0,0.6)";
+    : "0 0 0 1px rgba(14,165,160,0.15), 0 32px 80px rgba(0,0,0,0.6)";
 
   const topHoldings = holdings.filter((h) => !h.is_cash).slice(0, 5);
   const maxAlloc = topHoldings.length > 0 ? Math.max(...topHoldings.map((h) => h.allocation_pct)) : 100;
@@ -162,7 +162,7 @@ export default function ShareCardClient({
                 fontWeight: 700,
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
-                color: "#3b82f6",
+                color: "#0ea5a0",
               }}
             >
               BuyTune

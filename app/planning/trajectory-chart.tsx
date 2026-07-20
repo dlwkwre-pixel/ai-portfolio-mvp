@@ -300,7 +300,7 @@ export default function TrajectoryChart({
         )}
         {whatIf && (
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--violet-light, #a78bfa)", background: "rgba(124,58,237,0.12)", border: "1px solid rgba(167,139,250,0.35)", borderRadius: "999px", padding: "3px 9px" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--violet-light, #6fd08a)", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(111,208,138,0.35)", borderRadius: "999px", padding: "3px 9px" }}>
               What-if: retire at {retirementAge}
             </span>
             {onResetRetirementAge && (
@@ -364,10 +364,10 @@ export default function TrajectoryChart({
               onKeyDown={(e) => { if (!onRetirementAgeChange) return; if (e.key === "ArrowLeft") onRetirementAgeChange(clamp(retX - 1, currentAge! + 1, maxRetAge)); if (e.key === "ArrowRight") onRetirementAgeChange(clamp(retX + 1, currentAge! + 1, maxRetAge)); }}
               onPointerDown={dragRetire}
               style={{ position: "absolute", top: 0, bottom: `${BOT_PAD * 100 - 4}%`, left: `${xFrac(retX) * 100}%`, width: "44px", marginLeft: "-22px", cursor: dragRetire ? "ew-resize" : "default", touchAction: "none", zIndex: 4, outline: "none" }}>
-              <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(167,139,250,0.9), rgba(167,139,250,0.1))", borderRadius: "2px" }} />
-              <div style={{ position: "absolute", top: "2px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(167,139,250,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
-                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #a78bfa)" }} />
-                <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #a78bfa)" }}>Retire {retX}</span>
+              <div style={{ position: "absolute", top: 0, bottom: 0, left: "50%", width: "2px", marginLeft: "-1px", background: "linear-gradient(180deg, rgba(111,208,138,0.9), rgba(111,208,138,0.1))", borderRadius: "2px" }} />
+              <div style={{ position: "absolute", top: "2px", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap", background: "var(--bg-elevated)", border: "1px solid rgba(111,208,138,0.4)", borderRadius: "999px", padding: "4px 10px" }}>
+                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet-light, #6fd08a)" }} />
+                <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--violet-light, #6fd08a)" }}>Retire {retX}</span>
                 {dragRetire && <span style={{ fontSize: "10px", color: "var(--text-tertiary)" }}>⇄</span>}
               </div>
             </div>

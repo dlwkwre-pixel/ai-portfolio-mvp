@@ -179,15 +179,15 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
   const toolBtn = (active: boolean): React.CSSProperties => ({
     display: "inline-flex", alignItems: "center", gap: "5px", padding: "6px 12px",
     borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: 600, cursor: "pointer",
-    border: `1px solid ${active ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
-    background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+    border: `1px solid ${active ? "rgba(14,165,160,0.4)" : "var(--card-border)"}`,
+    background: active ? "rgba(14,165,160,0.1)" : "var(--card-bg)",
     color: active ? "var(--brand-blue)" : "var(--text-secondary)", transition: "all 0.12s",
   });
   const selStyle = (active: boolean): React.CSSProperties => ({
     appearance: "auto", maxWidth: "150px", padding: "6px 8px",
     borderRadius: "var(--radius-md)", fontSize: "11px", fontWeight: 600, cursor: "pointer",
-    border: `1px solid ${active ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
-    background: active ? "rgba(37,99,235,0.1)" : "var(--card-bg)",
+    border: `1px solid ${active ? "rgba(14,165,160,0.4)" : "var(--card-border)"}`,
+    background: active ? "rgba(14,165,160,0.1)" : "var(--card-bg)",
     color: active ? "var(--brand-blue)" : "var(--text-secondary)",
     textOverflow: "ellipsis",
   });
@@ -213,7 +213,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
           {detectedTickers.length > 0 && (
             <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", marginTop: "4px" }}>
               {detectedTickers.map(t => (
-                <span key={t} style={{ fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--brand-blue)", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.2)", padding: "1px 7px", borderRadius: "var(--radius-full)" }}>${t}</span>
+                <span key={t} style={{ fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.2)", padding: "1px 7px", borderRadius: "var(--radius-full)" }}>${t}</span>
               ))}
             </div>
           )}
@@ -413,8 +413,8 @@ function PostCard({ post, myUserId, onTicker, onChange, onRemove }: {
             return (
               <button key={i} type="button" onClick={() => castVote(i)}
                 style={{ position: "relative", overflow: "hidden", textAlign: "left", padding: "8px 12px", borderRadius: "9px", cursor: "pointer",
-                  border: `1px solid ${voted ? "rgba(37,99,235,0.45)" : "var(--card-border)"}`, background: "var(--bg-base)" }}>
-                <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: voted ? "rgba(37,99,235,0.18)" : "var(--card-hover)", transition: "width 0.4s ease" }} />
+                  border: `1px solid ${voted ? "rgba(14,165,160,0.45)" : "var(--card-border)"}`, background: "var(--bg-base)" }}>
+                <div style={{ position: "absolute", inset: 0, width: `${pct}%`, background: voted ? "rgba(14,165,160,0.18)" : "var(--card-hover)", transition: "width 0.4s ease" }} />
                 <div style={{ position: "relative", display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
                   <span style={{ color: "var(--text-primary)", fontWeight: voted ? 600 : 400 }}>{opt}</span>
                   <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{pct}%</span>
@@ -547,7 +547,7 @@ export default function CommunityFeed({ me, initialPosts, myFollowIds, myStrateg
 
       {/* Active ticker filter — header with a link into stock research */}
       {tickerFilter && (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", padding: "10px 14px", borderRadius: "var(--radius-lg)", background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", padding: "10px 14px", borderRadius: "var(--radius-lg)", background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.2)" }}>
           <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--brand-blue)", fontFamily: "var(--font-mono)" }}>${tickerFilter}</span>
           <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>{visible.length} post{visible.length !== 1 ? "s" : ""}</span>
           <Link href={`/research?ticker=${encodeURIComponent(tickerFilter)}`}
@@ -566,8 +566,8 @@ export default function CommunityFeed({ me, initialPosts, myFollowIds, myStrateg
         {(["foryou", "following"] as const).map(v => (
           <button key={v} type="button" onClick={() => setView(v)}
             style={{ padding: "6px 14px", borderRadius: "var(--radius-full)", fontSize: "12px", fontWeight: 600, cursor: "pointer",
-              border: `1px solid ${view === v ? "rgba(37,99,235,0.4)" : "var(--card-border)"}`,
-              background: view === v ? "rgba(37,99,235,0.1)" : "transparent",
+              border: `1px solid ${view === v ? "rgba(14,165,160,0.4)" : "var(--card-border)"}`,
+              background: view === v ? "rgba(14,165,160,0.1)" : "transparent",
               color: view === v ? "var(--brand-blue)" : "var(--text-tertiary)" }}>
             {v === "foryou" ? "For You" : "Following"}
           </button>

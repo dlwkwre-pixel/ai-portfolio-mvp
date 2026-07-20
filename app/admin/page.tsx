@@ -59,7 +59,7 @@ const ACCOUNT_LABELS: Record<string, string> = {
 const ASSET_LABELS: Record<string, string> = {
   stock: "Stocks", equity: "Stocks", etf: "ETFs", crypto: "Crypto", manual: "Non-tradeable", other: "Other",
 };
-const MIX_COLORS = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
+const MIX_COLORS = ["#0ea5a0", "#3fae4a", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#64748b"];
 
 function Tile({ label, value, sub, accent, decimals, suffix, delay }: {
   label: string; value: number; sub?: string; accent?: boolean; decimals?: number; suffix?: string; delay: number;
@@ -71,7 +71,7 @@ function Tile({ label, value, sub, accent, decimals, suffix, delay }: {
       padding: "16px 18px", display: "flex", flexDirection: "column", gap: "6px",
     }}>
       <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)" }}>{label}</span>
-      <span style={{ fontSize: "26px", fontWeight: 700, lineHeight: 1, color: accent ? "var(--accent, #6366f1)" : "var(--text-primary)", fontFamily: "var(--font-mono)", letterSpacing: "-0.5px" }}>
+      <span style={{ fontSize: "26px", fontWeight: 700, lineHeight: 1, color: accent ? "var(--accent, #159f6f)" : "var(--text-primary)", fontFamily: "var(--font-mono)", letterSpacing: "-0.5px" }}>
         <CountUp value={value} decimals={decimals} suffix={suffix} />
       </span>
       {sub && <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{sub}</span>}
@@ -221,7 +221,7 @@ export default async function AdminOverview() {
               <div className="bt-adm-bar" style={{
                 width: "100%", maxWidth: "38px", animationDelay: `${i * 60}ms`,
                 height: `${Math.max(4, (b.count / maxBucket) * 92)}px`,
-                background: i === WEEKS - 1 ? "linear-gradient(180deg,#2563eb,#7c3aed)" : "rgba(99,102,241,0.28)",
+                background: i === WEEKS - 1 ? "linear-gradient(180deg,#0ea5a0,#3fae4a)" : "rgba(63,174,74,0.28)",
                 borderRadius: "6px 6px 2px 2px",
               }} />
               <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{i === WEEKS - 1 ? "now" : `-${WEEKS - 1 - i}w`}</span>
@@ -245,7 +245,7 @@ export default async function AdminOverview() {
                 <div style={{ flex: 1, height: "26px", borderRadius: "7px", background: "rgba(148,163,184,0.1)", overflow: "hidden", position: "relative" }}>
                   <div className="bt-adm-wide" style={{
                     height: "100%", width: `${Math.max(2, pct)}%`,
-                    background: "linear-gradient(90deg,#2563eb,#7c3aed)", borderRadius: "7px",
+                    background: "linear-gradient(90deg,#0ea5a0,#3fae4a)", borderRadius: "7px",
                     animationDelay: `${i * 80}ms`,
                   }} />
                 </div>

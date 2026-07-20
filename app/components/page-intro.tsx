@@ -28,7 +28,7 @@ export default function PageIntro({ pageKey, title, description }: PageIntroProp
     <div style={{
       display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px",
       padding: "12px 16px", marginBottom: "20px",
-      background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.15)",
+      background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.15)",
       borderRadius: "var(--radius-md)",
     }}>
       <div>

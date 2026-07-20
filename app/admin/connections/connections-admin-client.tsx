@@ -68,7 +68,7 @@ export default function ConnectionsAdminClient({ users }: { users: AccessUser[] 
             <span style={{ flex: "1 1 200px", minWidth: 0, fontSize: "13px", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</span>
             <div style={{ display: "flex", gap: "7px", flexShrink: 0 }}>
               <Toggle on={u.brokerage} label="Brokerage" color="#00d395" disabled={pendingId === u.id + "brokerage_connect"} onClick={() => toggle(u, "brokerage_connect")} />
-              <Toggle on={u.bank} label="Bank" color="#818cf8" disabled={pendingId === u.id + "bank_connect"} onClick={() => toggle(u, "bank_connect")} />
+              <Toggle on={u.bank} label="Bank" color="#5fbf9a" disabled={pendingId === u.id + "bank_connect"} onClick={() => toggle(u, "bank_connect")} />
             </div>
           </div>
         ))}

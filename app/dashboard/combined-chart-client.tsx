@@ -164,7 +164,7 @@ export default function CombinedChartClient({
               border: "none",
               cursor: "pointer",
               transition: "all 120ms",
-              background: active ? "rgba(37,99,235,0.20)" : "transparent",
+              background: active ? "rgba(14,165,160,0.20)" : "transparent",
               color: active ? "var(--brand-blue)" : "var(--text-muted)",
             }}
           >
@@ -235,7 +235,7 @@ export default function CombinedChartClient({
                 cursor: "pointer",
                 transition: "all 120ms",
                 borderColor: tfDays === tf.days ? "var(--brand-blue)" : "var(--border-subtle)",
-                background: tfDays === tf.days ? "rgba(37,99,235,0.15)" : "transparent",
+                background: tfDays === tf.days ? "rgba(14,165,160,0.15)" : "transparent",
                 color: tfDays === tf.days ? "var(--brand-blue)" : "var(--text-muted)",
               }}
             >

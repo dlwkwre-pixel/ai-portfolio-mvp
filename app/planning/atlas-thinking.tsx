@@ -27,10 +27,10 @@ export default function AtlasThinking({
   }, [messages.length]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "var(--radius-md, 10px)", background: "var(--violet-bg, rgba(124,58,237,0.06))", border: "1px solid var(--violet-border, rgba(124,58,237,0.18))" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", borderRadius: "var(--radius-md, 10px)", background: "var(--violet-bg, rgba(63,174,74,0.06))", border: "1px solid var(--violet-border, rgba(63,174,74,0.18))" }}>
       <div className="atlas-thinking-orb" style={{
         width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0,
-        background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+        background: "linear-gradient(135deg, #3fae4a 0%, #0e9488 100%)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }} aria-hidden>
         <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "12px", color: "#fff" }}>A</span>
@@ -40,11 +40,11 @@ export default function AtlasThinking({
       </span>
       <div style={{ display: "flex", gap: "4px", alignItems: "center", marginLeft: "auto" }} aria-label={`${label} is thinking`}>
         {[0, 1, 2].map((d) => (
-          <div key={d} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet, #7c3aed)", opacity: 0.8, animation: `atlasBounce 1.2s ${d * 0.2}s ease-in-out infinite` }} />
+          <div key={d} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--violet, #3fae4a)", opacity: 0.8, animation: `atlasBounce 1.2s ${d * 0.2}s ease-in-out infinite` }} />
         ))}
       </div>
       <style>{`
-        @keyframes atlasGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); } 50% { box-shadow: 0 0 0 5px rgba(124,58,237,0.18); } }
+        @keyframes atlasGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(63,174,74,0); } 50% { box-shadow: 0 0 0 5px rgba(63,174,74,0.18); } }
         .atlas-thinking-orb { animation: atlasGlow 1.8s ease-in-out infinite; }
         @keyframes atlasFade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
         @keyframes atlasBounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }

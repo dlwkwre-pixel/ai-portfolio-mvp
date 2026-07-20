@@ -16,7 +16,7 @@ function fmt(n: number): string {
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -153,8 +153,8 @@ export default function RelocationClient({
             </div>
           </div>
           <button type="button" onClick={() => { setIsRemote((v) => !v); setSaved(false); }}
-            style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "14px", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isRemote ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`, background: isRemote ? "rgba(37,99,235,0.1)" : "var(--bg-base)", color: isRemote ? "var(--brand-blue, #2563eb)" : "var(--text-secondary)" }}>
-            <span style={{ width: "15px", height: "15px", borderRadius: "4px", border: `1.5px solid ${isRemote ? "var(--brand-blue, #2563eb)" : "var(--border-default, rgba(255,255,255,0.2))"}`, background: isRemote ? "var(--brand-blue, #2563eb)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "14px", padding: "8px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", border: `1px solid ${isRemote ? "var(--brand-blue, #0ea5a0)" : "var(--border-subtle)"}`, background: isRemote ? "rgba(14,165,160,0.1)" : "var(--bg-base)", color: isRemote ? "var(--brand-blue, #0ea5a0)" : "var(--text-secondary)" }}>
+            <span style={{ width: "15px", height: "15px", borderRadius: "4px", border: `1.5px solid ${isRemote ? "var(--brand-blue, #0ea5a0)" : "var(--border-default, rgba(255,255,255,0.2))"}`, background: isRemote ? "var(--brand-blue, #0ea5a0)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {isRemote && <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
             </span>
             Staying remote — keeping my current salary
@@ -239,7 +239,7 @@ export default function RelocationClient({
         {/* Save row */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <input style={{ ...inputStyle, width: "200px" }} value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Plan name" />
-          <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(37,99,235,0.5)" : "var(--brand-blue, #2563eb)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(14,165,160,0.5)" : "var(--brand-blue, #0ea5a0)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
             {pending ? "Saving…" : active ? "Update plan" : "Save plan"}
           </button>
           {active && (

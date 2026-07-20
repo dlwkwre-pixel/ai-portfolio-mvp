@@ -18,11 +18,11 @@ export default async function XpLevelChip({ userId }: { userId: string }) {
         background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)",
       }}
     >
-      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #6366f1)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #159f6f)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
         Lv {p.level}
       </span>
-      <div style={{ width: "44px", height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-        <div style={{ width: `${p.pct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
+      <div style={{ width: "44px", height: "5px", borderRadius: "3px", background: "var(--surface-010)", overflow: "hidden" }}>
+        <div style={{ width: `${p.pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
       </div>
     </Link>
   );

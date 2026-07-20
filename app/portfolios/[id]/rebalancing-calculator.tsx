@@ -154,7 +154,7 @@ export default function RebalancingCalculator({
 
   const statusColor = {
     over: "#f59e0b",
-    under: "#60a5fa",
+    under: "#3fc9c3",
     ok: "#00d395",
     "no-price": "var(--text-muted)",
   };
@@ -177,7 +177,7 @@ export default function RebalancingCalculator({
     <div className="bt-card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <svg width="12" height="12" viewBox="0 0 20 20" fill="#60a5fa">
+          <svg width="12" height="12" viewBox="0 0 20 20" fill="#3fc9c3">
             <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
           </svg>
           <h2 style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-secondary)" }}>Rebalancing</h2>
@@ -205,7 +205,7 @@ export default function RebalancingCalculator({
                   </span>
                 )}
                 {underCount > 0 && (
-                  <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#60a5fa" }}>
+                  <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#3fc9c3" }}>
                     {underCount} under-weight
                   </span>
                 )}

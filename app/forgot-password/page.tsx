@@ -28,15 +28,15 @@ export default function ForgotPasswordPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px #0d1120 inset !important; -webkit-text-fill-color: #e2e8f0 !important; }
+        input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px #0d1120 inset !important; -webkit-text-fill-color: oklch(0.2 0.03 150) !important; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .fu0 { animation: fadeUp 0.5s cubic-bezier(0.23,1,0.32,1) both; }
         .fu1 { animation: fadeUp 0.5s 0.08s cubic-bezier(0.23,1,0.32,1) both; }
-        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-        .ifield:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-        .ifield::placeholder { color: #334155; }
-        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: box-shadow 0.2s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1); }
-        @media (hover: hover) and (pointer: fine) { .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(37,99,235,0.5); transform: translateY(-1px); } }
+        .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.6); border: 1px solid rgba(20,30,20,0.14); border-radius: 10px; color: oklch(0.2 0.03 150); font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        .ifield:focus { border-color: #0ea5a0; box-shadow: 0 0 0 3px rgba(14,165,160,0.12); }
+        .ifield::placeholder { color: oklch(0.6 0.02 150); }
+        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(14,165,160,0.35); transition: box-shadow 0.2s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1); }
+        @media (hover: hover) and (pointer: fine) { .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(14,165,160,0.5); transform: translateY(-1px); } }
         .sbtn:active:not(:disabled) { transform: scale(0.97); }
         .sbtn:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
@@ -48,34 +48,34 @@ export default function ForgotPasswordPage() {
             <div style={{ width: "32px", height: "32px", background: "var(--brand-gradient)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px" }}>
-              Buy<span style={{ color: "#7c3aed" }}>Tune</span>.io
+            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "oklch(0.2 0.03 150)", letterSpacing: "-0.3px" }}>
+              Buy<span style={{ color: "#3fae4a" }}>Tune</span>.io
             </span>
           </Link>
         </div>
 
         {sent ? (
           <div className="fu0" style={{ textAlign: "center" }}>
-            <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0e9488" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>Check your email</h2>
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "oklch(0.2 0.03 150)", marginBottom: "10px" }}>Check your email</h2>
             <p style={{ fontSize: "14px", color: "var(--text-tertiary)", lineHeight: 1.65, marginBottom: "8px" }}>
-              We sent a reset link to <strong style={{ color: "#94a3b8" }}>{email}</strong>.
+              We sent a reset link to <strong style={{ color: "oklch(0.4 0.03 150)" }}>{email}</strong>.
             </p>
             <p style={{ fontSize: "13px", color: "var(--text-tertiary)", lineHeight: 1.6 }}>
               The link expires in 1 hour. Check your spam folder if you don&apos;t see it.
             </p>
-            <Link href="/login" style={{ display: "inline-block", marginTop: "28px", fontSize: "13px", color: "#93c5fd", textDecoration: "none", fontWeight: 500 }}>
+            <Link href="/login" style={{ display: "inline-block", marginTop: "28px", fontSize: "13px", color: "#0e9488", textDecoration: "none", fontWeight: 500 }}>
               Back to sign in
             </Link>
           </div>
         ) : (
           <>
             <div className="fu0" style={{ marginBottom: "32px" }}>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.5px", marginBottom: "6px" }}>Forgot password?</h1>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: "oklch(0.2 0.03 150)", letterSpacing: "-0.5px", marginBottom: "6px" }}>Forgot password?</h1>
               <p style={{ fontSize: "14px", color: "var(--text-tertiary)" }}>Enter your email and we&apos;ll send a reset link.</p>
             </div>
 
@@ -85,14 +85,14 @@ export default function ForgotPasswordPage() {
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" autoFocus />
               </div>
               {error && (
-                <div style={{ background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#ff5c5c" }}>{error}</div>
+                <div style={{ background: "rgba(220,68,68,0.08)", border: "1px solid rgba(220,68,68,0.2)", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#b13333" }}>{error}</div>
               )}
               <button type="submit" disabled={loading} className="sbtn">{loading ? "Sending…" : "Send reset link"}</button>
             </form>
 
             <p style={{ textAlign: "center", fontSize: "13px", color: "var(--text-tertiary)", marginTop: "24px" }}>
               Remember it?{" "}
-              <Link href="/login" style={{ color: "#93c5fd", textDecoration: "none", fontWeight: 500 }}>Back to sign in</Link>
+              <Link href="/login" style={{ color: "#0e9488", textDecoration: "none", fontWeight: 500 }}>Back to sign in</Link>
             </p>
           </>
         )}

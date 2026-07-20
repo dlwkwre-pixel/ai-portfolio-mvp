@@ -13,10 +13,10 @@ export default async function AIScorecardCard({ portfolioId }: { portfolioId: st
   const recent = sc.rows.slice(0, 4);
 
   const verdictColor: Record<Verdict, string> = {
-    correct: "var(--green)", incorrect: "#f87171", pending: "#60a5fa", "no-data": "var(--text-muted)",
+    correct: "var(--green)", incorrect: "#f87171", pending: "#3fc9c3", "no-data": "var(--text-muted)",
   };
   const actionColor: Record<string, string> = {
-    buy: "var(--green)", add: "var(--green)", sell: "#f87171", trim: "#f87171", hold: "#60a5fa", watch: "#a78bfa",
+    buy: "var(--green)", add: "var(--green)", sell: "#f87171", trim: "#f87171", hold: "#3fc9c3", watch: "#6fd08a",
   };
   const fmtPct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 

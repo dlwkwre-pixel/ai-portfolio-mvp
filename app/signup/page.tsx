@@ -6,6 +6,14 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { BrandGlyph } from "@/app/components/brand-mark";
 
+// Sage auth — split panel matching /login: dark brand showcase (left) + light
+// sage form (right). Mobile shows the light form only.
+const DARK = "oklch(0.22 0.03 150)";
+const INK = "oklch(0.2 0.03 150)";
+const INK2 = "oklch(0.4 0.03 150)";
+const TEAL = "#0e9488";
+const GRAD = "linear-gradient(135deg,#3fae4a,#0ea5a0)";
+
 export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -32,96 +40,93 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ minHeight:"100vh", background:"#07090f", display:"flex", fontFamily:"'DM Sans',sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", fontFamily: "var(--font-body)" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap');
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        input:-webkit-autofill{-webkit-box-shadow:0 0 0 30px #0d1120 inset!important;-webkit-text-fill-color:#e2e8f0!important}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         .fu0{animation:fadeUp 0.5s ease both}
         .fu1{animation:fadeUp 0.5s 0.08s ease both}
         .fu2{animation:fadeUp 0.5s 0.16s ease both}
         .fu3{animation:fadeUp 0.5s 0.24s ease both}
         .fu4{animation:fadeUp 0.5s 0.32s ease both}
-        .ifield{width:100%;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#e2e8f0;font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:all 0.15s}
-        .ifield:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
-        .ifield::placeholder{color:#334155}
-        .sbtn{width:100%;padding:13px;background:var(--brand-gradient);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,0.35);transition:all 0.2s}
-        .sbtn:hover:not(:disabled){box-shadow:0 6px 28px rgba(37,99,235,0.5);transform:translateY(-1px)}
+        .ifield{width:100%;padding:12px 14px;background:rgba(255,255,255,0.6);border:1px solid rgba(20,30,20,0.14);border-radius:10px;color:${INK};font-size:14px;font-family:var(--font-body);outline:none;transition:all 0.15s}
+        .ifield:focus{border-color:#0ea5a0;box-shadow:0 0 0 3px rgba(14,165,160,0.14)}
+        .ifield::placeholder{color:oklch(0.6 0.02 150)}
+        .sbtn{width:100%;padding:13px;background:${GRAD};border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;font-family:var(--font-body);cursor:pointer;box-shadow:0 4px 20px rgba(14,165,160,0.28);transition:all 0.2s}
+        .sbtn:hover:not(:disabled){box-shadow:0 6px 28px rgba(14,165,160,0.4);transform:translateY(-1px)}
         .sbtn:disabled{opacity:0.6;cursor:not-allowed}
         .lg-panel{display:none}
         @media(min-width:1024px){.lg-panel{display:flex!important}.mob-logo{display:none!important}}
       `}</style>
 
-      <div className="lg-panel" style={{ flex:1, flexDirection:"column", justifyContent:"space-between", padding:"48px", background:"linear-gradient(135deg,#0a0d15,#0d1420)", borderRight:"1px solid rgba(255,255,255,0.06)", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 30% 40%,rgba(37,99,235,0.12),transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(124,58,237,0.08),transparent 50%)", pointerEvents:"none" }} />
-        <Link href="/" style={{ display:"flex", alignItems:"center", gap:"10px", textDecoration:"none", position:"relative", zIndex:1 }}>
-          <div style={{ width:"36px", height:"36px", background:"var(--brand-gradient)", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div className="lg-panel" style={{ flex: 1, flexDirection: "column", justifyContent: "space-between", padding: "48px", background: DARK, borderRight: "1px solid rgba(255,255,255,0.06)", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 30% 40%,rgba(63,174,74,0.14),transparent 60%),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(14,165,160,0.12),transparent 50%)", pointerEvents: "none" }} />
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", position: "relative", zIndex: 1 }}>
+          <div style={{ width: "36px", height: "36px", background: GRAD, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
-          <span style={{ fontFamily:"var(--font-logo)", fontWeight:700, fontSize:"17px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff" }}>BuyTune.io</span>
         </Link>
 
-        <div style={{ position:"relative", zIndex:1 }}>
-          <h2 style={{ fontFamily:"var(--font-display)", fontSize:"32px", fontWeight:800, color:"#fff", letterSpacing:"-0.8px", lineHeight:1.15, marginBottom:"20px" }}>
-            Start investing<br/>with an edge.
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: "32px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", lineHeight: 1.15, marginBottom: "20px" }}>
+            Start investing<br />with an edge.
           </h2>
           {[
-            { icon:"✦", text:"AI recommendations powered by Grok with live market data" },
-            { icon:"📈", text:"True performance tracking using Modified Dietz method" },
-            { icon:"⚖️", text:"Benchmark comparison against SPY, QQQ, and more" },
-            { icon:"🎯", text:"Personalized strategies that guide every AI decision" },
+            { icon: "✦", text: "AI recommendations powered by Grok with live market data" },
+            { icon: "📈", text: "True performance tracking using Modified Dietz method" },
+            { icon: "⚖️", text: "Benchmark comparison against SPY, QQQ, and more" },
+            { icon: "🎯", text: "Personalized strategies that guide every AI decision" },
           ].map((item) => (
-            <div key={item.text} style={{ display:"flex", alignItems:"flex-start", gap:"12px", marginBottom:"16px" }}>
-              <div style={{ width:"28px", height:"28px", background:"rgba(37,99,235,0.1)", border:"1px solid rgba(37,99,235,0.2)", borderRadius:"7px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"13px", flexShrink:0 }}>
+            <div key={item.text} style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ width: "28px", height: "28px", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>
                 {item.icon}
               </div>
-              <p style={{ fontSize:"13px", color:"#64748b", lineHeight:1.6, paddingTop:"4px" }}>{item.text}</p>
+              <p style={{ fontSize: "13px", color: "oklch(0.72 0.02 150)", lineHeight: 1.6, paddingTop: "4px" }}>{item.text}</p>
             </div>
           ))}
         </div>
-        <div style={{ position:"relative", zIndex:1, fontSize:"12px", color:"#334155" }}>© 2026 BuyTune. All rights reserved.</div>
+        <div style={{ position: "relative", zIndex: 1, fontSize: "12px", color: "oklch(0.55 0.02 150)" }}>© 2026 BuyTune. All rights reserved.</div>
       </div>
 
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"48px 24px" }}>
-        <div style={{ width:"100%", maxWidth:"400px" }}>
-          <Link href="/" className="mob-logo" style={{ display:"flex", alignItems:"center", gap:"8px", textDecoration:"none", marginBottom:"40px", justifyContent:"center" }}>
-            <div style={{ width:"28px", height:"28px", background:"var(--brand-gradient)", borderRadius:"7px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 24px" }}>
+        <div style={{ width: "100%", maxWidth: "400px" }}>
+          <Link href="/" className="mob-logo" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", marginBottom: "40px", justifyContent: "center" }}>
+            <div style={{ width: "28px", height: "28px", background: GRAD, borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
-            <span style={{ fontFamily:"var(--font-logo)", fontWeight:700, fontSize:"15px", color:"#fff" }}>Buy<span style={{ color:"#7c3aed" }}>Tune</span>.io</span>
+            <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "15px", color: INK }}>BuyTune.io</span>
           </Link>
 
-          <div className="fu0" style={{ marginBottom:"32px" }}>
-            <h1 style={{ fontFamily:"var(--font-display)", fontSize:"26px", fontWeight:700, color:"#fff", letterSpacing:"-0.5px", marginBottom:"6px" }}>Create your account</h1>
-            <p style={{ fontSize:"14px", color:"#64748b" }}>Free to start — no credit card required</p>
+          <div className="fu0" style={{ marginBottom: "32px" }}>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: INK, letterSpacing: "-0.5px", marginBottom: "6px" }}>Create your account</h1>
+            <p style={{ fontSize: "14px", color: INK2 }}>Free to start — no credit card required</p>
           </div>
 
           {success ? (
-            <div style={{ background:"rgba(0,211,149,0.08)", border:"1px solid rgba(0,211,149,0.2)", borderRadius:"12px", padding:"20px", textAlign:"center" }}>
-              <div style={{ fontSize:"24px", marginBottom:"10px" }}>✉️</div>
-              <p style={{ fontSize:"14px", color:"#00d395", fontWeight:500, marginBottom:"6px" }}>Check your inbox</p>
-              <p style={{ fontSize:"13px", color:"#64748b" }}>{success}</p>
-              <Link href="/login" style={{ display:"inline-block", marginTop:"16px", fontSize:"13px", color:"#93c5fd", textDecoration:"none", fontWeight:500 }}>
+            <div style={{ background: "rgba(22,163,74,0.09)", border: "1px solid rgba(22,163,74,0.22)", borderRadius: "12px", padding: "20px", textAlign: "center" }}>
+              <div style={{ fontSize: "24px", marginBottom: "10px" }}>✉️</div>
+              <p style={{ fontSize: "14px", color: "#158a3f", fontWeight: 600, marginBottom: "6px" }}>Check your inbox</p>
+              <p style={{ fontSize: "13px", color: INK2 }}>{success}</p>
+              <Link href="/login" style={{ display: "inline-block", marginTop: "16px", fontSize: "13px", color: TEAL, textDecoration: "none", fontWeight: 600 }}>
                 Go to sign in →
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSignUp} style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+            <form onSubmit={handleSignUp} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className="fu1">
-                <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:"#64748b", marginBottom:"6px" }}>Full name</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: INK2, marginBottom: "6px" }}>Full name</label>
                 <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" required className="ifield" />
               </div>
               <div className="fu2">
-                <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:"#64748b", marginBottom:"6px" }}>Email address</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: INK2, marginBottom: "6px" }}>Email address</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="ifield" />
               </div>
               <div className="fu3">
-                <label style={{ display:"block", fontSize:"12px", fontWeight:500, color:"#64748b", marginBottom:"6px" }}>Password</label>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: INK2, marginBottom: "6px" }}>Password</label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters" required minLength={8} className="ifield" />
               </div>
               {error && (
-                <div style={{ background:"rgba(255,92,92,0.08)", border:"1px solid rgba(255,92,92,0.2)", borderRadius:"8px", padding:"10px 14px", fontSize:"13px", color:"#ff5c5c" }}>
+                <div style={{ background: "rgba(220,68,68,0.08)", border: "1px solid rgba(220,68,68,0.2)", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#b13333" }}>
                   {error}
                 </div>
               )}
@@ -130,18 +135,18 @@ export default function SignupPage() {
                   {loading ? "Creating account..." : "Create free account"}
                 </button>
               </div>
-              <p style={{ fontSize:"11px", color:"#334155", textAlign:"center", lineHeight:1.5 }}>
+              <p style={{ fontSize: "11px", color: "oklch(0.5 0.02 150)", textAlign: "center", lineHeight: 1.5 }}>
                 By creating an account you agree to our{" "}
-                <a href="/legal/terms" style={{ color:"#60a5fa", textDecoration:"none" }}>Terms of Service</a>
+                <a href="/legal/terms" style={{ color: TEAL, textDecoration: "none" }}>Terms of Service</a>
                 {" "}and{" "}
-                <a href="/legal/privacy" style={{ color:"#60a5fa", textDecoration:"none" }}>Privacy Policy</a>.
+                <a href="/legal/privacy" style={{ color: TEAL, textDecoration: "none" }}>Privacy Policy</a>.
               </p>
             </form>
           )}
 
-          <p style={{ textAlign:"center", fontSize:"13px", color:"#475569", marginTop:"24px" }}>
+          <p style={{ textAlign: "center", fontSize: "13px", color: INK2, marginTop: "24px" }}>
             Already have an account?{" "}
-            <Link href="/login" style={{ color:"#93c5fd", textDecoration:"none", fontWeight:500 }}>Sign in</Link>
+            <Link href="/login" style={{ color: TEAL, textDecoration: "none", fontWeight: 600 }}>Sign in</Link>
           </p>
         </div>
       </div>

@@ -222,7 +222,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
             width: "100%", padding: "10px", borderRadius: "var(--radius-md)",
-            background: "rgba(37,99,235,0.14)", border: "1px solid rgba(96,165,250,0.25)",
+            background: "rgba(14,165,160,0.14)", border: "1px solid rgba(96,165,250,0.25)",
             color: "rgba(147,197,253,0.95)", fontSize: "12px", fontWeight: 600, textDecoration: "none",
           }}
         >

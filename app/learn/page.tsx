@@ -74,8 +74,8 @@ export default async function LearnPage() {
             }}>
               <div style={{
                 flexShrink: 0, width: "40px", height: "40px",
-                background: "linear-gradient(135deg, rgba(37,99,235,0.15), rgba(124,58,237,0.1))",
-                border: "1px solid rgba(37,99,235,0.2)",
+                background: "linear-gradient(135deg, rgba(14,165,160,0.15), rgba(63,174,74,0.1))",
+                border: "1px solid rgba(14,165,160,0.2)",
                 borderRadius: "10px",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "18px",
@@ -104,8 +104,8 @@ export default async function LearnPage() {
             }}>
               <div style={{
                 flexShrink: 0, width: "40px", height: "40px",
-                background: "linear-gradient(135deg, rgba(37,99,235,0.15), rgba(124,58,237,0.1))",
-                border: "1px solid rgba(37,99,235,0.2)",
+                background: "linear-gradient(135deg, rgba(14,165,160,0.15), rgba(63,174,74,0.1))",
+                border: "1px solid rgba(14,165,160,0.2)",
                 borderRadius: "10px",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "18px",
@@ -133,7 +133,7 @@ export default async function LearnPage() {
                 {TUTORIAL_LIST.map((t) => (
                   <Link key={t.id} href={`${t.href}?tutorial=${t.id}`}
                     style={{ display: "flex", alignItems: "center", gap: "11px", padding: "13px 15px", borderRadius: "var(--radius-lg)", border: "1px solid var(--card-border)", background: "var(--card-bg)", textDecoration: "none" }}>
-                    <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(124,58,237,0.1))", border: "1px solid rgba(99,102,241,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0 }}>{t.emoji}</div>
+                    <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(14,165,160,0.14), rgba(63,174,74,0.1))", border: "1px solid rgba(63,174,74,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0 }}>{t.emoji}</div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{t.label}</div>
                       <div style={{ fontSize: "11px", color: "var(--accent)", fontFamily: "var(--font-body)" }}>Replay walkthrough →</div>

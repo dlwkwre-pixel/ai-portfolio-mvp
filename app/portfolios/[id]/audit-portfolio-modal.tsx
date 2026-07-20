@@ -387,9 +387,9 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
         fontSize: "12px",
         fontFamily: "var(--font-body)",
         fontWeight: 500,
-        color: "#a78bfa",
-        background: "rgba(124,58,237,0.1)",
-        border: "1px solid rgba(124,58,237,0.22)",
+        color: "#6fd08a",
+        background: "rgba(63,174,74,0.1)",
+        border: "1px solid rgba(63,174,74,0.22)",
         borderRadius: "var(--radius-md)",
         cursor: "pointer",
         transition: "color 0.15s ease, background 0.15s ease, border-color 0.15s ease",
@@ -397,15 +397,15 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLButtonElement;
-        el.style.background = "rgba(124,58,237,0.18)";
-        el.style.borderColor = "rgba(124,58,237,0.4)";
+        el.style.background = "rgba(63,174,74,0.18)";
+        el.style.borderColor = "rgba(63,174,74,0.4)";
         el.style.color = "#c4b5fd";
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLButtonElement;
-        el.style.background = "rgba(124,58,237,0.1)";
-        el.style.borderColor = "rgba(124,58,237,0.22)";
-        el.style.color = "#a78bfa";
+        el.style.background = "rgba(63,174,74,0.1)";
+        el.style.borderColor = "rgba(63,174,74,0.22)";
+        el.style.color = "#6fd08a";
       }}
     >
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
@@ -531,7 +531,7 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
                     style={{
                       border: `1.5px dashed ${isDragging ? "var(--brand-blue)" : parseResult ? "var(--green)" : "var(--border)"}`,
                       borderRadius: "var(--radius-lg)",
-                      background: isDragging ? "rgba(37,99,235,0.04)" : parseResult ? "var(--green-bg)" : "var(--card-bg)",
+                      background: isDragging ? "rgba(14,165,160,0.04)" : parseResult ? "var(--green-bg)" : "var(--card-bg)",
                       padding: "28px 20px",
                       textAlign: "center",
                       cursor: "pointer",
@@ -602,7 +602,7 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
                       boxSizing: "border-box",
                     }}
                     onFocus={(e) => {
-                      if (!parseResult) e.currentTarget.style.borderColor = "rgba(37,99,235,0.5)";
+                      if (!parseResult) e.currentTarget.style.borderColor = "rgba(14,165,160,0.5)";
                     }}
                     onBlur={(e) => {
                       if (!parseResult) e.currentTarget.style.borderColor = "var(--border)";

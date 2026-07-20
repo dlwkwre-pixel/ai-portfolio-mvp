@@ -176,7 +176,7 @@ const lbl = "mb-2 block text-[11px] font-medium uppercase tracking-wide text-sla
 function badgeStyle(badge: string | null) {
   if (!badge) return null;
   if (badge === "Higher risk") return { color: "var(--red)", bg: "var(--red-bg)", border: "var(--red-border)" };
-  if (badge === "Popular") return { color: "var(--brand-blue)", bg: "rgba(37,99,235,0.1)", border: "rgba(37,99,235,0.2)" };
+  if (badge === "Popular") return { color: "var(--brand-blue)", bg: "rgba(14,165,160,0.1)", border: "rgba(14,165,160,0.2)" };
   if (badge === "Tax-optimized") return { color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
   return { color: "var(--text-muted)", bg: "var(--card-bg)", border: "var(--card-border)" };
 }
@@ -307,7 +307,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
       {/* ── Assign-on-create: link the new strategy to a portfolio inline ── */}
       {created && (
         <div style={{
-          background: "rgba(37,99,235,0.06)", border: "1px solid rgba(37,99,235,0.22)",
+          background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.22)",
           borderRadius: "var(--radius-xl)", padding: "16px 18px",
           animation: "nudgeIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards",
         }}>
@@ -334,7 +334,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             // ── Choose a portfolio to apply to ──
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -370,7 +370,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
           ) : (
             // ── No portfolios yet ──
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-              <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
               </div>
               <div style={{ flex: 1, minWidth: "180px" }}>
@@ -410,8 +410,8 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                   padding: "7px 14px", borderRadius: "var(--radius-lg)",
                   fontSize: "12px", fontWeight: 600, fontFamily: "var(--font-body)",
                   cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
-                  border: active ? "1px solid rgba(37,99,235,0.4)" : "1px solid transparent",
-                  background: active ? "rgba(37,99,235,0.12)" : "transparent",
+                  border: active ? "1px solid rgba(14,165,160,0.4)" : "1px solid transparent",
+                  background: active ? "rgba(14,165,160,0.12)" : "transparent",
                   color: active ? "var(--text-primary)" : "var(--text-tertiary)",
                 }}>
                 {m.label}
@@ -427,7 +427,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
         {method === "ai-builder" && (
           <div className="bt-card" style={{ padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)">
                   <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" />
                 </svg>
@@ -603,16 +603,16 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                         fontSize: "11px",
                         fontWeight: 600,
                         color: isCreating ? "var(--text-muted)" : "rgba(96,165,250,0.9)",
-                        background: isCreating ? "var(--card-bg)" : "rgba(37,99,235,0.1)",
-                        border: `1px solid ${isCreating ? "var(--card-border)" : "rgba(37,99,235,0.25)"}`,
+                        background: isCreating ? "var(--card-bg)" : "rgba(14,165,160,0.1)",
+                        border: `1px solid ${isCreating ? "var(--card-border)" : "rgba(14,165,160,0.25)"}`,
                         cursor: creatingTemplate ? "default" : "pointer",
                         opacity: creatingTemplate && !isCreating ? 0.4 : 1,
                         transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
                         width: "100%",
                         textAlign: "center",
                       }}
-                      onMouseEnter={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(37,99,235,0.16)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(37,99,235,0.38)"; } }}
-                      onMouseLeave={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(37,99,235,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(37,99,235,0.25)"; } }}
+                      onMouseEnter={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(14,165,160,0.16)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,160,0.38)"; } }}
+                      onMouseLeave={e => { if (!creatingTemplate) { (e.currentTarget as HTMLButtonElement).style.background = "rgba(14,165,160,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,160,0.25)"; } }}
                     >
                       {isCreating ? "Creating..." : "Use template"}
                     </button>
@@ -699,7 +699,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                         type="button"
                         onClick={() => handleUseTemplate(t)}
                         disabled={!!creatingTemplate}
-                        style={{ padding: "6px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: isCreating ? "rgba(37,99,235,0.5)" : "var(--brand-gradient)", border: "none", cursor: creatingTemplate ? "default" : "pointer", opacity: creatingTemplate && !isCreating ? 0.5 : 1 }}
+                        style={{ padding: "6px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: isCreating ? "rgba(14,165,160,0.5)" : "var(--brand-gradient)", border: "none", cursor: creatingTemplate ? "default" : "pointer", opacity: creatingTemplate && !isCreating ? 0.5 : 1 }}
                       >
                         {isCreating ? "Creating..." : "Use template"}
                       </button>

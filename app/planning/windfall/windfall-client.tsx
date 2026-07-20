@@ -122,10 +122,10 @@ export default function WindfallClient({
         {net > 0 && rec.length > 0 && (() => {
           const top = [...rec].sort((a, b) => b.amount - a.amount)[0];
           return (
-            <div style={{ ...cardStyle, background: "linear-gradient(135deg, rgba(37,99,235,0.08), var(--bg-card))", border: "1px solid rgba(37,99,235,0.28)" }}>
+            <div style={{ ...cardStyle, background: "linear-gradient(135deg, rgba(14,165,160,0.08), var(--bg-card))", border: "1px solid rgba(14,165,160,0.28)" }}>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--brand-blue, #2563eb)" }}>{fmt(net)} to put to work</div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--brand-blue, #0ea5a0)" }}>{fmt(net)} to put to work</div>
                   <div style={{ fontSize: "26px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
                     First move: {top.label}
                   </div>

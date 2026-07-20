@@ -219,7 +219,7 @@ export default function RunAiControls({
             onClick={handleRunAi}
             disabled={isDisabled}
             className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            style={isDisabled ? {} : { background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+            style={isDisabled ? {} : { background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(14,165,160,0.3)" }}
           >
             {isPending ? (
               <>

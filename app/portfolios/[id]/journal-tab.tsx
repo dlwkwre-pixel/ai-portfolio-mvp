@@ -11,7 +11,7 @@ const ACTION_META: Record<JournalAction, { label: string; color: string }> = {
   sell:  { label: "Sell",  color: "var(--red)" },
   trim:  { label: "Trim",  color: "var(--red)" },
   hold:  { label: "Hold",  color: "var(--violet)" },
-  watch: { label: "Watch", color: "var(--accent, #818cf8)" },
+  watch: { label: "Watch", color: "var(--accent, #5fbf9a)" },
 };
 const CONVICTIONS = ["low", "medium", "high"] as const;
 const EMOTIONS = ["confident", "cautious", "fearful", "fomo", "neutral"] as const;
@@ -135,15 +135,15 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
         <h2 style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", margin: 0, display: "flex", alignItems: "center" }}>
           Decision Journal
           <InfoTooltip align="start" width={250} text="Write down WHY before you act. Later, BuyTune resurfaces your reasoning and scores the call against what actually happened — so you learn from your process, not just the price.">
-            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "15px", height: "15px", borderRadius: "50%", marginLeft: "6px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
           </InfoTooltip>
         </h2>
         <p style={{ fontSize: "12px", color: "var(--text-tertiary)", margin: "2px 0 0" }}>
-          Log the thinking behind a move. We snapshot the price now so you can grade your reasoning later. Actionable AI calls from your analyses are auto-logged here (tagged <span style={{ color: "var(--accent, #818cf8)", fontWeight: 600 }}>AI call</span>) — run the devil&apos;s advocate on them.
+          Log the thinking behind a move. We snapshot the price now so you can grade your reasoning later. Actionable AI calls from your analyses are auto-logged here (tagged <span style={{ color: "var(--accent, #5fbf9a)", fontWeight: 600 }}>AI call</span>) — run the devil&apos;s advocate on them.
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", flexWrap: "wrap" }}>
           <button type="button" onClick={syncAi} disabled={pending}
-            style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: "8px", padding: "6px 11px", cursor: pending ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: pending ? 0.6 : 1 }}>
+            style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #5fbf9a)", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "8px", padding: "6px 11px", cursor: pending ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: pending ? 0.6 : 1 }}>
             {pending ? "Syncing…" : "Sync past AI decisions"}
           </button>
           {syncMsg && <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>{syncMsg}</span>}
@@ -196,7 +196,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "7px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: meta.color, background: `color-mix(in srgb, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`, padding: "2px 8px", borderRadius: "999px" }}>{meta.label}</span>
                   {e.source === "ai" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent, #818cf8)", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", padding: "2px 7px", borderRadius: "999px" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent, #5fbf9a)", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", padding: "2px 7px", borderRadius: "999px" }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 9l-4.5 3.8L17 19l-5-3.4L7 19l1.5-6.2L4 9l6.1-.2z" /></svg>
                       AI call
                     </span>
@@ -228,7 +228,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
                 {old && !e.outcome_note && reviewing !== e.id && (
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "2px" }}>
                     <span style={{ fontSize: "11px", color: "#f59e0b" }}>Logged {daysSince(e.created_at)} days ago — how did it play out?</span>
-                    <button type="button" onClick={() => { setReviewing(e.id); setReviewText(""); }} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>Reflect →</button>
+                    <button type="button" onClick={() => { setReviewing(e.id); setReviewText(""); }} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>Reflect →</button>
                   </div>
                 )}
                 {reviewing === e.id && (

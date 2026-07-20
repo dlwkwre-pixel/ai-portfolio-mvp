@@ -746,7 +746,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                                 {dig.profile && (dig.profile.finnhubIndustry || dig.profile.country) && (
                                   <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginBottom: "10px" }}>
                                     {dig.profile.finnhubIndustry && (
-                                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(37,99,235,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(37,99,235,0.25)" }}>
+                                      <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "2px 7px", borderRadius: "999px", background: "rgba(14,165,160,0.15)", color: "var(--brand-blue)", border: "1px solid rgba(14,165,160,0.25)" }}>
                                         {dig.profile.finnhubIndustry}
                                       </span>
                                     )}

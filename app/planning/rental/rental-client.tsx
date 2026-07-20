@@ -23,7 +23,7 @@ const sectionTitle: React.CSSProperties = { fontFamily: "var(--font-display)", f
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={230}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -323,8 +323,8 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
             cashInvested={calc.cashInvested}
             parts={[
               { label: "Cash flow", value: calc.cashFlowAnnual, color: "var(--green)" },
-              { label: "Loan paydown", value: calc.principalY1, color: "#3b82f6" },
-              { label: "Appreciation", value: calc.appreciationY1, color: "#7c3aed" },
+              { label: "Loan paydown", value: calc.principalY1, color: "#0ea5a0" },
+              { label: "Appreciation", value: calc.appreciationY1, color: "#3fae4a" },
               { label: "Tax effect", value: calc.taxEffect, color: calc.taxEffect >= 0 ? "#14b8a6" : "#ef4444" },
             ]}
             total={calc.totalReturnY1}
@@ -340,12 +340,12 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
           <div style={cardStyle}>
             <span style={sectionTitle}>{holdYears}-year projection</span>
             <svg viewBox={`0 0 ${chart.W} ${chart.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "130px", display: "block" }}>
-              <path d={`${chart.valueLine} L${chart.W},${chart.H} L0,${chart.H} Z`} fill="rgba(124,58,237,0.10)" />
+              <path d={`${chart.valueLine} L${chart.W},${chart.H} L0,${chart.H} Z`} fill="rgba(63,174,74,0.10)" />
               <path d={chart.valueLine} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
               <path d={chart.equityLine} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" />
             </svg>
             <div style={{ display: "flex", gap: "16px", margin: "8px 0 14px", fontSize: "10.5px" }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "#7c3aed" }} /> Property value</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "#3fae4a" }} /> Property value</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "var(--text-secondary)" }}><span style={{ width: "14px", height: "2px", background: "var(--green)" }} /> Your equity</span>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -394,7 +394,7 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
         <div style={cardStyle}>
           <span style={sectionTitle}>Rental vs. the stock market<HintDot text={`If you invested the ${fmt(Math.round(calc.cashInvested))} cash-to-close in the market at ${marketReturnPct}% instead, how would it compare over ${holdYears} years?`} /></span>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.18)" }}>
+            <div style={{ padding: "12px 14px", borderRadius: "10px", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)" }}>
               <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>This rental</div>
               <div style={{ fontSize: "20px", fontWeight: 800, fontFamily: "var(--font-mono)", color: "var(--text-primary)", marginTop: "3px" }}>{fmt(Math.round(calc.propertyTotal))}</div>
               <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>cash flow + net sale · {fmtSigned(Math.round(calc.propertyGain))} gain</div>

@@ -68,8 +68,8 @@ export default function ElderCareClient() {
             {CARE_TYPES.map((c) => (
               <button key={c.key} type="button" onClick={() => { setCareKey(c.key); setAnnualCost(c.annual); }}
                 style={{ textAlign: "left", padding: "9px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-body)", display: "flex", justifyContent: "space-between", gap: "10px",
-                  border: `1px solid ${careKey === c.key ? "var(--brand-blue, #2563eb)" : "var(--border-subtle)"}`,
-                  background: careKey === c.key ? "rgba(37,99,235,0.1)" : "var(--bg-base)",
+                  border: `1px solid ${careKey === c.key ? "var(--brand-blue, #0ea5a0)" : "var(--border-subtle)"}`,
+                  background: careKey === c.key ? "rgba(14,165,160,0.1)" : "var(--bg-base)",
                   color: careKey === c.key ? "var(--text-primary)" : "var(--text-secondary)" }}>
                 <span>{c.label}<span style={{ color: "var(--text-muted)", display: "block", fontSize: "10px", marginTop: "2px" }}>{c.note}</span></span>
                 <span style={{ fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>{fmt(c.annual)}/yr</span>
@@ -94,7 +94,7 @@ export default function ElderCareClient() {
         {/* Verdict */}
         <div style={cardStyle}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px 10px" }}>
-            <Metric label="Your cost / year" value={fmt(Math.round(calc.yourAnnual))} sub={`${sharePct}% of the ${fmt(Math.round(calc.gap))} gap`} accent="var(--brand-blue, #2563eb)" />
+            <Metric label="Your cost / year" value={fmt(Math.round(calc.yourAnnual))} sub={`${sharePct}% of the ${fmt(Math.round(calc.gap))} gap`} accent="var(--brand-blue, #0ea5a0)" />
             <Metric label={`Total over ${durationYears} yr`} value={fmt(Math.round(calc.total))} sub="with care inflation" accent={calc.total > 150000 ? "var(--amber)" : undefined} />
             <Metric label="Begins" value={String(startYear)} sub={`through ${startYear + durationYears - 1}`} />
           </div>

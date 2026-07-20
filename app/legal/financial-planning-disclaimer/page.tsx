@@ -6,7 +6,7 @@ export default function FinancialPlanningDisclaimerPage() {
   return (
     <article>
       <div style={{ marginBottom: "32px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
+        <div style={{ fontSize: "10px", fontWeight: 700, color: "#0ea5a0", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: "28px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: "8px" }}>Financial Planning Disclaimer</h1>
         <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>Effective date: {EFFECTIVE} &nbsp;·&nbsp; Governing law: Texas, United States</p>
       </div>

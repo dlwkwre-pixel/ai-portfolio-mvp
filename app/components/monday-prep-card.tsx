@@ -104,7 +104,7 @@ export default function MondayPrepCard() {
 
   const accentColor = allDone ? "rgba(74,222,128,0.85)" : "rgba(96,165,250,0.85)";
   const borderColor = allDone ? "rgba(34,197,94,0.2)" : "rgba(96,165,250,0.12)";
-  const bgColor = allDone ? "rgba(34,197,94,0.03)" : "rgba(37,99,235,0.03)";
+  const bgColor = allDone ? "rgba(34,197,94,0.03)" : "rgba(14,165,160,0.03)";
 
   return (
     <div style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "var(--radius-lg)", padding: "14px 16px", transition: "all 0.3s ease" }}>

@@ -11,12 +11,12 @@ const CAT: Record<GoalCategory, { label: string; emoji: string; color: string }>
   house:      { label: "Home", emoji: "🏠", color: "#f59e0b" },
   car:        { label: "Car", emoji: "🚗", color: "#fb923c" },
   travel:     { label: "Travel", emoji: "✈️", color: "#38bdf8" },
-  education:  { label: "Education", emoji: "🎓", color: "#a78bfa" },
+  education:  { label: "Education", emoji: "🎓", color: "#6fd08a" },
   retirement: { label: "Retirement", emoji: "🌴", color: "var(--green)" },
   emergency:  { label: "Emergency", emoji: "🛡️", color: "var(--red)" },
   wedding:    { label: "Wedding", emoji: "💍", color: "#ec4899" },
-  fund:       { label: "Fund", emoji: "💰", color: "#2563eb" },
-  other:      { label: "Goal", emoji: "🎯", color: "#818cf8" },
+  fund:       { label: "Fund", emoji: "💰", color: "#0ea5a0" },
+  other:      { label: "Goal", emoji: "🎯", color: "#5fbf9a" },
 };
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
 
@@ -87,7 +87,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
       <h1 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 800, letterSpacing: "-0.4px", color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center" }}>
         Goals
         <InfoTooltip align="start" width={250} text="Set savings goals — a house down payment, a trip, an emergency fund — with a target and a date. Each goal tracks its funded % and the monthly pace to reach it on time.">
-          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "7px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+          <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "7px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
         </InfoTooltip>
       </h1>
       <p style={{ fontSize: "13px", color: "var(--text-tertiary)", margin: "2px 0 18px" }}>Track what you&apos;re saving toward and how close you are.</p>
@@ -102,7 +102,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
             </span>
           </div>
           <div style={{ height: "10px", borderRadius: "5px", background: "rgba(148,163,184,0.14)", overflow: "hidden" }}>
-            <div className="bt-goal-bar" style={{ width: `${overallPct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
+            <div className="bt-goal-bar" style={{ width: `${overallPct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
           </div>
           <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "6px", fontFamily: "var(--font-mono)" }}>{overallPct}% funded across {goals.length} goal{goals.length !== 1 ? "s" : ""}</div>
         </div>
@@ -110,7 +110,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
 
       {/* New goal button / form */}
       {!formOpen ? (
-        <button type="button" onClick={() => { resetForm(); setFormOpen(true); }} style={{ marginBottom: "16px", padding: "10px 16px", borderRadius: "var(--radius-md)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #818cf8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", width: "100%" }}>
+        <button type="button" onClick={() => { resetForm(); setFormOpen(true); }} style={{ marginBottom: "16px", padding: "10px 16px", borderRadius: "var(--radius-md)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #5fbf9a)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", width: "100%" }}>
           + New goal
         </button>
       ) : (
@@ -159,7 +159,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
                   </div>
                 </div>
                 <div style={{ height: "9px", borderRadius: "5px", background: "rgba(148,163,184,0.14)", overflow: "hidden", marginBottom: "7px" }}>
-                  <div className="bt-goal-bar" style={{ width: `${pct}%`, height: "100%", background: done ? "var(--green)" : `linear-gradient(90deg, ${meta.color}, #7c3aed)` }} />
+                  <div className="bt-goal-bar" style={{ width: `${pct}%`, height: "100%", background: done ? "var(--green)" : `linear-gradient(90deg, ${meta.color}, #3fae4a)` }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "6px" }}>
                   <span style={{ fontSize: "11px", color: done ? "var(--green)" : "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
@@ -175,7 +175,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
                       </span>
                     ) : (
                       <>
-                        <button type="button" onClick={() => { setContribId(g.id); setContribAmt(""); }} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Update</button>
+                        <button type="button" onClick={() => { setContribId(g.id); setContribAmt(""); }} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Update</button>
                         <button type="button" onClick={() => openEdit(g)} style={{ fontSize: "11px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Edit</button>
                         <button type="button" onClick={() => remove(g.id)} style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Delete</button>
                       </>

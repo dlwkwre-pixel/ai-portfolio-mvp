@@ -243,7 +243,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
           <div style={{ marginBottom: "14px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
             <span style={{ fontSize: "11px", color: "var(--text-muted)", marginRight: "2px" }}>Columns:</span>
             {[["ticker *", true], ["shares *", true], ["average_cost_basis *", true], ["company_name", false], ["asset_type", false]].map(([label, req]) => (
-              <span key={label as string} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "2px 8px", borderRadius: "999px", background: req ? "rgba(37,99,235,0.12)" : "var(--bg-surface)", color: req ? "var(--brand-blue)" : "var(--text-muted)", border: `1px solid ${req ? "rgba(37,99,235,0.25)" : "var(--border-subtle)"}` }}>
+              <span key={label as string} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", padding: "2px 8px", borderRadius: "999px", background: req ? "rgba(14,165,160,0.12)" : "var(--bg-surface)", color: req ? "var(--brand-blue)" : "var(--text-muted)", border: `1px solid ${req ? "rgba(14,165,160,0.25)" : "var(--border-subtle)"}` }}>
                 {label as string}
               </span>
             ))}
@@ -269,7 +269,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                   cursor: "pointer", userSelect: "none",
                   transition: "border-color 0.15s, background 0.15s",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.background = "rgba(37,99,235,0.04)"; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.background = "rgba(14,165,160,0.04)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.background = "var(--bg-surface)"; }}
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style={{ color: fileName ? "var(--brand-blue)" : "var(--text-muted)", flexShrink: 0 }}>

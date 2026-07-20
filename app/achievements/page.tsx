@@ -131,7 +131,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
         ) : showProgress ? (
           <div style={{ width: "100%", marginTop: "2px" }}>
             <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
-              <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)" }} />
+              <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
             </div>
             <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
               {current} / {target}
@@ -236,7 +236,7 @@ export default async function AchievementsPage() {
                   </span>
                 </div>
                 <div style={{ height: "9px", borderRadius: "5px", background: "rgba(255,255,255,0.07)", overflow: "hidden", margin: "12px 0 8px" }}>
-                  <div style={{ width: `${xp.pct}%`, height: "100%", background: "linear-gradient(90deg,#2563eb,#7c3aed)", transition: "width .4s ease" }} />
+                  <div style={{ width: `${xp.pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)", transition: "width .4s ease" }} />
                 </div>
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   You&apos;ve unlocked <strong style={{ color: "var(--text-primary)" }}>{earnedCount}</strong> of {BADGES.length} badges. Earn XP by adding holdings, running AI analyses, completing your profile, and showing up daily.
@@ -275,10 +275,10 @@ export default async function AchievementsPage() {
                     <div style={{
                       width: "38px", height: "38px", borderRadius: "11px", flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: c.done ? "rgba(16,185,129,0.14)" : "rgba(99,102,241,0.12)",
-                      border: `1px solid ${c.done ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.22)"}`,
+                      background: c.done ? "rgba(16,185,129,0.14)" : "rgba(63,174,74,0.12)",
+                      border: `1px solid ${c.done ? "rgba(16,185,129,0.3)" : "rgba(63,174,74,0.22)"}`,
                     }}>
-                      <BadgeIcon icon={c.icon} size={19} color={c.done ? "#34d399" : "#818cf8"} />
+                      <BadgeIcon icon={c.icon} size={19} color={c.done ? "#34d399" : "#5fbf9a"} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{c.label}</div>
@@ -315,7 +315,7 @@ export default async function AchievementsPage() {
                       <span style={{ fontSize: "13px", color: "var(--text-primary)" }}>{e.label}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
                         <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>{relTime(e.created_at)}</span>
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent, #6366f1)", fontFamily: "var(--font-mono)" }}>+{e.xp}</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--accent, #159f6f)", fontFamily: "var(--font-mono)" }}>+{e.xp}</span>
                       </div>
                     </div>
                   ))}
@@ -353,7 +353,7 @@ export default async function AchievementsPage() {
 
             {username && (
               <p style={{ fontSize: "11px", color: "var(--text-tertiary)", textAlign: "center", marginTop: "8px" }}>
-                Badges also appear on your <Link href={`/${username}`} style={{ color: "var(--accent, #6366f1)" }}>public profile</Link>.
+                Badges also appear on your <Link href={`/${username}`} style={{ color: "var(--accent, #159f6f)" }}>public profile</Link>.
               </p>
             )}
           </div>

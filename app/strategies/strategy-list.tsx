@@ -107,7 +107,7 @@ export default function StrategyList({
                 borderRadius: "var(--radius-xl)",
                 outline: compareMode
                   ? isSelected
-                    ? "2px solid #7c3aed"
+                    ? "2px solid #3fae4a"
                     : isDisabled
                       ? "2px solid transparent"
                       : "2px solid rgba(255,255,255,0.08)"
@@ -126,8 +126,8 @@ export default function StrategyList({
                   style={{
                     position: "absolute", top: "10px", right: "14px", zIndex: 5,
                     width: "22px", height: "22px", borderRadius: "50%",
-                    border: isSelected ? "2px solid #7c3aed" : "2px solid rgba(255,255,255,0.2)",
-                    background: isSelected ? "#7c3aed" : "rgba(4,13,26,0.8)",
+                    border: isSelected ? "2px solid #3fae4a" : "2px solid rgba(255,255,255,0.2)",
+                    background: isSelected ? "#3fae4a" : "rgba(4,13,26,0.8)",
                     cursor: isDisabled ? "default" : "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.15s, border-color 0.15s",
@@ -171,7 +171,7 @@ export default function StrategyList({
             onClick={() => setComparing(true)}
             style={{
               padding: "7px 16px", borderRadius: "var(--radius-xl)", border: "none",
-              background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+              background: "linear-gradient(135deg,#3fae4a,#0e9488)",
               color: "#fff", fontFamily: "var(--font-body)",
               fontSize: "12px", fontWeight: 700, cursor: "pointer", flexShrink: 0,
             }}

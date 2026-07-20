@@ -36,7 +36,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
             <div>
               <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "15px", letterSpacing: "-0.3px", color: "var(--text-primary)" }}>
-                BuyTune <span style={{ color: "var(--brand-violet, #7c3aed)" }}>Admin</span>
+                BuyTune <span style={{ color: "var(--brand-violet, #3fae4a)" }}>Admin</span>
               </div>
               <div style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{user.email}</div>
             </div>

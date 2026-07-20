@@ -23,7 +23,7 @@ export default function NewStrategyForm() {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-        style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+        style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(14,165,160,0.3)" }}
       >
         {isOpen ? "Cancel" : "+ New Strategy"}
       </button>

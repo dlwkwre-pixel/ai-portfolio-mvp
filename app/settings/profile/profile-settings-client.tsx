@@ -6,14 +6,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const AVATAR_COLORS = [
-  { color: "#2563eb", label: "Blue" },
-  { color: "#7c3aed", label: "Violet" },
+  { color: "#0ea5a0", label: "Blue" },
+  { color: "#3fae4a", label: "Violet" },
   { color: "#0891b2", label: "Cyan" },
   { color: "#059669", label: "Green" },
   { color: "#d97706", label: "Amber" },
   { color: "#dc2626", label: "Red" },
   { color: "#db2777", label: "Pink" },
-  { color: "#6366f1", label: "Indigo" },
+  { color: "#159f6f", label: "Indigo" },
 ];
 
 type ExistingProfile = {
@@ -41,7 +41,7 @@ export default function ProfileSettingsClient({
   const [username, setUsername] = useState(existingProfile?.username ?? "");
   const [displayName, setDisplayName] = useState(existingProfile?.display_name ?? "");
   const [bio, setBio] = useState(existingProfile?.bio ?? "");
-  const [avatarColor, setAvatarColor] = useState(existingProfile?.avatar_color ?? "#2563eb");
+  const [avatarColor, setAvatarColor] = useState(existingProfile?.avatar_color ?? "#0ea5a0");
   const [isPublic, setIsPublic] = useState(existingProfile?.is_public ?? true);
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(existingProfile ? true : null);

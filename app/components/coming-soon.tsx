@@ -32,13 +32,13 @@ export default function ComingSoon({
       {/* Icon */}
       <div style={{
         width: "72px", height: "72px",
-        background: "linear-gradient(135deg, rgba(37,99,235,0.12), rgba(124,58,237,0.08))",
-        border: "1px solid rgba(37,99,235,0.2)",
+        background: "linear-gradient(135deg, rgba(14,165,160,0.12), rgba(63,174,74,0.08))",
+        border: "1px solid rgba(14,165,160,0.2)",
         borderRadius: "20px",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: "32px",
         marginBottom: "24px",
-        boxShadow: "0 0 32px rgba(37,99,235,0.12)",
+        boxShadow: "0 0 32px rgba(14,165,160,0.12)",
       }}>
         {icon}
       </div>
@@ -47,7 +47,7 @@ export default function ComingSoon({
       <span style={{
         display: "inline-flex", alignItems: "center", gap: "5px",
         padding: "3px 10px", borderRadius: "20px",
-        background: "rgba(37,99,235,0.1)", border: "1px solid rgba(37,99,235,0.25)",
+        background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)",
         fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em",
         textTransform: "uppercase", color: "var(--brand-blue)",
         marginBottom: "14px",
@@ -100,8 +100,8 @@ export default function ComingSoon({
               <span style={{
                 flexShrink: 0, marginTop: "2px",
                 width: "14px", height: "14px",
-                background: "rgba(37,99,235,0.12)",
-                border: "1px solid rgba(37,99,235,0.25)",
+                background: "rgba(14,165,160,0.12)",
+                border: "1px solid rgba(14,165,160,0.25)",
                 borderRadius: "4px",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>

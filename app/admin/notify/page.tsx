@@ -56,7 +56,7 @@ export default async function NotifyPage() {
                   <span style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--text-primary)" }}>{n.title}</span>
                   <span style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "8px" }}>
                     {!n.target_user_id && (
-                      <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--accent, #6366f1)", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))", borderRadius: "999px", padding: "1px 8px" }}>All users</span>
+                      <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--accent, #159f6f)", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))", borderRadius: "999px", padding: "1px 8px" }}>All users</span>
                     )}
                     <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>{formatDate(n.created_at)}</span>
                   </span>

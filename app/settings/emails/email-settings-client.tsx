@@ -72,7 +72,7 @@ export default function EmailSettingsClient({ portfolios }: { portfolios: Portfo
           <p style={{ fontSize: "14px", color: "var(--text-secondary)", marginBottom: "12px" }}>
             No portfolios yet. Create one to set up email digests.
           </p>
-          <Link href="/portfolios/new" style={{ fontSize: "13px", color: "#2563eb" }}>
+          <Link href="/portfolios/new" style={{ fontSize: "13px", color: "#0ea5a0" }}>
             Create a portfolio →
           </Link>
         </div>
@@ -97,7 +97,7 @@ export default function EmailSettingsClient({ portfolios }: { portfolios: Portfo
             style={{
               padding: "16px 18px",
               background: "var(--bg-card)",
-              border: `1px solid ${p.digestEnabled ? "rgba(37,99,235,0.25)" : "var(--border-subtle)"}`,
+              border: `1px solid ${p.digestEnabled ? "rgba(14,165,160,0.25)" : "var(--border-subtle)"}`,
               borderRadius: "12px",
               display: "flex",
               alignItems: "center",
@@ -113,7 +113,7 @@ export default function EmailSettingsClient({ portfolios }: { portfolios: Portfo
                 width: "40px",
                 height: "22px",
                 borderRadius: "11px",
-                background: p.digestEnabled ? "#2563eb" : "var(--border-default)",
+                background: p.digestEnabled ? "#0ea5a0" : "var(--border-default)",
                 border: "none",
                 cursor: isToggling ? "not-allowed" : "pointer",
                 position: "relative",

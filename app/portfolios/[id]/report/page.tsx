@@ -48,8 +48,8 @@ const REPORT_CSS = `
   --rpt-surface: rgba(255,255,255,0.04);
   --rpt-card: rgba(255,255,255,0.06);
   --rpt-border: rgba(255,255,255,0.09);
-  --rpt-blue: #2563eb;
-  --rpt-blue-dim: rgba(37,99,235,0.14);
+  --rpt-blue: #0ea5a0;
+  --rpt-blue-dim: rgba(14,165,160,0.14);
   --rpt-text: #f1f5f9;
   --rpt-secondary: #94a3b8;
   --rpt-muted: #475569;
@@ -199,7 +199,7 @@ body { background: var(--rpt-bg); color: var(--rpt-text); }
 
 .rpt-hero-card-highlight {
   background: var(--rpt-blue-dim);
-  border-color: rgba(37,99,235,0.25);
+  border-color: rgba(14,165,160,0.25);
 }
 
 .rpt-hero-value {
@@ -298,7 +298,7 @@ body { background: var(--rpt-bg); color: var(--rpt-text); }
 
 .rpt-strategy-card {
   background: var(--rpt-blue-dim);
-  border: 1px solid rgba(37,99,235,0.2);
+  border: 1px solid rgba(14,165,160,0.2);
   border-radius: 10px;
   padding: 18px 20px;
 }
@@ -513,7 +513,7 @@ export default async function PortfolioReportPage({
             {strategy && (
               <span
                 className="rpt-cover-pill"
-                style={{ borderColor: "rgba(37,99,235,0.3)", color: "#93c5fd" }}
+                style={{ borderColor: "rgba(14,165,160,0.3)", color: "#7fd9d4" }}
               >
                 {strategy.name}
               </span>
@@ -772,8 +772,8 @@ export default async function PortfolioReportPage({
                     style={{
                       flexShrink: 0,
                       fontSize: "10px",
-                      color: "#93c5fd",
-                      background: "rgba(37,99,235,0.18)",
+                      color: "#7fd9d4",
+                      background: "rgba(14,165,160,0.18)",
                       padding: "3px 10px",
                       borderRadius: "20px",
                       fontWeight: 600,
@@ -863,7 +863,7 @@ export default async function PortfolioReportPage({
                   rec.recommendation_status === "executed"
                     ? "#22c55e"
                     : rec.recommendation_status === "accepted"
-                    ? "#93c5fd"
+                    ? "#7fd9d4"
                     : rec.recommendation_status === "rejected"
                     ? "#f87171"
                     : "#64748b";
@@ -871,7 +871,7 @@ export default async function PortfolioReportPage({
                   rec.recommendation_status === "executed"
                     ? "rgba(34,197,94,0.1)"
                     : rec.recommendation_status === "accepted"
-                    ? "rgba(37,99,235,0.1)"
+                    ? "rgba(14,165,160,0.1)"
                     : rec.recommendation_status === "rejected"
                     ? "rgba(239,68,68,0.1)"
                     : "rgba(255,255,255,0.06)";

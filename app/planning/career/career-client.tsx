@@ -1211,17 +1211,17 @@ export default function CareerClient({
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
                 <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
               </svg>
               <p style={{ ...sectionHead, margin: 0 }}>Atlas&apos;s Take</p>
             </div>
-            <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, #7c3aed 7%, transparent)", border: `1px solid ${verdictMeta.border}`, marginBottom: finnCommentary ? "12px" : "0" }}>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{computed.finnNarrative}</p>
+            <div style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "color-mix(in oklch, #3fae4a 7%, transparent)", border: `1px solid ${verdictMeta.border}`, marginBottom: finnCommentary ? "12px" : "0" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #3fae4a 40%, transparent)", paddingLeft: "12px" }}>{computed.finnNarrative}</p>
             </div>
             {finnCommentary ? (
               <div style={{ marginTop: "12px" }}>
-                <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#7c3aed", marginBottom: "6px" }}>Deep AI Analysis</p>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #7c3aed 40%, transparent)", paddingLeft: "12px" }}>{finnCommentary}</p>
+                <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "#3fae4a", marginBottom: "6px" }}>Deep AI Analysis</p>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, borderLeft: "2px solid color-mix(in oklch, #3fae4a 40%, transparent)", paddingLeft: "12px" }}>{finnCommentary}</p>
                 <button type="button" onClick={() => setFinnCommentary(null)} style={{ marginTop: "8px", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0, fontFamily: "var(--font-body)" }}>Refresh</button>
               </div>
             ) : finnLoading ? (
@@ -1229,11 +1229,11 @@ export default function CareerClient({
                 <AtlasThinking messages={["Weighing the income change…", "Modeling the transition gap…", "Projecting long-term earnings…", "Checking the break-even point…"]} />
               </div>
             ) : (
-              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.2 290 / 0.15)" : "linear-gradient(135deg,#7c3aed,#5b21b6)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(124,58,237,0.35)" }}>
+              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.2 290 / 0.15)" : "linear-gradient(135deg,#3fae4a,#5b21b6)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(63,174,74,0.35)" }}>
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                   <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
                   <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                  <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                  <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                 </svg>
                 {finnLoading ? "Atlas is thinking…" : "Get Deep AI Analysis"}
               </button>
@@ -1292,7 +1292,7 @@ export default function CareerClient({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               {[
                 { title: "Current Career", yr10: computed.pt10?.currentIncome ?? 0, retirAssets: computed.nwCurrentPath, retirProb: computed.retirCurrentProb, risk: "Low", riskColor: "var(--green)", accent: "#94a3b8", border: "rgba(148,163,184,0.2)" },
-                { title: "New Career", yr10: computed.pt10?.newIncome ?? 0, retirAssets: computed.nwNewPath, retirProb: computed.retirNewProb, risk: computed.transitionRiskLevel === "LOW" ? "Moderate" : computed.transitionRiskLevel === "MODERATE" ? "Moderate" : "High", riskColor: computed.transitionRiskLevel === "LOW" ? "oklch(0.78 0.17 70)" : computed.transitionRiskLevel === "MODERATE" ? "oklch(0.78 0.17 70)" : "var(--red)", accent: "#3b82f6", border: "rgba(59,130,246,0.22)" },
+                { title: "New Career", yr10: computed.pt10?.newIncome ?? 0, retirAssets: computed.nwNewPath, retirProb: computed.retirNewProb, risk: computed.transitionRiskLevel === "LOW" ? "Moderate" : computed.transitionRiskLevel === "MODERATE" ? "Moderate" : "High", riskColor: computed.transitionRiskLevel === "LOW" ? "oklch(0.78 0.17 70)" : computed.transitionRiskLevel === "MODERATE" ? "oklch(0.78 0.17 70)" : "var(--red)", accent: "#0ea5a0", border: "rgba(14,165,160,0.22)" },
               ].map(({ title, yr10, retirAssets, retirProb, risk, riskColor, accent, border }) => (
                 <div key={title} style={{ padding: "14px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: `1px solid ${border}` }}>
                   <p style={{ fontSize: "11px", fontWeight: 700, color: accent, marginBottom: "10px", letterSpacing: "0.02em" }}>{title}</p>
@@ -1360,7 +1360,7 @@ export default function CareerClient({
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
               {[
                 { label: "Current Path Total", value: fmtK(computed.lifetimeCurrent), color: "#94a3b8", note: null },
-                { label: "New Career Total", value: fmtK(computed.lifetimeNewGross), color: "#3b82f6", note: inputs.transition_cost > 0 ? `−${fmtK(inputs.transition_cost)} costs` : null },
+                { label: "New Career Total", value: fmtK(computed.lifetimeNewGross), color: "#0ea5a0", note: inputs.transition_cost > 0 ? `−${fmtK(inputs.transition_cost)} costs` : null },
               ].map(({ label, value, color, note }) => (
                 <div key={label}>
                   <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "2px" }}>{label}</div>
@@ -1413,7 +1413,7 @@ export default function CareerClient({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "12px" }}>
                 {[
                   { label: "Yr 10 Current", value: fmtK(computed.pt10.currentIncome), color: "#94a3b8" },
-                  { label: "Yr 10 New", value: fmtK(computed.pt10.newIncome), color: "#3b82f6" },
+                  { label: "Yr 10 New", value: fmtK(computed.pt10.newIncome), color: "#0ea5a0" },
                   { label: "10yr Delta", value: (computed.pt10.newIncome - computed.pt10.currentIncome >= 0 ? "+" : "") + fmtK(computed.pt10.newIncome - computed.pt10.currentIncome), color: computed.pt10.newIncome >= computed.pt10.currentIncome ? "var(--green)" : "var(--red)" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ textAlign: "center" }}>
@@ -1512,7 +1512,7 @@ export default function CareerClient({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
                 {[
                   { label: "Current Career", value: computed.nwCurrentPath, color: "#94a3b8" },
-                  { label: "New Career", value: computed.nwNewPath, color: "#3b82f6" },
+                  { label: "New Career", value: computed.nwNewPath, color: "#0ea5a0" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ padding: "12px 14px", borderRadius: "var(--radius-md)", background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}>
                     <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: "4px" }}>{label}</div>
@@ -1726,7 +1726,7 @@ export default function CareerClient({
             --text-secondary: #374151;
             --text-tertiary: #6b7280;
             --text-muted: #9ca3af;
-            --accent: #2563eb;
+            --accent: #0ea5a0;
             --green: #16a34a;
             --red: #dc2626;
             --amber: #d97706;

@@ -31,7 +31,7 @@ export default function NewsSidebar() {
       <div style={{
         padding: "12px 14px", flexShrink: 0,
         borderBottom: "1px solid var(--border-subtle)",
-        background: "linear-gradient(135deg, rgba(37,99,235,0.06), rgba(124,58,237,0.03))",
+        background: "linear-gradient(135deg, rgba(14,165,160,0.06), rgba(63,174,74,0.03))",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>

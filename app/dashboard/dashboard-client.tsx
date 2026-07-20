@@ -179,7 +179,7 @@ export default function DashboardClient({
 
         <div className="dashboard-stats-grid">
           {/* Hero: Total Value */}
-          <div className="bt-card" style={{ padding: "16px 18px", background: "rgba(37,99,235,0.04)", border: "1px solid rgba(37,99,235,0.1)" }}>
+          <div className="bt-card" style={{ padding: "16px 18px", background: "rgba(14,165,160,0.04)", border: "1px solid rgba(14,165,160,0.1)" }}>
             <div className="label" style={{ marginBottom: "6px" }}>Total Portfolio Value</div>
             <div className="dashboard-stat-value" style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
               {hide(totalValueLabel, true)}
@@ -199,7 +199,7 @@ export default function DashboardClient({
           </div>
 
           {/* Open Recs */}
-          <div className="bt-card" style={{ padding: "16px 18px", ...(totalOpenRecs > 0 ? { background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.1)" } : {}) }}>
+          <div className="bt-card" style={{ padding: "16px 18px", ...(totalOpenRecs > 0 ? { background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.1)" } : {}) }}>
             <div className="label" style={{ marginBottom: "6px", ...(totalOpenRecs > 0 ? { color: "var(--violet)" } : {}) }}>AI Recommendations</div>
             <div className="dashboard-stat-value" style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 500, letterSpacing: "-0.3px", color: totalOpenRecs > 0 ? "var(--violet)" : "var(--text-primary)" }}>
               {totalOpenRecs}
@@ -222,7 +222,7 @@ export default function DashboardClient({
 
       {/* ── Needs Attention ── */}
       {allOpenRecs.length > 0 && (
-        <div style={{ background: "rgba(124,58,237,0.03)", border: "1px solid rgba(124,58,237,0.1)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+        <div style={{ background: "rgba(63,174,74,0.03)", border: "1px solid rgba(63,174,74,0.1)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "11px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <svg width="13" height="13" viewBox="0 0 20 20" fill="var(--violet)">
@@ -230,7 +230,7 @@ export default function DashboardClient({
                 <path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/>
               </svg>
               <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-secondary)" }}>Open Recommendations</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", background: "rgba(124,58,237,0.12)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", background: "rgba(63,174,74,0.12)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)" }}>
                 {allOpenRecs.length}
               </span>
             </div>
@@ -325,7 +325,7 @@ export default function DashboardClient({
                         <span className="hidden sm:inline-flex" style={{ fontSize: "10px", color: "var(--text-tertiary)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.accountTypeLabel}</span>
                         <span className="hidden sm:inline-flex" style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>{p.benchmarkSymbol}</span>
                         {p.aiRecs.length > 0 && (
-                          <span style={{ fontSize: "10px", background: "rgba(124,58,237,0.1)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>
+                          <span style={{ fontSize: "10px", background: "rgba(63,174,74,0.1)", color: "var(--violet)", padding: "1px 7px", borderRadius: "var(--radius-full)", flexShrink: 0 }}>
                             {p.aiRecs.length} rec{p.aiRecs.length > 1 ? "s" : ""}
                           </span>
                         )}
@@ -372,7 +372,7 @@ export default function DashboardClient({
 
           {/* Latest AI Analysis */}
           {latestAiSummary && latestAiRunPortfolioId && (
-            <div style={{ background: "rgba(124,58,237,0.03)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+            <div style={{ background: "rgba(63,174,74,0.03)", border: "1px solid rgba(63,174,74,0.15)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--violet)">

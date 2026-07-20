@@ -84,8 +84,8 @@ export default async function PortfolioPerformanceSection({
       <div className="bt-animate-page" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
         {stats.map((stat) => (
           <div key={stat.label} style={{
-            background: stat.highlight ? "rgba(37,99,235,0.07)" : "var(--bg-elevated)",
-            border: `1px solid ${stat.highlight ? "rgba(37,99,235,0.18)" : "var(--border-subtle)"}`,
+            background: stat.highlight ? "rgba(14,165,160,0.07)" : "var(--bg-elevated)",
+            border: `1px solid ${stat.highlight ? "rgba(14,165,160,0.18)" : "var(--border-subtle)"}`,
             borderRadius: "var(--radius-md)",
             padding: "11px 13px",
           }}>

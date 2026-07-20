@@ -171,7 +171,7 @@ export default function LifePlanTab({
       `}</style>
 
       {/* ── READOUT ── */}
-      <div className="lp-sec" style={{ position: "relative", overflow: "hidden", borderRadius: "18px", border: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(135deg, rgba(37,99,235,0.14), rgba(124,58,237,0.10) 45%, rgba(0,211,149,0.06))", padding: "22px 24px" }}>
+      <div className="lp-sec" style={{ position: "relative", overflow: "hidden", borderRadius: "18px", border: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(135deg, rgba(14,165,160,0.14), rgba(63,174,74,0.10) 45%, rgba(0,211,149,0.06))", padding: "22px 24px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "26px" }}>
           {/* score ring */}
           <div style={{ position: "relative", width: "104px", height: "104px", flexShrink: 0 }}>
@@ -254,7 +254,7 @@ export default function LifePlanTab({
                 <span style={{ borderBottom: "1px dashed var(--text-muted)", cursor: "help" }}>Committed counts · Considering doesn&apos;t</span>
               </InfoTooltip>
             </span>
-            <button type="button" onClick={() => setAdding((v) => !v)} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #818cf8)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+            <button type="button" onClick={() => setAdding((v) => !v)} style={{ fontSize: "11px", fontWeight: 600, color: "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
               {adding ? "Cancel" : "+ Add event"}
             </button>
           </div>
@@ -413,8 +413,8 @@ function Timeline({ events, currentYear, retirementYear, highlightId, onPick }: 
         {/* retirement marker */}
         {retirementYear != null && retirementYear <= maxY && (
           <div style={{ position: "absolute", top: "8px", bottom: "8px", left: xOf(retirementYear) }}>
-            <div style={{ position: "absolute", top: 0, bottom: 0, width: "2px", background: "linear-gradient(180deg, #7c3aed, rgba(124,58,237,0.15))", borderRadius: "2px" }} />
-            <div style={{ position: "absolute", top: "-2px", left: "6px", whiteSpace: "nowrap", fontSize: "10px", fontWeight: 700, color: "var(--violet-light, #a78bfa)", fontFamily: "var(--font-mono)" }}>Retire {retirementYear}</div>
+            <div style={{ position: "absolute", top: 0, bottom: 0, width: "2px", background: "linear-gradient(180deg, #3fae4a, rgba(63,174,74,0.15))", borderRadius: "2px" }} />
+            <div style={{ position: "absolute", top: "-2px", left: "6px", whiteSpace: "nowrap", fontSize: "10px", fontWeight: 700, color: "var(--violet-light, #6fd08a)", fontFamily: "var(--font-mono)" }}>Retire {retirementYear}</div>
           </div>
         )}
         {/* now marker */}

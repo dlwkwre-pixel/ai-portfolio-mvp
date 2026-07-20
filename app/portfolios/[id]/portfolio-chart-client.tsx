@@ -501,7 +501,7 @@ export default function PortfolioChartClient({
         {hasEnoughSnapshots && (
           <>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#a78bfa" : (isNetPositive ? "#34d399" : "#f87171") }} />
+              <span className="h-2 w-4 rounded" style={{ background: chartMode === "twr" ? "#6fd08a" : (isNetPositive ? "#34d399" : "#f87171") }} />
               {chartMode === "twr" ? "Inv. Return (TWR)" : isLinked ? "Portfolio Value" : "Net Return"}
             </span>
             <span className="flex items-center gap-1.5">

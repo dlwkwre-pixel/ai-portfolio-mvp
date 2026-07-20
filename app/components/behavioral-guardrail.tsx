@@ -75,7 +75,7 @@ export default function BehavioralGuardrail() {
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#93c5fd" }}>A steadying word</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7fd9d4" }}>A steadying word</div>
             <h3 style={{ fontSize: "14.5px", fontWeight: 700, color: "#fff", margin: "1px 0 0", lineHeight: 1.25 }}>
               The market&apos;s down {drop}% today
             </h3>

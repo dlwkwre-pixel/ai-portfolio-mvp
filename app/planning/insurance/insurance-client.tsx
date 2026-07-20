@@ -11,7 +11,7 @@ function fmt(n: number): string {
 function HintDot({ text }: { text: string }) {
   return (
     <InfoTooltip text={text} align="start" width={235}>
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "14px", height: "14px", borderRadius: "50%", marginLeft: "5px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
     </InfoTooltip>
   );
 }
@@ -87,10 +87,10 @@ export default function InsuranceClient({
       <div className="bt-page-content" style={{ flex: 1, overflowY: "auto", padding: "20px 24px 80px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "1000px", width: "100%", margin: "0 auto" }}>
 
         {/* Verdict hero */}
-        <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${wellCovered ? "var(--green)" : "var(--brand-blue, #2563eb)"} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${wellCovered ? "var(--green)" : "var(--brand-blue, #2563eb)"} 26%, transparent)` }}>
+        <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${wellCovered ? "var(--green)" : "var(--brand-blue, #0ea5a0)"} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${wellCovered ? "var(--green)" : "var(--brand-blue, #0ea5a0)"} 26%, transparent)` }}>
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
             <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: wellCovered ? "var(--green)" : "var(--brand-blue, #2563eb)" }}>{wellCovered ? "Life coverage looks sufficient" : "Life coverage gap"}</div>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: wellCovered ? "var(--green)" : "var(--brand-blue, #0ea5a0)" }}>{wellCovered ? "Life coverage looks sufficient" : "Life coverage gap"}</div>
               <div style={{ fontSize: "28px", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-1px", color: "var(--text-primary)", lineHeight: 1.1, marginTop: "2px" }}>
                 {wellCovered ? "Covered" : fmt(calc.lifeGap)}
               </div>
@@ -130,7 +130,7 @@ export default function InsuranceClient({
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>income-replacement + DIME method</span>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "12px" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "30px", fontWeight: 700, color: wellCovered ? "var(--green)" : "var(--brand-blue, #2563eb)" }}>{fmt(calc.lifeGap)}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "30px", fontWeight: 700, color: wellCovered ? "var(--green)" : "var(--brand-blue, #0ea5a0)" }}>{fmt(calc.lifeGap)}</span>
             <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>{wellCovered ? "you're covered" : "additional coverage suggested"}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
@@ -152,7 +152,7 @@ export default function InsuranceClient({
             </div>
           </div>
           {!wellCovered && calc.termPremiumAnnual > 0 && (
-            <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(37,99,235,0.07)", border: "1px solid rgba(37,99,235,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+            <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: "rgba(14,165,160,0.07)", border: "1px solid rgba(14,165,160,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
               A {fmt(calc.lifeGap)} / {termYears}-year level term policy at age {age} runs roughly <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.round(calc.termPremiumAnnual / 12))}/mo</strong> (~{fmt(Math.round(calc.termPremiumAnnual))}/yr) for a healthy non-smoker. Ballpark only — your real rate depends on health and underwriting.
             </div>
           )}
@@ -178,7 +178,7 @@ export default function InsuranceClient({
           <div style={cardStyle}>
             <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "10px" }}>Umbrella liability</span>
             <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: calc.umbrellaRec > 0 ? "var(--brand-blue, #2563eb)" : "var(--text-tertiary)" }}>{calc.umbrellaRec > 0 ? fmt(calc.umbrellaRec) : "Optional"}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: calc.umbrellaRec > 0 ? "var(--brand-blue, #0ea5a0)" : "var(--text-tertiary)" }}>{calc.umbrellaRec > 0 ? fmt(calc.umbrellaRec) : "Optional"}</span>
               <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>suggested</span>
             </div>
             <p style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "10px", lineHeight: 1.5 }}>

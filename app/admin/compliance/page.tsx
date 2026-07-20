@@ -122,7 +122,7 @@ export default async function ComplianceDashboard() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <Pill status="pass" />
-              <Link href={p.href} target="_blank" style={{ color: "var(--accent, #60a5fa)", fontSize: "12px", textDecoration: "none" }}>View</Link>
+              <Link href={p.href} target="_blank" style={{ color: "var(--accent, #3fc9c3)", fontSize: "12px", textDecoration: "none" }}>View</Link>
             </div>
           </div>
         ))}
@@ -151,7 +151,7 @@ export default async function ComplianceDashboard() {
               <span style={{ color: "var(--text-primary)", fontWeight: 500, fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.name}</span>
               <span style={{ color: "var(--text-secondary)", fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.purpose}</span>
               <span style={{ color: "var(--text-secondary)", fontSize: "12.5px", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>{svc.dataShared}</span>
-              <a href={svc.privacyUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent, #60a5fa)", fontSize: "12.5px", textDecoration: "none", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>Link</a>
+              <a href={svc.privacyUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent, #3fc9c3)", fontSize: "12.5px", textDecoration: "none", padding: "9px 0", borderTop: "1px solid var(--border-subtle)" }}>Link</a>
             </div>
           ))}
         </div>
@@ -174,7 +174,7 @@ export default async function ComplianceDashboard() {
         {CONTACTS.map((item, i) => (
           <div key={item.role} style={{ ...row, borderTop: i === 0 ? "none" : row.borderTop }}>
             <span>{item.role}</span>
-            <a href={`mailto:${item.contact}`} style={{ color: "var(--accent, #60a5fa)", fontSize: "13px", textDecoration: "none" }}>{item.contact}</a>
+            <a href={`mailto:${item.contact}`} style={{ color: "var(--accent, #3fc9c3)", fontSize: "13px", textDecoration: "none" }}>{item.contact}</a>
           </div>
         ))}
       </div>

@@ -100,7 +100,7 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
 
         {/* Verdict hero */}
         {(() => {
-          const heroColor = onTrack == null ? "var(--brand-blue, #2563eb)" : onTrack ? "var(--green)" : "var(--red)";
+          const heroColor = onTrack == null ? "var(--brand-blue, #0ea5a0)" : onTrack ? "var(--green)" : "var(--red)";
           const heroLabel = onTrack == null ? "Set a date to see your timeline" : onTrack ? "On track" : "Behind pace";
           return (
             <div style={{ ...cardStyle, background: `linear-gradient(135deg, color-mix(in srgb, ${heroColor} 8%, var(--bg-card)), var(--bg-card))`, border: `1px solid color-mix(in srgb, ${heroColor} 28%, transparent)` }}>
@@ -274,7 +274,7 @@ export default function WeddingClient({ scenarios, liquidAssets }: { scenarios: 
         {/* Save row */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <input style={{ ...inputStyle, width: "200px" }} value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Plan name" />
-          <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(37,99,235,0.5)" : "var(--brand-blue, #2563eb)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={handleSave} disabled={pending} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", background: pending ? "rgba(14,165,160,0.5)" : "var(--brand-blue, #0ea5a0)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: pending ? "not-allowed" : "pointer", fontFamily: "var(--font-body)" }}>
             {pending ? "Saving…" : active ? "Update plan" : "Save plan"}
           </button>
           {active && (

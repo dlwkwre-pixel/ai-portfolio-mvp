@@ -2329,8 +2329,8 @@ export default function HomeClient({
                   style={{
                     fontSize: "11px", padding: "5px 10px", borderRadius: "8px 0 0 8px",
                     border: "1px solid", borderRight: "none",
-                    borderColor: s.id === activeScenarioId ? "rgba(37,99,235,0.5)" : "var(--card-border)",
-                    background: s.id === activeScenarioId ? "rgba(37,99,235,0.08)" : "var(--card-bg)",
+                    borderColor: s.id === activeScenarioId ? "rgba(14,165,160,0.5)" : "var(--card-border)",
+                    background: s.id === activeScenarioId ? "rgba(14,165,160,0.08)" : "var(--card-bg)",
                     color: s.id === activeScenarioId ? "var(--brand-blue)" : "var(--text-secondary)",
                     cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: s.id === activeScenarioId ? 600 : 400,
                   }}
@@ -2428,7 +2428,7 @@ export default function HomeClient({
                   </svg>
                   {ownerPanelOpen ? "Hide" : "Edit"} Current Home Details
                   {(!profile?.owner_home_value && bsHomeValue > 0) && (
-                    <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(99,102,241,0.2)", marginLeft: "4px" }}>
+                    <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(63,174,74,0.2)", marginLeft: "4px" }}>
                       auto-filled
                     </span>
                   )}
@@ -2441,7 +2441,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Current Home Value</label>
                           {!profile?.owner_home_value && bsHomeValue > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerHomeValue} onChange={(e) => setOwnerHomeValue(Number(e.target.value))} style={inputS} />
@@ -2450,7 +2450,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Mortgage Balance</label>
                           {!profile?.owner_mortgage_balance && bsMortgageBalance > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerMortgageBalance} onChange={(e) => setOwnerMortgageBalance(Number(e.target.value))} style={inputS} />
@@ -2459,7 +2459,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Monthly Payment (PITI)</label>
                           {!profile?.owner_monthly_payment && bsMonthlyPayment > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
                           )}
                         </div>
                         <input type="number" min="0" step="50" value={ownerMonthlyPayment} onChange={(e) => setOwnerMonthlyPayment(Number(e.target.value))} style={inputS} />
@@ -2518,7 +2518,7 @@ export default function HomeClient({
                         <button
                           type="button"
                           onClick={() => setInputs((prev) => ({ ...prev, down_payment: Math.round(ownerEquity!.netProceeds / 1000) * 1000 }))}
-                          style={{ fontSize: "11px", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
+                          style={{ fontSize: "11px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
                         >
                           Apply equity → down payment ({fmt(Math.round(ownerEquity.netProceeds / 1000) * 1000)})
                         </button>
@@ -2538,7 +2538,7 @@ export default function HomeClient({
         {!hasStarted && (
           <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
             <div style={{ padding: "32px 32px 24px", textAlign: "center" as const }}>
-              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="oklch(0.62 0.22 245)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
                 </svg>
@@ -2610,7 +2610,7 @@ export default function HomeClient({
           if (!gm.hasProfile) {
             return (
               <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="oklch(0.62 0.18 260)" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
                 <div>
@@ -2815,7 +2815,7 @@ export default function HomeClient({
                 </div>
                 <p style={{ ...sectionHead, margin: 0 }}>Atlas Advisor Summary</p>
               </div>
-              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#3fae4a", border: "1px solid rgba(109,40,217,0.2)", fontFamily: "var(--font-body)" }}>Rule-Based</span>
             </div>
             <div style={{ padding: "14px 16px 16px" }}>
               <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: "0 0 14px", fontFamily: "var(--font-body)" }}>{finnSummary}</p>
@@ -2832,7 +2832,7 @@ export default function HomeClient({
                     type="button"
                     onClick={fetchFinnCommentary}
                     disabled={finnLoading}
-                    style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: finnLoading ? "var(--text-muted)" : "linear-gradient(135deg,#7c3aed,#5b21b6)", border: "none", borderRadius: "8px", padding: "5px 14px", cursor: finnLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}
+                    style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: finnLoading ? "var(--text-muted)" : "linear-gradient(135deg,#3fae4a,#5b21b6)", border: "none", borderRadius: "8px", padding: "5px 14px", cursor: finnLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}
                   >
                     {finnLoading ? "Analyzing…" : "Deep AI Analysis"}
                   </button>
@@ -3581,7 +3581,7 @@ export default function HomeClient({
                           style={{
                             background: isTop
                               ? "color-mix(in oklch, oklch(0.80 0.14 80) 5%, transparent)"
-                              : isActive ? "color-mix(in oklch, #3b82f6 4%, transparent)" : "transparent",
+                              : isActive ? "color-mix(in oklch, #0ea5a0 4%, transparent)" : "transparent",
                             cursor: rp.isRentPath ? "default" : "pointer",
                           }}
                           onClick={() => {
@@ -3593,7 +3593,7 @@ export default function HomeClient({
                           <td style={{ ...tdS, textAlign: "center", paddingLeft: "16px", fontWeight: 800, color: rankColor, fontFamily: "var(--font-mono)", fontSize: "11px" }}>
                             {rp.rank}
                           </td>
-                          <td style={{ ...tdS, textAlign: "left", fontFamily: "var(--font-body)", fontSize: "12px", color: isActive ? "#3b82f6" : isTop ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isTop || isActive ? 600 : 400 }}>
+                          <td style={{ ...tdS, textAlign: "left", fontFamily: "var(--font-body)", fontSize: "12px", color: isActive ? "#0ea5a0" : isTop ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: isTop || isActive ? 600 : 400 }}>
                             {rp.name}{isActive ? " ●" : ""}
                           </td>
                           <td style={{ ...tdS, fontWeight: 700, color: isTop ? "oklch(0.80 0.14 80)" : "var(--text-secondary)" }}>
@@ -3702,8 +3702,8 @@ export default function HomeClient({
                         style={{
                           display: "grid", gridTemplateColumns: "100px 1fr auto", alignItems: "center", gap: "10px",
                           padding: "10px 12px", borderRadius: "var(--radius-md)",
-                          background: isActive ? "color-mix(in oklch, #3b82f6 10%, var(--bg-elevated))" : "var(--bg-elevated)",
-                          border: isActive ? "1px solid rgba(59,130,246,0.35)" : "1px solid transparent",
+                          background: isActive ? "color-mix(in oklch, #0ea5a0 10%, var(--bg-elevated))" : "var(--bg-elevated)",
+                          border: isActive ? "1px solid rgba(14,165,160,0.35)" : "1px solid transparent",
                           cursor: isActive ? "default" : "pointer",
                           transition: "background 0.15s ease, border-color 0.15s ease",
                         }}
@@ -3722,7 +3722,7 @@ export default function HomeClient({
                           </div>
                         </div>
                         {isActive ? (
-                          <span style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "6px", background: "rgba(59,130,246,0.14)", color: "#60a5fa", fontFamily: "var(--font-body)", whiteSpace: "nowrap", fontWeight: 700, letterSpacing: "0.02em" }}>
+                          <span style={{ fontSize: "10px", padding: "4px 9px", borderRadius: "6px", background: "rgba(14,165,160,0.14)", color: "#3fc9c3", fontFamily: "var(--font-body)", whiteSpace: "nowrap", fontWeight: 700, letterSpacing: "0.02em" }}>
                             ✓ Active
                           </span>
                         ) : (
@@ -3820,12 +3820,12 @@ export default function HomeClient({
                       {/* Source badges */}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                         {zipData.censusAvailable && (
-                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(14,165,160,0.10)", color: "#3fc9c3", border: "1px solid rgba(14,165,160,0.22)", fontWeight: 600 }}>
                             Census {zipData.dataVintage}
                           </span>
                         )}
                         {zipData.fredAvailable && (
-                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.22)", fontWeight: 600 }}>
+                          <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(14,165,160,0.10)", color: "#3fc9c3", border: "1px solid rgba(14,165,160,0.22)", fontWeight: 600 }}>
                             FRED live rate
                           </span>
                         )}
@@ -3934,9 +3934,9 @@ export default function HomeClient({
                           style={{
                             padding: "2px 8px", borderRadius: "5px", fontSize: "10px",
                             fontFamily: "var(--font-mono)", cursor: "pointer",
-                            background: isActive ? "rgba(99,102,241,0.15)" : "var(--bg-elevated)",
+                            background: isActive ? "rgba(63,174,74,0.15)" : "var(--bg-elevated)",
                             color: isActive ? "oklch(0.65 0.18 260)" : "var(--text-muted)",
-                            border: `1px solid ${isActive ? "rgba(99,102,241,0.4)" : "var(--border-subtle)"}`,
+                            border: `1px solid ${isActive ? "rgba(63,174,74,0.4)" : "var(--border-subtle)"}`,
                             fontWeight: isActive ? 600 : 400,
                           }}
                         >
@@ -3973,7 +3973,7 @@ export default function HomeClient({
                         type="button"
                         onClick={() => set("mortgage_rate", avgMortgageRate)}
                         title="Use current national average"
-                        style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 260)", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer", whiteSpace: "nowrap" }}
+                        style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         avg {avgMortgageRate.toFixed(2)}%
                       </button>
@@ -4394,7 +4394,7 @@ export default function HomeClient({
                   {[
                     { label: "Monthly Payment (P&I)", value: fmt(computed.amortStats.monthlyPayment), color: "var(--text-primary)", sub: "principal + interest only", tip: "Does not include property tax, insurance, or HOA — just the loan payment." },
                     { label: "Total Interest Paid", value: fmtK(computed.amortStats.totalInterest), color: "oklch(0.68 0.18 25)", sub: "over full loan term", tip: "The extra cost of borrowing over the life of the loan, on top of the home price." },
-                    { label: "More Going to You", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#3b82f6", sub: "principal beats interest", tip: "The year your payment starts building more equity than it costs in interest. Before this year, the bank is the primary beneficiary of your payment." },
+                    { label: "More Going to You", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", color: "#0ea5a0", sub: "principal beats interest", tip: "The year your payment starts building more equity than it costs in interest. Before this year, the bank is the primary beneficiary of your payment." },
                     { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", color: "var(--green)", sub: "loan half paid off", tip: "The year your remaining loan balance drops to 50% of the original loan amount — the halfway point to owning it outright." },
                   ].map(({ label, value, color, sub, tip }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
@@ -4429,7 +4429,7 @@ export default function HomeClient({
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", marginBottom: "8px" }}>
                   <button
                     onClick={exportToPDF}
-                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.07)", color: "oklch(0.65 0.18 260)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.07)", color: "oklch(0.65 0.18 260)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
                     Export PDF
@@ -4443,7 +4443,7 @@ export default function HomeClient({
                   </button>
                   <button
                     onClick={() => setShowAmortModal(true)}
-                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(14,165,160,0.3)", background: "rgba(14,165,160,0.08)", color: "#3fc9c3", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3h5M3 3v5M3 3l6 6M17 17h-5M17 17v-5M17 17l-6-6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     Full Table
@@ -4467,20 +4467,20 @@ export default function HomeClient({
                         const isHoldYear = row.year === inputs.hold_years;
                         const isCrossover = row.isCrossover;
                         const rowBg = isHoldYear
-                          ? "color-mix(in oklch, #3b82f6 8%, transparent)"
+                          ? "color-mix(in oklch, #0ea5a0 8%, transparent)"
                           : isCrossover ? "color-mix(in oklch, #00d395 5%, transparent)" : "transparent";
                         return (
                           <tr key={row.year} style={{ borderBottom: "1px solid var(--border-subtle)", background: rowBg }}>
-                            <td style={{ padding: "5px 8px", color: isHoldYear ? "#3b82f6" : "var(--text-tertiary)", textAlign: "right", fontWeight: isHoldYear ? 700 : 400 }}>
+                            <td style={{ padding: "5px 8px", color: isHoldYear ? "#0ea5a0" : "var(--text-tertiary)", textAlign: "right", fontWeight: isHoldYear ? 700 : 400 }}>
                               {row.year}{isHoldYear ? " ★" : ""}
                             </td>
                             <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{row.balance < 100 ? "—" : fmtK(row.balance)}</td>
-                            <td style={{ padding: "5px 8px", color: "#3b82f6", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
+                            <td style={{ padding: "5px 8px", color: "#0ea5a0", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualPrincipal)}</td>
                             <td style={{ padding: "5px 8px", color: "oklch(0.70 0.15 25)", textAlign: "right" }}>{row.year === 0 ? "—" : fmtK(row.annualInterest)}</td>
                             <td style={{ padding: "5px 8px", color: "var(--text-tertiary)", textAlign: "right" }}>{fmtK(row.cumulativeInterest)}</td>
                             <td style={{ padding: "5px 8px", color: "var(--text-secondary)", textAlign: "right" }}>{fmtK(row.homeValue)}</td>
                             <td style={{ padding: "5px 8px", color: "var(--green)", textAlign: "right", fontWeight: 600 }}>{fmtK(row.equity)}</td>
-                            <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3b82f6" : "var(--text-tertiary)" }}>
+                            <td style={{ padding: "5px 8px", textAlign: "right", fontWeight: 600, color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#0ea5a0" : "var(--text-tertiary)" }}>
                               {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
                             </td>
                           </tr>
@@ -4559,14 +4559,14 @@ export default function HomeClient({
               });
               const vc = { BUY: "oklch(0.70 0.18 155)", WAIT: "oklch(0.80 0.14 80)", RENT: "oklch(0.68 0.18 25)" }[computed.verdictData.verdict];
               return (
-                <div style={{ padding: "14px 16px", background: "color-mix(in oklch, oklch(0.45 0.1 265) 4%, var(--card-bg))", border: "1px solid rgba(99,102,241,0.16)", borderRadius: "var(--radius-lg)" }}>
+                <div style={{ padding: "14px 16px", background: "color-mix(in oklch, oklch(0.45 0.1 265) 4%, var(--card-bg))", border: "1px solid rgba(63,174,74,0.16)", borderRadius: "var(--radius-lg)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "9px" }}>
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
                       <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
                       <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                      <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                      <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                     </svg>
-                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7c3aed", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#3fae4a", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
                   </div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, borderLeft: `2px solid color-mix(in oklch, ${vc} 40%, transparent)`, paddingLeft: "12px" }}>
                     {narrative}
@@ -4884,7 +4884,7 @@ export default function HomeClient({
                   <p style={{ ...sectionHead, margin: 0 }}>Year-by-Year: Who Wins</p>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#3b82f6" }} />
+                      <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#0ea5a0" }} />
                       <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Buying</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -4908,11 +4908,11 @@ export default function HomeClient({
                           fontSize: "10px", fontWeight: isBreakEven ? 800 : 600, fontFamily: "var(--font-mono)",
                           background: isBreakEven
                             ? "rgba(255,255,255,0.12)"
-                            : buyingWins ? "rgba(59,130,246,0.16)" : "rgba(0,211,149,0.13)",
-                          color: isBreakEven ? "var(--text-primary)" : buyingWins ? "#60a5fa" : "#00d395",
+                            : buyingWins ? "rgba(14,165,160,0.16)" : "rgba(0,211,149,0.13)",
+                          color: isBreakEven ? "var(--text-primary)" : buyingWins ? "#3fc9c3" : "#00d395",
                           border: isBreakEven
                             ? "1px solid rgba(255,255,255,0.28)"
-                            : buyingWins ? "1px solid rgba(59,130,246,0.25)" : "1px solid rgba(0,211,149,0.22)",
+                            : buyingWins ? "1px solid rgba(14,165,160,0.25)" : "1px solid rgba(0,211,149,0.22)",
                         }}
                       >
                         {pt.year}
@@ -5067,7 +5067,7 @@ export default function HomeClient({
             {/* Monthly cost breakdown */}
             {(() => {
               const costItems: { label: string; value: number; color: string; dotColor: string }[] = [
-                { label: "Principal & Interest", value: computed.monthlyPmt, color: "rgba(59,130,246,0.15)", dotColor: "#3b82f6" },
+                { label: "Principal & Interest", value: computed.monthlyPmt, color: "rgba(14,165,160,0.15)", dotColor: "#0ea5a0" },
                 { label: "Property Tax", value: inputs.property_tax_monthly, color: "rgba(168,85,247,0.12)", dotColor: "#a855f7" },
                 { label: "Insurance", value: inputs.insurance_monthly, color: "rgba(245,158,11,0.12)", dotColor: "#f59e0b" },
                 ...(inputs.hoa_monthly > 0 ? [{ label: "HOA", value: inputs.hoa_monthly, color: "rgba(20,184,166,0.12)", dotColor: "#14b8a6" }] : []),
@@ -5304,7 +5304,7 @@ export default function HomeClient({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                   {[
                     { label: "Today", value: fmt(inputs.purchase_price), color: "var(--text-primary)", sub: "purchase price" },
-                    { label: `Year ${inputs.hold_years}`, value: fmt(computed.lastPoint.homeValue), color: "#3b82f6", sub: `at ${inputs.expected_appreciation}%/yr appreciation` },
+                    { label: `Year ${inputs.hold_years}`, value: fmt(computed.lastPoint.homeValue), color: "#0ea5a0", sub: `at ${inputs.expected_appreciation}%/yr appreciation` },
                     { label: "Projected Gain", value: `+${fmt(computed.lastPoint.homeValue - inputs.purchase_price)}`, color: "oklch(0.70 0.18 155)", sub: `+${((computed.lastPoint.homeValue / inputs.purchase_price - 1) * 100).toFixed(0)}% total` },
                   ].map(({ label, value, color, sub }) => (
                     <div key={label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "12px" }}>
@@ -5332,7 +5332,7 @@ export default function HomeClient({
                     const buyWins = computed.lastPoint!.homeEquity > computed.lastPoint!.rentPortfolio;
                     const diff = Math.abs(computed.lastPoint!.homeEquity - computed.lastPoint!.rentPortfolio);
                     return (
-                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", background: buyWins ? "rgba(59,130,246,0.10)" : "rgba(0,211,149,0.10)", color: buyWins ? "#3b82f6" : "var(--green)", border: `1px solid ${buyWins ? "rgba(59,130,246,0.2)" : "rgba(0,211,149,0.2)"}`, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px", background: buyWins ? "rgba(14,165,160,0.10)" : "rgba(0,211,149,0.10)", color: buyWins ? "#0ea5a0" : "var(--green)", border: `1px solid ${buyWins ? "rgba(14,165,160,0.2)" : "rgba(0,211,149,0.2)"}`, whiteSpace: "nowrap", flexShrink: 0 }}>
                         {buyWins ? "Buying" : "Renting"} ahead by {fmtK(diff)}
                       </span>
                     );
@@ -5367,7 +5367,7 @@ export default function HomeClient({
                 {computed.lastPoint && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "12px" }}>
                     {[
-                      { label: `Equity at yr ${inputs.hold_years}`, value: fmtK(computed.lastPoint.homeEquity), color: "#3b82f6" },
+                      { label: `Equity at yr ${inputs.hold_years}`, value: fmtK(computed.lastPoint.homeEquity), color: "#0ea5a0" },
                       { label: "Home value", value: fmtK(computed.lastPoint.homeValue), color: "var(--text-secondary)" },
                       { label: isOwnerMode ? "Stay & invest" : "Renter portfolio", value: fmtK(computed.lastPoint.rentPortfolio), color: "var(--green)" },
                     ].map(({ label, value, color }) => (
@@ -5434,7 +5434,7 @@ export default function HomeClient({
             <div data-card style={cardS}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                 <p style={{ ...sectionHead, margin: 0 }}>Atlas Home Advisor</p>
-                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#7c3aed", border: "1px solid rgba(109,40,217,0.2)" }}>Rule-Based</span>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", padding: "2px 8px", borderRadius: "20px", background: "rgba(109,40,217,0.08)", color: "#3fae4a", border: "1px solid rgba(109,40,217,0.2)" }}>Rule-Based</span>
               </div>
               {/* Advisor opinion paragraph */}
               {(() => {
@@ -5488,12 +5488,12 @@ export default function HomeClient({
                     type="button"
                     onClick={fetchFinnCommentary}
                     disabled={finnLoading}
-                    style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#7c3aed", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}
+                    style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#3fae4a", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                       <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
                       <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
-                      <circle cx="10" cy="15.5" r="0.75" fill="#7c3aed" />
+                      <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                     </svg>
                     {finnLoading ? "Atlas is thinking…" : "Ask Atlas for AI Analysis"}
                   </button>
@@ -5593,7 +5593,7 @@ export default function HomeClient({
                         key={s.id}
                         style={{
                           padding: "10px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)",
-                          background: isActive ? "color-mix(in oklch, #3b82f6 8%, var(--bg-elevated))" : "var(--bg-elevated)",
+                          background: isActive ? "color-mix(in oklch, #0ea5a0 8%, var(--bg-elevated))" : "var(--bg-elevated)",
                           textAlign: "center",
                         }}
                       >
@@ -5602,7 +5602,7 @@ export default function HomeClient({
                           onClick={() => { const sc = scenarios.find((sc) => sc.id === s.id); if (sc) handleLoadScenario(sc); }}
                           style={{ background: "none", border: "none", cursor: "pointer", padding: 0, width: "100%" }}
                         >
-                          <div style={{ fontSize: "11px", fontWeight: 700, color: isActive ? "#60a5fa" : "var(--text-primary)", fontFamily: "var(--font-display)", letterSpacing: "-0.2px", marginBottom: "4px" }}>{s.name}</div>
+                          <div style={{ fontSize: "11px", fontWeight: 700, color: isActive ? "#3fc9c3" : "var(--text-primary)", fontFamily: "var(--font-display)", letterSpacing: "-0.2px", marginBottom: "4px" }}>{s.name}</div>
                           <span style={{ display: "inline-flex", padding: "2px 7px", borderRadius: "12px", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)", background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>
                             {s.verdictData.verdict}
                           </span>
@@ -5646,11 +5646,11 @@ export default function HomeClient({
                     {cols.map((s) => {
                       const isBest = s.breakEvenYear != null && s.breakEvenYear === minBreak;
                       return (
-                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, #3b82f6 5%, transparent)" : "transparent" }}>
-                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.breakEvenYear == null ? "var(--text-muted)" : isBest ? "#60a5fa" : "var(--text-secondary)" }}>
+                        <div key={s.id} style={{ padding: "9px 12px", borderBottom: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)", textAlign: "center", background: isBest ? "color-mix(in oklch, #0ea5a0 5%, transparent)" : "transparent" }}>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 600, color: s.breakEvenYear == null ? "var(--text-muted)" : isBest ? "#3fc9c3" : "var(--text-secondary)" }}>
                             {s.breakEvenYear != null ? `Yr ${s.breakEvenYear}` : "None"}
                           </span>
-                          {isBest && <div style={{ fontSize: "10px", color: "#60a5fa", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Fastest</div>}
+                          {isBest && <div style={{ fontSize: "10px", color: "#3fc9c3", marginTop: "2px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Fastest</div>}
                         </div>
                       );
                     })}
@@ -5710,7 +5710,7 @@ export default function HomeClient({
                       const isBest = aff != null && aff.score === maxAff;
                       const scoreColor = !aff ? "var(--text-muted)"
                         : aff.score >= 90 ? "oklch(0.70 0.18 155)"
-                        : aff.score >= 75 ? "#60a5fa"
+                        : aff.score >= 75 ? "#3fc9c3"
                         : aff.score >= 60 ? "oklch(0.80 0.14 80)"
                         : "oklch(0.68 0.18 25)";
                       return (
@@ -5742,17 +5742,17 @@ export default function HomeClient({
           transition: box-shadow 0.2s ease, border-color 0.2s ease;
         }
         [data-card]:hover {
-          box-shadow: 0 0 0 1px rgba(59,130,246,0.14), 0 6px 28px rgba(59,130,246,0.07);
-          border-color: rgba(59,130,246,0.18) !important;
+          box-shadow: 0 0 0 1px rgba(14,165,160,0.14), 0 6px 28px rgba(14,165,160,0.07);
+          border-color: rgba(14,165,160,0.18) !important;
         }
         .afford-row:not([style*="cursor: default"]):hover {
-          background: color-mix(in oklch, #3b82f6 6%, var(--bg-elevated)) !important;
-          border-color: rgba(59,130,246,0.22) !important;
+          background: color-mix(in oklch, #0ea5a0 6%, var(--bg-elevated)) !important;
+          border-color: rgba(14,165,160,0.22) !important;
         }
         .afford-row:not([style*="cursor: default"]):hover span:last-child {
-          background: rgba(59,130,246,0.1) !important;
-          color: #93c5fd !important;
-          border-color: rgba(59,130,246,0.25) !important;
+          background: rgba(14,165,160,0.1) !important;
+          color: #7fd9d4 !important;
+          border-color: rgba(14,165,160,0.25) !important;
         }
         abbr[title] {
           text-decoration: underline dotted rgba(148,163,184,0.4);
@@ -5767,9 +5767,9 @@ export default function HomeClient({
           width: 18px;
           height: 18px;
           border-radius: 50%;
-          background: rgba(59,130,246,0.10);
-          border: 1px solid rgba(59,130,246,0.22);
-          color: #60a5fa;
+          background: rgba(14,165,160,0.10);
+          border: 1px solid rgba(14,165,160,0.22);
+          color: #3fc9c3;
           font-size: 9px;
           font-weight: 800;
           font-style: italic;
@@ -5781,8 +5781,8 @@ export default function HomeClient({
           font-family: Georgia, serif;
         }
         .has-tip:hover {
-          background: rgba(59,130,246,0.20);
-          border-color: rgba(59,130,246,0.45);
+          background: rgba(14,165,160,0.20);
+          border-color: rgba(14,165,160,0.45);
         }
         .has-tip::after {
           content: attr(data-tip);
@@ -5795,7 +5795,7 @@ export default function HomeClient({
           padding: 10px 13px;
           border-radius: 10px;
           background: #0d1f3c;
-          border: 1px solid rgba(59,130,246,0.25);
+          border: 1px solid rgba(14,165,160,0.25);
           box-shadow: 0 8px 32px rgba(0,0,0,0.5);
           color: #94a3b8;
           font-size: 11.5px;
@@ -5832,11 +5832,11 @@ export default function HomeClient({
         }
         .amort-modal {
           background: #060f1e;
-          border: 1px solid rgba(59,130,246,0.18);
+          border: 1px solid rgba(14,165,160,0.18);
           border-radius: 18px;
           width: 100%;
           max-width: 980px;
-          box-shadow: 0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(59,130,246,0.06) inset;
+          box-shadow: 0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(14,165,160,0.06) inset;
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -5872,7 +5872,7 @@ export default function HomeClient({
           border-bottom: 1px solid rgba(255,255,255,0.03);
           transition: background 0.1s;
         }
-        .amort-modal-table tbody tr:hover { background: rgba(59,130,246,0.07) !important; }
+        .amort-modal-table tbody tr:hover { background: rgba(14,165,160,0.07) !important; }
         .amort-modal-table tbody td {
           padding: 7px 12px;
           text-align: right;
@@ -5893,11 +5893,11 @@ export default function HomeClient({
             {/* Header */}
             <div className="amort-modal-head">
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(14,165,160,0.12)", border: "1px solid rgba(14,165,160,0.22)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#60a5fa" strokeWidth="1.6"><path d="M3 3h14v14H3zM3 7h14M7 7v10M11 7v10" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#3b82f6", fontFamily: "var(--font-mono)", marginBottom: "2px" }}>Amortization Schedule</div>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#0ea5a0", fontFamily: "var(--font-mono)", marginBottom: "2px" }}>Amortization Schedule</div>
                   <div style={{ fontSize: "16px", fontWeight: 700, color: "#f1f5f9", fontFamily: "var(--font-display)", letterSpacing: "-0.3px" }}>{inputs.name}</div>
                 </div>
               </div>
@@ -5914,11 +5914,11 @@ export default function HomeClient({
                 ))}
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={exportToPDF} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", color: "oklch(0.72 0.18 260)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
+                <button onClick={exportToPDF} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.08)", color: "oklch(0.72 0.18 260)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
                   Export PDF
                 </button>
-                <button onClick={exportAmortToCSV} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(59,130,246,0.28)", background: "rgba(59,130,246,0.08)", color: "#60a5fa", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
+                <button onClick={exportAmortToCSV} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(14,165,160,0.28)", background: "rgba(14,165,160,0.08)", color: "#3fc9c3", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 14l6 5 6-5M10 2v17" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Export to Excel
                 </button>
@@ -5933,7 +5933,7 @@ export default function HomeClient({
               {[
                 { label: "Monthly P&I", value: fmt(computed.amortStats.monthlyPayment), sub: "principal + interest", accent: "#e2e8f0" },
                 { label: "Total Interest Cost", value: fmtK(computed.amortStats.totalInterest), sub: "over full loan term", accent: "oklch(0.68 0.18 25)" },
-                { label: "More Going to You", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", sub: "principal beats interest", accent: "#3b82f6" },
+                { label: "More Going to You", value: computed.amortStats.crossoverYear != null ? `Year ${computed.amortStats.crossoverYear}` : "—", sub: "principal beats interest", accent: "#0ea5a0" },
                 { label: "Halfway Home", value: computed.amortStats.equity50Year != null ? `Year ${computed.amortStats.equity50Year}` : "—", sub: "loan half paid off", accent: "#00d395" },
               ].map(({ label, value, sub, accent }, i) => (
                 <div key={label} style={{ padding: "14px 18px", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined }}>
@@ -5975,17 +5975,17 @@ export default function HomeClient({
                     const isCrossover = row.isCrossover;
                     const isEven = idx % 2 === 0;
                     const rowBg = isHoldYear
-                      ? "rgba(59,130,246,0.09)"
+                      ? "rgba(14,165,160,0.09)"
                       : isCrossover
                       ? "rgba(0,211,149,0.06)"
                       : isEven ? "rgba(255,255,255,0.01)" : "transparent";
                     return (
-                      <tr key={row.year} style={{ background: rowBg, borderLeft: isHoldYear ? "3px solid #3b82f6" : isCrossover ? "3px solid rgba(0,211,149,0.4)" : "3px solid transparent" }}>
-                        <td style={{ textAlign: "left", paddingLeft: "17px", color: isHoldYear ? "#60a5fa" : "#475569", fontWeight: isHoldYear ? 700 : 400 }}>
+                      <tr key={row.year} style={{ background: rowBg, borderLeft: isHoldYear ? "3px solid #0ea5a0" : isCrossover ? "3px solid rgba(0,211,149,0.4)" : "3px solid transparent" }}>
+                        <td style={{ textAlign: "left", paddingLeft: "17px", color: isHoldYear ? "#3fc9c3" : "#475569", fontWeight: isHoldYear ? 700 : 400 }}>
                           {row.year}{isHoldYear ? " ★" : ""}
                         </td>
                         <td style={{ color: "var(--text-tertiary)" }}>{row.balance < 100 ? <span style={{ color: "#1e3a5f" }}>Paid off</span> : fmtK(row.balance)}</td>
-                        <td style={{ color: "#3b82f6" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualPrincipal)}</td>
+                        <td style={{ color: "#0ea5a0" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualPrincipal)}</td>
                         <td style={{ color: "oklch(0.68 0.16 25)" }}>{row.year === 0 ? <span style={{ color: "#1e3a5f" }}>—</span> : fmtK(row.annualInterest)}</td>
                         <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.cumulativeInterest)}</td>
                         <td style={{ color: "var(--text-tertiary)" }}>{fmtK(row.homeValue)}</td>
@@ -5993,8 +5993,8 @@ export default function HomeClient({
                         <td>
                           <span style={{
                             display: "inline-block", padding: "1px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700,
-                            background: row.equityPct >= 50 ? "rgba(0,211,149,0.1)" : row.equityPct >= 20 ? "rgba(59,130,246,0.1)" : "rgba(148,163,184,0.06)",
-                            color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#60a5fa" : "#475569",
+                            background: row.equityPct >= 50 ? "rgba(0,211,149,0.1)" : row.equityPct >= 20 ? "rgba(14,165,160,0.1)" : "rgba(148,163,184,0.06)",
+                            color: row.equityPct >= 50 ? "#00d395" : row.equityPct >= 20 ? "#3fc9c3" : "#475569",
                           }}>
                             {row.year === 0 ? `${row.equityPct.toFixed(0)}%` : `${row.equityPct.toFixed(1)}%`}
                           </span>
@@ -6009,7 +6009,7 @@ export default function HomeClient({
             {/* Footer */}
             <div style={{ padding: "10px 20px 14px", borderTop: "1px solid var(--line-006)", display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
               {[
-                { dot: "#3b82f6", text: "★ = your planned hold year" },
+                { dot: "#0ea5a0", text: "★ = your planned hold year" },
                 { dot: "rgba(0,211,149,0.5)", text: "Green border = crossover (principal > interest)" },
                 { dot: "#00d395", text: "Equity % turns green at 50%+" },
               ].map(({ dot, text }) => (

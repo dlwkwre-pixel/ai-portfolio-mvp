@@ -1,384 +1,160 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import MarketRibbon from "@/app/components/market-ribbon";
 import { BrandGlyph } from "@/app/components/brand-mark";
 
+// Sage landing — rebuilt from the design handoff reference (Buytune Landing
+// (Sage).dc.html). Values are the authored Sage literals: this is the marketing
+// surface and follows the reference pixel-close by design.
+const INK = "oklch(0.2 0.03 150)";
+const INK2 = "oklch(0.4 0.03 150)";
+const CARD = "oklch(0.955 0.02 150)";
+const CARD_LINE = "rgba(20,30,20,0.08)";
+const TEAL = "#0e9488";
+const GRAD = "linear-gradient(135deg,#3fae4a,#0ea5a0)";
+
+type RecTicker = "NVDA" | "TSLA" | "AMD";
+
+const RECS: Record<RecTicker, { name: string; action: "BUY" | "HOLD" | "SELL"; confidence: number; rationale: string }> = {
+  NVDA: { name: "NVIDIA Corporation", action: "BUY", confidence: 87, rationale: "Blackwell Ultra shipments tracking ahead of schedule. Hyperscaler capex guidance raised across AWS, Azure, and Google Cloud — near-term supply constraints clearing faster than consensus." },
+  TSLA: { name: "Tesla, Inc.", action: "HOLD", confidence: 61, rationale: "Cybertruck recall and EV demand softness are near-term headwinds, offset by FSD v13 momentum and energy storage growth. Conviction is split — watch the next delivery print." },
+  AMD: { name: "Advanced Micro Devices", action: "SELL", confidence: 60, rationale: "MI300X traction is positive but AMD continues to lose AI accelerator share to NVDA. Data center GPU revenue guidance missed — price action relative to the broader semis rally is weak." },
+};
+
+const ACTION_COLORS: Record<string, { bg: string; color: string }> = {
+  BUY: { bg: "rgba(22,163,74,0.14)", color: "#158a3f" },
+  HOLD: { bg: "rgba(200,121,30,0.16)", color: "#8a5414" },
+  SELL: { bg: "rgba(220,68,68,0.14)", color: "#b13333" },
+};
+
+const STEPS = [
+  { n: "01", title: "Add your portfolio", desc: "Enter your holdings and cash balance. BuyTune tracks true investment return and monitors every position against benchmarks.", bg: "rgba(63,174,74,0.16)" },
+  { n: "02", title: "Set your strategy", desc: "Define your style — growth, value, income. Set position caps and sector limits. Every recommendation is checked against them.", bg: "rgba(14,148,136,0.16)" },
+  { n: "03", title: "Review your recommendations", desc: "Grok searches live prices, earnings, and sentiment — then returns specific buy, trim, hold, or sell calls. You review and decide.", bg: "rgba(200,121,30,0.16)" },
+];
+
+const FEATURES = [
+  { title: "Grok AI Recommendations", desc: "For each holding, a specific buy, trim, hold, or sell call with the full reasoning behind it.", bg: "rgba(14,148,136,0.15)" },
+  { title: "True Return Tracking", desc: "Modified Dietz strips deposits so you see actual investment gain, benchmarked against SPY or QQQ.", bg: "rgba(63,174,74,0.15)" },
+  { title: "Strategy Rules Engine", desc: "Position caps and sector limits filter every AI analysis before it surfaces.", bg: "rgba(200,121,30,0.14)" },
+  { title: "Stock Research Panel", desc: "Analyst consensus, price targets, news, and sentiment for any ticker.", bg: "rgba(14,148,136,0.15)" },
+  { title: "Portfolio Health Score", desc: "A 1–100 score with a written assessment of concentration and diversification risk.", bg: "rgba(63,174,74,0.15)" },
+  { title: "Financial Planning", desc: "Track your balance sheet, cash flow, and run retirement projections with Atlas commentary.", bg: "rgba(200,121,30,0.14)" },
+];
+
+const FAQS = [
+  { q: "Does BuyTune place trades for me?", a: "No. BuyTune provides informational recommendations only — every decision and every trade is yours." },
+  { q: "Is it free?", a: "Yes, the core product is free. Your brokerage account stays exactly where it is." },
+  { q: "Which brokerages connect?", a: "BuyTune connects via Plaid and SnapTrade, or you can add holdings manually." },
+  { q: "Where do recommendations come from?", a: "Live prices, recent earnings, news, and sentiment, filtered through your own strategy rules." },
+];
+
+const eyebrow: React.CSSProperties = { fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: TEAL, marginBottom: "12px" };
+
 export default function LandingPage() {
+  const [activeTicker, setActiveTicker] = useState<RecTicker>("NVDA");
+  const rec = RECS[activeTicker];
+  const ac = ACTION_COLORS[rec.action];
+
   return (
-    <>
+    <div style={{ fontFamily: "var(--font-body)", background: "oklch(0.91 0.04 150)", color: INK, lineHeight: 1.6, overflowX: "hidden" }}>
       <style>{`
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        html{scroll-behavior:smooth}
-        /* Land section anchors just below the fixed nav, not under it */
-        #how-it-works,#features,#why,#finn,#ai-analysis,#faq,#trust{scroll-margin-top:88px}
-        body{background:#07090f;color:#e2e8f0;font-family:'DM Sans',sans-serif;overflow-x:hidden}
-
-        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-
-        .fu0{animation:fadeUp 0.55s cubic-bezier(0.23,1,0.32,1) both}
-        .fu1{animation:fadeUp 0.55s 0.08s cubic-bezier(0.23,1,0.32,1) both}
-        .fu2{animation:fadeUp 0.55s 0.16s cubic-bezier(0.23,1,0.32,1) both}
-        .fu3{animation:fadeUp 0.55s 0.24s cubic-bezier(0.23,1,0.32,1) both}
-        .fu4{animation:fadeUp 0.55s 0.34s cubic-bezier(0.23,1,0.32,1) both}
-
-        nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 48px;display:flex;align-items:center;justify-content:space-between;background:rgba(7,9,15,0.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.05)}
-        .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-        .nav-mark{width:32px;height:32px;background:var(--brand-gradient);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,99,235,0.35)}
-        .nav-name{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#f0f4ff;letter-spacing:-0.3px}
-        .nav-name span{color:#7c3aed}
-        .nav-links{display:flex;gap:28px}
-        .nav-links a{font-size:13px;color:#94a3b8;text-decoration:none;transition:color 0.15s ease}
-        .nav-links a:hover{color:#e2e8f0}
-        .nav-btns{display:flex;gap:8px;align-items:center}
-        .btn-ghost{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#94a3b8;background:transparent;border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:color 0.15s ease,border-color 0.15s ease}
-        .btn-ghost:hover{color:#f0f4ff;border-color:rgba(255,255,255,0.18)}
-        .btn-primary{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:var(--brand-gradient);border:none;text-decoration:none;box-shadow:0 4px 16px rgba(37,99,235,0.28);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1)}
-        .btn-primary:hover{box-shadow:0 6px 24px rgba(37,99,235,0.5);transform:translateY(-1px)}
-
-        /* Hero */
-        .hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:88px 24px 36px;position:relative}
-        .hero-bg{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 90% 70% at 50% -10%,rgba(37,99,235,0.15) 0%,transparent 55%),radial-gradient(ellipse 50% 50% at 85% 30%,rgba(124,58,237,0.08) 0%,transparent 50%),radial-gradient(ellipse 40% 40% at 15% 70%,rgba(37,99,235,0.06) 0%,transparent 50%)}
-        .hero-grid{position:absolute;inset:0;pointer-events:none;opacity:0.025;background-image:linear-gradient(rgba(255,255,255,0.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.6) 1px,transparent 1px);background-size:60px 60px}
-
-        .badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:99px;border:1px solid rgba(37,99,235,0.28);background:rgba(37,99,235,0.07);font-size:12px;color:#93c5fd;font-weight:500;margin-bottom:24px}
-        .badge-dot{width:6px;height:6px;border-radius:50%;background:#3b82f6;animation:pulse 2s ease infinite}
-
-        h1.hero-h{font-family:'DM Sans',sans-serif;font-size:clamp(34px,5.5vw,64px);font-weight:800;letter-spacing:-0.025em;line-height:1.06;color:#f5f8ff;margin:0 0 14px;max-width:760px;text-wrap:balance}
-        .hero-h .accent{color:#93c5fd}
-        .hero-sub{font-size:clamp(15px,1.8vw,18px);color:#a8b3c7;line-height:1.7;max-width:560px;margin:0 auto 16px}
-        .hero-trust{font-size:12px;color:#64748b;margin:0 auto 22px;letter-spacing:0.01em}
-        .hero-trust strong{color:#94a3b8;font-weight:600}
-
-        .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-        .btn-hero{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:var(--brand-gradient);border:none;text-decoration:none;box-shadow:0 8px 28px rgba(37,99,235,0.38);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-        .btn-hero:hover{box-shadow:0 12px 40px rgba(37,99,235,0.55);transform:translateY(-2px)}
-        .btn-hero:active{transform:scale(0.97)}
-        .btn-hero-ghost{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:500;color:#94a3b8;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);text-decoration:none;transition:color 0.15s ease,border-color 0.15s ease;cursor:pointer}
-        .btn-hero-ghost:hover{color:#f0f4ff;border-color:rgba(255,255,255,0.18)}
-
-        /* App mockup */
-        .mockup-wrap{position:relative;width:100%;max-width:900px;margin:0 auto}
-        .mockup-halo{position:absolute;inset:-60px;background:radial-gradient(ellipse 70% 60% at 50% 60%,rgba(37,99,235,0.12),transparent 70%);pointer-events:none}
-        .mockup-window{border-radius:14px;border:1px solid rgba(255,255,255,0.09);background:#0a0d15;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.03);position:relative;z-index:1}
-        .mockup-bar{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:6px;background:#0a0d15}
-        .m-dot{width:10px;height:10px;border-radius:50%}
-        .mockup-url{flex:1;display:flex;justify-content:center}
-        .mockup-url-inner{background:rgba(255,255,255,0.04);border-radius:6px;padding:3px 16px;font-size:11px;color:#334155;font-family:'DM Mono',monospace}
-        .mockup-body{display:flex;height:340px}
-        .m-sidebar{width:158px;min-width:158px;border-right:1px solid rgba(255,255,255,0.05);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
-        .m-pv{background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.13);border-radius:8px;padding:10px 12px;margin-bottom:10px}
-        .m-pv-l{font-size:8px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#2d3748;margin-bottom:3px}
-        .m-pv-v{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:#f0f4ff}
-        .m-pv-c{font-family:'DM Mono',monospace;font-size:10px;color:#00d395;margin-top:1px}
-        .m-ni{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;font-size:11px}
-        .m-ni.on{background:rgba(37,99,235,0.1);color:#93c5fd}
-        .m-ni:not(.on){color:#2d3748}
-        .m-main{flex:1;padding:14px 16px;overflow:hidden;display:flex;flex-direction:column;gap:9px}
-        .m-chart{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden;height:148px;flex-shrink:0}
-        .m-chart-l{font-size:8px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#334155;margin-bottom:4px;position:relative;z-index:1}
-        .m-chart-v{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:#f0f4ff;position:relative;z-index:1}
-        .m-chart-c{font-family:'DM Mono',monospace;font-size:10px;color:#00d395;margin-top:3px;position:relative;z-index:1}
-        .m-chart-sub{font-size:8px;color:#2d3748;margin-top:3px;position:relative;z-index:1}
-
-        /* AI rec cards */
-        .m-recs{display:flex;flex-direction:column;gap:7px;flex:1}
-        .m-rec{border-radius:8px;padding:9px 11px;display:flex;align-items:flex-start;gap:9px}
-        .m-rec-trim{background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.16)}
-        .m-rec-buy{background:rgba(0,211,149,0.04);border:1px solid rgba(0,211,149,0.13)}
-        .m-rec-action{flex-shrink:0;padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:0.06em;margin-top:1px}
-        .m-rec-action-trim{background:rgba(245,158,11,0.15);color:#f59e0b}
-        .m-rec-action-buy{background:rgba(0,211,149,0.15);color:#00d395}
-        .m-rec-body{flex:1;min-width:0}
-        .m-rec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
-        .m-rec-ticker{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#f0f4ff}
-        .m-rec-conf{font-size:8px;color:#334155}
-        .m-rec-reason{font-size:9px;color:#64748b;line-height:1.45;margin-bottom:5px}
-        .m-rec-bar{display:flex;gap:2px;height:3px;border-radius:2px;overflow:hidden;margin-bottom:3px}
-        .m-rec-labels{display:flex;gap:8px;font-size:7px;font-family:'DM Mono',monospace}
-
-        /* Ticker ribbon */
-        .ribbon{overflow:hidden;border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04);padding:9px 0;background:rgba(255,255,255,0.01)}
-        .ribbon-inner{display:flex;gap:36px;width:max-content;animation:ticker 35s linear infinite}
-        .t-item{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap;color:#334155}
-        .t-up{color:#00d395}.t-dn{color:#ff5c5c}
-
-        /* Sections */
-        .section{padding:80px 48px;max-width:1080px;margin:0 auto}
-        .s-label{font-size:10px;font-weight:600;letter-spacing:0.11em;text-transform:uppercase;color:#3b82f6;margin-bottom:14px}
-        .s-title{font-family:'DM Sans',sans-serif;font-size:clamp(26px,3.5vw,40px);font-weight:700;letter-spacing:-0.02em;color:#f5f8ff;margin:0 0 13px;line-height:1.15;text-wrap:balance}
-        .s-sub{font-size:15px;color:#a8b3c7;line-height:1.7;max-width:520px;margin:0 0 48px}
-
-        /* Steps */
-        .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-        .step{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:24px;transition:border-color 0.2s ease}
-        .step:hover{border-color:rgba(37,99,235,0.22)}
-        .step-n{font-family:'DM Mono',monospace;font-size:10px;color:#2d3748;margin-bottom:16px;letter-spacing:0.04em}
-        .step-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:13px}
-        .step-title{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:#f0f4ff;margin:0 0 7px}
-        .step-desc{font-size:13px;color:#9aa6ba;line-height:1.62;margin:0}
-
-        /* Features */
-        .features{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-        .feat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:22px;transition:border-color 0.2s ease,background 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1)}
-        @media (hover:hover) and (pointer:fine){.feat:hover{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.09);transform:translateY(-2px)}}
-        .feat-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-        .feat-title{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#f0f4ff;margin:0 0 6px}
-        .feat-desc{font-size:12.5px;color:#9aa6ba;line-height:1.64;margin:0}
-
-        /* VS */
-        .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px}
-        .vs-card{border-radius:16px;padding:26px 28px}
-        .vs-bad{background:rgba(255,92,92,0.04);border:1px solid rgba(255,92,92,0.14)}
-        .vs-good{background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.22)}
-        .vs-title{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;margin:0 0 16px;letter-spacing:-0.01em}
-        .vs-bad .vs-title{color:#ff7a7a}.vs-good .vs-title{color:#93c5fd}
-        .vs-item{display:flex;gap:9px;font-size:13.5px;color:#cbd5e1;margin-bottom:12px;line-height:1.5;align-items:flex-start}
-        .vs-note{font-size:11px;color:#64748b;line-height:1.6;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)}
-
-        /* CTA */
-        .cta-wrap{padding:80px 48px;text-align:center;position:relative}
-        .cta-glow{position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(37,99,235,0.09),transparent 70%);pointer-events:none}
-        .cta-box{max-width:600px;margin:0 auto;position:relative;z-index:1;background:rgba(37,99,235,0.04);border:1px solid rgba(37,99,235,0.13);border-radius:20px;padding:52px 44px}
-        .cta-title{font-family:'DM Sans',sans-serif;font-size:clamp(24px,3.8vw,36px);font-weight:800;letter-spacing:-0.02em;color:#f5f8ff;margin:0 0 10px;line-height:1.18;text-wrap:balance}
-        .cta-accent{color:#93c5fd}
-        .cta-sub{font-size:15px;color:#a8b3c7;margin:0 0 30px;line-height:1.66;max-width:460px;margin-left:auto;margin-right:auto}
-        .cta-fine{font-size:11px;color:#64748b;margin-top:16px;line-height:1.6}
-
-        footer{padding:24px 48px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b}
-        footer a{color:#94a3b8;text-decoration:none;transition:color 0.15s ease}
-        footer a:hover{color:#f0f4ff}
-
-        /* Mobile */
-        @media (max-width: 768px) {
-          nav{padding:12px 16px}
-          .nav-links{display:none}
-          .nav-btns .btn-ghost{display:none}
-          .btn-primary{padding:7px 14px;font-size:12px}
-
-          .hero{padding:76px 20px 32px}
-          h1.hero-h{font-size:clamp(32px,9vw,52px);letter-spacing:-1.5px;margin-bottom:16px}
-          .hero-sub{font-size:14px;margin-bottom:12px}
-          .hero-trust{margin-bottom:28px}
-          .hero-btns{flex-direction:column;align-items:center;gap:10px;margin-bottom:36px}
-          .btn-hero{width:100%;max-width:280px;justify-content:center;padding:13px 24px}
-          .btn-hero-ghost{width:100%;max-width:280px;text-align:center;padding:13px 24px}
-
-          .mockup-wrap{display:none}
-
-          .section{padding:48px 20px}
-          .s-title{font-size:clamp(22px,6vw,32px)}
-          .s-sub{font-size:14px;margin-bottom:32px}
-
-          .steps{grid-template-columns:1fr}
-          .features{grid-template-columns:1fr 1fr}
-          .vs{grid-template-columns:1fr;max-width:100%}
-
-          .cta-wrap{padding:48px 20px}
-          .cta-box{padding:32px 24px}
-          .cta-title{font-size:clamp(22px,6vw,30px)}
-
-          footer{padding:20px 16px;flex-direction:column;gap:12px;text-align:center}
-          .hero-grid{display:none}
+        @keyframes bt-fade-up { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        .lp-fade { animation: bt-fade-up 0.5s ease both; }
+        details.lp-faq summary::-webkit-details-marker { display:none; }
+        .lp-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+        .lp-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .lp-nav-links { display:flex; gap:26px; }
+        @media (max-width: 820px) {
+          .lp-grid-3 { grid-template-columns:1fr; }
+          .lp-grid-2 { grid-template-columns:1fr; }
+          .lp-nav-links { display:none; }
+          .lp-pad { padding-left:20px !important; padding-right:20px !important; }
         }
-        @media (max-width: 480px) {
-          .features{grid-template-columns:1fr}
-        }
-
-        /* Control / trust band */
-        .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:1000px;margin:0 auto}
-        .trust-item{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:20px 18px;transition:border-color 0.2s ease}
-        .trust-item:hover{border-color:rgba(37,99,235,0.22)}
-        .trust-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
-        .trust-t{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:#f0f4ff;margin:0 0 5px}
-        .trust-d{font-size:12.5px;color:#9aa6ba;line-height:1.55;margin:0}
-
-        /* Powered by */
-        .powered{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:780px;margin:0 auto}
-        .pchip{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:99px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);font-size:12.5px;color:#cbd5e1}
-        .pchip b{color:#f0f4ff;font-weight:600}
-        .pchip .pdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-
-        /* FAQ */
-        .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
-        .faq details{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden;transition:border-color 0.2s ease}
-        .faq details[open]{border-color:rgba(37,99,235,0.22)}
-        .faq summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14.5px;font-weight:600;color:#f0f4ff}
-        .faq summary::-webkit-details-marker{display:none}
-        .faq .chev{transition:transform 0.22s cubic-bezier(0.16,1,0.3,1);color:#64748b;flex-shrink:0}
-        .faq details[open] .chev{transform:rotate(180deg)}
-        .faq-a{padding:0 18px 16px;font-size:13.5px;color:#9aa6ba;line-height:1.66}
-
-        @media (max-width: 768px){
-          .trust{grid-template-columns:1fr 1fr}
-        }
-        @media (max-width: 480px){
-          .trust{grid-template-columns:1fr}
-        }
+        @media (prefers-reduced-motion: reduce) { .lp-fade { animation:none; } }
       `}</style>
 
-      {/* Nav */}
-      <nav>
-        <a href="/" className="nav-logo">
-          <div className="nav-mark">
-            <BrandGlyph size={16} />
+      {/* nav */}
+      <nav className="lp-pad" style={{ position: "sticky", top: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 40px", background: "oklch(0.91 0.04 150 / 0.9)", backdropFilter: "blur(14px)", borderBottom: `1px solid ${CARD_LINE}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+          <div style={{ width: "28px", height: "28px", minWidth: "28px", borderRadius: "7px", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BrandGlyph size={15} strokeWidth={3.4} />
           </div>
-          <span className="nav-name">Buy<span>Tune</span>.io</span>
-        </a>
-        <div className="nav-links">
-          <a href="#how-it-works">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#why">Why BuyTune</a>
-          <a href="#faq">FAQ</a>
+          <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "15px", color: INK, letterSpacing: "-0.2px", whiteSpace: "nowrap" }}>BuyTune.io</span>
         </div>
-        <div className="nav-btns">
-          <Link href="/login" className="btn-ghost">Sign in</Link>
-          <Link href="/signup" className="btn-primary">Get started free</Link>
+        <div className="lp-nav-links">
+          <a href="#how" style={{ fontSize: "13px", color: INK2, textDecoration: "none" }}>How it works</a>
+          <a href="#features" style={{ fontSize: "13px", color: INK2, textDecoration: "none" }}>Features</a>
+          <a href="#faq" style={{ fontSize: "13px", color: INK2, textDecoration: "none" }}>FAQ</a>
+        </div>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Link href="/login" style={{ fontSize: "13px", color: INK2, textDecoration: "none", padding: "8px 6px" }}>Sign in</Link>
+          <Link href="/signup" style={{ padding: "8px 17px", borderRadius: "8px", fontSize: "13px", fontWeight: 700, color: "#fff", background: GRAD, textDecoration: "none", whiteSpace: "nowrap" }}>Get started free</Link>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="hero">
-        <div className="hero-bg"/>
-        <div className="hero-grid"/>
-
-        <div className="badge fu0">
-          <div className="badge-dot"/>
-          Portfolio, planning, tax, and community in one platform
+      {/* hero */}
+      <div className="lp-fade" style={{ textAlign: "center", padding: "64px 24px 8px" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "5px 14px", borderRadius: "99px", background: "oklch(0.22 0.03 150)", fontSize: "11px", color: "oklch(0.86 0.1 145)", marginBottom: "20px", fontFamily: "var(--font-mono)", letterSpacing: "0.03em", fontWeight: 600 }}>
+          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4fd07f" }} /> AI PORTFOLIO COPILOT
         </div>
-
-        <h1 className="hero-h fu1">
-          Your portfolio,{" "}
-          <span className="accent">analyzed</span>
-          <br/>and tuned by AI
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(34px,5.5vw,58px)", fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.08, margin: "0 0 18px", color: INK, textWrap: "balance" }}>
+          Your portfolio, analyzed<br />and tuned by AI
         </h1>
-
-        <p className="hero-sub fu2">
-          AI portfolio analysis, financial planning, tax tracking, stock research, and a community
-          of investors — all in one place. Every recommendation tied to your actual positions.
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "9px 18px", borderRadius: "10px", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.28)", marginBottom: "18px", flexWrap: "wrap", justifyContent: "center" }}>
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="#158a3f" aria-hidden><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
+          <span style={{ fontSize: "13.5px", fontWeight: 700, color: "#158a3f" }}>No auto-trading, ever</span>
+          <span style={{ fontSize: "13px", color: "oklch(0.35 0.03 150)" }}>— BuyTune recommends. You decide and act.</span>
+        </div>
+        <p style={{ fontSize: "clamp(15px,1.6vw,17px)", color: INK2, maxWidth: "520px", margin: "0 auto 26px", lineHeight: 1.65 }}>
+          AI recommendations, financial planning, tax tracking, and stock research — every call tied to your actual holdings.
         </p>
-
-        <p className="hero-trust fu2">
-          <strong>BuyTune recommends. You decide and act.</strong> No auto-trading, ever.
-        </p>
-
-        <div className="hero-btns fu3">
-          <Link href="/signup" className="btn-hero">
-            Start for free
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd"/>
-            </svg>
-          </Link>
-          <Link href="/login" className="btn-hero-ghost">Sign in to your account</Link>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+          <Link href="/signup" style={{ padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(15,174,107,0.28)", textDecoration: "none" }}>Start for free</Link>
+          <Link href="/login" style={{ padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", background: "rgba(255,255,255,0.4)", border: "1px solid rgba(20,30,20,0.14)", textDecoration: "none" }}>Sign in to your account</Link>
         </div>
-      </section>
+      </div>
 
-      <MarketRibbon />
+      {/* live ticker — real market data, kept from the current site */}
+      <div style={{ overflow: "hidden", borderTop: `1px solid ${CARD_LINE}`, borderBottom: `1px solid ${CARD_LINE}`, padding: "6px 0", marginTop: "40px", background: "rgba(255,255,255,0.3)" }}>
+        <MarketRibbon />
+      </div>
 
-      {/* App mockup */}
-      <div style={{padding:"48px 24px 60px",background:"#07090f"}}>
-        <div className="mockup-wrap fu4">
-          <div className="mockup-halo"/>
-          <div className="mockup-window">
-            <div className="mockup-bar">
-              <div className="m-dot" style={{background:"#ff5f57"}}/>
-              <div className="m-dot" style={{background:"#febc2e"}}/>
-              <div className="m-dot" style={{background:"#28c840"}}/>
-              <div className="mockup-url">
-                <div className="mockup-url-inner">app.buytune.io/dashboard</div>
+      {/* app preview */}
+      <div style={{ padding: "48px 24px 64px", maxWidth: "840px", margin: "0 auto" }}>
+        <div style={{ borderRadius: "14px", border: "1px solid rgba(20,30,20,0.1)", background: CARD, overflow: "hidden", boxShadow: "0 30px 70px rgba(20,40,30,0.12)" }}>
+          <div style={{ padding: "9px 14px", borderBottom: `1px solid ${CARD_LINE}`, display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#ff5f57" }} />
+            <div style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#febc2e" }} />
+            <div style={{ width: "9px", height: "9px", borderRadius: "50%", background: "#28c840" }} />
+            <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "oklch(0.55 0.02 150)" }}>app.buytune.io/dashboard</div>
+          </div>
+          <div style={{ display: "flex", height: "260px" }}>
+            <div className="hidden sm:block" style={{ width: "150px", minWidth: "150px", background: "oklch(0.22 0.03 150)", padding: "12px 9px" }}>
+              <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", padding: "9px 10px", marginBottom: "10px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.6 0.02 150)" }}>Portfolio Value</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 500, color: "oklch(0.95 0.015 90)", marginTop: "2px" }}>$124,830</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#4fd07f" }}>+14.2%</div>
               </div>
+              <div style={{ padding: "6px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, color: "#c9f2c9", background: "rgba(63,174,74,0.22)", marginBottom: "2px" }}>Dashboard</div>
+              <div style={{ padding: "6px 8px", fontSize: "11px", color: "oklch(0.55 0.02 150)" }}>Portfolios</div>
+              <div style={{ padding: "6px 8px", fontSize: "11px", color: "oklch(0.55 0.02 150)" }}>Research</div>
+              <div style={{ padding: "6px 8px", fontSize: "11px", color: "oklch(0.55 0.02 150)" }}>Planning</div>
             </div>
-            <div className="mockup-body">
-              {/* Sidebar */}
-              <div className="m-sidebar">
-                <div className="m-pv">
-                  <div className="m-pv-l">Portfolio Value</div>
-                  <div className="m-pv-v">$124,830</div>
-                  <div className="m-pv-c">+14.2% all-time</div>
-                </div>
-                {[
-                  {l:"Dashboard",on:true},
-                  {l:"Portfolios",on:false},
-                  {l:"Research",on:false},
-                  {l:"Strategies",on:false},
-                  {l:"Community",on:false},
-                  {l:"Planning",on:false},
-                  {l:"Tax Center",on:false},
-                ].map(item => (
-                  <div key={item.l} className={`m-ni ${item.on ? "on" : ""}`}>
-                    <div style={{width:"4px",height:"4px",borderRadius:"50%",background:item.on?"#93c5fd":"#1e293b",flexShrink:0}}/>
-                    {item.l}
-                  </div>
-                ))}
+            <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: "9px" }}>
+              <div style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(20,30,20,0.06)", borderRadius: "10px", padding: "11px 13px" }}>
+                <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.5 0.02 150)", marginBottom: "3px" }}>Investment Return</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "19px", fontWeight: 500, color: INK }}>+14.2%</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#16a34a", marginTop: "2px" }}>+3.1% vs SPY</div>
               </div>
-
-              {/* Main */}
-              <div className="m-main">
-                {/* Chart */}
-                <div className="m-chart">
-                  <div className="m-chart-l">Investment Return</div>
-                  <div className="m-chart-v">+14.2%</div>
-                  <div className="m-chart-c">+3.1% vs SPY</div>
-                  <div className="m-chart-sub">Modified Dietz · deposits excluded</div>
-                  <svg style={{position:"absolute",bottom:0,left:0,right:0,width:"100%",height:"52px"}} viewBox="0 0 600 52" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#00d395" stopOpacity="0.18"/>
-                        <stop offset="100%" stopColor="#00d395" stopOpacity="0"/>
-                      </linearGradient>
-                    </defs>
-                    <path d="M0,44 C60,38 120,30 180,22 C240,14 300,9 360,6 C420,4 480,3 540,2 L600,2 L600,52 L0,52 Z" fill="url(#g1)"/>
-                    <path d="M0,44 C60,38 120,30 180,22 C240,14 300,9 360,6 C420,4 480,3 540,2 L600,2" fill="none" stroke="#00d395" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-
-                {/* AI recommendation cards */}
-                <div className="m-recs">
-                  <div style={{fontSize:"8px",fontWeight:600,letterSpacing:"0.09em",textTransform:"uppercase",color:"#2d3748",marginBottom:"1px"}}>AI Recommendations</div>
-
-                  {/* TRIM NVDA */}
-                  <div className="m-rec m-rec-trim">
-                    <div className="m-rec-action m-rec-action-trim">TRIM</div>
-                    <div className="m-rec-body">
-                      <div className="m-rec-head">
-                        <span className="m-rec-ticker">NVDA</span>
-                        <span className="m-rec-conf">High conf.</span>
-                      </div>
-                      <div className="m-rec-reason">Tech at 62% vs your 40% cap. Reduce 10–12 shares (~$10,500).</div>
-                      <div className="m-rec-bar">
-                        <div style={{width:"72%",background:"#00d395"}}/>
-                        <div style={{width:"18%",background:"#f59e0b"}}/>
-                        <div style={{width:"10%",background:"#ff5c5c"}}/>
-                      </div>
-                      <div className="m-rec-labels">
-                        <span style={{color:"#00d395"}}>B 39</span>
-                        <span style={{color:"#f59e0b"}}>H 12</span>
-                        <span style={{color:"#ff5c5c"}}>S 3</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* BUY MSFT */}
-                  <div className="m-rec m-rec-buy">
-                    <div className="m-rec-action m-rec-action-buy">BUY</div>
-                    <div className="m-rec-body">
-                      <div className="m-rec-head">
-                        <span className="m-rec-ticker">MSFT</span>
-                        <span className="m-rec-conf">Med. conf.</span>
-                      </div>
-                      <div className="m-rec-reason">Underweight vs strategy target. Buy 5–8 shares at market.</div>
-                      <div className="m-rec-bar">
-                        <div style={{width:"68%",background:"#00d395"}}/>
-                        <div style={{width:"20%",background:"#f59e0b"}}/>
-                        <div style={{width:"12%",background:"#ff5c5c"}}/>
-                      </div>
-                      <div className="m-rec-labels">
-                        <span style={{color:"#00d395"}}>B 51</span>
-                        <span style={{color:"#f59e0b"}}>H 9</span>
-                        <span style={{color:"#ff5c5c"}}>S 4</span>
-                      </div>
-                    </div>
-                  </div>
+              <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.09em", textTransform: "uppercase", color: "oklch(0.5 0.02 150)" }}>AI Recommendations</div>
+              <div style={{ background: "rgba(200,121,30,0.09)", border: "1px solid rgba(200,121,30,0.22)", borderRadius: "8px", padding: "9px 11px", display: "flex", gap: "8px" }}>
+                <div style={{ flexShrink: 0, padding: "2px 6px", borderRadius: "4px", fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, background: "rgba(200,121,30,0.18)", color: "#8a5414", alignSelf: "flex-start" }}>TRIM</div>
+                <div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: INK }}>NVDA</div>
+                  <div style={{ fontSize: "10px", color: "oklch(0.42 0.02 150)", lineHeight: 1.4, marginTop: "2px" }}>Tech at 62% vs your 40% cap. Reduce 10–12 shares.</div>
                 </div>
               </div>
             </div>
@@ -386,533 +162,131 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* How it works */}
-      <div id="how-it-works">
-        <div className="section">
-          <div className="s-label">How it works</div>
-          <h2 className="s-title">Three steps to your first recommendation</h2>
-          <p className="s-sub">BuyTune sits between you and your brokerage. You stay in full control — the AI does the analysis.</p>
-          <div className="steps">
-            {[
-              {
-                n:"01",
-                title:"Add your portfolio",
-                desc:"Enter your holdings and cash balance. BuyTune tracks true investment return, calculates performance excluding deposits, and monitors every position against benchmarks.",
-                bg:"rgba(37,99,235,0.1)",
-                icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="#3b82f6"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>,
-              },
-              {
-                n:"02",
-                title:"Set your strategy",
-                desc:"Define your style — growth, value, income. Set position size caps, sector limits, and holding rules. BuyTune checks every recommendation against them before surfacing it.",
-                bg:"rgba(124,58,237,0.1)",
-                icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="#a78bfa"><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/><path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/></svg>,
-              },
-              {
-                n:"03",
-                title:"Review your recommendations",
-                desc:"Grok searches live prices, recent earnings, and market sentiment — then returns specific buy, trim, hold, or sell calls for your holdings. You review the reasoning and decide.",
-                bg:"rgba(0,211,149,0.1)",
-                icon:<svg width="18" height="18" viewBox="0 0 20 20" fill="#00d395"><path fillRule="evenodd" d="M12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd"/></svg>,
-              },
-            ].map(s => (
-              <div key={s.n} className="step">
-                <div className="step-n">{s.n}</div>
-                <div className="step-icon" style={{background:s.bg}}>{s.icon}</div>
-                <h3 className="step-title">{s.title}</h3>
-                <p className="step-desc">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Features */}
-      <div id="features">
-        <div className="section" style={{paddingTop:0}}>
-          <div className="s-label">Features</div>
-          <h2 className="s-title">Built for investors who want<br/>data behind every decision.</h2>
-          <p className="s-sub" style={{fontSize:"18px",color:"#e2e8f0",maxWidth:"620px",lineHeight:1.6}}>
-            <strong style={{color:"#f5f8ff",fontWeight:700}}>Not a passive tracker. Not an overwhelming terminal.</strong>{" "}
-            The intelligence layer your portfolio has been missing.
-          </p>
-          <div className="features">
-            {[
-              {
-                title:"Grok AI Recommendations",
-                desc:"For each holding, Grok searches live prices, recent earnings, news, and market sentiment — then returns a specific buy, trim, hold, or sell call with the reasoning behind it.",
-                bg:"rgba(124,58,237,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#a78bfa"><path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192z"/><path d="M6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z"/></svg>,
-              },
-              {
-                title:"True Return Tracking",
-                desc:"Modified Dietz calculation strips deposits so you see actual investment gain — not inflated by cash adds. Side-by-side benchmark comparison against SPY, QQQ, or any index.",
-                bg:"rgba(0,211,149,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#00d395"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>,
-              },
-              {
-                title:"Strategy Rules Engine",
-                desc:"Define position size caps, sector allocation limits, and holding criteria. Every AI analysis is filtered through your rules before it surfaces — no one-size-fits-all output.",
-                bg:"rgba(37,99,235,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#3b82f6"><path fillRule="evenodd" d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zm0 4a1 1 0 000 2h7a1 1 0 100-2H3zm0 4a1 1 0 100 2h4a1 1 0 100-2H3z" clipRule="evenodd"/></svg>,
-              },
-              {
-                title:"Stock Research Panel",
-                desc:"Search any ticker for analyst consensus (exact Buy / Hold / Sell counts), mean price target, upside percentage, recent news, and Reddit/X sentiment — all in one panel.",
-                bg:"rgba(56,189,248,0.08)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#38bdf8"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/></svg>,
-              },
-              {
-                title:"Portfolio Health Score",
-                desc:"Gemini cross-checks your portfolio against diversification, concentration risk, and sector balance — and returns a 1–100 score with a written assessment of your weaknesses.",
-                bg:"rgba(124,58,237,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#a78bfa"><path fillRule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z" clipRule="evenodd"/></svg>,
-              },
-              {
-                title:"Earnings Alerts",
-                desc:"A banner appears before any holding reports earnings so you can pull up the AI recommendation, check analyst expectations, and decide before the market moves.",
-                bg:"rgba(245,158,11,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#f59e0b"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>,
-              },
-              {
-                title:"Community Strategies",
-                desc:"Browse public portfolios and strategies from real investors, follow the ones that match your style, copy a strategy as a template, and see what's performing on the leaderboard.",
-                bg:"rgba(99,102,241,0.1)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#818cf8"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/></svg>,
-              },
-              {
-                title:"Financial Planning",
-                desc:"Track your full financial picture: balance sheet, cash flow, and savings rate. Run deterministic net-worth projections and get Atlas commentary on your financial health trajectory.",
-                bg:"rgba(16,185,129,0.08)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#34d399"><path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd"/></svg>,
-              },
-              {
-                title:"Tax Center",
-                desc:"See your realized and unrealized gains across every portfolio in one table. Identify harvesting candidates, calculate estimated tax liability, and export a summary for your accountant.",
-                bg:"rgba(244,63,94,0.07)",
-                icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#fb7185"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v6a1 1 0 102 0V8z" clipRule="evenodd"/></svg>,
-              },
-            ].map(f => (
-              <div key={f.title} className="feat">
-                <div className="feat-icon" style={{background:f.bg}}>{f.icon}</div>
-                <h3 className="feat-title">{f.title}</h3>
-                <p className="feat-desc">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Why */}
-      <div id="why">
-        <div className="section" style={{paddingTop:0}}>
-          <div className="s-label">Why BuyTune</div>
-          <h2 className="s-title">The gap between DIY<br/>and an advisor — closed.</h2>
-          <p className="s-sub">You have a brokerage account and goals. What you're missing is the intelligence layer in between.</p>
-          <div className="vs">
-            <div className="vs-card vs-bad">
-              <div className="vs-title">Without BuyTune</div>
-              {[
-                "Advisors charge 1–2% of everything you own — every year, win or lose",
-                "Advice that can answer to the firm's incentives, not only yours",
-                "Decisions made without live prices or earnings context",
-                "Manual return tracking across spreadsheets, no real benchmark",
-                "Generic guidance disconnected from your actual holdings",
-              ].map(t => (
-                <div key={t} className="vs-item">
-                  <svg width="11" height="11" viewBox="0 0 20 20" fill="#ff5c5c" style={{flexShrink:0,marginTop:"2px"}}><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                  {t}
-                </div>
-              ))}
+      {/* cost comparison — the strongest wedge, kept high on the page */}
+      <div className="lp-pad" style={{ padding: "20px 40px 56px", maxWidth: "820px", margin: "0 auto" }}>
+        <div style={{ ...eyebrow, textAlign: "center" }}>Why BuyTune</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(22px,3vw,30px)", fontWeight: 700, color: INK, textAlign: "center", margin: "0 0 28px", letterSpacing: "-0.015em" }}>
+          Advisors charge 1–2% of everything you own.<br />BuyTune is free.
+        </h2>
+        <div className="lp-grid-2">
+          <div style={{ background: "rgba(220,68,68,0.06)", border: "1px solid rgba(220,68,68,0.2)", borderRadius: "14px", padding: "22px" }}>
+            <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#b13333", marginBottom: "12px" }}>Without BuyTune</div>
+            <div style={{ fontSize: "13px", color: "oklch(0.35 0.03 150)", lineHeight: 2 }}>
+              1–2% AUM fees, every year, win or lose<br />Advice that answers to the firm&apos;s incentives<br />Decisions made without live earnings context<br />Manual return tracking, no real benchmark
             </div>
-            <div className="vs-card vs-good">
-              <div className="vs-title">With BuyTune</div>
-              {[
-                "Free — your brokerage account stays exactly where it is",
-                "On your side: guidance tied to your holdings, never a sales quota",
-                "Live prices, earnings, and sentiment in every recommendation",
-                "True return tracking with automatic benchmark comparison",
-                "Every call shows its full reasoning — you decide and act",
-              ].map(t => (
-                <div key={t} className="vs-item">
-                  <svg width="11" height="11" viewBox="0 0 20 20" fill="#00d395" style={{flexShrink:0,marginTop:"2px"}}><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>
-                  {t}
-                </div>
-              ))}
-              <div className="vs-note">
-                BuyTune provides informational recommendations only. All investment decisions are made by you. BuyTune never places trades on your behalf.
-              </div>
+          </div>
+          <div style={{ background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "14px", padding: "22px" }}>
+            <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#158a3f", marginBottom: "12px" }}>With BuyTune</div>
+            <div style={{ fontSize: "13px", color: "oklch(0.35 0.03 150)", lineHeight: 2 }}>
+              Free — your brokerage stays where it is<br />Guidance tied only to your holdings<br />Live prices, earnings, and sentiment in every call<br />True return tracking with automatic benchmarking
             </div>
           </div>
         </div>
       </div>
 
-      {/* Demo preview */}
-      <div style={{ padding: "80px 24px", maxWidth: "900px", margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#3b82f6", marginBottom: "10px" }}>
-            See it in action
-          </div>
-          <h2 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "clamp(22px,4vw,32px)", fontWeight: 800, color: "#f0f4ff", letterSpacing: "-0.8px", margin: "0 0 10px" }}>
-            Atlas answers your hardest money questions
-          </h2>
-          <p style={{ fontSize: "15px", color: "#a8b3c7", maxWidth: "480px", margin: "0 auto", lineHeight: 1.6 }}>
-            Add your income, expenses, and goals. Atlas runs your retirement forecast and tells you exactly where you stand.
-          </p>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
-          {[
-            {
-              q: "Am I on track to retire at 60?",
-              a: "At your current savings rate of 22%, you're projected to hit $1.4M by 60 — about 89% of your target. Bumping to 27% closes the gap completely.",
-              tag: "Retirement",
-            },
-            {
-              q: "What happens if markets drop 30% next year?",
-              a: "A 30% drawdown would drop your probability from 74% to 61%. Your timeline is long enough that recovery is likely, but your emergency fund is thin — 2.1 months vs the 3–6 month target.",
-              tag: "Stress test",
-            },
-            {
-              q: "Should we buy a house or keep renting?",
-              a: "At $650K with 20% down, you'd break even on buying vs renting in year 6. Your current savings rate can sustain the down payment in 18 months without hurting retirement.",
-              tag: "Home planning",
-            },
-          ].map(({ q, a, tag }) => (
-            <div key={tag} style={{
-              background: "oklch(0.11 0.008 250)",
-              border: "1px solid oklch(0.2 0.012 250)",
-              borderRadius: "16px",
-              padding: "20px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
-                <p style={{ fontSize: "14px", fontWeight: 600, color: "#f0f4ff", margin: 0, lineHeight: 1.4, fontFamily: "'DM Sans',sans-serif" }}>
-                  &ldquo;{q}&rdquo;
-                </p>
-                <span style={{
-                  flexShrink: 0, fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
-                  textTransform: "uppercase", padding: "2px 8px", borderRadius: "999px",
-                  background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.2)",
-                  color: "#93c5fd",
-                }}>
-                  {tag}
-                </span>
-              </div>
-              <div style={{
-                background: "oklch(0.15 0.01 250)",
-                border: "1px solid oklch(0.22 0.012 250)",
-                borderRadius: "10px",
-                padding: "12px 14px",
-                display: "flex",
-                gap: "10px",
-                alignItems: "flex-start",
-              }}>
-                <div style={{
-                  width: "22px", height: "22px", flexShrink: 0, borderRadius: "50%",
-                  background: "var(--brand-gradient)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>A</span>
-                </div>
-                <p style={{ fontSize: "12px", color: "#94a3b8", margin: 0, lineHeight: 1.6 }}>{a}</p>
-              </div>
+      {/* how it works */}
+      <div id="how" className="lp-pad" style={{ padding: "20px 40px 60px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={eyebrow}>How it works</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(24px,3.2vw,34px)", fontWeight: 700, letterSpacing: "-0.015em", color: INK, margin: "0 0 12px", lineHeight: 1.2 }}>Three steps to your first recommendation</h2>
+        <p style={{ fontSize: "14.5px", color: INK2, maxWidth: "480px", margin: "0 0 36px" }}>BuyTune sits between you and your brokerage. You stay in full control — the AI does the analysis.</p>
+        <div className="lp-grid-3">
+          {STEPS.map((step) => (
+            <div key={step.n} style={{ background: CARD, border: `1px solid ${CARD_LINE}`, borderRadius: "14px", padding: "22px" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "oklch(0.6 0.02 150)", marginBottom: "14px" }}>{step.n}</div>
+              <div style={{ width: "34px", height: "34px", borderRadius: "8px", background: step.bg, marginBottom: "12px" }} />
+              <div style={{ fontSize: "14.5px", fontWeight: 700, color: INK, margin: "0 0 6px" }}>{step.title}</div>
+              <div style={{ fontSize: "12.5px", color: "oklch(0.42 0.03 150)", lineHeight: 1.6 }}>{step.desc}</div>
             </div>
           ))}
         </div>
-        <div style={{ textAlign: "center", marginTop: "36px" }}>
-          <Link href="/signup" style={{
-            display: "inline-flex", alignItems: "center", gap: "6px",
-            padding: "10px 22px", borderRadius: "10px",
-            background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.25)",
-            color: "#93c5fd", fontSize: "13px", fontWeight: 600, textDecoration: "none",
-            transition: "all 0.15s",
-          }}>
-            Get your own Atlas analysis — free
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
-          </Link>
-        </div>
       </div>
 
-      {/* AI Stock Analysis Showcase */}
-      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "80px 24px 0" }}>
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <span style={{
-            display: "inline-block", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em",
-            textTransform: "uppercase", color: "#3b82f6", marginBottom: "14px",
-          }}>
-            AI Analysis
-          </span>
-          <h2 style={{
-            fontSize: "clamp(28px, 5vw, 44px)", fontWeight: 800, color: "oklch(0.94 0.01 250)",
-            letterSpacing: "-0.8px", lineHeight: 1.15, margin: "0 0 16px",
-          }}>
-            Every holding, analyzed
-          </h2>
-          <p style={{
-            fontSize: "16px", color: "#a8b3c7", maxWidth: "560px",
-            margin: "0 auto", lineHeight: 1.65,
-          }}>
-            BuyTune runs Grok live web search on each stock — surfacing earnings signals, news, and momentum shifts with a buy, hold, or sell call.
-          </p>
-        </div>
-
-        <div style={{
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: "16px",
-          overflow: "hidden",
-        }}>
-          {([
-            {
-              ticker: "NVDA",
-              name: "NVIDIA Corporation",
-              action: "BUY" as const,
-              confidence: 87,
-              rationale: "Blackwell Ultra shipments tracking ahead of schedule. Hyperscaler capex guidance raised across AWS, Azure, and Google Cloud — near-term supply constraints clearing faster than consensus.",
-              pills: ["0.5 shares", "$875.40", "Target $1,050"],
-            },
-            {
-              ticker: "TSLA",
-              name: "Tesla, Inc.",
-              action: "HOLD" as const,
-              confidence: 61,
-              rationale: "Cybertruck recall and EV demand softness near-term headwinds, offset by FSD v13 momentum and energy storage growth. Conviction split — watch the next delivery print.",
-              pills: ["1.2 shares", "$248.50", "Target $260"],
-            },
-            {
-              ticker: "AMD",
-              name: "Advanced Micro Devices",
-              action: "SELL" as const,
-              confidence: 60,
-              rationale: "MI300X traction positive but AMD continues to lose AI accelerator share to NVDA. Data center GPU revenue guidance missed — price action relative to the broader semis rally is weak.",
-              pills: ["0.8 shares", "$154.20", "Target $130.00"],
-            },
-          ] as const).map(({ ticker, name, action, confidence, rationale, pills }, idx, arr) => {
-            const cfg = {
-              BUY:  { color: "#4ade80", bg: "rgba(74,222,128,0.14)" },
-              HOLD: { color: "#fbbf24", bg: "rgba(251,191,36,0.14)" },
-              SELL: { color: "#f87171", bg: "rgba(248,113,113,0.14)" },
-            }[action];
-            const confLabel = confidence >= 80 ? "Very High" : confidence >= 66 ? "High" : "Low";
-            const confColor = confidence >= 66 ? "#4ade80" : "#94a3b8";
-            const isLast = idx === arr.length - 1;
+      {/* interactive AI analysis */}
+      <div className="lp-pad" style={{ padding: "20px 40px 60px", maxWidth: "840px", margin: "0 auto" }}>
+        <div style={{ ...eyebrow, textAlign: "center" }}>AI Analysis</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(22px,3vw,30px)", fontWeight: 700, color: INK, textAlign: "center", margin: "0 0 10px", letterSpacing: "-0.015em" }}>Every holding, analyzed</h2>
+        <p style={{ fontSize: "14px", color: INK2, textAlign: "center", maxWidth: "460px", margin: "0 auto 28px" }}>Click a ticker to see the reasoning behind its call.</p>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginBottom: "20px", flexWrap: "wrap" }}>
+          {(Object.keys(RECS) as RecTicker[]).map((t) => {
+            const isActive = t === activeTicker;
             return (
-              <div key={ticker} style={{
-                padding: "18px 20px",
-                borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
-              }}>
-                {/* Top row */}
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                  <span style={{
-                    fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em",
-                    textTransform: "uppercase", padding: "3px 9px", borderRadius: "999px",
-                    background: cfg.bg, color: cfg.color, flexShrink: 0,
-                  }}>
-                    {action}
-                  </span>
-                  <span style={{
-                    fontSize: "15px", fontWeight: 700, color: "#f0f4ff",
-                    fontFamily: "var(--font-geist-mono, monospace)", letterSpacing: "-0.2px",
-                  }}>
-                    {ticker}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "#94a3b8" }}>{name}</span>
-                  <div style={{ flex: 1 }} />
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: confColor }}>{confLabel}</span>
-                  <span style={{
-                    fontSize: "13px", color: "#94a3b8",
-                    fontFamily: "var(--font-geist-mono, monospace)",
-                  }}>{confidence}%</span>
-                </div>
-                {/* Rationale */}
-                <p style={{ fontSize: "12px", color: "#94a3b8", lineHeight: 1.65, margin: "0 0 10px" }}>
-                  {rationale}
-                </p>
-                {/* Pills */}
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                  {pills.map((pill) => {
-                    const isTarget = pill.startsWith("Target");
-                    return (
-                      <span key={pill} style={{
-                        fontSize: "11px", padding: "2px 8px", borderRadius: "6px",
-                        border: isTarget ? "1px solid rgba(74,222,128,0.22)" : "1px solid rgba(255,255,255,0.1)",
-                        color: isTarget ? "#4ade80" : "#94a3b8",
-                      }}>
-                        {pill}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
+              <button
+                key={t}
+                onClick={() => setActiveTicker(t)}
+                aria-pressed={isActive}
+                style={{
+                  padding: "8px 18px", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer",
+                  border: `1px solid ${isActive ? "rgba(14,148,136,0.4)" : "rgba(20,30,20,0.12)"}`,
+                  background: isActive ? "rgba(14,148,136,0.12)" : "rgba(255,255,255,0.4)",
+                  color: isActive ? TEAL : INK2,
+                  transition: "all 120ms",
+                }}
+              >
+                {t}
+              </button>
             );
           })}
         </div>
-
-        <div style={{ textAlign: "center", marginTop: "32px" }}>
-          <Link href="/signup" style={{
-            display: "inline-flex", alignItems: "center", gap: "6px",
-            padding: "10px 22px", borderRadius: "10px",
-            background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.25)",
-            color: "#93c5fd", fontSize: "13px", fontWeight: 600, textDecoration: "none",
-          }}>
-            Analyze your own portfolio — free
-            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
-          </Link>
+        <div style={{ background: CARD, border: `1px solid ${CARD_LINE}`, borderRadius: "14px", padding: "22px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 9px", borderRadius: "99px", background: ac.bg, color: ac.color }}>{rec.action}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: INK }}>{activeTicker}</span>
+            <span style={{ fontSize: "12px", color: "oklch(0.45 0.03 150)" }}>{rec.name}</span>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: INK2 }}>{rec.confidence}% confidence</span>
+          </div>
+          <p style={{ fontSize: "13px", color: INK2, lineHeight: 1.65, margin: 0 }}>{rec.rationale}</p>
         </div>
       </div>
 
-      {/* Control / trust band */}
-      <div id="trust" className="section" style={{paddingTop:"40px"}}>
-        <div className="s-label">You stay in control</div>
-        <h2 className="s-title">An intelligence layer — not a black box.</h2>
-        <p className="s-sub">BuyTune analyzes and recommends. Every decision, and every trade, stays yours.</p>
-        <div className="trust">
-          {[
-            {
-              t:"Never trades for you",
-              d:"BuyTune surfaces buy, trim, hold, and sell calls with full reasoning. You place every trade yourself, in your own brokerage.",
-              c:"#3b82f6", bg:"rgba(37,99,235,0.1)",
-              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#3b82f6"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm2.5 8V5.5a2.5 2.5 0 00-5 0V9h5z" clipRule="evenodd"/></svg>,
-            },
-            {
-              t:"Your brokerage stays put",
-              d:"Keep your account exactly where it is — Fidelity, Schwab, Robinhood, anywhere. Nothing to move, nothing to link to trade.",
-              c:"#00d395", bg:"rgba(0,211,149,0.1)",
-              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#00d395"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/></svg>,
-            },
-            {
-              t:"On your side, not the fund's",
-              d:"No commissions, no quotas, no products to push. Recommendations answer only to your strategy and your holdings.",
-              c:"#a78bfa", bg:"rgba(124,58,237,0.1)",
-              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#a78bfa"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>,
-            },
-            {
-              t:"Free to start, no card",
-              d:"The core platform is free. No subscription and no credit card to create an account and get your first recommendation.",
-              c:"#f59e0b", bg:"rgba(245,158,11,0.1)",
-              icon:<svg width="17" height="17" viewBox="0 0 20 20" fill="#f59e0b"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd"/></svg>,
-            },
-          ].map(item => (
-            <div key={item.t} className="trust-item">
-              <div className="trust-ic" style={{background:item.bg}}>{item.icon}</div>
-              <h3 className="trust-t">{item.t}</h3>
-              <p className="trust-d">{item.d}</p>
+      {/* features */}
+      <div id="features" className="lp-pad" style={{ padding: "20px 40px 60px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={eyebrow}>Features</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(24px,3.2vw,34px)", fontWeight: 700, color: INK, margin: "0 0 32px", letterSpacing: "-0.015em", lineHeight: 1.2 }}>
+          Built for investors who want<br />data behind every decision.
+        </h2>
+        <div className="lp-grid-3" style={{ gap: "14px" }}>
+          {FEATURES.map((f) => (
+            <div key={f.title} style={{ background: CARD, border: `1px solid ${CARD_LINE}`, borderRadius: "14px", padding: "20px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: f.bg, marginBottom: "11px" }} />
+              <div style={{ fontSize: "13.5px", fontWeight: 700, color: INK, margin: "0 0 6px" }}>{f.title}</div>
+              <div style={{ fontSize: "12px", color: "oklch(0.42 0.03 150)", lineHeight: 1.6 }}>{f.desc}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Powered by */}
-      <div className="section" style={{paddingTop:0,paddingBottom:"40px",textAlign:"center"}}>
-        <div className="s-label" style={{marginBottom:"18px"}}>The intelligence under the hood</div>
-        <div className="powered">
-          {[
-            {n:"Grok", s:"live web + X search", c:"#a78bfa"},
-            {n:"Gemini", s:"portfolio health check", c:"#60a5fa"},
-            {n:"Finnhub", s:"real-time quotes & earnings", c:"#00d395"},
-            {n:"FMP", s:"fundamentals & benchmarks", c:"#38bdf8"},
-            {n:"Reddit + X", s:"retail sentiment", c:"#f59e0b"},
-          ].map(p => (
-            <span key={p.n} className="pchip">
-              <span className="pdot" style={{background:p.c}}/>
-              <b>{p.n}</b> {p.s}
-            </span>
-          ))}
-        </div>
-        <p style={{fontSize:"12.5px",color:"#64748b",marginTop:"18px",maxWidth:"560px",marginLeft:"auto",marginRight:"auto",lineHeight:1.6}}>
-          Every recommendation is built on live market data and current sentiment — never stale, never generic.
-        </p>
-      </div>
-
-      {/* FAQ */}
-      <div id="faq" className="section" style={{paddingTop:0}}>
-        <div className="s-label">Questions</div>
-        <h2 className="s-title">Everything you might be wondering.</h2>
-        <p className="s-sub">Straight answers before you sign up.</p>
-        <div className="faq">
-          {[
-            {
-              q:"Is BuyTune really free?",
-              a:"Yes — the core platform is free to start, with no credit card required. You can add a portfolio, set a strategy, and get AI recommendations without paying anything.",
-            },
-            {
-              q:"Does BuyTune trade for me?",
-              a:"Never. BuyTune is informational only. It analyzes your portfolio and surfaces buy, trim, hold, and sell recommendations with full reasoning — but you place every trade yourself in your own brokerage. No auto-trading, ever.",
-            },
-            {
-              q:"Which brokerages does it work with?",
-              a:"Any of them. You enter your holdings and cash, and BuyTune tracks and analyzes them — your account stays wherever it already is. There's nothing to move and no brokerage login required to get recommendations.",
-            },
-            {
-              q:"How is this different from a robo-advisor?",
-              a:"A robo-advisor takes custody of your money and auto-invests it on a generic model. BuyTune leaves your money where it is and gives you the analysis a human advisor would — tied to your exact holdings and strategy — while you stay in full control of every decision.",
-            },
-            {
-              q:"How does the AI actually make recommendations?",
-              a:"Grok runs live web and market search on each holding — pulling current prices, earnings, news, and sentiment — then returns specific calls filtered through your strategy's risk, sizing, and cash rules. Gemini cross-checks your overall portfolio health. You see the reasoning behind every call.",
-            },
-            {
-              q:"Is my financial data safe?",
-              a:"Your data is encrypted and isolated to your account with row-level security. We never place trades, never sell your data, and never require your brokerage password. You can delete your data at any time.",
-            },
-            {
-              q:"What else can BuyTune do beyond stock picks?",
-              a:"A lot: full financial planning with retirement forecasts and Atlas commentary, a tax center for realized/unrealized gains and harvesting, stock research with analyst consensus and sentiment, and a community feed to follow strategies and learn.",
-            },
-          ].map(({q,a}) => (
-            <details key={q}>
-              <summary>
-                {q}
-                <svg className="chev" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd"/></svg>
-              </summary>
-              <div className="faq-a">{a}</div>
+      {/* faq */}
+      <div id="faq" className="lp-pad" style={{ padding: "20px 40px 70px", maxWidth: "720px", margin: "0 auto" }}>
+        <div style={{ ...eyebrow, textAlign: "center" }}>FAQ</div>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(22px,3vw,28px)", fontWeight: 700, color: INK, textAlign: "center", margin: "0 0 28px", letterSpacing: "-0.015em" }}>Questions, answered</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {FAQS.map((item) => (
+            <details key={item.q} className="lp-faq" style={{ background: CARD, border: "1px solid rgba(20,30,20,0.09)", borderRadius: "12px", overflow: "hidden" }}>
+              <summary style={{ listStyle: "none", cursor: "pointer", padding: "15px 18px", fontSize: "14px", fontWeight: 600, color: INK }}>{item.q}</summary>
+              <div style={{ padding: "0 18px 15px", fontSize: "13px", color: INK2, lineHeight: 1.6 }}>{item.a}</div>
             </details>
           ))}
         </div>
       </div>
 
-      {/* CTA */}
-      <div className="cta-wrap">
-        <div className="cta-glow"/>
-        <div className="cta-box">
-          <h2 className="cta-title">
-            Add your portfolio.<br/>
-            Set a strategy.<br/>
-            <span className="cta-accent">Get your first AI recommendation.</span>
-          </h2>
-          <p className="cta-sub">
-            Create a portfolio, define your rules, and see what BuyTune recommends in your first session.
-            You keep full control — review every call before acting.
-          </p>
-          <Link href="/signup" className="btn-hero" style={{display:"inline-flex"}}>
-            Create free account
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd"/></svg>
-          </Link>
-          <p className="cta-fine">
-            No subscription · No credit card required · Works with any brokerage<br/>
-            Recommendations are informational only — you decide and act
-          </p>
-        </div>
+      {/* CTA band */}
+      <div style={{ padding: "60px 40px", textAlign: "center", background: "oklch(0.22 0.03 150)" }}>
+        <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(24px,3.5vw,34px)", fontWeight: 800, color: "oklch(0.95 0.015 90)", margin: "0 0 12px", letterSpacing: "-0.015em" }}>
+          Your intelligence layer is one signup away.
+        </h2>
+        <p style={{ fontSize: "14.5px", color: "oklch(0.7 0.02 150)", margin: "0 0 26px" }}>Free. No auto-trading. You decide and act.</p>
+        <Link href="/signup" style={{ display: "inline-flex", padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, textDecoration: "none" }}>Start for free</Link>
       </div>
 
-      {/* Footer */}
-      <footer>
-        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <div style={{width:"20px",height:"20px",background:"var(--brand-gradient)",borderRadius:"5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <BrandGlyph size={10} strokeWidth={3} />
-          </div>
-          <span style={{color:"#94a3b8"}}>BuyTune.io</span>
-        </div>
-        <span>© 2026 BuyTune. All rights reserved.</span>
-        <div style={{display:"flex",gap:"20px"}}>
-          <a href="/legal/privacy">Privacy</a>
-          <a href="/legal/terms">Terms</a>
-          <a href="/legal/ai-disclaimer">AI Disclaimer</a>
-          <a href="/legal/investment-disclaimer">Investment Disclaimer</a>
-          <a href="/accessibility">Accessibility</a>
+      <footer className="lp-pad" style={{ padding: "22px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", color: INK2, borderTop: `1px solid ${CARD_LINE}`, flexWrap: "wrap", gap: "10px" }}>
+        <span>© 2026 BuyTune.io</span>
+        <div style={{ display: "flex", gap: "18px" }}>
+          <Link href="/privacy" style={{ textDecoration: "none", color: TEAL }}>Privacy</Link>
+          <Link href="/terms" style={{ textDecoration: "none", color: TEAL }}>Terms</Link>
+          <Link href="/accessibility" style={{ textDecoration: "none", color: TEAL }}>Accessibility</Link>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

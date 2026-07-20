@@ -63,7 +63,7 @@ export default function PageTutorial({ tutorialId }: { tutorialId: string }) {
       <style>{`@keyframes bt-tut-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-tut-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--card-bg, #0b1524)", border: "1px solid var(--card-border, rgba(255,255,255,0.1))", borderRadius: "var(--radius-lg, 16px)", padding: "26px 26px 20px", width: "100%", maxWidth: "440px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-tut-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-          <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(37,99,235,0.18), rgba(124,58,237,0.14))", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>{tutorial.emoji}</div>
+          <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(14,165,160,0.18), rgba(63,174,74,0.14))", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>{tutorial.emoji}</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{tutorial.label} · Walkthrough</div>
             <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{step + 1} of {steps.length}</div>
@@ -76,7 +76,7 @@ export default function PageTutorial({ tutorialId }: { tutorialId: string }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "18px" }}>
           {steps.map((_, i) => (
-            <div key={i} style={{ height: "5px", flex: i === step ? "0 0 22px" : "0 0 5px", borderRadius: "3px", background: i === step ? "var(--brand-blue, #2563eb)" : i < step ? "rgba(37,99,235,0.4)" : "var(--border, rgba(255,255,255,0.12))", transition: "all 0.25s ease" }} />
+            <div key={i} style={{ height: "5px", flex: i === step ? "0 0 22px" : "0 0 5px", borderRadius: "3px", background: i === step ? "var(--brand-blue, #0ea5a0)" : i < step ? "rgba(14,165,160,0.4)" : "var(--border, rgba(255,255,255,0.12))", transition: "all 0.25s ease" }} />
           ))}
         </div>
 

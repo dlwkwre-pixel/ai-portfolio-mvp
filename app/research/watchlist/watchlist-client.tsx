@@ -75,7 +75,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "22px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.4px", margin: "8px 0 2px", display: "flex", alignItems: "center" }}>
             Watchlist
             <InfoTooltip align="start" width={250} text="Track names you don't own yet. Set a price target to get an alert when it's hit, and run an AI scan to check if recent news has changed the story.">
-              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "8px", cursor: "help", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "var(--accent, #818cf8)", fontSize: "10px", fontWeight: 700 }}>?</span>
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "16px", height: "16px", borderRadius: "50%", marginLeft: "8px", cursor: "help", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.3)", color: "var(--accent, #5fbf9a)", fontSize: "10px", fontWeight: 700 }}>?</span>
             </InfoTooltip>
           </h1>
           <p style={{ fontSize: "13px", color: "var(--text-tertiary)", margin: 0 }}>Price-target alerts + on-demand AI news monitoring for names you&apos;re tracking.</p>
@@ -83,7 +83,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
 
         {/* Add */}
         {!showAdd ? (
-          <button type="button" onClick={() => setShowAdd(true)} style={{ width: "100%", padding: "12px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #818cf8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", marginBottom: "18px" }}>
+          <button type="button" onClick={() => setShowAdd(true)} style={{ width: "100%", padding: "12px", borderRadius: "var(--radius-lg)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--accent, #5fbf9a)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", marginBottom: "18px" }}>
             + Add to watchlist
           </button>
         ) : (
@@ -148,7 +148,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
 
                   {/* AI scan result */}
                   {scanResult && (
-                    <div style={{ marginTop: "10px", padding: "11px 12px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ marginTop: "10px", padding: "11px 12px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "var(--radius-md)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "6px" }}>
                         <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: sigMeta?.color }}>{sigMeta?.label}</span>
                       </div>
@@ -162,7 +162,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
 
                   {/* Actions */}
                   <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
-                    <button type="button" onClick={() => scan(it.ticker)} disabled={scanning === it.ticker} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: scanning === it.ticker ? "var(--text-muted)" : "var(--accent, #818cf8)", background: "none", border: "none", cursor: scanning === it.ticker ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+                    <button type="button" onClick={() => scan(it.ticker)} disabled={scanning === it.ticker} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: scanning === it.ticker ? "var(--text-muted)" : "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: scanning === it.ticker ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                       {scanning === it.ticker ? "Scanning news…" : scanResult ? "Re-scan news" : "AI news scan"}
                     </button>
