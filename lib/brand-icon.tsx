@@ -17,7 +17,7 @@ export function brandIcon(px: number, markScale = 0.64): ReactElement {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
+        background: "linear-gradient(135deg, #3fae4a 0%, #0ea5a0 100%)",
       }}
     >
       <svg width={mark} height={mark} viewBox="0 0 24 24" fill="none">

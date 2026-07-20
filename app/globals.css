@@ -1,49 +1,65 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
-/* ── Dark theme (default) ── */
+/* ── "Sage" theme (light-only — dark mode dropped by design, 2026-07-18) ──
+   Warm sage surfaces, dark ink, green→teal brand gradient (CTAs + active nav
+   ONLY — never adjacent to numeric gain/loss values, which stay on the solid
+   signal tokens). Values from the Sage handoff packet; oklch kept as authored. */
 :root {
-  --bg-base:        #07090f;
-  --bg-surface:     #0a0d15;
-  --bg-elevated:    #0d1120;
-  --bg-overlay:     #111827;
+  --bg-base:        oklch(0.91 0.04 150);
+  --bg-surface:     oklch(0.955 0.02 150);
+  --bg-elevated:    oklch(0.97 0.015 150);
+  --bg-overlay:     oklch(0.88 0.035 150);
 
-  --border:         rgba(255,255,255,0.07);
-  --border-subtle:  rgba(255,255,255,0.04);
-  --border-strong:  rgba(255,255,255,0.12);
+  --border:         rgba(20,30,20,0.10);
+  --border-subtle:  rgba(20,30,20,0.06);
+  --border-strong:  rgba(20,30,20,0.16);
 
-  --text-primary:   #f0f4ff;
-  --text-secondary: #94a3b8;
-  --text-tertiary:  #6b7c94; /* was #475569 (2.6:1) — WCAG AA */
-  --text-muted:     #5b6b80; /* was #2d3748 (1.7:1) — AA-large */
+  --text-primary:   oklch(0.2 0.03 150);
+  --text-secondary: oklch(0.4 0.03 150);
+  --text-tertiary:  oklch(0.48 0.03 150);
+  --text-muted:     oklch(0.55 0.025 150);
 
-  --brand-blue:     #2563eb;
-  --brand-violet:   #7c3aed;
-  --brand-gradient: linear-gradient(135deg, #2563eb, #7c3aed);
+  /* Historic names kept so 4,000+ token refs recolor without churn:
+     "blue" is now the teal interactive accent, "violet" its darker partner. */
+  --brand-blue:     #0ea5a0;
+  --brand-violet:   #3fae4a;
+  --brand-gradient: linear-gradient(135deg, #3fae4a, #0ea5a0);
 
-  --green:          #00d395;
-  --green-bg:       rgba(0, 211, 149, 0.08);
-  --green-border:   rgba(0, 211, 149, 0.18);
-  --red:            #ff5c5c;
-  --red-bg:         rgba(255, 92, 92, 0.08);
-  --red-border:     rgba(255, 92, 92, 0.18);
-  --amber:          #f59e0b;
-  --amber-bg:       rgba(245, 158, 11, 0.08);
-  --amber-border:   rgba(245, 158, 11, 0.18);
-  --violet:         #a78bfa;
-  --violet-bg:      rgba(124, 58, 237, 0.08);
-  --violet-border:  rgba(124, 58, 237, 0.18);
+  --green:          #16a34a;
+  --green-bg:       rgba(22, 163, 74, 0.09);
+  --green-border:   rgba(22, 163, 74, 0.22);
+  --red:            #dc4444;
+  --red-bg:         rgba(220, 68, 68, 0.08);
+  --red-border:     rgba(220, 68, 68, 0.2);
+  --amber:          #c8791e;
+  --amber-bg:       rgba(200, 121, 30, 0.08);
+  --amber-border:   rgba(200, 121, 30, 0.25);
+  --violet:         #0c8a86;
+  --violet-bg:      rgba(14, 165, 160, 0.08);
+  --violet-border:  rgba(14, 165, 160, 0.2);
 
-  --card-bg:        rgba(255,255,255,0.025);
-  --card-border:    rgba(255,255,255,0.06);
-  --card-hover:     rgba(255,255,255,0.04);
+  --card-bg:        oklch(0.955 0.02 150);
+  --card-border:    rgba(20,30,20,0.08);
+  --card-hover:     rgba(20,30,20,0.045);
   --bg-card:        var(--bg-surface);
 
-  --sidebar-bg:     #0a0d15;
-  --sidebar-border: rgba(255,255,255,0.06);
-  --nav-active-bg:  rgba(37,99,235,0.1);
-  --nav-active-border: rgba(37,99,235,0.2);
-  --nav-active-text: #93c5fd;
+  /* Dark panel — sidebar, footer, CTA bands. The one dark surface that remains. */
+  --dark-panel:        oklch(0.22 0.03 150);
+  --dark-panel-text:   oklch(0.95 0.015 90);
+  --dark-panel-muted:  oklch(0.62 0.02 150);
+  --dark-panel-label:  oklch(0.5 0.02 150);
+  --dark-panel-green:  #4fd07f;
+  --dark-panel-line:   rgba(255,255,255,0.08);
+  --dark-panel-active-bg:   rgba(63,174,74,0.2);
+  --dark-panel-active-text: #c9f2c9;
+
+  --sidebar-bg:     var(--dark-panel);
+  --sidebar-border: rgba(255,255,255,0.08);
+  /* nav-active tokens serve LIGHT surfaces (mobile bar, tab pills) */
+  --nav-active-bg:  rgba(14,165,160,0.12);
+  --nav-active-border: rgba(14,165,160,0.3);
+  --nav-active-text: #0c7a76;
 
   /* Syne is a deliberately WIDE display face — it reads as "stretched" at large
      heading sizes (user-confirmed on landing + login). It now lives only in the
@@ -54,11 +70,11 @@
   --font-body:      var(--font-dm), 'DM Sans', sans-serif;
   --font-mono:      'DM Mono', monospace;
 
-  --shadow-sm:      0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md:      0 4px 16px rgba(0,0,0,0.5);
-  --shadow-lg:      0 8px 32px rgba(0,0,0,0.6);
-  --shadow-brand:   0 4px 20px rgba(37,99,235,0.3);
-  --shadow-brand-lg: 0 8px 32px rgba(37,99,235,0.45);
+  --shadow-sm:      0 1px 3px rgba(20,30,20,0.08);
+  --shadow-md:      0 4px 16px rgba(20,30,20,0.10);
+  --shadow-lg:      0 8px 32px rgba(20,30,20,0.14);
+  --shadow-brand:   0 4px 20px rgba(14,165,160,0.25);
+  --shadow-brand-lg: 0 8px 32px rgba(14,165,160,0.35);
 
   --radius-sm:      6px;
   --radius-md:      10px;
@@ -83,109 +99,41 @@
   --transition-base: all 0.15s ease;
   --transition-slow: all 0.25s ease;
 
-  --background: #07090f;
-  --foreground: #f0f4ff;
+  --background: oklch(0.91 0.04 150);
+  --foreground: oklch(0.2 0.03 150);
 
-  /* ── Elevation surfaces (white overlays in dark; solid/inset in light) ──
-     Dark values reproduce the inline rgba(255,255,255,a) literals exactly so
-     dark mode is unchanged. The codemod maps inline backgrounds onto these by
-     alpha bucket. Light values give Robinhood-style solid white / faint gray. */
-  --surface-002:  rgba(255,255,255,0.02);
-  --surface-003:  rgba(255,255,255,0.03);
-  --surface-004:  rgba(255,255,255,0.04);
-  --surface-005:  rgba(255,255,255,0.05);
-  --surface-006:  rgba(255,255,255,0.06);
-  --surface-008:  rgba(255,255,255,0.08);
-  --surface-010:  rgba(255,255,255,0.10);
+  /* ── Elevation surfaces — low tiers are near-solid sage cards, higher tiers
+     become faint ink insets/hovers on the light ground. */
+  --surface-002:  oklch(0.965 0.018 150);
+  --surface-003:  oklch(0.965 0.018 150);
+  --surface-004:  oklch(0.96 0.02 150);
+  --surface-005:  rgba(20,30,20,0.04);
+  --surface-006:  rgba(20,30,20,0.05);
+  --surface-008:  rgba(20,30,20,0.065);
+  --surface-010:  rgba(20,30,20,0.08);
 
-  /* ── Violet hero banners (estate "Protect Your Plan", Ask FINN snapshot) ──
-     Dark values reproduce the current dark-violet gradient; light values are a
-     subtle violet tint so the banners stop rendering as dark boxes in light. */
-  --hero-violet-bg:     linear-gradient(135deg, oklch(0.18 0.04 270) 0%, oklch(0.15 0.02 250) 100%);
-  --hero-violet-border: oklch(0.35 0.1 270 / 0.4);
-  --hero-violet-line:   oklch(0.28 0.06 265 / 0.4);
-  --hero-violet-text:   oklch(0.72 0.08 265);
-  --hero-violet-label:  oklch(0.55 0.08 265);
-
-  /* ── Hairline borders (white overlays in dark; gray lines in light) ── */
-  --line-004:     rgba(255,255,255,0.04);
-  --line-006:     rgba(255,255,255,0.06);
-  --line-007:     rgba(255,255,255,0.07);
-  --line-008:     rgba(255,255,255,0.08);
-  --line-010:     rgba(255,255,255,0.10);
-  --line-012:     rgba(255,255,255,0.12);
-  --line-015:     rgba(255,255,255,0.15);
-}
-
-/* ── Light theme ── */
-[data-theme="light"] {
-  --bg-base:        #f4f5f7;
-  --bg-surface:     #fafafa;
-  --bg-elevated:    #ffffff;
-  --bg-overlay:     #eef0f3;
-
-  --border:         rgba(0,0,0,0.09);
-  --border-subtle:  rgba(0,0,0,0.055);
-  --border-strong:  rgba(0,0,0,0.15);
-
-  --text-primary:   #111827;
-  --text-secondary: #374151;
-  --text-tertiary:  #5f6a7a; /* was #6b7280 (4.4:1) — WCAG AA */
-  --text-muted:     #767f8c; /* was #9ca3af (2.3:1) — AA-large */
-
-  --card-bg:        #ffffff;
-  --card-border:    rgba(0,0,0,0.08);
-  --card-hover:     rgba(0,0,0,0.035);
-  --bg-card:        var(--bg-surface);
-
-  --sidebar-bg:     #ffffff;
-  --sidebar-border: rgba(0,0,0,0.08);
-  --nav-active-bg:  rgba(37,99,235,0.08);
-  --nav-active-border: rgba(37,99,235,0.18);
-  --nav-active-text: #1d4ed8;
-
-  --green:          #059669;
-  --green-bg:       rgba(5,150,105,0.08);
-  --green-border:   rgba(5,150,105,0.2);
-  --red:            #dc2626;
-  --red-bg:         rgba(220,38,38,0.07);
-  --red-border:     rgba(220,38,38,0.18);
-  --amber:          #d97706;
-  --amber-bg:       rgba(217,119,6,0.08);
-  --amber-border:   rgba(217,119,6,0.2);
-  --violet:         #7c3aed;
-  --violet-bg:      rgba(124,58,237,0.07);
-  --violet-border:  rgba(124,58,237,0.18);
-
-  --background: #f4f5f7;
-  --foreground: #111827;
-
-  /* Light elevation: low tiers become solid white cards (sit on the gray base),
-     higher tiers become faint gray insets/hovers. No more invisible white-on-white. */
-  --surface-002:  #ffffff;
-  --surface-003:  #ffffff;
-  --surface-004:  #ffffff;
-  --surface-005:  rgba(17,24,39,0.035);
-  --surface-006:  rgba(17,24,39,0.05);
-  --surface-008:  rgba(17,24,39,0.065);
-  --surface-010:  rgba(17,24,39,0.08);
-
-  /* Light violet hero banners — subtle tint, readable text. */
-  --hero-violet-bg:     linear-gradient(135deg, rgba(124,58,237,0.07) 0%, rgba(79,70,229,0.05) 100%);
-  --hero-violet-border: var(--violet-border);
-  --hero-violet-line:   rgba(124,58,237,0.14);
+  /* ── Hero banners (estate "Protect Your Plan", Ask Atlas snapshot) ──
+     Formerly violet; now a subtle teal-sage tint that sits on the light ground. */
+  --hero-violet-bg:     linear-gradient(135deg, rgba(14,165,160,0.09) 0%, rgba(63,174,74,0.06) 100%);
+  --hero-violet-border: rgba(14,165,160,0.25);
+  --hero-violet-line:   rgba(14,165,160,0.16);
   --hero-violet-text:   var(--text-secondary);
   --hero-violet-label:  var(--text-tertiary);
 
-  /* Light hairlines: visible gray lines instead of vanishing white. */
-  --line-004:     rgba(17,24,39,0.07);
-  --line-006:     rgba(17,24,39,0.09);
-  --line-007:     rgba(17,24,39,0.10);
-  --line-008:     rgba(17,24,39,0.11);
-  --line-010:     rgba(17,24,39,0.13);
-  --line-012:     rgba(17,24,39,0.15);
-  --line-015:     rgba(17,24,39,0.18);
+  /* ── Hairline borders — soft ink lines on the sage ground. */
+  --line-004:     rgba(20,30,20,0.06);
+  --line-006:     rgba(20,30,20,0.08);
+  --line-007:     rgba(20,30,20,0.09);
+  --line-008:     rgba(20,30,20,0.10);
+  --line-010:     rgba(20,30,20,0.12);
+  --line-012:     rgba(20,30,20,0.14);
+  --line-015:     rgba(20,30,20,0.17);
 }
+
+/* Dark mode was removed in the Sage refresh (2026-07-18): :root above is the
+   only palette. The -scoped utility remaps below were
+   promoted to unconditional rules since white-alpha Tailwind utilities are
+   invisible on the light ground. */
 
 @theme inline {
   --color-background: var(--background);
@@ -214,78 +162,84 @@
 .border-emerald-900 { border-color: var(--green-border); }
 .text-red-300, .text-red-400 { color: var(--red); }
 
+/* Sage light-only: bare white text (no colored fill on the same element) was
+   primary text in the dark era — remap to ink. Elements that pair a bg-* fill
+   with text-white (buttons, gradient CTAs, badges) keep real white. */
+.text-white:not([class*="bg-"]) { color: var(--text-primary); }
+.text-slate-100:not([class*="bg-"]), .text-slate-50:not([class*="bg-"]) { color: var(--text-primary); }
+
 /* ── Light-mode overrides for Tailwind white-alpha utilities ──
    These utilities (bg-white/N, border-white/N) bake in white, which is
    invisible on a light background. The rules below are unlayered, so they beat
    Tailwind's layered utilities by the cascade, while inline styles still win.
    Low-elevation fills become solid white cards; higher tiers and all borders
    become visible gray, matching the --surface-*/--line-* token philosophy. */
-[data-theme="light"] .bg-white\/2,
-[data-theme="light"] .bg-white\/3,
-[data-theme="light"] .bg-white\/4 { background-color: #ffffff; }
-[data-theme="light"] .bg-white\/5 { background-color: rgba(17,24,39,0.04); }
-[data-theme="light"] .bg-white\/6 { background-color: rgba(17,24,39,0.05); }
-[data-theme="light"] .bg-white\/8 { background-color: rgba(17,24,39,0.065); }
-[data-theme="light"] .bg-white\/10 { background-color: rgba(17,24,39,0.08); }
+.bg-white\/2,
+.bg-white\/3,
+.bg-white\/4 { background-color: #ffffff; }
+.bg-white\/5 { background-color: rgba(17,24,39,0.04); }
+.bg-white\/6 { background-color: rgba(17,24,39,0.05); }
+.bg-white\/8 { background-color: rgba(17,24,39,0.065); }
+.bg-white\/10 { background-color: rgba(17,24,39,0.08); }
 
-[data-theme="light"] .hover\:bg-white\/2:hover { background-color: #ffffff; }
-[data-theme="light"] .hover\:bg-white\/3:hover { background-color: rgba(17,24,39,0.03); }
-[data-theme="light"] .hover\:bg-white\/5:hover { background-color: rgba(17,24,39,0.04); }
-[data-theme="light"] .hover\:bg-white\/6:hover { background-color: rgba(17,24,39,0.05); }
-[data-theme="light"] .hover\:bg-white\/8:hover { background-color: rgba(17,24,39,0.065); }
-[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(17,24,39,0.08); }
+.hover\:bg-white\/2:hover { background-color: #ffffff; }
+.hover\:bg-white\/3:hover { background-color: rgba(17,24,39,0.03); }
+.hover\:bg-white\/5:hover { background-color: rgba(17,24,39,0.04); }
+.hover\:bg-white\/6:hover { background-color: rgba(17,24,39,0.05); }
+.hover\:bg-white\/8:hover { background-color: rgba(17,24,39,0.065); }
+.hover\:bg-white\/10:hover { background-color: rgba(17,24,39,0.08); }
 
-[data-theme="light"] .border-white\/5 { border-color: rgba(17,24,39,0.08); }
-[data-theme="light"] .border-white\/6 { border-color: rgba(17,24,39,0.09); }
-[data-theme="light"] .border-white\/8 { border-color: rgba(17,24,39,0.11); }
-[data-theme="light"] .border-white\/10 { border-color: rgba(17,24,39,0.13); }
-[data-theme="light"] .border-white\/15 { border-color: rgba(17,24,39,0.16); }
-[data-theme="light"] .border-white\/20 { border-color: rgba(17,24,39,0.20); }
+.border-white\/5 { border-color: rgba(17,24,39,0.08); }
+.border-white\/6 { border-color: rgba(17,24,39,0.09); }
+.border-white\/8 { border-color: rgba(17,24,39,0.11); }
+.border-white\/10 { border-color: rgba(17,24,39,0.13); }
+.border-white\/15 { border-color: rgba(17,24,39,0.16); }
+.border-white\/20 { border-color: rgba(17,24,39,0.20); }
 
 .bt-hover-row { transition: background 0.12s ease; }
 .bt-hover-row:hover { background: var(--card-hover); }
 
-[data-theme="light"] .divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.07); }
-[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.08); }
+.divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.07); }
+.divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.08); }
 
 /* ── Light-mode flips for hardcoded slate dark utilities ──
    Used by portfolio forms, the AI Recommendations card, charts, etc. These are
    app surfaces (not intentional-dark elements), so they should follow the theme. */
-[data-theme="light"] .bg-slate-950 { background-color: var(--bg-base); }
-[data-theme="light"] .bg-slate-900 { background-color: var(--bg-card); }
-[data-theme="light"] .bg-slate-800 { background-color: var(--surface-006); }
-[data-theme="light"] .bg-slate-700 { background-color: var(--surface-008); }
-[data-theme="light"] .bg-slate-800\/40 { background-color: var(--surface-004); }
-[data-theme="light"] .border-slate-900,
-[data-theme="light"] .border-slate-800 { border-color: var(--card-border); }
-[data-theme="light"] .border-slate-700 { border-color: var(--border-strong); }
+.bg-slate-950 { background-color: var(--bg-base); }
+.bg-slate-900 { background-color: var(--bg-card); }
+.bg-slate-800 { background-color: var(--surface-006); }
+.bg-slate-700 { background-color: var(--surface-008); }
+.bg-slate-800\/40 { background-color: var(--surface-004); }
+.border-slate-900,
+.border-slate-800 { border-color: var(--card-border); }
+.border-slate-700 { border-color: var(--border-strong); }
 /* Flip near-white heading/body text ONLY inside flipped slate cards (never buttons/links). */
-[data-theme="light"] :is(.bg-slate-950,.bg-slate-900,.bg-slate-800) :where(h1,h2,h3,h4,h5,p,li,dt,dd,label,td,th,figcaption).text-white { color: var(--text-primary); }
+:is(.bg-slate-950,.bg-slate-900,.bg-slate-800) :where(h1,h2,h3,h4,h5,p,li,dt,dd,label,td,th,figcaption).text-white { color: var(--text-primary); }
 /* Secondary slate text reads too light on white — darken for contrast.
    (slate-500/600 stay; they're already readable as muted labels on white.) */
-[data-theme="light"] .text-slate-200,
-[data-theme="light"] .text-slate-300,
-[data-theme="light"] .text-slate-400 { color: var(--text-secondary); }
+.text-slate-200,
+.text-slate-300,
+.text-slate-400 { color: var(--text-secondary); }
 /* Ghost/text buttons go slate→white on hover; in light they must go slate→dark. */
-[data-theme="light"] .hover\:text-white:hover { color: var(--text-primary); }
+.hover\:text-white:hover { color: var(--text-primary); }
 /* Brokerage pill hardcodes light-blue text (invisible on light tint) — darken. */
-[data-theme="light"] .bt-pill-brokerage { background: rgba(37,99,235,0.1); color: #1d4ed8; border-color: rgba(37,99,235,0.25); }
+.bt-pill-brokerage { background: var(--violet-bg); color: var(--violet); border-color: var(--violet-border); }
 
 /* Light accent text (the -300/-400 shades) is washed out on white/light tints.
    Map each hue to a darker, readable shade. Covers P&L colors, badges, alerts,
    the Archive button, etc. In light mode every surface is light, so darkening
    accent text is always the correct direction. */
-[data-theme="light"] .text-red-300,
-[data-theme="light"] .text-red-400 { color: #dc2626; }
-[data-theme="light"] .text-emerald-300,
-[data-theme="light"] .text-emerald-400 { color: #059669; }
-[data-theme="light"] .text-blue-300,
-[data-theme="light"] .text-blue-400 { color: #1d4ed8; }
-[data-theme="light"] .text-amber-300,
-[data-theme="light"] .text-amber-400 { color: #b45309; }
-[data-theme="light"] .text-yellow-300 { color: #a16207; }
-[data-theme="light"] .text-purple-300 { color: #7e22ce; }
-[data-theme="light"] .text-violet-400 { color: #7c3aed; }
+.text-red-300,
+.text-red-400 { color: #dc2626; }
+.text-emerald-300,
+.text-emerald-400 { color: var(--green); }
+.text-blue-300,
+.text-blue-400 { color: var(--brand-blue); }
+.text-amber-300,
+.text-amber-400 { color: #b45309; }
+.text-yellow-300 { color: #a16207; }
+.text-purple-300 { color: #7e22ce; }
+.text-violet-400 { color: var(--violet); }
 
 /* ── Base resets ── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -584,7 +538,7 @@ body {
 .bt-stagger > *:nth-child(8) { animation-delay: 0.37s; }
 
 .bt-lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
-.bt-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.bt-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(20,30,20,0.14); }
 
 .bt-private-val { transition: filter 0.2s ease, opacity 0.2s ease; }
 .bt-private-val.hidden { filter: blur(6px); opacity: 0.4; user-select: none; }
@@ -973,7 +927,7 @@ body {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
+    background: rgba(20,30,20,0.45);
     z-index: 55;
     animation: bt-fade-in 0.2s ease both;
     backdrop-filter: blur(2px);
@@ -1012,3 +966,29 @@ body {
   50%       { opacity: 1;    transform: scaleY(1); }
 }
 
+
+/* ── Sidebar dark-panel scope (Sage) ──
+   The sidebar is the one remaining dark surface. Its inline styles consume the
+   standard tokens, so re-scoping the tokens here re-themes every element inside
+   without touching the component. */
+.bt-sidebar {
+  --text-primary: var(--dark-panel-text);
+  --text-secondary: oklch(0.78 0.02 150);
+  --text-tertiary: var(--dark-panel-muted);
+  --text-muted: var(--dark-panel-label);
+  --surface-004: rgba(255,255,255,0.06);
+  --surface-005: rgba(255,255,255,0.07);
+  --surface-006: rgba(255,255,255,0.08);
+  --border-subtle: var(--dark-panel-line);
+  --card-border: var(--dark-panel-line);
+  --card-bg: rgba(255,255,255,0.05);
+  --card-hover: rgba(255,255,255,0.08);
+  --nav-active-bg: var(--dark-panel-active-bg);
+  --nav-active-text: var(--dark-panel-active-text);
+  --nav-active-border: rgba(63,174,74,0.32);
+  --green: var(--dark-panel-green);
+}
+.bt-sidebar .label {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--dark-panel-label);
+}

@@ -96,7 +96,7 @@ export default function UsernameSetupPage() {
         .ifield::placeholder { color: #334155; }
         .ifield.valid { border-color: rgba(0,211,149,0.4); }
         .ifield.invalid { border-color: rgba(255,92,92,0.4); }
-        .sbtn { width: 100%; padding: 13px; background: linear-gradient(135deg, #2563eb, #7c3aed); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: all 0.2s; }
+        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: all 0.2s; }
         .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(37,99,235,0.5); transform: translateY(-1px); }
         .sbtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
       `}</style>
@@ -104,7 +104,7 @@ export default function UsernameSetupPage() {
       <div style={{ width: "100%", maxWidth: "440px" }}>
         {/* Logo */}
         <div className="fu0" style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "40px", justifyContent: "center" }}>
-          <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: "32px", height: "32px", background: "var(--brand-gradient)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <BrandGlyph size={14} strokeWidth={2.6} />
           </div>
           <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "#fff" }}>

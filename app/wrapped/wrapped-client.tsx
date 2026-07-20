@@ -71,7 +71,7 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
 
         {/* Header */}
         <div className="bt-wr-card" style={{ textAlign: "center", marginBottom: "4px" }}>
-          <div style={{ display: "inline-flex", width: "44px", height: "44px", borderRadius: "13px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
+          <div style={{ display: "inline-flex", width: "44px", height: "44px", borderRadius: "13px", background: "var(--brand-gradient)", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
             <BrandGlyph size={26} stroke="#fff" strokeWidth={3.4} />
           </div>
           <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent, #818cf8)" }}>{stats.year} in Review</div>
@@ -102,7 +102,7 @@ export default function WrappedClient({ stats }: { stats: WrappedStats }) {
         {/* Closing + share */}
         <div className="bt-wr-card" style={{ animationDelay: `${slides.length * 90}ms`, textAlign: "center", marginTop: "6px" }}>
           <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", margin: "0 0 14px" }}>Here&apos;s to {stats.year + 1} 🥂</p>
-          <button type="button" onClick={share} style={{ width: "100%", padding: "13px", borderRadius: "14px", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={share} style={{ width: "100%", padding: "13px", borderRadius: "14px", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             {shared ? "Copied to clipboard ✓" : "Share my year"}
           </button>
           <Link href="/dashboard" style={{ display: "inline-block", marginTop: "14px", fontSize: "12px", color: "var(--text-tertiary)", textDecoration: "none" }}>← Back to dashboard</Link>

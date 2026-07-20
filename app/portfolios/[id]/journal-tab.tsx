@@ -171,7 +171,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <button type="button" onClick={save} disabled={pending || !ticker.trim() || !thesis.trim()}
             style={{ padding: "9px 18px", borderRadius: "var(--radius-md)", border: "none", fontSize: "13px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)",
-              background: pending || !ticker.trim() || !thesis.trim() ? "var(--bg-elevated, #1e293b)" : "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff" }}>
+              background: pending || !ticker.trim() || !thesis.trim() ? "var(--bg-elevated, #1e293b)" : "var(--brand-gradient)", color: "#fff" }}>
             {pending ? "Saving…" : "Log decision"}
           </button>
           {error && <span style={{ fontSize: "12px", color: "var(--red)" }}>{error}</span>}
@@ -236,7 +236,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
                     <textarea value={reviewText} onChange={(ev) => setReviewText(ev.target.value)} rows={2} maxLength={2000}
                       placeholder="Did your thesis hold up? What did you learn?" style={{ ...inputStyle, resize: "vertical" }} />
                     <div style={{ display: "flex", gap: "8px" }}>
-                      <button type="button" onClick={() => submitReview(e.id)} disabled={pending} style={{ padding: "6px 14px", borderRadius: "var(--radius-md)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Save reflection</button>
+                      <button type="button" onClick={() => submitReview(e.id)} disabled={pending} style={{ padding: "6px 14px", borderRadius: "var(--radius-md)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Save reflection</button>
                       <button type="button" onClick={() => setReviewing(null)} style={{ padding: "6px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>
                     </div>
                   </div>

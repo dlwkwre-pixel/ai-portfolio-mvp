@@ -137,7 +137,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
               You&apos;re signed in as a different account. Sign out and sign back in as <strong style={{ color: "#94a3b8" }}>{hint}</strong> to view this portfolio.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <a href="/login" style={{ display: "block", padding: "12px", background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: "10px", color: "#fff", textDecoration: "none", fontSize: "14px", fontWeight: 600 }}>
+              <a href="/login" style={{ display: "block", padding: "12px", background: "var(--brand-gradient)", borderRadius: "10px", color: "#fff", textDecoration: "none", fontSize: "14px", fontWeight: 600 }}>
                 Switch accounts
               </a>
               <a href="/portfolios" style={{ display: "block", padding: "12px", background: "var(--surface-004)", border: "1px solid var(--line-008)", borderRadius: "10px", color: "#94a3b8", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>

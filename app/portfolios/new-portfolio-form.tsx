@@ -122,7 +122,7 @@ export default function NewPortfolioForm() {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-        style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+        style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
       >
         {open ? "Cancel" : "+ New Portfolio"}
       </button>
@@ -221,7 +221,7 @@ export default function NewPortfolioForm() {
                     setErrorMessage(""); setStep(2);
                   }}
                   className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+                  style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
                 >
                   Next: Add Holdings →
                 </button>
@@ -368,7 +368,7 @@ export default function NewPortfolioForm() {
                   onClick={handleSubmit}
                   disabled={isPending}
                   className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+                  style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
                 >
                   {isPending ? "Creating..." : `Create Portfolio${holdings.length > 0 ? ` with ${holdings.length} holding${holdings.length !== 1 ? "s" : ""}` : ""}`}
                 </button>

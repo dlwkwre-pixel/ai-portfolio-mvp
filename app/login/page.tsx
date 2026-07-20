@@ -43,7 +43,7 @@ function LoginForm() {
         .ifield { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #e2e8f0; font-size: 14px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
         .ifield:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
         .ifield::placeholder { color: #334155; }
-        .sbtn { width: 100%; padding: 13px; background: linear-gradient(135deg, #2563eb, #7c3aed); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: box-shadow 0.2s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1); }
+        .sbtn { width: 100%; padding: 13px; background: var(--brand-gradient); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; box-shadow: 0 4px 20px rgba(37,99,235,0.35); transition: box-shadow 0.2s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1); }
         @media (hover: hover) and (pointer: fine) { .sbtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(37,99,235,0.5); transform: translateY(-1px); } }
         .sbtn:active:not(:disabled) { transform: scale(0.97); }
         .sbtn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -68,7 +68,7 @@ function LoginForm() {
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 70% 50% at 30% 40%, rgba(37,99,235,0.12), transparent 60%), radial-gradient(ellipse 40% 40% at 80% 80%, rgba(124,58,237,0.08), transparent 50%)" }} />
 
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none", position: "relative", zIndex: 1 }}>
-          <div style={{ width: "36px", height: "36px", minWidth: "36px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,99,235,0.4)" }}>
+          <div style={{ width: "36px", height: "36px", minWidth: "36px", background: "var(--brand-gradient)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37,99,235,0.4)" }}>
             <BrandGlyph size={18} strokeWidth={2.4} />
           </div>
           <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "17px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
@@ -156,7 +156,7 @@ function LoginForm() {
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 24px" }}>
         <div style={{ width: "100%", maxWidth: "400px" }}>
           <Link href="/" className="mobile-logo" style={{ display: "flex", alignItems: "center", gap: "9px", textDecoration: "none", marginBottom: "40px", justifyContent: "center" }}>
-            <div style={{ width: "30px", height: "30px", minWidth: "30px", background: "linear-gradient(135deg, #2563eb, #7c3aed)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "30px", height: "30px", minWidth: "30px", background: "var(--brand-gradient)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <BrandGlyph size={14} strokeWidth={2.6} />
             </div>
             <span style={{ fontFamily: "var(--font-logo)", fontWeight: 700, fontSize: "16px", color: "#fff", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>

@@ -64,7 +64,7 @@ export default function AdminNav() {
               fontWeight: active ? 600 : 500,
               textDecoration: "none",
               color: active ? "#fff" : "var(--text-tertiary)",
-              background: active ? "linear-gradient(135deg,#2563eb,#4f46e5)" : "transparent",
+              background: active ? "var(--brand-gradient)" : "transparent",
               border: `1px solid ${active ? "transparent" : "var(--border-subtle, rgba(255,255,255,0.1))"}`,
             }}
           >

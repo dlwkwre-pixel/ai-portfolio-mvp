@@ -289,7 +289,7 @@ function Composer({ me, myStrategies, myPortfolios, onPosted }: {
             )}
             <div style={{ flex: 1 }} />
             <button type="button" onClick={submit} disabled={!body.trim() || pending}
-              style={{ padding: "8px 18px", borderRadius: "var(--radius-full)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", opacity: !body.trim() || pending ? 0.5 : 1 }}>
+              style={{ padding: "8px 18px", borderRadius: "var(--radius-full)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", opacity: !body.trim() || pending ? 0.5 : 1 }}>
               {pending ? "Posting…" : "Post"}
             </button>
           </div>

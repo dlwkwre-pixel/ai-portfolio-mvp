@@ -102,7 +102,7 @@ export default function EditCashBalanceButton({
           onClick={handleSave}
           disabled={isPending}
           className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", whiteSpace: "nowrap" }}
+          style={{ background: "var(--brand-gradient)", whiteSpace: "nowrap" }}
         >
           {isPending ? "Saving…" : "Set Balance"}
         </button>

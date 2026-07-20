@@ -158,7 +158,7 @@ export default function PricingSurveyCard({ hasResponded }: { hasResponded: bool
                 fontWeight: 700,
                 border: "none",
                 cursor: "pointer",
-                background: "linear-gradient(135deg, #2563eb, #4f46e5)",
+                background: "var(--brand-gradient)",
                 color: "#fff",
                 opacity: isPending || (features.length === 0 && !price) ? 0.5 : 1,
                 minHeight: "36px",

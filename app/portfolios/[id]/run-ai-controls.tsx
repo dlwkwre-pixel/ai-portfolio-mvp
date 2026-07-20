@@ -219,7 +219,7 @@ export default function RunAiControls({
             onClick={handleRunAi}
             disabled={isDisabled}
             className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-            style={isDisabled ? {} : { background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+            style={isDisabled ? {} : { background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
           >
             {isPending ? (
               <>
@@ -316,7 +316,7 @@ export default function RunAiControls({
                 onClick={handleSecondaryRun}
                 disabled={isSecondaryPending || !feedbackNote.trim()}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition"
-                style={isSecondaryPending || !feedbackNote.trim() ? {} : { background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+                style={isSecondaryPending || !feedbackNote.trim() ? {} : { background: "var(--brand-gradient)" }}
               >
                 {isSecondaryPending ? (
                   <>

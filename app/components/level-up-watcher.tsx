@@ -83,7 +83,7 @@ export default function LevelUpWatcher() {
       >
         <div style={{
           width: "72px", height: "72px", margin: "0 auto 16px", borderRadius: "20px",
-          background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex",
+          background: "var(--brand-gradient)", display: "flex",
           alignItems: "center", justifyContent: "center", boxShadow: "0 10px 28px rgba(37,99,235,0.45)",
         }}>
           <span style={{ fontSize: "30px", fontWeight: 800, color: "#fff", fontFamily: "var(--font-mono)" }}>{celebrating}</span>
@@ -98,7 +98,7 @@ export default function LevelUpWatcher() {
           Nice work staying active. Keep adding holdings, running analyses, and finishing weekly challenges to climb higher.
         </p>
         <div style={{ display: "flex", gap: "8px" }}>
-          <Link href="/achievements" onClick={() => setCelebrating(null)} style={{ flex: 1, padding: "10px 16px", borderRadius: "12px", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/achievements" onClick={() => setCelebrating(null)} style={{ flex: 1, padding: "10px 16px", borderRadius: "12px", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
             View achievements
           </Link>
           <button type="button" onClick={() => setCelebrating(null)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>

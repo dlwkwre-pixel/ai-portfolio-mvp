@@ -325,7 +325,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                   Run an AI analysis on that portfolio to get recommendations based on it.
                 </div>
               </div>
-              <a href={`/portfolios/${assignedTo.id}`} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <a href={`/portfolios/${assignedTo.id}`} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Open portfolio →
               </a>
               <button type="button" onClick={() => setCreated(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Done</button>
@@ -357,7 +357,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                   type="button"
                   onClick={handleAssign}
                   disabled={isAssignPending || !assignTarget}
-                  style={{ padding: "8px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isAssignPending ? 0.6 : 1, whiteSpace: "nowrap" }}
+                  style={{ padding: "8px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", cursor: "pointer", opacity: isAssignPending ? 0.6 : 1, whiteSpace: "nowrap" }}
                 >
                   {isAssignPending ? "Applying…" : "Apply to portfolio"}
                 </button>
@@ -377,7 +377,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>&ldquo;{created.name}&rdquo; created</div>
                 <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginTop: "1px" }}>Create a portfolio to put this strategy to work.</div>
               </div>
-              <a href="/portfolios" style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+              <a href="/portfolios" style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Create a portfolio →
               </a>
               <button type="button" onClick={() => setCreated(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Done</button>
@@ -438,7 +438,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                   Answer a few quick questions about your goals and risk. Atlas sets your position sizing and cash rules and writes the AI instruction prompt for you. About 60 seconds.
                 </p>
                 <button type="button" onClick={() => setShowFinn(true)}
-                  style={{ padding: "9px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg, #2563eb, #4f46e5)", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  style={{ padding: "9px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   Start with Atlas
                   <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
                 </button>
@@ -524,7 +524,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 )}
                 <div style={{ gridColumn: "1 / -1", display: "flex", gap: "8px" }}>
                   <button type="submit" disabled={isManualPending}
-                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}>
+                    style={{ padding: "8px 18px", borderRadius: "var(--radius-xl)", fontSize: "13px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", cursor: "pointer", opacity: isManualPending ? 0.6 : 1 }}>
                     {isManualPending ? "Creating..." : "Create strategy"}
                   </button>
                   <button type="button" onClick={() => setMethod("ai-builder")}
@@ -699,7 +699,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                         type="button"
                         onClick={() => handleUseTemplate(t)}
                         disabled={!!creatingTemplate}
-                        style={{ padding: "6px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: isCreating ? "rgba(37,99,235,0.5)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: creatingTemplate ? "default" : "pointer", opacity: creatingTemplate && !isCreating ? 0.5 : 1 }}
+                        style={{ padding: "6px 12px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: isCreating ? "rgba(37,99,235,0.5)" : "var(--brand-gradient)", border: "none", cursor: creatingTemplate ? "default" : "pointer", opacity: creatingTemplate && !isCreating ? 0.5 : 1 }}
                       >
                         {isCreating ? "Creating..." : "Use template"}
                       </button>

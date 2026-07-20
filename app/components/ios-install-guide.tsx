@@ -160,7 +160,7 @@ export default function IosInstallGuide() {
             <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.1px" }}>Install BuyTune</div>
             <div style={{ fontSize: "11.5px", color: "var(--text-tertiary)", marginTop: "1px" }}>Add it to your Home Screen for a full-screen app.</div>
           </div>
-          <button type="button" onClick={openModal} style={{ flexShrink: 0, padding: "8px 13px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={openModal} style={{ flexShrink: 0, padding: "8px 13px", borderRadius: "10px", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             Show me
           </button>
           <button type="button" onClick={dismissNudge} aria-label="Dismiss" style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "2px 4px" }}>
@@ -201,7 +201,7 @@ export default function IosInstallGuide() {
               {step > 0 && (
                 <button type="button" onClick={() => setStep((p) => p - 1)} style={{ padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Back</button>
               )}
-              <button type="button" onClick={() => (last ? setModalOpen(false) : setStep((p) => p + 1))} style={{ flex: 1, padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+              <button type="button" onClick={() => (last ? setModalOpen(false) : setStep((p) => p + 1))} style={{ flex: 1, padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
                 {last ? "Done" : "Next"}
               </button>
             </div>

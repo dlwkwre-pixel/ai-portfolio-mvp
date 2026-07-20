@@ -98,7 +98,7 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
             </div>
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why are you watching it? (optional)" maxLength={300} style={inputStyle} />
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button type="button" onClick={add} disabled={pending || !ticker.trim()} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: pending || !ticker.trim() ? "var(--bg-elevated, #1e293b)" : "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff" }}>
+              <button type="button" onClick={add} disabled={pending || !ticker.trim()} style={{ padding: "9px 18px", borderRadius: "8px", border: "none", fontSize: "13px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: pending || !ticker.trim() ? "var(--bg-elevated, #1e293b)" : "var(--brand-gradient)", color: "#fff" }}>
                 {pending ? "Adding…" : "Add"}
               </button>
               {items.length > 0 && <button type="button" onClick={() => { setShowAdd(false); setError(""); }} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>}

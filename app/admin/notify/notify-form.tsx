@@ -51,7 +51,7 @@ export default function NotifyForm() {
         <button
           type="button" onClick={send} disabled={isPending || !title.trim() || !body.trim()}
           style={{
-            background: isPending || !title.trim() || !body.trim() ? "var(--bg-surface, #1e293b)" : "linear-gradient(135deg,#2563eb,#4f46e5)",
+            background: isPending || !title.trim() || !body.trim() ? "var(--bg-surface, #1e293b)" : "var(--brand-gradient)",
             color: "#fff", border: "none", borderRadius: "10px", padding: "10px 20px",
             fontSize: "14px", fontWeight: 600, cursor: isPending || !title.trim() || !body.trim() ? "not-allowed" : "pointer",
           }}

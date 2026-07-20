@@ -147,7 +147,7 @@ export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
                 type="submit"
                 disabled={isPending}
                 className="rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+                style={{ background: "var(--brand-gradient)" }}
               >
                 {isPending ? "Adding..." : "Save Holding"}
               </button>
@@ -292,7 +292,7 @@ export function EditHoldingForm({ holding, onClose }: EditHoldingFormProps) {
               type="submit"
               disabled={isPending}
               className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+              style={{ background: "var(--brand-gradient)" }}
             >
               {isPending ? "Saving..." : "Save Changes"}
             </button>

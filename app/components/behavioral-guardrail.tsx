@@ -109,7 +109,7 @@ export default function BehavioralGuardrail() {
 
         {/* Actions — friction before panic, not a sell button */}
         <div style={{ display: "flex", gap: "8px" }}>
-          <Link href="/planning" onClick={dismiss} style={{ flex: 1, textAlign: "center", padding: "9px 12px", borderRadius: "10px", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12.5px", fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/planning" onClick={dismiss} style={{ flex: 1, textAlign: "center", padding: "9px 12px", borderRadius: "10px", background: "var(--brand-gradient)", color: "#fff", fontSize: "12.5px", fontWeight: 700, textDecoration: "none" }}>
             Zoom out to my plan
           </Link>
           <button type="button" onClick={dismiss} style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>

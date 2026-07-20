@@ -316,7 +316,7 @@ export default function ConceptClient() {
               </div>
               <button type="button"
                 onClick={() => { setMonthlySave(Number(qsMonthly) || 2100); setFirstRun(false); setDrawKey((k) => k + 1); }}
-                style={{ padding: "13px 26px", borderRadius: "12px", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "14px", fontWeight: 700, color: "#fff", background: "linear-gradient(135deg, #2563eb, #7c3aed)", boxShadow: "0 4px 20px rgba(37,99,235,0.3)" }}>
+                style={{ padding: "13px 26px", borderRadius: "12px", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", fontSize: "14px", fontWeight: 700, color: "#fff", background: "var(--brand-gradient)", boxShadow: "0 4px 20px rgba(37,99,235,0.3)" }}>
                 Draw my trajectory
               </button>
               <p style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "12px" }}>No forms. No jargon. Refine it whenever you want.</p>
@@ -329,7 +329,7 @@ export default function ConceptClient() {
               <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 18px", borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retirement odds</span>
-                  <span style={{ width: "34px", height: "3px", borderRadius: "2px", background: "linear-gradient(135deg, #2563eb, #7c3aed)" }} />
+                  <span style={{ width: "34px", height: "3px", borderRadius: "2px", background: "var(--brand-gradient)" }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "34px", lineHeight: 1, color: probColor, letterSpacing: "-0.03em" }}>

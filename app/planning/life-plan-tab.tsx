@@ -269,7 +269,7 @@ export default function LifePlanTab({
               <button type="button" onClick={() => setAInflow(false)} style={{ padding: "7px 11px", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", border: "none", background: !aInflow ? "oklch(0.68 0.16 40 / 0.18)" : "transparent", color: !aInflow ? "oklch(0.72 0.16 40)" : "var(--text-tertiary)" }}>Cost</button>
               <button type="button" onClick={() => setAInflow(true)} style={{ padding: "7px 11px", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", border: "none", background: aInflow ? "oklch(0.72 0.19 145 / 0.16)" : "transparent", color: aInflow ? "oklch(0.74 0.18 150)" : "var(--text-tertiary)" }}>Gain</button>
             </div>
-            <button type="button" onClick={submitAdd} disabled={pending || !aLabel.trim() || !Number(aAmount)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "#fff", opacity: !aLabel.trim() || !Number(aAmount) ? 0.5 : 1 }}>Add draft</button>
+            <button type="button" onClick={submitAdd} disabled={pending || !aLabel.trim() || !Number(aAmount)} style={{ padding: "8px 16px", borderRadius: "8px", border: "none", fontSize: "12px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: "var(--brand-gradient)", color: "#fff", opacity: !aLabel.trim() || !Number(aAmount) ? 0.5 : 1 }}>Add draft</button>
           </div>
         )}
 

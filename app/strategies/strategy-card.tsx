@@ -950,7 +950,7 @@ export default function StrategyCardItem({
                     type="button"
                     disabled={isArchivePending}
                     onClick={() => startArchive(async () => { await unarchiveStrategy(card.id); router.refresh(); })}
-                    style={{ padding: "6px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", cursor: "pointer", opacity: isArchivePending ? 0.6 : 1, display: "flex", alignItems: "center", gap: "5px" }}
+                    style={{ padding: "6px 14px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", cursor: "pointer", opacity: isArchivePending ? 0.6 : 1, display: "flex", alignItems: "center", gap: "5px" }}
                   >
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
@@ -1044,7 +1044,7 @@ export default function StrategyCardItem({
                 )}
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button type="button" onClick={handleEditSubmit} disabled={isEditPending}
-                    style={{ padding: "7px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", opacity: isEditPending ? 0.6 : 1, border: "none", cursor: "pointer" }}>
+                    style={{ padding: "7px 16px", borderRadius: "var(--radius-xl)", fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", opacity: isEditPending ? 0.6 : 1, border: "none", cursor: "pointer" }}>
                     {isEditPending ? "Saving..." : "Save changes"}
                   </button>
                   <button type="button" onClick={() => setMode("expanded")}

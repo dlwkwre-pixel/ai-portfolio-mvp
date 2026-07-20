@@ -145,7 +145,7 @@ export function PortfolioStatCards({
                   disabled={isPending}
                   style={{
                     padding: "4px 10px",
-                    background: "linear-gradient(135deg,#2563eb,#4f46e5)",
+                    background: "var(--brand-gradient)",
                     border: "none",
                     borderRadius: "6px",
                     color: "white",

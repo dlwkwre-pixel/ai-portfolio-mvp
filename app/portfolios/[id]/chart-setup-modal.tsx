@@ -290,7 +290,7 @@ export default function ChartSetupModal({
               onClick={handleBuild}
               disabled={isPending || !allValid}
               className="w-full rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-40 transition"
-              style={{ background: "linear-gradient(135deg, #2563eb, #4f46e5)" }}
+              style={{ background: "var(--brand-gradient)" }}
             >
               {isPending ? "Building chart…" : "Confirm and build chart"}
             </button>

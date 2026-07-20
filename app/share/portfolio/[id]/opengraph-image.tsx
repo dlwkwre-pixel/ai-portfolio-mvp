@@ -77,7 +77,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "48px" }}>
           <div style={{
             width: "32px", height: "32px",
-            background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+            background: "linear-gradient(135deg, #3fae4a, #0ea5a0)",
             borderRadius: "8px",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>

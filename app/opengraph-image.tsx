@@ -32,7 +32,7 @@ export default function Image() {
         <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "40px" }}>
           <div style={{
             width: "48px", height: "48px",
-            background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+            background: "linear-gradient(135deg, #3fae4a, #0ea5a0)",
             borderRadius: "12px",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>

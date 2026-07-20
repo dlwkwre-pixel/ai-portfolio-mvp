@@ -79,7 +79,7 @@ export default function AddToPlanButton({
         />
         <button
           type="button" onClick={() => add("committed")} disabled={disabled}
-          style={{ padding: "7px 15px", borderRadius: "var(--radius-md)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: disabled ? 0.6 : 1, whiteSpace: "nowrap" }}
+          style={{ padding: "7px 15px", borderRadius: "var(--radius-md)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer", opacity: disabled ? 0.6 : 1, whiteSpace: "nowrap" }}
         >
           {pending ? "Adding…" : "Add to plan"}
         </button>

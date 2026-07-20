@@ -209,7 +209,7 @@ function BracketHeadroomCard({ h }: { h: BracketHeadroom }) {
             return (
               <div key={s.rate} style={{
                 flex: 1, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
-                background: active ? "linear-gradient(135deg,#2563eb,#7c3aed)" : "var(--bg-elevated, rgba(255,255,255,0.03))",
+                background: active ? "var(--brand-gradient)" : "var(--bg-elevated, rgba(255,255,255,0.03))",
                 borderRight: s.rate === 0.37 ? "none" : "1px solid var(--border-subtle)",
               }}>
                 <span style={{ fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-mono)", color: active ? "#fff" : "var(--text-tertiary)" }}>{Math.round(s.rate * 100)}</span>
@@ -818,7 +818,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
         {/* Pill tab switcher */}
         <div style={{ display: "flex", padding: "3px", background: "var(--bg-elevated)", borderRadius: "var(--radius-full)", marginBottom: "20px", border: "1px solid var(--border-subtle)", gap: "2px" }}>
           {TABS.map(t => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{ flex: 1, padding: "6px 10px", fontSize: "11px", fontWeight: tab === t.id ? 700 : 500, background: tab === t.id ? "linear-gradient(135deg,#2563eb,#4f46e5)" : "transparent", border: "none", borderRadius: "var(--radius-full)", cursor: "pointer", color: tab === t.id ? "#fff" : "var(--text-tertiary)", transition: "all 0.15s ease", whiteSpace: "nowrap" as const, position: "relative" as const }}>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} style={{ flex: 1, padding: "6px 10px", fontSize: "11px", fontWeight: tab === t.id ? 700 : 500, background: tab === t.id ? "var(--brand-gradient)" : "transparent", border: "none", borderRadius: "var(--radius-full)", cursor: "pointer", color: tab === t.id ? "#fff" : "var(--text-tertiary)", transition: "all 0.15s ease", whiteSpace: "nowrap" as const, position: "relative" as const }}>
               {t.label}
               {t.id === "trades" && washSaleWarnings.length > 0 && (
                 <span style={{ marginLeft: "4px", fontSize: "10px", padding: "0 5px", borderRadius: "var(--radius-full)", background: tab === t.id ? "rgba(255,255,255,0.25)" : "rgba(239,68,68,0.15)", color: tab === t.id ? "#fff" : "var(--red)" }}>{washSaleWarnings.length}</span>
@@ -1677,7 +1677,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
           <div className="finn-panel" style={{ background: "var(--card-bg)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(99,102,241,0.1)" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "linear-gradient(135deg,#2563eb,#4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--brand-gradient)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="13" height="13" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
                 </div>
                 <div>
@@ -1695,7 +1695,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "0 0 14px", lineHeight: 1.6 }}>
                     Atlas will analyze your income type, gains, and trading activity to write a personalized tax strategy.
                   </p>
-                  <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "10px", padding: "9px 22px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                  <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", borderRadius: "10px", padding: "9px 22px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
                     Run analysis
                   </button>
                 </div>
@@ -1734,7 +1734,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       <button
         type="button"
         onClick={() => setFinnPanelOpen(v => !v)}
-        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "linear-gradient(135deg,#2563eb,#4f46e5)", border: finnPanelOpen ? "1px solid rgba(99,102,241,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(37,99,235,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
+        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "var(--brand-gradient)", border: finnPanelOpen ? "1px solid rgba(99,102,241,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(37,99,235,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
       >
         {finnPanelOpen ? (
           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" /></svg>

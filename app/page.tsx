@@ -24,7 +24,7 @@ export default function LandingPage() {
 
         nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 48px;display:flex;align-items:center;justify-content:space-between;background:rgba(7,9,15,0.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.05)}
         .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-        .nav-mark{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,99,235,0.35)}
+        .nav-mark{width:32px;height:32px;background:var(--brand-gradient);border-radius:8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,99,235,0.35)}
         .nav-name{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#f0f4ff;letter-spacing:-0.3px}
         .nav-name span{color:#7c3aed}
         .nav-links{display:flex;gap:28px}
@@ -33,7 +33,7 @@ export default function LandingPage() {
         .nav-btns{display:flex;gap:8px;align-items:center}
         .btn-ghost{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:#94a3b8;background:transparent;border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:color 0.15s ease,border-color 0.15s ease}
         .btn-ghost:hover{color:#f0f4ff;border-color:rgba(255,255,255,0.18)}
-        .btn-primary{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;text-decoration:none;box-shadow:0 4px 16px rgba(37,99,235,0.28);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1)}
+        .btn-primary{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;background:var(--brand-gradient);border:none;text-decoration:none;box-shadow:0 4px 16px rgba(37,99,235,0.28);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1)}
         .btn-primary:hover{box-shadow:0 6px 24px rgba(37,99,235,0.5);transform:translateY(-1px)}
 
         /* Hero */
@@ -51,7 +51,7 @@ export default function LandingPage() {
         .hero-trust strong{color:#94a3b8;font-weight:600}
 
         .hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-        .btn-hero{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;text-decoration:none;box-shadow:0 8px 28px rgba(37,99,235,0.38);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+        .btn-hero{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;color:#fff;background:var(--brand-gradient);border:none;text-decoration:none;box-shadow:0 8px 28px rgba(37,99,235,0.38);transition:box-shadow 0.2s ease,transform 0.18s cubic-bezier(0.23,1,0.32,1);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
         .btn-hero:hover{box-shadow:0 12px 40px rgba(37,99,235,0.55);transform:translateY(-2px)}
         .btn-hero:active{transform:scale(0.97)}
         .btn-hero-ghost{padding:13px 28px;border-radius:10px;font-size:15px;font-weight:500;color:#94a3b8;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);text-decoration:none;transition:color 0.15s ease,border-color 0.15s ease;cursor:pointer}
@@ -611,7 +611,7 @@ export default function LandingPage() {
               }}>
                 <div style={{
                   width: "22px", height: "22px", flexShrink: 0, borderRadius: "50%",
-                  background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                  background: "var(--brand-gradient)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
                   <span style={{ fontSize: "9px", fontWeight: 700, color: "#fff" }}>A</span>
@@ -899,7 +899,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer>
         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <div style={{width:"20px",height:"20px",background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:"5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{width:"20px",height:"20px",background:"var(--brand-gradient)",borderRadius:"5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
             <BrandGlyph size={10} strokeWidth={3} />
           </div>
           <span style={{color:"#94a3b8"}}>BuyTune.io</span>

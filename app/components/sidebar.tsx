@@ -154,6 +154,48 @@ export default function Sidebar({
   const [signingOut, setSigningOut] = useTransition();
   // Admin page denylist: blocked sections vanish from the nav for this account.
   const blockedPages = useBlockedPages();
+
+  // Sage nav: 9 flat items became 3 labeled groups (Portfolio / Plan / Discover).
+  // One renderer for all groups; hrefs pick items so group order is explicit.
+  const allNavItems = [...navItems, ...discoverItems];
+  function renderNavGroup(hrefs: string[]) {
+    return hrefs
+      .map((href) => allNavItems.find((i) => i.href === href))
+      .filter((item): item is (typeof allNavItems)[number] => {
+        if (!item) return false;
+        const s = sectionForHref(item.href);
+        return !s || !blockedPages.has(s);
+      })
+      .map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "9px",
+              padding: "8px 10px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? "var(--nav-active-text)" : "var(--text-tertiary)",
+              background: isActive ? "var(--nav-active-bg)" : "transparent",
+              border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
+              textDecoration: "none",
+            }}
+          >
+            <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
+            {item.label}
+            {(item as { isNew?: boolean }).isNew && (
+              <span className="bt-badge bt-badge-new" style={{ marginLeft: "auto" }}>NEW</span>
+            )}
+          </Link>
+        );
+      });
+  }
   const [portfoliosOpen, setPortfoliosOpen] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
   const [streak, setStreak] = useState<number | null>(null);
@@ -207,7 +249,7 @@ export default function Sidebar({
   const isAdmin = !!userEmail && !!process.env.NEXT_PUBLIC_ADMIN_EMAIL && userEmail === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
   return (
-    <aside style={{
+    <aside className="bt-sidebar" style={{
       width: "220px",
       minWidth: "220px",
       background: "var(--sidebar-bg)",
@@ -264,7 +306,7 @@ export default function Sidebar({
       {totalValue !== null && totalValue !== undefined && (
         <div style={{
           margin: "12px 10px",
-          background: "rgba(37,99,235,0.08)",
+          background: "rgba(255,255,255,0.07)",
           border: "1px solid rgba(37,99,235,0.16)",
           borderRadius: "10px",
           padding: "11px 13px",
@@ -312,37 +354,11 @@ export default function Sidebar({
       {/* Navigation */}
       <nav style={{ flex: 1, padding: "4px 8px", display: "flex", flexDirection: "column", gap: "1px" }}>
 
-        <div className="label" style={{ padding: "8px 8px 3px" }}>Workspace</div>
+        <div className="label" style={{ padding: "8px 8px 3px" }}>Portfolio</div>
+        {renderNavGroup(["/dashboard", "/portfolios", "/connections"])}
 
-        {navItems.filter((item) => { const s = sectionForHref(item.href); return !s || !blockedPages.has(s); }).map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "9px",
-                padding: "8px 10px",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: isActive ? 500 : 400,
-                color: isActive ? "var(--nav-active-text)" : "var(--text-tertiary)",
-                background: isActive ? "var(--nav-active-bg)" : "transparent",
-                border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
-              {item.label}
-              {(item as { isNew?: boolean }).isNew && (
-                <span className="bt-badge bt-badge-new" style={{ marginLeft: "auto" }}>NEW</span>
-              )}
-            </Link>
-          );
-        })}
+        <div className="label" style={{ padding: "10px 8px 3px", marginTop: "4px" }}>Plan</div>
+        {renderNavGroup(["/planning", "/strategies", "/tax"])}
 
         {/* Portfolio switcher */}
         {portfolios.length > 1 && (
@@ -407,35 +423,7 @@ export default function Sidebar({
 
         <div className="label" style={{ padding: "10px 8px 3px", marginTop: "4px" }}>Discover</div>
 
-        {discoverItems.filter((item) => { const s = sectionForHref(item.href); return !s || !blockedPages.has(s); }).map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "9px",
-                padding: "8px 10px",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: isActive ? 500 : 400,
-                color: isActive ? "var(--nav-active-text)" : "var(--text-tertiary)",
-                background: isActive ? "var(--nav-active-bg)" : "transparent",
-                border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ opacity: isActive ? 1 : 0.6, display: "flex" }}>{item.icon}</span>
-              {item.label}
-              {item.isNew && (
-                <span className="bt-badge bt-badge-new" style={{ marginLeft: "auto" }}>NEW</span>
-              )}
-            </Link>
-          );
-        })}
+        {renderNavGroup(["/research", "/community", "/learn", "/achievements"])}
       </nav>
 
       {/* Footer */}

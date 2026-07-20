@@ -352,7 +352,7 @@ export default function Plan401kSection({
               <button
                 type="button" onClick={save} disabled={isPending}
                 style={{
-                  background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", border: "none",
+                  background: "var(--brand-gradient)", color: "#fff", border: "none",
                   borderRadius: "10px", padding: "9px 18px", fontSize: "13px", fontWeight: 600,
                   cursor: isPending ? "default" : "pointer", opacity: isPending ? 0.6 : 1,
                 }}

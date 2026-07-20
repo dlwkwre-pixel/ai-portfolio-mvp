@@ -237,7 +237,7 @@ export default function EquityClient({
           </div>
           {err && <div style={{ fontSize: "12px", color: "#f59e0b" }}>{err}</div>}
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={save} disabled={pending} style={{ padding: "9px 16px", borderRadius: "9px", border: "none", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)", opacity: pending ? 0.6 : 1 }}>{pending ? "Saving…" : "Save grant"}</button>
+            <button onClick={save} disabled={pending} style={{ padding: "9px 16px", borderRadius: "9px", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)", opacity: pending ? 0.6 : 1 }}>{pending ? "Saving…" : "Save grant"}</button>
             <button onClick={() => { setShowForm(false); setEditingId(null); }} disabled={pending} style={{ padding: "9px 16px", borderRadius: "9px", border: "1px solid var(--card-border)", background: "none", color: "var(--text-secondary)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>
           </div>
         </div>

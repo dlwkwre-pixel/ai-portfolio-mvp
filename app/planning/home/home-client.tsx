@@ -2309,7 +2309,7 @@ export default function HomeClient({
             type="button"
             onClick={handleSave}
             disabled={saveStatus === "saving"}
-            style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", opacity: saveStatus === "saving" ? 0.7 : 1 }}
+            style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", opacity: saveStatus === "saving" ? 0.7 : 1 }}
           >
             {saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved ✓" : "Save Scenario"}
           </button>
@@ -2510,7 +2510,7 @@ export default function HomeClient({
                         type="button"
                         onClick={handleSaveOwnerProfile}
                         disabled={ownerSaveStatus === "saving"}
-                        style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", opacity: ownerSaveStatus === "saving" ? 0.7 : 1 }}
+                        style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", opacity: ownerSaveStatus === "saving" ? 0.7 : 1 }}
                       >
                         {ownerSaveStatus === "saving" ? "Saving…" : ownerSaveStatus === "saved" ? "Saved ✓" : "Save"}
                       </button>
@@ -2584,7 +2584,7 @@ export default function HomeClient({
               <button
                 type="button"
                 onClick={handleStartPlanning}
-                style={{ fontSize: "13px", fontWeight: 600, color: "#fff", background: "linear-gradient(135deg,#2563eb,#4f46e5)", border: "none", borderRadius: "10px", padding: "10px 28px", cursor: "pointer", letterSpacing: "-0.1px" }}
+                style={{ fontSize: "13px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", border: "none", borderRadius: "10px", padding: "10px 28px", cursor: "pointer", letterSpacing: "-0.1px" }}
               >
                 Start Planning
               </button>

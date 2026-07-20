@@ -62,7 +62,7 @@ export default function AgreementsClient({ users, currentVersion }: { users: Agr
           {tabs.map((t) => (
             <button key={t.id} type="button" onClick={() => setFilter(t.id)}
               style={{ padding: "6px 12px", borderRadius: "999px", fontSize: "12px", fontWeight: filter === t.id ? 600 : 500, cursor: "pointer", fontFamily: "var(--font-body)",
-                color: filter === t.id ? "#fff" : "var(--text-tertiary)", background: filter === t.id ? "linear-gradient(135deg,#2563eb,#4f46e5)" : "transparent", border: `1px solid ${filter === t.id ? "transparent" : "var(--border-subtle)"}` }}>
+                color: filter === t.id ? "#fff" : "var(--text-tertiary)", background: filter === t.id ? "var(--brand-gradient)" : "transparent", border: `1px solid ${filter === t.id ? "transparent" : "var(--border-subtle)"}` }}>
               {t.label}
             </button>
           ))}

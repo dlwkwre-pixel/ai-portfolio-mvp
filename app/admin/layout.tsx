@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       }}>
         <div style={{ maxWidth: "1040px", margin: "0 auto", padding: "14px 24px", paddingTop: "calc(14px + env(safe-area-inset-top))", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginRight: "auto" }}>
-            <div style={{ width: "30px", height: "30px", background: "var(--brand-gradient, linear-gradient(135deg,#2563eb,#7c3aed))", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: "30px", height: "30px", background: "var(--brand-gradient, var(--brand-gradient))", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z" />
                 <path d="M9 12l2 2 4-4" />

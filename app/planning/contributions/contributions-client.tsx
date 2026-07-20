@@ -160,7 +160,7 @@ export default function ContributionsClient({ schedules, portfolios }: {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <button type="button" onClick={submit} disabled={pending}
-                style={{ padding: "9px 18px", borderRadius: "var(--radius-md)", border: "none", fontSize: "13px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff" }}>
+                style={{ padding: "9px 18px", borderRadius: "var(--radius-md)", border: "none", fontSize: "13px", fontWeight: 700, cursor: pending ? "wait" : "pointer", fontFamily: "var(--font-body)", background: "var(--brand-gradient)", color: "#fff" }}>
                 {pending ? "Saving…" : editing ? "Save changes" : "Schedule it"}
               </button>
               <button type="button" onClick={() => { resetForm(); setShowForm(false); }} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>

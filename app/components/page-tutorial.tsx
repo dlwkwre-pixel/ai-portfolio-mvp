@@ -84,7 +84,7 @@ export default function PageTutorial({ tutorialId }: { tutorialId: string }) {
           {step > 0 && (
             <button type="button" onClick={() => setStep((p) => p - 1)} style={{ padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", fontFamily: "var(--font-body)", cursor: "pointer" }}>Back</button>
           )}
-          <button type="button" onClick={() => (last ? dismiss() : setStep((p) => p + 1))} style={{ flex: 1, padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
+          <button type="button" onClick={() => (last ? dismiss() : setStep((p) => p + 1))} style={{ flex: 1, padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>
             {last ? "Got it" : "Next"}
           </button>
         </div>

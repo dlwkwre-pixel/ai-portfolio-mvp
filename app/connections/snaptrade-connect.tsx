@@ -297,7 +297,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                 <button type="button" onClick={() => { setReviewAccount(null); setRows([]); }} disabled={busy !== null}
                   style={{ ...btn, border: "1px solid var(--card-border)", background: "none", color: "var(--text-secondary)" }}>Cancel</button>
                 <button type="button" onClick={apply} disabled={busy !== null}
-                  style={{ ...btn, border: "none", background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+                  style={{ ...btn, border: "none", background: "var(--brand-gradient)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
                   {busy === "apply" ? "Importing…" : "Import selected"}
                 </button>
               </div>

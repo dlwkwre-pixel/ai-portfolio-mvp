@@ -126,7 +126,7 @@ export default function GoalsClient({ goals }: { goals: Goal[] }) {
             <input value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Saved so far $" inputMode="decimal" style={inputStyle} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button type="button" onClick={save} disabled={pending} style={{ padding: "9px 18px", borderRadius: "var(--radius-md)", border: "none", background: "linear-gradient(135deg,#2563eb,#4f46e5)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>{pending ? "Saving…" : editingId ? "Save changes" : "Add goal"}</button>
+            <button type="button" onClick={save} disabled={pending} style={{ padding: "9px 18px", borderRadius: "var(--radius-md)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>{pending ? "Saving…" : editingId ? "Save changes" : "Add goal"}</button>
             <button type="button" onClick={resetForm} style={{ padding: "9px 16px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Cancel</button>
             {error && <span style={{ fontSize: "12px", color: "var(--red)" }}>{error}</span>}
           </div>

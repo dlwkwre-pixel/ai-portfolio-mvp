@@ -23,7 +23,7 @@ export default function NewStrategyForm() {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-        style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
+        style={{ background: "var(--brand-gradient)", boxShadow: "0 4px 16px rgba(37,99,235,0.3)" }}
       >
         {isOpen ? "Cancel" : "+ New Strategy"}
       </button>
@@ -122,7 +122,7 @@ export default function NewStrategyForm() {
                 type="submit"
                 disabled={isPending}
                 className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg,#2563eb,#4f46e5)" }}
+                style={{ background: "var(--brand-gradient)" }}
               >
                 {isPending ? "Creating..." : "Create Strategy"}
               </button>

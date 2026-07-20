@@ -146,7 +146,7 @@ export default function ShareCardClient({
               style={{
                 width: "20px",
                 height: "20px",
-                background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                background: "linear-gradient(135deg, #3fae4a, #0ea5a0)",
                 borderRadius: "5px",
                 display: "flex",
                 alignItems: "center",
@@ -498,7 +498,7 @@ export default function ShareCardClient({
               gap: "5px",
               padding: "7px 14px",
               borderRadius: "8px",
-              background: "linear-gradient(135deg, #2563eb, #4f46e5)",
+              background: "linear-gradient(135deg, #3fae4a, #0ea5a0)",
               color: "#fff",
               fontSize: "11px",
               fontWeight: 600,
