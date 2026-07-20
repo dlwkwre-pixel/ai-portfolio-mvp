@@ -41,8 +41,8 @@ Adapted from everything-claude-code for the BuyTune.io Next.js/TypeScript codeba
 
 ## UI / Design
 
-- Dark theme only — use CSS tokens, never raw hex in component files
-- Gains/up = `var(--green)`, losses/down/errors = `var(--red)` — never Tailwind emerald/green/red literals (unlayered remaps in globals.css catch legacy classes)
+- Sage light-only theme (2026-07-18): warm sage surfaces, dark ink, green→teal brand gradient — use CSS tokens, never raw hex in component files. Dark mode is REMOVED; never reintroduce [data-theme] branching. The sidebar/footer/CTA bands are the only dark surfaces (--dark-panel tokens; re-scope via .bt-sidebar pattern)
+- Gains/up = `var(--green)` (#16a34a), losses/down = `var(--red)` (#dc4444), caution = `var(--amber)` — never Tailwind emerald/green/red literals. The brand gradient appears ONLY on CTAs and active-nav, NEVER adjacent to or behind numeric gain/loss values
 - Font sizes use the type-scale tokens (`--text-2xs` … `--text-lg`); floor is 10px — nothing user-facing smaller (numeric SVG chart ticks exempt)
 - Border radii use `--radius-sm/md/lg/xl/full`, not ad-hoc pixel values
 - Tailwind v4: arbitrary values with CSS vars use paren syntax `bg-(--bg-base)` — the bracket form `bg-[var(--x)]` silently generates NO utility
