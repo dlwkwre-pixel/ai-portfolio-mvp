@@ -274,23 +274,25 @@ export const BADGE_MAP = new Map(BADGES.map((b) => [b.id, b]));
 
 // Tiers are tuned to read as clearly distinct: bronze = muted copper-brown,
 // silver = cool platinum, gold = bright yellow-gold, legendary = violet.
+// Medal tiers, darkened for legibility on the Sage light ground (the metallic
+// dark-mode values — esp. platinum silver — vanished on light; user QA 2026-07-20).
 export const TIER_COLOR: Record<BadgeTier, string> = {
-  bronze:    "#b87333", // copper brown
-  silver:    "#cbd5e1", // bright platinum
-  gold:      "#fbbf24", // vivid yellow-gold
-  legendary: "#a855f7", // violet
+  bronze:    "#a5622a", // copper brown
+  silver:    "#6b7885", // pewter (was near-white platinum)
+  gold:      "#b8860b", // deep gold
+  legendary: "#9333ea", // violet
 };
 
 export const TIER_BG: Record<BadgeTier, string> = {
-  bronze:    "rgba(184,115,51,0.12)",
-  silver:    "rgba(203,213,225,0.10)",
-  gold:      "rgba(251,191,36,0.13)",
-  legendary: "rgba(168,85,247,0.12)",
+  bronze:    "rgba(165,98,42,0.14)",
+  silver:    "rgba(107,120,133,0.13)",
+  gold:      "rgba(184,134,11,0.15)",
+  legendary: "rgba(147,51,234,0.13)",
 };
 
 export const TIER_BORDER: Record<BadgeTier, string> = {
-  bronze:    "rgba(184,115,51,0.32)",
-  silver:    "rgba(203,213,225,0.24)",
-  gold:      "rgba(251,191,36,0.34)",
-  legendary: "rgba(168,85,247,0.30)",
+  bronze:    "rgba(165,98,42,0.42)",
+  silver:    "rgba(107,120,133,0.36)",
+  gold:      "rgba(184,134,11,0.44)",
+  legendary: "rgba(147,51,234,0.4)",
 };

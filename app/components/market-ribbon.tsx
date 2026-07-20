@@ -63,12 +63,10 @@ export default function MarketRibbon() {
   return (
     <div style={{
       overflow: "hidden",
-      // Landing page is always dark — keep fixed dark values so the ribbon never
-      // flips to white when a logged-in user has light theme set.
-      borderTop: "1px solid var(--line-004)",
-      borderBottom: "1px solid var(--line-004)",
+      borderTop: "1px solid var(--line-006)",
+      borderBottom: "1px solid var(--line-006)",
       padding: "9px 0",
-      background: "var(--surface-002)",
+      background: "var(--surface-003)",
       position: "relative",
     }}>
 
@@ -96,11 +94,11 @@ export default function MarketRibbon() {
           }}>
             <span style={{ color: "var(--text-tertiary)", fontWeight: 500 }}>{q.ticker}</span>
             {loading || q.price === 0 ? (
-              <span style={{ color: "#1e293b" }}>—</span>
+              <span style={{ color: "var(--text-muted)" }}>—</span>
             ) : (
               <>
-                <span style={{ color: "#94a3b8" }}>${fmt(q.price)}</span>
-                <span style={{ color: q.isUp ? "#00d395" : "#ff5c5c" }}>
+                <span style={{ color: "var(--text-secondary)" }}>${fmt(q.price)}</span>
+                <span style={{ color: q.isUp ? "var(--green)" : "var(--red)" }}>
                   {q.isUp ? "+" : ""}{fmt(q.changePct)}%
                 </span>
               </>
@@ -112,7 +110,7 @@ export default function MarketRibbon() {
         <div style={{
           textAlign: "center",
           fontSize: "10px",
-          color: "#1e293b",
+          color: "var(--text-muted)",
           marginTop: "5px",
           letterSpacing: "0.05em",
         }}>

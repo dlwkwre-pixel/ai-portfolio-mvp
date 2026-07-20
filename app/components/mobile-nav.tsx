@@ -25,7 +25,9 @@ export default function MobileNav() {
       alignItems: "center",
       gap: "6px",
       borderBottom: "1px solid var(--border-subtle)",
-      background: "var(--sidebar-bg)",
+      // Light top bar — only the left sidebar is a dark panel in Sage; a dark
+      // top bar too made the app read "double dark" (user QA 2026-07-20).
+      background: "var(--bg-surface)",
       padding: "8px 12px",
       fontFamily: "var(--font-body)",
     }}>

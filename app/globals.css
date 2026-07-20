@@ -6,14 +6,17 @@
    ONLY — never adjacent to numeric gain/loss values, which stay on the solid
    signal tokens). Values from the Sage handoff packet; oklch kept as authored. */
 :root {
-  --bg-base:        oklch(0.91 0.04 150);
-  --bg-surface:     oklch(0.955 0.02 150);
-  --bg-elevated:    oklch(0.97 0.015 150);
-  --bg-overlay:     oklch(0.88 0.035 150);
+  /* Base kept warm sage; cards brightened toward white so they separate clearly
+     from the ground (0.955→0.98 was too subtle — user QA 2026-07-20). Borders
+     strengthened for the same reason. */
+  --bg-base:        oklch(0.9 0.042 150);
+  --bg-surface:     oklch(0.985 0.01 150);
+  --bg-elevated:    oklch(0.995 0.005 150);
+  --bg-overlay:     oklch(0.87 0.035 150);
 
-  --border:         rgba(20,30,20,0.10);
-  --border-subtle:  rgba(20,30,20,0.06);
-  --border-strong:  rgba(20,30,20,0.16);
+  --border:         rgba(20,30,20,0.14);
+  --border-subtle:  rgba(20,30,20,0.10);
+  --border-strong:  rgba(20,30,20,0.2);
 
   --text-primary:   oklch(0.2 0.03 150);
   --text-secondary: oklch(0.4 0.03 150);
@@ -29,9 +32,10 @@
   --green:          #16a34a;
   --green-bg:       rgba(22, 163, 74, 0.09);
   --green-border:   rgba(22, 163, 74, 0.22);
-  --red:            #dc4444;
-  --red-bg:         rgba(220, 68, 68, 0.08);
-  --red-border:     rgba(220, 68, 68, 0.2);
+  /* deeper, more saturated red — #dc4444 read washed-out on the light ground (QA) */
+  --red:            #dc2626;
+  --red-bg:         rgba(220, 38, 38, 0.09);
+  --red-border:     rgba(220, 38, 38, 0.24);
   --amber:          #c8791e;
   --amber-bg:       rgba(200, 121, 30, 0.08);
   --amber-border:   rgba(200, 121, 30, 0.25);
@@ -39,8 +43,8 @@
   --violet-bg:      rgba(14, 165, 160, 0.08);
   --violet-border:  rgba(14, 165, 160, 0.2);
 
-  --card-bg:        oklch(0.955 0.02 150);
-  --card-border:    rgba(20,30,20,0.08);
+  --card-bg:        oklch(0.985 0.01 150);
+  --card-border:    rgba(20,30,20,0.13);
   --card-hover:     rgba(20,30,20,0.045);
   --bg-card:        var(--bg-surface);
 
@@ -104,13 +108,13 @@
 
   /* ── Elevation surfaces — low tiers are near-solid sage cards, higher tiers
      become faint ink insets/hovers on the light ground. */
-  --surface-002:  oklch(0.965 0.018 150);
-  --surface-003:  oklch(0.965 0.018 150);
-  --surface-004:  oklch(0.96 0.02 150);
-  --surface-005:  rgba(20,30,20,0.04);
-  --surface-006:  rgba(20,30,20,0.05);
-  --surface-008:  rgba(20,30,20,0.065);
-  --surface-010:  rgba(20,30,20,0.08);
+  --surface-002:  oklch(0.985 0.01 150);
+  --surface-003:  oklch(0.985 0.01 150);
+  --surface-004:  oklch(0.98 0.012 150);
+  --surface-005:  rgba(20,30,20,0.05);
+  --surface-006:  rgba(20,30,20,0.07);
+  --surface-008:  rgba(20,30,20,0.09);
+  --surface-010:  rgba(20,30,20,0.11);
 
   /* ── Hero banners (estate "Protect Your Plan", Ask Atlas snapshot) ──
      Formerly violet; now a subtle teal-sage tint that sits on the light ground. */
@@ -120,12 +124,13 @@
   --hero-violet-text:   var(--text-secondary);
   --hero-violet-label:  var(--text-tertiary);
 
-  /* ── Hairline borders — soft ink lines on the sage ground. */
-  --line-004:     rgba(20,30,20,0.06);
-  --line-006:     rgba(20,30,20,0.08);
-  --line-007:     rgba(20,30,20,0.09);
-  --line-008:     rgba(20,30,20,0.10);
-  --line-010:     rgba(20,30,20,0.12);
+  /* ── Hairline borders — soft ink lines on the sage ground (strengthened,
+     the 0.06–0.10 range vanished on the light ground — user QA). */
+  --line-004:     rgba(20,30,20,0.09);
+  --line-006:     rgba(20,30,20,0.11);
+  --line-007:     rgba(20,30,20,0.12);
+  --line-008:     rgba(20,30,20,0.13);
+  --line-010:     rgba(20,30,20,0.15);
   --line-012:     rgba(20,30,20,0.14);
   --line-015:     rgba(20,30,20,0.17);
 }

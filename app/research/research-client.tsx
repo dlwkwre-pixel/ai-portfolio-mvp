@@ -251,13 +251,15 @@ const SECTION_COLORS: Record<string, string> = {
 // ─── Primitive components ─────────────────────────────────────────────────────
 
 function FilterChip({ active, label, onClick, accent }: { active: boolean; label: string; onClick: () => void; accent?: "purple" }) {
+  // Sage light: active chips use the teal nav-active tokens (readable dark teal
+  // text on a light teal fill); the old light-teal/violet text vanished on light.
   const purple = accent === "purple";
-  const activeColor   = purple ? "rgba(139,92,246,0.45)" : "rgba(14,165,160,0.45)";
-  const activeBg      = purple ? "rgba(139,92,246,0.12)" : "rgba(14,165,160,0.12)";
-  const activeText    = purple ? "#c4b5fd" : "#7fd9d4";
-  const activeShadow  = purple ? "0 0 0 1px rgba(139,92,246,0.1)" : "0 0 0 1px rgba(14,165,160,0.1)";
-  const inactiveColor = purple ? "rgba(139,92,246,0.3)" : "var(--card-border)";
-  const inactiveText  = purple ? "#6fd08a" : "var(--text-tertiary)";
+  const activeColor   = purple ? "rgba(200,121,30,0.4)" : "var(--nav-active-border)";
+  const activeBg      = purple ? "var(--amber-bg)" : "var(--nav-active-bg)";
+  const activeText    = purple ? "#8a5414" : "var(--nav-active-text)";
+  const activeShadow  = "none";
+  const inactiveColor = "var(--border)";
+  const inactiveText  = "var(--text-secondary)";
 
   return (
     <button

@@ -117,8 +117,8 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* live ticker — real market data, kept from the current site */}
-      <div style={{ overflow: "hidden", borderTop: `1px solid ${CARD_LINE}`, borderBottom: `1px solid ${CARD_LINE}`, padding: "6px 0", marginTop: "40px", background: "var(--surface-010)" }}>
+      {/* live ticker — real market data (self-contained: own border/bg/scroll) */}
+      <div style={{ marginTop: "40px" }}>
         <MarketRibbon />
       </div>
 

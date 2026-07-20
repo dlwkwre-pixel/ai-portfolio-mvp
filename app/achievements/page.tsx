@@ -35,7 +35,7 @@ function LevelMedallion({ p }: { p: LevelProgress }) {
   return (
     <div style={{ position: "relative", width: "118px", height: "118px", flexShrink: 0 }}>
       <svg width="118" height="118" viewBox="0 0 118 118" style={{ transform: "rotate(-90deg)" }}>
-        <circle cx="59" cy="59" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
+        <circle cx="59" cy="59" r={r} fill="none" stroke="var(--surface-010)" strokeWidth={stroke} />
         <defs>
           <linearGradient id="lvlring" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#2563eb" />
@@ -61,9 +61,9 @@ function LevelMedallion({ p }: { p: LevelProgress }) {
 function BadgeTile({ badge, earned, earnedAt, current }: {
   badge: Badge; earned: boolean; earnedAt: string | null; current: number;
 }) {
-  const color  = earned ? TIER_COLOR[badge.tier]  : "#334155";
-  const bg     = earned ? TIER_BG[badge.tier]     : "rgba(255,255,255,0.02)";
-  const border = earned ? TIER_BORDER[badge.tier] : "rgba(255,255,255,0.06)";
+  const color  = earned ? TIER_COLOR[badge.tier]  : "var(--text-muted)";
+  const bg     = earned ? TIER_BG[badge.tier]     : "var(--surface-004)";
+  const border = earned ? TIER_BORDER[badge.tier] : "var(--border-subtle)";
   const target = badge.progress?.target ?? 0;
   const pct    = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   const showProgress = !earned && !!badge.progress && current > 0;
@@ -76,12 +76,12 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
         textAlign: "center", gap: "9px", padding: "16px 12px 13px", borderRadius: "14px",
         border: `1px solid ${border}`, background: bg,
         boxShadow: earned && badge.tier === "legendary" ? "0 0 18px rgba(168,85,247,0.15)" : undefined,
-        opacity: earned ? 1 : 0.62, transition: "transform .18s ease, box-shadow .18s ease, opacity .15s",
+        opacity: earned ? 1 : 0.82, transition: "transform .18s ease, box-shadow .18s ease, opacity .15s",
         ["--tile-glow" as string]: color,
       }}
     >
       {!earned && (
-        <div style={{ position: "absolute", top: "9px", right: "9px", color: "#334155" }}>
+        <div style={{ position: "absolute", top: "9px", right: "9px", color: "var(--text-muted)" }}>
           <LockIcon />
         </div>
       )}
@@ -95,9 +95,9 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               width: "15px", height: "15px", borderRadius: "50%",
               fontSize: "10px", fontWeight: 700, lineHeight: 1, cursor: "help",
-              color: earned ? color : "#64748b",
+              color: earned ? color : "var(--text-tertiary)",
               background: "var(--surface-005)",
-              border: `1px solid ${earned ? `${color}40` : "rgba(255,255,255,0.1)"}`,
+              border: `1px solid ${earned ? `${color}40` : "var(--border)"}`,
             }}
           >
             ?
@@ -107,18 +107,18 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
 
       <div className={earned ? "bt-ach-icon" : undefined} style={{
         width: "46px", height: "46px", borderRadius: "13px",
-        background: earned ? `${color}18` : "rgba(255,255,255,0.03)",
-        border: `1px solid ${earned ? `${color}25` : "rgba(255,255,255,0.05)"}`,
+        background: earned ? `${color}18` : "var(--surface-005)",
+        border: `1px solid ${earned ? `${color}25` : "var(--border-subtle)"}`,
         display: "flex", alignItems: "center", justifyContent: "center", transition: "transform .18s ease",
       }}>
         <BadgeIcon icon={badge.icon} size={23} color={color} />
       </div>
 
       <div style={{ width: "100%" }}>
-        <p style={{ fontSize: "12px", fontWeight: 600, color: earned ? "var(--text-primary)" : "#64748b", letterSpacing: "-0.1px", lineHeight: 1.2, marginBottom: "3px" }}>
+        <p style={{ fontSize: "12px", fontWeight: 600, color: earned ? "var(--text-primary)" : "var(--text-secondary)", letterSpacing: "-0.1px", lineHeight: 1.2, marginBottom: "3px" }}>
           {badge.name}
         </p>
-        <p style={{ fontSize: "10px", color: earned ? color : "#3b475a", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
+        <p style={{ fontSize: "10px", color: earned ? color : "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "4px" }}>
           {TIER_LABEL[badge.tier]}
         </p>
 
