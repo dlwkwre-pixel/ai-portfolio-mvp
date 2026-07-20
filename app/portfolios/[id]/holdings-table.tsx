@@ -180,7 +180,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
       `}</style>
       <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <div style={{ width: "8px", height: "8px", background: "rgba(255,255,255,0.22)", borderRadius: "1px" }} />
+          <div style={{ width: "8px", height: "8px", background: "var(--surface-010)", borderRadius: "1px" }} />
           <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>Est</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -218,7 +218,7 @@ function EarningsChart({ earnings }: { earnings: RawEarning[] }) {
                       </div>
                     )}
                     <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "flex-end", gap: "2px", opacity: isDimmed ? 0.25 : 1, filter: isHovered ? "brightness(1.5) saturate(1.2)" : "none", transition: "opacity 180ms ease, filter 180ms ease" }}>
-                      {estH > 0 && <div className="bt-bar-r" style={{ width: "11px", height: `${estH}px`, background: "rgba(255,255,255,0.22)", borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07}s` }} />}
+                      {estH > 0 && <div className="bt-bar-r" style={{ width: "11px", height: `${estH}px`, background: "var(--surface-010)", borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07}s` }} />}
                       {actualH > 0 && <div className="bt-bar-r" style={{ width: "11px", height: `${actualH}px`, background: barColor, borderRadius: "2px 2px 0 0", animationDelay: `${i * 0.07 + 0.05}s` }} />}
                     </div>
                   </div>

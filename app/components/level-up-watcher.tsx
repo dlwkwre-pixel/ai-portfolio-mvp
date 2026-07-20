@@ -76,7 +76,7 @@ export default function LevelUpWatcher() {
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative", width: "100%", maxWidth: "340px", textAlign: "center",
-          background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)",
+          background: "var(--bg-elevated)", border: "1px solid var(--line-012)",
           borderRadius: "20px", padding: "28px 24px 22px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)",
           animation: "bt-lvl-pop 0.45s cubic-bezier(0.16,1,0.3,1) both",
         }}
@@ -101,7 +101,7 @@ export default function LevelUpWatcher() {
           <Link href="/achievements" onClick={() => setCelebrating(null)} style={{ flex: 1, padding: "10px 16px", borderRadius: "12px", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, textDecoration: "none" }}>
             View achievements
           </Link>
-          <button type="button" onClick={() => setCelebrating(null)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={() => setCelebrating(null)} style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid var(--line-015)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             Nice
           </button>
         </div>

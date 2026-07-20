@@ -67,7 +67,7 @@ const STEPS: StepDef[] = [
     title: "Choose “Add to Home Screen”",
     body: "Scroll down the share sheet and tap Add to Home Screen.",
     art: (
-      <div style={{ width: "100%", maxWidth: "260px", margin: "0 auto", borderRadius: "12px", border: "1px solid var(--border-subtle, rgba(255,255,255,0.12))", overflow: "hidden", background: "var(--bg-elevated, rgba(255,255,255,0.03))" }}>
+      <div style={{ width: "100%", maxWidth: "260px", margin: "0 auto", borderRadius: "12px", border: "1px solid var(--border-subtle, var(--line-012))", overflow: "hidden", background: "var(--bg-elevated, rgba(255,255,255,0.03))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "12px 14px" }}>
           <span style={{ fontSize: "13px", color: "var(--text-primary)", fontWeight: 500 }}>Add to Home Screen</span>
           <AddBoxGlyph size={20} />
@@ -148,7 +148,7 @@ export default function IosInstallGuide() {
             position: "fixed", left: "12px", right: "12px",
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
             zIndex: 1200, maxWidth: "440px", margin: "0 auto",
-            background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)",
+            background: "var(--bg-elevated)", border: "1px solid var(--line-012)",
             borderRadius: "16px", padding: "14px 14px 13px", boxShadow: "0 18px 44px rgba(0,0,0,0.5)",
             display: "flex", alignItems: "center", gap: "13px",
             animation: "bt-ios-rise 0.35s cubic-bezier(0.16,1,0.3,1) both",
@@ -173,7 +173,7 @@ export default function IosInstallGuide() {
       {modalOpen && (
         <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(4,13,26,0.92)", backdropFilter: "blur(7px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", animation: "bt-ios-fade 0.25s ease both" }}>
           <style>{`@keyframes bt-ios-fade { from { opacity: 0; } to { opacity: 1; } } @keyframes bt-ios-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-elevated)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--bg-elevated)", border: "1px solid var(--line-012)", borderRadius: "var(--radius-lg, 16px)", padding: "24px 24px 20px", width: "100%", maxWidth: "420px", boxShadow: "0 28px 60px rgba(0,0,0,0.6)", animation: "bt-ios-pop 0.3s cubic-bezier(0.16,1,0.3,1) both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
               <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, rgba(14,165,160,0.18), rgba(63,174,74,0.14))", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px" }}>📲</div>
               <div style={{ flex: 1 }}>
@@ -199,7 +199,7 @@ export default function IosInstallGuide() {
 
             <div style={{ display: "flex", gap: "8px" }}>
               {step > 0 && (
-                <button type="button" onClick={() => setStep((p) => p - 1)} style={{ padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Back</button>
+                <button type="button" onClick={() => setStep((p) => p - 1)} style={{ padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "1px solid var(--border-subtle, var(--line-010))", background: "transparent", color: "var(--text-secondary)", fontSize: "13px", cursor: "pointer", fontFamily: "var(--font-body)" }}>Back</button>
               )}
               <button type="button" onClick={() => (last ? setModalOpen(false) : setStep((p) => p + 1))} style={{ flex: 1, padding: "10px 16px", borderRadius: "var(--radius-md, 10px)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)" }}>
                 {last ? "Done" : "Next"}

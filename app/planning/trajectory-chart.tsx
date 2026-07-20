@@ -398,7 +398,7 @@ export default function TrajectoryChart({
                 </div>
                 {isSel && (
                   <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
-                    style={{ position: "absolute", bottom: "38px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trjc-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
+                    style={{ position: "absolute", bottom: "38px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid var(--line-010)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trjc-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
                     <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emojiFor(ev.category)} {ev.label}</div>
                     <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginBottom: "9px" }}>{yr} · {ph(fmtMoney(ev.amount_impact))}{ev.recurring_annual ? "/yr" : ""}</div>
                     {onToggleEvent && (

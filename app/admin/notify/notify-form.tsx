@@ -5,7 +5,7 @@ import { sendAppNotification } from "./notify-actions";
 
 const input: React.CSSProperties = {
   width: "100%", boxSizing: "border-box", background: "var(--bg-surface, #0a1424)",
-  border: "1px solid var(--card-border, rgba(255,255,255,0.1))", borderRadius: "10px",
+  border: "1px solid var(--card-border, var(--line-010))", borderRadius: "10px",
   padding: "10px 12px", fontSize: "14px", color: "var(--text-primary, #fff)", outline: "none",
 };
 const label: React.CSSProperties = {

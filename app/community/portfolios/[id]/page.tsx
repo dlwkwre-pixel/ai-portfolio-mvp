@@ -350,7 +350,7 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                           <div style={{
                             height: "100%",
                             width: `${Math.min(cashHolding.allocation_pct, 100)}%`,
-                            background: "rgba(255,255,255,0.25)",
+                            background: "var(--surface-010)",
                             borderRadius: "2px",
                           }} />
                         </div>

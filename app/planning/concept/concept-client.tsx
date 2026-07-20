@@ -423,7 +423,7 @@ export default function ConceptClient() {
                         {/* Popover */}
                         {isSel && (
                           <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}
-                            style={{ position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trj-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
+                            style={{ position: "absolute", bottom: "40px", left: "50%", transform: "translateX(-50%)", width: "196px", padding: "12px 13px", borderRadius: "12px", background: "var(--bg-overlay)", border: "1px solid var(--line-010)", boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 10, animation: "trj-pop 0.25s cubic-bezier(0.16,1,0.3,1) both" }}>
                             <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px" }}>{ev.emoji} {ev.label}</div>
                             <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", marginBottom: "9px" }}>Age {ev.age} · {fmtFull(ev.amount)}</div>
                             <button type="button" onClick={() => toggleCommit(ev.id)}
@@ -465,7 +465,7 @@ export default function ConceptClient() {
               </div>
 
               {/* Assumption dials */}
-              <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 4px 8px", borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.05))", marginTop: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "18px", flexWrap: "wrap", padding: "12px 4px 8px", borderTop: "1px solid var(--border-subtle, var(--line-004))", marginTop: "6px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "9px" }}>
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>Retire at</span>
                   <input type="range" min={50} max={78} value={retireAge} onChange={(e) => setRetireAge(Number(e.target.value))} style={{ width: "120px", accentColor: "#3fae4a" }} />
@@ -501,7 +501,7 @@ export default function ConceptClient() {
 
             {/* ══════════ LENSES ══════════ */}
             <div className="trj-sec" style={{ animationDelay: "0.14s" }}>
-              <div className="bt-tabs-scroll" style={{ display: "flex", gap: "2px", overflowX: "auto", borderBottom: "1px solid var(--border-subtle, rgba(255,255,255,0.05))", marginBottom: "16px" }}>
+              <div className="bt-tabs-scroll" style={{ display: "flex", gap: "2px", overflowX: "auto", borderBottom: "1px solid var(--border-subtle, var(--line-004))", marginBottom: "16px" }}>
                 {([["overview", "Overview"], ["money", "Money"], ["life", "Life"], ["estate", "Estate"], ["atlas", "Ask Atlas"]] as const).map(([k, lbl]) => (
                   <button key={k} type="button" onClick={() => setLens(k)} className="trj-lens"
                     style={{ padding: "10px 15px", fontSize: "12.5px", fontWeight: lens === k ? 700 : 500, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "var(--font-body)",
@@ -556,7 +556,7 @@ export default function ConceptClient() {
                           <span style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>{r.label}</span>
                           <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: r.v < 0 ? "#ff5c5c" : "var(--text-primary)" }}>{fmtFull(r.v)}</span>
                         </div>
-                        <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                        <div style={{ height: "5px", borderRadius: "3px", background: "var(--surface-005)", overflow: "hidden" }}>
                           <div style={{ width: `${Math.min(100, Math.abs(r.v) / 1850)}%`, height: "100%", borderRadius: "3px", background: r.v < 0 ? "oklch(0.6 0.16 22 / 0.75)" : `oklch(0.62 0.14 ${r.hue} / 0.85)` }} />
                         </div>
                       </div>
@@ -575,7 +575,7 @@ export default function ConceptClient() {
                           <span style={{ fontSize: "11.5px", color: r.semantic ? "#00d395" : "var(--text-secondary)", fontWeight: r.semantic ? 700 : 400 }}>{r.label}</span>
                           <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{fmtMoney(Math.max(0, r.v))}</span>
                         </div>
-                        <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                        <div style={{ height: "5px", borderRadius: "3px", background: "var(--surface-005)", overflow: "hidden" }}>
                           <div style={{ width: `${clamp((Math.max(0, r.v) / 9_400) * 100, 0, 100)}%`, height: "100%", borderRadius: "3px", background: r.semantic ? "rgba(0,211,149,0.8)" : "oklch(0.55 0.06 262 / 0.8)" }} />
                         </div>
                       </div>
@@ -622,7 +622,7 @@ export default function ConceptClient() {
                       <span style={{ fontFamily: "var(--font-mono)", fontWeight: 800, fontSize: "24px", color: "#f59e0b" }}>42</span>
                       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>/100</span>
                     </div>
-                    <div style={{ height: "6px", borderRadius: "3px", background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                    <div style={{ height: "6px", borderRadius: "3px", background: "var(--surface-005)", overflow: "hidden" }}>
                       <div style={{ width: "42%", height: "100%", borderRadius: "3px", background: "#f59e0b" }} />
                     </div>
                     <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.5 }}>The trajectory ends somewhere. Readiness decides how cleanly it transfers.</p>
@@ -633,7 +633,7 @@ export default function ConceptClient() {
                       { label: "Will", done: false },
                       { label: "Durable power of attorney", done: false },
                     ].map((r) => (
-                      <div key={r.label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border-subtle, rgba(255,255,255,0.04))" }}>
+                      <div key={r.label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--border-subtle, var(--line-004))" }}>
                         <span style={{ width: "16px", height: "16px", borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 800,
                           background: r.done ? "rgba(0,211,149,0.15)" : "rgba(255,255,255,0.05)", color: r.done ? "var(--green)" : "var(--text-tertiary)", border: `1px solid ${r.done ? "rgba(0,211,149,0.4)" : "var(--card-border)"}` }}>{r.done ? "✓" : "·"}</span>
                         <span style={{ fontSize: "12.5px", color: r.done ? "var(--text-secondary)" : "var(--text-primary)", fontWeight: r.done ? 400 : 600 }}>{r.label}</span>

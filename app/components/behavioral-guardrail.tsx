@@ -92,7 +92,7 @@ export default function BehavioralGuardrail() {
 
         {/* Their own thesis, reflected back */}
         {theses.length > 0 && (
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "11px", padding: "11px 12px", marginBottom: "12px" }}>
+          <div style={{ background: "var(--surface-003)", border: "1px solid var(--line-007)", borderRadius: "11px", padding: "11px 12px", marginBottom: "12px" }}>
             <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary, #64748b)", marginBottom: "7px" }}>Why you bought in — your words</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {theses.map((t) => (
@@ -112,7 +112,7 @@ export default function BehavioralGuardrail() {
           <Link href="/planning" onClick={dismiss} style={{ flex: 1, textAlign: "center", padding: "9px 12px", borderRadius: "10px", background: "var(--brand-gradient)", color: "#fff", fontSize: "12.5px", fontWeight: 700, textDecoration: "none" }}>
             Zoom out to my plan
           </Link>
-          <button type="button" onClick={dismiss} style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.14)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={dismiss} style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid var(--line-015)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             I&apos;m steady
           </button>
         </div>

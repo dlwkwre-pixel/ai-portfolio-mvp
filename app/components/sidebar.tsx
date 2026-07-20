@@ -306,7 +306,7 @@ export default function Sidebar({
       {totalValue !== null && totalValue !== undefined && (
         <div style={{
           margin: "12px 10px",
-          background: "rgba(255,255,255,0.07)",
+          background: "var(--surface-006)",
           border: "1px solid rgba(14,165,160,0.16)",
           borderRadius: "10px",
           padding: "11px 13px",

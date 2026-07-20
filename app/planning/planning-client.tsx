@@ -4369,7 +4369,7 @@ function BalanceSheetOS({
                 </div>
                 <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
-                  <div style={{ position: "absolute", left: `${(3/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+                  <div style={{ position: "absolute", left: `${(3/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${efColor})`, width: `${efPct}%` }} />
                 </div>
               </div>
@@ -4381,7 +4381,7 @@ function BalanceSheetOS({
                   <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: below 20%</span>
                 </div>
                 <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", left: `${(20/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+                  <div style={{ position: "absolute", left: `${(20/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div style={{ position: "absolute", left: `${(40/60)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, ${drColor}, ${drColor})`, width: `${drPct}%`, animationDelay: "80ms" }} />
                 </div>
@@ -4982,7 +4982,7 @@ function CashFlowOS({
             </div>
             <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
               <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
-              <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+              <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
               <div className="cfo-sr-a" style={{
                 height: "100%", borderRadius: "3px",
                 background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${srColor})`,

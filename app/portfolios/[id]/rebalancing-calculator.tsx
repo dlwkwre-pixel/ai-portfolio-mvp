@@ -288,7 +288,7 @@ export default function RebalancingCalculator({
                 {tt && (
                   <div style={{
                     display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px",
-                    paddingLeft: "13px", paddingTop: "2px", borderTop: "1px solid rgba(255,255,255,0.04)",
+                    paddingLeft: "13px", paddingTop: "2px", borderTop: "1px solid var(--line-004)",
                   }}>
                     <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Tax-smart trim

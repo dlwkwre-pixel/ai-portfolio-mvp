@@ -43,7 +43,7 @@ function PercentileBar({ label, stat, unit, hint, higherWord, lowerWord }: {
       <div style={{ position: "relative", height: "7px", borderRadius: "4px", background: "rgba(148,163,184,0.14)", overflow: "hidden" }}>
         <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.max(2, Math.min(100, stat.percentile))}%`, background: "linear-gradient(90deg,#0ea5a0,#3fae4a)", borderRadius: "4px", transition: "width .6s cubic-bezier(0.16,1,0.3,1)" }} />
         {/* median marker */}
-        <div style={{ position: "absolute", left: "50%", top: "-2px", bottom: "-2px", width: "1.5px", background: "rgba(255,255,255,0.35)" }} />
+        <div style={{ position: "absolute", left: "50%", top: "-2px", bottom: "-2px", width: "1.5px", background: "var(--surface-010)" }} />
       </div>
       <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "5px" }}>
         You&apos;re {ordinal(stat.percentile)} — {desc}

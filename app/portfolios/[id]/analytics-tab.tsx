@@ -59,7 +59,7 @@ function SplitBar({ segments }: { segments: { label: string; pct: number; color:
 
 function FactorStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div style={{ flex: 1, minWidth: "78px", padding: "10px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
+    <div style={{ flex: 1, minWidth: "78px", padding: "10px 12px", background: "var(--surface-002)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
       <div style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center" }}>
         {label}{hint && <Hint text={hint} />}
       </div>

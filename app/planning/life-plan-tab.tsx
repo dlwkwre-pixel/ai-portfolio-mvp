@@ -171,7 +171,7 @@ export default function LifePlanTab({
       `}</style>
 
       {/* ── READOUT ── */}
-      <div className="lp-sec" style={{ position: "relative", overflow: "hidden", borderRadius: "18px", border: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(135deg, rgba(14,165,160,0.14), rgba(63,174,74,0.10) 45%, rgba(0,211,149,0.06))", padding: "22px 24px" }}>
+      <div className="lp-sec" style={{ position: "relative", overflow: "hidden", borderRadius: "18px", border: "1px solid var(--line-008)", background: "linear-gradient(135deg, rgba(14,165,160,0.14), rgba(63,174,74,0.10) 45%, rgba(0,211,149,0.06))", padding: "22px 24px" }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "26px" }}>
           {/* score ring */}
           <div style={{ position: "relative", width: "104px", height: "104px", flexShrink: 0 }}>

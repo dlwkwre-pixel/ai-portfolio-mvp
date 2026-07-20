@@ -248,7 +248,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
             ))}
           </div>
 
-          <button type="button" onClick={addDebt} style={{ marginTop: "10px", padding: "7px 12px", borderRadius: "8px", border: "1px dashed var(--border-default, rgba(255,255,255,0.15))", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={addDebt} style={{ marginTop: "10px", padding: "7px 12px", borderRadius: "8px", border: "1px dashed var(--border-default, var(--line-015))", background: "transparent", color: "var(--text-secondary)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             + Add debt
           </button>
           {prefillDebts.length > 0 && active == null && (

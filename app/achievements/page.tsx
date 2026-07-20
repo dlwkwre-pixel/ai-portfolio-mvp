@@ -96,7 +96,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
               width: "15px", height: "15px", borderRadius: "50%",
               fontSize: "10px", fontWeight: 700, lineHeight: 1, cursor: "help",
               color: earned ? color : "#64748b",
-              background: "rgba(255,255,255,0.05)",
+              background: "var(--surface-005)",
               border: `1px solid ${earned ? `${color}40` : "rgba(255,255,255,0.1)"}`,
             }}
           >
@@ -130,7 +130,7 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
           </p>
         ) : showProgress ? (
           <div style={{ width: "100%", marginTop: "2px" }}>
-            <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+            <div style={{ height: "5px", borderRadius: "3px", background: "var(--surface-006)", overflow: "hidden" }}>
               <div style={{ width: `${pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
             </div>
             <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
@@ -235,7 +235,7 @@ export default async function AchievementsPage() {
                     {toNext > 0 ? `${toNext.toLocaleString()} to Level ${xp.level + 1}` : "Max progress this tier"}
                   </span>
                 </div>
-                <div style={{ height: "9px", borderRadius: "5px", background: "rgba(255,255,255,0.07)", overflow: "hidden", margin: "12px 0 8px" }}>
+                <div style={{ height: "9px", borderRadius: "5px", background: "var(--surface-006)", overflow: "hidden", margin: "12px 0 8px" }}>
                   <div style={{ width: `${xp.pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)", transition: "width .4s ease" }} />
                 </div>
                 <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>

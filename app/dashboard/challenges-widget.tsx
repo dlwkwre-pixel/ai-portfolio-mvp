@@ -39,7 +39,7 @@ export default function ChallengesWidget() {
       </div>
 
       {/* Level progress bar */}
-      <div style={{ height: "5px", borderRadius: "3px", background: "rgba(255,255,255,0.08)", overflow: "hidden", marginBottom: "14px" }}>
+      <div style={{ height: "5px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden", marginBottom: "14px" }}>
         <div style={{ width: `${data.pct}%`, height: "100%", background: "linear-gradient(90deg,#0ea5a0,#3fae4a)" }} />
       </div>
 

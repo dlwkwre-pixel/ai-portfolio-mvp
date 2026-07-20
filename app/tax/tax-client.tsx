@@ -1742,7 +1742,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
           <svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 3a1 1 0 110 2 1 1 0 010-2zm1 9H9V9h2v5z" /></svg>
         )}
         {finnPanelOpen ? "Close" : "Ask Atlas"}
-        {finnOutput && !finnPanelOpen && <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(255,255,255,0.7)", flexShrink: 0 }} />}
+        {finnOutput && !finnPanelOpen && <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--surface-010)", flexShrink: 0 }} />}
       </button>
     </>
   );

@@ -106,7 +106,7 @@ export default function EmergencyFundClient({ monthlyExpenses, liquidAssets }: {
           <div style={{ marginTop: "16px", position: "relative", height: "10px", borderRadius: "5px", background: "rgba(148,163,184,0.14)" }}>
             <div style={{ position: "absolute", inset: 0, width: `${markerPct}%`, background: statusColor, borderRadius: "5px", transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)" }} />
             {TIERS.map((t) => (
-              <div key={t} style={{ position: "absolute", left: `${(t / 12) * 100}%`, top: "-3px", bottom: "-3px", width: "1.5px", background: "rgba(255,255,255,0.3)" }} />
+              <div key={t} style={{ position: "absolute", left: `${(t / 12) * 100}%`, top: "-3px", bottom: "-3px", width: "1.5px", background: "var(--surface-010)" }} />
             ))}
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "5px" }}>

@@ -41,7 +41,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       `}</style>
 
       {/* Top nav */}
-      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ borderBottom: "1px solid var(--line-006)", padding: "12px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(7,9,15,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <div style={{ width: "26px", height: "26px", background: "var(--brand-gradient)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <BrandGlyph size={11} strokeWidth={3.4} />
@@ -54,7 +54,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
           {LEGAL_PAGES.map((p) => (
             <Link key={p.href} href={p.href} className="legal-nav-link">{p.label}</Link>
           ))}
-          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#3fc9c3", borderLeft: "1px solid rgba(255,255,255,0.08)", paddingLeft: "10px" }}>
+          <Link href={backHref} className="legal-nav-link" style={{ marginLeft: "8px", color: "#3fc9c3", borderLeft: "1px solid var(--line-008)", paddingLeft: "10px" }}>
             {backLabel} →
           </Link>
         </div>
@@ -78,7 +78,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
       </div>
 
       {/* Footer */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "24px 32px", textAlign: "center", fontSize: "12px", color: "#334155" }}>
+      <div style={{ borderTop: "1px solid var(--line-006)", padding: "24px 32px", textAlign: "center", fontSize: "12px", color: "#334155" }}>
         © 2026 BuyTune. All rights reserved. &nbsp;·&nbsp;
         <Link href="/legal/terms" className="legal-link" style={{ color: "var(--text-tertiary)" }}>Terms</Link> &nbsp;·&nbsp;
         <Link href="/legal/privacy" className="legal-link" style={{ color: "var(--text-tertiary)" }}>Privacy</Link> &nbsp;·&nbsp;

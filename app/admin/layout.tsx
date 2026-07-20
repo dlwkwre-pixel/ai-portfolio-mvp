@@ -42,7 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
           </div>
           <AdminNav />
-          <Link href="/dashboard" style={{ fontSize: "12px", color: "var(--text-tertiary)", textDecoration: "none", padding: "7px 12px", borderRadius: "999px", border: "1px solid var(--border-subtle, rgba(255,255,255,0.1))" }}>
+          <Link href="/dashboard" style={{ fontSize: "12px", color: "var(--text-tertiary)", textDecoration: "none", padding: "7px 12px", borderRadius: "999px", border: "1px solid var(--border-subtle, var(--line-010))" }}>
             ← App
           </Link>
         </div>

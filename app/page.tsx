@@ -113,12 +113,12 @@ export default function LandingPage() {
         </p>
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
           <Link href="/signup" style={{ padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(15,174,107,0.28)", textDecoration: "none" }}>Start for free</Link>
-          <Link href="/login" style={{ padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", background: "rgba(255,255,255,0.4)", border: "1px solid rgba(20,30,20,0.14)", textDecoration: "none" }}>Sign in to your account</Link>
+          <Link href="/login" style={{ padding: "13px 28px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", background: "var(--surface-010)", border: "1px solid rgba(20,30,20,0.14)", textDecoration: "none" }}>Sign in to your account</Link>
         </div>
       </div>
 
       {/* live ticker — real market data, kept from the current site */}
-      <div style={{ overflow: "hidden", borderTop: `1px solid ${CARD_LINE}`, borderBottom: `1px solid ${CARD_LINE}`, padding: "6px 0", marginTop: "40px", background: "rgba(255,255,255,0.3)" }}>
+      <div style={{ overflow: "hidden", borderTop: `1px solid ${CARD_LINE}`, borderBottom: `1px solid ${CARD_LINE}`, padding: "6px 0", marginTop: "40px", background: "var(--surface-010)" }}>
         <MarketRibbon />
       </div>
 
@@ -133,7 +133,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", height: "260px" }}>
             <div className="hidden sm:block" style={{ width: "150px", minWidth: "150px", background: "oklch(0.22 0.03 150)", padding: "12px 9px" }}>
-              <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", padding: "9px 10px", marginBottom: "10px" }}>
+              <div style={{ background: "var(--surface-006)", borderRadius: "8px", padding: "9px 10px", marginBottom: "10px" }}>
                 <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.6 0.02 150)" }}>Portfolio Value</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 500, color: "oklch(0.95 0.015 90)", marginTop: "2px" }}>$124,830</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#4fd07f" }}>+14.2%</div>
@@ -144,7 +144,7 @@ export default function LandingPage() {
               <div style={{ padding: "6px 8px", fontSize: "11px", color: "oklch(0.55 0.02 150)" }}>Planning</div>
             </div>
             <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: "9px" }}>
-              <div style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(20,30,20,0.06)", borderRadius: "10px", padding: "11px 13px" }}>
+              <div style={{ background: "var(--surface-010)", border: "1px solid rgba(20,30,20,0.06)", borderRadius: "10px", padding: "11px 13px" }}>
                 <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.5 0.02 150)", marginBottom: "3px" }}>Investment Return</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "19px", fontWeight: 500, color: INK }}>+14.2%</div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#16a34a", marginTop: "2px" }}>+3.1% vs SPY</div>

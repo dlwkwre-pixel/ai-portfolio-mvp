@@ -58,7 +58,7 @@ export default function AutoResync({ lastSyncedAt, minGapSeconds = 900 }: { last
         display: "inline-flex", alignItems: "center", gap: "6px",
         fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)",
         background: "var(--surface-005, rgba(255,255,255,0.05))",
-        border: "1px solid var(--line-010, rgba(255,255,255,0.1))",
+        border: "1px solid var(--line-010, var(--line-010))",
         borderRadius: "999px", padding: "5px 11px",
         cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.7 : 1,
         minHeight: "28px",
