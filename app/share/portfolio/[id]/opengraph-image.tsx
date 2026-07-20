@@ -61,7 +61,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         style={{
           width: "1200px",
           height: "630px",
-          background: "linear-gradient(135deg, #050d1e 0%, #0a1628 60%, #0d1a35 100%)",
+          background: "#10222d",
           display: "flex",
           flexDirection: "column",
           padding: "64px 72px",
@@ -71,7 +71,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       >
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "radial-gradient(ellipse 60% 50% at 30% 40%, rgba(37,99,235,0.08), transparent 70%)",
+          background: "radial-gradient(ellipse 60% 50% at 30% 40%, rgba(63,174,74,0.16), transparent 70%)",
         }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "48px" }}>
@@ -85,7 +85,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               <polyline points="3 18.5 10 9.5 14 13.5 21 4.5" stroke="white" strokeWidth="3.2" strokeLinecap="butt" strokeLinejoin="miter" />
             </svg>
           </div>
-          <span style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#3b82f6" }}>
+          <span style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#5fd0c9" }}>
             BuyTune
           </span>
         </div>
