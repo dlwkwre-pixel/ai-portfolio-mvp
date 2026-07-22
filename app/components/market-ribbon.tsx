@@ -30,7 +30,8 @@ function fmt(n: number) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function MarketRibbon() {
+export default function MarketRibbon({ tone = "light" }: { tone?: "light" | "dark" }) {
+  const dark = tone === "dark";
   const [quotes, setQuotes] = useState<QuoteResult[]>(FALLBACK);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -63,10 +64,10 @@ export default function MarketRibbon() {
   return (
     <div style={{
       overflow: "hidden",
-      borderTop: "1px solid var(--line-006)",
-      borderBottom: "1px solid var(--line-006)",
+      borderTop: dark ? "1px solid rgba(255,255,255,0.06)" : "1px solid var(--line-006)",
+      borderBottom: dark ? "1px solid rgba(255,255,255,0.06)" : "1px solid var(--line-006)",
       padding: "9px 0",
-      background: "var(--surface-003)",
+      background: dark ? "oklch(0.22 0.03 150)" : "var(--surface-003)",
       position: "relative",
     }}>
 
@@ -92,13 +93,13 @@ export default function MarketRibbon() {
             fontFamily: "'DM Mono', monospace", fontSize: "11px",
             whiteSpace: "nowrap", color: "var(--text-tertiary)",
           }}>
-            <span style={{ color: "var(--text-tertiary)", fontWeight: 500 }}>{q.ticker}</span>
+            <span style={{ color: dark ? "oklch(0.85 0.02 150)" : "var(--text-tertiary)", fontWeight: 600 }}>{q.ticker}</span>
             {loading || q.price === 0 ? (
-              <span style={{ color: "var(--text-muted)" }}>—</span>
+              <span style={{ color: dark ? "oklch(0.55 0.02 150)" : "var(--text-muted)" }}>—</span>
             ) : (
               <>
-                <span style={{ color: "var(--text-secondary)" }}>${fmt(q.price)}</span>
-                <span style={{ color: q.isUp ? "var(--green)" : "var(--red)" }}>
+                <span style={{ color: dark ? "oklch(0.6 0.02 150)" : "var(--text-secondary)" }}>${fmt(q.price)}</span>
+                <span style={{ color: q.isUp ? (dark ? "#4fd07f" : "var(--green)") : (dark ? "#f08a8a" : "var(--red)") }}>
                   {q.isUp ? "+" : ""}{fmt(q.changePct)}%
                 </span>
               </>
@@ -110,7 +111,7 @@ export default function MarketRibbon() {
         <div style={{
           textAlign: "center",
           fontSize: "10px",
-          color: "var(--text-muted)",
+          color: dark ? "oklch(0.55 0.02 150)" : "var(--text-muted)",
           marginTop: "5px",
           letterSpacing: "0.05em",
         }}>
