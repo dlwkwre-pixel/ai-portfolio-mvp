@@ -3,9 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import Link from "next/link";
-import ComingSoon from "@/app/components/coming-soon";
 import LaunchSetupButton from "./launch-setup-button";
 import InstallAppButton from "./install-app-button";
+import LearnModules from "./learn-modules";
 import { TUTORIAL_LIST } from "@/lib/tutorials";
 
 export default async function LearnPage() {
@@ -143,23 +143,8 @@ export default async function LearnPage() {
               </div>
             </div>
 
-            {/* Coming soon content */}
-            <div style={{ display: "flex" }}>
-            <ComingSoon
-              icon="📚"
-              title="Learn is on the way"
-              subtitle="Investing education, guides & explainers"
-              description="We're building a library of beginner-friendly and advanced investing content — from portfolio basics to AI-powered strategy breakdowns."
-              features={[
-                "Investing fundamentals: stocks, ETFs, bonds, and diversification",
-                "Reading analyst ratings and price targets",
-                "How to interpret your portfolio's performance metrics",
-                "Atlas walkthroughs: using AI to build your investing strategy",
-                "Glossary of financial terms used across BuyTune",
-              ]}
-              eta="Coming in a future update"
-            />
-            </div>
+            {/* Daily trivia + investing lessons (moved here from Community) */}
+            <LearnModules />
           </div>
         </div>
       </div>

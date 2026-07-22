@@ -7,7 +7,6 @@ import { likeStrategy, saveStrategy, followUser, postComment, copyStrategyAsTemp
 import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions";
 import CommunityFeed from "./community-feed";
 import type { FeedPost, FeedAuthor, MyOption } from "./community-feed";
-import CommunityLearn from "./community-learn";
 import PeerBenchmarkCard from "./peer-benchmark-card";
 import PageTutorial from "@/app/components/page-tutorial";
 
@@ -1732,10 +1731,9 @@ export default function CommunityClient({
   const followingStrategies = strategies.filter(s => !s.is_own && s.author.is_following);
   const followingPortfolios = portfolios.filter(p => !p.is_own && p.author.is_following);
 
-  const TABS = ["feed", "learn", "strategies", "portfolios", "following", "leaderboard"] as const;
+  const TABS = ["feed", "strategies", "portfolios", "following", "leaderboard"] as const;
   const TAB_LABELS: Record<string, string> = {
     feed: "Feed",
-    learn: "Learn",
     strategies: "Strategies",
     portfolios: "Portfolios",
     following: "Following",
@@ -1800,7 +1798,7 @@ export default function CommunityClient({
       </div>
 
       {/* ── Filter row ──────────────────────────────────────────────────────── */}
-      {section !== "following" && section !== "leaderboard" && section !== "feed" && section !== "learn" && (
+      {section !== "following" && section !== "leaderboard" && section !== "feed" && (
         <div style={{ padding: "14px 0", display: "flex", flexDirection: "column", gap: "10px", marginBottom: "4px" }}>
           {/* Row 1: search + sort + risk */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1900,8 +1898,6 @@ export default function CommunityClient({
           myStrategies={feedMyStrategies}
           myPortfolios={feedMyPortfolios}
         />
-      ) : section === "learn" ? (
-        <CommunityLearn />
       ) : section === "leaderboard" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <PeerBenchmarkCard />
