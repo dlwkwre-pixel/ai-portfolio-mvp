@@ -65,6 +65,12 @@
   --nav-active-border: rgba(14,165,160,0.3);
   --nav-active-text: #0c7a76;
 
+  /* Legacy aliases — used in 10+ files but previously undefined (rendered as
+     transparent/black, breaking buttons and toggle tracks). Point them at Sage. */
+  --accent:         #0ea5a0;
+  --accent-soft:    rgba(14,165,160,0.12);
+  --border-default: rgba(20,30,20,0.16);
+
   /* Syne is a deliberately WIDE display face — it reads as "stretched" at large
      heading sizes (user-confirmed on landing + login). It now lives only in the
      wordmark via --font-logo; all headings run on DM Sans (self-hosted via
@@ -802,8 +808,10 @@ body {
     display: flex !important;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    background: var(--sidebar-bg);
-    border-top: 1px solid var(--border-subtle);
+    /* Light bar (Sage) — dark text/icons need a light surface; only the
+       desktop left sidebar is a dark panel. */
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
     /* Floor the bottom padding with max() — env(safe-area) is 0 on most
        devices, which made the bar too short and buttons hug the edge. */
     padding-top: 14px;

@@ -62,21 +62,31 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
   badge: Badge; earned: boolean; earnedAt: string | null; current: number;
 }) {
   const color  = earned ? TIER_COLOR[badge.tier]  : "var(--text-muted)";
-  const bg     = earned ? TIER_BG[badge.tier]     : "var(--surface-004)";
-  const border = earned ? TIER_BORDER[badge.tier] : "var(--border-subtle)";
   const target = badge.progress?.target ?? 0;
   const pct    = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   const showProgress = !earned && !!badge.progress && current > 0;
+
+  // Opaque card with a tier-colored sheen layered over a solid surface (the old
+  // tier-tinted transparent fills dissolved into the sage ground — user QA). The
+  // second background layer (solid) keeps the card from being see-through; the
+  // first (gradient) is the tier tint on top of it.
+  const bg = earned
+    ? `linear-gradient(158deg, ${color}2b 0%, transparent 56%), var(--bg-elevated)`
+    : "var(--bg-surface)";
+  const border = earned ? TIER_BORDER[badge.tier] : "var(--border-subtle)";
+  const tileShadow = earned
+    ? `0 4px 18px ${color}22${badge.tier === "legendary" ? ", 0 0 22px " + color + "26" : ""}`
+    : "var(--shadow-sm)";
 
   return (
     <div
       className={earned ? "bt-ach-tile bt-ach-tile--earned" : "bt-ach-tile"}
       style={{
         position: "relative", display: "flex", flexDirection: "column", alignItems: "center",
-        textAlign: "center", gap: "9px", padding: "16px 12px 13px", borderRadius: "14px",
+        textAlign: "center", gap: "10px", padding: "18px 12px 14px", borderRadius: "16px",
         border: `1px solid ${border}`, background: bg,
-        boxShadow: earned && badge.tier === "legendary" ? "0 0 18px rgba(168,85,247,0.15)" : undefined,
-        opacity: earned ? 1 : 0.82, transition: "transform .18s ease, box-shadow .18s ease, opacity .15s",
+        boxShadow: tileShadow,
+        opacity: earned ? 1 : 0.9, transition: "transform .18s ease, box-shadow .18s ease",
         ["--tile-glow" as string]: color,
       }}
     >
@@ -106,12 +116,15 @@ function BadgeTile({ badge, earned, earnedAt, current }: {
       </div>
 
       <div className={earned ? "bt-ach-icon" : undefined} style={{
-        width: "46px", height: "46px", borderRadius: "13px",
-        background: earned ? `${color}18` : "var(--surface-005)",
-        border: `1px solid ${earned ? `${color}25` : "var(--border-subtle)"}`,
+        width: "52px", height: "52px", borderRadius: "50%",
+        background: earned
+          ? `linear-gradient(145deg, ${color}30, ${color}12)`
+          : "var(--surface-006)",
+        border: `1.5px solid ${earned ? `${color}66` : "var(--border-subtle)"}`,
+        boxShadow: earned ? `inset 0 1px 3px ${color}22, 0 2px 9px ${color}1f` : "none",
         display: "flex", alignItems: "center", justifyContent: "center", transition: "transform .18s ease",
       }}>
-        <BadgeIcon icon={badge.icon} size={23} color={color} />
+        <BadgeIcon icon={badge.icon} size={24} color={color} />
       </div>
 
       <div style={{ width: "100%" }}>

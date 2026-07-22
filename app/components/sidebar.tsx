@@ -332,16 +332,18 @@ export default function Sidebar({
       {streak !== null && streak > 0 && (
         <Link href="/achievements" style={{
           margin: totalValue !== null && totalValue !== undefined ? "0 10px 10px" : "12px 10px 10px",
-          display: "flex", alignItems: "center", gap: "9px", padding: "8px 11px",
+          display: "flex", alignItems: "center", gap: "9px", padding: "9px 12px",
           borderRadius: "10px", textDecoration: "none",
-          background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+          background: "linear-gradient(135deg, rgba(245,158,11,0.28), rgba(217,119,6,0.12))",
+          border: "1px solid rgba(251,191,36,0.45)",
+          boxShadow: "0 2px 12px rgba(245,158,11,0.15)",
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, filter: "drop-shadow(0 0 4px rgba(245,158,11,0.5))" }}>
             <path d="M12 2C12 2 9.5 6.5 9.5 9.5c0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5c0-1.2-.5-2.4-.5-2.4S17.5 10 17.5 13.5a5.5 5.5 0 01-11 0c0-5 5.5-11.5 5.5-11.5z" fill="#f59e0b" />
-            <path d="M12 14.5c0 1.1-.9 2-2 2-.3 0-.6-.1-.9-.2.5 1.8 1.7 3 2.9 3s2.5-1.2 2.9-3c-.3.1-.6.2-.9.2-1.1 0-2-.9-2-2z" fill="#fbbf24" />
+            <path d="M12 14.5c0 1.1-.9 2-2 2-.3 0-.6-.1-.9-.2.5 1.8 1.7 3 2.9 3s2.5-1.2 2.9-3c-.3.1-.6.2-.9.2-1.1 0-2-.9-2-2z" fill="#fde047" />
           </svg>
           <div style={{ minWidth: 0, lineHeight: 1.25 }}>
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#fde68a" }}>
               {streak}-day streak
             </div>
             {!activeToday && (

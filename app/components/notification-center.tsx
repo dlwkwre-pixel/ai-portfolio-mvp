@@ -141,10 +141,10 @@ export default function NotificationCenter({ placement = "down" }: { placement?:
             : { top: "calc(100% + 8px)" }),
           right: 0,
           width: "min(300px, calc(100vw - 32px))",
-          background: "var(--sidebar-bg)",
-          border: "1px solid var(--card-border)",
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border)",
           borderRadius: "12px",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
+          boxShadow: "0 12px 40px rgba(20,30,20,0.18)",
           zIndex: 200,
           overflow: "hidden",
         }}>

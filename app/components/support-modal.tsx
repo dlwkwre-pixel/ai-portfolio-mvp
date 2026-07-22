@@ -124,15 +124,15 @@ export default function SupportModal() {
             style={{
               width: "100%",
               maxWidth: "400px",
-              background: "var(--sidebar-bg, #0d1829)",
-              border: "1px solid var(--card-border)",
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border)",
               borderRadius: "14px",
               padding: "22px",
               display: "flex",
               flexDirection: "column",
               gap: "14px",
               fontFamily: "var(--font-body)",
-              boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+              boxShadow: "0 16px 48px rgba(20,30,20,0.22)",
             }}
             onClick={(e) => e.stopPropagation()}
           >

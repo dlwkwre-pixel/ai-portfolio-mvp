@@ -196,11 +196,11 @@ export default function MobileBottomNav() {
           className="bt-more-sheet"
           style={{
             position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 59,
-            background: "var(--sidebar-bg)",
-            borderTop: "1px solid var(--border-subtle)",
+            background: "var(--bg-elevated)",
+            borderTop: "1px solid var(--border)",
             borderRadius: "18px 18px 0 0",
             paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
-            boxShadow: "0 -12px 40px rgba(0,0,0,0.5)",
+            boxShadow: "0 -12px 40px rgba(20,30,20,0.2)",
             maxHeight: "80dvh",
             overflowY: "auto",
           }}
