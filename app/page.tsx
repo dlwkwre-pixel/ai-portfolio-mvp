@@ -156,10 +156,15 @@ export default function LandingPage() {
           .bt-lp-hero-copy > div:first-child { align-self:center !important; }
           .bt-lp-hero-copy p { max-width:100% !important; }
           .bt-lp-hero-cta { justify-content:center; }
-          .bt-lp-hero-stats { justify-content:center; }
-          /* phone: scale down and clip the floating badges that hang off the sides
-             (they caused horizontal overflow on narrow screens) */
-          .bt-lp-visual { order:-1; margin-bottom:4px; transform:scale(0.8); transform-origin:top center; }
+          /* Stats: force all three across one row (the third was wrapping under
+             the first two); drop the divider bars and center each cell. */
+          .bt-lp-hero-stats { display:grid !important; grid-template-columns:repeat(3,1fr); gap:8px !important; text-align:center; }
+          .bt-lp-stat-div { display:none !important; }
+          .bt-lp-stat { display:flex; flex-direction:column; align-items:center; }
+          .bt-lp-stat-lbl { font-size:10.5px !important; line-height:1.25; }
+          /* phone drops BELOW the copy on mobile (copy-first reads better); scale
+             down and hide the floating badges that hung off the sides. */
+          .bt-lp-visual { order:1; margin-top:8px; transform:scale(0.8); transform-origin:top center; }
           .bt-lp-floatbadge { display:none !important; }
           .bt-lp-h1 { font-size:34px !important; line-height:1.1 !important; }
           .bt-lp-pad { padding-left:20px !important; padding-right:20px !important; }
@@ -168,7 +173,8 @@ export default function LandingPage() {
           .bt-lp-demo-inner { padding:20px !important; }
         }
         @media (max-width: 400px) {
-          .bt-lp-visual { transform:scale(0.7); margin-top:-30px; margin-bottom:-40px; }
+          .bt-lp-visual { transform:scale(0.72); margin-top:-12px; margin-bottom:-40px; }
+          .bt-lp-stat > div:first-child { font-size:18px !important; }
         }
         @media (prefers-reduced-motion: reduce) { .bt-lp-floaty { animation:none !important; } }
       `}</style>
@@ -217,12 +223,12 @@ export default function LandingPage() {
             <Link href="/signup" style={{ padding: "14px 24px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(14,165,160,0.3)", textDecoration: "none" }}>Get started free →</Link>
             <a href="#demo" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", padding: "14px 20px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "oklch(0.3 0.03 150)", border: "1px solid rgba(20,30,20,0.14)" }}>Try the live demo ↓</a>
           </div>
-          <div style={{ display: "flex", gap: "28px", flexWrap: "wrap" }}>
-            <div><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500, color: GREEN }}>$0</div><div style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>advisor fees</div></div>
-            <div style={{ width: "1px", background: "rgba(20,30,20,0.12)" }} />
-            <div><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500 }}>3</div><div style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>seconds per scan</div></div>
-            <div style={{ width: "1px", background: "rgba(20,30,20,0.12)" }} />
-            <div><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500 }}>100%</div><div style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>human-approved trades</div></div>
+          <div className="bt-lp-hero-stats" style={{ display: "flex", gap: "28px", flexWrap: "wrap", width: "100%" }}>
+            <div className="bt-lp-stat"><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500, color: GREEN }}>$0</div><div className="bt-lp-stat-lbl" style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>advisor fees</div></div>
+            <div className="bt-lp-stat-div" style={{ width: "1px", background: "rgba(20,30,20,0.12)" }} />
+            <div className="bt-lp-stat"><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500 }}>Live</div><div className="bt-lp-stat-lbl" style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>market data</div></div>
+            <div className="bt-lp-stat-div" style={{ width: "1px", background: "rgba(20,30,20,0.12)" }} />
+            <div className="bt-lp-stat"><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500 }}>100%</div><div className="bt-lp-stat-lbl" style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>human-approved</div></div>
           </div>
         </div>
 
