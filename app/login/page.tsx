@@ -38,7 +38,13 @@ function LoginForm() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", fontFamily: "var(--font-body)" }}>
+    <div style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", flexDirection: "column", fontFamily: "var(--font-body)" }}>
+      {/* Sign in / Create account tab toggle — switches between the two routes */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border-subtle)" }}>
+        <span style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: TEAL, background: "rgba(14,148,136,0.1)" }}>Sign in</span>
+        <Link href="/signup" style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: INK2, textDecoration: "none" }}>Create account</Link>
+      </div>
+    <main style={{ flex: 1, background: "oklch(0.91 0.04 150)", display: "flex", fontFamily: "var(--font-body)" }}>
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .fu0 { animation: fadeUp 0.5s cubic-bezier(0.23,1,0.32,1) both; }
@@ -196,6 +202,7 @@ function LoginForm() {
         </div>
       </div>
     </main>
+    </div>
   );
 }
 

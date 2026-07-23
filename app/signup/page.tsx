@@ -40,7 +40,13 @@ export default function SignupPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", fontFamily: "var(--font-body)" }}>
+    <div style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", flexDirection: "column", fontFamily: "var(--font-body)" }}>
+      {/* Sign in / Create account tab toggle — switches between the two routes */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border-subtle)" }}>
+        <Link href="/login" style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: INK2, textDecoration: "none" }}>Sign in</Link>
+        <span style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: TEAL, background: "rgba(14,148,136,0.1)" }}>Create account</span>
+      </div>
+    <main style={{ flex: 1, background: "oklch(0.91 0.04 150)", display: "flex", fontFamily: "var(--font-body)" }}>
       <style>{`
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         .fu0{animation:fadeUp 0.5s ease both}
@@ -72,16 +78,18 @@ export default function SignupPage() {
             Start investing<br />with an edge.
           </h2>
           {[
-            { icon: "✦", text: "AI recommendations powered by Grok with live market data" },
-            { icon: "📈", text: "True performance tracking using Modified Dietz method" },
-            { icon: "⚖️", text: "Benchmark comparison against SPY, QQQ, and more" },
-            { icon: "🎯", text: "Personalized strategies that guide every AI decision" },
+            { icon: "M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7L12 3z", text: "AI recommendations powered by Grok with live market data" },
+            { icon: "M4 19V5 M4 19h16 M8 15l3-4 3 2 4-6", text: "True performance tracking using the Modified Dietz method" },
+            { icon: "M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3z", text: "Benchmark comparison against SPY, QQQ, and more" },
+            { icon: "M11 4a7 7 0 100 14 7 7 0 000-14z M21 21l-4.35-4.35", text: "Personalized strategies that guide every AI decision" },
           ].map((item) => (
             <div key={item.text} style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
-              <div style={{ width: "28px", height: "28px", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>
-                {item.icon}
+              <div style={{ width: "28px", height: "28px", minWidth: "28px", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "7px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6fe0aa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  {item.icon.split(" M").map((d, k) => <path key={k} d={k === 0 ? d : "M" + d} />)}
+                </svg>
               </div>
-              <p style={{ fontSize: "13px", color: "oklch(0.72 0.02 150)", lineHeight: 1.6, paddingTop: "4px" }}>{item.text}</p>
+              <p style={{ fontSize: "13px", color: "oklch(0.72 0.02 150)", lineHeight: 1.6, paddingTop: "4px", margin: 0 }}>{item.text}</p>
             </div>
           ))}
         </div>
@@ -151,5 +159,6 @@ export default function SignupPage() {
         </div>
       </div>
     </main>
+    </div>
   );
 }
