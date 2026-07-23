@@ -419,6 +419,13 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  /* Exempt gentle, informational, non-positional motion the reset over-kills:
+     the live market ticker (slow horizontal scroll, a finance-site convention)
+     and opacity-only pulse dots don't trigger vestibular discomfort. Large
+     positional motion (hero tilt/float, scan demo) still respects the setting
+     via each component's JS reduced-motion guard. */
+  .ticker-track { animation-duration: 35s !important; animation-iteration-count: infinite !important; }
+  .bt-motion-pulse { animation-duration: 1.6s !important; animation-iteration-count: infinite !important; }
 }
 
 /* Skip link: visually hidden until keyboard-focused, then jumps past the chrome. */

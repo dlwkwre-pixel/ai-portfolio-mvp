@@ -151,13 +151,24 @@ export default function LandingPage() {
         .bt-lp-feat:hover { box-shadow:0 12px 28px rgba(20,40,30,0.1); transform:translateY(-3px); border-color:rgba(14,148,136,0.3); }
         @media (max-width: 860px) {
           .bt-lp-links { display:none !important; }
-          .bt-lp-hero { grid-template-columns:1fr !important; padding:52px 20px 60px !important; text-align:center; }
+          .bt-lp-hero { grid-template-columns:1fr !important; padding:44px 20px 56px !important; gap:24px !important; text-align:center; }
           .bt-lp-hero-copy { align-items:center; }
-          .bt-lp-visual { order:-1; margin-bottom:8px; transform:scale(0.86); }
-          .bt-lp-h1 { font-size:38px !important; }
+          .bt-lp-hero-copy > div:first-child { align-self:center !important; }
+          .bt-lp-hero-copy p { max-width:100% !important; }
+          .bt-lp-hero-cta { justify-content:center; }
+          .bt-lp-hero-stats { justify-content:center; }
+          /* phone: scale down and clip the floating badges that hang off the sides
+             (they caused horizontal overflow on narrow screens) */
+          .bt-lp-visual { order:-1; margin-bottom:4px; transform:scale(0.8); transform-origin:top center; }
+          .bt-lp-floatbadge { display:none !important; }
+          .bt-lp-h1 { font-size:34px !important; line-height:1.1 !important; }
           .bt-lp-pad { padding-left:20px !important; padding-right:20px !important; }
           .bt-lp-grid3, .bt-lp-grid2, .bt-lp-steps { grid-template-columns:1fr !important; }
           .bt-lp-arrow { display:none !important; }
+          .bt-lp-demo-inner { padding:20px !important; }
+        }
+        @media (max-width: 400px) {
+          .bt-lp-visual { transform:scale(0.7); margin-top:-30px; margin-bottom:-40px; }
         }
         @media (prefers-reduced-motion: reduce) { .bt-lp-floaty { animation:none !important; } }
       `}</style>
@@ -192,7 +203,7 @@ export default function LandingPage() {
 
         <div className="bt-lp-hero-copy" style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", padding: "6px 13px", borderRadius: "99px", background: "rgba(14,148,136,0.1)", border: "1px solid rgba(14,148,136,0.25)", marginBottom: "22px", alignSelf: "flex-start" }}>
-            <div className="bt-lp-floaty" style={{ width: "6px", height: "6px", borderRadius: "50%", background: TEAL, animation: "bt-pulseDot 1.8s ease-in-out infinite" }} />
+            <div className="bt-lp-floaty bt-motion-pulse" style={{ width: "6px", height: "6px", borderRadius: "50%", background: TEAL, animation: "bt-pulseDot 1.8s ease-in-out infinite" }} />
             <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#0e7a70" }}>Powered by Grok · Live market data</span>
           </div>
           <h1 className="bt-lp-h1" style={{ fontFamily: "var(--font-display)", fontSize: "54px", fontWeight: 800, lineHeight: 1.06, letterSpacing: "-1.5px", margin: "0 0 20px" }}>
@@ -202,7 +213,7 @@ export default function LandingPage() {
           <p style={{ fontSize: "16.5px", lineHeight: 1.6, color: INK2, maxWidth: "460px", margin: "0 0 28px" }}>
             {HERO_SUB} You review. You decide. <strong>No auto-trading, ever.</strong>
           </p>
-          <div style={{ display: "flex", gap: "12px", marginBottom: "30px", flexWrap: "wrap" }}>
+          <div className="bt-lp-hero-cta" style={{ display: "flex", gap: "12px", marginBottom: "30px", flexWrap: "wrap" }}>
             <Link href="/signup" style={{ padding: "14px 24px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(14,165,160,0.3)", textDecoration: "none" }}>Get started free →</Link>
             <a href="#demo" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", padding: "14px 20px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "oklch(0.3 0.03 150)", border: "1px solid rgba(20,30,20,0.14)" }}>Try the live demo ↓</a>
           </div>
@@ -248,13 +259,24 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
+                {/* strategy / health footer fills the lower panel */}
+                <div style={{ marginTop: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "rgba(20,30,20,0.04)", borderRadius: "12px" }}>
+                  <div>
+                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em", color: INK3, textTransform: "uppercase" }}>Strategy</div>
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.25 0.03 150)", marginTop: "2px" }}>Growth · 40% sector cap</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em", color: INK3, textTransform: "uppercase" }}>Health</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: GREEN, marginTop: "2px" }}>84</div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="bt-lp-floaty" style={{ position: "absolute", top: "18px", left: "-92px", background: "#fff", border: "1px solid rgba(20,30,20,0.1)", borderRadius: "12px", padding: "9px 13px", boxShadow: "0 12px 24px rgba(20,30,20,0.12)", animation: reduced ? undefined : "bt-floatY 4.5s ease-in-out infinite" }}>
+            <div className="bt-lp-floaty bt-lp-floatbadge" style={{ position: "absolute", top: "18px", left: "-92px", background: "#fff", border: "1px solid rgba(20,30,20,0.1)", borderRadius: "12px", padding: "9px 13px", boxShadow: "0 12px 24px rgba(20,30,20,0.12)", animation: reduced ? undefined : "bt-floatY 4.5s ease-in-out infinite" }}>
               <div style={{ fontSize: "9px", color: INK3, fontWeight: 600 }}>HEALTH SCORE</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 600, color: GREEN }}>84 / 100</div>
             </div>
-            <div className="bt-lp-floaty" style={{ position: "absolute", bottom: "70px", right: "-84px", background: "#fff", border: "1px solid rgba(20,30,20,0.1)", borderRadius: "12px", padding: "9px 13px", boxShadow: "0 12px 24px rgba(20,30,20,0.12)", animation: reduced ? undefined : "bt-floatY 5s ease-in-out infinite 0.8s" }}>
+            <div className="bt-lp-floaty bt-lp-floatbadge" style={{ position: "absolute", bottom: "70px", right: "-84px", background: "#fff", border: "1px solid rgba(20,30,20,0.1)", borderRadius: "12px", padding: "9px 13px", boxShadow: "0 12px 24px rgba(20,30,20,0.12)", animation: reduced ? undefined : "bt-floatY 5s ease-in-out infinite 0.8s" }}>
               <div style={{ fontSize: "9px", color: INK3, fontWeight: 600 }}>AI CONFIDENCE</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "17px", fontWeight: 600, color: TEAL }}>High</div>
             </div>
@@ -270,7 +292,7 @@ export default function LandingPage() {
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: "36px", fontWeight: 800, color: "#fff", letterSpacing: "-0.8px", margin: "0 0 14px" }}>Run a real AI scan, right now.</h2>
           <p style={{ fontSize: "15px", color: "oklch(0.7 0.02 150)", lineHeight: 1.6, margin: "0 0 40px" }}>This is the exact analysis BuyTune runs on your holdings — live prices, earnings, sentiment, checked against a sample growth strategy.</p>
 
-          <div ref={demoElRef} style={{ background: "oklch(0.26 0.03 150)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "18px", padding: "28px", textAlign: "left" }}>
+          <div ref={demoElRef} className="bt-lp-demo-inner" style={{ background: "oklch(0.26 0.03 150)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "18px", padding: "28px", textAlign: "left" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "#fff" }}>NVDA</div>
@@ -280,7 +302,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div className="bt-lp-floaty" style={{ width: "7px", height: "7px", borderRadius: "50%", background: demoStep === "idle" ? "oklch(0.6 0.02 150)" : "#4fd07f", animation: "bt-pulseDot 1.4s ease-in-out infinite" }} />
+                <div className="bt-lp-floaty bt-motion-pulse" style={{ width: "7px", height: "7px", borderRadius: "50%", background: demoStep === "idle" ? "oklch(0.6 0.02 150)" : "#4fd07f", animation: "bt-pulseDot 1.4s ease-in-out infinite" }} />
                 <span style={{ fontSize: "11.5px", fontWeight: 600, color: "oklch(0.68 0.02 150)" }}>{demoStep === "idle" ? "Ready — scroll to run" : demoStep === "scanning" ? "Scanning your position…" : "Scan complete"}</span>
               </div>
             </div>
