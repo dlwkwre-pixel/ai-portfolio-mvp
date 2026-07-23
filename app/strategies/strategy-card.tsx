@@ -344,7 +344,7 @@ function FinnIntelligencePanel({ card, onAnalysis }: { card: StrategyCard; onAna
               {/* Bull vs. Bear */}
               {(analysis.bull_case?.length > 0 || analysis.bear_case?.length > 0) && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <div style={{ background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
+                  <div style={{ background: "rgba(22,163,74,0.05)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)", padding: "10px 12px" }}>
                     <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--green)", margin: "0 0 7px", fontFamily: "var(--font-body)" }}>
                       Bull Case
                     </p>
@@ -550,7 +550,7 @@ function ImproveStrategyPanel({
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(109,40,217,0.08)"; }}
       >
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v3M8 11v3M2 8h3M11 8h3M4.22 4.22l2.12 2.12M9.66 9.66l2.12 2.12M4.22 11.78l2.12-2.12M9.66 6.34l2.12-2.12" stroke="#7c3aed" strokeWidth="1.4" strokeLinecap="round"/>
+          <path d="M8 2v3M8 11v3M2 8h3M11 8h3M4.22 4.22l2.12 2.12M9.66 9.66l2.12 2.12M4.22 11.78l2.12-2.12M9.66 6.34l2.12-2.12" stroke="var(--violet)" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
         Improve Strategy
       </button>

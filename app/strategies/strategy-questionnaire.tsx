@@ -823,14 +823,14 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
                     className="absolute inset-y-0 left-0 rounded-full"
                     style={{
                       width: ready ? `${scenario}%` : `${base}%`,
-                      background: delta > 0 ? "#f59e0b" : delta < 0 ? "#00d395" : "rgba(255,255,255,0.2)",
+                      background: delta > 0 ? "#f59e0b" : delta < 0 ? "var(--green)" : "rgba(255,255,255,0.2)",
                       transition: "width 0.6s cubic-bezier(0.23,1,0.32,1)",
                     }}
                   />
                 </div>
                 <span
                   className="w-8 shrink-0 text-right text-[10px] tabular-nums"
-                  style={{ fontFamily: "var(--font-mono)", color: delta > 0 ? "#f59e0b" : delta < 0 ? "#00d395" : "#475569" }}
+                  style={{ fontFamily: "var(--font-mono)", color: delta > 0 ? "#f59e0b" : delta < 0 ? "var(--green)" : "#475569" }}
                 >
                   {delta > 0 ? `+${delta}` : delta === 0 ? "—" : delta}
                 </span>
@@ -849,7 +849,7 @@ function StressSimulator({ strategy }: { strategy: GeneratedStrategy }) {
     ? strategy.risk_level
     : "Moderate") as "Conservative" | "Moderate" | "Aggressive";
   const resilienceColor = (r: string) =>
-    r === "High" ? "#00d395" : r === "Medium" ? "#f59e0b" : "#ef4444";
+    r === "High" ? "var(--green)" : r === "Medium" ? "#f59e0b" : "#ef4444";
 
   return (
     <div
@@ -1300,7 +1300,7 @@ export default function StrategyQuestionnaire({
                 <div key={sig.id} className="flex items-center gap-1" style={{ opacity: detected ? 1 : 0.18, transition: "opacity 0.3s ease-out" }}>
                   {detected ? (
                     <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="none">
-                      <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#00d395" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   ) : (
                     <div className="h-2 w-2 shrink-0 rounded-full border border-slate-700" />

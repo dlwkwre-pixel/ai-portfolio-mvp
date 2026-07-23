@@ -112,7 +112,7 @@ function ActionItem({ type, text, detail, cta, onCta }: {
   onCta?: () => void;
 }) {
   const styles = {
-    save: { dot: "var(--green)", bg: "rgba(0,211,149,0.04)", border: "rgba(0,211,149,0.15)" },
+    save: { dot: "var(--green)", bg: "rgba(22,163,74,0.04)", border: "rgba(22,163,74,0.15)" },
     warn: { dot: "#f59e0b", bg: "rgba(245,158,11,0.04)", border: "rgba(245,158,11,0.18)" },
     info: { dot: "oklch(0.62 0.15 260)", bg: "rgba(63,174,74,0.04)", border: "rgba(63,174,74,0.15)" },
   };
@@ -894,7 +894,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </div>
 
                   {(taxProfile?.incomeType ?? "w2") === "w2" ? (
-                    <div style={{ padding: "10px 14px", background: "rgba(0,211,149,0.04)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         <strong style={{ color: "var(--green)" }}>Already handled.</strong> Your employer automatically withholds all of this from your paychecks and sends it to the IRS on your behalf. You don&apos;t need to make any additional payments for this portion.
                       </p>
@@ -976,7 +976,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </div>
 
                   {estimatedItemized > stdDeduction && (
-                    <div style={{ padding: "10px 14px", background: "rgba(0,211,149,0.04)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         <strong style={{ color: "var(--green)" }}>Potential deduction.</strong> Your mortgage interest and property taxes may let you &quot;itemize&quot; deductions on your federal return, which could save you {fmt(itemizingSaves)} compared to taking the standard deduction. See the Deductions section below.
                       </p>
@@ -1023,7 +1023,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
                             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Long-term profits</p>
-                            <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(0,211,149,0.1)", color: "var(--green)", fontWeight: 600 }}>held &gt; 1 year</span>
+                            <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "var(--radius-full)", background: "rgba(22,163,74,0.1)", color: "var(--green)", fontWeight: 600 }}>held &gt; 1 year</span>
                           </div>
                           <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>{ltcgLots.length} sales · net {ltcgNet >= 0 ? "+" : ""}{fmt(ltcgNet)} · lower {Math.round(cgLtcgRate * 100)}% rate{cgNiit ? " + 3.8% NIIT" : ""}</p>
                         </div>
@@ -1205,13 +1205,13 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div style={{ padding: "12px 14px", background: estimatedItemized <= stdDeduction ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized <= stdDeduction ? "rgba(0,211,149,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "12px 14px", background: estimatedItemized <= stdDeduction ? "rgba(22,163,74,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized <= stdDeduction ? "rgba(22,163,74,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Standard deduction</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(stdDeduction)}</p>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Automatic — everyone gets this</p>
                       {estimatedItemized <= stdDeduction && <p style={{ fontSize: "10px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Best for you</p>}
                     </div>
-                    <div style={{ padding: "12px 14px", background: estimatedItemized > stdDeduction ? "rgba(0,211,149,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized > stdDeduction ? "rgba(0,211,149,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "12px 14px", background: estimatedItemized > stdDeduction ? "rgba(22,163,74,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized > stdDeduction ? "rgba(22,163,74,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Estimated itemized</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(estimatedItemized)}</p>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Mortgage interest + SALT cap</p>
@@ -1242,7 +1242,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   )}
 
                   {itemizingSaves > 0 && (
-                    <div style={{ padding: "10px 14px", background: "rgba(0,211,149,0.04)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         Based on your numbers, itemizing could reduce your federal taxes by approximately <strong style={{ color: "var(--green)" }}>{fmt(itemizingSaves)}</strong>. Talk to a CPA or use tax software — they can confirm with your actual numbers and find additional deductions we can&apos;t see (charitable donations, medical expenses, etc.).
                       </p>
@@ -1351,7 +1351,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                                     {remaining401k > 0 && `401k ${fmt(remaining401k)}`}{remaining401k > 0 && remainingHSA > 0 && " · "}{remainingHSA > 0 && `HSA ${fmt(remainingHSA)}`}
                                   </div>
                                 </div>
-                                <div style={{ padding: "7px 10px", background: "rgba(0,211,149,0.06)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                <div style={{ padding: "7px 10px", background: "rgba(22,163,74,0.06)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Potential tax savings</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--green)" }}>{fmt(potentialSaving)}</div>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>if you max out remaining</div>
@@ -1394,7 +1394,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </div>
                 <div style={{ padding: "10px 18px 16px", display: "flex", flexDirection: "column", gap: "8px" }}>
                   {tlhOpportunities.map((opp) => (
-                    <div key={`${opp.portfolioId}-${opp.ticker}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 14px", background: "rgba(0,211,149,0.04)", border: "1px solid rgba(0,211,149,0.12)", borderRadius: "var(--radius-md)" }}>
+                    <div key={`${opp.portfolioId}-${opp.ticker}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.12)", borderRadius: "var(--radius-md)" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", fontSize: "13px" }}>{opp.ticker}</span>
@@ -1749,6 +1749,6 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 }
 
 function TermBadge({ term }: { term: "short" | "long" | "unknown" }) {
-  const s = { short: { bg: "rgba(239,68,68,0.1)", color: "var(--red)", label: "Short" }, long: { bg: "rgba(0,211,149,0.1)", color: "var(--green)", label: "Long" }, unknown: { bg: "var(--bg-elevated)", color: "var(--text-muted)", label: "?" } }[term];
+  const s = { short: { bg: "rgba(239,68,68,0.1)", color: "var(--red)", label: "Short" }, long: { bg: "rgba(22,163,74,0.1)", color: "var(--green)", label: "Long" }, unknown: { bg: "var(--bg-elevated)", color: "var(--text-muted)", label: "?" } }[term];
   return <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", padding: "2px 7px", borderRadius: "var(--radius-full)", background: s.bg, color: s.color }}>{s.label}</span>;
 }
