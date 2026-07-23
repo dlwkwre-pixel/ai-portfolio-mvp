@@ -20,11 +20,11 @@ function formatAccountType(value: string | null) {
 
 function accountDotColor(value: string | null) {
   const t = (value || "").toLowerCase();
-  if (["brokerage", "taxable"].includes(t)) return "#0ea5a0";
-  if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#00d395";
-  if (["margin", "speculative"].includes(t)) return "#f59e0b";
-  if (["paper_trade", "paper trade"].includes(t)) return "#6fd08a";
-  return "#64748b";
+  if (["brokerage", "taxable"].includes(t)) return "#0ea5a0"; // teal
+  if (["roth_ira", "traditional_ira", "retirement"].includes(t)) return "#16a34a"; // sage green
+  if (["margin", "speculative"].includes(t)) return "#c8791e"; // sage amber
+  if (["paper_trade", "paper trade"].includes(t)) return "#3fae4a";
+  return "var(--text-muted)";
 }
 
 function accountPillClass(value: string | null) {
@@ -138,61 +138,44 @@ export default async function PortfoliosPage() {
               ))}
             </div>
 
-            {/* Active portfolios */}
+            {/* Active portfolios — 2-column card grid (Sage) */}
             {activePortfolios.length > 0 && (
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "26px" }}>
                 <div className="label" style={{ marginBottom: "10px" }}>Active</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "14px" }}>
                   {activePortfolios.map((portfolio) => (
-                    <div key={portfolio.id} className="bt-card" style={{ padding: "0", overflow: "hidden" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px" }}>
-                        {/* Dot */}
+                    <div key={portfolio.id} className="bt-card" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {/* header: dot + name + pills */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: accountDotColor(portfolio.account_type), flexShrink: 0, boxShadow: `0 0 6px ${accountDotColor(portfolio.account_type)}` }} />
+                        <h2 style={{ fontSize: "14.5px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{portfolio.name}</h2>
+                        <span className={accountPillClass(portfolio.account_type)}>{formatAccountType(portfolio.account_type)}</span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--surface-005)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                          {portfolio.benchmark_symbol || "SPY"}
+                        </span>
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--surface-005)", border: "1px solid var(--border-subtle)", padding: "2px 7px", borderRadius: "var(--radius-full)", textTransform: "capitalize" }}>
+                          {portfolio.status}
+                        </span>
+                        {linkedIds.has(portfolio.id) && (
+                          <span title="Synced from your connected brokerage" style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", background: "var(--green-bg)", border: "1px solid var(--green-border)", padding: "2px 7px", borderRadius: "var(--radius-full)" }}>
+                            ✓ Synced
+                          </span>
+                        )}
+                      </div>
 
-                        {/* Info */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
-                            <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>
-                              {portfolio.name}
-                            </h2>
-                            <span className={accountPillClass(portfolio.account_type)}>
-                              {formatAccountType(portfolio.account_type)}
-                            </span>
-                            <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
-                              {portfolio.benchmark_symbol || "SPY"}
-                            </span>
-                            <span style={{ fontSize: "10px", color: "var(--text-muted)", background: "var(--card-bg)", border: "1px solid var(--card-border)", padding: "1px 6px", borderRadius: "var(--radius-full)", textTransform: "capitalize" }}>
-                              {portfolio.status}
-                            </span>
-                            {linkedIds.has(portfolio.id) && (
-                              <span title="Synced from your connected brokerage" style={{ fontSize: "10px", fontWeight: 700, color: "var(--green)", background: "rgba(0,211,149,0.1)", border: "1px solid rgba(0,211,149,0.3)", padding: "1px 6px", borderRadius: "var(--radius-full)" }}>
-                                ✓ Synced
-                              </span>
-                            )}
-                          </div>
-                          {portfolio.description && (
-                            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>
-                              {portfolio.description}
-                            </p>
-                          )}
-                          <div style={{ display: "flex", gap: "12px", marginTop: "4px", fontSize: "11px", color: "var(--text-tertiary)" }}>
-                            <span>Cash: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{formatMoney(Number(portfolio.cash_balance ?? 0))}</span></span>
-                            <span>Value: <span style={{ fontFamily: "var(--font-mono)", color: "var(--green)" }}>{formatMoney(valuations[portfolio.id])}</span></span>
-                            <span>Created {new Date(portfolio.created_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
+                      {portfolio.description && (
+                        <p style={{ fontSize: "12.5px", color: "var(--text-tertiary)", lineHeight: 1.5, margin: 0 }}>{portfolio.description}</p>
+                      )}
 
-                        {/* Actions */}
-                        <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "center" }}>
-                          <PortfolioStatusButton
-                            portfolioId={portfolio.id}
-                            portfolioName={portfolio.name}
-                            mode="archive"
-                          />
-                          <Link href={`/portfolios/${portfolio.id}`} className="bt-btn bt-btn-primary bt-btn-sm">
-                            Open →
-                          </Link>
-                        </div>
+                      <div style={{ display: "flex", gap: "16px", fontSize: "12px", color: "var(--text-tertiary)", flexWrap: "wrap" }}>
+                        <span>Cash: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{formatMoney(Number(portfolio.cash_balance ?? 0))}</span></span>
+                        <span>Value: <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{formatMoney(valuations[portfolio.id])}</span></span>
+                        <span>Created {new Date(portfolio.created_at).toLocaleDateString()}</span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                        <PortfolioStatusButton portfolioId={portfolio.id} portfolioName={portfolio.name} mode="archive" />
+                        <Link href={`/portfolios/${portfolio.id}`} className="bt-btn bt-btn-primary bt-btn-sm">Open →</Link>
                       </div>
                     </div>
                   ))}
