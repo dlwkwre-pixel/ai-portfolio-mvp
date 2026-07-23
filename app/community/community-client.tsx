@@ -1158,7 +1158,7 @@ function MarketPulseCard() {
           background: "rgba(14,165,160,0.12)", border: "1px solid rgba(14,165,160,0.2)",
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         }}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
           </svg>
         </div>
@@ -1940,7 +1940,7 @@ export default function CommunityClient({
           <div style={{ paddingTop: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
             <div style={{ padding: "28px 24px", textAlign: "center", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)" }}>
               <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#93c5fd" strokeWidth="1.5">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--brand-blue)" strokeWidth="1.5">
                   <path d="M17 20h-2v-2a3 3 0 00-5.356-1.857M7 20H5v-2a3 3 0 015.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
