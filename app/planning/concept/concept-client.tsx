@@ -371,8 +371,8 @@ export default function ConceptClient() {
                   <svg viewBox={`0 0 ${VBW} ${VBH}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
                     <defs>
                       <linearGradient id="trjGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#2563eb" />
-                        <stop offset="100%" stopColor="#7c3aed" />
+                        <stop offset="0%" stopColor="#0ea5a0" />
+                        <stop offset="100%" stopColor="#3fae4a" />
                       </linearGradient>
                     </defs>
                     {/* wealth gridlines */}

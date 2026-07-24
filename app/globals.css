@@ -184,7 +184,7 @@
    invisible on a light background. The rules below are unlayered, so they beat
    Tailwind's layered utilities by the cascade, while inline styles still win.
    Low-elevation fills become solid white cards; higher tiers and all borders
-   become visible gray, matching the --surface-*/--line-* token philosophy. */
+   become visible gray, matching the --surface-* / --line-* token philosophy. */
 .bg-white\/2,
 .bg-white\/3,
 .bg-white\/4 { background-color: #ffffff; }

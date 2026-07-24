@@ -2832,7 +2832,7 @@ export default function HomeClient({
                     type="button"
                     onClick={fetchFinnCommentary}
                     disabled={finnLoading}
-                    style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: finnLoading ? "var(--text-muted)" : "linear-gradient(135deg,#3fae4a,#5b21b6)", border: "none", borderRadius: "8px", padding: "5px 14px", cursor: finnLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}
+                    style={{ fontSize: "11px", fontWeight: 600, color: "#fff", background: finnLoading ? "var(--text-muted)" : "linear-gradient(135deg,#3fae4a,#0ea5a0)", border: "none", borderRadius: "8px", padding: "5px 14px", cursor: finnLoading ? "not-allowed" : "pointer", whiteSpace: "nowrap" as const }}
                   >
                     {finnLoading ? "Analyzing…" : "Deep AI Analysis"}
                   </button>
@@ -4562,8 +4562,8 @@ export default function HomeClient({
                 <div style={{ padding: "14px 16px", background: "color-mix(in oklch, oklch(0.45 0.1 265) 4%, var(--card-bg))", border: "1px solid rgba(63,174,74,0.16)", borderRadius: "var(--radius-lg)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "9px" }}>
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="10" cy="10" r="8" stroke="#3fae4a" strokeWidth="1.5" />
+                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#3fae4a" strokeWidth="1.5" strokeLinecap="round" />
                       <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                     </svg>
                     <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#3fae4a", fontFamily: "var(--font-body)" }}>Atlas Advisor Take</span>
@@ -5343,8 +5343,8 @@ export default function HomeClient({
                     <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#0ea5a0" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#0ea5a0" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#00d395" stopOpacity={0.2} />
@@ -5359,7 +5359,7 @@ export default function HomeClient({
                         formatter={(v) => typeof v === "number" ? fmt(v) : String(v ?? "")}
                       />
                       <Legend wrapperStyle={{ fontSize: "11px", color: "var(--text-secondary)" }} />
-                      <Area type="monotone" dataKey="Home Equity" stroke="#3b82f6" fill="url(#equityGrad)" strokeWidth={2} dot={false} />
+                      <Area type="monotone" dataKey="Home Equity" stroke="#0ea5a0" fill="url(#equityGrad)" strokeWidth={2} dot={false} />
                       <Area type="monotone" dataKey={rentSeriesLabel} stroke="#00d395" fill="url(#portfolioGrad)" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -5491,8 +5491,8 @@ export default function HomeClient({
                     style={{ display: "flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(109,40,217,0.22)", background: "rgba(109,40,217,0.07)", color: "#3fae4a", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                      <circle cx="10" cy="10" r="8" stroke="#3fae4a" strokeWidth="1.5" />
+                      <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#3fae4a" strokeWidth="1.5" strokeLinecap="round" />
                       <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                     </svg>
                     {finnLoading ? "Atlas is thinking…" : "Ask Atlas for AI Analysis"}

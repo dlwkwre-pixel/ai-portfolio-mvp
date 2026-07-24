@@ -2392,12 +2392,12 @@ function OnboardingWizard({ onClose, profile }: { onClose: () => void; profile?:
               <svg width="100%" height="48" viewBox="0 0 1000 100" preserveAspectRatio="none" style={{ display: "block", marginBottom: "4px" }}>
                 <defs>
                   <linearGradient id="wiz-grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#0ea5a0" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#0ea5a0" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <path d={`${pts} L1000,100 L0,100 Z`} fill="url(#wiz-grad)" />
-                <path d={pts} fill="none" stroke="#3b82f6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                <path d={pts} fill="none" stroke="#0ea5a0" strokeWidth="2" vectorEffect="non-scaling-stroke" />
               </svg>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", marginBottom: "18px" }}>
                 <span>Today {fmtFull(reveal.netWorth)}</span>

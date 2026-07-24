@@ -341,7 +341,7 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
             <span style={sectionTitle}>{holdYears}-year projection</span>
             <svg viewBox={`0 0 ${chart.W} ${chart.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "130px", display: "block" }}>
               <path d={`${chart.valueLine} L${chart.W},${chart.H} L0,${chart.H} Z`} fill="rgba(63,174,74,0.10)" />
-              <path d={chart.valueLine} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
+              <path d={chart.valueLine} fill="none" stroke="#3fae4a" strokeWidth="2" strokeLinejoin="round" />
               <path d={chart.equityLine} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" />
             </svg>
             <div style={{ display: "flex", gap: "16px", margin: "8px 0 14px", fontSize: "10.5px" }}>

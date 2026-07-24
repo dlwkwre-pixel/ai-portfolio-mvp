@@ -177,7 +177,7 @@ export default function LifePlanTab({
           <div style={{ position: "relative", width: "104px", height: "104px", flexShrink: 0 }}>
             <svg width="104" height="104" viewBox="0 0 104 104" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="52" cy="52" r="45" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" />
-              <defs><linearGradient id="lp-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#2563eb" /><stop offset="55%" stopColor="#7c3aed" /><stop offset="100%" stopColor="#00d395" /></linearGradient></defs>
+              <defs><linearGradient id="lp-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#0ea5a0" /><stop offset="100%" stopColor="#3fae4a" /></linearGradient></defs>
               <circle cx="52" cy="52" r="45" fill="none" stroke="url(#lp-ring)" strokeWidth="7" strokeLinecap="round" strokeDasharray={2 * Math.PI * 45} strokeDashoffset={2 * Math.PI * 45 * (1 - readinessScore / 100)} style={{ transition: "stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1)" }} />
             </svg>
             <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>

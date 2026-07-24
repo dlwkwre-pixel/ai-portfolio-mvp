@@ -1235,7 +1235,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
                   <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} width={58} />
                   <Tooltip formatter={(v, name) => typeof v === "number" ? [fmt(v), name] : [String(v ?? ""), name]} contentStyle={{ background: "oklch(0.13 0.01 240)", border: "1px solid oklch(0.24 0.02 240)", borderRadius: 8, fontSize: 12, color: "oklch(0.92 0.01 240)" }} labelStyle={{ color: "oklch(0.92 0.01 240)", fontWeight: 600, marginBottom: 4 }} itemStyle={{ color: "oklch(0.72 0.04 240)" }} cursor={{ fill: "oklch(0.20 0.01 240 / 0.7)" }} />
-                  <Area type="monotone" dataKey="balance" stroke="#3b82f6" fill="#3b82f620" strokeWidth={2} name="529 Balance" dot={false} />
+                  <Area type="monotone" dataKey="balance" stroke="#0ea5a0" fill="#0ea5a020" strokeWidth={2} name="529 Balance" dot={false} />
                   <Line type="monotone" dataKey="target" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" name="College Cost" dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>

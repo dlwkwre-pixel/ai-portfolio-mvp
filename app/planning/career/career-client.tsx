@@ -1209,8 +1209,8 @@ export default function CareerClient({
           <div style={cardS}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="10" cy="10" r="8" stroke="#3fae4a" strokeWidth="1.5" />
+                <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#3fae4a" strokeWidth="1.5" strokeLinecap="round" />
                 <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
               </svg>
               <p style={{ ...sectionHead, margin: 0 }}>Atlas&apos;s Take</p>
@@ -1229,10 +1229,10 @@ export default function CareerClient({
                 <AtlasThinking messages={["Weighing the income change…", "Modeling the transition gap…", "Projecting long-term earnings…", "Checking the break-even point…"]} />
               </div>
             ) : (
-              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.2 290 / 0.15)" : "linear-gradient(135deg,#3fae4a,#5b21b6)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(63,174,74,0.35)" }}>
+              <button type="button" onClick={fetchFinnCommentary} disabled={finnLoading} style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "7px", padding: "8px 16px", borderRadius: "var(--radius-xl)", border: "none", background: finnLoading ? "oklch(0.45 0.08 175 / 0.15)" : "linear-gradient(135deg,#3fae4a,#0ea5a0)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: finnLoading ? "default" : "pointer", opacity: finnLoading ? 0.7 : 1, boxShadow: finnLoading ? "none" : "0 2px 12px rgba(63,174,74,0.35)" }}>
                 <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" stroke="#7c3aed" strokeWidth="1.5" />
-                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="10" r="8" stroke="#3fae4a" strokeWidth="1.5" />
+                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="#3fae4a" strokeWidth="1.5" strokeLinecap="round" />
                   <circle cx="10" cy="15.5" r="0.75" fill="#3fae4a" />
                 </svg>
                 {finnLoading ? "Atlas is thinking…" : "Get Deep AI Analysis"}
@@ -1395,12 +1395,12 @@ export default function CareerClient({
                   {chartMode === "annual" ? (
                     <>
                       <Line type="monotone" dataKey="Current Path" stroke="#94a3b8" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="New Career" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="New Career" stroke="#0ea5a0" strokeWidth={2} dot={false} />
                     </>
                   ) : (
                     <>
                       <Line type="monotone" dataKey="Cumulative Current" stroke="#94a3b8" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="Cumulative New" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="Cumulative New" stroke="#0ea5a0" strokeWidth={2} dot={false} />
                       {computed.breakEvenYear != null && (
                         <ReferenceLine x={`Yr ${computed.breakEvenYear}`} stroke="var(--green)" strokeDasharray="4 2" label={{ value: "Break-even", fill: "var(--green)", fontSize: 9 }} />
                       )}
