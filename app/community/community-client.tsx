@@ -8,6 +8,7 @@ import { followPublicPortfolio, copyPublicAllocation } from "./portfolio-actions
 import CommunityFeed from "./community-feed";
 import type { FeedPost, FeedAuthor, MyOption } from "./community-feed";
 import PeerBenchmarkCard from "./peer-benchmark-card";
+import TickerChip from "./ticker-chip";
 import PageTutorial from "@/app/components/page-tutorial";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1907,14 +1908,13 @@ export default function CommunityClient({
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "12px" }}>What the community holds most across public portfolios</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               {mostHeld.map((h, i) => (
-                <Link key={h.ticker} href={`/research?ticker=${encodeURIComponent(h.ticker)}`}
-                  style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", textDecoration: "none" }}
-                  className="bt-hover-row">
+                <TickerChip key={h.ticker} ticker={h.ticker} className="bt-hover-row"
+                  style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", width: "100%", boxSizing: "border-box" }}>
                   <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-muted)", width: "18px", flexShrink: 0 }}>{i + 1}</span>
                   <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--brand-blue)", width: "64px", flexShrink: 0 }}>${h.ticker}</span>
                   <span style={{ fontSize: "12px", color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.company || ""}</span>
                   <span style={{ fontSize: "11px", color: "var(--text-tertiary)", flexShrink: 0 }}>{h.count} {h.count === 1 ? "portfolio" : "portfolios"}</span>
-                </Link>
+                </TickerChip>
               ))}
             </div>
           </div>

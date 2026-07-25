@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import InfoTooltip from "@/app/components/info-tooltip";
+import TickerChip from "./ticker-chip";
 
 type Stat = { you: number; median: number; percentile: number };
 type Benchmark = {
@@ -110,7 +110,7 @@ export default function PeerBenchmarkCard() {
               You hold{" "}
               {data.overlap.map((t, i) => (
                 <span key={t.ticker}>
-                  <Link href={`/research?ticker=${encodeURIComponent(t.ticker)}`} style={{ color: "var(--brand-blue)", fontFamily: "var(--font-mono)", fontWeight: 700, textDecoration: "none" }}>${t.ticker}</Link>
+                  <TickerChip ticker={t.ticker} style={{ display: "inline", color: "var(--brand-blue)", fontFamily: "var(--font-mono)", fontWeight: 700 }} />
                   <span style={{ color: "var(--text-muted)" }}> ({t.pct}%)</span>
                   {i < data.overlap!.length - 1 ? ", " : ""}
                 </span>
@@ -123,7 +123,7 @@ export default function PeerBenchmarkCard() {
               Popular names you don&apos;t own:{" "}
               {data.notHeld.map((t, i) => (
                 <span key={t.ticker}>
-                  <Link href={`/research?ticker=${encodeURIComponent(t.ticker)}`} style={{ color: "var(--accent, #5fbf9a)", fontFamily: "var(--font-mono)", fontWeight: 700, textDecoration: "none" }}>${t.ticker}</Link>
+                  <TickerChip ticker={t.ticker} style={{ display: "inline", color: "var(--accent, #5fbf9a)", fontFamily: "var(--font-mono)", fontWeight: 700 }} />
                   <span style={{ color: "var(--text-muted)" }}> ({t.pct}%)</span>
                   {i < data.notHeld!.length - 1 ? ", " : ""}
                 </span>

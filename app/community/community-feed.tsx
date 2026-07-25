@@ -6,6 +6,7 @@ import {
   createPost, deletePost, togglePostLike,
   addPostComment, deletePostComment, votePoll, reportPost,
 } from "./post-actions";
+import TickerChip from "./ticker-chip";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,7 +399,8 @@ function PostCard({ post, myUserId, onTicker, onChange, onRemove }: {
       {post.ai_ticker && post.ai_take && (
         <div style={{ marginTop: "10px", padding: "10px 12px", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", borderRadius: "10px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--violet)" }}>✦ Atlas on ${post.ai_ticker}</span>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-tertiary)" }}>✦ Atlas on</span>
+            <TickerChip ticker={post.ai_ticker} style={{ fontSize: "11px", fontWeight: 700, color: "var(--violet)" }} />
           </div>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>{post.ai_take}</p>
         </div>

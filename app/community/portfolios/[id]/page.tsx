@@ -5,6 +5,7 @@ import MobileNav from "@/app/components/mobile-nav";
 import Link from "next/link";
 import PublicPortfolioPerfChart from "./public-portfolio-perf-chart";
 import PublicPortfolioActions from "./public-portfolio-actions";
+import TickerChip from "@/app/community/ticker-chip";
 
 const ALLOC_COLORS = ["#0ea5a0", "#3fae4a", "#0891b2", "#065f46", "#92400e", "#4338ca"];
 const ALLOC_CASH_COLOR = "rgba(255,255,255,0.2)";
@@ -294,17 +295,15 @@ export default async function PublicPortfolioPage({ params }: { params: Promise<
                         borderRadius: "3px",
                         background: ALLOC_COLORS[i % ALLOC_COLORS.length],
                       }} />
-                      <Link
-                        href={`/research?ticker=${encodeURIComponent(h.ticker)}`}
+                      <TickerChip
+                        ticker={h.ticker}
                         style={{
                           fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600,
                           color: "var(--text-secondary)", minWidth: "46px", flexShrink: 0,
-                          textDecoration: "none",
                         }}
-                        title={`Research ${h.ticker}`}
                       >
                         {h.ticker}
-                      </Link>
+                      </TickerChip>
                       <div style={{
                         flex: "1 1 60px", height: "4px", borderRadius: "2px",
                         background: "var(--surface-005)", overflow: "hidden",
