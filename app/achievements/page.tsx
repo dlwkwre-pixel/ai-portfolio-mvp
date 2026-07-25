@@ -38,8 +38,8 @@ function LevelMedallion({ p }: { p: LevelProgress }) {
         <circle cx="59" cy="59" r={r} fill="none" stroke="var(--surface-010)" strokeWidth={stroke} />
         <defs>
           <linearGradient id="lvlring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2563eb" />
-            <stop offset="100%" stopColor="#7c3aed" />
+            <stop offset="0%" stopColor="#3fae4a" />
+            <stop offset="100%" stopColor="#0e9488" />
           </linearGradient>
         </defs>
         <circle
