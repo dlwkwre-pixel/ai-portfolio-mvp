@@ -37,15 +37,15 @@ function Chart({ portfolio, benchmark, startValue }: { portfolio: Pt[]; benchmar
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: "120px", display: "block" }}>
       <defs>
         <linearGradient id="bt-bt-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(124,58,237,0.25)" />
-          <stop offset="100%" stopColor="rgba(124,58,237,0)" />
+          <stop offset="0%" stopColor="rgba(14,165,160,0.25)" />
+          <stop offset="100%" stopColor="rgba(14,165,160,0)" />
         </linearGradient>
       </defs>
       {/* starting-value baseline */}
       <line x1="0" y1={baseY} x2={W} y2={baseY} stroke="rgba(148,163,184,0.25)" strokeWidth="1" strokeDasharray="3 3" />
       {/* portfolio area + line */}
       <path d={`${path(portfolio)} L${W},${H} L0,${H} Z`} fill="url(#bt-bt-fill)" />
-      <path d={path(portfolio)} fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinejoin="round" />
+      <path d={path(portfolio)} fill="none" stroke="#0ea5a0" strokeWidth="2" strokeLinejoin="round" />
       {/* benchmark line */}
       {benchmark && benchmark.length > 0 && (
         <path d={path(benchmark)} fill="none" stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 3" strokeLinejoin="round" />
