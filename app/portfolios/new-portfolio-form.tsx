@@ -131,14 +131,20 @@ export default function NewPortfolioForm() {
         <div className="mt-6 rounded-2xl border border-white/8 bg-white/3 p-6 backdrop-blur-sm">
           {/* Step indicator */}
           <div className="mb-6 flex items-center gap-3">
-            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${step === 1 ? "bg-blue-600 text-white" : "bg-emerald-500/20 text-emerald-400"}`}>
+            <div className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition" style={{
+              background: step === 1 ? "var(--brand-gradient)" : "var(--green-bg)",
+              color: step === 1 ? "#fff" : "var(--green)",
+            }}>
               {step > 1 ? "✓" : "1"}
             </div>
-            <div className="h-px flex-1 bg-white/10" />
-            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition ${step === 2 ? "bg-blue-600 text-white" : "bg-white/8 text-slate-500"}`}>
+            <div className="h-px flex-1" style={{ background: "var(--border-subtle)" }} />
+            <div className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition" style={{
+              background: step === 2 ? "var(--brand-gradient)" : "var(--surface-006)",
+              color: step === 2 ? "#fff" : "var(--text-tertiary)",
+            }}>
               2
             </div>
-            <span className="text-xs text-slate-500">{step === 1 ? "Portfolio details" : "Add holdings (optional)"}</span>
+            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{step === 1 ? "Portfolio details" : "Add holdings (optional)"}</span>
           </div>
 
           {/* ── STEP 1 ── */}
@@ -314,7 +320,8 @@ export default function NewPortfolioForm() {
                 type="button"
                 onClick={addHolding}
                 disabled={!newHolding.ticker || !newHolding.shares}
-                className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 transition hover:bg-blue-500/20 disabled:opacity-40"
+                className="mt-3 rounded-xl px-4 py-2 text-sm font-medium transition disabled:opacity-40"
+                style={{ border: "1px solid var(--violet-border)", background: "var(--violet-bg)", color: "var(--violet)" }}
               >
                 + Add to list
               </button>

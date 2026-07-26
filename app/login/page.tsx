@@ -40,7 +40,7 @@ function LoginForm() {
   return (
     <div style={{ minHeight: "100vh", background: "oklch(0.91 0.04 150)", display: "flex", flexDirection: "column", fontFamily: "var(--font-body)" }}>
       {/* Sign in / Create account tab toggle — switches between the two routes */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border-subtle)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px", background: "oklch(0.91 0.04 150)", borderBottom: "1px solid var(--border-subtle)" }}>
         <span style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: TEAL, background: "rgba(14,148,136,0.1)" }}>Sign in</span>
         <Link href="/signup" style={{ padding: "7px 14px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 600, color: INK2, textDecoration: "none" }}>Create account</Link>
       </div>

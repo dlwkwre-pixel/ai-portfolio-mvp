@@ -386,7 +386,8 @@ export default function PortfolioChartClient({
               <button
                 onClick={handleBackfill}
                 disabled={backfilling}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: "var(--brand-gradient)" }}
               >
                 {backfilling ? (
                   <>

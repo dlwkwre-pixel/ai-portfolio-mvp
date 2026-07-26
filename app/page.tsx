@@ -194,7 +194,7 @@ export default function LandingPage() {
           <a href="#faq" style={{ textDecoration: "none", color: "inherit" }}>FAQ</a>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Link href="/login" style={{ textDecoration: "none", fontSize: "13.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", padding: "9px 6px" }}>Sign in</Link>
+          <Link href="/login" style={{ textDecoration: "none", fontSize: "13.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", padding: "9px 6px", whiteSpace: "nowrap" }}>Sign in</Link>
           <Link href="/signup" style={{ padding: "9px 18px", borderRadius: "8px", fontSize: "13.5px", fontWeight: 700, color: "#fff", background: GRAD, textDecoration: "none", whiteSpace: "nowrap" }}>Get started free</Link>
         </div>
       </nav>

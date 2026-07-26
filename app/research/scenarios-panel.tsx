@@ -288,9 +288,9 @@ function ScenarioCard({
                   letterSpacing: "0.08em",
                   padding: "2px 6px",
                   borderRadius: "var(--radius-full)",
-                  background: "rgba(139,92,246,0.12)",
-                  color: "#6fd08a",
-                  border: "1px solid rgba(139,92,246,0.3)",
+                  background: "var(--violet-bg)",
+                  color: "var(--violet)",
+                  border: "1px solid var(--violet-border)",
                   cursor: "help",
                 }}
               >
@@ -371,12 +371,12 @@ function ScenarioCard({
               gap: "7px",
               padding: "7px 10px",
               borderRadius: "var(--radius-md)",
-              background: "rgba(139,92,246,0.06)",
-              border: "1px solid rgba(139,92,246,0.18)",
+              background: "var(--violet-bg)",
+              border: "1px solid var(--violet-border)",
               marginBottom: "12px",
             }}>
               <span style={{ fontSize: "11px", flexShrink: 0 }}>⚡</span>
-              <span style={{ fontSize: "11px", color: "#c4b5fd", lineHeight: 1.4 }}>
+              <span style={{ fontSize: "11px", color: "var(--violet)", lineHeight: 1.4 }}>
                 {triggerContext}
               </span>
             </div>

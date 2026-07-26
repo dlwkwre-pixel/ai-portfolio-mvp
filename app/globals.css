@@ -352,7 +352,9 @@ body {
 
 /* ── Pills ── */
 .bt-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em; }
-.bt-pill-brokerage { background: rgba(59,130,246,0.1); color: #93c5fd; border: 1px solid rgba(59,130,246,0.18); }
+/* .bt-pill-brokerage is defined once, above near the other light-mode flips
+   (var(--violet-bg)/--violet/--violet-border) — a duplicate old-blue rule
+   used to live here and win the cascade by source order; removed. */
 .bt-pill-ira    { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
 .bt-pill-margin { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-border); }
 .bt-pill-paper  { background: var(--violet-bg); color: var(--violet); border: 1px solid var(--violet-border); }
@@ -371,7 +373,7 @@ body {
   transition: var(--transition-base);
 }
 .bt-input::placeholder { color: var(--text-muted); }
-.bt-input:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.bt-input:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(14,165,160,0.12); }
 
 .bt-select {
   width: 100%;
@@ -386,7 +388,7 @@ body {
   cursor: pointer;
   transition: var(--transition-base);
 }
-.bt-select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+.bt-select:focus { border-color: var(--brand-blue); box-shadow: 0 0 0 3px rgba(14,165,160,0.12); }
 
 /* ── Misc ── */
 .bt-divider { height: 1px; background: var(--border); }
@@ -472,7 +474,7 @@ body {
 }
 
 .bt-glow {
-  background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(37,99,235,0.08) 0%, transparent 60%);
+  background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(14,165,160,0.08) 0%, transparent 60%);
   pointer-events: none;
 }
 
@@ -489,8 +491,8 @@ body {
 @keyframes fadeUp   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
-  50%       { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,160,0.3); }
+  50%       { box-shadow: 0 0 0 6px rgba(14,165,160,0); }
 }
 
 .animate-fade-up    { animation: fadeUp 0.4s ease forwards; }

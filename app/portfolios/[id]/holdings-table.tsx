@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { EditHoldingForm, DeleteHoldingButton, UpdateNavButton } from "./add-holding-form";
 import { HoldingLots } from "./holding-lots";
 import type { HoldingLot } from "./holding-lots";
@@ -472,8 +472,8 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
         </thead>
         <tbody className="divide-y divide-white/4">
           {holdings.map((holding) => (
-            <>
-              <tr key={holding.id} className="text-sm transition hover:bg-white/2">
+            <Fragment key={holding.id}>
+              <tr className="text-sm transition hover:bg-white/2">
                 <td className="px-3 py-3">
                   <button
                     type="button"
@@ -1092,7 +1092,7 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                   </td>
                 </tr>
               )}
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>
