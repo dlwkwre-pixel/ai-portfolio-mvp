@@ -103,10 +103,17 @@ export async function POST(req: Request) {
       await rebuildHoldingLots(pid); // tax lots from imported trades (best-effort)
     }
 
-    await admin.from("brokerage_account_links").upsert(
-      { user_id: user.id, provider: "snaptrade", snaptrade_account_id: accountId, default_portfolio_id: defaultPortfolioId, updated_at: new Date().toISOString() },
+    const linkUpsertResult = await admin.from("brokerage_account_links").upsert(
+      { user_id: user.id, provider: "snaptrade", snaptrade_account_id: accountId, default_portfolio_id: defaultPortfolioId, cash_portfolio_id: cashPortfolioId, updated_at: new Date().toISOString() },
       { onConflict: "user_id,provider,snaptrade_account_id" },
-    ).then((r) => r, () => ({}));
+    ).then((r) => r, () => ({ error: { message: "insert failed" } }));
+    if (linkUpsertResult.error) {
+      // fall back if cash_portfolio_id isn't migrated yet
+      await admin.from("brokerage_account_links").upsert(
+        { user_id: user.id, provider: "snaptrade", snaptrade_account_id: accountId, default_portfolio_id: defaultPortfolioId, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,provider,snaptrade_account_id" },
+      ).then((r) => r, () => ({}));
+    }
     await admin.from("brokerage_connections").update({
       connected: true, last_synced_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString(),
     }).eq("user_id", user.id).eq("provider", "snaptrade");

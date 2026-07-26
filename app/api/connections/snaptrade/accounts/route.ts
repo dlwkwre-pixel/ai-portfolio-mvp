@@ -27,11 +27,17 @@ export async function GET() {
     const [accounts, { data: portfolios }, { data: links }] = await Promise.all([
       fetchAccounts(snaptrade, { userId: conn.snaptrade_user_id, userSecret: conn.snaptrade_user_secret }),
       admin.from("portfolios").select("id, name").eq("user_id", user.id).eq("status", "active").order("created_at"),
-      admin.from("brokerage_account_links").select("snaptrade_account_id, default_portfolio_id").eq("user_id", user.id).eq("provider", "snaptrade").then((r) => r, () => ({ data: null })),
+      // If cash_portfolio_id isn't migrated yet, this resolves with data: null (Postgrest
+      // errors don't reject) — links ?? [] below already handles that safely.
+      admin.from("brokerage_account_links").select("snaptrade_account_id, default_portfolio_id, cash_portfolio_id").eq("user_id", user.id).eq("provider", "snaptrade").then((r) => r, () => ({ data: null })),
     ]);
     const linkMap: Record<string, string | null> = {};
-    for (const l of links ?? []) linkMap[l.snaptrade_account_id] = l.default_portfolio_id ?? null;
-    return NextResponse.json({ accounts, portfolios: portfolios ?? [], links: linkMap });
+    const cashLinkMap: Record<string, string | null> = {};
+    for (const l of links ?? []) {
+      linkMap[l.snaptrade_account_id] = l.default_portfolio_id ?? null;
+      cashLinkMap[l.snaptrade_account_id] = (l as { cash_portfolio_id?: string | null }).cash_portfolio_id ?? null;
+    }
+    return NextResponse.json({ accounts, portfolios: portfolios ?? [], links: linkMap, cashLinks: cashLinkMap });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not load accounts.";
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -67,9 +67,12 @@ export async function rebuildLinkedPortfolioHistory(
   // everything, so keep the whole account (also covers the not-yet-migrated case).
   const isSplit = myTickers.size > 0 && [...accountTickers].some((t) => !myTickers.has(t));
 
-  const { data: link } = await admin.from("brokerage_account_links").select("default_portfolio_id")
+  const { data: link } = await admin.from("brokerage_account_links").select("default_portfolio_id, cash_portfolio_id")
     .eq("snaptrade_account_id", accountId).limit(1).maybeSingle().then((r) => r, () => ({ data: null }));
   const isDefaultTarget = link?.default_portfolio_id === portfolioId;
+  // Cash can be routed independently of positions (same as a ticker can) — only fall back
+  // to the position default when no cash-specific choice was ever saved.
+  const isCashTarget = link?.cash_portfolio_id ? link.cash_portfolio_id === portfolioId : isDefaultTarget;
 
   // Tickers claimed by the account's OTHER portfolios (e.g. the isolated ACHR tracker).
   const otherTickers = new Set<string>();
@@ -87,8 +90,8 @@ export async function rebuildLinkedPortfolioHistory(
     : isDefaultTarget ? allActivities.filter((a) => !a.ticker || !otherTickers.has(a.ticker.toUpperCase()))
     : allActivities.filter((a) => a.ticker && myTickers.has(a.ticker.toUpperCase()));
 
-  // Cash goes to the account's default (cash) portfolio only.
-  const includeCash = (!isSplit || isDefaultTarget) ? cash : 0;
+  // Cash goes to whichever portfolio it's routed to (default, unless overridden).
+  const includeCash = (!isSplit || isCashTarget) ? cash : 0;
 
   let positionsValue = 0, positionsCost = 0;
   for (const pos of positions) {
@@ -346,6 +349,15 @@ export async function resyncBrokerageAccount(
   if (!own.has(defaultPortfolioId)) return { updated: 0, added: 0, activities: 0 };
   const pids = [...own];
 
+  // Cash can be routed to a different portfolio than positions (same idea as per-ticker
+  // routing below, but account-wide since cash isn't a per-ticker concept). Falls back to
+  // the position default when never explicitly set, or not migrated yet.
+  const { data: linkRow } = await admin.from("brokerage_account_links").select("cash_portfolio_id")
+    .eq("user_id", userId).eq("provider", "snaptrade").eq("snaptrade_account_id", accountId)
+    .maybeSingle().then((r) => r, () => ({ data: null }));
+  const cashPortfolioId = linkRow?.cash_portfolio_id && own.has(linkRow.cash_portfolio_id)
+    ? linkRow.cash_portfolio_id : defaultPortfolioId;
+
   // Route each ticker within THIS account's own holdings, so a ticker held in two linked
   // accounts (e.g. MSFT in both a taxable and a Roth) doesn't collapse into one portfolio.
   // Prefer the row already in this account's default portfolio when it's tagged in several.
@@ -398,9 +410,17 @@ export async function resyncBrokerageAccount(
   }
 
   const cash = await fetchAccountCash(st, creds, accountId);
-  await admin.from("portfolios").update({ cash_balance: cash }).eq("id", defaultPortfolioId).eq("user_id", userId).then((r) => r, () => ({}));
+  await admin.from("portfolios").update({ cash_balance: cash }).eq("id", cashPortfolioId).eq("user_id", userId).then((r) => r, () => ({}));
+  // NOTE: if the user redirects cash away from defaultPortfolioId (was this account's cash
+  // home before), whatever figure is already sitting there is intentionally left untouched —
+  // it may be stale-from-this-account, or it may belong to a manual entry or another linked
+  // account that also targets that portfolio. Zeroing it blindly risks destroying real data;
+  // safer to leave a possibly-stale number than guess wrong. Flag to the user if this matters.
 
-  const activities = await importAccountActivities(st, userId, creds, accountId, defaultPortfolioId);
+  // Deposits/dividends/etc. belong in the same portfolio's cash_ledger as the cash itself —
+  // otherwise that portfolio's return calc (which reads cash_ledger) sees a value change
+  // with no matching flow record.
+  const activities = await importAccountActivities(st, userId, creds, accountId, cashPortfolioId);
 
   // Rebuild the chart/return when forced, stale (>4h), or built by an older version of
   // the rebuild logic (version stamp in the synced snapshots' notes) — so chart fixes
@@ -421,7 +441,7 @@ export async function resyncBrokerageAccount(
     // Rebuild every portfolio this account feeds (a split account feeds several), each
     // from its own tickers. Discover them from the tagged holdings AND from the portfolios
     // touched this sync, so it works even before the brokerage_account_id column exists.
-    const targets = new Set<string>([defaultPortfolioId, ...touchedPortfolios]);
+    const targets = new Set<string>([defaultPortfolioId, cashPortfolioId, ...touchedPortfolios]);
     const { data: fed } = await admin.from("holdings").select("portfolio_id").eq("brokerage_account_id", accountId)
       .then((r) => r, () => ({ data: null }));
     for (const row of fed ?? []) if (row.portfolio_id && own.has(row.portfolio_id)) targets.add(row.portfolio_id);

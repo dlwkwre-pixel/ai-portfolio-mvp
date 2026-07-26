@@ -33,6 +33,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [links, setLinks] = useState<Record<string, string | null>>({});
+  const [cashLinks, setCashLinks] = useState<Record<string, string | null>>({});
   const [loadedOnce, setLoadedOnce] = useState(false);
 
   const [reviewAccount, setReviewAccount] = useState<Account | null>(null);
@@ -53,6 +54,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
         setAccounts(d.accounts ?? []);
         setPortfolios(d.portfolios ?? []);
         setLinks(d.links ?? {});
+        setCashLinks(d.cashLinks ?? {});
       } else if (!silent) setErr(d.error ?? "Could not load accounts.");
     } catch { if (!silent) setErr("Network error."); }
     finally { setLoadedOnce(true); if (!silent) setBusy(null); }
@@ -95,7 +97,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
       setDefaultPortfolio(def);
       setRows((d.positions as PreviewPos[]).map((p) => ({ ...p, target: p.currentPortfolioId ?? def })));
       setCashAmount(typeof d.cash === "number" ? d.cash : 0);
-      setCashTarget(def);
+      setCashTarget(cashLinks[account.id] || def);
       setReviewAccount(account);
     } catch { setErr("Network error."); }
     finally { setBusy(null); }

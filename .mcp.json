@@ -16,6 +16,10 @@
       "command": "npx",
       "args": ["-y", "@playwright/mcp@0.0.69", "--extension"]
     },
+    "playwright-standalone": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.69"]
+    },
     "sequential-thinking": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-sequential-thinking@2025.12.18"]
