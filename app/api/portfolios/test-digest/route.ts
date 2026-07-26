@@ -8,7 +8,7 @@ import { generateDigestPDF } from "@/lib/email/generate-pdf";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { buildExtraDigestSections } from "@/lib/email/build-digest-sections";
 import { calculateTwr } from "@/lib/portfolio/twr";
-import { sanitizeSnapshots } from "@/lib/portfolio/benchmark";
+import { sanitizeSnapshots, isExternalCashFlow } from "@/lib/portfolio/benchmark";
 
 export const maxDuration = 60;
 
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
         .limit(1000),
       adminSupabase
         .from("cash_ledger")
-        .select("amount, direction, effective_at")
+        .select("amount, direction, effective_at, reason")
         .eq("portfolio_id", portfolioId),
       adminSupabase
         .from("holdings")
@@ -128,11 +128,15 @@ export async function POST(request: Request) {
       .map((s) => ({ snapshot_date: s.snapshot_date as string, total_value: Number(s.total_value) }))
       .filter((s) => Number.isFinite(s.total_value) && s.total_value > 0);
     const snaps = sanitizeSnapshots(rawSnaps, totalCostBasis);
-    const cashFlows = (flowsRaw ?? []).map((f) => ({
-      effective_at: f.effective_at as string,
-      direction: (f.direction as string | null) ?? "IN",
-      amount: Number(f.amount ?? 0),
-    }));
+    // Dividends/interest are return, not an external flow — netting them out like a
+    // deposit would understate the return by the exact amount of dividend income received.
+    const cashFlows = (flowsRaw ?? [])
+      .filter((f) => isExternalCashFlow(f.reason as string | null))
+      .map((f) => ({
+        effective_at: f.effective_at as string,
+        direction: (f.direction as string | null) ?? "IN",
+        amount: Number(f.amount ?? 0),
+      }));
     if (snaps.length > 0) {
       const latestVal = snaps[snaps.length - 1].total_value;
       // Linked portfolios carry an authoritative money-weighted return; snapshot TWR on a

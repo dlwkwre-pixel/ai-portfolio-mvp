@@ -152,7 +152,7 @@ export async function buildExtraDigestSections(
         .order("snapshot_date", { ascending: true }),
       db
         .from("cash_ledger")
-        .select("amount, direction, effective_at")
+        .select("amount, direction, effective_at, reason")
         .eq("portfolio_id", portfolio.id)
         .gte("effective_at", `${sevenDaysAgo}T00:00:00`),
     ]);
@@ -167,6 +167,7 @@ export async function buildExtraDigestSections(
             effective_at: f.effective_at as string,
             direction: (f.direction as string | null) ?? "IN",
             amount: Number(f.amount ?? 0),
+            reason: f.reason as string | null,
           })),
         });
         // Use TWR (net return) for the portfolio — matches the charts and the

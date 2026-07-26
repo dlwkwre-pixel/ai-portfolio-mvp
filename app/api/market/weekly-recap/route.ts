@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
 import { getPortfolioValuation } from "@/lib/portfolio/valuation";
+import { isExternalCashFlow } from "@/lib/portfolio/benchmark";
 
 export type RecapMover = {
   ticker: string;
@@ -88,7 +89,7 @@ export async function GET() {
     // Source of truth is cash_ledger (deposit/withdraw/dividend writes go here).
     supabase
       .from("cash_ledger")
-      .select("direction, amount, effective_at")
+      .select("direction, amount, effective_at, reason")
       .in("portfolio_id", portfolioIds)
       .gte("effective_at", monday.toISOString()),
     ...portfolios.map(async (p) => {
@@ -161,6 +162,7 @@ export async function GET() {
     let netFlows = 0;       // signed: deposits (+) minus withdrawals (−)
     let weightedFlows = 0;  // Modified Dietz time-weighting
     for (const cf of weekCashflows ?? []) {
+      if (!isExternalCashFlow(cf.reason as string | null)) continue; // dividends/interest are return, not a flow
       const t = new Date(cf.effective_at as string).getTime();
       if (!Number.isFinite(t) || t <= startMs || t > endMs) continue;
       const amt = Number(cf.amount ?? 0);
