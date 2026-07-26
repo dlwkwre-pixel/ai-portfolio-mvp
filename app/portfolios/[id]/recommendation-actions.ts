@@ -1647,7 +1647,7 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
     );
 
     // Validate and cap trim/sell quantities against owned shares
-    const validatedRecs = grokResult.recommendations.map((item) => {
+    const trimSellCappedRecs = grokResult.recommendations.map((item) => {
       const action = (item.action_type ?? "").toLowerCase();
       const isTrimOrSell = action === "trim" || action === "sell";
       if (isTrimOrSell && item.ticker) {
@@ -1661,6 +1661,27 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
         }
       }
       return item;
+    });
+
+    // Deterministic backstop for the "COMBINED BUY SIZING" prompt instruction — the model
+    // is asked to keep buy/add sizing within available cash but sometimes doesn't. Rather than
+    // trust the model, scale every buy/add down proportionally so the combined total can never
+    // exceed cash on hand, regardless of what the model returned.
+    const buyAddTotal = trimSellCappedRecs.reduce((sum, item) => {
+      const action = (item.action_type ?? "").toLowerCase();
+      return (action === "buy" || action === "add") ? sum + (item.sizing_dollars ?? 0) : sum;
+    }, 0);
+    const cashCapFactor = buyAddTotal > cashBalance && buyAddTotal > 0
+      ? Math.max(0, cashBalance) / buyAddTotal
+      : 1;
+    const validatedRecs = cashCapFactor === 1 ? trimSellCappedRecs : trimSellCappedRecs.map((item) => {
+      const action = (item.action_type ?? "").toLowerCase();
+      if (action !== "buy" && action !== "add") return item;
+      return {
+        ...item,
+        sizing_dollars: item.sizing_dollars !== null ? Math.round(item.sizing_dollars * cashCapFactor * 100) / 100 : item.sizing_dollars,
+        share_quantity: item.share_quantity !== null ? Math.floor(item.share_quantity * cashCapFactor) : item.share_quantity,
+      };
     });
 
     let insertedItemIds: string[] = [];

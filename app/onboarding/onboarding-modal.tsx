@@ -110,7 +110,9 @@ export default function OnboardingModal({
   const [customRisk, setCustomRisk] = useState<"conservative" | "moderate" | "aggressive">("moderate");
   const [customHorizon, setCustomHorizon] = useState<"short" | "medium" | "long">("medium");
   const [customStyle, setCustomStyle] = useState("balanced");
-  const [selectedExistingId, setSelectedExistingId] = useState(existingStrategies[0]?.id ?? "");
+  // No pre-selection — silently defaulting to the first strategy meant users who clicked
+  // through without looking closely got strategy #1 assigned without ever choosing it.
+  const [selectedExistingId, setSelectedExistingId] = useState("");
   const [strategySaved, setStrategySaved] = useState(false);
 
   // ── Step 5: Atlas
@@ -260,7 +262,9 @@ export default function OnboardingModal({
     setSaving(true);
     try {
       let payload: Record<string, unknown>;
-      if (strategyTab === "existing" && selectedExistingId) {
+      if (strategyTab === "existing" && !selectedExistingId) {
+        throw new Error("Select a strategy to continue, or use Skip.");
+      } else if (strategyTab === "existing" && selectedExistingId) {
         payload = { portfolio_id: portfolioId, mode: "assign", strategy_id: selectedExistingId };
       } else if (strategyTab === "finn" && finnGenerated) {
         const riskNorm = finnGenerated.risk_level.toLowerCase();
