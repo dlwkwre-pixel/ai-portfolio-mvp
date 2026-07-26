@@ -273,7 +273,7 @@ function Hint({ text, width = 230 }: { text: string; width?: number }) {
 // ─── asset location / tax diversification ────────────────────────────────────────
 const ASSET_LABELS: Record<string, string> = { stock: "Stocks", equity: "Stocks", etf: "ETFs", crypto: "Crypto", manual: "Funds", cash: "Cash", other: "Other" };
 const BUCKET_META: Record<"taxable" | "deferred" | "free", { label: string; color: string; tip: string }> = {
-  taxable:  { label: "Taxable",      color: "#38bdf8", tip: "Brokerage / individual accounts. You owe tax on dividends and realized gains each year. Best home for tax-efficient holdings you may want to sell flexibly." },
+  taxable:  { label: "Taxable",      color: "#0ea5a0", tip: "Brokerage / individual accounts. You owe tax on dividends and realized gains each year. Best home for tax-efficient holdings you may want to sell flexibly." },
   deferred: { label: "Tax-deferred", color: "#6fd08a", tip: "Traditional 401(k) / IRA / HSA. Contributions are pre-tax and grow untaxed; withdrawals in retirement are taxed as ordinary income. Best home for income-heavy or tax-inefficient assets (bonds, REITs)." },
   free:     { label: "Tax-free",     color: "var(--green)", tip: "Roth IRA / Roth 401(k). Funded with after-tax dollars; qualified growth and withdrawals are 100% tax-free. Best home for your highest-growth assets." },
 };
@@ -732,14 +732,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             {/* Year chips */}
             <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" as const, marginBottom: "18px" }}>
               {data.years.map(y => (
-                <Link key={y} href={`/tax?year=${y}`} style={{ padding: "3px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: y === selectedYear ? 700 : 400, textDecoration: "none", background: y === selectedYear ? "rgba(14,165,160,0.18)" : "transparent", color: y === selectedYear ? "oklch(0.75 0.18 265)" : "var(--text-muted)", border: `1px solid ${y === selectedYear ? "rgba(14,165,160,0.45)" : "rgba(255,255,255,0.07)"}`, transition: "all 0.12s" }}>
+                <Link key={y} href={`/tax?year=${y}`} style={{ padding: "3px 11px", borderRadius: "var(--radius-full)", fontSize: "11px", fontWeight: y === selectedYear ? 700 : 400, textDecoration: "none", background: y === selectedYear ? "rgba(14,165,160,0.18)" : "transparent", color: y === selectedYear ? "oklch(0.75 0.18 195)" : "var(--text-muted)", border: `1px solid ${y === selectedYear ? "rgba(14,165,160,0.45)" : "rgba(255,255,255,0.07)"}`, transition: "all 0.12s" }}>
                   {y}
                 </Link>
               ))}
             </div>
 
             {/* Label */}
-            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "oklch(0.54 0.07 265)", margin: "0 0 5px", fontFamily: "var(--font-body)" }}>
+            <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: "oklch(0.54 0.07 195)", margin: "0 0 5px", fontFamily: "var(--font-body)" }}>
               Estimated {selectedYear} Tax Bill
             </p>
 
@@ -773,31 +773,31 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
               {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
                 <div>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Short-Term</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 195)", margin: "0 0 2px" }}>Short-Term</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: stcgNet > 0 ? "var(--red)" : stcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{stcgNet !== 0 ? (stcgNet > 0 ? "+" : "") + fmt(stcgNet) : "—"}</p>
                 </div>
               )}
               {(stcgNet !== 0 || ltcgNet !== 0 || realizedLots.length > 0) && (
                 <div>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Long-Term</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 195)", margin: "0 0 2px" }}>Long-Term</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: ltcgNet > 0 ? "var(--red)" : ltcgNet < 0 ? "var(--green)" : "var(--text-muted)", margin: 0 }}>{ltcgNet !== 0 ? (ltcgNet > 0 ? "+" : "") + fmt(ltcgNet) : "—"}</p>
                 </div>
               )}
               {washSaleWarnings.length > 0 && (
                 <div>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Wash Sales</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 195)", margin: "0 0 2px" }}>Wash Sales</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "#f59e0b", margin: 0 }}>{washSaleWarnings.length}</p>
                 </div>
               )}
               {totalTLHAvailable < 0 && (
                 <div>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>TLH Available</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 195)", margin: "0 0 2px" }}>TLH Available</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--green)", margin: 0 }}>{fmt(Math.abs(totalTLHAvailable))}</p>
                 </div>
               )}
               {dividendIncome > 0 && (
                 <div>
-                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 265)", margin: "0 0 2px" }}>Dividends</p>
+                  <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "oklch(0.52 0.06 195)", margin: "0 0 2px" }}>Dividends</p>
                   <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-secondary)", margin: 0 }}>{fmt(Math.round(dividendIncome))}</p>
                 </div>
               )}
@@ -833,12 +833,12 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
 
             {/* Setup prompt */}
             {!taxProfile && !quickAnnualIncome && (
-              <div className="tax-card" style={{ padding: "14px 16px", background: "oklch(0.55 0.15 265 / 0.07)", border: "1px solid oklch(0.55 0.15 265 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div className="tax-card" style={{ padding: "14px 16px", background: "oklch(0.55 0.15 195 / 0.07)", border: "1px solid oklch(0.55 0.15 195 / 0.22)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "180px" }}>
-                  <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 3px" }}>Add your income for a full tax picture</p>
+                  <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 195)", margin: "0 0 3px" }}>Add your income for a full tax picture</p>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>Go to Planning → scroll to <strong style={{ color: "var(--text-secondary)" }}>Profile Settings</strong> → enter your <strong style={{ color: "var(--text-secondary)" }}>Gross Monthly Income</strong>, filing status, and state. Or use the bracket finder below.</p>
                 </div>
-                <Link href="/planning#profile-settings" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 265)", textDecoration: "none", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 265 / 0.3)", background: "oklch(0.55 0.15 265 / 0.08)", alignSelf: "flex-start", minHeight: "32px", display: "flex", alignItems: "center" }}>
+                <Link href="/planning#profile-settings" style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.72 0.18 195)", textDecoration: "none", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "var(--radius-full)", border: "1px solid oklch(0.55 0.15 195 / 0.3)", background: "oklch(0.55 0.15 195 / 0.08)", alignSelf: "flex-start", minHeight: "32px", display: "flex", alignItems: "center" }}>
                   Go to Profile Settings →
                 </Link>
               </div>
@@ -1088,8 +1088,8 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       </div>
                     </div>
                     {quickTaxEstimate && (
-                      <div style={{ padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.08)", border: "1px solid oklch(0.55 0.15 265 / 0.2)", borderRadius: "var(--radius-sm)", marginBottom: "10px" }}>
-                        <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 265)", margin: "0 0 4px" }}>
+                      <div style={{ padding: "10px 12px", background: "oklch(0.55 0.15 195 / 0.08)", border: "1px solid oklch(0.55 0.15 195 / 0.2)", borderRadius: "var(--radius-sm)", marginBottom: "10px" }}>
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: "oklch(0.72 0.18 195)", margin: "0 0 4px" }}>
                           You&apos;re in the {Math.round(quickTaxEstimate.federalMarginalRate * 100)}% federal bracket
                         </p>
                         <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>
@@ -1346,7 +1346,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const }}>
                                 <div style={{ padding: "7px 10px", background: "rgba(63,174,74,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
-                                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 265)" }}>{fmt(totalRemaining)}</div>
+                                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 195)" }}>{fmt(totalRemaining)}</div>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
                                     {remaining401k > 0 && `401k ${fmt(remaining401k)}`}{remaining401k > 0 && remainingHSA > 0 && " · "}{remainingHSA > 0 && `HSA ${fmt(remainingHSA)}`}
                                   </div>
@@ -1734,7 +1734,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
       <button
         type="button"
         onClick={() => setFinnPanelOpen(v => !v)}
-        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 265)" : "var(--brand-gradient)", border: finnPanelOpen ? "1px solid rgba(63,174,74,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(14,165,160,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
+        style={{ position: "fixed", bottom: "80px", right: "16px", zIndex: 61, display: "flex", alignItems: "center", gap: "7px", padding: "10px 18px", background: finnPanelOpen ? "oklch(0.22 0.05 195)" : "var(--brand-gradient)", border: finnPanelOpen ? "1px solid rgba(63,174,74,0.35)" : "none", borderRadius: "var(--radius-full)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", boxShadow: finnPanelOpen ? "none" : "0 4px 20px rgba(14,165,160,0.5)", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, transition: "all 0.15s ease" }}
       >
         {finnPanelOpen ? (
           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" /></svg>

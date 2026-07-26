@@ -3,7 +3,7 @@ import type { BadgeIcon as BadgeIconName } from "@/lib/badges/definitions";
 // Shared badge glyph library. Used by the profile Achievements strip and the /achievements hub.
 // Pure presentational — safe in any (server or client) tree.
 export function BadgeIcon({ icon, size = 22, color }: { icon: BadgeIconName; size?: number; color: string }) {
-  const s = { width: size, height: size, flexShrink: 0 as const };
+  const s = { width: size, height: size, style: { flexShrink: 0 as const } };
   switch (icon) {
     case "flame":
       return (
