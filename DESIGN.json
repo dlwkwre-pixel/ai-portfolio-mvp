@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-26T00:00:00.000Z",
+  "title": "Design System: BuyTune",
+  "extensions": {
+    "colorMeta": {
+      "sage-ground": { "role": "background", "displayName": "Sunroom Ground", "canonical": "oklch(0.9 0.042 150)", "tonalRamp": ["oklch(0.18 0.03 150)", "oklch(0.3 0.035 150)", "oklch(0.45 0.04 150)", "oklch(0.6 0.042 150)", "oklch(0.75 0.042 150)", "oklch(0.9 0.042 150)", "oklch(0.955 0.02 150)", "oklch(0.99 0.008 150)"] },
+      "teal-accent": { "role": "primary", "displayName": "Ledger Teal", "canonical": "#0ea5a0", "tonalRamp": ["oklch(0.18 0.04 195)", "oklch(0.28 0.06 195)", "oklch(0.4 0.08 195)", "oklch(0.52 0.09 195)", "oklch(0.64 0.1 195)", "#0ea5a0", "oklch(0.8 0.06 195)", "oklch(0.93 0.02 195)"] },
+      "green-accent": { "role": "primary", "displayName": "Ledger Green", "canonical": "#3fae4a", "tonalRamp": ["oklch(0.2 0.05 150)", "oklch(0.3 0.08 150)", "oklch(0.42 0.1 150)", "oklch(0.55 0.12 150)", "#3fae4a", "oklch(0.75 0.12 150)", "oklch(0.87 0.07 150)", "oklch(0.95 0.03 150)"] },
+      "signal-green": { "role": "semantic", "displayName": "Signal Green", "canonical": "#16a34a", "tonalRamp": ["oklch(0.18 0.04 150)", "oklch(0.28 0.07 150)", "oklch(0.4 0.1 150)", "#16a34a", "oklch(0.62 0.15 150)", "oklch(0.75 0.12 150)", "oklch(0.87 0.06 150)", "oklch(0.95 0.02 150)"] },
+      "signal-red": { "role": "semantic", "displayName": "Signal Red", "canonical": "#dc2626", "tonalRamp": ["oklch(0.2 0.06 25)", "oklch(0.3 0.1 25)", "oklch(0.42 0.15 25)", "#dc2626", "oklch(0.62 0.18 25)", "oklch(0.75 0.13 25)", "oklch(0.87 0.06 25)", "oklch(0.95 0.02 25)"] },
+      "signal-amber": { "role": "semantic", "displayName": "Signal Amber", "canonical": "#c8791e", "tonalRamp": ["oklch(0.2 0.05 60)", "oklch(0.3 0.08 60)", "oklch(0.45 0.12 60)", "#c8791e", "oklch(0.68 0.13 60)", "oklch(0.8 0.1 60)", "oklch(0.9 0.05 60)", "oklch(0.96 0.02 60)"] },
+      "dark-panel": { "role": "structural", "displayName": "Dark Panel", "canonical": "oklch(0.22 0.03 150)", "tonalRamp": ["oklch(0.1 0.02 150)", "oklch(0.16 0.025 150)", "oklch(0.22 0.03 150)", "oklch(0.32 0.03 150)", "oklch(0.45 0.03 150)", "oklch(0.6 0.025 150)", "oklch(0.78 0.02 150)", "oklch(0.92 0.01 150)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level headings, DM Sans only." },
+      "logo": { "displayName": "Wordmark", "purpose": "The BuyTune.io logo text exclusively — Syne, nowhere else." },
+      "mono": { "displayName": "Numeric", "purpose": "Every price, percent, count, and score in the product." }
+    },
+    "shadows": [
+      { "name": "ambient", "value": "0 1px 3px rgba(20,30,20,0.08)", "purpose": "List rows, inline cards." },
+      { "name": "panel", "value": "0 4px 16px rgba(20,30,20,0.10)", "purpose": "Popovers, dropdowns." },
+      { "name": "modal", "value": "0 8px 32px rgba(20,30,20,0.14)", "purpose": "Modals, bottom sheets." },
+      { "name": "brand-glow", "value": "0 4px 20px rgba(14,165,160,0.25)", "purpose": "Primary CTA at rest." },
+      { "name": "brand-glow-lifted", "value": "0 8px 32px rgba(14,165,160,0.35)", "purpose": "Primary CTA hover/press." }
+    ],
+    "motion": [
+      { "name": "transition-fast", "value": "all 0.1s ease", "purpose": "Micro state changes (checkbox, toggle)." },
+      { "name": "transition-base", "value": "all 0.15s ease", "purpose": "Default hover/focus transitions." },
+      { "name": "transition-slow", "value": "all 0.25s ease", "purpose": "Panel open/close, larger surface changes." }
+    ],
+    "breakpoints": [
+      { "name": "mobile-nav", "value": "768px" },
+      { "name": "desktop", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single most important action on a screen — gradient-filled, glow on hover.",
+      "html": "<button class=\"ds-btn-primary\">Get started</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #3fae4a, #0ea5a0); color: #ffffff; padding: 8px 16px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(14,165,160,0.25); transition: box-shadow 0.15s ease, transform 0.15s ease; cursor: pointer; } .ds-btn-primary:hover { box-shadow: 0 8px 32px rgba(14,165,160,0.35); transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid #0ea5a0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action — quiet surface, hairline border.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: oklch(0.985 0.01 150); color: oklch(0.4 0.03 150); padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(20,30,20,0.13); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: background 0.15s ease, color 0.15s ease; cursor: pointer; } .ds-btn-ghost:hover { background: rgba(20,30,20,0.045); color: oklch(0.2 0.03 150); }"
+    },
+    {
+      "name": "Signal Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The default content container — flat, hairline-bordered, no shadow at rest.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-label\">Portfolio Value</div><div class=\"ds-card-value\">$124,830.12</div></div>",
+      "css": ".ds-card { background: oklch(0.985 0.01 150); border: 1px solid rgba(20,30,20,0.13); border-radius: 14px; padding: 16px; } .ds-card-label { font-family: 'DM Sans', sans-serif; font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: oklch(0.48 0.03 150); margin-bottom: 6px; } .ds-card-value { font-family: 'DM Mono', monospace; font-weight: 500; font-size: 22px; color: oklch(0.2 0.03 150); }"
+    },
+    {
+      "name": "Signal Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Tone-mapped pill for gain/loss/neutral/brand state.",
+      "html": "<span class=\"ds-chip ds-chip-up\">+2.4%</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 9999px; border: 1px solid; font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; } .ds-chip-up { background: rgba(22,163,74,0.09); color: #16a34a; border-color: rgba(22,163,74,0.22); } .ds-chip-down { background: rgba(220,38,38,0.09); color: #dc2626; border-color: rgba(220,38,38,0.24); }"
+    },
+    {
+      "name": "Action Badge",
+      "kind": "chip",
+      "description": "BUY/SELL/TRIM/HOLD tags on AI recommendation rows.",
+      "html": "<span class=\"ds-badge ds-badge-buy\">BUY</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; } .ds-badge-buy { background: rgba(22,163,74,0.09); color: #16a34a; border: 1px solid rgba(22,163,74,0.22); } .ds-badge-sell { background: rgba(220,38,38,0.09); color: #dc2626; border: 1px solid rgba(220,38,38,0.24); } .ds-badge-trim { background: rgba(200,121,30,0.08); color: #c8791e; border: 1px solid rgba(200,121,30,0.25); }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "description": "Dark-panel nav row, active state gets a green-tinted pill.",
+      "html": "<div class=\"ds-nav-item ds-nav-active\">Dashboard</div>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; color: oklch(0.62 0.02 150); } .ds-nav-active { font-weight: 600; color: #c9f2c9; background: rgba(63,174,74,0.2); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Sunroom Ledger",
+    "overview": "BuyTune's Sage system reads as a warm, daylight-lit workspace for a serious financial decision, not a trading-floor monitor or a spreadsheet. The palette is a soft sage-green ground, close in value to warm paper, with ink-dark text and a single green-to-teal gradient reserved for the moments that matter: primary actions, active navigation, the logo mark. Cards sit flat on the ground, separated by hairline borders rather than shadows — nothing floats, nothing glows except on interaction. The one true dark surface is the sidebar/footer/CTA-band family, which acts as punctuation: a dark edge that frames the light workspace rather than a competing dark mode.",
+    "keyCharacteristics": [
+      "Warm sage background (oklch(0.9 0.042 150)), brightening through card/elevated tiers toward near-white",
+      "Single green→teal brand gradient (#3fae4a → #0ea5a0), reserved for CTAs, active nav, and the logo",
+      "Flat cards at rest: 1px hairline ink-tinted borders, no ambient shadow",
+      "One true dark surface family (sidebar, footer, CTA bands) — a fixed frame, not a dark mode",
+      "DM Sans for display/body/label text; DM Mono for every number; Syne only in the wordmark",
+      "Signal colors are semantic only — never decorative"
+    ],
+    "rules": [
+      { "name": "The Gradient Scarcity Rule", "body": "The green→teal gradient appears only on primary CTAs, active nav, and the logo mark — never behind or adjacent to a gain/loss number.", "section": "colors" },
+      { "name": "The One Dark Surface Rule", "body": "There is no dark mode. The dark-panel family is a fixed structural element, not a theme.", "section": "colors" },
+      { "name": "The Numbers Rule", "body": "Every numeric value renders in DM Mono, never DM Sans.", "section": "typography" },
+      { "name": "The Wordmark-Only Rule", "body": "Syne appears in exactly one place: the BuyTune.io logo text.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Cards carry a border, not a shadow, at rest. Shadow appears only in response to state.", "section": "elevation" },
+      { "name": "The Dark-Frame Rule", "body": "Dark-panel surfaces are structural, not elevational — they frame the workspace, they don't sit in the tonal stack.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use DM Mono for every price, percentage, count, and score, without exception.",
+      "Do keep the brand gradient to CTAs, active nav, and the logo — nowhere else.",
+      "Do pair signal colors with a +/− sign or label, never color alone.",
+      "Do use flat cards with a 1px hairline border as the default container.",
+      "Do treat the dark-panel family as a fixed structural frame present on every screen.",
+      "Do size touch targets at 44px minimum on mobile."
+    ],
+    "donts": [
+      "Don't build a meme-stock casino — no rocket emojis, no dopamine loops, no 'to the moon' energy.",
+      "Don't build a Bloomberg terminal — no dense unstructured data dumps.",
+      "Don't copy a dated brokerage portal — no gray-on-gray, no lifeless typography.",
+      "Don't use the Excel aesthetic — no clinical monochrome.",
+      "Don't use gamification patterns — no streaks-as-pressure, no push-notification anxiety culture.",
+      "Don't reintroduce dark mode or a second dark surface.",
+      "Don't use border-left wider than 1px as a colored accent stripe.",
+      "Don't use gradient text (background-clip: text).",
+      "Don't use Syne anywhere but the wordmark.",
+      "Don't put the brand gradient behind or adjacent to a numeric gain/loss value."
+    ]
+  }
+}

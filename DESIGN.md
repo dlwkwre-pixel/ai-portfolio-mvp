@@ -2,48 +2,51 @@
 name: BuyTune
 description: AI-powered portfolio management and stock research co-pilot for self-directed investors.
 colors:
-  bg-base: "#07090f"
-  bg-surface: "#0a0d15"
-  bg-elevated: "#0d1120"
-  bg-overlay: "#111827"
-  brand-blue: "#2563eb"
-  brand-violet: "#7c3aed"
-  violet-light: "#a78bfa"
-  signal-green: "#00d395"
-  signal-red: "#ff5c5c"
-  signal-amber: "#f59e0b"
-  text-primary: "#f0f4ff"
-  text-secondary: "#94a3b8"
-  text-tertiary: "#475569"
-  text-muted: "#2d3748"
-  card-bg: "rgba(255,255,255,0.025)"
-  card-border: "rgba(255,255,255,0.06)"
+  sage-ground: "oklch(0.9 0.042 150)"
+  sage-surface: "oklch(0.985 0.01 150)"
+  sage-elevated: "oklch(0.995 0.005 150)"
+  sage-overlay: "oklch(0.87 0.035 150)"
+  ink-primary: "oklch(0.2 0.03 150)"
+  ink-secondary: "oklch(0.4 0.03 150)"
+  ink-tertiary: "oklch(0.48 0.03 150)"
+  ink-muted: "oklch(0.55 0.025 150)"
+  teal-accent: "#0ea5a0"
+  green-accent: "#3fae4a"
+  signal-green: "#16a34a"
+  signal-red: "#dc2626"
+  signal-amber: "#c8791e"
+  ai-teal: "#0c8a86"
+  dark-panel: "oklch(0.22 0.03 150)"
+  dark-panel-text: "oklch(0.95 0.015 90)"
+  dark-panel-muted: "oklch(0.62 0.02 150)"
+  card-border: "rgba(20,30,20,0.13)"
+  border-subtle: "rgba(20,30,20,0.10)"
 typography:
   display:
-    fontFamily: "'Syne', sans-serif"
+    fontFamily: "'DM Sans', sans-serif"
     fontWeight: 600
-    lineHeight: 1.1
-    letterSpacing: "-0.02em"
-  title:
-    fontFamily: "'Syne', sans-serif"
-    fontWeight: 600
-    fontSize: "16px"
-    lineHeight: 1.25
     letterSpacing: "-0.01em"
+  logo:
+    fontFamily: "'Syne', sans-serif"
+    fontWeight: 700
+  title:
+    fontFamily: "'DM Sans', sans-serif"
+    fontWeight: 700
+    fontSize: "17px"
+    lineHeight: 1.25
   body:
     fontFamily: "'DM Sans', sans-serif"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.55
   label:
     fontFamily: "'DM Sans', sans-serif"
-    fontSize: "9px"
-    fontWeight: 600
-    letterSpacing: "0.08em"
+    fontSize: "11.5px"
+    fontWeight: 700
+    letterSpacing: "0.07em"
   mono:
     fontFamily: "'DM Mono', monospace"
     fontWeight: 500
-    letterSpacing: "-0.03em"
 rounded:
   sm: "6px"
   md: "10px"
@@ -58,32 +61,33 @@ spacing:
   5: "20px"
   6: "24px"
   8: "32px"
+  10: "40px"
 components:
   button-primary:
-    backgroundColor: "linear-gradient(135deg, #2563eb, #7c3aed)"
-    textColor: "{colors.text-primary}"
+    backgroundColor: "linear-gradient(135deg, {colors.green-accent}, {colors.teal-accent})"
+    textColor: "#ffffff"
     rounded: "{rounded.md}"
-    padding: "8px 18px"
+    padding: "8px 16px"
   button-primary-hover:
-    backgroundColor: "linear-gradient(135deg, #2563eb, #7c3aed)"
-    padding: "8px 18px"
+    backgroundColor: "linear-gradient(135deg, {colors.green-accent}, {colors.teal-accent})"
+    padding: "8px 16px"
   button-ghost:
-    backgroundColor: "{colors.card-bg}"
-    textColor: "{colors.text-secondary}"
+    backgroundColor: "{colors.sage-surface}"
+    textColor: "{colors.ink-secondary}"
     rounded: "{rounded.md}"
-    padding: "8px 14px"
-  chip-active:
-    backgroundColor: "rgba(37,99,235,0.12)"
-    textColor: "#93c5fd"
+    padding: "8px 16px"
+  button-danger:
+    backgroundColor: "rgba(220,38,38,0.09)"
+    textColor: "{colors.signal-red}"
+    rounded: "{rounded.md}"
+    padding: "8px 16px"
+  chip:
+    backgroundColor: "{colors.sage-surface}"
+    textColor: "{colors.ink-secondary}"
     rounded: "{rounded.full}"
-    padding: "5px 13px"
-  chip-default:
-    backgroundColor: "{colors.card-bg}"
-    textColor: "{colors.text-tertiary}"
-    rounded: "{rounded.full}"
-    padding: "5px 13px"
+    padding: "3px 9px"
   card:
-    backgroundColor: "{colors.card-bg}"
+    backgroundColor: "{colors.sage-surface}"
     rounded: "{rounded.lg}"
     padding: "16px"
 ---
@@ -92,164 +96,143 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "The Signal Room"**
+**Creative North Star: "The Sunroom Ledger"**
 
-BuyTune's visual system is a dark analytics environment built for investors who need to extract signal from noise. The aesthetic is closer to a precision instrument than a consumer app: calibrated, restrained, and data-confident. Every surface is dark enough to reduce eye fatigue during long research sessions, and every element earns its place by carrying information.
+BuyTune's Sage system reads as a warm, daylight-lit workspace for a serious financial decision, not a trading-floor monitor or a spreadsheet. The palette is a soft sage-green ground, close in value to warm paper, with ink-dark text and a single green-to-teal gradient reserved for the moments that matter: primary actions, active navigation, the logo mark. Cards sit flat on the ground, separated by hairline borders rather than shadows — nothing floats, nothing glows except on interaction. The one true dark surface is the sidebar/footer/CTA-band family, which acts as punctuation: a dark edge that frames the light workspace rather than a competing "dark mode."
 
-The palette is deep navy-black with a single blue-to-violet accent gradient reserved for primary actions. Signal colors (green, red, amber) are used at low saturation, appearing as semantic indicators rather than decorative elements. Whitespace is intentional; density is a feature, not a failure. The typography system mixes Syne's geometric authority for headings with DM Sans's warmth for prose and DM Mono's precision for numbers — three registers, one coherent voice.
-
-This system explicitly rejects: the cluttered Bloomberg terminal (too much, too noisy), the dopamine-casino aesthetic (neon, rockets, streaks), the dated brokerage portal (gray tables, no hierarchy), the generic SaaS dashboard (hero metric cards, identical grids), and the Excel-spreadsheet-as-UI (monochrome, lifeless, clinical).
+This system explicitly rejects the meme-stock casino (no rocket emojis, no neon, no dopamine loops), the Bloomberg terminal (no dense unstructured data grids), the dated brokerage portal (no gray-on-gray, no lifeless tables), the Excel aesthetic (no clinical monochrome), and — specific to this project's own history — the previous dark navy/blue-violet "Signal Room" identity it replaced on 2026-07-18. Numbers still read like instrument output (DM Mono, tight tracking), but the room they sit in is bright, not a cockpit at night.
 
 **Key Characteristics:**
-- Deep navy backgrounds with subtle blue-tint glow at page top
-- Single blue-to-violet gradient accent, used sparingly on primary actions
-- DM Mono for all numeric values, with tight negative letter-spacing
-- Micro-surfaces: cards are barely perceptible white-on-dark, distinguished by border not shadow
-- Stagger animation on list entries; 0.35-0.45s fade-up, 50ms intervals
-- 44px minimum touch targets; horizontal scroll sections on mobile
+- Warm sage background (`oklch(0.9 0.042 150)`), brightening through card/elevated tiers toward near-white
+- Single green→teal brand gradient (`#3fae4a` → `#0ea5a0`), reserved for CTAs, active nav, and the logo — never behind or adjacent to a gain/loss number
+- Flat cards at rest: 1px hairline ink-tinted borders, no ambient shadow; shadow only on hover/press and the primary-button glow
+- One true dark surface family (sidebar, footer, CTA bands) — not a dark mode, a fixed dark frame around a light workspace
+- DM Sans for all display, body, and label text; DM Mono for every number without exception; Syne lives only in the "BuyTune.io" wordmark
+- Signal colors (green/red/amber) are semantic only — gains, losses, caution — never decorative
 
-## 2. Colors: The Signal Palette
+## 2. Colors: The Sunroom Palette
 
-A near-black foundation with one vivid accent and four semantic signal colors. Signal colors appear only to communicate state, never for decoration.
+A warm, low-chroma sage neutral carries almost the whole surface; the brand gradient is scarce by design, and signal colors are reserved strictly for financial state.
 
 ### Primary
-- **Deep Space** (`#07090f`): Page background. Absolute base.
-- **Surface Dark** (`#0a0d15`): Sidebar, secondary surfaces. One step above base.
-- **Elevated Dark** (`#0d1120`): Modals, overlays, elevated panels.
-- **Electric Blue** (`#2563eb`): Primary accent. Interactive elements, links, active states, focus rings.
-- **Deep Violet** (`#7c3aed`): Secondary accent. Used only paired with Electric Blue as a gradient endpoint.
+- **Sunroom Ground** (`oklch(0.9 0.042 150)`): Page background. The base warmth everything else sits on.
+- **Sunroom Surface** (`oklch(0.985 0.01 150)`): Cards, panels — the default "paper" a piece of content sits on.
+- **Sunroom Elevated** (`oklch(0.995 0.005 150)`): Popovers, the brightest tier, reserved for content that sits above a card.
 
 ### Secondary
-- **Gradient Drift** (`linear-gradient(135deg, #2563eb, #7c3aed)`): The single brand gradient. Applied exclusively to primary CTAs, active nav, and key value indicators.
+- **Ledger Teal** (`#0ea5a0`): Primary interactive accent — links, focus states, one end of the brand gradient.
+- **Ledger Green** (`#3fae4a`): The gradient's other endpoint; paired with teal, never used alone as an accent.
 
 ### Tertiary
-- **Violet Mist** (`#a78bfa`): AI-flavored context — AI badges, AI states, violet accent text.
+- **Atlas Teal** (`#0c8a86`): The AI-assistant accent — reserved for Atlas/AI-flavored badges, callouts, and "thinking" states, distinct from the interactive teal so AI moments read as their own register.
 
 ### Neutral
-- **Text Primary** (`#f0f4ff`): Headlines, prices, key numbers. Slightly blue-tinted, never stark white.
-- **Text Secondary** (`#94a3b8`): Body text, descriptions, supporting information.
-- **Text Tertiary** (`#475569`): Labels, metadata, timestamps.
-- **Text Muted** (`#2d3748`): Disabled states, placeholder text. Nearly invisible by design.
-- **Card Surface** (`rgba(255,255,255,0.025)`): Card backgrounds. Perceptibly distinct from base, not solid.
-- **Card Border** (`rgba(255,255,255,0.06)`): Default card edges. Subtle enough to read as texture, not boundary.
+- **Ink Primary** (`oklch(0.2 0.03 150)`): Headings, prices, primary text.
+- **Ink Secondary** (`oklch(0.4 0.03 150)`): Body copy, descriptions.
+- **Ink Tertiary** (`oklch(0.48 0.03 150)`): Labels, metadata, timestamps.
+- **Ink Muted** (`oklch(0.55 0.025 150)`): Placeholder and disabled text.
+- **Card Border** (`rgba(20,30,20,0.13)`): Default hairline edge on every card.
+- **Dark Panel** (`oklch(0.22 0.03 150)`): The one dark surface — sidebar, footer, CTA bands.
+- **Dark Panel Text** (`oklch(0.95 0.015 90)`): Text on the dark panel family, warm off-white.
 
 ### Signal Colors (semantic only)
-- **Signal Green** (`#00d395`): Positive price change, bullish rating, upside, gains.
-- **Signal Red** (`#ff5c5c`): Negative price change, sell rating, downside, losses.
-- **Signal Amber** (`#f59e0b`): Neutral/hold, warnings, watchlist, rebalance signals.
+- **Signal Green** (`#16a34a`): Gains, positive returns, "buy"/"up" states.
+- **Signal Red** (`#dc2626`): Losses, negative returns, "sell"/"down" states. Deliberately more saturated than a typical pastel error red — a washed-out red read as "not serious enough" on the light ground during QA.
+- **Signal Amber** (`#c8791e`): Caution, "trim"/"hold" states, warnings.
 
 ### Named Rules
-**The One Accent Rule.** The gradient appears on ≤3 elements per screen. Its scarcity is the authority. Overuse collapses trust.
+**The Gradient Scarcity Rule.** The green→teal gradient appears only on primary CTAs, active nav, and the logo mark. It never sits behind, beside, or as a container for a numeric gain/loss value — those stay on solid signal tokens so a user's eye never has to disambiguate "brand color" from "your money moved."
 
-**The Color = Signal Rule.** Green, red, and amber carry meaning, not mood. Never use them for decoration, category headers, or background fills unrelated to a financial state.
+**The One Dark Surface Rule.** There is no dark mode. The dark-panel family (sidebar, footer, CTA bands) is a fixed structural element, not a theme — never introduce a second dark surface or a light/dark toggle.
 
 ## 3. Typography
 
-**Display Font:** Syne (Google Fonts, weights 400–800)
-**Body Font:** DM Sans (Google Fonts, optical size 9–40, weights 300–600)
-**Numeric/Code Font:** DM Mono (Google Fonts, weights 300–500)
+**Display Font:** DM Sans (self-hosted via next/font, Google Fonts fallback)
+**Body Font:** DM Sans
+**Logo Font:** Syne — wordmark only
+**Numeric Font:** DM Mono
 
-**Character:** Syne's geometric authority anchors headers with quiet confidence. DM Sans brings human warmth to prose without sacrificing compactness. DM Mono's monospaced precision makes price data feel like instrument readings — the financial data equivalent of a terminal readout.
+**Character:** DM Sans carries every heading and every sentence of prose — warm, humanist, unshowy. Syne's geometric wideness was tried for headings and read as stretched at large sizes (user-confirmed), so it was pulled back to a single job: the "BuyTune.io" wordmark. DM Mono gives every number in the product a consistent, instrument-like precision against the otherwise soft, humanist type.
 
 ### Hierarchy
-- **Display** (Syne 700, clamp 22px–32px, line-height 1.1, tracking -0.02em): Page titles, stock names in hero positions.
-- **Title** (Syne 600, 15–18px, line-height 1.25, tracking -0.01em): Section headers, card titles, tab labels.
-- **Body** (DM Sans 400, 13px, line-height 1.55): Descriptions, news headlines, analysis text. Max 65ch.
-- **Label** (DM Sans 600, 9–10px, line-height 1, tracking +0.08em, uppercase): Section category labels, field names, stat labels.
-- **Numeric** (DM Mono 500, variable sizes, tracking -0.03em): All prices, percentages, counts, scores. Never mix with body font mid-sentence.
-- **Ticker** (DM Mono 500, 11px, background card-hover, radius sm, padding 2px 7px): Stock symbol chips. Always monospaced, always in a pill.
+- **Display** (DM Sans 600, page titles, -0.01em tracking): Page-level headings.
+- **Title** (DM Sans 700, 17px, line-height 1.25): Section headers, card titles.
+- **Body** (DM Sans 400, 14px, line-height 1.55): Descriptions, prose. Max ~70ch.
+- **Label** (DM Sans 700, 11.5px, +0.07em tracking, uppercase): Section eyebrows, field names, stat labels.
+- **Numeric** (DM Mono 500): Every price, percentage, count, score — no exceptions.
 
 ### Named Rules
-**The Numbers Rule.** Every numeric value uses DM Mono, not DM Sans. This is non-negotiable. Mixed fonts in a price display reads as an error.
+**The Numbers Rule.** Every numeric value — price, percent, share count, score — renders in DM Mono, never DM Sans. A number in the body font reads as a bug, not a style choice.
 
-**The Label Ceiling.** Labels max out at 10px. A label larger than a body text value is hierarchy inverted — the meta-information shouldn't compete with the data itself.
+**The Wordmark-Only Rule.** Syne appears in exactly one place: the "BuyTune.io" logo text. It is never used for page or section headings — its wide letterforms read as stretched at heading sizes.
 
 ## 4. Elevation
 
-BuyTune uses tonal layering, not drop shadows, as the primary depth mechanism. The four background levels (base, surface, elevated, overlay) create depth through color alone. Shadows appear only on interactive states and floating elements, never as ambient decoration.
+Sage is flat and calm by default. Cards rest on a hairline border (`rgba(20,30,20,0.13)`), not a shadow — depth comes from tonal steps (ground → surface → elevated), not ambient drop shadows. Shadows exist, but they're reserved for genuine elevation moments: popovers, hover lift, and the primary button's brand-glow. The dark-panel family (sidebar, footer, CTA bands) is the one true dark surface in the system — it isn't a "raised" or "lowered" tier, it's a fixed dark frame that grounds the light workspace, present on every screen rather than toggled.
 
 ### Shadow Vocabulary
-- **Ambient** (`0 1px 3px rgba(0,0,0,0.4)`): Subtle lift for list items and inline cards.
-- **Panel** (`0 4px 16px rgba(0,0,0,0.5)`): Popovers, tooltips, floating panels.
-- **Modal** (`0 8px 32px rgba(0,0,0,0.6)`): Full modals, bottom sheets.
-- **Brand Glow** (`0 4px 20px rgba(37,99,235,0.3)`): Primary CTA hover state only. The blue haze is the button's authority.
-- **Brand Glow Lifted** (`0 8px 32px rgba(37,99,235,0.45)`): Active/pressed primary CTA.
+- **Ambient** (`0 1px 3px rgba(20,30,20,0.08)`): Subtle lift for list rows and inline cards.
+- **Panel** (`0 4px 16px rgba(20,30,20,0.10)`): Popovers, dropdowns, floating panels.
+- **Modal** (`0 8px 32px rgba(20,30,20,0.14)`): Full modals, bottom sheets.
+- **Brand Glow** (`0 4px 20px rgba(14,165,160,0.25)`): Primary CTA at rest — the only shadow with color, and only on the gradient button.
+- **Brand Glow Lifted** (`0 8px 32px rgba(14,165,160,0.35)`): Primary CTA hover/press.
 
 ### Named Rules
-**The Flat-By-Default Rule.** Cards and sections are flat at rest. Shadows appear only in response to state (hover, focus, elevation request). A page full of shadowed cards is a Bloomberg terminal; a page of flat cards with one elevated hover is BuyTune.
+**The Flat-By-Default Rule.** Cards carry a border, not a shadow, at rest. A shadow appears only in response to state — hover, focus, or a floating element that needs to visually separate from the page beneath it.
 
-**The Tonal Stack Rule.** Depth reads as: base → surface → elevated → overlay. Never put a base-colored element inside an overlay — the hierarchy would collapse.
+**The Dark-Frame Rule.** The dark-panel surfaces are structural, not elevational — they don't sit "above" or "below" the sage cards in the tonal stack, they frame the whole workspace on every screen.
 
 ## 5. Components
 
-### Buttons
-- **Shape:** Softly rounded (10px, radius-md). Never pill-shaped for primary actions.
-- **Primary:** Blue-to-violet gradient background, white text, 8px 18px padding. Brand glow shadow on hover.
-- **Hover / Focus:** `translateY(-1px)` + shadow lift. Focus: 2px solid `#2563eb` ring, 2px offset.
-- **Active / Press:** `scale(0.97)` — immediate press feedback per Emil's principles.
-- **Ghost:** `card-bg` background, `text-secondary` color, `card-border` stroke. Hover lifts background to `card-hover`.
-- **Small:** 5px 11px padding, 12px text, `radius-sm` (6px).
+Buttons, cards, and chips share one restrained shape language: 10px-radius interactive elements, 14px-radius containers, flat by default, gradient reserved for the single most important action on screen.
 
-### Filter Chips
-- **Default:** `card-bg` background, `text-tertiary` text, `card-border` border, full radius.
-- **Active:** `rgba(37,99,235,0.12)` background, `#93c5fd` text, `rgba(37,99,235,0.5)` border, subtle blue glow.
-- **Scroll:** Horizontal scroll container, no wrap. `scrollbar-width: none` on mobile.
+### Buttons
+- **Shape:** 10px radius (`--radius-md`), small variant drops to 6px (`--radius-sm`).
+- **Primary:** Green→teal gradient background, white text, `8px 16px` padding, brand-glow shadow; hover lifts shadow + `translateY(-1px)`.
+- **Ghost:** Sage-surface background, ink-secondary text, card-border stroke; hover shifts to card-hover fill and ink-primary text.
+- **Danger:** Red-tinted background (`rgba(220,38,38,0.09)`), signal-red text and border.
+- **Small:** `5px 11px` padding, 6px radius, used inline in tables and dense rows.
+
+### Chips / Badges
+- **Chip:** Full-radius pill, tone-mapped background (`up` = green tint, `down` = red tint, `brand` = teal tint, `neutral` = surface), 1px border in the matching tone.
+- **Badge:** 6px-radius rectangle, uppercase 9px label — used for action tags (BUY/SELL/TRIM/HOLD) inside AI recommendation rows.
 
 ### Cards / Containers
-- **Corner Style:** Gently rounded (14px, radius-lg). Nested inner elements use radius-md (10px).
-- **Background:** `card-bg` (rgba white at 2.5% opacity on dark).
-- **Shadow Strategy:** Flat by default. Hover adds `card-hover` background + `border-strong` border.
-- **Border:** `card-border` (rgba white at 6%). Never thicker than 1px.
-- **Internal Padding:** 16px default, 12px on mobile.
-
-### Stock Ticker Chip
-- **Style:** DM Mono 500, 11px, `card-hover` background, `radius-sm`, 2px 7px padding.
-- **Always inline** before company name. The chip is the ticker's identity badge.
-
-### Analyst Bar
-- **Three segments:** green (buy) / amber (hold) / red (sell). Height 5px, full-width, radius 3px.
-- **Below bar:** DM Mono counts. "B 14 H 6 S 2" — letter abbreviation, space, number. Never spell out "Buy", "Hold", "Sell" in the bar — label length should never exceed 1 character + space + number.
+- **Corner Style:** 14px radius (`--radius-lg`).
+- **Background:** Sage-surface.
+- **Shadow Strategy:** Flat at rest (see Elevation); hover adds card-hover background + border-strong edge where the card is interactive.
+- **Border:** 1px card-border, always present — this is the primary depth signal, not a shadow.
+- **Internal Padding:** 16px default (`--space-4`).
 
 ### Inputs / Fields
-- **Style:** `card-bg` background, `card-border` stroke, radius-md (10px), 10px 14px padding.
-- **Focus:** `brand-blue` border, `rgba(37,99,235,0.12)` ring shadow (0 0 0 3px).
-- **Search specific:** Search icon left-inset at 14px. Mono font for ticker input.
-- **Placeholder:** `text-muted` color.
+- **Style:** Sage-surface background, card-border stroke, 10px radius, comfortable padding.
+- **Focus:** Border shifts to teal-accent with a soft teal ring.
 
 ### Navigation (Sidebar / Mobile Bottom Nav)
-- **Sidebar:** `bg-surface` background, `sidebar-border` right edge, 240px wide.
-- **Nav item default:** `text-tertiary`, no background, 10px 14px padding, radius-md.
-- **Nav item active:** `nav-active-bg` background, `nav-active-border` left edge, `nav-active-text` color.
-- **Mobile:** Bottom fixed bar, 5 icons, `bg-surface` fill, `border-subtle` top edge.
+- **Sidebar:** Dark-panel background, 224px wide, three labeled nav groups (Portfolio / Plan / Discover), active item gets a green-tinted pill background and light-green text.
+- **Mobile:** Fixed bottom bar, icon row, sage-surface fill.
 
-### Detail Panel (Stock Research)
-- **Opens inline** below search, pushing content down. Not a modal — keeps spatial context.
-- **Tab bar:** Flush left, border-bottom underline on active tab. No background fill on tabs.
-- **Close control:** Small ghost button top-left. 26px × 26px, `bg-surface` background.
+### Dark Panel (signature component)
+The one recurring dark surface — sidebar, footer, and marketing CTA bands all share the same `oklch(0.22 0.03 150)` background with warm off-white text. It's the system's anchor: every other surface is light, and this is the deliberate exception that frames them.
 
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** use DM Mono for every price, percentage, count, and score — without exception.
-- **Do** show analyst ratings as "Buy 14 / Hold 6 / Sell 2" precision, not "mostly bullish" vagueness. Confidence through precision.
-- **Do** keep the gradient reserved for primary CTAs and active nav states only. Three gradient elements per screen maximum.
-- **Do** use stagger animation (50ms intervals, `bt-fade-up`) when lists of cards appear — never all at once.
-- **Do** size touch targets at 44px minimum on mobile. Research cards must be fully tappable.
-- **Do** treat horizontal scroll sections as a feature on mobile — they're TradingView's compact row pattern translated to touch.
-- **Do** use `scale(0.97)` on button `:active` for press feedback.
-- **Do** apply `ease-out` with cubic-bezier(0.23, 1, 0.32, 1) on all entrances. Slow-in feels broken.
-- **Do** pair signal colors with labels — never use red/green alone to convey up/down without a + or - sign.
+- **Do** use DM Mono for every price, percentage, count, and score, without exception.
+- **Do** keep the brand gradient to CTAs, active nav, and the logo — nowhere else.
+- **Do** pair signal colors with a `+`/`−` sign or label, never color alone, for gain/loss states.
+- **Do** use flat cards with a 1px hairline border as the default container — shadows are a state response, not a resting style.
+- **Do** treat the dark-panel family as a fixed structural frame present on every screen, not a toggleable mode.
+- **Do** size touch targets at 44px minimum on mobile.
 
 ### Don't:
-- **Don't** build a meme-stock casino. No rocket emojis as decorative elements, no dopamine loops, no "🚀 to the moon" energy anywhere in the UI.
-- **Don't** build a Bloomberg terminal. No data dumps, no raw table grids without hierarchy, no information that isn't answering a question the user actually has.
-- **Don't** copy dated brokerage portals (E*Trade 2015 era). No light gray backgrounds, no bordered tables everywhere, no lifeless typography.
-- **Don't** use Excel aesthetics. No clinical monochrome, no spreadsheet-like column headers dominating the design.
-- **Don't** use dopamine-heavy patterns. No gamification, no streaks, no push-notification anxiety culture.
-- **Don't** use `border-left` wider than 1px as a colored accent stripe on cards. Rewrite with background tint or full border.
-- **Don't** use gradient text (`background-clip: text`). Solid colors only. Weight and size carry emphasis.
-- **Don't** animate layout properties (`height`, `width`, `padding`). Animate `transform` and `opacity` only.
-- **Don't** exceed 300ms on UI element transitions. The interface should feel immediate, not ceremonial.
-- **Don't** show hover animations on touch devices. Gate with `@media (hover: hover) and (pointer: fine)`.
-- **Don't** use `transition: all` — specify exact properties.
-- **Don't** add a glassmorphism card as a default pattern. Blur is reserved for rare atmospheric moments, not general UI.
+- **Don't** build a meme-stock casino — no rocket emojis, no dopamine loops, no "to the moon" energy.
+- **Don't** build a Bloomberg terminal — no dense unstructured data dumps, no raw table grids without hierarchy.
+- **Don't** copy a dated brokerage portal — no gray-on-gray, no bordered tables everywhere, no lifeless typography.
+- **Don't** use the Excel aesthetic — no clinical monochrome, no spreadsheet-style column headers dominating a page.
+- **Don't** use gamification patterns — no streaks-as-pressure, no push-notification anxiety culture.
+- **Don't** reintroduce dark mode or a second dark surface — the Sage refresh (2026-07-18) deliberately dropped it; the dark-panel family is the only dark surface, permanently.
+- **Don't** use `border-left` wider than 1px as a colored accent stripe — use a full border or background tint instead.
+- **Don't** use gradient text (`background-clip: text`) — solid ink color only, weight and size carry emphasis.
+- **Don't** use Syne anywhere but the wordmark — its wide letterforms read as stretched at heading sizes.
+- **Don't** put the brand gradient behind or adjacent to a numeric gain/loss value.
