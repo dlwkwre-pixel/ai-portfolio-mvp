@@ -161,14 +161,14 @@ export default function RebalancingCalculator({
 
   const statusBg = {
     over: "rgba(245,158,11,0.06)",
-    under: "rgba(96,165,250,0.06)",
+    under: "rgba(14,165,160,0.06)",
     ok: "rgba(0,211,149,0.04)",
     "no-price": "rgba(255,255,255,0.02)",
   };
 
   const statusBorder = {
     over: "rgba(245,158,11,0.2)",
-    under: "rgba(96,165,250,0.2)",
+    under: "rgba(14,165,160,0.2)",
     ok: "rgba(0,211,149,0.12)",
     "no-price": "var(--border-subtle)",
   };
@@ -205,7 +205,7 @@ export default function RebalancingCalculator({
                   </span>
                 )}
                 {underCount > 0 && (
-                  <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(96,165,250,0.1)", border: "1px solid rgba(96,165,250,0.25)", color: "#3fc9c3" }}>
+                  <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "var(--radius-full)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", color: "#3fc9c3" }}>
                     {underCount} under-weight
                   </span>
                 )}
@@ -362,7 +362,7 @@ export default function RebalancingCalculator({
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px",
               marginTop: "10px", padding: "9px 11px", borderRadius: "var(--radius-md)",
-              background: "rgba(96,165,250,0.05)", border: "1px solid rgba(96,165,250,0.15)",
+              background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.15)",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
                 <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>

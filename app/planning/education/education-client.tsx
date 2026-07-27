@@ -911,7 +911,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Profile</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
                 {profileKids.map((kid, i) => (
-                  <button key={i} onClick={() => importFamilyChild({ id: `profile-${i}`, name: kid.name || `Child ${i + 1}`, age: kid.age })} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}>
+                  <button key={i} onClick={() => importFamilyChild({ id: `profile-${i}`, name: kid.name || `Child ${i + 1}`, age: kid.age })} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 195 / 0.12)", border: "1px solid oklch(0.45 0.15 195 / 0.3)", color: "oklch(0.78 0.12 195)", transition: "all 0.15s ease" }}>
                     {kid.name || `Child ${i + 1}`}{kid.age > 0 ? `, ${kid.age}` : ""}
                   </button>
                 ))}
@@ -927,7 +927,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>From Family Planning</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>
                 {familyChildren.map((child) => (
-                  <button key={child.id} onClick={() => importFamilyChild(child)} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)", transition: "all 0.15s ease" }}>
+                  <button key={child.id} onClick={() => importFamilyChild(child)} className="edu-family-chip" style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 195 / 0.12)", border: "1px solid oklch(0.45 0.15 195 / 0.3)", color: "oklch(0.78 0.12 195)", transition: "all 0.15s ease" }}>
                     {child.name}, age {child.age}
                   </button>
                 ))}
@@ -1385,24 +1385,24 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           </div>
 
           {/* Atlas Deep Analysis */}
-          <div style={{ background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", border: "1px solid oklch(0.45 0.2 285 / 0.2)", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.10) 0%, transparent 70%)", pointerEvents: "none", animation: "edu-orb-pulse 4s ease-in-out infinite" }} />
+          <div style={{ background: "color-mix(in oklch, oklch(0.55 0.18 195) 6%, var(--card-bg))", border: "1px solid color-mix(in oklch, oklch(0.55 0.18 195) 22%, transparent)", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", overflow: "hidden", position: "relative", display: "flex", flexDirection: "column", animation: "edu-fade-up 0.4s ease-out 0.08s both" }}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 195 / 0.1) 0%, transparent 70%)", pointerEvents: "none", animation: "edu-orb-pulse 4s ease-in-out infinite" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, position: "relative" }}>
-              <div style={{ width: 30, height: 30, borderRadius: 7, background: "oklch(0.50 0.25 290 / 0.15)", border: "1px solid oklch(0.50 0.25 290 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 7, background: "oklch(0.55 0.18 195 / 0.15)", border: "1px solid oklch(0.55 0.18 195 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" />
-                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" strokeLinecap="round" />
-                  <circle cx="10" cy="15.5" r="0.75" fill="oklch(0.72 0.2 290)" />
+                  <circle cx="10" cy="10" r="8" stroke="oklch(0.62 0.18 195)" strokeWidth="1.5" />
+                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="oklch(0.62 0.18 195)" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="15.5" r="0.75" fill="oklch(0.62 0.18 195)" />
                 </svg>
               </div>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Atlas Deep Analysis</div>
-                <div style={{ fontSize: 10, color: "oklch(0.60 0.12 290)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Education Advisor</div>
+                <div style={{ fontSize: 10, color: "oklch(0.5 0.14 195)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Education Advisor</div>
               </div>
             </div>
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "edu-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "edu-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.55 0.18 195 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
               ) : loadingCommentary ? (
                 <AtlasThinking messages={["Modeling tuition inflation…", "Weighing 529 vs Roth…", "Checking financial-aid impact…", "Optimizing the funding timeline…"]} />
               ) : (
@@ -1410,18 +1410,18 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                   <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>Get personalized AI guidance on 529 strategy, tax advantages, investment allocation, and optimal funding timeline.</p>
                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                     {["Tax strategy", "Asset allocation", "529 vs Roth", "Aid impact"].map((tag) => (
-                      <span key={tag} style={{ fontSize: 10, padding: "3px 7px", borderRadius: 4, background: "oklch(0.50 0.2 290 / 0.1)", border: "1px solid oklch(0.50 0.2 290 / 0.2)", color: "oklch(0.65 0.12 290)" }}>{tag}</span>
+                      <span key={tag} style={{ fontSize: 10, padding: "3px 7px", borderRadius: 4, background: "oklch(0.55 0.18 195 / 0.1)", border: "1px solid oklch(0.55 0.18 195 / 0.2)", color: "oklch(0.5 0.14 195)" }}>{tag}</span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
             <div style={{ marginTop: 14 }}>
-              <button onClick={handleGetCommentary} disabled={loadingCommentary} className="edu-finn-btn" style={{ width: "100%", padding: "10px 16px", background: loadingCommentary ? "oklch(0.50 0.2 290 / 0.08)" : "oklch(0.50 0.2 290 / 0.14)", color: "oklch(0.78 0.18 290)", border: `1px solid oklch(0.50 0.2 290 / ${loadingCommentary ? "0.15" : "0.35"})`, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <button onClick={handleGetCommentary} disabled={loadingCommentary} className="edu-finn-btn" style={{ width: "100%", padding: "10px 16px", background: loadingCommentary ? "oklch(0.55 0.18 195 / 0.08)" : "oklch(0.55 0.18 195 / 0.14)", color: "oklch(0.4 0.16 195)", border: `1px solid oklch(0.55 0.18 195 / ${loadingCommentary ? "0.15" : "0.35"})`, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
                 {loadingCommentary ? (
-                  <><span style={{ width: 12, height: 12, border: "2px solid oklch(0.60 0.15 290)", borderTopColor: "transparent", borderRadius: "50%", animation: "edu-spin 0.7s linear infinite", display: "inline-block" }} />Analyzing…</>
+                  <><span style={{ width: 12, height: 12, border: "2px solid oklch(0.5 0.14 195)", borderTopColor: "transparent", borderRadius: "50%", animation: "edu-spin 0.7s linear infinite", display: "inline-block" }} />Analyzing…</>
                 ) : (
-                  <><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>Get Atlas Guidance</>
+                  <><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.4 0.16 195)"/></svg>Get Atlas Guidance</>
                 )}
               </button>
             </div>
@@ -1453,10 +1453,10 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
         .edu-eco-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
         .edu-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.45 0.18 250 / 0.3), 0 4px 14px oklch(0.45 0.18 250 / 0.15); }
         .edu-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
-        .edu-finn-btn:not(:disabled):hover { background: oklch(0.50 0.2 290 / 0.24) !important; border-color: oklch(0.50 0.2 290 / 0.6) !important; box-shadow: 0 0 18px oklch(0.50 0.25 290 / 0.45) !important; }
+        .edu-finn-btn:not(:disabled):hover { background: oklch(0.55 0.18 195 / 0.24) !important; border-color: oklch(0.55 0.18 195 / 0.6) !important; box-shadow: 0 0 18px oklch(0.55 0.18 195 / 0.45) !important; }
         .edu-comp-row { transition: background 0.14s ease; }
         .edu-comp-row:hover { background: oklch(0.16 0.02 250 / 0.4); }
-        .edu-family-chip:hover { background: oklch(0.50 0.18 265 / 0.2) !important; border-color: oklch(0.50 0.18 265 / 0.5) !important; }
+        .edu-family-chip:hover { background: oklch(0.50 0.18 195 / 0.2) !important; border-color: oklch(0.50 0.18 195 / 0.5) !important; }
         @media (max-width: 900px) {
           [data-edu-cols] { flex-direction: column !important; }
           [data-edu-sidebar] { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border-subtle) !important; }

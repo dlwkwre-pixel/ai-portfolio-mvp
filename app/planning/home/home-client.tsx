@@ -2428,7 +2428,7 @@ export default function HomeClient({
                   </svg>
                   {ownerPanelOpen ? "Hide" : "Edit"} Current Home Details
                   {(!profile?.owner_home_value && bsHomeValue > 0) && (
-                    <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(63,174,74,0.2)", marginLeft: "4px" }}>
+                    <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.1)", padding: "1px 6px", borderRadius: "4px", border: "1px solid rgba(63,174,74,0.2)", marginLeft: "4px" }}>
                       auto-filled
                     </span>
                   )}
@@ -2441,7 +2441,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Current Home Value</label>
                           {!profile?.owner_home_value && bsHomeValue > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerHomeValue} onChange={(e) => setOwnerHomeValue(Number(e.target.value))} style={inputS} />
@@ -2450,7 +2450,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Mortgage Balance</label>
                           {!profile?.owner_mortgage_balance && bsMortgageBalance > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>balance sheet</span>
                           )}
                         </div>
                         <input type="number" min="0" step="1000" value={ownerMortgageBalance} onChange={(e) => setOwnerMortgageBalance(Number(e.target.value))} style={inputS} />
@@ -2459,7 +2459,7 @@ export default function HomeClient({
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
                           <label style={labelS}>Monthly Payment (PITI)</label>
                           {!profile?.owner_monthly_payment && bsMonthlyPayment > 0 && (
-                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
+                            <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.08)", padding: "1px 5px", borderRadius: "4px" }}>cash flow</span>
                           )}
                         </div>
                         <input type="number" min="0" step="50" value={ownerMonthlyPayment} onChange={(e) => setOwnerMonthlyPayment(Number(e.target.value))} style={inputS} />
@@ -2518,7 +2518,7 @@ export default function HomeClient({
                         <button
                           type="button"
                           onClick={() => setInputs((prev) => ({ ...prev, down_payment: Math.round(ownerEquity!.netProceeds / 1000) * 1000 }))}
-                          style={{ fontSize: "11px", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
+                          style={{ fontSize: "11px", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "var(--font-body)" }}
                         >
                           Apply equity → down payment ({fmt(Math.round(ownerEquity.netProceeds / 1000) * 1000)})
                         </button>
@@ -2611,7 +2611,7 @@ export default function HomeClient({
             return (
               <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="oklch(0.62 0.18 260)" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="oklch(0.62 0.18 195)" strokeWidth="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
                 <div>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 2px" }}>Goal projection requires a financial profile</p>
@@ -3935,7 +3935,7 @@ export default function HomeClient({
                             padding: "2px 8px", borderRadius: "5px", fontSize: "10px",
                             fontFamily: "var(--font-mono)", cursor: "pointer",
                             background: isActive ? "rgba(63,174,74,0.15)" : "var(--bg-elevated)",
-                            color: isActive ? "oklch(0.65 0.18 260)" : "var(--text-muted)",
+                            color: isActive ? "oklch(0.65 0.18 195)" : "var(--text-muted)",
                             border: `1px solid ${isActive ? "rgba(63,174,74,0.4)" : "var(--border-subtle)"}`,
                             fontWeight: isActive ? 600 : 400,
                           }}
@@ -3973,7 +3973,7 @@ export default function HomeClient({
                         type="button"
                         onClick={() => set("mortgage_rate", avgMortgageRate)}
                         title="Use current national average"
-                        style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer", whiteSpace: "nowrap" }}
+                        style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 195)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.2)", borderRadius: "4px", padding: "1px 6px", cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         avg {avgMortgageRate.toFixed(2)}%
                       </button>
@@ -3982,7 +3982,7 @@ export default function HomeClient({
                   <input type="number" min="0" max="20" step="0.05" value={inputs.mortgage_rate} onChange={num("mortgage_rate")} style={inputS} />
                   <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
                     Your actual rate depends on credit score, down payment, and lender.{" "}
-                    <a href="https://www.consumerfinance.gov/owning-a-home/explore-rates/" target="_blank" rel="noopener noreferrer" style={{ color: "oklch(0.65 0.18 260)", textDecoration: "none" }}>Explore rates →</a>
+                    <a href="https://www.consumerfinance.gov/owning-a-home/explore-rates/" target="_blank" rel="noopener noreferrer" style={{ color: "oklch(0.65 0.18 195)", textDecoration: "none" }}>Explore rates →</a>
                   </div>
                 </div>
                 <div>
@@ -4429,7 +4429,7 @@ export default function HomeClient({
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", marginBottom: "8px" }}>
                   <button
                     onClick={exportToPDF}
-                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.07)", color: "oklch(0.65 0.18 260)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
+                    style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 11px", borderRadius: "var(--radius-md)", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.07)", color: "oklch(0.65 0.18 195)", fontSize: "11px", fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
                     <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
                     Export PDF
@@ -5914,7 +5914,7 @@ export default function HomeClient({
                 ))}
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={exportToPDF} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.08)", color: "oklch(0.72 0.18 260)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
+                <button onClick={exportToPDF} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", borderRadius: "8px", border: "1px solid rgba(63,174,74,0.3)", background: "rgba(63,174,74,0.08)", color: "oklch(0.72 0.18 195)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "background 0.15s" }}>
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h3M7 11h6M7 14h4" strokeLinecap="round"/></svg>
                   Export PDF
                 </button>

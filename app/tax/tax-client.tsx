@@ -88,7 +88,7 @@ function LearnPanel({ title, label, children }: { title: string; label?: string;
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, color: "oklch(0.62 0.15 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "10px", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-body)", marginTop: "4px" }}
+        style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", fontWeight: 600, color: "oklch(0.62 0.15 195)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "10px", padding: "2px 8px", cursor: "pointer", fontFamily: "var(--font-body)", marginTop: "4px" }}
       >
         {open ? "✕ Hide" : (label ?? "? What is this")}
       </button>
@@ -114,7 +114,7 @@ function ActionItem({ type, text, detail, cta, onCta }: {
   const styles = {
     save: { dot: "var(--green)", bg: "rgba(22,163,74,0.04)", border: "rgba(22,163,74,0.15)" },
     warn: { dot: "#f59e0b", bg: "rgba(245,158,11,0.04)", border: "rgba(245,158,11,0.18)" },
-    info: { dot: "oklch(0.62 0.15 260)", bg: "rgba(63,174,74,0.04)", border: "rgba(63,174,74,0.15)" },
+    info: { dot: "oklch(0.62 0.15 195)", bg: "rgba(63,174,74,0.04)", border: "rgba(63,174,74,0.15)" },
   };
   const s = styles[type];
   return (
@@ -1306,7 +1306,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     return (
                       <div style={{ padding: "12px 14px", background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.15)", borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                          <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.62 0.15 260)", flexShrink: 0, marginTop: "5px" }} />
+                          <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.62 0.15 195)", flexShrink: 0, marginTop: "5px" }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", margin: "0 0 2px", fontFamily: "var(--font-body)" }}>Consider maxing out pre-tax accounts</p>
                             <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.5 }}>
@@ -1719,7 +1719,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     {finnOutput}
                   </div>
                   {!finnLoading && (
-                    <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.65 0.15 260)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "8px", padding: "5px 14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                    <button type="button" onClick={runFinnAnalysis} style={{ fontSize: "11px", fontWeight: 600, color: "oklch(0.65 0.15 195)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.25)", borderRadius: "8px", padding: "5px 14px", cursor: "pointer", fontFamily: "var(--font-body)" }}>
                       Re-run analysis
                     </button>
                   )}

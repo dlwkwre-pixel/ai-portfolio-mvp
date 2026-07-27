@@ -63,28 +63,28 @@ export default function BehavioralGuardrail() {
         @media (max-width: 768px) { .bt-guardrail-card { bottom: calc(var(--bt-mobile-nav-h, 64px) + 12px) !important; right: 12px !important; left: 12px !important; width: auto !important; } }
       `}</style>
       <div style={{
-        background: "linear-gradient(180deg, #0f1b2e, #0b1422)",
-        border: "1px solid rgba(96,165,250,0.28)",
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-border)",
         borderRadius: "16px", padding: "16px 17px",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.5)",
+        boxShadow: "var(--shadow-lg)",
       }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: "11px", marginBottom: "11px" }}>
-          <div style={{ width: "34px", height: "34px", borderRadius: "10px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(96,165,250,0.14)", border: "1px solid rgba(96,165,250,0.3)" }}>
+          <div style={{ width: "34px", height: "34px", borderRadius: "10px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)" }}>
             {/* steady "anchor/shield" mark — calm, not alarming */}
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0ea5a0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7fd9d4" }}>A steadying word</div>
-            <h3 style={{ fontSize: "14.5px", fontWeight: 700, color: "#fff", margin: "1px 0 0", lineHeight: 1.25 }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--brand-blue)" }}>A steadying word</div>
+            <h3 style={{ fontSize: "14.5px", fontWeight: 700, color: "var(--text-primary)", margin: "1px 0 0", lineHeight: 1.25 }}>
               The market&apos;s down {drop}% today
             </h3>
           </div>
-          <button type="button" onClick={dismiss} aria-label="Dismiss" style={{ background: "none", border: "none", color: "var(--text-muted, #64748b)", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
+          <button type="button" onClick={dismiss} aria-label="Dismiss" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>×</button>
         </div>
 
         {/* Calm reframe */}
-        <p style={{ fontSize: "12.5px", color: "var(--text-secondary, #94a3b8)", lineHeight: 1.55, margin: "0 0 12px" }}>
+        <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: "0 0 12px" }}>
           {data.severity === "severe"
             ? "Sharp drops feel urgent, but they're a normal part of investing — the market has a down day like this several times a year and has recovered from every one so far. Selling in the red turns a paper dip into a real loss."
             : "Red days are routine — the average year sees a drop of ~14% at some point and still tends to finish positive. The investors who do best usually do nothing on days like this."}
@@ -93,17 +93,17 @@ export default function BehavioralGuardrail() {
         {/* Their own thesis, reflected back */}
         {theses.length > 0 && (
           <div style={{ background: "var(--surface-003)", border: "1px solid var(--line-007)", borderRadius: "11px", padding: "11px 12px", marginBottom: "12px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary, #64748b)", marginBottom: "7px" }}>Why you bought in — your words</div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", marginBottom: "7px" }}>Why you bought in — your words</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {theses.map((t) => (
-                <div key={t.ticker} style={{ fontSize: "12px", color: "var(--text-secondary, #94a3b8)", lineHeight: 1.5 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "#cbd5e1" }}>{t.ticker}</span>
-                  <span style={{ color: "var(--text-muted, #64748b)" }}> — </span>
+                <div key={t.ticker} style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)" }}>{t.ticker}</span>
+                  <span style={{ color: "var(--text-muted)" }}> — </span>
                   <span style={{ fontStyle: "italic" }}>&ldquo;{t.thesis}&rdquo;</span>
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: "11px", color: "var(--text-tertiary, #64748b)", margin: "9px 0 0", lineHeight: 1.45 }}>Has anything in that thesis actually changed today? If not, today&apos;s price is noise.</p>
+            <p style={{ fontSize: "11px", color: "var(--text-tertiary)", margin: "9px 0 0", lineHeight: 1.45 }}>Has anything in that thesis actually changed today? If not, today&apos;s price is noise.</p>
           </div>
         )}
 
@@ -112,11 +112,11 @@ export default function BehavioralGuardrail() {
           <Link href="/planning" onClick={dismiss} style={{ flex: 1, textAlign: "center", padding: "9px 12px", borderRadius: "10px", background: "var(--brand-gradient)", color: "#fff", fontSize: "12.5px", fontWeight: 700, textDecoration: "none" }}>
             Zoom out to my plan
           </Link>
-          <button type="button" onClick={dismiss} style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid var(--line-015)", background: "transparent", color: "var(--text-secondary, #94a3b8)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+          <button type="button" onClick={dismiss} style={{ padding: "9px 14px", borderRadius: "10px", border: "1px solid var(--line-015)", background: "transparent", color: "var(--text-secondary)", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)" }}>
             I&apos;m steady
           </button>
         </div>
-        <p style={{ fontSize: "10px", color: "var(--text-tertiary, #64748b)", margin: "10px 0 0", lineHeight: 1.45 }}>
+        <p style={{ fontSize: "10px", color: "var(--text-tertiary)", margin: "10px 0 0", lineHeight: 1.45 }}>
           Tempted to sell? Log <em>why</em> in your portfolio&apos;s Journal first — and run the devil&apos;s advocate on it. A 10-minute pause is the cheapest risk management there is.
         </p>
       </div>

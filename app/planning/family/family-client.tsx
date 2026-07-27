@@ -831,7 +831,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                       const entry: ChildEntry = { id: makeChildId(), name: kid.name || "", isFuture: false, ageOrBirthYear: kid.age };
                       return isEmpty ? [entry] : [...prev, entry];
                     })}
-                    style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 265 / 0.12)", border: "1px solid oklch(0.45 0.15 265 / 0.3)", color: "oklch(0.78 0.12 265)" }}
+                    style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 195 / 0.12)", border: "1px solid oklch(0.45 0.15 195 / 0.3)", color: "oklch(0.78 0.12 195)" }}
                   >
                     {kid.name || `Child ${i + 1}`}{kid.age > 0 ? `, ${kid.age}` : ""}
                   </button>
@@ -844,12 +844,12 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
 
           {/* Per-child planning rows */}
           <div style={{ marginBottom: "18px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 265)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Planning For</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 195)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Planning For</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {children.map((child, idx) => (
                 <div key={child.id} style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.22 0.02 240)", borderRadius: 10, padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.65 0.12 265)" }}>Child {idx + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.65 0.12 195)" }}>Child {idx + 1}</span>
                     {children.length > 1 && (
                       <button onClick={() => setChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                     )}
@@ -866,7 +866,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                       const isBorn = lbl === "Age";
                       const active = child.isFuture !== isBorn;
                       return (
-                        <button key={lbl} onClick={() => setChildren(prev => prev.map(c => c.id === child.id ? { ...c, isFuture: !isBorn } : c))} style={{ flex: 1, padding: "4px 0", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", background: active ? "oklch(0.55 0.15 265 / 0.18)" : "transparent", border: active ? "1px solid oklch(0.55 0.15 265 / 0.55)" : "1px solid var(--border)", color: active ? "oklch(0.85 0.12 265)" : "var(--text-muted)", transition: "all 0.15s ease" }}>{lbl}</button>
+                        <button key={lbl} onClick={() => setChildren(prev => prev.map(c => c.id === child.id ? { ...c, isFuture: !isBorn } : c))} style={{ flex: 1, padding: "4px 0", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", background: active ? "oklch(0.55 0.15 195 / 0.18)" : "transparent", border: active ? "1px solid oklch(0.55 0.15 195 / 0.55)" : "1px solid var(--border)", color: active ? "oklch(0.85 0.12 195)" : "var(--text-muted)", transition: "all 0.15s ease" }}>{lbl}</button>
                       );
                     })}
                   </div>
@@ -891,12 +891,12 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
               ))}
               <button
                 onClick={() => setChildren(prev => [...prev, { id: makeChildId(), name: "", isFuture: false, ageOrBirthYear: 0 }])}
-                style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", border: "1px dashed oklch(0.55 0.15 265 / 0.35)", color: "oklch(0.65 0.12 265)", transition: "all 0.15s ease" }}
+                style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", border: "1px dashed oklch(0.55 0.15 195 / 0.35)", color: "oklch(0.65 0.12 195)", transition: "all 0.15s ease" }}
               >
                 + Add Child
               </button>
               {children.length > 1 && (
-                <div style={{ fontSize: 11, color: "oklch(0.55 0.1 265)", padding: "6px 10px", background: "oklch(0.55 0.15 265 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 265 / 0.12)" }}>
+                <div style={{ fontSize: 11, color: "oklch(0.55 0.1 195)", padding: "6px 10px", background: "oklch(0.55 0.15 195 / 0.06)", borderRadius: 6, border: "1px solid oklch(0.55 0.15 195 / 0.12)" }}>
                   Costs calculated across all {children.length} children
                 </div>
               )}
@@ -1394,30 +1394,30 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             </div>
           )}
 
-            <div style={{ background: "linear-gradient(145deg, oklch(0.12 0.03 285) 0%, oklch(0.10 0.01 240) 60%, oklch(0.11 0.02 265) 100%)", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+            <div style={{ background: "color-mix(in oklch, oklch(0.55 0.18 195) 6%, var(--card-bg))", border: "1px solid color-mix(in oklch, oklch(0.55 0.18 195) 22%, transparent)", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "bt-fade-up 0.4s ease-out 0.08s both", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
             {/* ambient glow orb */}
-            <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.50 0.25 290 / 0.12) 0%, transparent 70%)", pointerEvents: "none", animation: "bt-orb-pulse 4s ease-in-out infinite" }} />
-            <div style={{ position: "absolute", bottom: -30, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 265 / 0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 195 / 0.1) 0%, transparent 70%)", pointerEvents: "none", animation: "bt-orb-pulse 4s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", bottom: -30, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, oklch(0.55 0.18 195 / 0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
 
             {/* header */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: 16, position: "relative" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: "oklch(0.50 0.25 290 / 0.15)", border: "1px solid oklch(0.50 0.25 290 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "oklch(0.55 0.18 195 / 0.15)", border: "1px solid oklch(0.55 0.18 195 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="8" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" />
-                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="oklch(0.72 0.2 290)" strokeWidth="1.5" strokeLinecap="round" />
-                  <circle cx="10" cy="15.5" r="0.75" fill="oklch(0.72 0.2 290)" />
+                  <circle cx="10" cy="10" r="8" stroke="oklch(0.62 0.18 195)" strokeWidth="1.5" />
+                  <path d="M7 9c0-1.657 1.343-3 3-3s3 1.343 3 3c0 1.5-1 2.5-2.5 3V13.5" stroke="oklch(0.62 0.18 195)" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="10" cy="15.5" r="0.75" fill="oklch(0.62 0.18 195)" />
                 </svg>
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.01em" }}>Atlas Deep Analysis</div>
-                <div style={{ fontSize: 10, color: "oklch(0.60 0.12 290)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Family Advisor</div>
+                <div style={{ fontSize: 10, color: "oklch(0.5 0.14 195)", textTransform: "uppercase", letterSpacing: "0.08em" }}>AI Family Advisor</div>
               </div>
             </div>
 
             {/* content area */}
             <div style={{ flex: 1, position: "relative" }}>
               {commentary ? (
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.50 0.25 290 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0, animation: "bt-fade-up 0.4s ease-out both", borderLeft: "2px solid oklch(0.55 0.18 195 / 0.4)", paddingLeft: "12px" }}>{commentary}</p>
               ) : loadingCommentary ? (
                 <AtlasThinking messages={["Modeling child-cost timing…", "Weighing the retirement impact…", "Finding the optimal delay…", "Pressure-testing your plan…"]} />
               ) : (
@@ -1429,7 +1429,7 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   </div>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                     {["Cost timing", "Retirement risk", "Optimal delay"].map((tag) => (
-                      <span key={tag} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "oklch(0.50 0.2 290 / 0.1)", border: "1px solid oklch(0.50 0.2 290 / 0.2)", color: "oklch(0.65 0.12 290)" }}>{tag}</span>
+                      <span key={tag} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 4, background: "oklch(0.55 0.18 195 / 0.1)", border: "1px solid oklch(0.55 0.18 195 / 0.2)", color: "oklch(0.5 0.14 195)" }}>{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -1442,16 +1442,16 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                 onClick={handleGetCommentary}
                 disabled={loadingCommentary}
                 className="bt-finn-btn"
-                style={{ width: "100%", padding: "10px 16px", background: loadingCommentary ? "oklch(0.50 0.2 290 / 0.08)" : "oklch(0.50 0.2 290 / 0.14)", color: "oklch(0.78 0.18 290)", border: `1px solid oklch(0.50 0.2 290 / ${loadingCommentary ? "0.15" : "0.35"})`, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)", letterSpacing: "0.02em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                style={{ width: "100%", padding: "10px 16px", background: loadingCommentary ? "oklch(0.55 0.18 195 / 0.08)" : "oklch(0.55 0.18 195 / 0.14)", color: "oklch(0.4 0.16 195)", border: `1px solid oklch(0.55 0.18 195 / ${loadingCommentary ? "0.15" : "0.35"})`, borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: loadingCommentary ? "not-allowed" : "pointer", opacity: loadingCommentary ? 0.7 : 1, fontFamily: "var(--font-body)", letterSpacing: "0.02em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
               >
                 {loadingCommentary ? (
                   <>
-                    <span style={{ width: 12, height: 12, border: "2px solid oklch(0.60 0.15 290)", borderTopColor: "transparent", borderRadius: "50%", animation: "bt-spin 0.7s linear infinite", display: "inline-block" }} />
+                    <span style={{ width: 12, height: 12, border: "2px solid oklch(0.5 0.14 195)", borderTopColor: "transparent", borderRadius: "50%", animation: "bt-spin 0.7s linear infinite", display: "inline-block" }} />
                     Analyzing…
                   </>
                 ) : (
                   <>
-                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.78 0.18 290)"/></svg>
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 5.6L18 10l-5.6 2.4L10 18l-2.4-5.6L2 10l5.6-2.4z" fill="oklch(0.4 0.16 195)"/></svg>
                     Get Atlas Guidance
                   </>
                 )}
@@ -1614,20 +1614,20 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           to { transform: rotate(360deg); }
         }
         .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
-        .bt-timing-row:hover { transform: translateX(4px); background: oklch(0.19 0.03 265 / 0.5) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 265 / 0.25), 0 0 8px oklch(0.55 0.15 265 / 0.08); }
+        .bt-timing-row:hover { transform: translateX(4px); background: oklch(0.19 0.03 195 / 0.5) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 195 / 0.25), 0 0 8px oklch(0.55 0.15 195 / 0.08); }
         .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
         .bt-flip-row:hover { transform: translateX(4px); background: oklch(0.18 0.05 145 / 0.35) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3), 0 0 10px oklch(0.65 0.18 145 / 0.1); }
         .bt-eco-tile { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
-        .bt-eco-tile:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px oklch(0.55 0.15 265 / 0.35), 0 6px 22px oklch(0.45 0.15 265 / 0.22); }
+        .bt-eco-tile:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px oklch(0.55 0.15 195 / 0.35), 0 6px 22px oklch(0.45 0.15 195 / 0.22); }
         .bt-comp-row { transition: background 0.14s ease; }
-        .bt-comp-row:hover td { background: color-mix(in oklch, oklch(0.55 0.15 265) 9%, transparent) !important; }
+        .bt-comp-row:hover td { background: color-mix(in oklch, oklch(0.55 0.15 195) 9%, transparent) !important; }
         .bt-card { transition: box-shadow 0.22s ease; }
-        .bt-card:hover { box-shadow: 0 0 0 1px oklch(0.50 0.12 265 / 0.35), 0 6px 28px oklch(0.45 0.12 265 / 0.14) !important; }
+        .bt-card:hover { box-shadow: 0 0 0 1px oklch(0.50 0.12 195 / 0.35), 0 6px 28px oklch(0.45 0.12 195 / 0.14) !important; }
         .bt-summary-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-        .bt-summary-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.55 0.15 265 / 0.3), 0 6px 20px oklch(0.45 0.12 265 / 0.16) !important; }
+        .bt-summary-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.55 0.15 195 / 0.3), 0 6px 20px oklch(0.45 0.12 195 / 0.16) !important; }
         .bt-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
-        .bt-finn-btn:not(:disabled):hover { background: oklch(0.50 0.2 290 / 0.24) !important; border-color: oklch(0.50 0.2 290 / 0.6) !important; box-shadow: 0 0 18px oklch(0.50 0.25 290 / 0.45) !important; }
-        .bt-child-btn:hover { box-shadow: 0 0 10px oklch(0.55 0.15 265 / 0.2) !important; }
+        .bt-finn-btn:not(:disabled):hover { background: oklch(0.55 0.18 195 / 0.24) !important; border-color: oklch(0.55 0.18 195 / 0.6) !important; box-shadow: 0 0 18px oklch(0.55 0.18 195 / 0.45) !important; }
+        .bt-child-btn:hover { box-shadow: 0 0 10px oklch(0.55 0.15 195 / 0.2) !important; }
         @media (max-width: 900px) {
           [data-family-cols] { flex-direction: column !important; }
           [data-family-sidebar] { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border-subtle) !important; }
