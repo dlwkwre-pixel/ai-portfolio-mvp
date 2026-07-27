@@ -335,7 +335,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
+                  <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(14,165,160,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>&ldquo;{created.name}&rdquo; created</div>
@@ -371,7 +371,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             // ── No portfolios yet ──
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
               <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="rgba(14,165,160,0.95)"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>
               </div>
               <div style={{ flex: 1, minWidth: "180px" }}>
                 <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>&ldquo;{created.name}&rdquo; created</div>
@@ -416,7 +416,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 }}>
                 {m.label}
                 {m.badge && (
-                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: active ? "rgba(96,165,250,0.95)" : "var(--text-muted)" }}>{m.badge}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.03em", textTransform: "uppercase", color: active ? "rgba(14,165,160,0.95)" : "var(--text-muted)" }}>{m.badge}</span>
                 )}
               </button>
             );
@@ -428,7 +428,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
           <div className="bt-card" style={{ padding: "20px 22px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
               <div style={{ width: "40px", height: "40px", borderRadius: "11px", background: "rgba(14,165,160,0.15)", border: "1px solid rgba(14,165,160,0.28)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="18" height="18" viewBox="0 0 20 20" fill="rgba(96,165,250,0.95)">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="rgba(14,165,160,0.95)">
                   <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.684a1 1 0 01.633.632l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.897l-2.051-.684a1 1 0 01-.633-.633L6.95 5.684z" />
                 </svg>
               </div>
@@ -602,7 +602,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                         borderRadius: "var(--radius-xl)",
                         fontSize: "11px",
                         fontWeight: 600,
-                        color: isCreating ? "var(--text-muted)" : "rgba(96,165,250,0.9)",
+                        color: isCreating ? "var(--text-muted)" : "rgba(14,165,160,0.9)",
                         background: isCreating ? "var(--card-bg)" : "rgba(14,165,160,0.1)",
                         border: `1px solid ${isCreating ? "var(--card-border)" : "rgba(14,165,160,0.25)"}`,
                         cursor: creatingTemplate ? "default" : "pointer",
@@ -746,9 +746,9 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Have more questions?</span>
             <a
               href="/learn"
-              style={{ fontSize: "11px", fontWeight: 600, color: "rgba(96,165,250,0.8)", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px", transition: "color 0.12s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(96,165,250,1)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(96,165,250,0.8)"; }}
+              style={{ fontSize: "11px", fontWeight: 600, color: "rgba(14,165,160,0.8)", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px", transition: "color 0.12s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(14,165,160,1)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = "rgba(14,165,160,0.8)"; }}
             >
               Visit Learn
               <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
