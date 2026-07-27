@@ -262,12 +262,12 @@ function EstatePlanningTab({
       {/* Atlas Estate Insight */}
       <div style={{
         padding: "14px 18px", borderRadius: "var(--radius-lg)",
-        background: "color-mix(in oklch, oklch(0.55 0.18 270) 6%, var(--card-bg))",
-        border: "1px solid color-mix(in oklch, oklch(0.55 0.18 270) 22%, transparent)",
+        background: "color-mix(in oklch, oklch(0.55 0.18 195) 6%, var(--card-bg))",
+        border: "1px solid color-mix(in oklch, oklch(0.55 0.18 195) 22%, transparent)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
-          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 270)", flexShrink: 0 }} />
-          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>Atlas</span>
+          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "oklch(0.65 0.18 195)", flexShrink: 0 }} />
+          <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>Atlas</span>
         </div>
         <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{estateFinnInsight}</p>
       </div>
@@ -435,12 +435,12 @@ function EstatePlanningTab({
 
       {/* Beneficiary suggestion from profile kids */}
       {profileKids.length > 0 && beneficiaries.length === 0 && (
-        <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: "oklch(0.45 0.15 270 / 0.08)", border: "1px solid oklch(0.45 0.15 270 / 0.25)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0, background: "oklch(0.45 0.15 270 / 0.15)", border: "1px solid oklch(0.55 0.18 270 / 0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="oklch(0.7 0.18 270)" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+        <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: "oklch(0.45 0.15 195 / 0.08)", border: "1px solid oklch(0.45 0.15 195 / 0.25)", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0, background: "oklch(0.45 0.15 195 / 0.15)", border: "1px solid oklch(0.55 0.18 195 / 0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 6v4c0 5 3.5 8.5 7 9 3.5-.5 7-4 7-9V6L10 2z" stroke="oklch(0.7 0.18 195)" strokeWidth="1.5" strokeLinejoin="round"/></svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "oklch(0.72 0.15 270)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>Dependants in Your Profile</div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "oklch(0.72 0.15 195)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "3px" }}>Dependants in Your Profile</div>
             <div style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "8px" }}>
               {profileKids.map((k) => k.name || "Child").join(", ")} {profileKids.length === 1 ? "is" : "are"} listed in your profile but not named as a beneficiary here. Consider adding {profileKids.length === 1 ? "them" : "them"} to your beneficiary designations.
             </div>
@@ -452,7 +452,7 @@ function EstatePlanningTab({
                     setNewBenef({ name: kid.name || "Child", relationship: "Child", allocation_pct: 0, notes: "" });
                     setAddingBenef(true);
                   }}
-                  style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 270 / 0.15)", border: "1px solid oklch(0.55 0.18 270 / 0.3)", color: "oklch(0.72 0.15 270)" }}
+                  style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer", background: "oklch(0.45 0.15 195 / 0.15)", border: "1px solid oklch(0.55 0.18 195 / 0.3)", color: "oklch(0.72 0.15 195)" }}
                 >
                   + Add {kid.name || `Child ${i + 1}`}
                 </button>
