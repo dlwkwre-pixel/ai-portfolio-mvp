@@ -8920,12 +8920,10 @@ export default function PlanningClient({
                 { id: false, label: "3-Band", tooltip: "Shows three fixed scenarios based on your return rate: optimistic (+3%), baseline, and pessimistic (−3%). Simple and fast — good for a quick directional view." },
                 { id: true, label: "Monte Carlo", tooltip: "Runs 1,000 simulations with random annual returns (σ=15% volatility). Shows a cone of realistic outcomes from worst-case to best-case, and a statistically accurate retirement probability." },
               ].map(({ id, label, tooltip }) => (
-                <button
+                <span
                   key={String(id)}
-                  type="button"
-                  onClick={() => setShowMonteCarlo(id)}
                   style={{
-                    padding: "5px 10px", borderRadius: "var(--radius-sm)", border: "none", cursor: "pointer",
+                    padding: "5px 10px", borderRadius: "var(--radius-sm)",
                     fontSize: "11px", fontFamily: "var(--font-body)", fontWeight: showMonteCarlo === id ? 600 : 400,
                     background: showMonteCarlo === id ? "var(--brand-blue)" : "transparent",
                     color: showMonteCarlo === id ? "#fff" : "var(--text-secondary)",
@@ -8933,9 +8931,15 @@ export default function PlanningClient({
                     display: "flex", alignItems: "center", gap: "3px",
                   }}
                 >
-                  {label}
+                  <button
+                    type="button"
+                    onClick={() => setShowMonteCarlo(id)}
+                    style={{ background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer", font: "inherit", color: "inherit" }}
+                  >
+                    {label}
+                  </button>
                   <InfoTooltip text={tooltip} />
-                </button>
+                </span>
               ))}
             </div>
             <button
@@ -9132,8 +9136,8 @@ export default function PlanningClient({
                       <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="mcMedGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.12} />
-                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0ea5a0" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#0ea5a0" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
@@ -9149,10 +9153,10 @@ export default function PlanningClient({
                     }}
                   />
                   <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad2)" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="p90" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.3} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="p75" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="p50" stroke="#a78bfa" strokeWidth={2} fill="url(#mcMedGrad)" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="p25" stroke="#a78bfa" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p90" stroke="#0ea5a0" strokeWidth={1} strokeOpacity={0.3} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p75" stroke="#0ea5a0" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p50" stroke="#0ea5a0" strokeWidth={2} fill="url(#mcMedGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="p25" stroke="#0ea5a0" strokeWidth={1} strokeOpacity={0.55} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="p10" stroke="#f59e0b" strokeWidth={1} strokeOpacity={0.5} fill="none" strokeDasharray="3 2" dot={false} connectNulls={false} />
                   {activeYearsToRetire != null && (
                     <ReferenceLine x={`+${activeYearsToRetire}yr`} stroke="rgba(245,158,11,0.5)" strokeDasharray="4 3" label={{ value: "Retirement", fill: "var(--amber)", fontSize: 10, fontFamily: "var(--font-mono)" }} />
@@ -9170,8 +9174,8 @@ export default function PlanningClient({
                       <stop offset="95%" stopColor="#00d395" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="baseGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0ea5a0" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#0ea5a0" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="pessGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.08} />
@@ -9197,7 +9201,7 @@ export default function PlanningClient({
                   />
                   <Area type="monotone" dataKey="historical" stroke="#00d395" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="optimistic" stroke="#00d395" strokeWidth={1} strokeDasharray="4 3" fill="url(#optGrad)" dot={false} connectNulls={false} />
-                  <Area type="monotone" dataKey="baseline" stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
+                  <Area type="monotone" dataKey="baseline" stroke="#0ea5a0" strokeWidth={2} strokeDasharray="4 3" fill="url(#baseGrad)" dot={false} connectNulls={false} />
                   <Area type="monotone" dataKey="pessimistic" stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 3" fill="url(#pessGrad)" dot={false} connectNulls={false} />
                   {whatIfScenario && <Area type="monotone" dataKey="whatif" stroke="#fb923c" strokeWidth={2.5} fill="url(#whatifGrad)" dot={false} connectNulls={false} />}
                   {activeYearsToRetire != null && (
@@ -9214,7 +9218,7 @@ export default function PlanningClient({
                   </div>
                   {["90th", "75th", "Median", "25th", "10th"].map((l, i) => (
                     <div key={l} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-                      <div style={{ width: "16px", height: "2px", borderTop: `2px dashed ${i === 4 ? "#f59e0b" : "#6fd08a"}`, opacity: i === 2 ? 1 : 0.6 }} /> {l}
+                      <div style={{ width: "16px", height: "2px", borderTop: `2px dashed ${i === 4 ? "#f59e0b" : "#0ea5a0"}`, opacity: i === 2 ? 1 : 0.6 }} /> {l}
                     </div>
                   ))}
                 </>
@@ -9222,7 +9226,7 @@ export default function PlanningClient({
                 [
                   { color: "var(--green)", label: "Historical", dashed: false },
                   { color: "var(--green)", label: "Optimistic", dashed: true },
-                  { color: "#6fd08a", label: "Baseline", dashed: true },
+                  { color: "#0ea5a0", label: "Baseline", dashed: true },
                   { color: "#f59e0b", label: "Pessimistic", dashed: true },
                   ...(whatIfScenario ? [{ color: "#fb923c", label: { home: "Buy a Home", child: "Have a Child", career: "Career +20%" }[whatIfScenario], dashed: false }] : []),
                 ].map(({ color, label, dashed }) => (
