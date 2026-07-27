@@ -1158,7 +1158,7 @@ type AssetBucket = { label: string; value: number; color: string };
 function computeAssetBuckets(assets: BalanceSheetItem[], portfolioValue: number): AssetBucket[] {
   const defs: { label: string; cats: string[]; color: string }[] = [
     { label: "Cash",        cats: ["cash"],                                                    color: "oklch(0.72 0.19 145)" },
-    { label: "Portfolio",   cats: [],                                                          color: "oklch(0.65 0.18 260)" },
+    { label: "Portfolio",   cats: [],                                                          color: "oklch(0.65 0.18 195)" },
     { label: "Retirement",  cats: ["retirement"],                                              color: "oklch(0.72 0.16 220)" },
     { label: "Real Estate", cats: ["real_estate"],                                             color: "oklch(0.65 0.14 200)" },
     { label: "Other",       cats: ["vehicle", "personal_property", "business", "other_asset"], color: "oklch(0.58 0.06 260)" },
@@ -2706,7 +2706,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
       {step === "review" && (
         <>
           {existingCount > 0 && (
-            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)" }}>
+            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
               {existingCount} categor{existingCount !== 1 ? "ies" : "y"} already in your budget — pre-deselected. Re-check to add alongside or update manually.
             </div>
           )}
@@ -2744,7 +2744,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
                       </span>
                     ) : null}
                     {row.existingId && (
-                      <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 270)", fontFamily: "var(--font-body)", marginLeft: "4px" }}>
+                      <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)", marginLeft: "4px" }}>
                         · exists: {row.existingLabel} ${row.existingAmount?.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
                       </span>
                     )}
@@ -4269,7 +4269,7 @@ function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
 // ── Balance Sheet OS ───────────────────────────────────────────────────────────
 
 const LIAB_CAT_COLORS: Record<string, string> = {
-  mortgage:        "oklch(0.65 0.18 260)",
+  mortgage:        "oklch(0.65 0.18 195)",
   auto_loan:       "oklch(0.62 0.20 306)",
   student_loan:    "oklch(0.72 0.17 97)",
   credit_card:     "oklch(0.65 0.18 25)",
@@ -4394,10 +4394,10 @@ function BalanceSheetOS({
       {/* Atlas strip */}
       <div className="bso-z" style={{ background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
         <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
-          <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 195)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
           <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{finnInsight}</p>
         </div>
       </div>
@@ -4589,7 +4589,7 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
               }}>
               {day && (
                 <>
-                  <div style={{ textAlign: "center", fontSize: "10px", fontFamily: "var(--font-mono)", color: isToday ? "oklch(0.65 0.18 260)" : "var(--text-tertiary)" }}>{day}</div>
+                  <div style={{ textAlign: "center", fontSize: "10px", fontFamily: "var(--font-mono)", color: isToday ? "oklch(0.65 0.18 195)" : "var(--text-tertiary)" }}>{day}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "1px", marginTop: "1px" }}>
                     {items.map((it, j) => (
                       <div key={j} style={{ height: "3px", borderRadius: "2px", background: it.type === "income" ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" }} />
@@ -5032,12 +5032,12 @@ function CashFlowOS({
         }}>
           <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
             <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
-              <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/>
+              <path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 195)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>{cashFlowFinnInsight}</p>
           </div>
         </div>
@@ -8311,8 +8311,8 @@ export default function PlanningClient({
             <div style={{ display: "flex", gap: "13px", alignItems: "flex-start" }}>
               <div style={{ flexShrink: 0, width: "30px", height: "30px", borderRadius: "50%", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
-                  <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
+                  <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/>
+                  <path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -8321,7 +8321,7 @@ export default function PlanningClient({
                   {finnInsight}
                 </p>
                 <button type="button" onClick={() => setTab("finn")}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", color: "oklch(0.65 0.18 260)", cursor: "pointer" }}>
+                  style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "var(--radius-md)", fontSize: "12px", fontWeight: 500, fontFamily: "var(--font-body)", background: "rgba(63,174,74,0.08)", border: "1px solid rgba(63,174,74,0.18)", color: "oklch(0.65 0.18 195)", cursor: "pointer" }}>
                   Ask Atlas a question
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd"/></svg>
                 </button>
@@ -8353,8 +8353,8 @@ export default function PlanningClient({
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ width: "28px", height: "28px", borderRadius: "7px", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <svg width="13" height="13" viewBox="0 0 20 20" fill="none">
-                        <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" fill="rgba(99,102,241,0.15)" strokeLinejoin="round"/>
-                        <path d="M7 18v-6h6v6" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinejoin="round"/>
+                        <path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" fill="rgba(14,165,160,0.15)" strokeLinejoin="round"/>
+                        <path d="M7 18v-6h6v6" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinejoin="round"/>
                       </svg>
                     </div>
                     <div>
@@ -8363,7 +8363,7 @@ export default function PlanningClient({
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.05em", background: isReady ? "rgba(0,211,149,0.08)" : "rgba(63,174,74,0.1)", color: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", border: `1px solid ${isReady ? "rgba(0,211,149,0.2)" : "rgba(63,174,74,0.2)"}` }}>
+                    <span style={{ padding: "2px 8px", borderRadius: "5px", fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.05em", background: isReady ? "rgba(0,211,149,0.08)" : "rgba(63,174,74,0.1)", color: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 195)", border: `1px solid ${isReady ? "rgba(0,211,149,0.2)" : "rgba(63,174,74,0.2)"}` }}>
                       {isReady ? "READY" : "GOAL"}
                     </span>
                     <a href="/planning/home" style={{ fontSize: "11px", fontFamily: "var(--font-body)", color: "var(--text-tertiary)", textDecoration: "none" }}>
@@ -8381,7 +8381,7 @@ export default function PlanningClient({
                     </span>
                   </div>
                   <div style={{ height: "6px", borderRadius: "3px", background: "var(--border)", overflow: "hidden" }}>
-                    <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "3px", background: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 260)", transform: `scaleX(${dpProgress})`, animationDelay: "300ms" }} />
+                    <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "3px", background: isReady ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 195)", transform: `scaleX(${dpProgress})`, animationDelay: "300ms" }} />
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "5px" }}>
                     <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
@@ -8444,7 +8444,7 @@ export default function PlanningClient({
             const nowYear = new Date().getFullYear();
             const mList: { label: string; year: number; icon: string; color: string }[] = [];
             if (profile?.current_age != null && profile?.target_retirement_age != null) {
-              mList.push({ label: `Retire at ${profile.target_retirement_age}`, year: nowYear + Math.max(0, profile.target_retirement_age - profile.current_age), icon: "→", color: "oklch(0.65 0.18 260)" });
+              mList.push({ label: `Retire at ${profile.target_retirement_age}`, year: nowYear + Math.max(0, profile.target_retirement_age - profile.current_age), icon: "→", color: "oklch(0.65 0.18 195)" });
             }
             futureEvents.filter((e) => e.event_year >= nowYear).forEach((e) => {
               mList.push({ label: e.label, year: e.event_year, icon: e.amount_impact >= 0 ? "+" : "−", color: e.amount_impact >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" });
@@ -8515,7 +8515,7 @@ export default function PlanningClient({
               }
             }
             const speedup = fiYearBoost != null && lifePlan.fiYear != null ? lifePlan.fiYear - fiYearBoost : null;
-            const fiColor = fiAlreadyReached ? "var(--green)" : fiPct >= 60 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 260)";
+            const fiColor = fiAlreadyReached ? "var(--green)" : fiPct >= 60 ? "oklch(0.75 0.18 70)" : "oklch(0.65 0.18 195)";
             return (
               <div className="cmd-section" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "18px 20px", animationDelay: "125ms" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
@@ -8601,10 +8601,10 @@ export default function PlanningClient({
                   {milestoneRows.map((m) => {
                     const isNext = !m.achieved && milestoneRows.find((r2) => !r2.achieved) === m;
                     const progress = Math.min(1, Math.max(0, netWorth / m.target));
-                    const mColor = m.achieved ? "var(--green)" : isNext ? "oklch(0.65 0.18 260)" : "var(--text-muted)";
+                    const mColor = m.achieved ? "var(--green)" : isNext ? "oklch(0.65 0.18 195)" : "var(--text-muted)";
                     return (
                       <div key={m.target} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
-                        <div style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%", background: m.achieved ? "oklch(0.72 0.19 145 / 0.15)" : isNext ? "oklch(0.65 0.18 260 / 0.12)" : "var(--border)", border: `1px solid ${m.achieved ? "oklch(0.72 0.19 145 / 0.35)" : isNext ? "oklch(0.65 0.18 260 / 0.3)" : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%", background: m.achieved ? "oklch(0.72 0.19 145 / 0.15)" : isNext ? "oklch(0.65 0.18 195 / 0.12)" : "var(--border)", border: `1px solid ${m.achieved ? "oklch(0.72 0.19 145 / 0.35)" : isNext ? "oklch(0.65 0.18 195 / 0.3)" : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {m.achieved && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="oklch(0.72 0.19 145)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -8618,7 +8618,7 @@ export default function PlanningClient({
                           </div>
                           {isNext && (
                             <div style={{ height: "3px", borderRadius: "2px", background: "var(--border)", overflow: "hidden", marginTop: "6px" }}>
-                              <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: "oklch(0.65 0.18 260)", transform: `scaleX(${progress})`, animationDelay: "350ms" }} />
+                              <div className="cmd-health-bar" style={{ height: "100%", borderRadius: "2px", background: "oklch(0.65 0.18 195)", transform: `scaleX(${progress})`, animationDelay: "350ms" }} />
                             </div>
                           )}
                         </div>
@@ -8739,10 +8739,10 @@ export default function PlanningClient({
             }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
                 <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
-                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 195)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>Atlas</div>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.6, margin: 0 }}>
                 {(() => {
                   const proj = retirementPoint.baseline;
@@ -8864,7 +8864,7 @@ export default function PlanningClient({
                       background: "transparent", border: "1px solid var(--border)",
                       color: "var(--text-secondary)", transition: "border-color 0.15s, color 0.15s",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.65 0.18 270 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(0.65 0.18 195 / 0.5)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)"; }}
                   >{label}</button>
                 ))}
@@ -9760,7 +9760,7 @@ export default function PlanningClient({
                 if (savingsRate > 0 && savingsRate < 15 && effectiveIncome > 0) retirPrompts.push(`How much more should I save to reach a 15% savings rate?`);
                 if (netWorthHistory.length >= 2) retirPrompts.push("Am I building wealth fast enough for my timeline?");
                 retirPrompts.push("What should I optimize first?");
-                groups.push({ domain: "Retirement & Savings", color: "oklch(0.65 0.18 260)", prompts: retirPrompts.slice(0, 2) });
+                groups.push({ domain: "Retirement & Savings", color: "oklch(0.65 0.18 195)", prompts: retirPrompts.slice(0, 2) });
 
                 // Home & Life Events
                 const lifePrompts: string[] = [];
