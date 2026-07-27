@@ -344,7 +344,7 @@ export default function TrajectoryChart({
                 </g>
               );
             })}
-            <path className="trjc-fan" d={paths.fan} fill="oklch(0.62 0.19 262 / 0.11)" />
+            <path className="trjc-fan" d={paths.fan} fill="oklch(0.62 0.19 195 / 0.11)" />
             <path className="trjc-median" d={paths.median} fill="none" stroke="url(#trjcGrad)" strokeWidth="2.5" pathLength={1} strokeLinejoin="round" strokeLinecap="round" />
             <line x1="0" x2={VBW} y1={(1 - BOT_PAD) * VBH} y2={(1 - BOT_PAD) * VBH} stroke="rgba(148,163,184,0.16)" strokeWidth="1" />
           </svg>
