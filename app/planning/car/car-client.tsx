@@ -253,7 +253,7 @@ const VERDICT_META: Record<CarVerdict, { label: string; color: string; bg: strin
   MANAGEABLE:     { label: "Manageable",    color: "oklch(0.72 0.20 38)",  bg: "color-mix(in oklch, oklch(0.72 0.20 38) 9%, transparent)",   border: "color-mix(in oklch, oklch(0.72 0.20 38) 25%, transparent)" },
   BUDGET_STRETCH: { label: "Budget Stretch",color: "oklch(0.78 0.17 70)",  bg: "color-mix(in oklch, oklch(0.78 0.17 70) 9%, transparent)",   border: "color-mix(in oklch, oklch(0.78 0.17 70) 22%, transparent)" },
   KEEP_CURRENT:   { label: "Keep Current",  color: "oklch(0.65 0.18 25)",  bg: "color-mix(in oklch, oklch(0.50 0.15 25) 10%, transparent)",  border: "color-mix(in oklch, oklch(0.50 0.15 25) 28%, transparent)" },
-  FIRST_CAR:      { label: "First Car",     color: "oklch(0.72 0.20 260)", bg: "color-mix(in oklch, oklch(0.55 0.18 260) 9%, transparent)",  border: "color-mix(in oklch, oklch(0.55 0.18 260) 28%, transparent)" },
+  FIRST_CAR:      { label: "First Car",     color: "oklch(0.72 0.20 195)", bg: "color-mix(in oklch, oklch(0.55 0.18 195) 9%, transparent)",  border: "color-mix(in oklch, oklch(0.55 0.18 195) 28%, transparent)" },
 };
 
 const CAR_COLOR = "oklch(0.72 0.20 38)";
@@ -955,10 +955,10 @@ export default function CarClient({
             <div style={{ background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
                 <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
-                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/></svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 195)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{result.finnNarrative}</p>
                 </div>
               </div>

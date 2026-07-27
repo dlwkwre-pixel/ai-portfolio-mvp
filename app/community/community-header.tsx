@@ -183,7 +183,7 @@ function ShareModal({
                 onClick={() => setStep("strategy")}
               />
               <PickerCard
-                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#a78bfa" strokeWidth="1.5"><path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" /></svg>}
+                icon={<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0ea5a0" strokeWidth="1.5"><path d="M3 3h14v14H3V3z" /><path d="M3 7h14M7 3v14" /></svg>}
                 iconBg="rgba(63,174,74,0.12)" iconBorder="rgba(63,174,74,0.2)"
                 title="Share a Portfolio"
                 description={ownPortfolios.length === 0 ? "No portfolios yet. Add one to share it." : "Allocation percentages only. Dollar amounts stay private."}

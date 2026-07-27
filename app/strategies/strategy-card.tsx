@@ -54,7 +54,7 @@ function deriveHealthLabel(v: StrategyCard["latest_version"], risk: string | nul
   if (v.turnover_preference === "Low" && (v.holding_period_bias === "Long-term" || v.holding_period_bias === "Very Long-term"))
     return { label: "Low turnover", color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" };
   if (v.holding_period_bias === "Very Long-term" || v.holding_period_bias === "Long-term")
-    return { label: "Long-term", color: "rgba(96,165,250,0.85)", bg: "rgba(14,165,160,0.08)", border: "rgba(14,165,160,0.2)" };
+    return { label: "Long-term", color: "rgba(14,165,160,0.85)", bg: "rgba(14,165,160,0.08)", border: "rgba(14,165,160,0.2)" };
   return null;
 }
 
@@ -1104,7 +1104,7 @@ export default function StrategyCardItem({
                 {/* AI instructions */}
                 {v?.prompt_text && (
                   <div style={{ background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-md)", padding: "10px 14px" }}>
-                    <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(96,165,250,0.8)", marginBottom: "5px" }}>AI instructions</p>
+                    <p style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(14,165,160,0.8)", marginBottom: "5px" }}>AI instructions</p>
                     <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{v.prompt_text}</p>
                   </div>
                 )}

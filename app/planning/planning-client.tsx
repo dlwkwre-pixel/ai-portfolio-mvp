@@ -1182,7 +1182,7 @@ function effectiveTaxBucket(a: BalanceSheetItem): "taxable" | "tax_deferred" | "
 
 const TAX_BUCKET_META: Record<"taxable" | "tax_deferred" | "tax_free", { label: string; color: string; note: string }> = {
   taxable:      { label: "Taxable",      color: "oklch(0.75 0.15 70)",  note: "Brokerage & savings. Gains taxed as you go; flexible, no withdrawal rules." },
-  tax_deferred: { label: "Tax-deferred", color: "oklch(0.62 0.17 260)", note: "Traditional 401(k)/IRA. Withdrawals taxed as income; RMDs from age 73." },
+  tax_deferred: { label: "Tax-deferred", color: "oklch(0.5 0.14 195)", note: "Traditional 401(k)/IRA. Withdrawals taxed as income; RMDs from age 73." },
   tax_free:     { label: "Tax-free",     color: "oklch(0.70 0.17 150)", note: "Roth & HSA. Qualified withdrawals tax-free; no RMDs on Roth IRA." },
 };
 
@@ -1854,7 +1854,7 @@ function LineItemRow({
       <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         {!isBalance && (cf as CashFlowItem).is_variable && (
-          <span style={{ fontSize: "10px", fontWeight: 600, color: "rgba(96,165,250,0.9)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", padding: "1px 6px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>~ Variable</span>
         )}
         {isBalance && !bal.is_liability && bal.category !== "cash" && (() => {
           const b = effectiveTaxBucket(bal);
@@ -4520,7 +4520,7 @@ function BalanceSheetOS({
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: "13px", color: "var(--text-primary)", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pa.name}</span>
-                  <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(96,165,250,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--brand-blue)", background: "rgba(14,165,160,0.1)", border: "1px solid rgba(14,165,160,0.25)", padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>BuyTune{pa.account_type ? ` · ${pa.account_type}` : ""}</span>
                   <span title={meta.note} style={{ fontSize: "10px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{ph(fmtFull(pa.value))}</span>
@@ -7946,8 +7946,8 @@ export default function PlanningClient({
                     const isSE = formIncomeType === "self_employed" || formIncomeType === "mixed";
                     const computedNet = Math.round(t.netMonthly);
                     return (
-                      <div style={{ marginTop: "10px", padding: "10px 12px", background: "oklch(0.55 0.15 265 / 0.06)", border: "1px solid oklch(0.55 0.15 265 / 0.18)", borderRadius: "var(--radius-md)" }}>
-                        <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.60 0.15 265)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
+                      <div style={{ marginTop: "10px", padding: "10px 12px", background: "oklch(0.55 0.15 195 / 0.06)", border: "1px solid oklch(0.55 0.15 195 / 0.18)", borderRadius: "var(--radius-md)" }}>
+                        <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.5 0.14 195)", marginBottom: "7px", fontFamily: "var(--font-body)" }}>Estimated Tax Impact</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "6px" }}>
                           {[
                             { label: "Federal Income Tax", val: fmt(Math.round(t.federalIncomeTax / 12)) + "/mo" },
@@ -7963,7 +7963,7 @@ export default function PlanningClient({
                             <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>
                               Est. Net Monthly
                               {!showNetOverride && (
-                                <button type="button" onClick={() => { setShowNetOverride(true); setNetOverride(computedNet); }} style={{ background: "none", border: "none", color: "oklch(0.60 0.15 265)", cursor: "pointer", fontSize: "10px", padding: "0 0 0 5px", fontFamily: "var(--font-body)" }}>override</button>
+                                <button type="button" onClick={() => { setShowNetOverride(true); setNetOverride(computedNet); }} style={{ background: "none", border: "none", color: "oklch(0.5 0.14 195)", cursor: "pointer", fontSize: "10px", padding: "0 0 0 5px", fontFamily: "var(--font-body)" }}>override</button>
                               )}
                             </div>
                             {showNetOverride ? (
@@ -7982,7 +7982,7 @@ export default function PlanningClient({
                           </div>
                         </div>
                         {formPreTax > 0 && (
-                          <div style={{ fontSize: "10px", color: "oklch(0.60 0.15 265)", marginTop: "5px", fontFamily: "var(--font-body)" }}>
+                          <div style={{ fontSize: "10px", color: "oklch(0.5 0.14 195)", marginTop: "5px", fontFamily: "var(--font-body)" }}>
                             Pre-tax deductions ({fmt(formPreTax)}/yr) reduce your taxable income by {fmt(Math.round(t.federalMarginalRate * formPreTax))} in federal tax.
                           </div>
                         )}

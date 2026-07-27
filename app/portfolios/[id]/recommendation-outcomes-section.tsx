@@ -48,7 +48,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
   const actionBg: Record<string, string> = {
     buy: "rgba(0,211,149,0.08)", add: "rgba(0,211,149,0.08)",
     sell: "rgba(248,113,113,0.08)", trim: "rgba(248,113,113,0.08)",
-    hold: "rgba(96,165,250,0.08)", watch: "rgba(111,208,138,0.08)",
+    hold: "rgba(14,165,160,0.08)", watch: "rgba(111,208,138,0.08)",
   };
   const actionColor: Record<string, string> = {
     buy: "#00d395", add: "#00d395",

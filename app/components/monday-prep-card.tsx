@@ -41,7 +41,7 @@ function isFriSatSun(): boolean {
 const TYPE_ACCENT: Record<string, string> = {
   earnings: "#f59e0b",
   risk: "var(--red)",
-  action: "rgba(96,165,250,0.9)",
+  action: "rgba(14,165,160,0.9)",
   info: "rgba(148,163,184,0.5)",
 };
 
@@ -102,8 +102,8 @@ export default function MondayPrepCard() {
   const totalCount = allItems.length;
   const allDone = totalCount > 0 && doneCount === totalCount;
 
-  const accentColor = allDone ? "rgba(74,222,128,0.85)" : "rgba(96,165,250,0.85)";
-  const borderColor = allDone ? "rgba(34,197,94,0.2)" : "rgba(96,165,250,0.12)";
+  const accentColor = allDone ? "rgba(74,222,128,0.85)" : "rgba(14,165,160,0.85)";
+  const borderColor = allDone ? "rgba(34,197,94,0.2)" : "rgba(14,165,160,0.12)";
   const bgColor = allDone ? "rgba(34,197,94,0.03)" : "rgba(14,165,160,0.03)";
 
   return (
@@ -137,13 +137,13 @@ export default function MondayPrepCard() {
       {/* Progress bar */}
       {data && totalCount > 0 && (
         <div style={{ height: "2px", background: "var(--surface-006)", borderRadius: "2px", marginBottom: "14px", overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: "2px", background: allDone ? "var(--green)" : "rgba(96,165,250,0.6)", width: `${(doneCount / totalCount) * 100}%`, transition: "width 0.3s ease, background 0.3s ease" }} />
+          <div style={{ height: "100%", borderRadius: "2px", background: allDone ? "var(--green)" : "rgba(14,165,160,0.6)", width: `${(doneCount / totalCount) * 100}%`, transition: "width 0.3s ease, background 0.3s ease" }} />
         </div>
       )}
 
       {loading && (
         <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
-          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(96,165,250,0.5)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(14,165,160,0.5)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
           <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Preparing your Monday briefing...</span>
         </div>
       )}
@@ -181,7 +181,7 @@ export default function MondayPrepCard() {
                       {formatValue(h.total_value)}
                     </span>
                     {h.weight_pct >= 10 && (
-                      <span style={{ fontSize: "10px", color: "rgba(96,165,250,0.7)", background: "rgba(96,165,250,0.08)", padding: "0 4px", borderRadius: "3px" }}>
+                      <span style={{ fontSize: "10px", color: "rgba(14,165,160,0.7)", background: "rgba(14,165,160,0.08)", padding: "0 4px", borderRadius: "3px" }}>
                         {h.weight_pct.toFixed(0)}%
                       </span>
                     )}
@@ -272,7 +272,7 @@ export default function MondayPrepCard() {
                           style={{
                             flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                             width: "22px", height: "22px", borderRadius: "var(--radius-sm)",
-                            background: "rgba(96,165,250,0.08)", color: "rgba(96,165,250,0.8)",
+                            background: "rgba(14,165,160,0.08)", color: "rgba(14,165,160,0.8)",
                             border: "none", cursor: "pointer", transition: "background 0.15s",
                           }}
                         >
@@ -287,7 +287,7 @@ export default function MondayPrepCard() {
                           style={{
                             flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
                             width: "22px", height: "22px", borderRadius: "var(--radius-sm)",
-                            background: "rgba(96,165,250,0.08)", color: "rgba(96,165,250,0.8)",
+                            background: "rgba(14,165,160,0.08)", color: "rgba(14,165,160,0.8)",
                             textDecoration: "none", transition: "background 0.15s",
                           }}
                         >

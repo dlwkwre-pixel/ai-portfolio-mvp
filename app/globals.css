@@ -530,22 +530,22 @@ body {
 }
 .bt-wa-tile:hover {
   transform: translateY(-2px);
-  border-color: rgba(96,165,250,0.28) !important;
-  background: rgba(96,165,250,0.05) !important;
+  border-color: rgba(14,165,160,0.28) !important;
+  background: rgba(14,165,160,0.05) !important;
 }
 .bt-chip {
   transition: transform 0.15s cubic-bezier(0.16,1,0.3,1), border-color 0.15s ease, background 0.15s ease;
 }
 .bt-chip:hover {
   transform: translateY(-1px);
-  border-color: rgba(96,165,250,0.35) !important;
-  background: rgba(96,165,250,0.09) !important;
+  border-color: rgba(14,165,160,0.35) !important;
+  background: rgba(14,165,160,0.09) !important;
 }
 .bt-chip:active { transform: translateY(0) scale(0.97); }
 .bt-prep-row {
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
-.bt-prep-row:hover { border-color: rgba(96,165,250,0.18) !important; }
+.bt-prep-row:hover { border-color: rgba(14,165,160,0.18) !important; }
 @keyframes bt-stagger-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .bt-stagger > * { animation: bt-stagger-in 0.35s cubic-bezier(0.16,1,0.3,1) both; }
 .bt-stagger > *:nth-child(1) { animation-delay: 0.02s; }

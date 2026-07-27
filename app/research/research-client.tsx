@@ -1326,7 +1326,7 @@ function DetailView({
         const shown = grokAnalysis ?? aiAnalysis;
         const isGrok = !!grokAnalysis;
         const busy = grokLoading || (aiAnalysisLoading && !aiAnalysis);
-        const accent = isGrok ? "oklch(0.62 0.21 295)" : "oklch(0.65 0.18 260)"; // violet for Grok
+        const accent = isGrok ? "oklch(0.62 0.21 295)" : "oklch(0.65 0.18 195)"; // violet for Grok, teal for the offline model
         const verdictColor = shown?.verdict === "BUY" ? "var(--green)" : shown?.verdict === "SELL" ? "var(--red)" : "var(--violet)";
         const verdictBg    = shown?.verdict === "BUY" ? "rgba(34,197,94,0.1)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.1)" : "rgba(63,174,74,0.12)";
         const verdictBorder = shown?.verdict === "BUY" ? "rgba(34,197,94,0.22)" : shown?.verdict === "SELL" ? "rgba(239,68,68,0.22)" : "rgba(63,174,74,0.28)";

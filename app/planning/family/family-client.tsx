@@ -847,9 +847,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
             <div style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.65 0.12 195)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>Planning For</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {children.map((child, idx) => (
-                <div key={child.id} style={{ background: "linear-gradient(135deg, oklch(0.13 0.02 240) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.22 0.02 240)", borderRadius: 10, padding: "10px 12px" }}>
+                <div key={child.id} style={{ background: "var(--bg-elevated, var(--card-bg))", border: "1px solid var(--card-border)", borderRadius: 10, padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.65 0.12 195)" }}>Child {idx + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.5 0.14 195)" }}>Child {idx + 1}</span>
                     {children.length > 1 && (
                       <button onClick={() => setChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16, lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                     )}
@@ -1614,9 +1614,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
           to { transform: rotate(360deg); }
         }
         .bt-timing-row { transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
-        .bt-timing-row:hover { transform: translateX(4px); background: oklch(0.19 0.03 195 / 0.5) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 195 / 0.25), 0 0 8px oklch(0.55 0.15 195 / 0.08); }
+        .bt-timing-row:hover { transform: translateX(4px); background: color-mix(in oklch, oklch(0.55 0.15 195) 9%, transparent) !important; box-shadow: inset 0 0 0 1px oklch(0.55 0.15 195 / 0.25), 0 0 8px oklch(0.55 0.15 195 / 0.08); }
         .bt-flip-row { transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
-        .bt-flip-row:hover { transform: translateX(4px); background: oklch(0.18 0.05 145 / 0.35) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3), 0 0 10px oklch(0.65 0.18 145 / 0.1); }
+        .bt-flip-row:hover { transform: translateX(4px); background: color-mix(in oklch, oklch(0.65 0.18 145) 10%, transparent) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3), 0 0 10px oklch(0.65 0.18 145 / 0.1); }
         .bt-eco-tile { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
         .bt-eco-tile:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px oklch(0.55 0.15 195 / 0.35), 0 6px 22px oklch(0.45 0.15 195 / 0.22); }
         .bt-comp-row { transition: background 0.14s ease; }

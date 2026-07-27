@@ -65,7 +65,7 @@ export default function WeeklyRecapCard() {
   const ret = data?.week_return_pct;
   const retColor = ret == null ? "var(--text-primary)" : ret >= 0 ? "var(--green)" : "var(--red)";
   const retLabel = ret == null ? null : `${ret >= 0 ? "+" : ""}${ret.toFixed(2)}%`;
-  const accent = ret == null ? "rgba(96,165,250,0.85)" : ret >= 0 ? "rgba(74,222,128,0.85)" : "rgba(248,113,113,0.85)";
+  const accent = ret == null ? "rgba(14,165,160,0.85)" : ret >= 0 ? "rgba(74,222,128,0.85)" : "rgba(248,113,113,0.85)";
   const cardBg = ret == null ? "rgba(14,165,160,0.03)" : ret >= 0 ? "rgba(34,197,94,0.03)" : "rgba(239,68,68,0.03)";
   const cardBorder = ret == null ? "rgba(14,165,160,0.12)" : ret >= 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)";
 

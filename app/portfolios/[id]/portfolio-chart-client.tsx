@@ -462,8 +462,8 @@ export default function PortfolioChartClient({
               <AreaChart data={displayChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="twrGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#0ea5a0" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#0ea5a0" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" vertical={false} />
@@ -475,7 +475,7 @@ export default function PortfolioChartClient({
                   labelFormatter={(label) => dateTick(String(label))}
                   contentStyle={tooltipStyle}
                 />
-                <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#a78bfa" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                <Area type="monotone" dataKey="portfolio_twr_pct" stroke="#0ea5a0" strokeWidth={2.5} fill="url(#twrGradient)" dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                 <Line type="monotone" dataKey="benchmark_return_pct" stroke="#64748b" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls isAnimationActive={true} animationDuration={1000} animationEasing="ease-out" />
               </AreaChart>
             </ResponsiveContainer>

@@ -133,7 +133,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "28px 0", justifyContent: "center" }}>
-            <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "rgba(96,165,250,0.6)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
+            <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "rgba(14,165,160,0.6)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
             <span style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>Loading {ticker}...</span>
           </div>
         )}
@@ -203,7 +203,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
                   {news.map((n, i) => (
                     <a
                       key={i} href={n.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "block", fontSize: "11.5px", lineHeight: 1.45, color: "var(--text-secondary)", textDecoration: "none", paddingLeft: "10px", borderLeft: "2px solid rgba(96,165,250,0.3)" }}
+                      style={{ display: "block", fontSize: "11.5px", lineHeight: 1.45, color: "var(--text-secondary)", textDecoration: "none", paddingLeft: "10px", borderLeft: "2px solid rgba(14,165,160,0.3)" }}
                     >
                       {n.headline}
                       <span style={{ display: "block", fontSize: "10px", color: "var(--text-tertiary)", marginTop: "2px" }}>{n.source}</span>
@@ -222,7 +222,7 @@ function QuickLookModal({ ticker, onClose }: { ticker: string; onClose: () => vo
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
             width: "100%", padding: "10px", borderRadius: "var(--radius-md)",
-            background: "rgba(14,165,160,0.14)", border: "1px solid rgba(96,165,250,0.25)",
+            background: "rgba(14,165,160,0.14)", border: "1px solid rgba(14,165,160,0.25)",
             color: "rgba(147,197,253,0.95)", fontSize: "12px", fontWeight: 600, textDecoration: "none",
           }}
         >

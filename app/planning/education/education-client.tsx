@@ -446,8 +446,8 @@ function computeAll(
   } else if (coveragePct >= 75 && (!hasRetirData || retirDrop <= 5)) {
     contextVerdictLabel    = "On Track";
     contextVerdictSubtitle = `${Math.round(coveragePct)}% Coverage`;
-    contextVerdictColor    = "oklch(0.65 0.15 250)";
-    contextVerdictBg       = "oklch(0.65 0.15 250 / 0.08)";
+    contextVerdictColor    = "oklch(0.65 0.15 195)";
+    contextVerdictBg       = "oklch(0.65 0.15 195 / 0.08)";
     contextVerdictBullets  = [
       { positive: true,  text: hasRetirData ? "Retirement remains healthy" : "Contribution pace is solid" },
       { positive: true,  text: "Funding gap is manageable" },
@@ -521,7 +521,7 @@ function computeAll(
     const rem = effective - pvG;
     const needed = rem <= 0 || mo === 0 ? 0 : mr > 0 ? (rem * mr) / (Math.pow(1 + mr, mo) - 1) : rem / mo;
     const tag = cov >= 100 ? "On Track" : cov >= 80 ? "Strong" : cov >= 40 ? "Partial" : "Review";
-    const color = cov >= 100 ? "oklch(0.72 0.18 145)" : cov >= 80 ? "oklch(0.65 0.15 250)" : cov >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
+    const color = cov >= 100 ? "oklch(0.72 0.18 145)" : cov >= 80 ? "oklch(0.65 0.15 195)" : cov >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
     return { label, coveragePct: Math.round(Math.min(cov, 100)), gap, monthlyNeeded: Math.max(0, needed), verdictTag: tag, verdictColor: color };
   }
 
@@ -828,9 +828,9 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           <div style={{ marginBottom: 14 }}>
             <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", margin: "0 0 10px" }}>Children</p>
             {eduChildren.map((child, idx) => (
-              <div key={child.id} style={{ marginBottom: 12, padding: "12px", background: "oklch(0.13 0.02 250 / 0.6)", borderRadius: 10, border: "1px solid oklch(0.25 0.03 250 / 0.4)" }}>
+              <div key={child.id} style={{ marginBottom: 12, padding: "12px", background: "var(--bg-elevated, var(--card-bg))", borderRadius: 10, border: "1px solid var(--card-border)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.62 0.12 250)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Child {idx + 1}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "oklch(0.5 0.14 195)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Child {idx + 1}</span>
                   {eduChildren.length > 1 && (
                     <button onClick={() => setEduChildren(prev => prev.filter(c => c.id !== child.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 14, lineHeight: 1, padding: "0 2px" }} title="Remove child"><span aria-hidden="true">×</span><span className="bt-sr-only">Remove</span></button>
                   )}
@@ -879,7 +879,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             ))}
             <button
               onClick={() => setEduChildren(prev => [...prev, { id: makeEduChildId(), name: "", age: 0, scholarshipPct: 0 }])}
-              style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", color: "oklch(0.62 0.12 250)", border: "1px dashed oklch(0.45 0.12 250 / 0.4)", transition: "all 0.15s" }}
+              style={{ width: "100%", padding: "7px 0", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", background: "transparent", color: "oklch(0.62 0.12 195)", border: "1px dashed oklch(0.45 0.12 195 / 0.4)", transition: "all 0.15s" }}
             >
               + Add Child
             </button>
@@ -897,7 +897,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
             {Object.entries(PRESETS).map(([key, p]) => {
               const active = preset === key;
               return (
-                <button key={key} onClick={() => applyPreset(key)} style={{ padding: "7px 8px", borderRadius: 8, fontSize: 11, fontWeight: active ? 700 : 500, cursor: "pointer", background: active ? "oklch(0.45 0.18 250 / 0.15)" : "var(--bg-elevated, var(--bg-base))", color: active ? "oklch(0.72 0.15 250)" : "var(--text-secondary)", border: active ? "1px solid oklch(0.45 0.18 250 / 0.4)" : "1px solid var(--border)", textAlign: "left", transition: "all 0.15s ease" }}>
+                <button key={key} onClick={() => applyPreset(key)} style={{ padding: "7px 8px", borderRadius: 8, fontSize: 11, fontWeight: active ? 700 : 500, cursor: "pointer", background: active ? "oklch(0.45 0.18 195 / 0.15)" : "var(--bg-elevated, var(--bg-base))", color: active ? "oklch(0.72 0.15 195)" : "var(--text-secondary)", border: active ? "1px solid oklch(0.45 0.18 195 / 0.4)" : "1px solid var(--border)", textAlign: "left", transition: "all 0.15s ease" }}>
                   {p.label}
                 </button>
               );
@@ -1177,12 +1177,12 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
               {computed.fundingTargets.map(({ pct, monthly }, i) => {
                 const isCurrent = pct === 100;
                 return (
-                  <div key={pct} className="edu-target-row" onClick={() => set("monthly_contribution", Math.round(monthly / 10) * 10)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: isCurrent ? "oklch(0.45 0.18 250 / 0.08)" : "var(--bg-elevated, var(--bg-base))", border: isCurrent ? "1px solid oklch(0.45 0.18 250 / 0.3)" : "1px solid var(--border)", animation: `edu-fade-up 0.3s ease-out ${0.05 + i * 0.06}s both`, cursor: "pointer" }}>
+                  <div key={pct} className="edu-target-row" onClick={() => set("monthly_contribution", Math.round(monthly / 10) * 10)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: isCurrent ? "oklch(0.45 0.18 195 / 0.08)" : "var(--bg-elevated, var(--bg-base))", border: isCurrent ? "1px solid oklch(0.45 0.18 195 / 0.3)" : "1px solid var(--border)", animation: `edu-fade-up 0.3s ease-out ${0.05 + i * 0.06}s both`, cursor: "pointer" }}>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-primary)" }}>{pct}% Coverage</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: isCurrent ? "oklch(0.72 0.15 195)" : "var(--text-primary)" }}>{pct}% Coverage</div>
                       <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{fmtK(computed.effectiveTotalCost * pct / 100)} of {fmtK(computed.effectiveTotalCost)} target</div>
                     </div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-primary)" }}>{fmt(monthly)}/mo</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: isCurrent ? "oklch(0.72 0.15 195)" : "var(--text-primary)" }}>{fmt(monthly)}/mo</div>
                   </div>
                 );
               })}
@@ -1249,25 +1249,25 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           {/* Optimizer + Benchmarks */}
           {computed.optimalPlanScore != null && (
             <div data-edu-fw style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, alignItems: "start" }}>
-              <div style={{ background: "linear-gradient(135deg, oklch(0.13 0.03 255) 0%, oklch(0.11 0.01 240) 100%)", border: "1px solid oklch(0.45 0.18 250 / 0.2)", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "edu-fade-up 0.4s ease-out both" }}>
+              <div style={{ background: "var(--card-bg, var(--bg-card))", border: "1px solid var(--card-border, var(--border))", borderRadius: "var(--radius-lg, 12px)", padding: "16px 20px", animation: "edu-fade-up 0.4s ease-out both" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "oklch(0.65 0.15 250)", boxShadow: "0 0 8px oklch(0.65 0.15 250 / 0.6)" }} />
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "oklch(0.55 0.18 195)", boxShadow: "0 0 8px oklch(0.55 0.18 195 / 0.6)" }} />
                   <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Retirement vs College Optimizer</p>
                 </div>
                 <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "0 0 14px" }}>Optimal monthly split to maximize your combined plan score:</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 250 / 0.10)", border: "1px solid oklch(0.45 0.18 250 / 0.25)" }}>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 250)", marginBottom: 5 }}>Retirement</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.15 250)" }}>{fmt(computed.optimalRetirMonthly!)}/mo</div>
+                  <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.55 0.18 195 / 0.08)", border: "1px solid oklch(0.55 0.18 195 / 0.25)" }}>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.5 0.14 195)", marginBottom: 5 }}>Retirement</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.45 0.16 195)" }}>{fmt(computed.optimalRetirMonthly!)}/mo</div>
                   </div>
                   <div style={{ padding: "12px 14px", borderRadius: 10, background: "oklch(0.45 0.18 145 / 0.10)", border: "1px solid oklch(0.45 0.18 145 / 0.25)" }}>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.60 0.12 145)", marginBottom: 5 }}>529</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.72 0.18 145)" }}>{fmt(computed.optimalCollegeMonthly!)}/mo</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.5 0.14 145)", marginBottom: 5 }}>529</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 900, color: "oklch(0.45 0.18 145)" }}>{fmt(computed.optimalCollegeMonthly!)}/mo</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   {[{ label: "Retire Prob", value: `${computed.optimalRetirProb}%` }, { label: "College Cov", value: `${computed.optimalCollegeCoverage}%` }, { label: "Plan Score", value: `${computed.optimalPlanScore}` }].map(({ label, value }) => (
-                    <div key={label} style={{ flex: 1, textAlign: "center", padding: "8px 4px", borderRadius: 7, background: "oklch(0.14 0.01 240)", border: "1px solid var(--border)" }}>
+                    <div key={label} style={{ flex: 1, textAlign: "center", padding: "8px 4px", borderRadius: 7, background: "var(--bg-elevated, var(--card-bg))", border: "1px solid var(--border)" }}>
                       <div style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3 }}>{label}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{value}</div>
                     </div>
@@ -1282,11 +1282,11 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                   return computed.benchmarkContext.map((b, i) => (
                     <div key={b.label} style={{ marginBottom: 10, animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both` }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-secondary)", fontWeight: b.isCurrent ? 700 : 400 }}>{b.label}{b.isCurrent ? " ← You" : ""}</span>
-                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: b.isCurrent ? "oklch(0.72 0.15 250)" : "var(--text-muted)" }}>{fmtK(b.projCost)}</span>
+                        <span style={{ fontSize: 11, color: b.isCurrent ? "oklch(0.72 0.15 195)" : "var(--text-secondary)", fontWeight: b.isCurrent ? 700 : 400 }}>{b.label}{b.isCurrent ? " ← You" : ""}</span>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, color: b.isCurrent ? "oklch(0.72 0.15 195)" : "var(--text-muted)" }}>{fmtK(b.projCost)}</span>
                       </div>
                       <div style={{ height: 5, background: "var(--bg-elevated, var(--border))", borderRadius: 3, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${(b.projCost / maxCost) * 100}%`, background: b.isCurrent ? "oklch(0.55 0.18 250)" : "oklch(0.35 0.06 240)", borderRadius: 3, transition: "width 0.4s ease" }} />
+                        <div style={{ height: "100%", width: `${(b.projCost / maxCost) * 100}%`, background: b.isCurrent ? "oklch(0.55 0.18 195)" : "oklch(0.35 0.06 240)", borderRadius: 3, transition: "width 0.4s ease" }} />
                       </div>
                     </div>
                   ));
@@ -1306,9 +1306,9 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 25)" }}>+{fmtK(computed.opportunityCostRetirement)}</div>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at age {profile?.target_retirement_age ?? 65}</div>
                 </div>
-                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 250 / 0.08)", border: "1px solid oklch(0.45 0.18 250 / 0.2)" }}>
+                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 195 / 0.08)", border: "1px solid oklch(0.45 0.18 195 / 0.2)" }}>
                   <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>If 529</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 250)" }}>{Math.round(Math.min(computed.coveragePct, 100))}% funded</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 195)" }}>{Math.round(Math.min(computed.coveragePct, 100))}% funded</div>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at enrollment</div>
                 </div>
               </div>
@@ -1363,7 +1363,7 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
                 </thead>
                 <tbody>
                   {computed.altPaths.map((path, i) => {
-                    const color = path.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : path.coveragePct >= 80 ? "oklch(0.65 0.15 250)" : path.coveragePct >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
+                    const color = path.coveragePct >= 100 ? "oklch(0.72 0.18 145)" : path.coveragePct >= 80 ? "oklch(0.65 0.15 195)" : path.coveragePct >= 40 ? "oklch(0.78 0.15 80)" : "oklch(0.70 0.18 25)";
                     const isCurrentPreset = path.key === preset;
                     return (
                       <tr key={path.key} className="edu-comp-row" style={{ animation: `edu-fade-up 0.25s ease-out ${0.05 + i * 0.04}s both`, cursor: "pointer" }} onClick={() => applyPreset(path.key)}>
@@ -1447,15 +1447,15 @@ export default function EducationClient({ scenarios: initialScenarios, profile, 
           to { transform: rotate(360deg); }
         }
         .edu-target-row { transition: background 0.15s ease, box-shadow 0.15s ease; }
-        .edu-target-row:hover { box-shadow: 0 0 0 1px oklch(0.45 0.18 250 / 0.3), 0 4px 14px oklch(0.45 0.18 250 / 0.1); }
+        .edu-target-row:hover { box-shadow: 0 0 0 1px oklch(0.45 0.18 195 / 0.3), 0 4px 14px oklch(0.45 0.18 195 / 0.1); }
         .edu-flip-row { transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
-        .edu-flip-row:hover { transform: translateX(4px); background: oklch(0.18 0.04 145 / 0.3) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3); }
+        .edu-flip-row:hover { transform: translateX(4px); background: color-mix(in oklch, oklch(0.65 0.18 145) 10%, transparent) !important; box-shadow: inset 0 0 0 1px oklch(0.65 0.18 145 / 0.3); }
         .edu-eco-tile { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-        .edu-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.45 0.18 250 / 0.3), 0 4px 14px oklch(0.45 0.18 250 / 0.15); }
+        .edu-eco-tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px oklch(0.45 0.18 195 / 0.3), 0 4px 14px oklch(0.45 0.18 195 / 0.15); }
         .edu-finn-btn { transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important; }
         .edu-finn-btn:not(:disabled):hover { background: oklch(0.55 0.18 195 / 0.24) !important; border-color: oklch(0.55 0.18 195 / 0.6) !important; box-shadow: 0 0 18px oklch(0.55 0.18 195 / 0.45) !important; }
         .edu-comp-row { transition: background 0.14s ease; }
-        .edu-comp-row:hover { background: oklch(0.16 0.02 250 / 0.4); }
+        .edu-comp-row:hover { background: color-mix(in oklch, oklch(0.55 0.18 195) 9%, transparent); }
         .edu-family-chip:hover { background: oklch(0.50 0.18 195 / 0.2) !important; border-color: oklch(0.50 0.18 195 / 0.5) !important; }
         @media (max-width: 900px) {
           [data-edu-cols] { flex-direction: column !important; }

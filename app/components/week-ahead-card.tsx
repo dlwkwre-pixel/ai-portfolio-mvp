@@ -116,10 +116,10 @@ export default function WeekAheadCard() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: loading ? "0" : "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <svg width="13" height="13" viewBox="0 0 20 20" fill="rgba(96,165,250,0.9)">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="rgba(14,165,160,0.9)">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
           </svg>
-          <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(96,165,250,0.9)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+          <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(14,165,160,0.9)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
             Week Ahead
           </span>
         </div>
@@ -133,7 +133,7 @@ export default function WeekAheadCard() {
 
       {loading && (
         <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
-          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(96,165,250,0.5)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(14,165,160,0.5)", animation: "bt-pulse 1.2s ease-in-out infinite" }} />
           <span style={{ fontSize: "11px", color: "var(--text-tertiary)" }}>Analyzing this week&apos;s market setup...</span>
         </div>
       )}
@@ -246,8 +246,8 @@ export default function WeekAheadCard() {
                       gap: "5px",
                       padding: "4px 9px",
                       borderRadius: "var(--radius-md)",
-                      background: "rgba(96,165,250,0.06)",
-                      border: "1px solid rgba(96,165,250,0.15)",
+                      background: "rgba(14,165,160,0.06)",
+                      border: "1px solid rgba(14,165,160,0.15)",
                       cursor: "pointer",
                     }}
                   >
@@ -276,7 +276,7 @@ export default function WeekAheadCard() {
               alignItems: "center",
               gap: "4px",
               fontSize: "11px",
-              color: "rgba(96,165,250,0.8)",
+              color: "rgba(14,165,160,0.8)",
               fontWeight: 500,
             }}
           >

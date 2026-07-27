@@ -590,7 +590,7 @@ export default function TimeOffClient({
           {!showAnalysis && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: "14px", textAlign: "center" }}>
               <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
               </div>
               <div>
                 <div style={{ fontFamily: "var(--font-display)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "6px" }}>Plan your time off</div>
@@ -720,12 +720,12 @@ export default function TimeOffClient({
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
                 <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
                   <svg width="10" height="10" viewBox="0 0 20 20" fill="none">
-                    <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(99,102,241,0.2)" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5"/>
-                    <path d="M8 17h4" stroke="oklch(0.65 0.18 260)" strokeWidth="1.5" strokeLinecap="round"/>
+                    <path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/>
+                    <path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 260)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: 700, color: "oklch(0.65 0.18 195)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "4px" }}>Atlas</div>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.65, margin: 0 }}>{(vacationResult ?? sabbaticalResult)!.finnNarrative}</p>
                 </div>
               </div>
@@ -870,8 +870,8 @@ export default function TimeOffClient({
                     <svg width="100%" height="80" viewBox={`0 0 ${sabbaticalResult.timeline.length} 80`} preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="sab-line-grad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
-                          <stop offset="0%" stopColor="oklch(0.65 0.18 260)" />
-                          <stop offset={`${(Number(form.sabbatical_months) / sabbaticalResult.timeline.length) * 100}%`} stopColor="oklch(0.65 0.18 260)" />
+                          <stop offset="0%" stopColor="oklch(0.65 0.18 195)" />
+                          <stop offset={`${(Number(form.sabbatical_months) / sabbaticalResult.timeline.length) * 100}%`} stopColor="oklch(0.65 0.18 195)" />
                           <stop offset={`${(Number(form.sabbatical_months) / sabbaticalResult.timeline.length) * 100}%`} stopColor="oklch(0.72 0.19 145)" />
                           <stop offset="100%" stopColor="oklch(0.72 0.19 145)" />
                         </linearGradient>
@@ -884,7 +884,7 @@ export default function TimeOffClient({
                     </svg>
                     <div style={{ position: "absolute", left: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month 0</div>
                     <div style={{ position: "absolute", right: 0, bottom: 0, fontSize: "10px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>Month {sabbaticalResult.timeline.length - 1}</div>
-                    <div style={{ position: "absolute", top: 0, left: "4px", fontSize: "10px", color: "oklch(0.65 0.18 260)", fontFamily: "var(--font-body)", fontWeight: 600 }}>Break →</div>
+                    <div style={{ position: "absolute", top: 0, left: "4px", fontSize: "10px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)", fontWeight: 600 }}>Break →</div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginTop: "14px" }}>
                     {[

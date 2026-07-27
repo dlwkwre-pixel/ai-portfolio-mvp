@@ -195,8 +195,8 @@ export default function EarningsCalendarClient({ rows }: Props) {
                         <span style={{
                           fontSize: "10px", fontWeight: 600,
                           color: hourTag === "BMO" ? "#3fc9c3" : hourTag === "AMC" ? "#f59e0b" : "var(--text-muted)",
-                          background: hourTag === "BMO" ? "rgba(96,165,250,0.08)" : hourTag === "AMC" ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${hourTag === "BMO" ? "rgba(96,165,250,0.2)" : hourTag === "AMC" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.08)"}`,
+                          background: hourTag === "BMO" ? "rgba(14,165,160,0.08)" : hourTag === "AMC" ? "rgba(245,158,11,0.08)" : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${hourTag === "BMO" ? "rgba(14,165,160,0.2)" : hourTag === "AMC" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.08)"}`,
                           padding: "1px 6px", borderRadius: "var(--radius-sm)", letterSpacing: "0.04em",
                         }}>
                           {hourTag}
@@ -221,7 +221,7 @@ export default function EarningsCalendarClient({ rows }: Props) {
                       }}>
                         {detail === "loading" && (
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0" }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0ea5a0" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
                               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                             </svg>
                             <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Loading analyst data…</span>

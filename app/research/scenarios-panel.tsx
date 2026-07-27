@@ -645,7 +645,7 @@ function ScenarioCard({
                 padding: "8px 0", color: "#6fd08a", fontSize: "11px",
               }}>
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-                  <circle cx="7" cy="7" r="5" stroke="#a78bfa" strokeWidth="1.5" strokeDasharray="24" strokeDashoffset="8">
+                  <circle cx="7" cy="7" r="5" stroke="#0ea5a0" strokeWidth="1.5" strokeDasharray="24" strokeDashoffset="8">
                     <animateTransform attributeName="transform" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite" />
                   </circle>
                 </svg>
