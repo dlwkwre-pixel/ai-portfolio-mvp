@@ -150,7 +150,7 @@ function DimensionBar({
       }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: "3px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{ flex: 1, height: "3px", background: "var(--bg-base)", borderRadius: "2px", overflow: "hidden" }}>
         <div style={{
           width: `${score}%`, height: "100%", background: barColor,
           borderRadius: "2px", transition: "width 0.6s ease",

@@ -14,9 +14,13 @@
   --bg-elevated:    oklch(0.995 0.005 150);
   --bg-overlay:     oklch(0.87 0.035 150);
 
-  --border:         rgba(20,30,20,0.14);
-  --border-subtle:  rgba(20,30,20,0.10);
-  --border-strong:  rgba(20,30,20,0.2);
+  /* Alpha bumped 2026-07-29: measured against --card-bg, the old 0.10-0.20
+     range composited to ~1.2-1.5:1 contrast — well under the WCAG 1.4.11
+     non-text 3:1 floor, i.e. genuinely invisible, not just "subtle." New
+     values hold ~3.2-3.9:1 at the same relative spacing. */
+  --border:         rgba(20,30,20,0.52);
+  --border-subtle:  rgba(20,30,20,0.48);
+  --border-strong:  rgba(20,30,20,0.58);
 
   --text-primary:   oklch(0.2 0.03 150);
   --text-secondary: oklch(0.4 0.03 150);
@@ -44,7 +48,7 @@
   --violet-border:  rgba(14, 165, 160, 0.2);
 
   --card-bg:        oklch(0.985 0.01 150);
-  --card-border:    rgba(20,30,20,0.13);
+  --card-border:    rgba(20,30,20,0.51);
   --card-hover:     rgba(20,30,20,0.045);
   --bg-card:        var(--bg-surface);
 
@@ -130,15 +134,18 @@
   --hero-violet-text:   var(--text-secondary);
   --hero-violet-label:  var(--text-tertiary);
 
-  /* ── Hairline borders — soft ink lines on the sage ground (strengthened,
-     the 0.06–0.10 range vanished on the light ground — user QA). */
-  --line-004:     rgba(20,30,20,0.09);
-  --line-006:     rgba(20,30,20,0.11);
-  --line-007:     rgba(20,30,20,0.12);
-  --line-008:     rgba(20,30,20,0.13);
-  --line-010:     rgba(20,30,20,0.15);
-  --line-012:     rgba(20,30,20,0.14);
-  --line-015:     rgba(20,30,20,0.17);
+  /* ── Hairline borders — soft ink lines on the sage ground. Re-strengthened
+     2026-07-29: the 0.09-0.17 range from the previous pass still only hit
+     ~1.2-1.4:1 contrast against --card-bg (measured), same failure as
+     --card-border above. Same +0.38 offset applied to hold the relative
+     step spacing while clearing the 3:1 WCAG floor. */
+  --line-004:     rgba(20,30,20,0.47);
+  --line-006:     rgba(20,30,20,0.49);
+  --line-007:     rgba(20,30,20,0.50);
+  --line-008:     rgba(20,30,20,0.51);
+  --line-010:     rgba(20,30,20,0.53);
+  --line-012:     rgba(20,30,20,0.52);
+  --line-015:     rgba(20,30,20,0.55);
 }
 
 /* Dark mode was removed in the Sage refresh (2026-07-18): :root above is the

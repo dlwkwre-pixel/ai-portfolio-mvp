@@ -255,7 +255,7 @@ export default function RebalancingCalculator({
 
                 {/* Allocation bar */}
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                  <div style={{ flex: 1, height: "3px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden", position: "relative" }}>
+                  <div style={{ flex: 1, height: "3px", background: "var(--bg-base)", borderRadius: "2px", overflow: "hidden", position: "relative" }}>
                     <div style={{
                       position: "absolute", left: 0, top: 0, bottom: 0,
                       width: `${Math.min(row.currentPct, 100)}%`,
@@ -341,7 +341,7 @@ export default function RebalancingCalculator({
                   CASH
                 </span>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                  <div style={{ flex: 1, height: "3px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ flex: 1, height: "3px", background: "var(--bg-base)", borderRadius: "2px", overflow: "hidden" }}>
                     <div style={{ width: `${Math.min(cashPct, 100)}%`, height: "100%", background: statusColor[cashStatus], borderRadius: "2px" }} />
                   </div>
                   <span style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: statusColor[cashStatus], minWidth: "32px", textAlign: "right" }}>
