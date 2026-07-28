@@ -1,6 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
+/* Tailwind's own blue-* palette was never remapped when components used the
+   raw utility classes directly (bg-blue-600, border-blue-500, etc.) instead
+   of the design-token CSS vars — found 2026-07-29 concentrated in
+   app/portfolios/[id]/* (~19 files: primary buttons, badges, focus rings),
+   all rendering literal Tailwind blue instead of the teal brand accent.
+   Overriding the theme tokens here fixes every derived utility (including
+   opacity-slash variants like bg-blue-500/10) in one place, consistent with
+   this app's own "blue is now the teal accent" convention (see --brand-blue
+   below) rather than hand-editing each class per file. */
+@theme {
+  --color-blue-300: oklch(0.75 0.11 195);
+  --color-blue-400: oklch(0.68 0.14 195);
+  --color-blue-500: oklch(0.58 0.17 195);
+  --color-blue-600: oklch(0.50 0.16 195);
+  --color-blue-900: oklch(0.28 0.08 195);
+  --color-blue-950: oklch(0.20 0.06 195);
+}
+
 /* ── "Sage" theme (light-only — dark mode dropped by design, 2026-07-18) ──
    Warm sage surfaces, dark ink, green→teal brand gradient (CTAs + active nav
    ONLY — never adjacent to numeric gain/loss values, which stay on the solid
