@@ -225,18 +225,21 @@
 .hover\:bg-white\/8:hover { background-color: rgba(17,24,39,0.065); }
 .hover\:bg-white\/10:hover { background-color: rgba(17,24,39,0.08); }
 
-.border-white\/5 { border-color: rgba(17,24,39,0.08); }
-.border-white\/6 { border-color: rgba(17,24,39,0.09); }
-.border-white\/8 { border-color: rgba(17,24,39,0.11); }
-.border-white\/10 { border-color: rgba(17,24,39,0.13); }
-.border-white\/15 { border-color: rgba(17,24,39,0.16); }
-.border-white\/20 { border-color: rgba(17,24,39,0.20); }
+/* Same WCAG-non-text-contrast fix as the --line-NNN / --card-border tokens
+   below (measured ~1.2-1.4:1 at the old 0.08-0.20 range, same +0.38ish
+   offset to clear 3:1). */
+.border-white\/5 { border-color: rgba(17,24,39,0.46); }
+.border-white\/6 { border-color: rgba(17,24,39,0.47); }
+.border-white\/8 { border-color: rgba(17,24,39,0.49); }
+.border-white\/10 { border-color: rgba(17,24,39,0.51); }
+.border-white\/15 { border-color: rgba(17,24,39,0.54); }
+.border-white\/20 { border-color: rgba(17,24,39,0.58); }
 
 .bt-hover-row { transition: background 0.12s ease; }
 .bt-hover-row:hover { background: var(--card-hover); }
 
-.divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.07); }
-.divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.08); }
+.divide-white\/4 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.45); }
+.divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(17,24,39,0.46); }
 
 /* ── Light-mode flips for hardcoded slate dark utilities ──
    Used by portfolio forms, the AI Recommendations card, charts, etc. These are

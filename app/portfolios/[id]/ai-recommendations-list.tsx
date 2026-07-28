@@ -178,7 +178,7 @@ export default function AIRecommendationsList({
 
   return (
     <div className="mt-6">
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl p-4 md:flex-row md:items-end md:justify-between" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-slate-400">Filter</label>
           <select
@@ -187,7 +187,7 @@ export default function AIRecommendationsList({
               setStatusFilter(e.target.value);
               setShowAll(false);
             }}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-white outline-none focus:border-blue-500"
+            className="bt-input" style={{ width: "auto" }}
           >
             <option value="open">Open</option>
             <option value="all">All</option>
@@ -207,7 +207,7 @@ export default function AIRecommendationsList({
               setSortBy(e.target.value);
               setShowAll(false);
             }}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-white outline-none focus:border-blue-500"
+            className="bt-input" style={{ width: "auto" }}
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>

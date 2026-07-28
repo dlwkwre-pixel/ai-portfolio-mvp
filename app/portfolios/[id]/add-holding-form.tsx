@@ -8,8 +8,8 @@ type AddHoldingFormProps = {
   portfolioId: string;
 };
 
-const inputClass = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
-const selectClass = "w-full rounded-xl border border-white/10 bg-(--bg-base) px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+const inputClass = "bt-input";
+const selectClass = "bt-input";
 const labelClass = "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500";
 
 export default function AddHoldingForm({ portfolioId }: AddHoldingFormProps) {
@@ -357,7 +357,8 @@ export function UpdateNavButton({ holdingId, portfolioId, currentNav }: UpdateNa
         defaultValue={currentNav ?? ""}
         autoFocus
         placeholder="NAV"
-        className="w-24 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none transition focus:border-amber-500/60"
+        className="w-24 rounded-lg px-2 py-1 text-xs outline-none transition focus:border-amber-500/60"
+        style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }}
       />
       <button
         type="submit"
