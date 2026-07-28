@@ -31,16 +31,16 @@ export default function AssignStrategyForm({
       <button
         type="button"
         onClick={toggleOpen}
-        className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        className="bt-btn bt-btn-ghost"
       >
         {isOpen ? "Close Form" : "Assign Strategy"}
       </button>
 
       {isOpen ? (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
           <div>
-            <h3 className="text-lg font-semibold text-white">Assign Strategy</h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Assign Strategy</h3>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
               Choose one of your saved strategies for this portfolio.
             </p>
           </div>
@@ -70,7 +70,7 @@ export default function AssignStrategyForm({
               </label>
               <select
                 name="strategy_id"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
                 required
               >
                 <option value="">Select a strategy</option>
@@ -89,12 +89,13 @@ export default function AssignStrategyForm({
               <textarea
                 name="notes"
                 placeholder="This portfolio should follow the Growth Core framework."
-                className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
+                style={{ minHeight: "96px" }}
               />
             </div>
 
             {errorMessage ? (
-              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+              <div className="rounded-xl px-3 py-2.5 text-sm" style={{ border: "1px solid var(--red-border)", background: "var(--red-bg)", color: "var(--red)" }}>
                 {errorMessage}
               </div>
             ) : null}
@@ -103,7 +104,7 @@ export default function AssignStrategyForm({
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                className="bt-btn bt-btn-primary disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isPending ? "Assigning..." : "Assign Strategy"}
               </button>
@@ -111,7 +112,7 @@ export default function AssignStrategyForm({
               <button
                 type="button"
                 onClick={toggleOpen}
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="bt-btn bt-btn-ghost"
               >
                 Cancel
               </button>

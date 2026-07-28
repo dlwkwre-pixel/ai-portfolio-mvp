@@ -24,16 +24,16 @@ export default function AddRecommendationForm({
       <button
         type="button"
         onClick={toggleOpen}
-        className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        className="bt-btn bt-btn-ghost"
       >
         {isOpen ? "Close Form" : "Add Recommendation"}
       </button>
 
       {isOpen ? (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
           <div>
-            <h3 className="text-lg font-semibold text-white">Add Recommendation</h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Add Recommendation</h3>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
               Seed recommendation data now. Later the AI can populate this automatically.
             </p>
           </div>
@@ -64,7 +64,7 @@ export default function AddRecommendationForm({
               <select
                 name="action_type"
                 defaultValue="buy"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               >
                 <option value="buy">Buy</option>
                 <option value="add">Add</option>
@@ -84,7 +84,7 @@ export default function AddRecommendationForm({
                 name="ticker"
                 type="text"
                 placeholder="AAPL"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
                 required
               />
             </div>
@@ -97,7 +97,7 @@ export default function AddRecommendationForm({
                 name="company_name"
                 type="text"
                 placeholder="Apple Inc."
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -108,7 +108,7 @@ export default function AddRecommendationForm({
               <select
                 name="time_horizon"
                 defaultValue="medium_term"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               >
                 <option value="short_term">Short-term</option>
                 <option value="medium_term">Medium-term</option>
@@ -123,7 +123,7 @@ export default function AddRecommendationForm({
               <textarea
                 name="thesis"
                 placeholder="High-quality compounder with durable moat and attractive setup."
-                className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input" style={{ minHeight: "96px" }}
                 required
               />
             </div>
@@ -135,7 +135,7 @@ export default function AddRecommendationForm({
               <textarea
                 name="rationale"
                 placeholder="Valuation has compressed while quality remains high. Fits current strategy and position sizing limits."
-                className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input" style={{ minHeight: "96px" }}
               />
             </div>
 
@@ -146,7 +146,7 @@ export default function AddRecommendationForm({
               <textarea
                 name="risks"
                 placeholder="Valuation could remain pressured, earnings growth could slow, macro could weaken demand."
-                className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input" style={{ minHeight: "96px" }}
               />
             </div>
 
@@ -157,7 +157,7 @@ export default function AddRecommendationForm({
               <select
                 name="conviction"
                 defaultValue="Moderate"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               >
                 <option value="Low">Low</option>
                 <option value="Moderate">Moderate</option>
@@ -177,7 +177,7 @@ export default function AddRecommendationForm({
                 min="0"
                 max="100"
                 placeholder="78"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -190,7 +190,7 @@ export default function AddRecommendationForm({
                 type="number"
                 min="1"
                 placeholder="1"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -204,7 +204,7 @@ export default function AddRecommendationForm({
                 step="0.01"
                 min="0"
                 placeholder="5"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -218,7 +218,7 @@ export default function AddRecommendationForm({
                 step="0.01"
                 min="0"
                 placeholder="500"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -232,7 +232,7 @@ export default function AddRecommendationForm({
                 step="0.000001"
                 min="0"
                 placeholder="2.4"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -246,7 +246,7 @@ export default function AddRecommendationForm({
                 step="0.0001"
                 min="0"
                 placeholder="210"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -260,7 +260,7 @@ export default function AddRecommendationForm({
                 step="0.0001"
                 min="0"
                 placeholder="230"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -274,12 +274,12 @@ export default function AddRecommendationForm({
                 step="0.0001"
                 min="0"
                 placeholder="175"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
             {errorMessage ? (
-              <div className="md:col-span-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+              <div className="md:col-span-2 rounded-xl px-3 py-2.5 text-sm" style={{ border: "1px solid var(--red-border)", background: "var(--red-bg)", color: "var(--red)" }}>
                 {errorMessage}
               </div>
             ) : null}
@@ -288,7 +288,7 @@ export default function AddRecommendationForm({
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                className="bt-btn bt-btn-primary disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isPending ? "Saving..." : "Save Recommendation"}
               </button>
@@ -296,7 +296,7 @@ export default function AddRecommendationForm({
               <button
                 type="button"
                 onClick={toggleOpen}
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="bt-btn bt-btn-ghost"
               >
                 Cancel
               </button>

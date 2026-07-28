@@ -24,18 +24,18 @@ export default function AddTransactionForm({
       <button
         type="button"
         onClick={toggleOpen}
-        className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+        className="bt-btn bt-btn-ghost"
       >
         {isOpen ? "Close Form" : "Add Transaction"}
       </button>
 
       {isOpen ? (
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="mt-4 rounded-xl p-4" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
           <div>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
               Add Portfolio Transaction
             </h3>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm" style={{ color: "var(--text-tertiary)" }}>
               Record a finance event that affects portfolio cash and trade history.
             </p>
           </div>
@@ -66,7 +66,7 @@ export default function AddTransactionForm({
               <select
                 name="transaction_type"
                 defaultValue="buy"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               >
                 <option value="buy">Buy</option>
                 <option value="sell">Sell</option>
@@ -86,7 +86,7 @@ export default function AddTransactionForm({
                 name="ticker"
                 type="text"
                 placeholder="AAPL"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -98,7 +98,7 @@ export default function AddTransactionForm({
                 name="company_name"
                 type="text"
                 placeholder="Apple Inc."
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -112,7 +112,7 @@ export default function AddTransactionForm({
                 step="0.000001"
                 min="0"
                 placeholder="10"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -126,7 +126,7 @@ export default function AddTransactionForm({
                 step="0.000001"
                 min="0"
                 placeholder="185.50"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -140,7 +140,7 @@ export default function AddTransactionForm({
                 step="0.01"
                 min="0"
                 placeholder="1855.00"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -154,7 +154,7 @@ export default function AddTransactionForm({
                 step="0.01"
                 min="0"
                 defaultValue="0"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -165,7 +165,7 @@ export default function AddTransactionForm({
               <input
                 name="traded_at"
                 type="datetime-local"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -176,7 +176,7 @@ export default function AddTransactionForm({
               <input
                 name="acquired_at"
                 type="date"
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input"
               />
             </div>
 
@@ -187,12 +187,12 @@ export default function AddTransactionForm({
               <textarea
                 name="notes"
                 placeholder="Starter position after pullback..."
-                className="min-h-24 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-sky-500"
+                className="bt-input" style={{ minHeight: "96px" }}
               />
             </div>
 
             {errorMessage ? (
-              <div className="md:col-span-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+              <div className="md:col-span-2 rounded-xl px-3 py-2.5 text-sm" style={{ border: "1px solid var(--red-border)", background: "var(--red-bg)", color: "var(--red)" }}>
                 {errorMessage}
               </div>
             ) : null}
@@ -201,7 +201,7 @@ export default function AddTransactionForm({
               <button
                 type="submit"
                 disabled={isPending}
-                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                className="bt-btn bt-btn-primary disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isPending ? "Saving..." : "Save Transaction"}
               </button>
@@ -209,7 +209,7 @@ export default function AddTransactionForm({
               <button
                 type="button"
                 onClick={toggleOpen}
-                className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="bt-btn bt-btn-ghost"
               >
                 Cancel
               </button>
