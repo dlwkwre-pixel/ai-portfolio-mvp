@@ -129,9 +129,9 @@ export default async function PortfoliosPage() {
                 { label: "Active Portfolios", value: String(activePortfolios.length) },
                 { label: "Total Positions", value: String(totalPositions) },
               ].map((stat) => (
-                <div key={stat.label} className="bt-card" style={{ padding: "14px 16px" }}>
+                <div key={stat.label} className="bt-card" style={{ padding: "14px 16px", minWidth: 0 }}>
                   <div className="label" style={{ marginBottom: "6px" }}>{stat.label}</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.4px" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(14px, 4.5vw, 20px)", fontWeight: 500, color: "var(--text-primary)", letterSpacing: "-0.4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {stat.value}
                   </div>
                 </div>
