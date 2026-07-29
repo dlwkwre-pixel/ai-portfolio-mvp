@@ -517,10 +517,8 @@ function computeEvolution(original: GeneratedStrategy, current: GeneratedStrateg
 
 // ── Form style constants ───────────────────────────────────────────────────────
 
-const inputClass =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
-const selectClass =
-  "w-full rounded-xl border border-white/10 bg-(--bg-base) px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+const inputClass = "bt-input";
+const selectClass = "bt-input";
 const labelClass =
   "mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500";
 
@@ -1571,7 +1569,7 @@ export default function StrategyQuestionnaire({
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               placeholder={isGenerating ? "Building your strategy..." : "Type your answer..."}
               disabled={isBusy}
-              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+              className="bt-input flex-1"
             />
             <button
               type="button"

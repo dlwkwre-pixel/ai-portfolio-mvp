@@ -182,7 +182,7 @@ export default function ChartSetupModal({
                   return (
                     <div key={draft.holdingId} className="rounded-xl p-3 flex items-center gap-3"
                       style={{ background: "var(--surface-003)", border: "1px solid var(--line-006)" }}>
-                      <span className="text-xs font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded">{draft.ticker}</span>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded" style={{ background: "var(--card-hover)", color: "var(--text-primary)" }}>{draft.ticker}</span>
                       <span className="text-[11px] text-emerald-400">✓ Lots already set up</span>
                     </div>
                   );
@@ -192,7 +192,7 @@ export default function ChartSetupModal({
                   <div key={draft.holdingId} className="rounded-xl p-3"
                     style={{ background: "var(--surface-004)", border: "1px solid var(--line-008)" }}>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-bold text-white font-mono bg-white/10 px-2 py-0.5 rounded">{draft.ticker}</span>
+                      <span className="text-xs font-bold font-mono px-2 py-0.5 rounded" style={{ background: "var(--card-hover)", color: "var(--text-primary)" }}>{draft.ticker}</span>
                       <span className="text-[10px] text-slate-500">
                         {draft.lots.length === 1 ? "1 purchase" : `${draft.lots.length} purchases`}
                       </span>
@@ -209,8 +209,8 @@ export default function ChartSetupModal({
                                 type="date"
                                 value={lot.date}
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "date", e.target.value)}
-                                className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
+                                className="w-full rounded-lg px-2 py-1.5 text-xs"
+                                style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-primary)" }}
                               />
                             </div>
                             <div>
@@ -220,8 +220,8 @@ export default function ChartSetupModal({
                                 value={lot.shares}
                                 placeholder="0"
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "shares", e.target.value)}
-                                className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
+                                className="w-full rounded-lg px-2 py-1.5 text-xs"
+                                style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-primary)" }}
                                 min="0" step="any"
                               />
                             </div>
@@ -232,8 +232,8 @@ export default function ChartSetupModal({
                                 value={lot.price}
                                 placeholder="$0.00"
                                 onChange={(e) => updateLot(draft.holdingId, lot.key, "price", e.target.value)}
-                                className="w-full rounded-lg px-2 py-1.5 text-xs text-white"
-                                style={{ background: "var(--surface-008)", border: "1px solid var(--line-012)" }}
+                                className="w-full rounded-lg px-2 py-1.5 text-xs"
+                                style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", color: "var(--text-primary)" }}
                                 min="0" step="any"
                               />
                             </div>

@@ -701,7 +701,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
               type="button"
               onClick={() => setStatusFilter(tab)}
               className={`rounded-lg px-2.5 py-1.5 text-xs font-medium capitalize transition ${
-                statusFilter === tab ? "bg-white/10 text-white" : "text-slate-500 hover:text-slate-300"
+                statusFilter === tab ? "bg-(--card-hover) text-(--text-primary)" : "text-slate-500 hover:text-slate-300"
               }`}
             >
               {tab}

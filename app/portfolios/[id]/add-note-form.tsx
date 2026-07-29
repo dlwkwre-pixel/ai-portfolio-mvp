@@ -56,7 +56,7 @@ export default function AddNoteForm({ portfolioId }: AddNoteFormProps) {
                 name="title"
                 type="text"
                 placeholder="Why this account exists"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+                className="bt-input"
                 required
               />
             </div>
@@ -68,7 +68,7 @@ export default function AddNoteForm({ portfolioId }: AddNoteFormProps) {
               <textarea
                 name="content"
                 placeholder="This is my long-term taxable growth account. I want to keep turnover low and only add high-conviction names."
-                className="min-h-28 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+                className="bt-input" style={{ minHeight: "112px" }}
               />
             </div>
 

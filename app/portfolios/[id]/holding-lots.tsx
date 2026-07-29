@@ -190,19 +190,19 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
                           <div>
                             <label className="mb-1 block text-[10px] text-slate-500 uppercase tracking-widest">Date</label>
                             <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
-                              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[12px] text-white outline-none focus:border-blue-500/60" />
+                              className="rounded-lg px-2 py-1 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
                           </div>
                           <div>
                             <label className="mb-1 block text-[10px] text-slate-500 uppercase tracking-widest">Shares</label>
                             <input type="number" step="0.000001" min="0.000001" value={editShares}
                               onChange={(e) => setEditShares(e.target.value)}
-                              className="w-24 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[12px] text-white outline-none focus:border-blue-500/60" />
+                              className="w-24 rounded-lg px-2 py-1 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
                           </div>
                           <div>
                             <label className="mb-1 block text-[10px] text-slate-500 uppercase tracking-widest">$/share</label>
                             <input type="number" step="0.000001" min="0.000001" value={editPrice}
                               onChange={(e) => setEditPrice(e.target.value)}
-                              className="w-24 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[12px] text-white outline-none focus:border-blue-500/60" />
+                              className="w-24 rounded-lg px-2 py-1 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
                           </div>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => handleSaveEdit(lot.id)} disabled={isPending}
@@ -307,19 +307,19 @@ export function HoldingLots({ holdingId, portfolioId, ticker, lots }: Props) {
           <div>
             <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">Date</label>
             <input name="purchased_at" type="date" required
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[12px] text-white outline-none focus:border-blue-500/60" />
+              className="w-full rounded-lg px-2 py-1.5 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">Shares</label>
             <input name="shares" type="number" step="0.000001" min="0.000001" placeholder="10" required
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[12px] text-white placeholder-slate-600 outline-none focus:border-blue-500/60" />
+              className="w-full rounded-lg px-2 py-1.5 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
           </div>
           <div>
             <label className="mb-1 block text-[10px] font-medium uppercase tracking-widest text-slate-500">
               {addType === "SELL" ? "Sell price/share" : addType === "DRIP" ? "Reinvestment price" : "Buy price/share"}
             </label>
             <input name="price_per_share" type="number" step="0.000001" min="0.000001" placeholder="185.50" required
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[12px] text-white placeholder-slate-600 outline-none focus:border-blue-500/60" />
+              className="w-full rounded-lg px-2 py-1.5 text-[12px] outline-none focus:border-(--brand-blue)" style={{ border: "1px solid var(--card-border)", background: "var(--card-bg)", color: "var(--text-primary)" }} />
           </div>
 
           <div className="col-span-2 flex items-end gap-2 sm:col-span-4">

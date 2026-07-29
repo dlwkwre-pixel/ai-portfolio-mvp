@@ -90,7 +90,7 @@ export default function AddCashActivityForm({
                 name="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-(--bg-base) px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+                className="bt-input"
               >
                 <option value="deposit">Deposit</option>
                 <option value="withdrawal">Withdrawal</option>
@@ -113,7 +113,7 @@ export default function AddCashActivityForm({
                 placeholder="500.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+                className="bt-input"
                 required
               />
             </div>
@@ -125,7 +125,7 @@ export default function AddCashActivityForm({
               <input
                 name="effective_at"
                 type="datetime-local"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+                className="bt-input"
               />
             </div>
 

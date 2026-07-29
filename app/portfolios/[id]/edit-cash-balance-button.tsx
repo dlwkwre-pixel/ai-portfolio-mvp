@@ -93,7 +93,7 @@ export default function EditCashBalanceButton({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") handleCancel(); }}
             autoFocus
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20"
+            className="bt-input"
             style={{ paddingLeft: "24px" }}
           />
         </div>

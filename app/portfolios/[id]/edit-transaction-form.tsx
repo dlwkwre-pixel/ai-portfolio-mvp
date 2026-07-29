@@ -23,7 +23,7 @@ type EditTransactionFormProps = {
   onClose: () => void;
 };
 
-const inputClass = "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 outline-none transition focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/20";
+const inputClass = "bt-input";
 const labelClass = "mb-1 block text-[10px] font-semibold uppercase tracking-widest text-slate-500";
 
 export function EditTransactionForm({ transaction, onClose }: EditTransactionFormProps) {
