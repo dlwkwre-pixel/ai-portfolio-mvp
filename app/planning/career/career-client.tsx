@@ -789,9 +789,9 @@ export default function CareerClient({
     },
     STAY: {
       label: "High Risk",
-      color: "oklch(0.68 0.10 240)",
-      bg: "color-mix(in oklch, oklch(0.50 0.10 240) 12%, transparent)",
-      border: "color-mix(in oklch, oklch(0.50 0.10 240) 28%, transparent)",
+      color: "oklch(0.70 0.18 25)",
+      bg: "color-mix(in oklch, oklch(0.55 0.18 25) 12%, transparent)",
+      border: "color-mix(in oklch, oklch(0.55 0.18 25) 28%, transparent)",
     },
   }[computed.verdict];
 

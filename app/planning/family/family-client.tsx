@@ -559,7 +559,7 @@ const verdictMeta: Record<VerdictType, { label: string; color: string; bg: strin
   READY:       { label: "Recommended",          color: "oklch(0.72 0.18 145)", bg: "color-mix(in oklch, oklch(0.55 0.15 145) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.55 0.15 145) 25%, transparent)" },
   WAIT:        { label: "Proceed with Caution", color: "oklch(0.78 0.15 80)",  bg: "color-mix(in oklch, oklch(0.60 0.14 80) 8%, var(--card-bg))",   border: "color-mix(in oklch, oklch(0.60 0.14 80) 28%, transparent)" },
   HIGH_STRAIN: { label: "Delay",                color: "oklch(0.70 0.18 25)",  bg: "color-mix(in oklch, oklch(0.45 0.18 25) 10%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.45 0.18 25) 30%, transparent)" },
-  LOW_IMPACT:  { label: "Low Impact",           color: "oklch(0.68 0.12 240)", bg: "color-mix(in oklch, oklch(0.50 0.10 240) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.50 0.10 240) 25%, transparent)" },
+  LOW_IMPACT:  { label: "Low Impact",           color: "oklch(0.5 0.14 195)", bg: "color-mix(in oklch, oklch(0.55 0.18 195) 8%, var(--card-bg))",  border: "color-mix(in oklch, oklch(0.55 0.18 195) 25%, transparent)" },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
