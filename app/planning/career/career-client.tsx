@@ -956,7 +956,7 @@ export default function CareerClient({
             </div>
           </div>
           {(inputs.current_annual_bonus > 0 || inputs.current_equity_annual > 0 || inputs.current_benefits_monthly > 0 || inputs.current_401k_match_pct > 0) && (
-            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "oklch(0.14 0.015 250)", border: "1px solid oklch(0.25 0.03 250 / 0.5)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "var(--bg-elevated, var(--card-bg))", border: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Effective total comp</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.effectiveCurrentMonthly * 12)}/yr</span>
             </div>
@@ -995,7 +995,7 @@ export default function CareerClient({
             </div>
           </div>
           {(inputs.new_annual_bonus > 0 || inputs.new_equity_annual > 0 || inputs.new_benefits_monthly > 0 || inputs.new_401k_match_pct > 0) && (
-            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "oklch(0.14 0.015 250)", border: "1px solid oklch(0.25 0.03 250 / 0.5)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ marginBottom: "14px", padding: "7px 10px", borderRadius: "8px", background: "var(--bg-elevated, var(--card-bg))", border: "1px solid var(--card-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Effective total comp</span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>{fmtK(computed.effectiveNewMonthly * 12)}/yr</span>
             </div>

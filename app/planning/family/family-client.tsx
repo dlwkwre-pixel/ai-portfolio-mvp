@@ -1472,9 +1472,9 @@ export default function FamilyClient({ scenarios: initialScenarios, profile, def
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 25)" }}>+{fmtK(computed.opportunityCostFI)}</div>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>at age {profile?.target_retirement_age ?? 65}</div>
                 </div>
-                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.45 0.18 250 / 0.08)", border: "1px solid oklch(0.45 0.18 250 / 0.2)" }}>
+                <div style={{ padding: "12px", borderRadius: 8, background: "oklch(0.55 0.18 195 / 0.08)", border: "1px solid oklch(0.55 0.18 195 / 0.2)" }}>
                   <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", marginBottom: 4 }}>Retirement Impact</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.65 0.15 250)" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 800, color: "oklch(0.45 0.16 195)" }}>
                     {computed.retirProbBefore != null && computed.retirProbAfter != null ? `${computed.retirProbBefore}% → ${computed.retirProbAfter}%` : "—"}
                   </div>
                   <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>retirement probability</div>

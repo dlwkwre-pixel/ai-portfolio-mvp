@@ -4237,7 +4237,7 @@ function ForecastVarianceTrendCard({
 // ── Cash Flow OS ─────────────────────────────────────────────────────────────
 
 const CF_CAT_COLORS: Record<string, string> = {
-  "Housing":        "oklch(0.60 0.22 258)",
+  "Housing":        "oklch(0.5 0.16 195)",
   "Transportation": "oklch(0.62 0.20 306)",
   "Food & Dining":  "oklch(0.74 0.19 56)",
   "Healthcare":     "oklch(0.68 0.18 163)",
@@ -4370,7 +4370,7 @@ function BalanceSheetOS({
                 <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
                   <div style={{ position: "absolute", left: `${(1/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
                   <div style={{ position: "absolute", left: `${(3/6)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
-                  <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${efColor})`, width: `${efPct}%` }} />
+                  <div className="bso-b" style={{ height: "100%", borderRadius: "3px", background: `linear-gradient(90deg, oklch(0.55 0.18 195), ${efColor})`, width: `${efPct}%` }} />
                 </div>
               </div>
             )}
@@ -4985,7 +4985,7 @@ function CashFlowOS({
               <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
               <div className="cfo-sr-a" style={{
                 height: "100%", borderRadius: "3px",
-                background: `linear-gradient(90deg, oklch(0.60 0.20 258), ${srColor})`,
+                background: `linear-gradient(90deg, oklch(0.55 0.18 195), ${srColor})`,
                 width: `${srBarPct}%`,
               }} />
             </div>
@@ -5406,7 +5406,7 @@ function CashFlowOS({
                             <div key={item.id} style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "10px", marginBottom: "10px" }}>
                               {/* Budget row */}
                               <div style={{ display: "flex", alignItems: "flex-start", gap: "4px" }}>
-                                <span style={{ ...rowLabel, color: "oklch(0.60 0.22 258)" }}>Budget</span>
+                                <span style={{ ...rowLabel, color: "oklch(0.5 0.16 195)" }}>Budget</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} editTitle="Edit budget amount" />
                                   {/* Category override — corrects the auto-classification */}
@@ -8180,7 +8180,7 @@ export default function PlanningClient({
                   const o = opportunity!;
                   return (
                     <div style={{ background: "rgba(14,165,160,0.04)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
-                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.60 0.18 250)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.5 0.14 195)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
                         Biggest Opportunity
                       </div>
@@ -8188,7 +8188,7 @@ export default function PlanningClient({
                       <div style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5, marginBottom: "8px" }}>{o.why}</div>
                       <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "oklch(0.72 0.19 145)", marginBottom: "8px", fontWeight: 600 }}>↑ {o.impact}</div>
                       <button type="button" onClick={() => setTab(o.tabKey as Tab)}
-                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.18)", color: "oklch(0.60 0.18 250)", cursor: "pointer" }}>
+                        style={{ fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)", padding: "4px 12px", borderRadius: "6px", background: "rgba(14,165,160,0.08)", border: "1px solid rgba(14,165,160,0.18)", color: "oklch(0.5 0.14 195)", cursor: "pointer" }}>
                         {o.ctaLabel} →
                       </button>
                     </div>
