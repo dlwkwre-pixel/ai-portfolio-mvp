@@ -172,6 +172,7 @@ export default function Sidebar({
           <Link
             key={item.href}
             href={item.href}
+            prefetch={false}
             className={`sb-nav-link${isActive ? " sb-nav-link--active" : ""}`}
             style={{
               display: "flex",
@@ -330,7 +331,7 @@ export default function Sidebar({
 
       {/* Streak flame */}
       {streak !== null && streak > 0 && (
-        <Link href="/achievements" style={{
+        <Link href="/achievements" prefetch={false} style={{
           margin: totalValue !== null && totalValue !== undefined ? "0 10px 10px" : "12px 10px 10px",
           display: "flex", alignItems: "center", gap: "9px", padding: "9px 12px",
           borderRadius: "10px", textDecoration: "none",
@@ -395,6 +396,7 @@ export default function Sidebar({
               <Link
                 key={p.id}
                 href={`/portfolios/${p.id}`}
+                prefetch={false}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -438,7 +440,7 @@ export default function Sidebar({
       }}>
         {/* User row */}
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <Link href="/settings/profile" className="sb-user-row" style={{
+          <Link href="/settings/profile" prefetch={false} className="sb-user-row" style={{
             flex: 1,
             minWidth: 0,
             display: "flex",
@@ -479,6 +481,7 @@ export default function Sidebar({
         {isAdmin && (
           <Link
             href="/admin"
+            prefetch={false}
             className="sb-signout"
             style={{
               width: "100%",

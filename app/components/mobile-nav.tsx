@@ -45,6 +45,7 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               style={{
                 flexShrink: 0,
                 padding: "6px 14px",
@@ -72,6 +73,7 @@ export default function MobileNav() {
 
         <Link
           href="/settings/profile"
+          prefetch={false}
           aria-label="Profile"
           style={{
             width: "32px",

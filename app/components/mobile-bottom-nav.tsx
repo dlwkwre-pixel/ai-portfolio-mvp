@@ -317,6 +317,7 @@ export default function MobileBottomNav() {
                 <Link
                   key={href}
                   href={href}
+                  prefetch={false}
                   onClick={() => setMoreOpen(false)}
                   style={{
                     display: "flex", alignItems: "center", gap: "16px",
@@ -357,6 +358,7 @@ export default function MobileBottomNav() {
             <Link
               key={href}
               href={href}
+              prefetch={false}
               style={{
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center",
