@@ -22,9 +22,11 @@ function hourLabel(hour: string) {
 export default async function PortfolioAlertsBanner({ tickers }: Props) {
   if (!tickers.length) return null;
 
-  // Fetch earnings and top news in parallel
+  // Fetch earnings and top news in parallel. Window matches earnings-calendar-section's
+  // 30-day fetch so both hit the same Finnhub request cache instead of firing two calls
+  // for overlapping data — the 14-day cutoff below still applies to what's shown here.
   const [earnings, ...newsArrays] = await Promise.all([
-    getFinnhubEarningsCalendar(tickers, 14).catch(() => []),
+    getFinnhubEarningsCalendar(tickers, 30).catch(() => []),
     // Get news for up to 5 tickers (most important ones)
     ...tickers.slice(0, 5).map((t) =>
       getFinnhubNews(t, 3).catch(() => [])

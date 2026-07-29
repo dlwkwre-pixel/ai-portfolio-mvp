@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBenchmarkComparison } from "@/lib/portfolio/benchmark";
-import { isPortfolioLinked } from "@/lib/connections/snaptrade";
 import PortfolioChartClient from "./portfolio-chart-client";
 
 type PortfolioChartSectionProps = {
@@ -12,6 +11,8 @@ type PortfolioChartSectionProps = {
   cashBalance: number;
   /** Pre-computed total portfolio value from the parent page — avoids a duplicate Finnhub batch. */
   totalPortfolioValue?: number;
+  /** Already resolved by the parent page — avoids a redundant isPortfolioLinked() round trip. */
+  isLinkedPortfolio: boolean;
 };
 
 export default async function PortfolioChartSection({
@@ -19,8 +20,29 @@ export default async function PortfolioChartSection({
   benchmarkSymbol,
   cashBalance,
   totalPortfolioValue,
+  isLinkedPortfolio: linked,
 }: PortfolioChartSectionProps) {
   const supabase = await createClient();
+
+  // Snapshot history/cash-flows/holdings reads don't depend on the recent-snapshot check —
+  // that check only gates the auto-snapshot write below — so kick them off immediately
+  // instead of waiting on it first.
+  const snapshotHistoryPromise = Promise.all([
+    supabase
+      .from("portfolio_snapshots")
+      .select("snapshot_date, total_value")
+      .eq("portfolio_id", portfolioId)
+      .order("snapshot_date", { ascending: true }),
+    supabase
+      .from("cash_ledger")
+      .select("effective_at, direction, amount, reason")
+      .eq("portfolio_id", portfolioId)
+      .order("effective_at", { ascending: true }),
+    supabase
+      .from("holdings")
+      .select("ticker, opened_at, shares, average_cost_basis")
+      .eq("portfolio_id", portfolioId),
+  ]);
 
   // Auto-snapshot: at most once every 4 hours.
   // Use the totalPortfolioValue passed from the parent (already fetched via Finnhub) so we
@@ -48,23 +70,7 @@ export default async function PortfolioChartSection({
     }
   }
 
-  // Fetch snapshots, cash flows, and holdings metadata in parallel
-  const [{ data: snapshots }, { data: cashFlows }, { data: holdingsMeta }] = await Promise.all([
-    supabase
-      .from("portfolio_snapshots")
-      .select("snapshot_date, total_value")
-      .eq("portfolio_id", portfolioId)
-      .order("snapshot_date", { ascending: true }),
-    supabase
-      .from("cash_ledger")
-      .select("effective_at, direction, amount, reason")
-      .eq("portfolio_id", portfolioId)
-      .order("effective_at", { ascending: true }),
-    supabase
-      .from("holdings")
-      .select("ticker, opened_at, shares, average_cost_basis")
-      .eq("portfolio_id", portfolioId),
-  ]);
+  const [{ data: snapshots }, { data: cashFlows }, { data: holdingsMeta }] = await snapshotHistoryPromise;
 
   // Cost basis from actual holdings — most reliable baseline for % return
   const totalCostBasis = (holdingsMeta ?? []).reduce((sum, h) => {
@@ -76,7 +82,6 @@ export default async function PortfolioChartSection({
   // Linked portfolios: the chart is the broker's own value series, which is already
   // deposit-inclusive. Netting external flows out again distorts the TWR (it blows up
   // to -100% on a small, heavily-funded account), so we drop them for linked accounts.
-  const linked = await isPortfolioLinked(portfolioId);
   const comparison = await getBenchmarkComparison({
     snapshots: snapshots ?? [],
     benchmarkSymbol: benchmarkSymbol || "SPY",

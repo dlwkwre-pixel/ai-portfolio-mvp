@@ -386,6 +386,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
                 benchmarkSymbol={portfolio.benchmark_symbol || "SPY"}
                 cashBalance={Number(portfolio.cash_balance ?? 0)}
                 totalPortfolioValue={valuation.total_portfolio_value}
+                isLinkedPortfolio={isLinkedPortfolio}
               />
             </div>
 
