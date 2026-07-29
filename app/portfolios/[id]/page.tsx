@@ -151,7 +151,10 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     notFound();
   }
 
-  // Run all independent queries in parallel — previously sequential, each 100-200ms
+  // Run all independent queries in parallel. cashLedgerArchive, holdingLots, and
+  // isLinkedPortfolio used to run as separate sequential awaits after this block even
+  // though none of them depend on its results — folded in here since each round trip
+  // was adding 100-300ms of pure waterfall with nothing to show for it.
   const [
     { data: holdings },
     { data: notes },
@@ -161,6 +164,9 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     { data: allPortfolios },
     { data: publicPortfolioData, error: pubPortfolioErr },
     digestPrefs,
+    { data: cashLedgerArchive },
+    { data: holdingLots },
+    isLinkedPortfolio,
   ] = await Promise.all([
     supabase.from("holdings").select("*").eq("portfolio_id", portfolio.id).order("ticker", { ascending: true }),
     supabase.from("portfolio_notes").select("*").eq("portfolio_id", portfolio.id).order("created_at", { ascending: false }),
@@ -176,19 +182,16 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
       .eq("source_portfolio_id", portfolio.id).eq("owner_user_id", user.id).eq("is_public", true)
       .maybeSingle(),
     activeTab === "emails" ? getDigestPrefs(portfolio.id) : Promise.resolve(null),
+    // Archive query is optional — fails gracefully if table hasn't been created yet
+    supabase.from("cash_ledger_archive").select("*").eq("portfolio_id", portfolio.id)
+      .order("deleted_at", { ascending: false }).limit(20)
+      .then((r) => r, () => ({ data: null, error: null })),
+    // Optional — fails gracefully if holding_lots table hasn't been created yet
+    supabase.from("holding_lots").select("*").eq("portfolio_id", portfolio.id)
+      .order("purchased_at", { ascending: true })
+      .then((r) => r, () => ({ data: null, error: null })),
+    isPortfolioLinked(portfolio.id),
   ]);
-
-  // Archive query is optional — fails gracefully if table hasn't been created yet
-  const { data: cashLedgerArchive } = await supabase
-    .from("cash_ledger_archive").select("*").eq("portfolio_id", portfolio.id)
-    .order("deleted_at", { ascending: false }).limit(20)
-    .then((r) => r, () => ({ data: null, error: null }));
-
-  // Optional — fails gracefully if holding_lots table hasn't been created yet
-  const { data: holdingLots } = await supabase
-    .from("holding_lots").select("*").eq("portfolio_id", portfolio.id)
-    .order("purchased_at", { ascending: true })
-    .then((r) => r, () => ({ data: null, error: null }));
 
   // Decision Journal — lazily fetched only when the Journal tab is open. Current quotes power
   // the outcome scoring (price move since each decision). Graceful if the table doesn't exist yet.
@@ -211,8 +214,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
 
   if (pubPortfolioErr) console.error("[portfolio page] public_portfolios query error:", pubPortfolioErr.message);
 
-  // Valuation (Finnhub) + latest strategy version run after parallel queries complete
-  const [valuation, latestVersionResult] = await Promise.all([
+  // Valuation (Finnhub) + latest strategy version + linked-account status/health all run
+  // together — none of the four depend on each other, only on data already resolved above.
+  // (isLinkedPortfolio is known from the first batch, so these two conditional calls don't
+  // need to wait on it separately — Promise.resolve(null) short-circuits identically.)
+  const [valuation, latestVersionResult, brokerageStatus, returnHealth] = await Promise.all([
     getPortfolioValuation({
       holdings: (holdings ?? []).map((h) => ({
         id: h.id, ticker: h.ticker, company_name: h.company_name,
@@ -226,6 +232,11 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
           .eq("strategy_id", activeAssignment.strategy_id)
           .order("version_number", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Linked (brokerage-mirrored) portfolios are read-only: sync is the source of truth.
+    isLinkedPortfolio ? getBrokerageStatus(user.id) : Promise.resolve(null),
+    // Confidence tooltip for the linked badge: which return method the sync chose and how
+    // complete its price data was — so a surprising number can be understood, not reported.
+    isLinkedPortfolio ? getLinkedReturnHealth(portfolio.id) : Promise.resolve(null),
   ]);
 
   const latestAvailableVersionNumber = latestVersionResult.data?.version_number ?? null;
@@ -236,14 +247,7 @@ export default async function SinglePortfolioPage({ params, searchParams }: Port
     latestAvailableVersionNumber > currentVersionNumber;
 
   const tickers = (holdings ?? []).map((h) => h.ticker).filter(Boolean) as string[];
-
-  // Linked (brokerage-mirrored) portfolios are read-only: sync is the source of truth.
-  const isLinkedPortfolio = await isPortfolioLinked(portfolio.id);
-  const brokerageLastSyncedAt = isLinkedPortfolio ? (await getBrokerageStatus(user.id)).lastSyncedAt : null;
-
-  // Confidence tooltip for the linked badge: which return method the sync chose and how
-  // complete its price data was — so a surprising number can be understood, not reported.
-  const returnHealth = isLinkedPortfolio ? await getLinkedReturnHealth(portfolio.id) : null;
+  const brokerageLastSyncedAt = brokerageStatus?.lastSyncedAt ?? null;
   const methodLabels: Record<string, string> = {
     "broker": "reported by your broker",
     "net-deposit": "gain vs your deposits",
