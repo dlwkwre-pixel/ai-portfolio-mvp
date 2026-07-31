@@ -9,7 +9,8 @@
 import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { BalanceSheetItem, CashFlowItem, BudgetHistoryEntry } from "./planning-actions";
-import { updateBalanceSheetItem, updateCashFlowItem } from "./planning-actions";
+import { updateBalanceSheetItem, updateCashFlowItem, logExpenseActual } from "./planning-actions";
+import type { ImportedItem } from "@/app/api/planning/import/route";
 
 // ── Formatters ──────────────────────────────────────────────────────────────
 
@@ -515,6 +516,343 @@ export function LineItemRow({
             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
             <span className="bt-sr-only">Delete {item.label}</span>
           </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Shared style not covered above ─────────────────────────────────────────
+
+export const sectionHeadStyle: React.CSSProperties = {
+  fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em",
+  textTransform: "uppercase", color: "var(--text-tertiary)",
+  fontFamily: "var(--font-body)", marginBottom: "8px",
+};
+
+// ── Cash flow categories ────────────────────────────────────────────────────
+
+export const EXPENSE_CATEGORIES: { label: string; keywords: string[]; emoji: string }[] = [
+  { label: "Housing",        keywords: ["rent", "mortgage", "hoa", "property tax", "home insurance", "maintenance", "repair", "condo", "lease", "landlord", "apartment", "storage"],              emoji: "🏠" },
+  { label: "Transportation", keywords: ["car", "gas", "fuel", "auto insurance", "parking", "uber", "lyft", "transit", "bus", "subway", "toll", "vehicle", "train", "metro", "tesla", "zipcar", "enterprise", "hertz", "avis", "getaround"],                                                                   emoji: "🚗" },
+  { label: "Food & Dining",  keywords: ["grocery", "groceries", "food", "restaurant", "dining", "coffee", "lunch", "dinner", "breakfast", "meal", "delivery", "doordash", "instacart", "takeout", "waffle", "donut", "taco", "burger", "pizza", "sushi", "steak", "grill", "grille", "tavern", "kitchen", "diner", "bistro", "cafe", "bakery", "bbq", "barbecue", "seafood", "noodle", "ramen", "poke", "chipotle", "mcdonald", "wendy", "chick-fil-a", "chick fil", "subway", "panera", "starbucks", "dunkin", "popeyes", "domino", "papa john", "five guys", "shake shack", "in-n-out", "whataburger", "dairy queen", "sonic drive", "jack in the box", "cook out", "cookout", "silver skillet", "spaghetti", "western", "waffle house", "heb", "curbside", "whole foods", "trader joe", "aldi", "kroger", "publix", "safeway", "wegmans", "target grocery", "walmart grocery", "leaf", "grain", "bean", "bottle", "dark horse", "queen donut", "total wine", "specs", "wine", "spirits", "lunchdrop", "grubhub", "uber eats", "postmates", "seamless", "gopuff"], emoji: "🍽️" },
+  { label: "Healthcare",     keywords: ["health", "medical", "doctor", "dental", "vision", "pharmacy", "prescription", "therapy", "counseling", "cvs", "walgreen", "rite aid", "urgent care", "hospital", "clinic", "lab", "quest diagnostics"],                                                               emoji: "🏥" },
+  { label: "Fitness",        keywords: ["gym", "fitness", "yoga", "workout", "pilates", "peloton", "crossfit", "exercise", "planet fitness", "anytime fitness", "la fitness", "24 hour fitness", "orange theory", "equinox", "barry's", "soul cycle", "classpass"],                                             emoji: "💪" },
+  { label: "Insurance",      keywords: ["life insurance", "disability", "renters insurance", "term life", "umbrella policy", "insurance premium", "geico", "state farm", "allstate", "progressive", "lemonade"],                                                                                                 emoji: "🛡️" },
+  { label: "Utilities",      keywords: ["electric", "electricity", "gas bill", "water", "internet", "phone", "cell", "utility", "heating", "cooling", "cable", "sewage", "at&t", "verizon", "t-mobile", "comcast", "xfinity", "spectrum", "cox", "clean sky", "reliant", "txu", "pge", "con ed", "duke energy"], emoji: "⚡" },
+  { label: "Entertainment",  keywords: ["streaming", "spotify", "netflix", "hulu", "disney", "games", "gaming", "movies", "books", "hobby", "concert", "theater", "apple tv", "hbo", "paramount", "peacock", "crunchyroll", "twitch", "youtube premium", "xbox", "playstation", "steam", "ticketmaster", "stubhub", "amc", "regal", "cinemark"],                                                                   emoji: "🎬" },
+  { label: "Travel",         keywords: ["travel", "vacation", "hotel", "flight", "airbnb", "trip", "cruise", "delta", "united", "southwest", "american airlines", "marriott", "hilton", "hyatt", "expedia", "booking", "vrbo", "kayak", "priceline"],                                                          emoji: "✈️" },
+  { label: "Subscriptions",  keywords: ["subscription", "membership", "amazon prime", "premium", "software", "saas", "monthly service", "claude", "chatgpt", "openai", "anthropic", "google one", "icloud", "microsoft 365", "adobe", "notion", "figma", "dropbox", "lastpass", "1password", "nordvpn", "expressvpn"],                                                                                           emoji: "📱" },
+  { label: "Childcare",      keywords: ["childcare", "daycare", "school", "tuition", "babysitter", "nanny", "kids", "children", "after school", "preschool", "montessori"],                       emoji: "👶" },
+  { label: "Other",          keywords: [],                                                                                                                                                         emoji: "📦" },
+];
+
+export function getCategoryForExpense(label: string): string {
+  const lower = label.toLowerCase();
+  // Exact category label match first — handles category-level budget items ("Food & Dining", etc.)
+  const exact = EXPENSE_CATEGORIES.find((c) => c.label.toLowerCase() === lower);
+  if (exact) return exact.label;
+  // Keyword scan
+  for (const cat of EXPENSE_CATEGORIES.slice(0, -1)) {
+    if (cat.keywords.some((k) => lower.includes(k))) return cat.label;
+  }
+  return "Other";
+}
+
+// Resolve an item's category: user-assigned wins, else infer from the label.
+export function categoryOf(item: { label: string; category?: string | null }): string {
+  return item.category ?? getCategoryForExpense(item.label);
+}
+
+// ── Statement import (shared by BudgetTrackerTab and the Cash Flow tab) ────
+
+export const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+export function normLabel(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export type ActualsGroupRow = {
+  id: string;
+  label: string;
+  category: string;
+  totalAmount: number;
+  merchants: { label: string; amount: number }[];
+  matchedItemId: string | null;
+  isSubscription: boolean;
+  expanded: boolean;
+};
+
+export function groupForActuals(items: ImportedItem[], expenseItems: CashFlowItem[]): ActualsGroupRow[] {
+  const catMap = new Map<string, { amount: number; merchants: { label: string; amount: number }[] }>();
+  const subMap = new Map<string, { amount: number; origLabel: string }>();
+
+  for (const item of items) {
+    if (item.type === "income") continue;
+    const monthly = toMonthly(item.amount, item.frequency);
+    const cat = categoryOf(item);
+    if (cat === "Subscriptions") {
+      const norm = normLabel(item.label);
+      const prev = subMap.get(norm);
+      subMap.set(norm, { amount: (prev?.amount ?? 0) + monthly, origLabel: prev?.origLabel ?? item.label });
+    } else {
+      const g = catMap.get(cat) ?? { amount: 0, merchants: [] };
+      g.amount += monthly;
+      g.merchants.push({ label: item.label, amount: monthly });
+      catMap.set(cat, g);
+    }
+  }
+
+  function findBudgetItem(cat: string, label?: string): string | null {
+    if (label) {
+      const n = normLabel(label);
+      const byLabel = expenseItems.find((i) => normLabel(i.label) === n);
+      if (byLabel) return byLabel.id;
+    }
+    const exact = expenseItems.find((i) => i.label === cat);
+    if (exact) return exact.id;
+    const catMatch = expenseItems.find((i) => categoryOf(i) === cat);
+    return catMatch?.id ?? null;
+  }
+
+  const catRows: ActualsGroupRow[] = Array.from(catMap.entries()).map(([cat, { amount, merchants }]) => ({
+    id: cat,
+    label: cat,
+    category: cat,
+    totalAmount: Math.round(amount * 100) / 100,
+    merchants,
+    matchedItemId: findBudgetItem(cat),
+    isSubscription: false,
+    expanded: false,
+  }));
+
+  const subRows: ActualsGroupRow[] = Array.from(subMap.entries()).map(([norm, { amount, origLabel }]) => ({
+    id: `sub:${norm}`,
+    label: origLabel,
+    category: "Subscriptions",
+    totalAmount: Math.round(amount * 100) / 100,
+    merchants: [],
+    matchedItemId: findBudgetItem("Subscriptions", origLabel),
+    isSubscription: true,
+    expanded: false,
+  }));
+
+  return [...catRows, ...subRows].sort((a, b) => {
+    if (a.isSubscription !== b.isSubscription) return a.isSubscription ? 1 : -1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+export function StatementImportPanel({
+  expenseItems,
+  selYear,
+  selMonth,
+  onClose,
+  onDone,
+}: {
+  expenseItems: CashFlowItem[];
+  selYear: number;
+  selMonth: number;
+  onClose: () => void;
+  onDone: (count: number) => void;
+}) {
+  const [rawText, setRawText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ActualsGroupRow[] | null>(null);
+  const [logging, setLogging] = useState(false);
+
+  async function handleParse() {
+    if (!rawText.trim()) return;
+    setParsing(true);
+    setParseError(null);
+    setPreview(null);
+    try {
+      const res = await fetch("/api/planning/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText, mode: "statement" }),
+      });
+      const data = await res.json() as { items?: ImportedItem[]; error?: string };
+      if (!res.ok || data.error) { setParseError(data.error ?? "Something went wrong."); return; }
+      if (!data.items || data.items.length === 0) {
+        setParseError("No transactions found. Try pasting more of your statement.");
+        return;
+      }
+      setPreview(groupForActuals(data.items, expenseItems));
+    } catch {
+      setParseError("Network error — please try again.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  function setMatch(idx: number, id: string | null) {
+    setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, matchedItemId: id } : r) : prev);
+  }
+
+  function toggleExpand(idx: number) {
+    setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, expanded: !r.expanded } : r) : prev);
+  }
+
+  async function handleLog() {
+    if (!preview) return;
+    const toLog = preview.filter((r) => r.matchedItemId !== null);
+    if (toLog.length === 0) return;
+    setLogging(true);
+    try {
+      for (const row of toLog) {
+        const fd = new FormData();
+        fd.set("cash_flow_item_id", row.matchedItemId!);
+        fd.set("label", row.label);
+        fd.set("period_year", String(selYear));
+        fd.set("period_month", String(selMonth));
+        fd.set("actual_amount", String(row.totalAmount));
+        if (row.merchants.length > 0) {
+          fd.set("breakdown", JSON.stringify(row.merchants));
+        }
+        await logExpenseActual(fd);
+      }
+      onDone(toLog.length);
+    } finally {
+      setLogging(false);
+    }
+  }
+
+  const matchedCount = preview ? preview.filter((r) => r.matchedItemId !== null).length : 0;
+  const totalCount = preview ? preview.length : 0;
+
+  return (
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+            Log Monthly Actuals
+          </span>
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
+            Logging for {MONTH_NAMES[selMonth - 1]} {selYear}. Charges are grouped by category and matched to your budget.
+          </p>
+        </div>
+        <button type="button" onClick={onClose}
+          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "18px", lineHeight: 1 }}>
+          ×
+        </button>
+      </div>
+
+      {expenseItems.length === 0 ? (
+        <div style={{ padding: "16px", textAlign: "center", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)" }}>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            Set up budget items in the Cash Flow section first, then log actuals here.
+          </p>
+        </div>
+      ) : preview ? (
+        <>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0 }}>
+            {totalCount} categor{totalCount !== 1 ? "ies" : "y"} parsed — <strong>{matchedCount} matched</strong> to your budget. Adjust the &ldquo;Budget Item&rdquo; column, then log actuals.
+          </p>
+
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 90px 24px", padding: "5px 8px", borderBottom: "1px solid var(--border-subtle)", gap: "8px" }}>
+            {["Category / Item", "Budget Item", "Total", ""].map((h, i) => (
+              <span key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: i === 2 ? "right" : "left" }}>{h}</span>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+            {preview.map((row, idx) => (
+              <div key={row.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 160px 90px 24px",
+                  alignItems: "center", gap: "8px", padding: "7px 8px",
+                  background: row.matchedItemId ? "transparent" : "rgba(239,68,68,0.04)",
+                }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-body)", margin: 0, fontWeight: 500 }}>{row.label}</p>
+                    {row.isSubscription
+                      ? <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Subscription</span>
+                      : row.merchants.length > 0
+                        ? <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>{row.merchants.length} merchant{row.merchants.length !== 1 ? "s" : ""}</span>
+                        : null}
+                  </div>
+                  <select
+                    value={row.matchedItemId ?? ""}
+                    onChange={(e) => setMatch(idx, e.target.value || null)}
+                    style={{
+                      background: "var(--bg-elevated)", border: `1px solid ${row.matchedItemId ? "var(--border-subtle)" : "rgba(239,68,68,0.3)"}`,
+                      borderRadius: "6px", color: row.matchedItemId ? "var(--text-primary)" : "var(--text-muted)",
+                      fontFamily: "var(--font-body)", fontSize: "11px", padding: "3px 6px", width: "100%",
+                    }}
+                  >
+                    <option value="">— Skip —</option>
+                    {expenseItems.map((bi) => (
+                      <option key={bi.id} value={bi.id}>{bi.label}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
+                    ${row.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  {row.merchants.length > 0 ? (
+                    <button type="button" onClick={() => toggleExpand(idx)}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "12px", padding: "0", lineHeight: 1, textAlign: "center" }}
+                      title={row.expanded ? "Collapse" : "Show merchants"}>
+                      {row.expanded ? "▲" : "▼"}
+                    </button>
+                  ) : <span />}
+                </div>
+                {/* Merchant drill-down */}
+                {row.expanded && row.merchants.length > 0 && (
+                  <div style={{ padding: "4px 8px 8px 16px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                    {row.merchants.map((m, mi) => (
+                      <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>↳ {m.label}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                          ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleLog} disabled={logging || matchedCount === 0}
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: matchedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: matchedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: matchedCount === 0 ? "default" : "pointer" }}>
+              {logging ? "Logging…" : `Log ${matchedCount} Actual${matchedCount !== 1 ? "s" : ""}`}
+            </button>
+            <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
+              style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+              Back
+            </button>
+            {totalCount - matchedCount > 0 && (
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
+                {totalCount - matchedCount} will be skipped
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <textarea
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            placeholder={"Paste your credit card or bank statement — CSV export, copied transactions, or plain text. Atlas groups charges by category automatically."}
+            rows={6}
+            style={{ width: "100%", boxSizing: "border-box", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", padding: "10px 12px", resize: "vertical", outline: "none", lineHeight: 1.6 }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-subtle)")}
+          />
+          {parseError && <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{parseError}</p>}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <button type="button" onClick={handleParse} disabled={parsing || !rawText.trim()}
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: !rawText.trim() || parsing ? "var(--border-subtle)" : "var(--brand-blue)", color: !rawText.trim() || parsing ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: !rawText.trim() || parsing ? "default" : "pointer" }}>
+              {parsing ? "Parsing…" : "Parse Statement"}
+            </button>
+            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+              {rawText.length > 0 ? `${rawText.length} chars` : "Max 8,000 characters"}
+            </span>
+          </div>
         </>
       )}
     </div>
