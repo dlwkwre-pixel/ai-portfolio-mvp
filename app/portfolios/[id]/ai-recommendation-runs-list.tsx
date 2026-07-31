@@ -55,6 +55,23 @@ type RecommendationItem = {
   // Outcome tracking fields (populated on execution)
   executed_at: string | null;
   executed_price: number | null;
+  // AI Radar (Phase 2) — null for everything except action_type "watch" items
+  radar_type: "new_candidate" | "re_entry" | null;
+  radar_status: "pending_execution" | "active" | "ready" | "expired" | "invalidated" | null;
+  radar_condition: RadarCondition | null;
+  radar_origin_ticker: string | null;
+  radar_origin_action_type: string | null;
+  // Real thesis_status from position_thesis, joined server-side for held tickers.
+  // Falls back to the rationale-text regex (extractThesisSignal) when absent.
+  thesis_status: "intact" | "strengthening" | "weakening" | "broken" | null;
+};
+
+type RadarCondition = {
+  trigger: "price_below" | "price_above" | "date_after" | "catalyst" | "combo";
+  price: number | null;
+  date: string | null;
+  catalyst_description: string | null;
+  original_note: string | null;
 };
 
 type LocalRec = RecommendationItem & { _syncing?: boolean };
@@ -141,6 +158,23 @@ function extractThesisSignal(rationale: string | null): ThesisSignal | null {
   return null;
 }
 
+const THESIS_STATUS_SIGNAL: Record<string, ThesisSignal> = {
+  broken:        { label: "Broken",        badgeClass: "border-red-500/20 bg-red-500/8 text-red-400", dotColor: "bg-red-400" },
+  weakening:     { label: "Weakening",     badgeClass: "border-amber-500/20 bg-amber-500/8 text-amber-400", dotColor: "bg-amber-400" },
+  strengthening: { label: "Strengthening", badgeClass: "border-emerald-500/20 bg-emerald-500/8 text-emerald-400", dotColor: "bg-emerald-400" },
+  intact:        { label: "Intact",        badgeClass: "border-slate-500/20 bg-slate-500/8 text-slate-400", dotColor: "bg-slate-500" },
+};
+
+// Prefer the real thesis_status column (revised every AI run, see applyThesisUpdates
+// in recommendation-actions.ts) over the old regex-over-rationale scrape, which stays
+// only as a fallback for items predating that column or tickers never held.
+function getThesisSignal(item: { thesis_status: string | null; rationale: string | null }): ThesisSignal | null {
+  if (item.thesis_status && THESIS_STATUS_SIGNAL[item.thesis_status]) {
+    return THESIS_STATUS_SIGNAL[item.thesis_status];
+  }
+  return extractThesisSignal(item.rationale);
+}
+
 // ── Section tag parser ────────────────────────────────────────────────────────
 
 type ParsedSection = { label: string; content: string; labelClass: string };
@@ -213,6 +247,54 @@ function statusLabel(s: string | null) {
     rejected: "Rejected", archived: "Archived", acknowledged: "Acknowledged",
   };
   return labels[(s ?? "proposed").toLowerCase()] ?? (s ?? "Proposed");
+}
+
+// ── AI Radar helpers ──────────────────────────────────────────────────────────
+
+function radarTypeLabel(t: string | null): string {
+  if (t === "new_candidate") return "New Candidate — Not Yet Timed";
+  if (t === "re_entry")      return "Re-Entry Watch";
+  return "AI Radar";
+}
+
+function radarStatusLabel(s: string | null): string {
+  const labels: Record<string, string> = {
+    pending_execution: "Pending", active: "Watching", ready: "Ready",
+    expired: "Expired", invalidated: "Invalidated",
+  };
+  return labels[s ?? ""] ?? (s ?? "");
+}
+
+function radarStatusStyle(s: string | null): string {
+  const v = s ?? "";
+  if (v === "ready")              return "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
+  if (v === "active")             return "border-blue-500/25 bg-blue-500/10 text-blue-300";
+  if (v === "pending_execution")  return "border-amber-500/25 bg-amber-500/10 text-amber-300";
+  return "border-slate-500/20 bg-slate-500/8 text-slate-400"; // expired / invalidated
+}
+
+function fmtRadarPrice(n: number | null) {
+  return n != null ? "$" + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) : null;
+}
+
+// Turns the structured radar_condition into a plain-English one-liner for the card.
+function formatRadarCondition(c: RadarCondition | null): string | null {
+  if (!c) return null;
+  const parts: string[] = [];
+  if (c.trigger === "price_below" || c.trigger === "combo") {
+    if (c.price != null) parts.push(`price drops to ${fmtRadarPrice(c.price)} or below`);
+  }
+  if (c.trigger === "price_above") {
+    if (c.price != null) parts.push(`price rises to ${fmtRadarPrice(c.price)} or above`);
+  }
+  if (c.trigger === "date_after" || c.trigger === "combo") {
+    if (c.date) parts.push(`on or after ${new Date(c.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`);
+  }
+  if ((c.trigger === "catalyst" || c.trigger === "combo") && c.catalyst_description) {
+    parts.push(c.catalyst_description);
+  }
+  const condition = parts.join(" · ") || "condition pending";
+  return c.original_note ? `${condition} — ${c.original_note}` : condition;
 }
 
 // ── Quick action config ───────────────────────────────────────────────────────
@@ -658,6 +740,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
     | { kind: "section"; label: string; count: number; collapsible: boolean; sectionKey?: "monitoring" | "lowconv" };
 
   const showGrouped = statusFilter === "open" && !isBulkMode && !isLoading && !fetchError;
+  const showWatchlistGrouped = statusFilter === "watchlist" && !isBulkMode && !isLoading && !fetchError;
   const renderItems: RenderItem[] = [];
 
   if (showGrouped && localRecs.length > 0) {
@@ -682,6 +765,20 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
       if (!monitoringCollapsed) {
         monitors.forEach(item => renderItems.push({ kind: "card", item }));
       }
+    }
+  } else if (showWatchlistGrouped && localRecs.length > 0) {
+    // Split the existing watchlist bucket: items the user manually watched vs. ones
+    // the AI is quietly tracking on its own (radar_type set) — same underlying status,
+    // visually distinguished so "AI Radar" reads as a sub-group, not a new watchlist.
+    const manual = localRecs.filter(r => !r.radar_type);
+    const radar  = localRecs.filter(r => !!r.radar_type);
+    if (manual.length > 0) {
+      renderItems.push({ kind: "section", label: "Your Watchlist", count: manual.length, collapsible: false });
+      manual.forEach(item => renderItems.push({ kind: "card", item }));
+    }
+    if (radar.length > 0) {
+      renderItems.push({ kind: "section", label: "AI Radar", count: radar.length, collapsible: false });
+      radar.forEach(item => renderItems.push({ kind: "card", item }));
     }
   } else {
     localRecs.forEach(item => renderItems.push({ kind: "card", item }));
@@ -894,6 +991,16 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                       <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${actionStyle(item.action_type)}`}>
                         {(item.action_type ?? "—").replace(/_/g, " ")}
                       </span>
+                      {item.radar_type && (
+                        <span className="shrink-0 rounded-full border border-violet-500/25 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+                          {item.radar_type === "new_candidate" ? "New Candidate" : "Re-Entry Watch"}
+                        </span>
+                      )}
+                      {item.radar_type && (
+                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${radarStatusStyle(item.radar_status)}`}>
+                          {radarStatusLabel(item.radar_status)}
+                        </span>
+                      )}
                       <span className="text-base font-bold text-white">{item.ticker ?? "—"}</span>
                       {item.company_name && (
                         <span className="hidden min-w-0 flex-1 truncate text-sm text-slate-500 sm:block">
@@ -923,7 +1030,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
 
                     {/* Rows 2+3: only when collapsed and not in bulk mode */}
                     {!isExpanded && !isBulkMode && (() => {
-                      const thesisSignal = extractThesisSignal(item.rationale);
+                      const thesisSignal = getThesisSignal(item);
                       return (
                       <>
                         {/* Row 2: thesis signal · thesis preview · sizing chips */}
@@ -995,6 +1102,19 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                             })()}
                           </div>
                         </div>
+
+                        {/* AI Radar condition — what the AI is waiting for before this ever becomes an actionable recommendation */}
+                        {item.radar_type && item.radar_condition && (
+                          <div className="mt-1.5 flex items-start gap-1.5 rounded-lg border border-violet-500/12 bg-violet-500/5 px-2 py-1.5">
+                            <span className="mt-0.5 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-violet-400">Watching for</span>
+                            <span className="min-w-0 text-xs leading-4 text-slate-400">{formatRadarCondition(item.radar_condition)}</span>
+                          </div>
+                        )}
+                        {item.radar_type === "re_entry" && item.radar_origin_ticker && (
+                          <p className="mt-1 text-[10px] text-slate-600">
+                            Re-entry watch from the {item.radar_origin_action_type ?? "trim"} on {item.radar_origin_ticker}
+                          </p>
+                        )}
 
                         {/* Row 3: quick actions OR done-status badge */}
                         <div
@@ -1083,7 +1203,7 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                         const rationaleSections = parseSections(item.rationale ?? "");
                         const riskSections = parseSections(item.risks ?? "");
                         const hasParsed = thesisSections.length > 0 || rationaleSections.length > 0;
-                        const thesisSignalExp = extractThesisSignal(item.rationale);
+                        const thesisSignalExp = getThesisSignal(item);
 
                         if (hasParsed) {
                           const allSections = [...thesisSections, ...rationaleSections];

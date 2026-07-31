@@ -50,6 +50,20 @@ type AiRecommendation = {
   expected_value: number | null;
   expected_return_pct: number | null;
   low_conviction_flag: boolean | null;
+  radar_type: "new_candidate" | "re_entry" | null;
+  radar_condition: RadarCondition | null;
+  companion_of_index: number | null;
+};
+
+// AI Radar — a falsifiable condition the AI is asked to watch for before it ever
+// resurfaces a ticker as a real recommendation. "combo" means both a mechanical
+// trigger (price/date) AND a catalyst must be satisfied — checked by the radar cron.
+type RadarCondition = {
+  trigger: "price_below" | "price_above" | "date_after" | "catalyst" | "combo";
+  price: number | null;
+  date: string | null;
+  catalyst_description: string | null;
+  original_note: string | null;
 };
 
 type ThesisUpdate = {
@@ -99,11 +113,35 @@ function extractJsonText(text: string): string {
   return trimmed;
 }
 
+const validRadarTypes = new Set(["new_candidate", "re_entry"]);
+const validRadarTriggers = new Set(["price_below", "price_above", "date_after", "catalyst", "combo"]);
+
+function normalizeRadarCondition(raw: unknown): RadarCondition | null {
+  if (!raw || typeof raw !== "object") return null;
+  const c = raw as Record<string, unknown>;
+  const trigger = String(c.trigger ?? "").trim().toLowerCase();
+  if (!validRadarTriggers.has(trigger)) return null;
+  return {
+    trigger: trigger as RadarCondition["trigger"],
+    price: toNullableNumber(c.price),
+    date: typeof c.date === "string" && c.date.trim() ? c.date.trim() : null,
+    catalyst_description: typeof c.catalyst_description === "string" && c.catalyst_description.trim()
+      ? c.catalyst_description.trim().slice(0, 300) : null,
+    original_note: typeof c.original_note === "string" && c.original_note.trim()
+      ? c.original_note.trim().slice(0, 300) : null,
+  };
+}
+
 function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation | null {
   const actionType = String(raw.action_type ?? "").trim().toLowerCase();
   const ticker = String(raw.ticker ?? "").trim().toUpperCase();
   const thesis = String(raw.thesis ?? "").trim();
   if (!actionType || !ticker || !thesis) return null;
+
+  const radarTypeRaw = String(raw.radar_type ?? "").trim().toLowerCase();
+  const radarType = validRadarTypes.has(radarTypeRaw) ? (radarTypeRaw as "new_candidate" | "re_entry") : null;
+  const radarCondition = radarType ? normalizeRadarCondition(raw.radar_condition) : null;
+  const companionOfIndex = toNullableNumber(raw.companion_of_index);
 
   const bearPrice = toNullableNumber(raw.bear_price);
   const basePrice = toNullableNumber(raw.base_price ?? raw.target_price_1);
@@ -159,6 +197,9 @@ function normalizeRecommendation(raw: Record<string, unknown>): AiRecommendation
     expected_value: expectedValue,
     expected_return_pct: expectedReturnPct,
     low_conviction_flag: null, // set post-run in anchoring detection pass
+    radar_type: radarType,
+    radar_condition: radarCondition,
+    companion_of_index: companionOfIndex,
   };
 }
 
@@ -931,17 +972,19 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     ticker: string; action_type: string; recommendation_status: string; conviction: string | null;
     thesis: string | null; target_price_1: number | null; reference_price: number | null;
     executed_price: number | null; executed_at: string | null; created_at: string;
+    radar_type: string | null; radar_status: string | null; radar_condition: unknown;
   }[] = [];
   try {
     const { data } = await supabase
       .from("recommendation_items")
-      .select("ticker, action_type, recommendation_status, conviction, thesis, target_price_1, reference_price, executed_price, executed_at, created_at")
+      .select("ticker, action_type, recommendation_status, conviction, thesis, target_price_1, reference_price, executed_price, executed_at, created_at, radar_type, radar_status, radar_condition")
       .eq("portfolio_id", portfolioId)
       .order("created_at", { ascending: false })
       .limit(150);
     if (data) recentRecs = data as typeof recentRecs;
   } catch {
-    // non-fatal — cross-run memory degrades gracefully
+    // non-fatal — cross-run memory degrades gracefully (also degrades gracefully if
+    // recommendation-radar-setup.sql hasn't been applied yet — radar_* columns absent)
   }
 
   const valuation = await getPortfolioValuation({
@@ -991,6 +1034,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     action_type: string; recommendation_status: string; conviction: string | null;
     thesis_excerpt: string | null; price_at_call: number | null; current_price: number | null;
     price_change_pct_since_call: number | null; created_at: string;
+    radar_type: string | null; radar_status: string | null; radar_condition: unknown;
   }[]> = {};
   for (const ticker of historyTickers) {
     const currentPrice = heldPriceByTicker[ticker] ?? nonHeldPriceByTicker[ticker] ?? null;
@@ -1011,6 +1055,9 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
           current_price: currentPrice,
           price_change_pct_since_call: priceChangePct,
           created_at: r.created_at,
+          radar_type: r.radar_type ?? null,
+          radar_status: r.radar_status ?? null,
+          radar_condition: r.radar_condition ?? null,
         };
       });
     if (entries.length > 0) recommendationHistoryByTicker[ticker] = entries;
@@ -1215,6 +1262,13 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(8) CATALYST INTELLIGENCE: The position_catalyst_context provides catalyst type, key catalysts, thesis dependencies, and invalidation signals. Assess catalyst health for each position using Finnhub data, news, and Reddit sentiment. The reddit_sentiment field is a map of TICKER -> { post_count, bullish_pct, bearish_pct, neutral_pct, sentiment, hype_score, conviction_score, catalysts, risks }. Interpret as: Math.round(post_count * bullish_pct / 100) positive posts, Math.round(post_count * bearish_pct / 100) negative posts. Sentiment above 60% bullish is a retail tailwind; above 60% bearish is a headwind; high hype_score (>65) signals crowding risk. Lead with catalyst status: 'The [X] thesis depends on [dependency] and is currently [intact/strengthening/weakening]. Key risk: [signal].' Keep to 1-2 sentences. Catalyst awareness must be strategy-sensitive. Macro influences catalyst urgency and sizing — not automatic invalidation.",
     "(9) RECOMMENDATION MEMORY & ANTI-REPETITION: The recommendation_history_by_ticker context (if present) shows every prior recommendation this portfolio has received per ticker, each with the price at the time of that call and price_change_pct_since_call — the real move since you last spoke on this name. Before proposing BUY/ADD on any ticker, check its history. If a prior BUY/ADD exists and the price has moved materially against the thesis (negative price_change_pct_since_call) with no offsetting improvement in fundamentals, catalysts, or valuation, you must NOT casually repeat the same call — either explain concretely what is genuinely new that changes the picture, or downgrade the action (hold/watch/reduce) instead. Never repeat the same action_type at similar sizing on a ticker two runs in a row without new information to justify it — a repeated call with an unexplained adverse price move reads as not having learned anything since the last run.",
 
+    // ── AI Radar: timing gate for new candidates + tactical sell-and-rewatch
+    `AI RADAR — TIMING GATE: You have a third path beyond recommend-now / don't-recommend for tickers where the fundamentals are attractive but the timing isn't. Use action_type "watch" with radar_type set:
+(A) NEW CANDIDATE, NOT YET TIMED: During opportunity discovery, if you find a fundamentally attractive ticker (not currently held) but current entry timing is unconvincing — extended valuation, awaiting a pullback, awaiting a specific catalyst — do NOT force it into a BUY just to have an opinion, and do NOT silently drop it either. Emit action_type "watch", radar_type "new_candidate", with a concrete, falsifiable radar_condition (a real price level, date, or catalyst — never vague language like "wait for better conditions"). This quietly tracks the idea until the condition is met; it is never shown to the user as an actionable recommendation.
+(B) TACTICAL SELL-AND-REWATCH: If you recommend trim/sell purely for near-term timing reasons on an otherwise fundamentally sound holding (not a broken thesis — see layer 7), you MUST also emit a companion action_type "watch", radar_type "re_entry" item in the SAME response, with companion_of_index pointing at the array index of the trim/sell recommendation, and a concrete radar_condition for re-entry (e.g. price pulls back to $X, or after the next earnings print). If you cannot articulate a concrete re-entry condition, that is a signal the sell/trim itself isn't well-reasoned — recommend HOLD instead of "sell now, figure out re-entry later."
+Before emitting any new "watch" item, check recommendation_history_by_ticker for an existing radar_type/radar_status on that ticker (radar_status "active" or "pending_execution") — do not create a duplicate watch on a ticker already being tracked; instead reconsider it (graduate to a real recommendation, update reasoning, or leave it alone).
+radar_condition shape: { "trigger": "price_below|price_above|date_after|catalyst|combo", "price": number|null, "date": "YYYY-MM-DD"|null, "catalyst_description": "string|null", "original_note": "one sentence — why this specific condition, for later reference" }. Use "combo" only when both a price/date level AND a catalyst must both be true.`,
+
     // ── HOLD Discipline
     "HOLD DISCIPLINE: HOLD is a valid and important action — but it must earn its place. HOLD is correct when: the thesis is fully intact and position is appropriately sized, there is no better marginal use of capital, or you are awaiting a specific catalyst or entry point. HOLD is WRONG when it results from: generalized macro nervousness, fear of being wrong, vague caution, or default inactivity. 'Macro is mixed' is NOT a valid HOLD reason. A fundamentally attractive security with intact thesis should receive a sized recommendation — potentially smaller due to macro overlay, but not HOLD. When in doubt: if you'd recommend buying this security for a new portfolio at current prices, HOLD is the wrong answer.",
 
@@ -1316,7 +1370,7 @@ Return this exact JSON shape:
   "summary": "3 sentences max. Sentence 1: portfolio's dominant factor bet and whether current conditions favor it. Sentence 2: most notable current risk or opportunity based on factor drift, macro shift, or thesis developments. Sentence 3: the single highest-priority action and why. Max 280 chars.",
   "recommendations": [
     {
-      "action_type": "buy|add|trim|sell|hold|scale_in|rotate|rebalance|raise_cash",
+      "action_type": "buy|add|trim|sell|hold|watch|scale_in|rotate|rebalance|raise_cash",
       "ticker": "string",
       "company_name": "string|null",
       "thesis": "string",
@@ -1342,7 +1396,10 @@ Return this exact JSON shape:
       "target_price_2": number|null,
       "stop_price": number|null,
       "target_horizon": "string|null",
-      "time_horizon": "short_term|medium_term|long_term|null"
+      "time_horizon": "short_term|medium_term|long_term|null",
+      "radar_type": "new_candidate|re_entry|null — only set when action_type is \"watch\"",
+      "radar_condition": {"trigger": "price_below|price_above|date_after|catalyst|combo", "price": "number|null", "date": "string|null", "catalyst_description": "string|null", "original_note": "string|null"},
+      "companion_of_index": "number|null — for a re_entry watch item, the array index of the trim/sell recommendation it pairs with"
     }
   ],
   "thesis_updates": [
@@ -1363,6 +1420,7 @@ Execution rules:
 - scale_in: strong thesis, better entry possible. rotate: exit one to fund another in same theme. Trim/sell/hold: only existing holdings.
 - Apply sizing_modifier from macro overlay. Apply speculative_penalty to low-quality names only.
 - THESIS_UPDATES: include exactly one entry per currently-held ticker (from current_valuation.holdings), even if it also received a recommendation this run. Re-evaluate thesis_status fresh from current facts each run — do not just copy back whatever position_thesis_memory already said. This is what lets the app track whether the original reasoning is still holding up over time.
+- AI RADAR: action_type "watch" always requires radar_type and a concrete radar_condition (see AI RADAR instructions above). A trim/sell recommended purely for timing (thesis intact) requires a companion watch/re_entry item in this same response with companion_of_index set. Never emit radar_type without action_type "watch", and never emit action_type "watch" without radar_type.
 - Return JSON only, no markdown fences.
 
 Portfolio context:
@@ -1872,19 +1930,35 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
     const tickersThisRun = Array.from(
       new Set(validatedRecs.map((item) => String(item.ticker ?? "").toUpperCase()).filter(Boolean))
     );
-    const existingOpenByTicker = new Map<string, { id: string; recommendation_status: string; action_type: string | null; rationale: string | null }>();
+    const existingOpenByTicker = new Map<string, { id: string; recommendation_status: string; action_type: string | null; rationale: string | null; radar_type: string | null }>();
     if (tickersThisRun.length > 0) {
+      // Prefer the radar-aware select (needed for auto-graduation below); fall back to
+      // the plain select if recommendation-radar-setup.sql hasn't been applied yet, so
+      // Phase 1 dedup/supersede keeps working regardless of Phase 2 migration status.
+      let openItems: any[] | null = null;
       try {
-        const { data: openItems } = await supabase
+        const { data, error } = await supabase
           .from("recommendation_items")
-          .select("id, ticker, recommendation_status, action_type, rationale")
+          .select("id, ticker, recommendation_status, action_type, rationale, radar_type")
           .eq("portfolio_id", portfolioId)
           .in("recommendation_status", ["proposed", "watchlist"])
           .in("ticker", tickersThisRun);
-        for (const row of (openItems ?? []) as any[]) {
-          existingOpenByTicker.set(String(row.ticker).toUpperCase(), row);
-        }
-      } catch { /* non-fatal — proceed without dedup context */ }
+        if (error) throw error;
+        openItems = data;
+      } catch {
+        try {
+          const { data } = await supabase
+            .from("recommendation_items")
+            .select("id, ticker, recommendation_status, action_type, rationale")
+            .eq("portfolio_id", portfolioId)
+            .in("recommendation_status", ["proposed", "watchlist"])
+            .in("ticker", tickersThisRun);
+          openItems = data;
+        } catch { /* non-fatal — proceed without dedup context */ }
+      }
+      for (const row of (openItems ?? []) as any[]) {
+        existingOpenByTicker.set(String(row.ticker).toUpperCase(), { ...row, radar_type: row.radar_type ?? null });
+      }
     }
 
     // Drop pure-churn repeats: an unchanged "hold" on a ticker that already has an
@@ -1935,7 +2009,9 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
             target_change_reason: item.target_change_reason,
             time_horizon: item.time_horizon,
             target_horizon: item.target_horizon,
-            recommendation_status: "proposed",
+            // AI Radar items are never shown as actionable recommendations — force
+            // them straight into the existing watchlist bucket instead of "proposed".
+            recommendation_status: item.action_type === "watch" && item.radar_type ? "watchlist" : "proposed",
             user_decision: null,
             decision_notes: null,
           }))
@@ -1953,17 +2029,24 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       // Supersede: for each new item whose ticker had an existing open item, archive
       // the old one and link the new one to it — this is the cross-run memory link
       // that lets the prompt's history context and the UI trace a ticker's full arc.
+      // When the superseded item was an AI Radar watch item, this is auto-graduation:
+      // the AI is issuing a fresh real call on a ticker it was passively tracking, so
+      // mark the watch item "ready" (graduated) rather than leaving it merely archived.
       try {
         await Promise.all(recsToInsert.map((item, i) => {
           const ticker = String(item.ticker ?? "").toUpperCase();
           const prior = existingOpenByTicker.get(ticker);
           const newId = insertedItemIds[i];
           if (!prior || !newId || prior.id === newId) return Promise.resolve();
+          const priorWasRadar = Boolean(prior.radar_type);
           return Promise.all([
             supabase.from("recommendation_items").update({
               recommendation_status: "archived",
               user_decision: "archived",
-              decision_notes: "Superseded by a newer AI recommendation on the same ticker.",
+              decision_notes: priorWasRadar
+                ? "Graduated: AI issued a fresh recommendation on this ticker."
+                : "Superseded by a newer AI recommendation on the same ticker.",
+              ...(priorWasRadar ? { radar_status: "ready" } : {}),
             }).eq("id", prior.id).then((r) => r, () => ({})),
             supabase.from("recommendation_items").update({
               supersedes_recommendation_item_id: prior.id,
@@ -1974,11 +2057,40 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
               old_status: prior.recommendation_status,
               new_status: "archived",
               changed_by: "ai",
-              notes: "Superseded by a newer AI recommendation on the same ticker.",
+              notes: priorWasRadar
+                ? "Graduated: AI issued a fresh recommendation on this ticker."
+                : "Superseded by a newer AI recommendation on the same ticker.",
             }).then((r) => r, () => ({})),
           ]);
         }));
       } catch { /* non-fatal — dedup linkage is best-effort */ }
+
+      // AI Radar bookkeeping: stamp radar_type/radar_status/radar_condition on newly
+      // inserted watch items, and link re_entry items to their companion trim/sell by
+      // ticker match within this batch. Separate best-effort update — a DB without
+      // supabase/recommendation-radar-setup.sql never breaks the run.
+      try {
+        const nowIso = new Date().toISOString();
+        await Promise.all(recsToInsert.map((item, i) => {
+          const id = insertedItemIds[i];
+          if (!id || item.action_type !== "watch" || !item.radar_type) return Promise.resolve();
+          const companion = item.radar_type === "re_entry"
+            ? recsToInsert.find((other, j) => j !== i
+                && String(other.ticker ?? "").toUpperCase() === String(item.ticker ?? "").toUpperCase()
+                && (other.action_type === "trim" || other.action_type === "sell"))
+            : null;
+          const companionIndex = companion ? recsToInsert.indexOf(companion) : -1;
+          const companionId = companionIndex >= 0 ? insertedItemIds[companionIndex] : null;
+          return supabase.from("recommendation_items").update({
+            radar_type: item.radar_type,
+            radar_status: item.radar_type === "new_candidate" ? "active" : "pending_execution",
+            radar_condition: item.radar_condition,
+            radar_origin_recommendation_item_id: companionId,
+            last_evaluated_at: nowIso,
+            eval_count: 1,
+          }).eq("id", id).then((r) => r, () => ({}));
+        }));
+      } catch { /* non-fatal — radar columns may not exist yet */ }
 
       // Best-effort: stamp the market price at recommendation time (reference_price)
       // from the valuation already in the AI context. Separate update on purpose —
@@ -2252,6 +2364,26 @@ export async function updateRecommendationStatus(formData: FormData) {
       notes: note || null,
     });
   if (historyError) throw new Error(historyError.message);
+
+  // AI Radar cascade: a companion re_entry watch item only makes sense once the
+  // trim/sell it depends on actually happened — activate it on execution, or
+  // invalidate it if the trim/sell is instead rejected/archived without ever
+  // being executed (the re-entry condition never got the chance to matter).
+  if (newStatus === "executed") {
+    try {
+      await supabase.from("recommendation_items")
+        .update({ radar_status: "active", last_evaluated_at: new Date().toISOString() })
+        .eq("radar_origin_recommendation_item_id", recommendationItemId)
+        .eq("radar_status", "pending_execution");
+    } catch { /* non-fatal — radar columns may not exist yet */ }
+  } else if (newStatus === "rejected" || newStatus === "archived") {
+    try {
+      await supabase.from("recommendation_items")
+        .update({ radar_status: "invalidated", decision_notes: "Companion trim/sell was never executed." })
+        .eq("radar_origin_recommendation_item_id", recommendationItemId)
+        .eq("radar_status", "pending_execution");
+    } catch { /* non-fatal — radar columns may not exist yet */ }
+  }
 
   // Auto-create transaction when marking as executed
   if (newStatus === "executed" && item.ticker) {
@@ -2549,6 +2681,17 @@ export async function bulkUpdateRecommendationStatus(
   }));
 
   await supabase.from("recommendation_item_status_history").insert(historyRows);
+
+  // AI Radar cascade — same rule as the single-item path: a companion re_entry watch
+  // item invalidates if its trim/sell is bulk-rejected/archived without execution.
+  if (newStatus === "rejected" || newStatus === "archived") {
+    try {
+      await supabase.from("recommendation_items")
+        .update({ radar_status: "invalidated", decision_notes: "Companion trim/sell was never executed." })
+        .in("radar_origin_recommendation_item_id", itemIds)
+        .eq("radar_status", "pending_execution");
+    } catch { /* non-fatal — radar columns may not exist yet */ }
+  }
 
   revalidatePath(`/portfolios/${portfolioId}`);
   return { updated: itemIds.length };

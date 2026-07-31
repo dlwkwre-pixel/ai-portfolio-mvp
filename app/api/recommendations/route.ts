@@ -88,8 +88,67 @@ export async function GET(req: NextRequest) {
   const { data: items, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const enrichedItems = await enrichItems(supabase, portfolioId, items ?? []);
+
   return NextResponse.json(
-    { items: items ?? [], total: count ?? 0, page, limit, tabCounts },
+    { items: enrichedItems, total: count ?? 0, page, limit, tabCounts },
     { headers: { "Cache-Control": "no-store" } }
   );
+}
+
+// Attaches two things the raw recommendation_items row can't carry on its own:
+// (1) thesis_status from position_thesis, keyed by ticker — the real, continuously
+//     revised signal (see applyThesisUpdates in recommendation-actions.ts), which the
+//     UI prefers over its old regex-over-rationale fallback.
+// (2) for AI Radar re_entry items, the ticker/action_type of the trim/sell that
+//     originated them (radar_origin_recommendation_item_id is just a FK — the card
+//     needs something human-readable). Both are best-effort: a DB that hasn't run
+//     the relevant migration yet just gets nulls back, never a broken page.
+async function enrichItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  portfolioId: string,
+  items: Record<string, unknown>[]
+) {
+  if (items.length === 0) return items;
+
+  const tickers = [...new Set(items.map(i => String(i.ticker ?? "").toUpperCase()).filter(Boolean))];
+  const thesisByTicker = new Map<string, string>();
+  if (tickers.length > 0) {
+    try {
+      const { data } = await supabase
+        .from("position_thesis")
+        .select("ticker, thesis_status")
+        .eq("portfolio_id", portfolioId)
+        .in("ticker", tickers);
+      for (const row of data ?? []) {
+        if (row.ticker && row.thesis_status) thesisByTicker.set(String(row.ticker).toUpperCase(), row.thesis_status);
+      }
+    } catch { /* position_thesis may not exist yet — degrade gracefully */ }
+  }
+
+  const originIds = [...new Set(
+    items.map(i => i.radar_origin_recommendation_item_id).filter((id): id is string => typeof id === "string")
+  )];
+  const originById = new Map<string, { ticker: string | null; action_type: string | null }>();
+  if (originIds.length > 0) {
+    try {
+      const { data } = await supabase
+        .from("recommendation_items")
+        .select("id, ticker, action_type")
+        .in("id", originIds);
+      for (const row of data ?? []) originById.set(row.id, { ticker: row.ticker, action_type: row.action_type });
+    } catch { /* radar columns may not exist yet — degrade gracefully */ }
+  }
+
+  return items.map(item => {
+    const ticker = String(item.ticker ?? "").toUpperCase();
+    const origin = typeof item.radar_origin_recommendation_item_id === "string"
+      ? originById.get(item.radar_origin_recommendation_item_id) : null;
+    return {
+      ...item,
+      thesis_status: thesisByTicker.get(ticker) ?? null,
+      radar_origin_ticker: origin?.ticker ?? null,
+      radar_origin_action_type: origin?.action_type ?? null,
+    };
+  });
 }
