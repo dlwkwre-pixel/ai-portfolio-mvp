@@ -52,9 +52,16 @@ type AiRecommendation = {
   low_conviction_flag: boolean | null;
 };
 
+type ThesisUpdate = {
+  ticker: string;
+  thesis_status: "intact" | "strengthening" | "weakening" | "broken";
+  thesis_status_reason: string | null;
+};
+
 type AiRunResponse = {
   summary: string;
   recommendations: AiRecommendation[];
+  thesis_updates?: ThesisUpdate[];
 };
 
 type HealthReport = {
@@ -916,6 +923,27 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     // non-fatal — thesis memory degrades gracefully
   }
 
+  // Recommendation history — every ticker this portfolio has ever gotten a rec on,
+  // most recent first. Lets the AI see (and be asked to reconcile) its own prior calls
+  // instead of repeating a stale BUY with no memory of what it already said. Non-fatal:
+  // degrades to no history if recommendation-cross-run-memory.sql hasn't been applied yet.
+  let recentRecs: {
+    ticker: string; action_type: string; recommendation_status: string; conviction: string | null;
+    thesis: string | null; target_price_1: number | null; reference_price: number | null;
+    executed_price: number | null; executed_at: string | null; created_at: string;
+  }[] = [];
+  try {
+    const { data } = await supabase
+      .from("recommendation_items")
+      .select("ticker, action_type, recommendation_status, conviction, thesis, target_price_1, reference_price, executed_price, executed_at, created_at")
+      .eq("portfolio_id", portfolioId)
+      .order("created_at", { ascending: false })
+      .limit(150);
+    if (data) recentRecs = data as typeof recentRecs;
+  } catch {
+    // non-fatal — cross-run memory degrades gracefully
+  }
+
   const valuation = await getPortfolioValuation({
     holdings: (holdings ?? []).map((holding: any) => ({
       id: holding.id,
@@ -941,6 +969,52 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     unrealized_pl_pct: holding.unrealized_pl_pct,
     weight_pct: holding.weight_pct,
   }));
+
+  // Enrich recommendation history with the price move since each call, computed here
+  // (not left for the model to eyeball) — held tickers use the valuation just computed
+  // above; non-held tickers with history get a light live-quote lookup, bounded to the
+  // small set of tickers this portfolio has ever received a recommendation on.
+  const heldPriceByTicker: Record<string, number> = {};
+  for (const h of simplifiedHoldings) {
+    if (h.current_price != null) heldPriceByTicker[h.ticker.toUpperCase()] = h.current_price;
+  }
+  const historyTickers = [...new Set(recentRecs.map((r) => r.ticker.toUpperCase()))];
+  const nonHeldHistoryTickers = historyTickers.filter((t) => heldPriceByTicker[t] == null);
+  const nonHeldPriceByTicker: Record<string, number> = {};
+  if (nonHeldHistoryTickers.length > 0) {
+    await Promise.all(nonHeldHistoryTickers.map(async (t) => {
+      try { const q = await getFinnhubQuote(t); if (q && q.c > 0) nonHeldPriceByTicker[t] = q.c; } catch { /* leave unset */ }
+    }));
+  }
+
+  const recommendationHistoryByTicker: Record<string, {
+    action_type: string; recommendation_status: string; conviction: string | null;
+    thesis_excerpt: string | null; price_at_call: number | null; current_price: number | null;
+    price_change_pct_since_call: number | null; created_at: string;
+  }[]> = {};
+  for (const ticker of historyTickers) {
+    const currentPrice = heldPriceByTicker[ticker] ?? nonHeldPriceByTicker[ticker] ?? null;
+    const entries = recentRecs
+      .filter((r) => r.ticker.toUpperCase() === ticker)
+      .slice(0, 5) // cap per ticker so history can't grow the prompt unbounded over time
+      .map((r) => {
+        const baseline = r.reference_price ?? r.executed_price ?? r.target_price_1 ?? null;
+        const priceChangePct = baseline != null && currentPrice != null && baseline > 0
+          ? Math.round(((currentPrice - baseline) / baseline) * 1000) / 10
+          : null;
+        return {
+          action_type: r.action_type,
+          recommendation_status: r.recommendation_status,
+          conviction: r.conviction,
+          thesis_excerpt: r.thesis ? r.thesis.slice(0, 200) : null,
+          price_at_call: baseline,
+          current_price: currentPrice,
+          price_change_pct_since_call: priceChangePct,
+          created_at: r.created_at,
+        };
+      });
+    if (entries.length > 0) recommendationHistoryByTicker[ticker] = entries;
+  }
 
   // Always use the latest strategy version, not the one frozen in the assignment FK
   let latestStrategyVersion = (activeAssignment as any)?.strategy_versions ?? null;
@@ -1071,6 +1145,7 @@ async function buildPortfolioAiContext(portfolioId: string, userId: string) {
     portfolio_evolution: portfolioEvolution,
     position_thesis_memory: positionThesisMemory,
     position_catalyst_context: catalystIntelligence,
+    recommendation_history_by_ticker: recommendationHistoryByTicker,
   };
 }
 
@@ -1128,8 +1203,8 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     // ── Exploration Pressure
     "EXPLORATION PRESSURE: Recommendation breadth scales with portfolio conditions, NOT with holding count. Exploration pressure is HIGH when: (a) cash is idle (>10% of portfolio); (b) portfolio is concentrated (few holdings, high HHI); (c) strategy is aggressive, growth, or momentum-oriented; (d) environment is constructive or mixed; (e) conviction gaps exist. A 2-stock portfolio with 35% cash and an aggressive growth strategy should generate MORE external opportunity exploration than a fully-deployed 15-stock balanced portfolio. Small or concentrated portfolios increase discovery obligation — fewer holdings means more undiscovered opportunity. NEVER let holding count constrain idea generation.",
 
-    // ── Eight-layer evaluation
-    "EVALUATION PROCESS — apply eight independent layers before any recommendation:",
+    // ── Nine-layer evaluation
+    "EVALUATION PROCESS — apply nine independent layers before any recommendation:",
     "(1) SECURITY ANALYSIS: Is this security fundamentally attractive? Earnings quality, growth, valuation, momentum, analyst revisions, catalysts, balance sheet. Evaluate independent of macro.",
     "(2) STRATEGY FIT: Does it align with the user's selected strategy style, risk tolerance, and portfolio construction rules?",
     "(3) MACRO OVERLAY: How do current conditions affect HOW AGGRESSIVELY to express this conviction? The macro_overlay is a sizing and aggressiveness modifier — it does NOT veto attractive securities and does NOT justify HOLD for fundamentally sound positions. In constructive environments, macro supports deployment. In mixed environments, macro reduces sizing and increases selectivity — it does not eliminate participation. Only in genuinely hostile macro conditions (severe credit stress, systemic risk, deteriorating liquidity) should macro suppress participation broadly.",
@@ -1138,6 +1213,7 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
     "(6) PORTFOLIO EVOLUTION INTELLIGENCE: The portfolio_evolution context (if present) shows change versus a historical baseline. factor_drift lists exposures that moved >7pp — use for trajectory narrative, not just snapshot. Distinguish INTENTIONAL drift (AI strategy accumulating more AI exposure in a bull run — aligned) from ACCIDENTAL drift (balanced strategy silently becoming speculative momentum — worth flagging). If null, first run — no comparison available.",
     "(7) POSITION THESIS MEMORY: The position_thesis_memory context contains the original thesis, portfolio role, entry conviction, and thesis status for executed positions. Use this as institutional memory. Ask: does this position still fulfill the reason we bought it? Thesis status: intact = proceed on security merit; strengthening = lean toward adding; weakening = reduce or watch; broken = exit regardless of price action. CRITICAL: macro alone does not change thesis status — it affects sizing only. Short-term volatility does not break a long-term structural thesis. Never trim a core holding solely because it appreciated — trim when the original thesis deteriorated, crowding risk materialized, or better capital allocation exists. Reference thesis continuity explicitly in rationale.",
     "(8) CATALYST INTELLIGENCE: The position_catalyst_context provides catalyst type, key catalysts, thesis dependencies, and invalidation signals. Assess catalyst health for each position using Finnhub data, news, and Reddit sentiment. The reddit_sentiment field is a map of TICKER -> { post_count, bullish_pct, bearish_pct, neutral_pct, sentiment, hype_score, conviction_score, catalysts, risks }. Interpret as: Math.round(post_count * bullish_pct / 100) positive posts, Math.round(post_count * bearish_pct / 100) negative posts. Sentiment above 60% bullish is a retail tailwind; above 60% bearish is a headwind; high hype_score (>65) signals crowding risk. Lead with catalyst status: 'The [X] thesis depends on [dependency] and is currently [intact/strengthening/weakening]. Key risk: [signal].' Keep to 1-2 sentences. Catalyst awareness must be strategy-sensitive. Macro influences catalyst urgency and sizing — not automatic invalidation.",
+    "(9) RECOMMENDATION MEMORY & ANTI-REPETITION: The recommendation_history_by_ticker context (if present) shows every prior recommendation this portfolio has received per ticker, each with the price at the time of that call and price_change_pct_since_call — the real move since you last spoke on this name. Before proposing BUY/ADD on any ticker, check its history. If a prior BUY/ADD exists and the price has moved materially against the thesis (negative price_change_pct_since_call) with no offsetting improvement in fundamentals, catalysts, or valuation, you must NOT casually repeat the same call — either explain concretely what is genuinely new that changes the picture, or downgrade the action (hold/watch/reduce) instead. Never repeat the same action_type at similar sizing on a ticker two runs in a row without new information to justify it — a repeated call with an unexplained adverse price move reads as not having learned anything since the last run.",
 
     // ── HOLD Discipline
     "HOLD DISCIPLINE: HOLD is a valid and important action — but it must earn its place. HOLD is correct when: the thesis is fully intact and position is appropriately sized, there is no better marginal use of capital, or you are awaiting a specific catalyst or entry point. HOLD is WRONG when it results from: generalized macro nervousness, fear of being wrong, vague caution, or default inactivity. 'Macro is mixed' is NOT a valid HOLD reason. A fundamentally attractive security with intact thesis should receive a sized recommendation — potentially smaller due to macro overlay, but not HOLD. When in doubt: if you'd recommend buying this security for a new portfolio at current prices, HOLD is the wrong answer.",
@@ -1223,7 +1299,7 @@ HARD CONSTRAINTS:
    - probability_bear / probability_base / probability_bull = integer probabilities 0-100 summing to exactly 100. Reflect genuine conviction. Default 25/50/25 is unacceptable — assign based on asymmetry, catalyst quality, fundamental strength.
    - target_horizon = specific timeframe for the base case (e.g. "6-12 months", "1-2 earnings cycles", "2-3 years"). Write an actual range, not "short_term".
    - catalysts = array of 2-4 concise strings naming key drivers (e.g. "AI infrastructure demand", "earnings revisions", "margin expansion").
-   - target_change_reason = null (no prior run data is provided — always set to null).
+   - target_change_reason = check recommendation_history_by_ticker for this ticker. If prior calls exist, state concretely what changed since the most recent one (price move, new catalyst, valuation shift, thesis development) that justifies this call's action/sizing/targets. If this ticker has no history in this portfolio, set to null.
 
 3. TRIM/SELL QUANTITY: share_quantity must not exceed shares owned. Full sell = total shares. sizing_dollars = share_quantity × current_price.
 
@@ -1268,6 +1344,13 @@ Return this exact JSON shape:
       "target_horizon": "string|null",
       "time_horizon": "short_term|medium_term|long_term|null"
     }
+  ],
+  "thesis_updates": [
+    {
+      "ticker": "string",
+      "thesis_status": "intact|strengthening|weakening|broken",
+      "thesis_status_reason": "string — one sentence, cite the specific fact that supports this status"
+    }
   ]
 }
 
@@ -1279,6 +1362,7 @@ Execution rules:
 - TIME HORIZON: label time_horizon accurately. Never trim a structural position on a short-term miss.
 - scale_in: strong thesis, better entry possible. rotate: exit one to fund another in same theme. Trim/sell/hold: only existing holdings.
 - Apply sizing_modifier from macro overlay. Apply speculative_penalty to low-quality names only.
+- THESIS_UPDATES: include exactly one entry per currently-held ticker (from current_valuation.holdings), even if it also received a recommendation this run. Re-evaluate thesis_status fresh from current facts each run — do not just copy back whatever position_thesis_memory already said. This is what lets the app track whether the original reasoning is still holding up over time.
 - Return JSON only, no markdown fences.
 
 Portfolio context:
@@ -1339,6 +1423,7 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
   const parsed = JSON.parse(extractJsonText(outputText)) as {
     summary?: unknown;
     recommendations?: unknown;
+    thesis_updates?: unknown;
   };
 
   const summary =
@@ -1377,7 +1462,24 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
     ? `[Low Conviction Forecast Set: ${Math.round(anchoringRate * 100)}% of base targets within 5% of current price — model may be anchoring to consensus] ${summary}`
     : summary;
 
-  return { summary: finalSummary, recommendations };
+  const validThesisStatuses = new Set(["intact", "strengthening", "weakening", "broken"]);
+  const thesisUpdatesRaw = Array.isArray(parsed.thesis_updates) ? parsed.thesis_updates : [];
+  const thesisUpdates: ThesisUpdate[] = thesisUpdatesRaw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const raw = item as Record<string, unknown>;
+      const ticker = typeof raw.ticker === "string" ? raw.ticker.trim().toUpperCase() : "";
+      const status = typeof raw.thesis_status === "string" ? raw.thesis_status.trim().toLowerCase() : "";
+      if (!ticker || !validThesisStatuses.has(status)) return null;
+      return {
+        ticker,
+        thesis_status: status as ThesisUpdate["thesis_status"],
+        thesis_status_reason: typeof raw.thesis_status_reason === "string" ? raw.thesis_status_reason.trim().slice(0, 500) || null : null,
+      };
+    })
+    .filter((item): item is ThesisUpdate => Boolean(item));
+
+  return { summary: finalSummary, recommendations, thesis_updates: thesisUpdates };
 }
 
 // --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
@@ -1465,6 +1567,86 @@ async function insertRecommendationStatusHistory(args: {
   }));
   const { error } = await supabase.from("recommendation_item_status_history").insert(payload);
   if (error) throw new Error(error.message);
+}
+
+// Revise position_thesis.thesis_status from this run's fresh evaluation — the
+// mechanism that lets the app know when the original buy reasoning has actually
+// weakened or broken, instead of thesis_status being written once and never touched.
+async function applyThesisUpdates(
+  portfolioId: string,
+  runId: string,
+  thesisUpdates: ThesisUpdate[] | undefined,
+): Promise<void> {
+  if (!thesisUpdates || thesisUpdates.length === 0) return;
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+
+  for (const update of thesisUpdates) {
+    if (!update.ticker || !update.thesis_status) continue;
+    const ticker = update.ticker.toUpperCase();
+    try {
+      const { data: existing } = await supabase
+        .from("position_thesis")
+        .select("id, thesis_status, thesis_notes")
+        .eq("portfolio_id", portfolioId)
+        .eq("ticker", ticker)
+        .maybeSingle();
+
+      const reasonNote = update.thesis_status_reason
+        ? `[${nowIso.slice(0, 10)}] ${update.thesis_status_reason}`
+        : null;
+
+      if (!existing) {
+        // Never-seeded holding (e.g. brokerage-synced position) — seed it from this
+        // run's fresh evaluation rather than waiting on an execute-buy that never happens.
+        await supabase.from("position_thesis").insert({
+          portfolio_id: portfolioId,
+          ticker,
+          thesis_status: update.thesis_status,
+          thesis_notes: reasonNote,
+          seeded_from_run_id: runId,
+          last_status_change_at: nowIso,
+          last_status_change_run_id: runId,
+          last_status_change_reason: update.thesis_status_reason ?? null,
+          updated_at: nowIso,
+        });
+        await supabase.from("position_thesis_history").insert({
+          portfolio_id: portfolioId,
+          ticker,
+          old_status: null,
+          new_status: update.thesis_status,
+          reason: update.thesis_status_reason ?? null,
+          run_id: runId,
+          changed_by: "ai",
+        });
+        continue;
+      }
+
+      if (existing.thesis_status === update.thesis_status) continue; // unchanged — no churn
+
+      const mergedNotes = [existing.thesis_notes, reasonNote].filter(Boolean).join("\n").slice(0, 2000);
+      await supabase.from("position_thesis").update({
+        thesis_status: update.thesis_status,
+        thesis_notes: mergedNotes || null,
+        last_status_change_at: nowIso,
+        last_status_change_run_id: runId,
+        last_status_change_reason: update.thesis_status_reason ?? null,
+        updated_at: nowIso,
+      }).eq("id", existing.id);
+
+      await supabase.from("position_thesis_history").insert({
+        portfolio_id: portfolioId,
+        ticker,
+        old_status: existing.thesis_status,
+        new_status: update.thesis_status,
+        reason: update.thesis_status_reason ?? null,
+        run_id: runId,
+        changed_by: "ai",
+      });
+    } catch {
+      // non-fatal — one ticker's thesis-update failure shouldn't break the run
+    }
+  }
 }
 
 const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -1684,12 +1866,43 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       };
     });
 
+    // Cross-run memory: find existing open items (proposed/watchlist) for tickers this
+    // run is about to touch, so a repeat call can supersede the old row instead of
+    // piling up duplicate open recommendations for the same ticker (the VRT problem).
+    const tickersThisRun = Array.from(
+      new Set(validatedRecs.map((item) => String(item.ticker ?? "").toUpperCase()).filter(Boolean))
+    );
+    const existingOpenByTicker = new Map<string, { id: string; recommendation_status: string; action_type: string | null; rationale: string | null }>();
+    if (tickersThisRun.length > 0) {
+      try {
+        const { data: openItems } = await supabase
+          .from("recommendation_items")
+          .select("id, ticker, recommendation_status, action_type, rationale")
+          .eq("portfolio_id", portfolioId)
+          .in("recommendation_status", ["proposed", "watchlist"])
+          .in("ticker", tickersThisRun);
+        for (const row of (openItems ?? []) as any[]) {
+          existingOpenByTicker.set(String(row.ticker).toUpperCase(), row);
+        }
+      } catch { /* non-fatal — proceed without dedup context */ }
+    }
+
+    // Drop pure-churn repeats: an unchanged "hold" on a ticker that already has an
+    // open "hold" sitting there with the same rationale doesn't need a second row.
+    const recsToInsert = validatedRecs.filter((item) => {
+      const action = (item.action_type ?? "").toLowerCase();
+      if (action !== "hold") return true;
+      const existing = existingOpenByTicker.get(String(item.ticker ?? "").toUpperCase());
+      if (!existing || (existing.action_type ?? "").toLowerCase() !== "hold") return true;
+      return existing.rationale !== item.rationale;
+    });
+
     let insertedItemIds: string[] = [];
-    if (validatedRecs.length > 0) {
+    if (recsToInsert.length > 0) {
       const { data: insertedItems, error: insertItemsError } = await supabase
         .from("recommendation_items")
         .insert(
-          validatedRecs.map((item) => ({
+          recsToInsert.map((item) => ({
             recommendation_run_id: run.id,
             portfolio_id: portfolioId,
             action_type: item.action_type,
@@ -1737,6 +1950,36 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
         notes: "Initial AI recommendation created.",
       });
 
+      // Supersede: for each new item whose ticker had an existing open item, archive
+      // the old one and link the new one to it — this is the cross-run memory link
+      // that lets the prompt's history context and the UI trace a ticker's full arc.
+      try {
+        await Promise.all(recsToInsert.map((item, i) => {
+          const ticker = String(item.ticker ?? "").toUpperCase();
+          const prior = existingOpenByTicker.get(ticker);
+          const newId = insertedItemIds[i];
+          if (!prior || !newId || prior.id === newId) return Promise.resolve();
+          return Promise.all([
+            supabase.from("recommendation_items").update({
+              recommendation_status: "archived",
+              user_decision: "archived",
+              decision_notes: "Superseded by a newer AI recommendation on the same ticker.",
+            }).eq("id", prior.id).then((r) => r, () => ({})),
+            supabase.from("recommendation_items").update({
+              supersedes_recommendation_item_id: prior.id,
+            }).eq("id", newId).then((r) => r, () => ({})),
+            supabase.from("recommendation_item_status_history").insert({
+              recommendation_item_id: prior.id,
+              portfolio_id: portfolioId,
+              old_status: prior.recommendation_status,
+              new_status: "archived",
+              changed_by: "ai",
+              notes: "Superseded by a newer AI recommendation on the same ticker.",
+            }).then((r) => r, () => ({})),
+          ]);
+        }));
+      } catch { /* non-fatal — dedup linkage is best-effort */ }
+
       // Best-effort: stamp the market price at recommendation time (reference_price)
       // from the valuation already in the AI context. Separate update on purpose —
       // a DB without supabase/recommendation-reference-price.sql never breaks the run.
@@ -1749,7 +1992,7 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
           const p = Number(h.current_price);
           if (h.ticker && Number.isFinite(p) && p > 0) refPrices.set(String(h.ticker).toUpperCase(), p);
         }
-        await Promise.all(validatedRecs.map((item, i) => {
+        await Promise.all(recsToInsert.map((item, i) => {
           const ref = refPrices.get(String(item.ticker ?? "").toUpperCase());
           const id = insertedItemIds[i];
           if (!ref || !id) return Promise.resolve();
@@ -1763,9 +2006,14 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       // Auto-log actionable AI calls into the Decision Journal so the user can
       // react (run the devil's advocate, reflect later) without manual entry.
       // Best-effort + non-fatal: skips silently if the migration isn't applied.
-      void autoJournalRecommendations(supabase, user.id, portfolioId, validatedRecs, insertedItemIds)
+      void autoJournalRecommendations(supabase, user.id, portfolioId, recsToInsert, insertedItemIds)
         .catch((e) => console.warn("[auto-journal] skipped:", e instanceof Error ? e.message : e));
     }
+
+    // Thesis-status revision — real memory of whether the original call is still
+    // holding up, instead of position_thesis being frozen at "intact" forever.
+    void applyThesisUpdates(portfolioId, run.id, grokResult.thesis_updates)
+      .catch((e) => console.warn("[thesis-updates] skipped:", e instanceof Error ? e.message : e));
 
     let completionSummary = grokResult.summary || "AI review completed.";
     if (geminiResult.overall_score !== null) {
@@ -2143,20 +2391,44 @@ export async function updateRecommendationStatus(formData: FormData) {
       }
     }
 
-    // Auto-seed position thesis on executed buy — preserves original thesis on re-buys (non-fatal)
+    // Auto-seed position thesis on executed buy. Read-then-merge, not a blind upsert:
+    // on a re-buy of an existing position, resetting thesis_status back to "intact"
+    // would silently erase a deliberate weakening/broken flag the AI had set. Only a
+    // brand-new position gets seeded fresh; a re-buy just appends a note.
     if (isBuy) {
       try {
-        await supabase.from("position_thesis").upsert({
-          portfolio_id: portfolioId,
-          ticker: item.ticker.toUpperCase(),
-          original_thesis: item.thesis ? String(item.thesis).slice(0, 300) : null,
-          portfolio_role: inferPortfolioRole(item.action_type, item.conviction),
-          holding_profile: inferHoldingProfile(item.time_horizon),
-          entry_conviction: normalizeConviction(item.conviction),
-          thesis_status: "intact",
-          seeded_from_run_id: (item as any).recommendation_run_id ?? null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "portfolio_id,ticker", ignoreDuplicates: true });
+        const ticker = item.ticker.toUpperCase();
+        const { data: existingThesis } = await supabase
+          .from("position_thesis")
+          .select("id, original_thesis, thesis_notes")
+          .eq("portfolio_id", portfolioId)
+          .eq("ticker", ticker)
+          .maybeSingle();
+
+        if (!existingThesis) {
+          await supabase.from("position_thesis").insert({
+            portfolio_id: portfolioId,
+            ticker,
+            original_thesis: item.thesis ? String(item.thesis).slice(0, 300) : null,
+            portfolio_role: inferPortfolioRole(item.action_type, item.conviction),
+            holding_profile: inferHoldingProfile(item.time_horizon),
+            entry_conviction: normalizeConviction(item.conviction),
+            thesis_status: "intact",
+            seeded_from_run_id: (item as any).recommendation_run_id ?? null,
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          const addNote = item.thesis
+            ? `[${new Date().toISOString().slice(0, 10)}] Added to position: ${String(item.thesis).slice(0, 200)}`
+            : null;
+          const mergedNotes = [existingThesis.thesis_notes, addNote].filter(Boolean).join("\n").slice(0, 2000);
+          await supabase.from("position_thesis").update({
+            portfolio_role: inferPortfolioRole(item.action_type, item.conviction),
+            entry_conviction: normalizeConviction(item.conviction),
+            thesis_notes: mergedNotes || null,
+            updated_at: new Date().toISOString(),
+          }).eq("id", existingThesis.id);
+        }
       } catch {
         // non-fatal — thesis table may not exist yet
       }
