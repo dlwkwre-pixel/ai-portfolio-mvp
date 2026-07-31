@@ -26,6 +26,48 @@ Respond with ONLY valid JSON — no markdown, no code fences, no text outside th
   "takeaway": "<one-sentence directional view stated plainly>"
 }`;
 
+// Cached-only read — never spends Grok tokens. Lets the UI offer "view last analysis"
+// as an alternative to a fresh (paid) scan once the 12h freshness window has passed,
+// instead of that older analysis just becoming silently unreachable.
+export async function GET(req: NextRequest) {
+  const { limited, retryAfter } = checkRateLimit(`grok-analysis-cached:${getIp(req)}`, 30, 10 * 60_000);
+  if (limited) {
+    return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  }
+
+  try {
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Sign in to view AI analysis." }, { status: 401 });
+
+    const ticker = req.nextUrl.searchParams.get("ticker");
+    if (!ticker) return NextResponse.json({ error: "Ticker required." }, { status: 400 });
+
+    const t = String(ticker).trim().toUpperCase();
+    const cacheKey = `grok:${t}`;
+    const supabase = await createClient();
+
+    const { data: cached } = await supabase
+      .from("stock_ai_analyses")
+      .select("analysis_text, created_at")
+      .eq("ticker", cacheKey)
+      .maybeSingle();
+
+    if (!cached?.analysis_text) {
+      return NextResponse.json({ error: "No previous analysis for this stock yet." }, { status: 404 });
+    }
+    try {
+      const parsed = JSON.parse(cached.analysis_text) as Record<string, unknown>;
+      return NextResponse.json({ ...parsed, cached_at: cached.created_at });
+    } catch {
+      return NextResponse.json({ error: "No previous analysis for this stock yet." }, { status: 404 });
+    }
+  } catch (err) {
+    console.error("[grok-analysis][GET] error:", err);
+    return NextResponse.json({ error: "Failed to load previous analysis." }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { limited, retryAfter } = checkRateLimit(`grok-analysis:${getIp(req)}`, 6, 10 * 60_000);
   if (limited) {

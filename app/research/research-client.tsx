@@ -1011,6 +1011,19 @@ function DetailView({
       .finally(() => setGrokLoading(false));
   }
 
+  // Pull the most recent cached Grok analysis (any age) without spending tokens —
+  // an alternative to runGrokAnalysis() once the 12h freshness window has passed.
+  function viewLastAnalysis() {
+    if (grokLoading) return;
+    setGrokLoading(true);
+    setGrokError(null);
+    fetch(`/api/research/grok-analysis?ticker=${encodeURIComponent(result.ticker)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.error) setGrokError(d.error); else setGrokAnalysis(d as AiAnalysis); })
+      .catch(() => setGrokError("Couldn't load the previous analysis. Try again."))
+      .finally(() => setGrokLoading(false));
+  }
+
   // Auto-load digest on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -1347,13 +1360,20 @@ function DetailView({
                   {shown && (
                     <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{new Date(shown.cached_at).toLocaleDateString()}</span>
                   )}
-                  {/* Grok deep-dive button — only when not already showing Grok */}
+                  {/* Grok deep-dive + cached-view buttons — only when not already showing Grok */}
                   {!isGrok && (
-                    <button type="button" onClick={runGrokAnalysis} disabled={grokLoading}
-                      style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid color-mix(in oklch, oklch(0.62 0.21 295) 35%, transparent)", background: "color-mix(in oklch, oklch(0.62 0.21 295) 14%, transparent)", color: "oklch(0.68 0.20 295)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: grokLoading ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
-                      <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path d="M11 2L4 11h4l-1 7 7-9h-4l1-7z" /></svg>
-                      {grokLoading ? "Searching…" : "Live Grok deep-dive"}
-                    </button>
+                    <>
+                      <button type="button" onClick={viewLastAnalysis} disabled={grokLoading}
+                        title="View the most recent Grok analysis, even if older than 12 hours — doesn't spend tokens"
+                        style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid color-mix(in oklch, oklch(0.62 0.21 295) 25%, transparent)", background: "transparent", color: "oklch(0.68 0.20 295)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: grokLoading ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
+                        View last analysis
+                      </button>
+                      <button type="button" onClick={runGrokAnalysis} disabled={grokLoading}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid color-mix(in oklch, oklch(0.62 0.21 295) 35%, transparent)", background: "color-mix(in oklch, oklch(0.62 0.21 295) 14%, transparent)", color: "oklch(0.68 0.20 295)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: grokLoading ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
+                        <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path d="M11 2L4 11h4l-1 7 7-9h-4l1-7z" /></svg>
+                        {grokLoading ? "Searching…" : "Live Grok deep-dive"}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
