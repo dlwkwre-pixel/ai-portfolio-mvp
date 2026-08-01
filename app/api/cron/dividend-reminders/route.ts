@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getFmpDividendCalendar, type FmpCalendarDividend } from "@/lib/market-data/fmp";
+import { getFmpDividends } from "@/lib/market-data/fmp";
 
-// Vercel Cron (daily). Uses ONE market-wide FMP dividend-calendar call, finds
-// dividends paying today, matches them to users' holdings, and nudges each
-// owner to log the payout (we can't see brokerages, so logging is manual).
+export const dynamic = "force-dynamic";
+export const maxDuration = 300;
+
+// Vercel Cron (daily). FMP's market-wide dividend-calendar endpoint is gated behind
+// a higher subscription tier on the /stable API (402 Premium) — see getFmpDividendCalendar.
+// Instead of one calendar call, this fetches every distinct ticker actually held across
+// active portfolios and checks each one's per-symbol dividend history (the endpoint
+// that IS available on this plan), batched to stay rate-friendly. More requests than
+// the old approach, but bounded by real distinct holdings, not the whole market.
+// This plan tier's rate limit is low enough to 429 after a handful of rapid
+// requests (observed directly against /stable/dividends) — a daily cron has no
+// urgency, so stay conservative rather than silently miss tickers to throttling.
+const TICKER_BATCH_SIZE = 2;
+const TICKER_BATCH_DELAY_MS = 1200;
+const MAX_TICKERS = 300; // safety net against a pathological fan-out
+
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -17,19 +30,6 @@ export async function GET(request: Request) {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const from = new Date(Date.now() - 40 * 86400_000).toISOString().slice(0, 10);
-
-  let calendar: FmpCalendarDividend[] = [];
-  try { calendar = await getFmpDividendCalendar(from, today); } catch { calendar = []; }
-  // Dividends whose payment date is today.
-  const payingToday = calendar.filter((d) => d.paymentDate === today && d.perShare > 0);
-  if (payingToday.length === 0) return NextResponse.json({ message: "No dividends paying today." });
-
-  const perShareBySymbol = new Map<string, number>();
-  for (const d of payingToday) {
-    if (!perShareBySymbol.has(d.symbol)) perShareBySymbol.set(d.symbol, d.perShare);
-  }
-  const symbols = [...perShareBySymbol.keys()];
 
   // Active portfolios → user map.
   const { data: ports } = await supabase
@@ -38,12 +38,31 @@ export async function GET(request: Request) {
   if (!ports || ports.length === 0) return NextResponse.json({ message: "No portfolios." });
   const portById = new Map(ports.map((p) => [p.id as string, p as { id: string; user_id: string; name: string }]));
 
-  // Holdings that match a paying ticker.
+  // All holdings across active portfolios (shares > 0).
   const { data: holdings } = await supabase
     .from("holdings").select("portfolio_id, ticker, shares")
-    .in("ticker", symbols.length ? symbols : ["__none__"]).limit(20000)
+    .gt("shares", 0).limit(20000)
     .then((r) => r, () => ({ data: null }));
-  if (!holdings || holdings.length === 0) return NextResponse.json({ message: "No matching holdings." });
+  if (!holdings || holdings.length === 0) return NextResponse.json({ message: "No holdings." });
+
+  const distinctTickers = [...new Set(holdings.map((h) => String(h.ticker ?? "").toUpperCase()).filter(Boolean))].slice(0, MAX_TICKERS);
+  if (distinctTickers.length === 0) return NextResponse.json({ message: "No holdings." });
+
+  // Check each held ticker's dividend history for a payment landing today.
+  const perShareBySymbol = new Map<string, number>();
+  for (let i = 0; i < distinctTickers.length; i += TICKER_BATCH_SIZE) {
+    const batch = distinctTickers.slice(i, i + TICKER_BATCH_SIZE);
+    await Promise.all(batch.map(async (ticker) => {
+      try {
+        const divs = await getFmpDividends(ticker);
+        const payingToday = divs.find((d) => d.paymentDate === today && d.perShare > 0);
+        if (payingToday) perShareBySymbol.set(ticker, payingToday.perShare);
+      } catch { /* skip ticker */ }
+    }));
+    if (i + TICKER_BATCH_SIZE < distinctTickers.length) await new Promise((r) => setTimeout(r, TICKER_BATCH_DELAY_MS));
+  }
+
+  if (perShareBySymbol.size === 0) return NextResponse.json({ message: "No dividends paying today." });
 
   const money = (n: number) => "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let notified = 0;
@@ -65,5 +84,5 @@ export async function GET(request: Request) {
     if (!error) notified++;
   }
 
-  return NextResponse.json({ message: `Sent ${notified} dividend reminder(s).`, payingToday: payingToday.length });
+  return NextResponse.json({ message: `Sent ${notified} dividend reminder(s).`, tickersPayingToday: perShareBySymbol.size });
 }
