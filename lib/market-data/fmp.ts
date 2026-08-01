@@ -1,4 +1,8 @@
-const FMP_BASE = "https://financialmodelingprep.com/api/v3";
+// FMP retired the /api/v3 tier after Aug 31 2025 — every v3 endpoint now 403s with
+// "Legacy Endpoint". /stable is the replacement. Multi-symbol quote requests are
+// gated behind a higher subscription tier on /stable (402 Premium), so getFmpQuotes
+// fetches one ticker per request instead of one batched call.
+const FMP_BASE = "https://financialmodelingprep.com/stable";
 
 export type FmpQuote = {
   symbol: string;
@@ -11,44 +15,46 @@ type FmpRawQuote = {
   symbol: string;
   price?: number;
   change?: number;
-  changesPercentage?: number;
+  changePercentage?: number; // /stable/quote field name (no "s")
 };
 
+const QUOTE_BATCH_SIZE = 5;
+const QUOTE_BATCH_DELAY_MS = 250;
+
 /**
- * Fetch quotes for one or more tickers from FMP.
- * FMP supports comma-separated symbols in a single request.
- * Returns a map from uppercase ticker → FmpQuote. Missing or failed tickers are absent.
+ * Fetch quotes for one or more tickers from FMP's /stable/quote endpoint.
+ * Batched one request per ticker (this plan tier doesn't support comma-separated
+ * multi-symbol quotes). Returns a map from uppercase ticker → FmpQuote. Missing or
+ * failed tickers are absent.
  */
 export async function getFmpQuotes(tickers: string[]): Promise<Map<string, FmpQuote>> {
   const key = process.env.FMP_API_KEY;
-  if (!key || tickers.length === 0) return new Map();
+  const result = new Map<string, FmpQuote>();
+  if (!key || tickers.length === 0) return result;
 
-  const symbols = tickers.map((t) => t.toUpperCase()).join(",");
-  const url = `${FMP_BASE}/quote/${symbols}?apikey=${key}`;
+  const symbols = [...new Set(tickers.map((t) => t.toUpperCase()))];
 
-  try {
-    const res = await fetch(url, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return new Map();
-
-    const data: FmpRawQuote[] = await res.json();
-    if (!Array.isArray(data)) return new Map();
-
-    const result = new Map<string, FmpQuote>();
-    for (const row of data) {
-      if (!row.symbol || typeof row.price !== "number" || row.price === 0) continue;
-      result.set(row.symbol.toUpperCase(), {
-        symbol: row.symbol.toUpperCase(),
-        price: row.price,
-        change: row.change ?? 0,
-        changesPercentage: row.changesPercentage ?? 0,
-      });
-    }
-    return result;
-  } catch {
-    return new Map();
+  for (let i = 0; i < symbols.length; i += QUOTE_BATCH_SIZE) {
+    const batch = symbols.slice(i, i + QUOTE_BATCH_SIZE);
+    await Promise.all(batch.map(async (symbol) => {
+      try {
+        const res = await fetch(`${FMP_BASE}/quote?symbol=${symbol}&apikey=${key}`, { next: { revalidate: 60 } });
+        if (!res.ok) return;
+        const data: FmpRawQuote[] = await res.json();
+        const row = Array.isArray(data) ? data[0] : null;
+        if (!row?.symbol || typeof row.price !== "number" || row.price === 0) return;
+        result.set(row.symbol.toUpperCase(), {
+          symbol: row.symbol.toUpperCase(),
+          price: row.price,
+          change: row.change ?? 0,
+          changesPercentage: row.changePercentage ?? 0,
+        });
+      } catch { /* leave unset */ }
+    }));
+    if (i + QUOTE_BATCH_SIZE < symbols.length) await new Promise((r) => setTimeout(r, QUOTE_BATCH_DELAY_MS));
   }
+
+  return result;
 }
 
 export type FmpScreenResult = { symbol: string; name: string };
@@ -74,13 +80,19 @@ export async function getFmpScreen(params: Record<string, string | number>): Pro
 
 export type FmpMover = { symbol: string; name: string; price: number; change: number; changesPercentage: number };
 
-// Real market-wide movers from FMP's free gainers/losers/actives endpoints.
+const MOVER_PATH: Record<"gainers" | "losers" | "actives", string> = {
+  gainers: "biggest-gainers",
+  losers: "biggest-losers",
+  actives: "most-actives",
+};
+
+// Real market-wide movers from FMP's gainers/losers/actives endpoints.
 // Returns [] gracefully (no key / failure / non-free tier) so callers can fall back.
 export async function getFmpMovers(kind: "gainers" | "losers" | "actives"): Promise<FmpMover[]> {
   const key = process.env.FMP_API_KEY;
   if (!key) return [];
   try {
-    const res = await fetch(`${FMP_BASE}/stock_market/${kind}?apikey=${key}`, { next: { revalidate: 120 } });
+    const res = await fetch(`${FMP_BASE}/${MOVER_PATH[kind]}?apikey=${key}`, { next: { revalidate: 120 } });
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data)) return [];
@@ -107,16 +119,16 @@ export type FmpDividend = {
   declarationDate: string | null;
 };
 
-// Per-symbol dividend history (+ any future-declared entries). Free FMP endpoint.
+// Per-symbol dividend history (+ any future-declared entries).
 export async function getFmpDividends(symbol: string): Promise<FmpDividend[]> {
   const key = process.env.FMP_API_KEY;
   if (!key || !symbol) return [];
-  const url = `${FMP_BASE}/historical-price-full/stock_dividend/${encodeURIComponent(symbol.toUpperCase())}?apikey=${key}`;
+  const url = `${FMP_BASE}/dividends?symbol=${encodeURIComponent(symbol.toUpperCase())}&apikey=${key}`;
   try {
     const res = await fetch(url, { next: { revalidate: 21600 } }); // 6h
     if (!res.ok) return [];
     const data = await res.json();
-    const rows = Array.isArray(data?.historical) ? data.historical : [];
+    const rows = Array.isArray(data) ? data : [];
     return rows
       .map((r: Record<string, unknown>) => ({
         exDate: String(r.date ?? ""),
