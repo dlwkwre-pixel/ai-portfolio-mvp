@@ -19,7 +19,7 @@ export type ExtraSectionPrefs = {
 
 export type ExtraSections = Pick<
   DigestTemplateData,
-  "topMovers" | "benchmark" | "aiRecs" | "weekAhead" | "news" | "transactions" | "cash"
+  "topMovers" | "benchmark" | "aiRecs" | "radarReady" | "weekAhead" | "news" | "transactions" | "cash"
 >;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,6 +37,7 @@ export async function buildExtraDigestSections(
   let cash: ExtraSections["cash"] = null;
   let benchmark: ExtraSections["benchmark"] = null;
   let aiRecs: ExtraSections["aiRecs"] = null;
+  let radarReady: ExtraSections["radarReady"] = null;
   let weekAhead: ExtraSections["weekAhead"] = null;
   let news: ExtraSections["news"] = null;
   let transactions: ExtraSections["transactions"] = null;
@@ -107,6 +108,28 @@ export async function buildExtraDigestSections(
         items: recs.map((r) => ({ action: String(r.action_type ?? "review"), ticker: String(r.ticker ?? "") })),
       };
     }
+
+    // AI Radar items whose condition was just met — a nudge, never an automatic
+    // action (the user still has to click "Run AI Analysis" themselves). Best-effort:
+    // a DB without recommendation-radar-setup.sql just skips this section.
+    try {
+      const { data: radar } = await db
+        .from("recommendation_items")
+        .select("ticker, radar_type")
+        .eq("portfolio_id", portfolio.id)
+        .eq("recommendation_status", "watchlist")
+        .eq("radar_status", "ready")
+        .limit(5);
+      if (radar && radar.length > 0) {
+        radarReady = {
+          count: radar.length,
+          items: radar.map((r: { ticker: string | null; radar_type: string | null }) => ({
+            ticker: String(r.ticker ?? ""),
+            radarType: String(r.radar_type ?? "new_candidate"),
+          })),
+        };
+      }
+    } catch { /* radar columns may not exist yet */ }
   }
 
   // ── Top headlines (news for the largest holding) ──
@@ -199,5 +222,5 @@ export async function buildExtraDigestSections(
     }
   }
 
-  return { topMovers, benchmark, aiRecs, weekAhead, news, transactions, cash };
+  return { topMovers, benchmark, aiRecs, radarReady, weekAhead, news, transactions, cash };
 }

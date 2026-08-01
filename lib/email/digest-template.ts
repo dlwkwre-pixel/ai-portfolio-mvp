@@ -56,6 +56,11 @@ export type DigestTemplateData = {
     items: { action: string; ticker: string }[];
   } | null;
 
+  radarReady: {
+    count: number;
+    items: { ticker: string; radarType: string }[];
+  } | null;
+
   weekAhead: {
     lean: string;
     volatility: string;
@@ -426,6 +431,27 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
+  // ── AI Radar — items ready for review (never an automatic action, just a nudge) ──
+  function radarReadySection(): string {
+    if (!data.radarReady || data.radarReady.count === 0) return "";
+    const rows = data.radarReady.items.slice(0, 5).map((r, i) => {
+      const rowBg = i % 2 === 0 ? WHITE : RULE2;
+      const label = r.radarType === "re_entry" ? "RE-ENTRY" : "NEW CANDIDATE";
+      return `
+        <tr style="background-color:${rowBg};">
+          <td style="padding:9px 16px 9px 0;width:110px;"><span style="font-size:11px;font-weight:700;color:${NAV};font-family:Helvetica Neue,Arial,sans-serif;text-transform:uppercase;">${label}</span></td>
+          <td style="padding:9px 0;"><span style="font-size:12px;font-weight:600;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;">${r.ticker}</span></td>
+        </tr>`;
+    }).join("");
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("AI Radar", `${data.radarReady.count} ready for review`)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+      <p style="margin:10px 0 0;font-size:11px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;">The condition BuyTune was quietly watching for has been met. Run AI Analysis to turn it into a real recommendation.</p>
+      <a href="${data.portfolioUrl}" style="display:inline-block;margin-top:8px;font-size:11px;font-weight:600;color:${NAV};font-family:Helvetica Neue,Arial,sans-serif;text-decoration:none;">Review in BuyTune →</a>
+    </td></tr>`;
+  }
+
   // ── Week Ahead ──────────────────────────────────────────────────────────────
   function weekAheadSection(): string {
     if (!data.weekAhead) return "";
@@ -513,7 +539,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
   }
 
   const hasContent = data.performance || data.holdings || data.earnings || data.aiScore
-    || data.topMovers || data.benchmark || data.aiRecs || data.weekAhead || data.news
+    || data.topMovers || data.benchmark || data.aiRecs || data.radarReady || data.weekAhead || data.news
     || data.transactions || data.cash;
 
   return `<!DOCTYPE html>
@@ -600,6 +626,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
                     cashSection(),
                     transactionsSection(),
                     aiRecsSection(),
+                    radarReadySection(),
                     aiScoreSection(),
                     earningsSection(),
                     weekAheadSection(),

@@ -33,6 +33,10 @@
       "schedule": "30 21 * * 1-5"
     },
     {
+      "path": "/api/cron/radar-monitor",
+      "schedule": "0 13 * * 1-5"
+    },
+    {
       "path": "/api/cron/brokerage-sync",
       "schedule": "0 22 * * *"
     }
