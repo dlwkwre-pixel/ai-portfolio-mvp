@@ -6,6 +6,7 @@ import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning
 import {
   addCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
   logExpenseActual, moveMerchantActual, syncForecastToActuals,
+  markCashFlowItemPaid, clearCashFlowItemPaid,
 } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
 import {
@@ -14,6 +15,7 @@ import {
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
   StatementImportPanel,
 } from "./planning-shared";
+import { computeAvailableToInvest, nextOccurrenceOnOrAfter, toDateOnly } from "@/lib/planning/cash-flow-forecast";
 
 // ── Budget grouping (statement → budget-line preview) ──────────────────────
 
@@ -399,7 +401,7 @@ function cfArcPath(cx: number, cy: number, r: number, startDeg: number, endDeg: 
 
 function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowItem[]; year: number; month: number }) {
   const [tip, setTip] = useState<string | null>(null);
-  const itemsWithDay = cashFlowItems.filter(i => i.due_day != null);
+  const itemsWithDay = cashFlowItems.filter(i => i.due_day != null || i.due_day_2 != null);
   if (itemsWithDay.length === 0) return (
     <p style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0 }}>
       Set a due day on any income or expense item to see it here.
@@ -408,10 +410,16 @@ function BillCalendar({ cashFlowItems, year, month }: { cashFlowItems: CashFlowI
   const daysInMonth = new Date(year, month, 0).getDate();
   const firstDow = new Date(year, month - 1, 1).getDay();
   const dayMap = new Map<number, CashFlowItem[]>();
-  for (const item of itemsWithDay) {
-    const d = item.due_day!;
+  // Clamp into the real month (e.g. due_day=31 lands on the 28th/29th/30th in a
+  // shorter month) instead of silently dropping the day entirely.
+  const addOnDay = (rawDay: number, item: CashFlowItem) => {
+    const d = Math.min(rawDay, daysInMonth);
     if (!dayMap.has(d)) dayMap.set(d, []);
     dayMap.get(d)!.push(item);
+  };
+  for (const item of itemsWithDay) {
+    if (item.due_day != null) addOnDay(item.due_day, item);
+    if (item.frequency === "semimonthly" && item.due_day_2 != null) addOnDay(item.due_day_2, item);
   }
   const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
   while (cells.length % 7 !== 0) cells.push(null);
@@ -640,11 +648,13 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
 export default function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
+  liquidAssets,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
+  liquidAssets: number;
 }) {
   const [cfExpanded, setCfExpanded] = useState(false);
   const cfAdvanced = !guided || cfExpanded;
@@ -754,6 +764,33 @@ export default function CashFlowOS({
     setSyncingId(null);
   }
 
+  // "Available to Invest" — liquidAssets minus known bills due/owed that haven't
+  // been marked paid yet. See lib/planning/cash-flow-forecast.ts for the date logic.
+  const forecast = useMemo(
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets),
+    [cashFlowItems, liquidAssets]
+  );
+  const owedByItemId = useMemo(
+    () => new Map(forecast.owedItems.map(o => [o.item.id, o.dueDate])),
+    [forecast.owedItems]
+  );
+  function paidStatusFor(item: CashFlowItem) {
+    const nextDue = nextOccurrenceOnOrAfter(item, new Date());
+    if (!nextDue) return null; // out of scope (no due date, or a frequency this feature doesn't track)
+    const owed = owedByItemId.has(item.id);
+    // Once paid, show the occurrence AFTER the one just satisfied as "next due" —
+    // otherwise re-showing the just-paid date reads as if it's still coming up.
+    const labelDate = owed ? nextDue : (nextOccurrenceOnOrAfter(item, new Date(nextDue.getTime() + 86400000)) ?? nextDue);
+    const dueLabel = labelDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return { owed, dueLabel };
+  }
+  function handleMarkPaid(itemId: string) {
+    startTransition(async () => { await markCashFlowItemPaid(itemId, toDateOnly(new Date())); router.refresh(); });
+  }
+  function handleClearPaid(itemId: string) {
+    startTransition(async () => { await clearCashFlowItemPaid(itemId); router.refresh(); });
+  }
+
   const displayCenter = (totalBudgeted * mult) >= 1000
     ? `$${((totalBudgeted * mult) / 1000).toFixed(1)}k`
     : fmt(totalBudgeted * mult);
@@ -840,6 +877,40 @@ export default function CashFlowOS({
             </div>
           </div>
         )}
+      </div>
+
+      {/* Available to Invest — liquidAssets minus bills that are known-owed and
+          not yet marked paid. Works without a bank connection: it's built entirely
+          from the due-dated expense items below and the manual cash figure on the
+          Balance Sheet tab. */}
+      <div className="cfo-zone" style={{
+        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg)", padding: "16px 20px", marginBottom: "10px",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>Available to Invest</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: forecast.availableToInvest >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)", lineHeight: 1 }}>
+              {ph(fmt(forecast.availableToInvest))}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+              {fmt(liquidAssets)} cash on hand{forecast.owedTotal > 0 ? ` − ${fmt(forecast.owedTotal)} owed and not yet paid` : ""}
+            </div>
+          </div>
+          {forecast.owedItems.length > 0 && (
+            <div style={{ minWidth: "200px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                {forecast.owedItems.map(({ item, dueDate }) => (
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", fontFamily: "var(--font-body)" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>{item.label} · {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(item.amount))}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Surplus routing callout */}
@@ -1257,7 +1328,8 @@ export default function CashFlowOS({
                               <div style={{ display: "flex", alignItems: "flex-start", gap: "4px" }}>
                                 <span style={{ ...rowLabel, color: "oklch(0.5 0.16 195)" }}>Budget</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} editTitle="Edit budget amount" />
+                                  <LineItemRow item={item} type="cashflow" onDelete={deleteCashFlowItem} isPrivate={isPrivate} editTitle="Edit budget amount"
+                                    paidStatus={paidStatusFor(item)} onMarkPaid={handleMarkPaid} onClearPaid={handleClearPaid} />
                                   {/* Category override — corrects the auto-classification */}
                                   <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "4px" }}>
                                     <select

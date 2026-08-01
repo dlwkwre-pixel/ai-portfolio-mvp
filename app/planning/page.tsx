@@ -173,8 +173,10 @@ export default async function PlanningPage({
     frequency: item.frequency as "monthly" | "annual",
     amount: Number(item.amount),
     due_day: item.due_day ?? null,
+    due_day_2: item.due_day_2 ?? null,
     sort_order: item.sort_order,
     category: item.category ?? null,
+    last_paid_for_date: item.last_paid_for_date ?? null,
   }));
 
   const typedNetWorthHistory: NetWorthSnapshot[] = (netWorthHistory ?? []).map((s) => ({

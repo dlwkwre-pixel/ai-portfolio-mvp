@@ -383,12 +383,19 @@ export function AddItemRow({
 
 export function LineItemRow({
   item, type, onDelete, isPrivate = false, editTitle,
+  paidStatus, onMarkPaid, onClearPaid,
 }: {
   item: BalanceSheetItem | CashFlowItem;
   type: "balance" | "cashflow";
   onDelete: (id: string) => void;
   isPrivate?: boolean;
   editTitle?: string;
+  // Only set for due-dated expense cash-flow items — see computeAvailableToInvest
+  // in lib/planning/cash-flow-forecast.ts. dueLabel is the current/upcoming
+  // occurrence's date, formatted for display (e.g. "Aug 3").
+  paidStatus?: { owed: boolean; dueLabel: string } | null;
+  onMarkPaid?: (id: string) => void;
+  onClearPaid?: (id: string) => void;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -399,6 +406,7 @@ export function LineItemRow({
   const cf = item as CashFlowItem;
   const [isVar, setIsVar] = useState(!!(cf as CashFlowItem).is_variable);
   const [editCat, setEditCat] = useState(isBalance ? bal.category : "");
+  const [editFreq, setEditFreq] = useState(isBalance ? "" : cf.frequency);
 
   const displayValue = isPrivate
     ? "••••••"
@@ -454,11 +462,14 @@ export function LineItemRow({
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
-            <select name="frequency" defaultValue={cf.frequency} style={selectStyle}>
+            <select name="frequency" value={editFreq} onChange={(e) => setEditFreq(e.target.value)} style={selectStyle}>
               {FREQ_OPTIONS.map((f) => <option key={f} value={f}>{FREQ_LABEL[f]}</option>)}
             </select>
             <input name="amount" type="number" min="0" step="0.01" defaultValue={cf.amount} style={{ ...inputStyle, width: "120px" }} />
             <input aria-label="Due day (1–31)" name="due_day" type="number" min="1" max="31" defaultValue={cf.due_day ?? ""} placeholder="Due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
+            {editFreq === "semimonthly" && (
+              <input aria-label="Second due day (1–31)" name="due_day_2" type="number" min="1" max="31" defaultValue={cf.due_day_2 ?? ""} placeholder="2nd due day (1–31)" style={{ ...inputStyle, width: "140px" }} />
+            )}
             {cf.type === "income" && (
               <>
                 <input type="hidden" name="is_variable" value={isVar ? "1" : "0"} />
@@ -500,6 +511,21 @@ export function LineItemRow({
         })()}
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: accentColor, fontWeight: 500 }}>{displayValue}</span>
+      {paidStatus && (
+        paidStatus.owed ? (
+          <button type="button" onClick={() => onMarkPaid?.(item.id)} disabled={pending}
+            title={`Mark the ${paidStatus.dueLabel} payment as paid`}
+            style={{ fontSize: "10px", fontWeight: 600, color: "var(--amber)", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", padding: "2px 8px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>
+            Owed · Mark {paidStatus.dueLabel} paid
+          </button>
+        ) : (
+          <button type="button" onClick={() => onClearPaid?.(item.id)} disabled={pending}
+            title="Undo — mark as owed again"
+            style={{ fontSize: "10px", fontWeight: 600, color: "var(--green)", background: "rgba(63,174,74,0.1)", border: "1px solid rgba(63,174,74,0.3)", padding: "2px 8px", borderRadius: "var(--radius-full, 999px)", flexShrink: 0, whiteSpace: "nowrap", cursor: "pointer" }}>
+            ✓ Paid — next {paidStatus.dueLabel}
+          </button>
+        )
+      )}
       {item.id.startsWith("linked:") ? (
         // Synced from a connected/manual account — the source of truth lives on the
         // Connections page, so it can't be edited or deleted here.

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
+import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,9 +100,11 @@ export type CashFlowItem = {
   frequency: CashFlowFrequency;
   amount: number;
   due_day: number | null;
+  due_day_2: number | null; // second due date for semimonthly items (e.g. paycheck 15th + last day)
   sort_order: number;
   category: string | null; // user-assigned; null = infer from label
   is_variable?: boolean;    // income that fluctuates (freelance/commission)
+  last_paid_for_date: string | null; // specific due-date occurrence ('YYYY-MM-DD') last satisfied — see lib/planning/cash-flow-forecast.ts
 };
 
 export type NetWorthSnapshot = {
@@ -386,6 +389,9 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
   const amount = Number(formData.get("amount") || 0);
   const dueDayRaw = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRaw !== "" ? Math.min(31, Math.max(1, Number(dueDayRaw))) : null;
+  // due_day_2 only means anything for semimonthly items (e.g. paycheck 15th + last day).
+  const dueDay2Raw = String(formData.get("due_day_2") ?? "").trim();
+  const due_day_2 = frequency === "semimonthly" && dueDay2Raw !== "" ? Math.min(31, Math.max(1, Number(dueDay2Raw))) : null;
   const categoryRaw = String(formData.get("category") ?? "").trim();
   const category = categoryRaw !== "" ? categoryRaw : null;
   const is_variable = formData.get("is_variable") === "1" || formData.get("is_variable") === "true";
@@ -407,6 +413,7 @@ export async function addCashFlowItem(formData: FormData): Promise<{ error?: str
     frequency,
     amount,
     due_day,
+    due_day_2,
     sort_order,
     category,
     is_variable,
@@ -443,6 +450,11 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
   const amount = Number(formData.get("amount") || 0);
   const dueDayRawU = String(formData.get("due_day") ?? "").trim();
   const due_day = dueDayRawU !== "" ? Math.min(31, Math.max(1, Number(dueDayRawU))) : null;
+  // due_day_2 only means anything for semimonthly items — clear it whenever the
+  // submitted frequency isn't semimonthly, so switching away and back later
+  // doesn't resurrect a stale second date.
+  const dueDay2RawU = String(formData.get("due_day_2") ?? "").trim();
+  const due_day_2 = frequency === "semimonthly" && dueDay2RawU !== "" ? Math.min(31, Math.max(1, Number(dueDay2RawU))) : null;
   // category: present + non-empty sets it; the literal "__auto__" clears it back to inference
   const hasCategory = formData.has("category");
   const categoryRawU = String(formData.get("category") ?? "").trim();
@@ -462,7 +474,7 @@ export async function updateCashFlowItem(formData: FormData): Promise<{ error?: 
 
   const { error } = await supabase
     .from("cash_flow_items")
-    .update({ label, type, frequency, amount, due_day, ...categoryUpdate, ...variableUpdate, updated_at: new Date().toISOString() })
+    .update({ label, type, frequency, amount, due_day, due_day_2, ...categoryUpdate, ...variableUpdate, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 
@@ -529,6 +541,59 @@ export async function setCashFlowItemCategory(id: string, category: string | nul
   const { error } = await supabase
     .from("cash_flow_items")
     .update({ category: value, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// Marks a recurring expense's current/upcoming due-date occurrence as paid, for
+// "Available to Invest" (lib/planning/cash-flow-forecast.ts). Stores the specific
+// occurrence satisfied — not the day clicked — so the item correctly flips back to
+// "owed" once its next cycle rolls around, whether this was clicked a few days
+// early, on the due date, or a few days late. todayLocalISO is the CLIENT's local
+// 'YYYY-MM-DD' (not a server-side `new Date()`, which can be a day off in UTC for
+// users west of it) — same convention as the forecast module's date helpers.
+export async function markCashFlowItemPaid(id: string, todayLocalISO: string): Promise<{ error?: string; paidForDate?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: item, error: fetchError } = await supabase
+    .from("cash_flow_items")
+    .select("frequency, due_day, due_day_2")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (fetchError) return { error: fetchError.message };
+  if (!item) return { error: "Item not found." };
+
+  const occurrence = closestOccurrenceTo(item, fromDateOnly(todayLocalISO));
+  if (!occurrence) return { error: "This item has no due date set." };
+  const paidForDate = toDateOnly(occurrence);
+
+  const { error } = await supabase
+    .from("cash_flow_items")
+    .update({ last_paid_for_date: paidForDate, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return { paidForDate };
+}
+
+// Undo — marks the item as owed again regardless of its last-paid occurrence.
+export async function clearCashFlowItemPaid(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("cash_flow_items")
+    .update({ last_paid_for_date: null, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
 

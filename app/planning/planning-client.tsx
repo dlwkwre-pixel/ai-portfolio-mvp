@@ -3303,8 +3303,11 @@ export default function PlanningClient({
           effectivePreTaxAnnual,
         ).netMonthly - k401EmployeeMonthly
       : 0;
-  // Use profile overrides if cash flow items are empty
-  const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : profileNetMonthly;
+  // Use profile overrides if cash flow items are empty. Net out the 401(k) employee
+  // deferral here too — previously only the profile-fallback branch did this, so
+  // savings rate/retirement projections silently ignored the 401(k) % whenever the
+  // user's income came from Cash Flow items instead of the profile income field.
+  const effectiveIncome = monthlyIncome > 0 ? monthlyIncome - k401EmployeeMonthly : profileNetMonthly;
   const effectiveExpenses = monthlyExpenses > 0 ? monthlyExpenses : (profile?.monthly_expenses ?? 0);
   const monthlySavings = effectiveIncome - effectiveExpenses;
   const savingsRate = effectiveIncome > 0 ? (monthlySavings / effectiveIncome) * 100 : 0;
@@ -6186,6 +6189,7 @@ export default function PlanningClient({
             cashFlowFinnInsight={cashFlowFinnInsight}
             isPrivate={isPrivate}
             guided={guided}
+            liquidAssets={liquidAssets}
           />
           {/* Live bank spending (Plaid Phase 3) — renders nothing without linked banks. */}
           <BankSpendingCard isPrivate={isPrivate} />
