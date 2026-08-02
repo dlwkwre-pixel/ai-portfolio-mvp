@@ -961,12 +961,12 @@ export default function CashFlowOS({
                 <div style={{ height: "100%", borderRadius: "3px", width: `${progressPct}%`, background: forecast.emergencyFundFunded ? "oklch(0.72 0.19 145)" : "linear-gradient(90deg, oklch(0.55 0.18 195), oklch(0.75 0.18 70))" }} />
               </div>
 
-              {forecast.emergencyFundFunded ? (
-                <p style={{ fontSize: "12px", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", margin: 0 }}>
-                  ✓ Emergency fund fully funded — 100% of surplus above target is available to invest.
-                </p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {forecast.emergencyFundFunded ? (
+                  <p style={{ fontSize: "12px", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", margin: 0 }}>
+                    ✓ Emergency fund fully funded — 100% of surplus above target is available to invest.
+                  </p>
+                ) : (
                   <div>
                     <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "4px" }}>
                       Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of free cash while building the fund, save the rest
@@ -977,31 +977,33 @@ export default function CashFlowOS({
                       style={{ width: "100%", accentColor: "oklch(0.6 0.15 195)" }}
                     />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target:</span>
-                    {[6, 9, 12].map((m) => (
-                      <button key={m} type="button" onClick={() => setEfMonthsEdit(m)}
-                        style={{
-                          fontSize: "12px", fontWeight: 600, padding: "3px 11px", borderRadius: "8px", cursor: "pointer",
-                          border: `1px solid ${efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "var(--border-subtle)"}`,
-                          background: efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "transparent",
-                          color: efMonthsEdit === m ? "#fff" : "var(--text-secondary)",
-                        }}>
-                        {m} mo
-                      </button>
-                    ))}
-                    <button type="button" disabled={pending} onClick={() => saveEfSettings(efMonthsEdit, investPctEdit)}
+                )}
+                {/* Target-months + Save stay visible even once funded — otherwise there's no
+                    way to move the goalpost (e.g. 6mo -> 12mo) or revisit the split later. */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target:</span>
+                  {[6, 9, 12].map((m) => (
+                    <button key={m} type="button" onClick={() => setEfMonthsEdit(m)}
                       style={{
-                        marginLeft: "auto", fontSize: "12px", fontWeight: 600, padding: "5px 14px", borderRadius: "8px",
-                        border: "none", cursor: pending ? "default" : "pointer", opacity: pending ? 0.6 : 1,
-                        background: "var(--brand-gradient)", color: "#fff",
+                        fontSize: "12px", fontWeight: 600, padding: "3px 11px", borderRadius: "8px", cursor: "pointer",
+                        border: `1px solid ${efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "var(--border-subtle)"}`,
+                        background: efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "transparent",
+                        color: efMonthsEdit === m ? "#fff" : "var(--text-secondary)",
                       }}>
-                      {pending ? "Saving…" : "Save"}
+                      {m} mo
                     </button>
-                    {efSaved && <span style={{ fontSize: "11px", color: "oklch(0.72 0.19 145)" }}>Saved ✓</span>}
-                  </div>
+                  ))}
+                  <button type="button" disabled={pending} onClick={() => saveEfSettings(efMonthsEdit, investPctEdit)}
+                    style={{
+                      marginLeft: "auto", fontSize: "12px", fontWeight: 600, padding: "5px 14px", borderRadius: "8px",
+                      border: "none", cursor: pending ? "default" : "pointer", opacity: pending ? 0.6 : 1,
+                      background: "var(--brand-gradient)", color: "#fff",
+                    }}>
+                    {pending ? "Saving…" : "Save"}
+                  </button>
+                  {efSaved && <span style={{ fontSize: "11px", color: "oklch(0.72 0.19 145)" }}>Saved ✓</span>}
                 </div>
-              )}
+              </div>
             </div>
           );
         })()}

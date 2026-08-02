@@ -603,7 +603,9 @@ export type ActualsGroupRow = {
   label: string;
   category: string;
   totalAmount: number;
-  merchants: { label: string; amount: number }[];
+  // matchedItemId undefined = inherits the row's own matchedItemId; set explicitly once the
+  // user moves this one merchant to a different Budget Item via the drill-down UI.
+  merchants: { label: string; amount: number; matchedItemId?: string | null }[];
   matchedItemId: string | null;
   isSubscription: boolean;
   expanded: boolean;
@@ -669,6 +671,38 @@ export function groupForActuals(items: ImportedItem[], expenseItems: CashFlowIte
   });
 }
 
+// A merchant's effective destination Budget Item: its own override if the user moved it,
+// else its row's own match.
+function effectiveTarget(row: ActualsGroupRow, m: { matchedItemId?: string | null }): string | null {
+  return m.matchedItemId !== undefined ? m.matchedItemId : row.matchedItemId;
+}
+
+// Merges rows by effective destination before logging — logExpenseActual upserts on
+// (cash_flow_item_id, period), so two separate calls for the same item would clobber each
+// other rather than combine. A merchant moved into another row's target needs to be folded
+// into that target's single call, not logged a second time under its origin row.
+function buildLogTargets(preview: ActualsGroupRow[]): Map<string, { label: string; amount: number; merchants: { label: string; amount: number }[] }> {
+  const targets = new Map<string, { label: string; amount: number; merchants: { label: string; amount: number }[] }>();
+  for (const row of preview) {
+    if (row.isSubscription) {
+      if (row.matchedItemId === null) continue;
+      const g = targets.get(row.matchedItemId) ?? { label: row.label, amount: 0, merchants: [] };
+      g.amount += row.totalAmount;
+      targets.set(row.matchedItemId, g);
+      continue;
+    }
+    for (const m of row.merchants) {
+      const dest = effectiveTarget(row, m);
+      if (dest === null) continue;
+      const g = targets.get(dest) ?? { label: row.label, amount: 0, merchants: [] };
+      g.amount += m.amount;
+      g.merchants.push({ label: m.label, amount: m.amount });
+      targets.set(dest, g);
+    }
+  }
+  return targets;
+}
+
 export function StatementImportPanel({
   expenseItems,
   selYear,
@@ -687,6 +721,7 @@ export function StatementImportPanel({
   const [parseError, setParseError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ActualsGroupRow[] | null>(null);
   const [logging, setLogging] = useState(false);
+  const [movingMerchant, setMovingMerchant] = useState<string | null>(null);
 
   async function handleParse() {
     if (!rawText.trim()) return;
@@ -717,36 +752,48 @@ export function StatementImportPanel({
     setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, matchedItemId: id } : r) : prev);
   }
 
+  // Retargets one merchant to a different Budget Item without moving the rest of its
+  // category group — undefined clears the override so it falls back to the row's own match.
+  function moveMerchant(rowIdx: number, merchantIdx: number, destId: string | null | undefined) {
+    setPreview((prev) => prev ? prev.map((r, ri) => ri !== rowIdx ? r : {
+      ...r,
+      merchants: r.merchants.map((m, mi) => mi !== merchantIdx ? m : { ...m, matchedItemId: destId }),
+    }) : prev);
+  }
+
   function toggleExpand(idx: number) {
     setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, expanded: !r.expanded } : r) : prev);
   }
 
   async function handleLog() {
     if (!preview) return;
-    const toLog = preview.filter((r) => r.matchedItemId !== null);
-    if (toLog.length === 0) return;
+    const targets = buildLogTargets(preview);
+    if (targets.size === 0) return;
     setLogging(true);
     try {
-      for (const row of toLog) {
+      for (const [itemId, g] of targets) {
         const fd = new FormData();
-        fd.set("cash_flow_item_id", row.matchedItemId!);
-        fd.set("label", row.label);
+        fd.set("cash_flow_item_id", itemId);
+        fd.set("label", g.label);
         fd.set("period_year", String(selYear));
         fd.set("period_month", String(selMonth));
-        fd.set("actual_amount", String(row.totalAmount));
-        if (row.merchants.length > 0) {
-          fd.set("breakdown", JSON.stringify(row.merchants));
+        fd.set("actual_amount", String(Math.round(g.amount * 100) / 100));
+        if (g.merchants.length > 0) {
+          fd.set("breakdown", JSON.stringify(g.merchants));
         }
         await logExpenseActual(fd);
       }
-      onDone(toLog.length);
+      onDone(targets.size);
     } finally {
       setLogging(false);
     }
   }
 
-  const matchedCount = preview ? preview.filter((r) => r.matchedItemId !== null).length : 0;
+  const matchedCount = preview
+    ? preview.filter((r) => r.isSubscription ? r.matchedItemId !== null : r.merchants.some((m) => effectiveTarget(r, m) !== null)).length
+    : 0;
   const totalCount = preview ? preview.length : 0;
+  const targetCount = preview ? buildLogTargets(preview).size : 0;
 
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -785,7 +832,12 @@ export function StatementImportPanel({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-            {preview.map((row, idx) => (
+            {preview.map((row, idx) => {
+              // Row total for display only — excludes merchants the user moved elsewhere.
+              const rowTotal = row.merchants.length > 0
+                ? row.merchants.filter((m) => effectiveTarget(row, m) === row.matchedItemId).reduce((s, m) => s + m.amount, 0)
+                : row.totalAmount;
+              return (
               <div key={row.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{
                   display: "grid", gridTemplateColumns: "1fr 160px 90px 24px",
@@ -815,7 +867,7 @@ export function StatementImportPanel({
                     ))}
                   </select>
                   <span style={{ fontSize: "12px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", textAlign: "right" }}>
-                    ${row.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   {row.merchants.length > 0 ? (
                     <button type="button" onClick={() => toggleExpand(idx)}
@@ -825,26 +877,69 @@ export function StatementImportPanel({
                     </button>
                   ) : <span />}
                 </div>
-                {/* Merchant drill-down */}
+                {/* Merchant drill-down — each merchant can be moved to a different Budget
+                    Item independently of the rest of its parsed category group. */}
                 {row.expanded && row.merchants.length > 0 && (
-                  <div style={{ padding: "4px 8px 8px 16px", display: "flex", flexDirection: "column", gap: "3px" }}>
-                    {row.merchants.map((m, mi) => (
-                      <div key={mi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>↳ {m.label}</span>
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                          ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    ))}
+                  <div style={{ padding: "4px 8px 8px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {row.merchants.map((m, mi) => {
+                      const mKey = `${idx}:${mi}`;
+                      const isMoving = movingMerchant === mKey;
+                      const dest = effectiveTarget(row, m);
+                      const movedAway = dest !== row.matchedItemId;
+                      const destLabel = movedAway ? (dest ? expenseItems.find((bi) => bi.id === dest)?.label ?? "?" : "Skip") : null;
+                      return (
+                        <div key={mi} style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              ↳ {m.label}
+                              {movedAway && (
+                                <span style={{ marginLeft: "6px", fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>→ {destLabel}</span>
+                              )}
+                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                                ${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                              <button type="button" onClick={() => setMovingMerchant(isMoving ? null : mKey)}
+                                title="Move this merchant to a different Budget Item"
+                                style={{ background: isMoving ? "var(--bg-elevated)" : "none", border: isMoving ? "1px solid var(--border-subtle)" : "none", borderRadius: "3px", cursor: "pointer", color: isMoving ? "var(--accent, var(--brand-blue))" : "var(--text-tertiary)", fontSize: "10px", padding: "1px 4px", lineHeight: 1 }}>
+                                →
+                              </button>
+                            </div>
+                          </div>
+                          {isMoving && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "10px" }}>
+                              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>Move to:</span>
+                              <select
+                                value={m.matchedItemId ?? "__row__"}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setMovingMerchant(null);
+                                  moveMerchant(idx, mi, v === "__row__" ? undefined : (v || null));
+                                }}
+                                style={{ flex: 1, padding: "3px 5px", borderRadius: "5px", fontSize: "10px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", cursor: "pointer" }}
+                              >
+                                <option value="__row__">Default ({row.matchedItemId ? expenseItems.find((bi) => bi.id === row.matchedItemId)?.label ?? row.label : "Skip"})</option>
+                                <option value="">— Skip —</option>
+                                {expenseItems.map((bi) => (
+                                  <option key={bi.id} value={bi.id}>{bi.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <button type="button" onClick={handleLog} disabled={logging || matchedCount === 0}
-              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: matchedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: matchedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: matchedCount === 0 ? "default" : "pointer" }}>
+            <button type="button" onClick={handleLog} disabled={logging || targetCount === 0}
+              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: targetCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: targetCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: targetCount === 0 ? "default" : "pointer" }}>
               {logging ? "Logging…" : `Log ${matchedCount} Actual${matchedCount !== 1 ? "s" : ""}`}
             </button>
             <button type="button" onClick={() => { setPreview(null); setParseError(null); }}
