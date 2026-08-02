@@ -1041,6 +1041,19 @@ export default function CashFlowOS({
         {emergencyFundExpenseBasis > 0 && (() => {
           const freeCash = forecast.freeCash;
           const progressPct = emergencyFundTarget > 0 ? Math.min(100, Math.max(0, (freeCash / emergencyFundTarget) * 100)) : 0;
+          // ETA at the currently-committed reserve rate — mirrors plan-401k-section.tsx's
+          // fundEta pattern. The bar itself only moves once cash is actually saved (a real
+          // balance); this answers "does the slider even matter" with a date instead, without
+          // conflating money already saved with money the slider commits to save going forward.
+          const monthlyRate = forecast.reservedForEmergencyFund;
+          const gap = emergencyFundTarget - Math.max(0, freeCash);
+          let eta: { months: number; date: string } | null = null;
+          if (!forecast.emergencyFundFunded && monthlyRate > 0 && gap > 0) {
+            const months = Math.ceil(gap / monthlyRate);
+            const d = new Date();
+            d.setMonth(d.getMonth() + months);
+            eta = { months, date: d.toLocaleDateString("en-US", { month: "short", year: "numeric" }) };
+          }
           return (
             <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
@@ -1070,6 +1083,11 @@ export default function CashFlowOS({
                       onChange={(e) => setInvestPctEdit(Number(e.target.value))}
                       style={{ width: "100%", accentColor: "oklch(0.6 0.15 195)" }}
                     />
+                    <p style={{ fontSize: "11.5px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "8px 0 0", lineHeight: 1.5 }}>
+                      {eta
+                        ? <>At {fmt(monthlyRate)}/mo you&apos;d reach your {efMonthsEdit}-month target by <strong style={{ color: "var(--text-primary)" }}>{eta.date}</strong> (~{eta.months} mo).</>
+                        : "Nothing is being reserved toward this target right now — raise the slider, or check whether this month ran a surplus."}
+                    </p>
                   </div>
                 )}
                 {/* Target-months + Save stay visible even once funded — otherwise there's no
