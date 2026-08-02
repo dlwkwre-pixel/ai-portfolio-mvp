@@ -798,33 +798,43 @@ export default function CashFlowOS({
     });
   }
 
-  // "Available to Invest" is driven by how this month actually went, not by a
-  // point-in-time balance-sheet snapshot — always the REAL current month, not
-  // whatever selYear/selMonth the Budget/Actual log below is browsing. Following
-  // the picker would show a fake ~$0 projection for future months and stale
-  // bills/cash juxtaposed against a live-sounding number for past ones.
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth() + 1;
+  // "Available to Invest" is driven by how a month actually went, not by a
+  // point-in-time balance-sheet snapshot — and it follows the SAME selYear/selMonth
+  // period picker as the Budget vs Actual box below, not "today." Users close out a
+  // month in arrears (log August's actuals on Sept 1), so pinning to the real
+  // calendar month would always show the not-yet-logged current month instead of
+  // the month they actually just finished — the opposite of useful. Emergency-fund
+  // adequacy, cash on hand, and "still owed" intentionally stay pinned to right now
+  // (computeAvailableToInvest's `today` param, unchanged below) — those are present-
+  // tense questions regardless of which month's performance you're reviewing, so
+  // this card deliberately mixes tenses: performance for the SELECTED month,
+  // liquidity/EF for TODAY.
+  //
+  // Known limitation: effectiveIncome (prop, from planning-client.tsx) isn't
+  // budgetHistory-aware — it always reflects today's income setup. If income changed
+  // since the selected month (e.g. a raise), that month's figure will be slightly
+  // off. Not fixed here to avoid widening this change into effectiveIncome's global
+  // computation, which many other parts of the page depend on.
+  //
   // Blend actual-if-logged with budgeted-as-fallback, per item — not per catData
   // category, which drops categories with $0 budgeted and would silently lose an
   // ad-hoc unbudgeted expense that only has an actual logged against it. Tracked as
   // two separate portions (not just a combined total) so the UI can be honest about
   // what's real vs. what's an unconfirmed placeholder — collapsing them into one
-  // number labeled "spent" reads as a lie on day 2 of the month when nothing's
-  // actually been logged yet.
+  // number labeled "spent" reads as a lie for a month nothing's been logged for yet.
   const monthlyPerf = useMemo(() => {
     let actualPortion = 0;
     let budgetedPortion = 0;
     let loggedCount = 0;
     for (const item of expenseItems) {
       const actual = expenseActuals.find(a =>
-        a.cash_flow_item_id === item.id && a.period_year === curYear && a.period_month === curMonth
+        a.cash_flow_item_id === item.id && a.period_year === selYear && a.period_month === selMonth
       );
       if (actual) {
         actualPortion += actual.actual_amount;
         loggedCount++;
       } else {
-        const hist = getEffectiveBudget(budgetHistory, item.id, curYear, curMonth);
+        const hist = getEffectiveBudget(budgetHistory, item.id, selYear, selMonth);
         budgetedPortion += toMonthly(hist ?? item.amount, item.frequency);
       }
     }
@@ -833,7 +843,7 @@ export default function CashFlowOS({
       surplus: effectiveIncome - (actualPortion + budgetedPortion),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenseItems, expenseActuals, budgetHistory, effectiveIncome, curYear, curMonth]);
+  }, [expenseItems, expenseActuals, budgetHistory, effectiveIncome, selYear, selMonth]);
 
   // liquidAssets/owed bills still drive the emergency-fund-funded gate (a real-dollars-
   // saved question) and the "Still owed" supporting list. See lib/planning/cash-flow-forecast.ts.
@@ -974,7 +984,7 @@ export default function CashFlowOS({
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px", display: "flex", alignItems: "center", gap: "7px" }}>
-              Available to Invest
+              Available to Invest · {MONTH_NAMES[selMonth - 1]} {selYear}
               {monthlyPerf.totalCount > 0 && monthlyPerf.loggedCount === 0 && (
                 <span style={{ fontSize: "9px", fontWeight: 700, padding: "1px 7px", borderRadius: "999px", background: "var(--surface-008)", color: "var(--text-tertiary)", letterSpacing: "0.05em" }}>PROJECTED</span>
               )}
@@ -988,9 +998,9 @@ export default function CashFlowOS({
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
               {fmt(effectiveIncome)} income −{" "}
               {monthlyPerf.loggedCount === monthlyPerf.totalCount
-                ? `${fmt(monthlyPerf.actualPortion)} spent in ${MONTH_NAMES[curMonth - 1]}`
+                ? `${fmt(monthlyPerf.actualPortion)} spent in ${MONTH_NAMES[selMonth - 1]}`
                 : monthlyPerf.loggedCount === 0
-                  ? `${fmt(monthlyPerf.budgetedPortion)} budgeted for ${MONTH_NAMES[curMonth - 1]} (nothing logged yet)`
+                  ? `${fmt(monthlyPerf.budgetedPortion)} budgeted for ${MONTH_NAMES[selMonth - 1]} (nothing logged yet)`
                   : `${fmt(monthlyPerf.actualPortion)} logged − ${fmt(monthlyPerf.budgetedPortion)} still budgeted`}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
@@ -1001,18 +1011,18 @@ export default function CashFlowOS({
             )}
             {monthlyPerf.surplus > 0 && forecast.freeCash < 0 && (
               <div style={{ fontSize: "11px", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginTop: "6px" }}>
-                ⚠ Your bills right now exceed your cash on hand — this figure reflects this month's performance, not your immediate liquidity.
+                ⚠ Your bills right now exceed your cash on hand — this figure reflects {MONTH_NAMES[selMonth - 1]}'s performance, not your current liquidity.
               </div>
             )}
           </div>
           <div style={{ minWidth: "200px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>
-              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Cash on hand</span>
+              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Cash on hand{!isCurrentMonth ? " (right now)" : ""}</span>
               <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(liquidAssets))}</span>
             </div>
             {forecast.owedItems.length > 0 && (
               <>
-                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed</div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed{!isCurrentMonth ? " (right now)" : ""}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                   {forecast.owedItems.map(({ item, dueDate }) => (
                     <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", fontFamily: "var(--font-body)" }}>
