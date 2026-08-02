@@ -895,7 +895,7 @@ export default function CashFlowOS({
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [syncMsg, setSyncMsg] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
-  const [viewMode, setViewMode] = useState<"monthly" | "annual" | "ytd">("monthly");
+  const [viewMode, setViewMode] = useState<"monthly" | "annual" | "ytd" | "average">("monthly");
   const [showCal, setShowCal] = useState(false);
 
   const ytdMonths = selYear < now.getFullYear() ? 12 : now.getMonth() + 1;
@@ -923,6 +923,17 @@ export default function CashFlowOS({
   const isCurrentMonth = selYear === now.getFullYear() && selMonth === (now.getMonth() + 1);
   const daysInSelMonth = new Date(selYear, selMonth, 0).getDate();
   const pacingRatio = isCurrentMonth ? Math.max(0.01, now.getDate() / daysInSelMonth) : 1;
+
+  // Pre-indexed actual lookups by item+period — used by both the single-period actuals
+  // blend below and the (intentionally uncapped) multi-month Average view, which would
+  // otherwise re-scan the full expenseActuals array per item per month.
+  const actualsIndex = useMemo(() => {
+    const idx = new Map<string, number>();
+    for (const a of expenseActuals) {
+      if (a.cash_flow_item_id) idx.set(`${a.cash_flow_item_id}|${a.period_year}|${a.period_month}`, a.actual_amount);
+    }
+    return idx;
+  }, [expenseActuals]);
 
   const catData = useMemo(() => {
     return EXPENSE_CATEGORIES.map(cat => {
@@ -952,13 +963,74 @@ export default function CashFlowOS({
     over: expenseVariance > 0,
   };
 
-  // Monthly Savings / Savings Rate must be derived from the SAME totalBudgeted the
-  // tile next to them displays — they used to come from the monthlySavings/savingsRate
-  // props instead, which are computed off a different, non-budgetHistory-aware expenses
-  // figure in planning-client.tsx. That let "Budgeted Expenses" and "Monthly Savings"
-  // silently disagree about how much was spent for the exact same selected month.
-  const effectiveMonthlySavings = effectiveIncome - totalBudgeted;
+  // Monthly Savings / Savings Rate answer "how did I actually do," not "what did I
+  // plan" — the Budgeted Expenses tile right next to them keeps showing pure
+  // totalBudgeted (+ its own actual-vs-budget badge) for that. Blended per item,
+  // actual-if-logged else budgeted, same approach as Available to Invest's
+  // monthlyPerf — but scoped to the SELECTED period (selYear/selMonth), not pinned
+  // to "now", matching how totalBudgeted/catData already follow the period picker.
+  const effectiveMonthlySpendSelected = expenseItems.reduce((s, item) => {
+    const actual = actualsIndex.get(`${item.id}|${selYear}|${selMonth}`);
+    if (actual !== undefined) return s + actual;
+    const hist = getEffectiveBudget(budgetHistory, item.id, selYear, selMonth);
+    return s + toMonthly(hist ?? item.amount, item.frequency);
+  }, 0);
+  const effectiveMonthlySavings = effectiveIncome - effectiveMonthlySpendSelected;
   const effectiveSavingsRate = effectiveIncome > 0 ? (effectiveMonthlySavings / effectiveIncome) * 100 : 0;
+
+  // "Average" view — income/expenses/savings averaged across every fully-elapsed month
+  // (excludes the current, still-in-progress month) from the earliest logged actual
+  // through last month. Rate-of-totals (sum everything, then divide) rather than
+  // averaging each month's own rate, so one unusually low-income month can't skew the
+  // result as much as a normal one.
+  //
+  // Income uses the current effectiveIncome prop for every month, NOT a per-month
+  // getEffectiveBudget reconstruction from incomeItems — effectiveIncome already nets
+  // out the 401(k) employee deferral (via profile/retirement settings this component
+  // has no access to), and reconstructing gross income per-item per-month would
+  // silently disagree with every other income figure on this tab. The tradeoff:
+  // a genuine mid-range raise won't be reflected in earlier months' income, matching
+  // the same known limitation already accepted for monthlyPerf above.
+  //
+  // Known limitation: getEffectiveBudget (used for expenses) seeds every item with a
+  // year-2000 sentinel row, so it always resolves for any past month — including ones
+  // before an item actually existed. A newly added expense gets backfilled across the
+  // whole range. There's no item creation-date to gate on; the coverage sublabel below
+  // is the mitigation.
+  const avgMonthly = useMemo(() => {
+    if (expenseActuals.length === 0) return null; // nothing to anchor a range to
+    const current = now.getFullYear() * 12 + now.getMonth();
+    const periods = expenseActuals.map(a => a.period_year * 12 + (a.period_month - 1));
+    const earliest = Math.min(...periods);
+    const lastCompleted = current - 1;
+    if (earliest > lastCompleted) return null; // only current-month data exists so far
+
+    let totalIncome = 0, totalSpend = 0, fullyLoggedMonths = 0;
+    const monthCount = lastCompleted - earliest + 1;
+    for (let p = earliest; p <= lastCompleted; p++) {
+      const y = Math.floor(p / 12);
+      const m = (p % 12) + 1;
+      let loggedCount = 0;
+      const spend = expenseItems.reduce((s, item) => {
+        const actual = actualsIndex.get(`${item.id}|${y}|${m}`);
+        if (actual !== undefined) { loggedCount++; return s + actual; }
+        const hist = getEffectiveBudget(budgetHistory, item.id, y, m);
+        return s + toMonthly(hist ?? item.amount, item.frequency);
+      }, 0);
+      if (expenseItems.length > 0 && loggedCount === expenseItems.length) fullyLoggedMonths++;
+      totalIncome += effectiveIncome;
+      totalSpend += spend;
+    }
+    const totalSavings = totalIncome - totalSpend;
+    return {
+      monthCount, fullyLoggedMonths,
+      avgIncome: totalIncome / monthCount,
+      avgExpenses: totalSpend / monthCount,
+      avgSavings: totalSavings / monthCount,
+      avgRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenseActuals, actualsIndex, effectiveIncome, expenseItems, budgetHistory]);
 
   // 50/30/20 buckets — monthly needs vs wants from the categorized budget
   const needsMonthly = catData.filter((c) => bucketForCategory(c.label) === "needs").reduce((s, c) => s + c.budgeted, 0);
@@ -976,10 +1048,15 @@ export default function CashFlowOS({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catData, totalBudgeted]);
 
-  // Monthly view uses the totalBudgeted-consistent rate above; annual/YTD keep the
-  // prop-based rate (mirrors the same viewMode split already used for the "Budgeted
-  // Expenses" tile — there's no per-period budgetHistory equivalent for those views).
-  const displaySavingsRate = viewMode === "monthly" ? effectiveSavingsRate : savingsRate;
+  // Monthly view uses the actuals-blended rate above; Average uses avgMonthly's
+  // rate-of-totals (0 when there's no completed month yet — the empty state hides
+  // the tiles/bar entirely in that case, so this fallback is never actually shown).
+  // Annual/YTD keep the prop-based rate (mirrors the same viewMode split already used
+  // for the "Budgeted Expenses" tile — there's no per-period budgetHistory equivalent
+  // for those views).
+  const displaySavingsRate = viewMode === "monthly" ? effectiveSavingsRate
+    : viewMode === "average" ? (avgMonthly?.avgRate ?? 0)
+    : savingsRate;
   const srColor = displaySavingsRate >= 20 ? "oklch(0.72 0.19 145)"
     : displaySavingsRate >= 10 ? "oklch(0.75 0.18 70)"
     : displaySavingsRate > 0  ? "oklch(0.65 0.18 25)"
@@ -1138,6 +1215,26 @@ export default function CashFlowOS({
     ? `$${((totalBudgeted * mult) / 1000).toFixed(1)}k`
     : fmt(totalBudgeted * mult);
 
+  type KpiTile = { label: string; val: string; color: string; badge?: { text: string; over: boolean } | null };
+  const kpiTiles: KpiTile[] = viewMode === "average"
+    ? (avgMonthly ? [
+        { label: "Avg Monthly Income", val: ph(fmt(avgMonthly.avgIncome)), color: "oklch(0.72 0.19 145)" },
+        { label: "Avg Monthly Expenses", val: ph(fmt(avgMonthly.avgExpenses)), color: "oklch(0.65 0.18 25)" },
+        { label: "Avg Monthly Savings", val: ph(fmt(Math.abs(avgMonthly.avgSavings))), color: avgMonthly.avgSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+        { label: "Savings Rate", val: `${avgMonthly.avgRate.toFixed(1)}%`, color: srColor },
+      ] : [])
+    : [
+        { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income",       val: ph(fmt(effectiveIncome * mult)),       color: "oklch(0.72 0.19 145)" },
+        // Monthly view sources from totalBudgeted (catData, budgetHistory-aware) rather than
+        // the monthlyExpenses prop (not budgetHistory-aware) — keeps this tile consistent with
+        // the variance badge sitting right below it. Annual/YTD keep the prop-based figure;
+        // there's no budgetHistory equivalent scaled across a year.
+        { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(viewMode === "monthly" ? totalBudgeted : monthlyExpenses * mult)), color: "oklch(0.65 0.18 25)",
+          badge: viewMode === "monthly" && totalActualLogged > 0 ? expenseVarianceBadge : null },
+        { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs((viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) * mult))), color: (viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+        { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
+      ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
       <style>{`
@@ -1178,7 +1275,7 @@ export default function CashFlowOS({
       }}>
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
           <div style={{ display: "flex", background: "var(--surface-005)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
-            {(["monthly", "annual", "ytd"] as const).map(m => (
+            {(["monthly", "annual", "ytd", "average"] as const).map(m => (
               <button key={m} type="button" onClick={() => setViewMode(m)} style={{
                 padding: "3px 10px", borderRadius: "4px", border: "none", cursor: "pointer",
                 fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "capitalize",
@@ -1190,45 +1287,49 @@ export default function CashFlowOS({
             ))}
           </div>
         </div>
-        <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: "16px" }}>
-          {([
-            { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income",       val: ph(fmt(effectiveIncome * mult)),       color: "oklch(0.72 0.19 145)" },
-            // Monthly view sources from totalBudgeted (catData, budgetHistory-aware) rather than
-            // the monthlyExpenses prop (not budgetHistory-aware) — keeps this tile consistent with
-            // the variance badge sitting right below it. Annual/YTD keep the prop-based figure;
-            // there's no budgetHistory equivalent scaled across a year.
-            { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(viewMode === "monthly" ? totalBudgeted : monthlyExpenses * mult)), color: "oklch(0.65 0.18 25)",
-              badge: viewMode === "monthly" && totalActualLogged > 0 ? expenseVarianceBadge : null },
-            { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs((viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) * mult))), color: (viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
-            { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
-          ] as { label: string; val: string; color: string; badge?: { text: string; over: boolean } | null }[]).map(({ label, val, color, badge }) => (
-            <div key={label}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
-              {badge && (
-                <span style={{ display: "inline-block", marginTop: "5px", padding: "1px 5px", borderRadius: "3px", fontSize: "10px", fontFamily: "var(--font-mono)", background: badge.over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: badge.over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
-                  {badge.text}
-                </span>
-              )}
+        {viewMode === "average" && !avgMonthly ? (
+          <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center", padding: "8px 0" }}>
+            Log actuals for at least one completed month to see an average.
+          </p>
+        ) : (
+          <>
+            <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: viewMode === "average" ? "6px" : "16px" }}>
+              {kpiTiles.map(({ label, val, color, badge }) => (
+                <div key={label}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
+                  {badge && (
+                    <span style={{ display: "inline-block", marginTop: "5px", padding: "1px 5px", borderRadius: "3px", fontSize: "10px", fontFamily: "var(--font-mono)", background: badge.over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: badge.over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                      {badge.text}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        {effectiveIncome > 0 && (
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
-              <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
-            </div>
-            <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
-              <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
-              <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
-              <div className="cfo-sr-a" style={{
-                height: "100%", borderRadius: "3px",
-                background: `linear-gradient(90deg, oklch(0.55 0.18 195), ${srColor})`,
-                width: `${srBarPct}%`,
-              }} />
-            </div>
-          </div>
+            {viewMode === "average" && avgMonthly && (
+              <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "0 0 16px" }}>
+                Based on {avgMonthly.monthCount} completed month{avgMonthly.monthCount !== 1 ? "s" : ""}
+                {avgMonthly.fullyLoggedMonths < avgMonthly.monthCount ? ` (${avgMonthly.fullyLoggedMonths} fully logged)` : ""}.
+              </p>
+            )}
+            {effectiveIncome > 0 && (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Savings Rate Progress</span>
+                  <span style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target: 20%</span>
+                </div>
+                <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", left: `${(10/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
+                  <div style={{ position: "absolute", left: `${(20/30)*100}%`, top: 0, bottom: 0, width: "1px", background: "var(--surface-010)" }} />
+                  <div className="cfo-sr-a" style={{
+                    height: "100%", borderRadius: "3px",
+                    background: `linear-gradient(90deg, oklch(0.55 0.18 195), ${srColor})`,
+                    width: `${srBarPct}%`,
+                  }} />
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
