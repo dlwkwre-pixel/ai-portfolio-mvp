@@ -119,23 +119,32 @@ export type AvailableToInvestOptions = {
   // Caller precomputes emergencyFundMonths * expenseBasis — keeps this module free
   // of profile-shape knowledge. Omitted/0 = no emergency-fund awareness at all.
   emergencyFundTarget?: number;
-  // 0-100: while the emergency fund is below target, this % of free cash counts as
-  // available to invest right now; the rest is earmarked toward the fund. Once the
-  // fund is fully funded, 100% of the surplus above the target is available
-  // regardless of this setting. Default 100 preserves the pre-EF-aware behavior.
+  // 0-100: while the emergency fund is below target, this % of this month's surplus
+  // counts as available to invest right now; the rest is earmarked toward the fund.
+  // Once the fund is fully funded, 100% of the surplus is available regardless of
+  // this setting. Default 100 preserves the pre-EF-aware behavior.
   surplusToInvestPct?: number;
 };
 
 export function computeAvailableToInvest(
   items: CashFlowItem[],
   liquidAssets: number,
+  // This month's income minus actual-or-budgeted spend — a flow figure, computed by
+  // the caller (see cash-flow-tab.tsx). The split below operates on this, not on cash
+  // on hand, per the user's explicit choice: the headline should answer "how much did
+  // I actually save this month," not "how much of my bank balance is spare."
+  monthlySurplus: number,
   today: Date = new Date(),
   options: AvailableToInvestOptions = {}
 ): {
   availableToInvest: number;
   owedItems: OwedItem[];
   owedTotal: number;
+  // liquidAssets minus owed bills — a stock figure. No longer feeds availableToInvest;
+  // it exists solely to gate emergencyFundFunded, since fund adequacy is inherently a
+  // "how much do I actually have saved" question, not a monthly-performance one.
   freeCash: number;
+  monthlySurplus: number;
   emergencyFundTarget: number;
   emergencyFundFunded: boolean;
   reservedForEmergencyFund: number;
@@ -159,21 +168,25 @@ export function computeAvailableToInvest(
 
   let availableToInvest: number;
   let reservedForEmergencyFund: number;
-  if (freeCash <= 0) {
+  if (monthlySurplus <= 0) {
     // No surplus to split at all — don't manufacture a confusing negative
     // "reserved" figure alongside an already-negative available-to-invest.
-    availableToInvest = freeCash;
+    availableToInvest = monthlySurplus;
     reservedForEmergencyFund = 0;
   } else if (emergencyFundTarget <= 0 || emergencyFundFunded) {
-    availableToInvest = freeCash - emergencyFundTarget;
-    reservedForEmergencyFund = Math.min(freeCash, emergencyFundTarget);
+    // 100% of THIS MONTH's surplus — no longer subtracting emergencyFundTarget. That
+    // subtraction only made sense when the base was the full cash stock including the
+    // EF cushion itself (freeCash); monthlySurplus is a flow that was never inside the
+    // cushion to begin with, so there's nothing to subtract back out.
+    availableToInvest = monthlySurplus;
+    reservedForEmergencyFund = 0;
   } else {
-    availableToInvest = freeCash * (surplusToInvestPct / 100);
-    reservedForEmergencyFund = freeCash - availableToInvest;
+    availableToInvest = monthlySurplus * (surplusToInvestPct / 100);
+    reservedForEmergencyFund = monthlySurplus - availableToInvest;
   }
 
   return {
-    availableToInvest, owedItems, owedTotal, freeCash,
+    availableToInvest, owedItems, owedTotal, freeCash, monthlySurplus,
     emergencyFundTarget, emergencyFundFunded, reservedForEmergencyFund,
   };
 }

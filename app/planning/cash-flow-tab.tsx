@@ -721,6 +721,16 @@ export default function CashFlowOS({
 
   const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
 
+  // Whole-month budget-vs-actual for the KPI strip — mirrors the per-category variance
+  // badge below, gated on something actually being logged (else every unlogged item would
+  // read as "under budget" simply by omission, which is misleading, not informative).
+  const totalActualLogged = catData.reduce((s, c) => s + c.actual, 0);
+  const expenseVariance = totalActualLogged > 0 ? totalActualLogged - totalBudgeted : null;
+  const expenseVarianceBadge = expenseVariance === null ? null : {
+    text: Math.round(expenseVariance) === 0 ? "on budget" : `${fmt(Math.abs(expenseVariance))} ${expenseVariance > 0 ? "over" : "under"}`,
+    over: expenseVariance > 0,
+  };
+
   // 50/30/20 buckets — monthly needs vs wants from the categorized budget
   const needsMonthly = catData.filter((c) => bucketForCategory(c.label) === "needs").reduce((s, c) => s + c.budgeted, 0);
   const wantsMonthly = catData.filter((c) => bucketForCategory(c.label) === "wants").reduce((s, c) => s + c.budgeted, 0);
@@ -788,15 +798,37 @@ export default function CashFlowOS({
     });
   }
 
-  // "Available to Invest" — liquidAssets minus known bills due/owed that haven't
-  // been marked paid yet, minus whatever's still earmarked toward the emergency
-  // fund target. See lib/planning/cash-flow-forecast.ts for the date/split logic.
+  // "Available to Invest" is driven by how this month actually went, not by a
+  // point-in-time balance-sheet snapshot — always the REAL current month, not
+  // whatever selYear/selMonth the Budget/Actual log below is browsing. Following
+  // the picker would show a fake ~$0 projection for future months and stale
+  // bills/cash juxtaposed against a live-sounding number for past ones.
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
+  const monthlySurplus = useMemo(() => {
+    // Blend actual-if-logged with budgeted-as-fallback, per item — not per catData
+    // category, which drops categories with $0 budgeted and would silently lose an
+    // ad-hoc unbudgeted expense that only has an actual logged against it.
+    const spend = expenseItems.reduce((s, item) => {
+      const actual = expenseActuals.find(a =>
+        a.cash_flow_item_id === item.id && a.period_year === curYear && a.period_month === curMonth
+      );
+      if (actual) return s + actual.actual_amount;
+      const hist = getEffectiveBudget(budgetHistory, item.id, curYear, curMonth);
+      return s + toMonthly(hist ?? item.amount, item.frequency);
+    }, 0);
+    return effectiveIncome - spend;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenseItems, expenseActuals, budgetHistory, effectiveIncome, curYear, curMonth]);
+
+  // liquidAssets/owed bills still drive the emergency-fund-funded gate (a real-dollars-
+  // saved question) and the "Still owed" supporting list. See lib/planning/cash-flow-forecast.ts.
   const forecast = useMemo(
-    () => computeAvailableToInvest(cashFlowItems, liquidAssets, new Date(), {
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets, monthlySurplus, new Date(), {
       emergencyFundTarget,
       surplusToInvestPct: investPctEdit,
     }),
-    [cashFlowItems, liquidAssets, emergencyFundTarget, investPctEdit]
+    [cashFlowItems, liquidAssets, monthlySurplus, emergencyFundTarget, investPctEdit]
   );
   const owedByItemId = useMemo(
     () => new Map(forecast.owedItems.map(o => [o.item.id, o.dueDate])),
@@ -878,13 +910,23 @@ export default function CashFlowOS({
         <div className="cfo-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px 20px", marginBottom: "16px" }}>
           {([
             { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income",       val: ph(fmt(effectiveIncome * mult)),       color: "oklch(0.72 0.19 145)" },
-            { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(monthlyExpenses * mult)),       color: "oklch(0.65 0.18 25)"  },
+            // Monthly view sources from totalBudgeted (catData, budgetHistory-aware) rather than
+            // the monthlyExpenses prop (not budgetHistory-aware) — keeps this tile consistent with
+            // the variance badge sitting right below it. Annual/YTD keep the prop-based figure;
+            // there's no budgetHistory equivalent scaled across a year.
+            { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(viewMode === "monthly" ? totalBudgeted : monthlyExpenses * mult)), color: "oklch(0.65 0.18 25)",
+              badge: viewMode === "monthly" && totalActualLogged > 0 ? expenseVarianceBadge : null },
             { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs(monthlySavings * mult))), color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
             { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—",           color: srColor },
-          ] as { label: string; val: string; color: string }[]).map(({ label, val, color }) => (
+          ] as { label: string; val: string; color: string; badge?: { text: string; over: boolean } | null }[]).map(({ label, val, color, badge }) => (
             <div key={label}>
               <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color, lineHeight: 1 }}>{val}</div>
+              {badge && (
+                <span style={{ display: "inline-block", marginTop: "5px", padding: "1px 5px", borderRadius: "3px", fontSize: "10px", fontFamily: "var(--font-mono)", background: badge.over ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: badge.over ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                  {badge.text}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -907,10 +949,10 @@ export default function CashFlowOS({
         )}
       </div>
 
-      {/* Available to Invest — liquidAssets minus bills that are known-owed and
-          not yet marked paid. Works without a bank connection: it's built entirely
-          from the due-dated expense items below and the manual cash figure on the
-          Balance Sheet tab. */}
+      {/* Available to Invest — this month's income minus actual-or-budgeted spend,
+          split against the emergency fund policy below. Cash on hand and unpaid
+          bills stay visible as supporting context (right column + guard-rail
+          callout) but no longer cap the headline number — see cash-flow-forecast.ts. */}
       <div className="cfo-zone" style={{
         background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
         borderRadius: "var(--radius-lg)", padding: "16px 20px", marginBottom: "10px",
@@ -922,24 +964,34 @@ export default function CashFlowOS({
               {ph(fmt(forecast.availableToInvest))}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-              {fmt(liquidAssets)} cash on hand
-              {forecast.owedTotal > 0 ? ` − ${fmt(forecast.owedTotal)} owed and not yet paid` : ""}
+              {fmt(effectiveIncome)} income − {fmt(effectiveIncome - monthlySurplus)} spent in {MONTH_NAMES[curMonth - 1]}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
-          </div>
-          {forecast.owedItems.length > 0 && (
-            <div style={{ minWidth: "200px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                {forecast.owedItems.map(({ item, dueDate }) => (
-                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", fontFamily: "var(--font-body)" }}>
-                    <span style={{ color: "var(--text-secondary)" }}>{item.label} · {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(item.amount))}</span>
-                  </div>
-                ))}
+            {monthlySurplus > 0 && forecast.freeCash < 0 && (
+              <div style={{ fontSize: "11px", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginTop: "6px" }}>
+                ⚠ Your bills right now exceed your cash on hand — this figure reflects this month's performance, not your immediate liquidity.
               </div>
+            )}
+          </div>
+          <div style={{ minWidth: "200px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>
+              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Cash on hand</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(liquidAssets))}</span>
             </div>
-          )}
+            {forecast.owedItems.length > 0 && (
+              <>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  {forecast.owedItems.map(({ item, dueDate }) => (
+                    <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", fontFamily: "var(--font-body)" }}>
+                      <span style={{ color: "var(--text-secondary)" }}>{item.label} · {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "oklch(0.65 0.18 25)" }}>{ph(fmt(item.amount))}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Emergency fund — only once there's a real expense number to target
@@ -964,12 +1016,12 @@ export default function CashFlowOS({
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {forecast.emergencyFundFunded ? (
                   <p style={{ fontSize: "12px", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", margin: 0 }}>
-                    ✓ Emergency fund fully funded — 100% of surplus above target is available to invest.
+                    ✓ Emergency fund fully funded — 100% of this month's surplus is available to invest.
                   </p>
                 ) : (
                   <div>
                     <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "4px" }}>
-                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of free cash while building the fund, save the rest
+                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of this month's surplus while building the fund, save the rest
                     </label>
                     <input
                       type="range" min={0} max={100} step={5} value={investPctEdit}
