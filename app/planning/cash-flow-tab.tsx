@@ -953,30 +953,53 @@ export default function CashFlowOS({
 
   const totalBudgeted = catData.reduce((s, c) => s + c.budgeted, 0);
 
-  // Whole-month budget-vs-actual for the KPI strip — mirrors the per-category variance
-  // badge below, gated on something actually being logged (else every unlogged item would
-  // read as "under budget" simply by omission, which is misleading, not informative).
-  const totalActualLogged = catData.reduce((s, c) => s + c.actual, 0);
-  const expenseVariance = totalActualLogged > 0 ? totalActualLogged - totalBudgeted : null;
-  const expenseVarianceBadge = expenseVariance === null ? null : {
-    text: Math.round(expenseVariance) === 0 ? "on budget" : `${fmt(Math.abs(expenseVariance))} ${expenseVariance > 0 ? "over" : "under"}`,
-    over: expenseVariance > 0,
-  };
+  // Sums the actual-if-logged/budgeted-fallback blend for expense items across
+  // [periodFrom, periodTo] inclusive (period = year*12 + (month-1), so ranges work
+  // across year boundaries). Shared by every KPI-strip view mode (Monthly/YTD/Annual/
+  // Average) so "how did I actually do" means the same thing everywhere — only the
+  // date range differs. Also returns the pure-budgeted total for the same range, so
+  // callers can show a "vs budget" delta without a second pass over the data.
+  function sumBlendedExpenses(periodFrom: number, periodTo: number) {
+    let blendedTotal = 0, budgetedTotal = 0, fullyLoggedMonths = 0, anyLogged = false;
+    const monthCount = periodTo - periodFrom + 1;
+    for (let p = periodFrom; p <= periodTo; p++) {
+      const y = Math.floor(p / 12);
+      const m = (p % 12) + 1;
+      let loggedCount = 0;
+      let monthBudgeted = 0;
+      const monthBlended = expenseItems.reduce((s, item) => {
+        const hist = getEffectiveBudget(budgetHistory, item.id, y, m);
+        const budgetedAmt = toMonthly(hist ?? item.amount, item.frequency);
+        monthBudgeted += budgetedAmt;
+        const actual = actualsIndex.get(`${item.id}|${y}|${m}`);
+        if (actual !== undefined) { loggedCount++; anyLogged = true; return s + actual; }
+        return s + budgetedAmt;
+      }, 0);
+      if (expenseItems.length > 0 && loggedCount === expenseItems.length) fullyLoggedMonths++;
+      blendedTotal += monthBlended;
+      budgetedTotal += monthBudgeted;
+    }
+    return { blendedTotal, budgetedTotal, monthCount, fullyLoggedMonths, anyLogged };
+  }
 
-  // Monthly Savings / Savings Rate answer "how did I actually do," not "what did I
-  // plan" — the Budgeted Expenses tile right next to them keeps showing pure
-  // totalBudgeted (+ its own actual-vs-budget badge) for that. Blended per item,
-  // actual-if-logged else budgeted, same approach as Available to Invest's
-  // monthlyPerf — but scoped to the SELECTED period (selYear/selMonth), not pinned
-  // to "now", matching how totalBudgeted/catData already follow the period picker.
-  const effectiveMonthlySpendSelected = expenseItems.reduce((s, item) => {
-    const actual = actualsIndex.get(`${item.id}|${selYear}|${selMonth}`);
-    if (actual !== undefined) return s + actual;
-    const hist = getEffectiveBudget(budgetHistory, item.id, selYear, selMonth);
-    return s + toMonthly(hist ?? item.amount, item.frequency);
-  }, 0);
-  const effectiveMonthlySavings = effectiveIncome - effectiveMonthlySpendSelected;
-  const effectiveSavingsRate = effectiveIncome > 0 ? (effectiveMonthlySavings / effectiveIncome) * 100 : 0;
+  // Monthly/YTD/Annual all answer "how did I actually do" for their respective range —
+  // Expenses/Savings/Rate blend real logged actuals with budgeted fallback, not pure
+  // budget projections. The variance badge compares the blended total against the pure-
+  // budget total for the SAME range, gated on anyLogged (nothing shown if nothing's
+  // been logged in range at all, rather than a meaningless "on budget").
+  const kpiPeriod = viewMode === "monthly" ? { from: selYear * 12 + (selMonth - 1), to: selYear * 12 + (selMonth - 1) }
+    : viewMode === "ytd" ? { from: selYear * 12, to: selYear * 12 + ytdMonths - 1 }
+    : viewMode === "annual" ? { from: selYear * 12, to: selYear * 12 + 11 }
+    : null; // average has its own range logic below (excludes current month, unbounded start)
+  const kpiExpenseBlend = kpiPeriod ? sumBlendedExpenses(kpiPeriod.from, kpiPeriod.to) : null;
+  const kpiExpenseVariance = kpiExpenseBlend?.anyLogged ? kpiExpenseBlend.blendedTotal - kpiExpenseBlend.budgetedTotal : null;
+  const kpiExpenseBadge = kpiExpenseVariance === null ? null : {
+    text: Math.round(kpiExpenseVariance) === 0 ? "on budget" : `${fmt(Math.abs(kpiExpenseVariance))} ${kpiExpenseVariance > 0 ? "over" : "under"}`,
+    over: kpiExpenseVariance > 0,
+  };
+  const kpiIncomeTotal = effectiveIncome * mult;
+  const kpiSavings = kpiExpenseBlend ? kpiIncomeTotal - kpiExpenseBlend.blendedTotal : 0;
+  const kpiRate = kpiIncomeTotal > 0 ? (kpiSavings / kpiIncomeTotal) * 100 : 0;
 
   // "Average" view — income/expenses/savings averaged across every fully-elapsed month
   // (excludes the current, still-in-progress month) from the earliest logged actual
@@ -990,7 +1013,7 @@ export default function CashFlowOS({
   // has no access to), and reconstructing gross income per-item per-month would
   // silently disagree with every other income figure on this tab. The tradeoff:
   // a genuine mid-range raise won't be reflected in earlier months' income, matching
-  // the same known limitation already accepted for monthlyPerf above.
+  // the same known limitation already accepted above.
   //
   // Known limitation: getEffectiveBudget (used for expenses) seeds every item with a
   // year-2000 sentinel row, so it always resolves for any past month — including ones
@@ -1005,27 +1028,13 @@ export default function CashFlowOS({
     const lastCompleted = current - 1;
     if (earliest > lastCompleted) return null; // only current-month data exists so far
 
-    let totalIncome = 0, totalSpend = 0, fullyLoggedMonths = 0;
-    const monthCount = lastCompleted - earliest + 1;
-    for (let p = earliest; p <= lastCompleted; p++) {
-      const y = Math.floor(p / 12);
-      const m = (p % 12) + 1;
-      let loggedCount = 0;
-      const spend = expenseItems.reduce((s, item) => {
-        const actual = actualsIndex.get(`${item.id}|${y}|${m}`);
-        if (actual !== undefined) { loggedCount++; return s + actual; }
-        const hist = getEffectiveBudget(budgetHistory, item.id, y, m);
-        return s + toMonthly(hist ?? item.amount, item.frequency);
-      }, 0);
-      if (expenseItems.length > 0 && loggedCount === expenseItems.length) fullyLoggedMonths++;
-      totalIncome += effectiveIncome;
-      totalSpend += spend;
-    }
-    const totalSavings = totalIncome - totalSpend;
+    const { blendedTotal, monthCount, fullyLoggedMonths } = sumBlendedExpenses(earliest, lastCompleted);
+    const totalIncome = effectiveIncome * monthCount;
+    const totalSavings = totalIncome - blendedTotal;
     return {
       monthCount, fullyLoggedMonths,
       avgIncome: totalIncome / monthCount,
-      avgExpenses: totalSpend / monthCount,
+      avgExpenses: blendedTotal / monthCount,
       avgSavings: totalSavings / monthCount,
       avgRate: totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0,
     };
@@ -1048,15 +1057,11 @@ export default function CashFlowOS({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catData, totalBudgeted]);
 
-  // Monthly view uses the actuals-blended rate above; Average uses avgMonthly's
-  // rate-of-totals (0 when there's no completed month yet — the empty state hides
-  // the tiles/bar entirely in that case, so this fallback is never actually shown).
-  // Annual/YTD keep the prop-based rate (mirrors the same viewMode split already used
-  // for the "Budgeted Expenses" tile — there's no per-period budgetHistory equivalent
-  // for those views).
-  const displaySavingsRate = viewMode === "monthly" ? effectiveSavingsRate
-    : viewMode === "average" ? (avgMonthly?.avgRate ?? 0)
-    : savingsRate;
+  // Monthly/YTD/Annual all use kpiRate (actuals-blended for their own range); Average
+  // uses avgMonthly's rate-of-totals (0 when there's no completed month yet — the
+  // empty state hides the tiles/bar entirely in that case, so this fallback is never
+  // actually shown).
+  const displaySavingsRate = viewMode === "average" ? (avgMonthly?.avgRate ?? 0) : kpiRate;
   const srColor = displaySavingsRate >= 20 ? "oklch(0.72 0.19 145)"
     : displaySavingsRate >= 10 ? "oklch(0.75 0.18 70)"
     : displaySavingsRate > 0  ? "oklch(0.65 0.18 25)"
@@ -1224,14 +1229,14 @@ export default function CashFlowOS({
         { label: "Savings Rate", val: `${avgMonthly.avgRate.toFixed(1)}%`, color: srColor },
       ] : [])
     : [
-        { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income",       val: ph(fmt(effectiveIncome * mult)),       color: "oklch(0.72 0.19 145)" },
-        // Monthly view sources from totalBudgeted (catData, budgetHistory-aware) rather than
-        // the monthlyExpenses prop (not budgetHistory-aware) — keeps this tile consistent with
-        // the variance badge sitting right below it. Annual/YTD keep the prop-based figure;
-        // there's no budgetHistory equivalent scaled across a year.
-        { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(viewMode === "monthly" ? totalBudgeted : monthlyExpenses * mult)), color: "oklch(0.65 0.18 25)",
-          badge: viewMode === "monthly" && totalActualLogged > 0 ? expenseVarianceBadge : null },
-        { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs((viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) * mult))), color: (viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+        { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income", val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)" },
+        // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
+        // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
+        // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
+        // anymore; the badge carries the vs-budget comparison instead, for every range.
+        { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Expenses", val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
+          badge: kpiExpenseBadge },
+        { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings", val: ph(fmt(Math.abs(kpiSavings))), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
         { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
       ];
 
@@ -1481,8 +1486,10 @@ export default function CashFlowOS({
         })()}
       </div>
 
-      {/* Surplus routing callout */}
-      {monthlySavings > 50 && viewMode === "monthly" && (
+      {/* Surplus routing callout — kpiSavings, not the monthlySavings prop, so this
+          matches the actuals-blended "Monthly Savings" tile right above it instead of
+          silently reverting to a pure-budget figure. */}
+      {kpiSavings > 50 && viewMode === "monthly" && (
         <div className="cfo-zone" style={{
           background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.2)",
           borderRadius: "var(--radius-lg)", padding: "11px 16px", marginBottom: "10px",
@@ -1491,7 +1498,7 @@ export default function CashFlowOS({
           <div style={{ flex: 1, minWidth: "160px" }}>
             <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Surplus this month</div>
             <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-              You&apos;re {ph(fmt(monthlySavings))} ahead — where should it go?
+              You&apos;re {ph(fmt(kpiSavings))} ahead — where should it go?
             </p>
           </div>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
