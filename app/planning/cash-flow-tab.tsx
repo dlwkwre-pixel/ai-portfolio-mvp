@@ -1228,17 +1228,24 @@ export default function CashFlowOS({
         { label: "Avg Monthly Savings", val: ph(fmt(Math.abs(avgMonthly.avgSavings))), color: avgMonthly.avgSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
         { label: "Savings Rate", val: `${avgMonthly.avgRate.toFixed(1)}%`, color: srColor },
       ] : [])
-    : [
-        { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : "Monthly Income", val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)" },
-        // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
-        // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
-        // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
-        // anymore; the badge carries the vs-budget comparison instead, for every range.
-        { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Expenses", val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
-          badge: kpiExpenseBadge },
-        { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings", val: ph(fmt(Math.abs(kpiSavings))), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
-        { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
-      ];
+    : (() => {
+        // Monthly labels spell out the selected month/year (e.g. "Aug 2026 Income")
+        // instead of just "Monthly Income" — the period picker sits right above this
+        // strip now, but the label itself is what makes it obvious at a glance which
+        // month you're looking at without having to check the picker at all.
+        const monthlyLabel = `${MONTH_NAMES[selMonth - 1]} ${selYear}`;
+        return [
+          { label: viewMode === "annual" ? "Annual Income" : viewMode === "ytd" ? `${selYear} Income` : `${monthlyLabel} Income`, val: ph(fmt(kpiIncomeTotal)), color: "oklch(0.72 0.19 145)" },
+          // Expenses/Savings/Rate all blend real logged actuals with budgeted fallback for
+          // the selected range (kpiExpenseBlend/kpiSavings/kpiRate, see sumBlendedExpenses
+          // above) — Monthly is no longer labeled "Budgeted" since it's not purely budget
+          // anymore; the badge carries the vs-budget comparison instead, for every range.
+          { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : `${monthlyLabel} Expenses`, val: ph(fmt(kpiExpenseBlend?.blendedTotal ?? 0)), color: "oklch(0.65 0.18 25)",
+            badge: kpiExpenseBadge },
+          { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : `${monthlyLabel} Savings`, val: ph(fmt(Math.abs(kpiSavings))), color: kpiSavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+          { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
+        ];
+      })();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
@@ -1278,7 +1285,20 @@ export default function CashFlowOS({
         borderRadius: "var(--radius-lg)", padding: "18px 20px 16px", marginBottom: "10px",
         animationDelay: "0ms",
       }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
+        {/* Period picker lives right next to the view-mode toggle, not scrolled away
+            near "Log from Statement" — it drives what "Monthly" means here, and having
+            it far away made it easy to miss you were looking at the wrong month. */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+              style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+              {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+            <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+              style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
           <div style={{ display: "flex", background: "var(--surface-005)", borderRadius: "6px", padding: "2px", gap: "2px" }}>
             {(["monthly", "annual", "ytd", "average"] as const).map(m => (
               <button key={m} type="button" onClick={() => setViewMode(m)} style={{
@@ -1765,17 +1785,12 @@ export default function CashFlowOS({
         borderRadius: "var(--radius-lg)", padding: "20px",
         animationDelay: "170ms",
       }}>
-        {/* Period + statement import */}
+        {/* Statement import — period itself is set at the top of the tab now, next to
+            the view-mode toggle; this just reflects it so it's clear what you're logging for. */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.07em", fontFamily: "var(--font-body)" }}>Period</span>
-          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
-            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px" }}>
-            {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
-            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px" }}>
-            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+            Logging for <strong style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{MONTH_NAMES[selMonth - 1]} {selYear}</strong>
+          </span>
           <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
             style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.1)" : "var(--card-bg)", color: showImport ? "#7fd9d4" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
             <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
