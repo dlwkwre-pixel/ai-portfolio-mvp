@@ -952,6 +952,14 @@ export default function CashFlowOS({
     over: expenseVariance > 0,
   };
 
+  // Monthly Savings / Savings Rate must be derived from the SAME totalBudgeted the
+  // tile next to them displays — they used to come from the monthlySavings/savingsRate
+  // props instead, which are computed off a different, non-budgetHistory-aware expenses
+  // figure in planning-client.tsx. That let "Budgeted Expenses" and "Monthly Savings"
+  // silently disagree about how much was spent for the exact same selected month.
+  const effectiveMonthlySavings = effectiveIncome - totalBudgeted;
+  const effectiveSavingsRate = effectiveIncome > 0 ? (effectiveMonthlySavings / effectiveIncome) * 100 : 0;
+
   // 50/30/20 buckets — monthly needs vs wants from the categorized budget
   const needsMonthly = catData.filter((c) => bucketForCategory(c.label) === "needs").reduce((s, c) => s + c.budgeted, 0);
   const wantsMonthly = catData.filter((c) => bucketForCategory(c.label) === "wants").reduce((s, c) => s + c.budgeted, 0);
@@ -968,11 +976,15 @@ export default function CashFlowOS({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catData, totalBudgeted]);
 
-  const srColor = savingsRate >= 20 ? "oklch(0.72 0.19 145)"
-    : savingsRate >= 10 ? "oklch(0.75 0.18 70)"
-    : savingsRate > 0  ? "oklch(0.65 0.18 25)"
+  // Monthly view uses the totalBudgeted-consistent rate above; annual/YTD keep the
+  // prop-based rate (mirrors the same viewMode split already used for the "Budgeted
+  // Expenses" tile — there's no per-period budgetHistory equivalent for those views).
+  const displaySavingsRate = viewMode === "monthly" ? effectiveSavingsRate : savingsRate;
+  const srColor = displaySavingsRate >= 20 ? "oklch(0.72 0.19 145)"
+    : displaySavingsRate >= 10 ? "oklch(0.75 0.18 70)"
+    : displaySavingsRate > 0  ? "oklch(0.65 0.18 25)"
     : "var(--text-muted)";
-  const srBarPct = Math.min(100, Math.max(0, (savingsRate / 30) * 100));
+  const srBarPct = Math.min(100, Math.max(0, (displaySavingsRate / 30) * 100));
 
   const pacingAlerts = isCurrentMonth ? catData
     .filter(cat => cat.actual > 0 && cat.budgeted > 0)
@@ -1187,8 +1199,8 @@ export default function CashFlowOS({
             // there's no budgetHistory equivalent scaled across a year.
             { label: viewMode === "annual" ? "Annual Expenses" : viewMode === "ytd" ? `${selYear} Expenses` : "Budgeted Expenses", val: ph(fmt(viewMode === "monthly" ? totalBudgeted : monthlyExpenses * mult)), color: "oklch(0.65 0.18 25)",
               badge: viewMode === "monthly" && totalActualLogged > 0 ? expenseVarianceBadge : null },
-            { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs(monthlySavings * mult))), color: monthlySavings >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
-            { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${savingsRate.toFixed(1)}%` : "—",           color: srColor },
+            { label: viewMode === "annual" ? "Annual Savings" : viewMode === "ytd" ? `${selYear} Savings` : "Monthly Savings",     val: ph(fmt(Math.abs((viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) * mult))), color: (viewMode === "monthly" ? effectiveMonthlySavings : monthlySavings) >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)" },
+            { label: "Savings Rate",                                                    val: effectiveIncome > 0 ? `${displaySavingsRate.toFixed(1)}%` : "—",           color: srColor },
           ] as { label: string; val: string; color: string; badge?: { text: string; over: boolean } | null }[]).map(({ label, val, color, badge }) => (
             <div key={label}>
               <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px" }}>{label}</div>
