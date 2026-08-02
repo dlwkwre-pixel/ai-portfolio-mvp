@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning-actions";
 import {
-  addCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
+  addCashFlowItem, updateCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
   logExpenseActual, moveMerchantActual, syncForecastToActuals,
   markCashFlowItemPaid, clearCashFlowItemPaid, updateSurplusAllocation,
 } from "./planning-actions";
@@ -30,6 +30,10 @@ type BudgetGroupRow = {
   existingId: string | null;      // matching existing budget item id
   existingAmount: number | null;
   existingLabel: string | null;
+  // Only set for rows sourced from groupForBudgetFromActuals — undefined for
+  // statement-parsed rows, which don't have a logging-history concept.
+  monthsElapsed?: number;
+  monthsWithData?: number;
 };
 
 function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): BudgetGroupRow[] {
@@ -99,7 +103,182 @@ function groupForBudget(items: ImportedItem[], existingItems: CashFlowItem[]): B
   });
 }
 
-// ── AI Import Panel ───────────────────────────────────────────────────────────
+// Builds budget-line suggestions from already-logged expense_actuals instead of a
+// freshly parsed statement — every actuals row already belongs to an existing
+// cash_flow_item (StatementImportPanel only ever logs against a matched item), so
+// this is strictly a refresh of existing items' amounts, not new-category discovery.
+function groupForBudgetFromActuals(
+  actuals: ExpenseActual[],
+  existingItems: CashFlowItem[],
+  windowMonths: number = 12
+): BudgetGroupRow[] {
+  const relevant = actuals.filter((a) => a.cash_flow_item_id !== null);
+  const byItem = new Map<string, ExpenseActual[]>();
+  for (const a of relevant) {
+    const list = byItem.get(a.cash_flow_item_id!) ?? [];
+    list.push(a);
+    byItem.set(a.cash_flow_item_id!, list);
+  }
+
+  const now = new Date();
+  const current = now.getFullYear() * 12 + now.getMonth();
+  const rows: BudgetGroupRow[] = [];
+
+  for (const [itemId, itemActuals] of byItem) {
+    const item = existingItems.find((i) => i.id === itemId);
+    if (!item) continue; // item since deleted, actuals orphaned
+
+    // Per-item window — NOT computed globally across all items. A user who's logged
+    // Rent for 12 months and just added "Coffee" this month must not have Coffee's
+    // one month divided by Rent's 12-month history (would understate it ~12x).
+    const periods = itemActuals.map((a) => a.period_year * 12 + (a.period_month - 1));
+    const earliest = Math.min(...periods);
+    const monthsElapsed = Math.max(1, Math.min(windowMonths, current - earliest + 1));
+    const cutoff = current - monthsElapsed + 1;
+    const inWindow = itemActuals.filter((a) => a.period_year * 12 + (a.period_month - 1) >= cutoff);
+    const total = inWindow.reduce((s, a) => s + a.actual_amount, 0);
+    // total-spent-over-N-months / N is the correct monthly-equivalent regardless of
+    // the expense's actual cadence — this is what correctly handles a semi-annual
+    // insurance payment logged once (e.g. $600 in a 12-month window = $50/mo) without
+    // needing to detect or model cadence at all.
+    const average = Math.round((total / monthsElapsed) * 100) / 100;
+
+    rows.push({
+      id: itemId, label: item.label, category: categoryOf(item), amount: average,
+      merchants: [], isSubscription: categoryOf(item) === "Subscriptions",
+      selected: true, // opt-OUT — every row is an existing item by construction; the review table's delta + coverage badges are what make that safe
+      existingId: item.id, existingAmount: toMonthly(item.amount, item.frequency), existingLabel: item.label,
+      monthsElapsed, monthsWithData: inWindow.length,
+    });
+  }
+  return rows.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+// ── Shared budget review table ──────────────────────────────────────────────
+// Used by both AiImportPanel (statement paste) and ActualsRefreshPanel (already-
+// logged actuals) — kept as one presentational component parameterized by copy so
+// neither flow's very different data-entry mechanics (paste+parse vs. synchronous
+// DB aggregation) leak into the other's state machine.
+
+type BudgetReviewTableProps = {
+  rows: BudgetGroupRow[];
+  onUpdateRow: (idx: number, patch: Partial<BudgetGroupRow>) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  submitLabel: (selectedCount: number) => string;
+  existingBannerText?: (existingCount: number) => string;
+  secondaryAction?: { label: string; onClick: () => void };
+};
+
+function BudgetReviewTable({ rows, onUpdateRow, onSubmit, submitting, submitLabel, existingBannerText, secondaryAction }: BudgetReviewTableProps) {
+  const selectedCount = rows.filter((r) => r.selected).length;
+  const existingCount = rows.filter((r) => r.existingId).length;
+
+  return (
+    <>
+      {existingCount > 0 && existingBannerText && (
+        <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
+          {existingBannerText(existingCount)}
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", padding: "4px 6px", borderBottom: "1px solid var(--border-subtle)" }}>
+          {["", "Category / Item", "Monthly ($)"].map((h, i) => (
+            <span key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: i === 2 ? "right" : "left" }}>{h}</span>
+          ))}
+        </div>
+
+        {rows.map((row, idx) => {
+          // A caution, not a block — total/monthsElapsed can't tell "genuinely
+          // biannual expense" from "normally-monthly, just under-logged," so flag
+          // sparse coverage and let the user judge whether to trust the average.
+          const lowCoverage = row.monthsElapsed !== undefined && row.monthsWithData !== undefined
+            && row.monthsElapsed > 0 && row.monthsWithData / row.monthsElapsed < 0.5;
+          const delta = row.existingAmount != null ? row.amount - row.existingAmount : null;
+          // Only worth calling out the matched item's own name when it differs from
+          // this row's label (paste flow: category "Food & Dining" -> item "Groceries").
+          // Actuals-flow rows always have label === existingLabel, so this naturally
+          // stays quiet there — the delta line below already says what changed.
+          const showExistingNote = row.existingId && row.existingLabel && row.label !== row.existingLabel;
+          return (
+            <div key={row.id} style={{
+              borderBottom: "1px solid var(--border-subtle)",
+              opacity: row.selected ? 1 : 0.45,
+              background: row.existingId ? "rgba(63,174,74,0.03)" : "transparent",
+            }}>
+              <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", alignItems: "center", padding: "7px 6px", gap: "8px" }}>
+                <input type="checkbox" checked={row.selected} onChange={() => onUpdateRow(idx, { selected: !row.selected })}
+                  style={{ accentColor: "var(--brand-blue)", cursor: "pointer" }} />
+                <div style={{ minWidth: 0 }}>
+                  <input
+                    value={row.label}
+                    onChange={(e) => onUpdateRow(idx, { label: e.target.value })}
+                    style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, padding: "2px 4px", width: "100%", outline: "none", boxSizing: "border-box" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                    {row.isSubscription ? (
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Subscription</span>
+                    ) : row.merchants.length > 0 ? (
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                        {row.merchants.slice(0, 3).map((m) => m.label).join(", ")}{row.merchants.length > 3 ? ` +${row.merchants.length - 3} more` : ""}
+                      </span>
+                    ) : null}
+                    {showExistingNote && (
+                      <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
+                        · exists: {row.existingLabel} ${row.existingAmount?.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
+                      </span>
+                    )}
+                    {lowCoverage && (
+                      <span title="This average may reflect sparse or inconsistent logging, not a real recurring cadence" style={{ fontSize: "9px", fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "999px", padding: "1px 6px" }}>
+                        {row.monthsWithData} of {row.monthsElapsed} mo logged
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <input
+                    type="number" min={0} step={0.01}
+                    value={row.amount}
+                    onChange={(e) => onUpdateRow(idx, { amount: Number(e.target.value) })}
+                    style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 4px", width: "100%", textAlign: "right", outline: "none", boxSizing: "border-box" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                  />
+                  {delta !== null && Math.round(delta) !== 0 && (
+                    <div style={{ fontSize: "9px", fontFamily: "var(--font-mono)", textAlign: "right", marginTop: "2px", color: delta > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
+                      was {fmt(row.existingAmount!)} ({delta > 0 ? "+" : "−"}{fmt(Math.abs(delta))})
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+        <button type="button" onClick={onSubmit} disabled={submitting || selectedCount === 0}
+          style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: selectedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: selectedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: selectedCount === 0 ? "default" : "pointer" }}>
+          {submitting ? "Saving…" : submitLabel(selectedCount)}
+        </button>
+        {secondaryAction && (
+          <button type="button" onClick={secondaryAction.onClick}
+            style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+            {secondaryAction.label}
+          </button>
+        )}
+        <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
+          {selectedCount} of {rows.length} selected
+        </span>
+      </div>
+    </>
+  );
+}
+
+// ── AI Import Panel (paste a statement) ─────────────────────────────────────
 
 type AiImportPanelProps = {
   existingItems: CashFlowItem[];
@@ -193,9 +372,6 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
     );
   }
 
-  const selectedCount = preview.filter((r) => r.selected).length;
-  const existingCount = preview.filter((r) => r.existingId).length;
-
   return (
     <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
 
@@ -231,78 +407,15 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
 
       {/* Review step */}
       {step === "review" && (
-        <>
-          {existingCount > 0 && (
-            <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
-              {existingCount} categor{existingCount !== 1 ? "ies" : "y"} already in your budget — pre-deselected. Re-check to add alongside or update manually.
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-            {/* Header row */}
-            <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", padding: "4px 6px", borderBottom: "1px solid var(--border-subtle)" }}>
-              {["", "Category / Item", "Monthly ($)"].map((h, i) => (
-                <span key={i} style={{ fontSize: "10px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: i === 2 ? "right" : "left" }}>{h}</span>
-              ))}
-            </div>
-
-            {preview.map((row, idx) => (
-              <div key={row.id} style={{
-                borderBottom: "1px solid var(--border-subtle)",
-                opacity: row.selected ? 1 : 0.45,
-                background: row.existingId ? "rgba(63,174,74,0.03)" : "transparent",
-              }}>
-                <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 100px", alignItems: "center", padding: "7px 6px", gap: "8px" }}>
-                  <input type="checkbox" checked={row.selected} onChange={() => updateRow(idx, { selected: !row.selected })}
-                    style={{ accentColor: "var(--brand-blue)", cursor: "pointer" }} />
-                  <div style={{ minWidth: 0 }}>
-                    <input
-                      value={row.label}
-                      onChange={(e) => updateRow(idx, { label: e.target.value })}
-                      style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 500, padding: "2px 4px", width: "100%", outline: "none", boxSizing: "border-box" }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
-                    />
-                    {row.isSubscription ? (
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Subscription</span>
-                    ) : row.merchants.length > 0 ? (
-                      <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
-                        {row.merchants.slice(0, 3).map((m) => m.label).join(", ")}{row.merchants.length > 3 ? ` +${row.merchants.length - 3} more` : ""}
-                      </span>
-                    ) : null}
-                    {row.existingId && (
-                      <span style={{ fontSize: "10px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)", marginLeft: "4px" }}>
-                        · exists: {row.existingLabel} ${row.existingAmount?.toLocaleString(undefined, { maximumFractionDigits: 0 })}/mo
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="number" min={0} step={0.01}
-                    value={row.amount}
-                    onChange={(e) => updateRow(idx, { amount: Number(e.target.value) })}
-                    style={{ background: "transparent", border: "1px solid transparent", borderRadius: "4px", color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "2px 4px", width: "100%", textAlign: "right", outline: "none", boxSizing: "border-box" }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-blue)")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" onClick={handleAdd} disabled={adding || selectedCount === 0}
-              style={{ padding: "7px 16px", borderRadius: "var(--radius-md)", border: "none", background: selectedCount === 0 ? "var(--border-subtle)" : "var(--brand-blue)", color: selectedCount === 0 ? "var(--text-tertiary)" : "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 600, cursor: selectedCount === 0 ? "default" : "pointer" }}>
-              {adding ? "Adding…" : `Add ${selectedCount} to Budget`}
-            </button>
-            <button type="button" onClick={() => setStep("paste")}
-              style={{ padding: "7px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
-              + Add Another Statement
-            </button>
-            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginLeft: "auto" }}>
-              {selectedCount} of {preview.length} selected
-            </span>
-          </div>
-        </>
+        <BudgetReviewTable
+          rows={preview}
+          onUpdateRow={updateRow}
+          onSubmit={handleAdd}
+          submitting={adding}
+          submitLabel={(n) => `Add ${n} to Budget`}
+          existingBannerText={(n) => `${n} categor${n !== 1 ? "ies" : "y"} already in your budget — pre-deselected. Re-check to update its amount instead of adding a duplicate.`}
+          secondaryAction={{ label: "+ Add Another Statement", onClick: () => setStep("paste") }}
+        />
       )}
 
       {/* Paste step */}
@@ -340,6 +453,109 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Actuals Refresh Panel (refresh from what's already logged) ─────────────
+
+type ActualsRefreshPanelProps = {
+  existingItems: CashFlowItem[];
+  expenseActuals: ExpenseActual[];
+  onAdd: (rows: BudgetGroupRow[]) => Promise<void>;
+};
+
+function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRefreshPanelProps) {
+  const router = useRouter();
+  const [preview, setPreview] = useState<BudgetGroupRow[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addedCount, setAddedCount] = useState<number | null>(null);
+  const [emptyNote, setEmptyNote] = useState(false);
+
+  function open() {
+    const rows = groupForBudgetFromActuals(expenseActuals, existingItems);
+    if (rows.length === 0) { setEmptyNote(true); return; }
+    setEmptyNote(false);
+    setAddedCount(null);
+    setPreview(rows);
+  }
+
+  function updateRow(idx: number, patch: Partial<BudgetGroupRow>) {
+    setPreview((prev) => prev ? prev.map((r, i) => i === idx ? { ...r, ...patch } : r) : prev);
+  }
+
+  async function handleApply() {
+    if (!preview) return;
+    const selected = preview.filter((r) => r.selected);
+    if (selected.length === 0) return;
+    setAdding(true);
+    try {
+      await onAdd(selected);
+      setAddedCount(selected.length);
+      setPreview(null);
+      router.refresh();
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  if (preview === null) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <button
+          type="button"
+          onClick={open}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "7px 14px", borderRadius: "var(--radius-md)",
+            border: "1px dashed var(--border-subtle)", background: "transparent",
+            color: "var(--text-tertiary)", fontFamily: "var(--font-body)",
+            fontSize: "12px", cursor: "pointer", width: "100%", justifyContent: "center",
+            transition: "border-color 0.15s, color 0.15s",
+          }}
+          onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = "var(--text-secondary)"; b.style.borderColor = "var(--text-tertiary)"; }}
+          onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = "var(--text-tertiary)"; b.style.borderColor = "var(--border-subtle)"; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4M12 2v3h-3M4 14v-3h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Refresh budget from your logged actuals
+        </button>
+        {emptyNote && (
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
+            No logged actuals yet — log some via &ldquo;Log from Statement&rdquo; first, or build from a pasted statement instead.
+          </p>
+        )}
+        {addedCount !== null && (
+          <p style={{ fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center", fontWeight: 600 }}>
+            ✓ {addedCount} budget item{addedCount !== 1 ? "s" : ""} updated
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Refresh Budget from Logged Actuals</span>
+          <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
+            Averaged from what you&apos;ve already logged via &ldquo;Log from Statement.&rdquo; This only updates items you already have — it can&apos;t discover categories you haven&apos;t budgeted for yet.
+          </p>
+        </div>
+        <button type="button" onClick={() => setPreview(null)}
+          style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", padding: "2px", fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>
+          ×
+        </button>
+      </div>
+      <BudgetReviewTable
+        rows={preview}
+        onUpdateRow={updateRow}
+        onSubmit={handleApply}
+        submitting={adding}
+        submitLabel={(n) => `Update ${n} Budget Item${n !== 1 ? "s" : ""}`}
+      />
     </div>
   );
 }
@@ -775,6 +991,32 @@ export default function CashFlowOS({
       setSyncMsg(m => ({ ...m, [itemId]: `Updated to ${fmt(result.newAmount ?? 0)}/mo` }));
     }
     setSyncingId(null);
+  }
+
+  // Shared by AiImportPanel (statement paste) and ActualsRefreshPanel (logged
+  // actuals) — creates rows with no existingId, updates rows that already have
+  // one. updateCashFlowItem unconditionally rewrites due_day/due_day_2 from
+  // FormData (unlike category/is_variable, which are formData.has()-guarded), so
+  // an existing item's due date must be carried through explicitly or it gets
+  // silently nulled out on every "refresh."
+  async function applyBudgetRows(rows: BudgetGroupRow[]) {
+    for (const row of rows) {
+      const fd = new FormData();
+      fd.set("label", row.label);
+      fd.set("amount", String(row.amount));
+      fd.set("frequency", "monthly");
+      fd.set("type", "expense");
+      if (row.category) fd.set("category", row.category);
+      if (row.existingId) {
+        const existing = expenseItems.find(i => i.id === row.existingId);
+        fd.set("id", row.existingId);
+        if (existing?.due_day != null) fd.set("due_day", String(existing.due_day));
+        if (existing?.due_day_2 != null) fd.set("due_day_2", String(existing.due_day_2));
+        await updateCashFlowItem(fd);
+      } else {
+        await addCashFlowItem(fd);
+      }
+    }
   }
 
   // Emergency-fund split — local editable copies of the saved settings so the
@@ -1357,22 +1599,10 @@ export default function CashFlowOS({
         </div>
       )}
 
-      {/* Build Budget from Statement — between Zone 2 and Zone 3 */}
-      <div className="cfo-zone" style={{ animationDelay: "155ms" }}>
-        <AiImportPanel
-          existingItems={expenseItems}
-          onAdd={async rows => {
-            for (const row of rows) {
-              const fd = new FormData();
-              fd.set("label", row.label);
-              fd.set("amount", String(row.amount));
-              fd.set("frequency", "monthly");
-              fd.set("type", "expense");
-              if (row.category) fd.set("category", row.category);
-              await addCashFlowItem(fd);
-            }
-          }}
-        />
+      {/* Build/Refresh Budget — between Zone 2 and Zone 3 */}
+      <div className="cfo-zone" style={{ animationDelay: "155ms", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <AiImportPanel existingItems={expenseItems} onAdd={applyBudgetRows} />
+        <ActualsRefreshPanel existingItems={expenseItems} expenseActuals={expenseActuals} onAdd={applyBudgetRows} />
       </div>
 
       {/* Bill Calendar */}
