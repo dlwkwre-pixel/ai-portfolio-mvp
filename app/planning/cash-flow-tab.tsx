@@ -6,7 +6,7 @@ import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning
 import {
   addCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
   logExpenseActual, moveMerchantActual, syncForecastToActuals,
-  markCashFlowItemPaid, clearCashFlowItemPaid,
+  markCashFlowItemPaid, clearCashFlowItemPaid, updateSurplusAllocation,
 } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
 import {
@@ -648,13 +648,16 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
 export default function CashFlowOS({
   cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
-  liquidAssets,
+  liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
   liquidAssets: number;
+  emergencyFundMonths: number;    // 6 | 9 | 12, shared with plan-401k-section.tsx
+  surplusToInvestPct: number;     // 0-100, see updateSurplusAllocation
+  emergencyFundExpenseBasis: number; // effectiveExpenses — matches Plan401kSection's basis, NOT the narrower monthlyExpenses prop above
 }) {
   const [cfExpanded, setCfExpanded] = useState(false);
   const cfAdvanced = !guided || cfExpanded;
@@ -764,11 +767,36 @@ export default function CashFlowOS({
     setSyncingId(null);
   }
 
+  // Emergency-fund split — local editable copies of the saved settings so the
+  // slider/button-group give live preview feedback before the user hits Save,
+  // mirroring plan-401k-section.tsx's pattern for its own %-controls.
+  const [efMonthsEdit, setEfMonthsEdit] = useState<number>(emergencyFundMonths);
+  const [investPctEdit, setInvestPctEdit] = useState<number>(surplusToInvestPct);
+  const [efSaved, setEfSaved] = useState(false);
+  const emergencyFundTarget = efMonthsEdit * emergencyFundExpenseBasis;
+
+  function saveEfSettings(nextEfMonths: number, nextInvestPct: number) {
+    setEfSaved(false);
+    const fd = new FormData();
+    fd.set("emergency_fund_months", String(nextEfMonths));
+    fd.set("surplus_to_invest_pct", String(nextInvestPct));
+    startTransition(async () => {
+      await updateSurplusAllocation(fd);
+      setEfSaved(true);
+      router.refresh();
+      setTimeout(() => setEfSaved(false), 2500);
+    });
+  }
+
   // "Available to Invest" — liquidAssets minus known bills due/owed that haven't
-  // been marked paid yet. See lib/planning/cash-flow-forecast.ts for the date logic.
+  // been marked paid yet, minus whatever's still earmarked toward the emergency
+  // fund target. See lib/planning/cash-flow-forecast.ts for the date/split logic.
   const forecast = useMemo(
-    () => computeAvailableToInvest(cashFlowItems, liquidAssets),
-    [cashFlowItems, liquidAssets]
+    () => computeAvailableToInvest(cashFlowItems, liquidAssets, new Date(), {
+      emergencyFundTarget,
+      surplusToInvestPct: investPctEdit,
+    }),
+    [cashFlowItems, liquidAssets, emergencyFundTarget, investPctEdit]
   );
   const owedByItemId = useMemo(
     () => new Map(forecast.owedItems.map(o => [o.item.id, o.dueDate])),
@@ -894,7 +922,9 @@ export default function CashFlowOS({
               {ph(fmt(forecast.availableToInvest))}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-              {fmt(liquidAssets)} cash on hand{forecast.owedTotal > 0 ? ` − ${fmt(forecast.owedTotal)} owed and not yet paid` : ""}
+              {fmt(liquidAssets)} cash on hand
+              {forecast.owedTotal > 0 ? ` − ${fmt(forecast.owedTotal)} owed and not yet paid` : ""}
+              {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
           </div>
           {forecast.owedItems.length > 0 && (
@@ -911,6 +941,70 @@ export default function CashFlowOS({
             </div>
           )}
         </div>
+
+        {/* Emergency fund — only once there's a real expense number to target
+            against (mirrors plan-401k-section.tsx's budgetKnown gate). */}
+        {emergencyFundExpenseBasis > 0 && (() => {
+          const freeCash = forecast.freeCash;
+          const progressPct = emergencyFundTarget > 0 ? Math.min(100, Math.max(0, (freeCash / emergencyFundTarget) * 100)) : 0;
+          return (
+            <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid var(--border-subtle)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+                  Emergency Fund · {efMonthsEdit}-month target
+                </span>
+                <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                  {ph(fmt(Math.max(0, freeCash)))} / {ph(fmt(emergencyFundTarget))}
+                </span>
+              </div>
+              <div style={{ position: "relative", height: "6px", borderRadius: "3px", background: "var(--surface-008)", overflow: "hidden", marginBottom: "10px" }}>
+                <div style={{ height: "100%", borderRadius: "3px", width: `${progressPct}%`, background: forecast.emergencyFundFunded ? "oklch(0.72 0.19 145)" : "linear-gradient(90deg, oklch(0.55 0.18 195), oklch(0.75 0.18 70))" }} />
+              </div>
+
+              {forecast.emergencyFundFunded ? (
+                <p style={{ fontSize: "12px", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", margin: 0 }}>
+                  ✓ Emergency fund fully funded — 100% of surplus above target is available to invest.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "4px" }}>
+                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of free cash while building the fund, save the rest
+                    </label>
+                    <input
+                      type="range" min={0} max={100} step={5} value={investPctEdit}
+                      onChange={(e) => setInvestPctEdit(Number(e.target.value))}
+                      style={{ width: "100%", accentColor: "oklch(0.6 0.15 195)" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Target:</span>
+                    {[6, 9, 12].map((m) => (
+                      <button key={m} type="button" onClick={() => setEfMonthsEdit(m)}
+                        style={{
+                          fontSize: "12px", fontWeight: 600, padding: "3px 11px", borderRadius: "8px", cursor: "pointer",
+                          border: `1px solid ${efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "var(--border-subtle)"}`,
+                          background: efMonthsEdit === m ? "oklch(0.6 0.15 195)" : "transparent",
+                          color: efMonthsEdit === m ? "#fff" : "var(--text-secondary)",
+                        }}>
+                        {m} mo
+                      </button>
+                    ))}
+                    <button type="button" disabled={pending} onClick={() => saveEfSettings(efMonthsEdit, investPctEdit)}
+                      style={{
+                        marginLeft: "auto", fontSize: "12px", fontWeight: 600, padding: "5px 14px", borderRadius: "8px",
+                        border: "none", cursor: pending ? "default" : "pointer", opacity: pending ? 0.6 : 1,
+                        background: "var(--brand-gradient)", color: "#fff",
+                      }}>
+                      {pending ? "Saving…" : "Save"}
+                    </button>
+                    {efSaved && <span style={{ fontSize: "11px", color: "oklch(0.72 0.19 145)" }}>Saved ✓</span>}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Surplus routing callout */}

@@ -115,11 +115,31 @@ export function isItemOwed(item: CashFlowItem, today: Date): boolean {
 
 export type OwedItem = { item: CashFlowItem; dueDate: Date };
 
+export type AvailableToInvestOptions = {
+  // Caller precomputes emergencyFundMonths * expenseBasis — keeps this module free
+  // of profile-shape knowledge. Omitted/0 = no emergency-fund awareness at all.
+  emergencyFundTarget?: number;
+  // 0-100: while the emergency fund is below target, this % of free cash counts as
+  // available to invest right now; the rest is earmarked toward the fund. Once the
+  // fund is fully funded, 100% of the surplus above the target is available
+  // regardless of this setting. Default 100 preserves the pre-EF-aware behavior.
+  surplusToInvestPct?: number;
+};
+
 export function computeAvailableToInvest(
   items: CashFlowItem[],
   liquidAssets: number,
-  today: Date = new Date()
-): { availableToInvest: number; owedItems: OwedItem[]; owedTotal: number } {
+  today: Date = new Date(),
+  options: AvailableToInvestOptions = {}
+): {
+  availableToInvest: number;
+  owedItems: OwedItem[];
+  owedTotal: number;
+  freeCash: number;
+  emergencyFundTarget: number;
+  emergencyFundFunded: boolean;
+  reservedForEmergencyFund: number;
+} {
   const owedItems: OwedItem[] = [];
   for (const item of items) {
     if (!isItemOwed(item, today)) continue;
@@ -131,5 +151,29 @@ export function computeAvailableToInvest(
     owedItems.push({ item, dueDate });
   }
   const owedTotal = owedItems.reduce((sum, o) => sum + o.item.amount, 0);
-  return { availableToInvest: liquidAssets - owedTotal, owedItems, owedTotal };
+  const freeCash = liquidAssets - owedTotal;
+
+  const emergencyFundTarget = Math.max(0, options.emergencyFundTarget ?? 0);
+  const surplusToInvestPct = Math.min(100, Math.max(0, options.surplusToInvestPct ?? 100));
+  const emergencyFundFunded = emergencyFundTarget <= 0 ? true : freeCash >= emergencyFundTarget;
+
+  let availableToInvest: number;
+  let reservedForEmergencyFund: number;
+  if (freeCash <= 0) {
+    // No surplus to split at all — don't manufacture a confusing negative
+    // "reserved" figure alongside an already-negative available-to-invest.
+    availableToInvest = freeCash;
+    reservedForEmergencyFund = 0;
+  } else if (emergencyFundTarget <= 0 || emergencyFundFunded) {
+    availableToInvest = freeCash - emergencyFundTarget;
+    reservedForEmergencyFund = Math.min(freeCash, emergencyFundTarget);
+  } else {
+    availableToInvest = freeCash * (surplusToInvestPct / 100);
+    reservedForEmergencyFund = freeCash - availableToInvest;
+  }
+
+  return {
+    availableToInvest, owedItems, owedTotal, freeCash,
+    emergencyFundTarget, emergencyFundFunded, reservedForEmergencyFund,
+  };
 }

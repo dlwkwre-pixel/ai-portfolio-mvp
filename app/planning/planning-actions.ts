@@ -36,6 +36,7 @@ export type FinancialProfile = {
   k401_current_balance?: number | null;
   pay_frequency?: string | null; // weekly | biweekly | semimonthly | monthly
   emergency_fund_months?: number | null; // 6 | 9 | 12
+  surplus_to_invest_pct?: number | null; // 0-100, see updateSurplusAllocation
   updated_at: string;
   // Home owner-mover mode
   is_homeowner: boolean;
@@ -261,6 +262,35 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
 
   revalidatePath("/planning");
   revalidatePath("/tax");
+  return {};
+}
+
+// Narrow update for the "Available to Invest" emergency-fund split, settable from
+// the Cash Flow tab. Deliberately does NOT reuse upsert401kSettings — that does a
+// full-field upsert reconstructed from FormData, and calling it from a form that
+// doesn't carry has_401k/k401_* would silently zero those out. Postgres's
+// ON CONFLICT DO UPDATE only touches the columns listed here, so this is safe to
+// call independently of the 401(k) settings on the same profile row.
+export async function updateSurplusAllocation(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const update: Record<string, unknown> = { user_id: user.id, updated_at: new Date().toISOString() };
+
+  if (formData.has("emergency_fund_months")) {
+    const efRaw = Number(formData.get("emergency_fund_months"));
+    update.emergency_fund_months = [6, 9, 12].includes(efRaw) ? efRaw : 6;
+  }
+  if (formData.has("surplus_to_invest_pct")) {
+    const pctRaw = Number(formData.get("surplus_to_invest_pct"));
+    update.surplus_to_invest_pct = Number.isFinite(pctRaw) ? Math.min(100, Math.max(0, pctRaw)) : 50;
+  }
+
+  const { error } = await supabase.from("financial_profiles").upsert(update, { onConflict: "user_id" });
+  if (error) return { error: error.message };
+
+  revalidatePath("/planning");
   return {};
 }
 

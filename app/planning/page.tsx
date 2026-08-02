@@ -136,6 +136,7 @@ export default async function PlanningPage({
         k401_current_balance: profileData.k401_current_balance != null ? Number(profileData.k401_current_balance) : null,
         pay_frequency: profileData.pay_frequency ?? null,
         emergency_fund_months: profileData.emergency_fund_months != null ? Number(profileData.emergency_fund_months) : null,
+        surplus_to_invest_pct: profileData.surplus_to_invest_pct != null ? Number(profileData.surplus_to_invest_pct) : null,
         updated_at: profileData.updated_at,
         is_homeowner: profileData.is_homeowner ?? false,
         owner_home_value: profileData.owner_home_value ? Number(profileData.owner_home_value) : null,
