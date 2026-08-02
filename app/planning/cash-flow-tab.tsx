@@ -120,8 +120,6 @@ function groupForBudgetFromActuals(
     byItem.set(a.cash_flow_item_id!, list);
   }
 
-  const now = new Date();
-  const current = now.getFullYear() * 12 + now.getMonth();
   const rows: BudgetGroupRow[] = [];
 
   for (const [itemId, itemActuals] of byItem) {
@@ -131,16 +129,23 @@ function groupForBudgetFromActuals(
     // Per-item window — NOT computed globally across all items. A user who's logged
     // Rent for 12 months and just added "Coffee" this month must not have Coffee's
     // one month divided by Rent's 12-month history (would understate it ~12x).
-    const periods = itemActuals.map((a) => a.period_year * 12 + (a.period_month - 1));
-    const earliest = Math.min(...periods);
-    const monthsElapsed = Math.max(1, Math.min(windowMonths, current - earliest + 1));
-    const cutoff = current - monthsElapsed + 1;
+    //
+    // The window spans this item's own first-to-last LOGGED occurrence — it does NOT
+    // extend to today. A user who logged Rent every month Jan-Mar and hasn't logged
+    // it since must not have Apr-today silently counted as "$0 spent" (they're
+    // "not logged yet," not "confirmed zero") — that's what was previously dragging
+    // a consistent $1,309/mo down toward $1,000 whenever recent months were unlogged.
+    // total-spent-over-the-observed-span / span is still the right monthly-equivalent
+    // for a genuinely irregular expense (a semi-annual insurance payment logged twice,
+    // 6 months apart, naturally produces a 6-month span) without needing to detect or
+    // model cadence — it just no longer invents phantom months past the last real entry.
+    const periods = itemActuals.map((a) => a.period_year * 12 + (a.period_month - 1)).sort((a, b) => a - b);
+    const earliest = periods[0];
+    const latest = periods[periods.length - 1];
+    const monthsElapsed = Math.max(1, Math.min(windowMonths, latest - earliest + 1));
+    const cutoff = latest - monthsElapsed + 1;
     const inWindow = itemActuals.filter((a) => a.period_year * 12 + (a.period_month - 1) >= cutoff);
     const total = inWindow.reduce((s, a) => s + a.actual_amount, 0);
-    // total-spent-over-N-months / N is the correct monthly-equivalent regardless of
-    // the expense's actual cadence — this is what correctly handles a semi-annual
-    // insurance payment logged once (e.g. $600 in a 12-month window = $50/mo) without
-    // needing to detect or model cadence at all.
     const average = Math.round((total / monthsElapsed) * 100) / 100;
 
     rows.push({
