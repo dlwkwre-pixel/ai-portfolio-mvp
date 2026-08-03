@@ -233,7 +233,7 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
   try {
     const { data: existing } = await supabase
       .from("balance_sheet_items")
-      .select("id")
+      .select("id, value")
       .eq("user_id", user.id)
       .eq("label", "401(k)")
       .maybeSingle();
@@ -244,18 +244,29 @@ export async function upsert401kSettings(formData: FormData): Promise<{ error?: 
         await supabase.from("balance_sheet_items")
           .update({ value: k401_current_balance, tax_treatment, updated_at: new Date().toISOString() })
           .eq("id", existing.id);
+        // This panel is a THIRD write path for the "401(k)" item, bypassing
+        // updateBalanceSheetItem entirely — it needs its own copy of the
+        // changed-value-only history logic, or this item would never accumulate
+        // history from its normal edit path.
+        if (existing.value !== k401_current_balance) {
+          await supabase.from("balance_sheet_item_history").insert({ user_id: user.id, item_id: existing.id, value: k401_current_balance });
+        }
       } else {
-        await supabase.from("balance_sheet_items").insert({
+        const { data: inserted } = await supabase.from("balance_sheet_items").insert({
           user_id: user.id,
           label: "401(k)",
           category: "retirement",
           value: k401_current_balance,
           is_liability: false,
           tax_treatment,
-        });
+        }).select("id").single();
+        if (inserted) {
+          await supabase.from("balance_sheet_item_history").insert({ user_id: user.id, item_id: inserted.id, value: k401_current_balance });
+        }
       }
     } else if (existing) {
       // No 401(k) (or zero balance) → remove the managed item so net worth stays accurate.
+      // ON DELETE CASCADE on balance_sheet_item_history.item_id cleans up its history too.
       await supabase.from("balance_sheet_items").delete().eq("id", existing.id);
     }
   } catch { /* non-fatal: 401(k) settings still saved even if the balance-sheet sync fails */ }
@@ -326,9 +337,14 @@ export async function addBalanceSheetItem(formData: FormData): Promise<{ error?:
     row.tax_treatment = parseTaxTreatment(formData, category);
   }
 
-  const { error } = await supabase.from("balance_sheet_items").insert(row);
+  const { data: inserted, error } = await supabase.from("balance_sheet_items").insert(row).select("id").single();
 
   if (error) return { error: error.message };
+  // Baseline history row so "vs. 1 month ago" has something to compare against once
+  // enough time has passed — non-fatal: the item itself is already saved either way.
+  if (inserted) {
+    await supabase.from("balance_sheet_item_history").insert({ user_id: user.id, item_id: inserted.id, value });
+  }
   revalidatePath("/planning");
   return {};
 }
@@ -347,6 +363,10 @@ export async function updateBalanceSheetItem(formData: FormData): Promise<{ erro
   const LIABILITY_CATS = new Set(["mortgage", "auto_loan", "student_loan", "credit_card", "personal_loan", "other_liability", "liability"]);
   const is_liability = LIABILITY_CATS.has(category);
 
+  // Fetch the pre-update value so history only gets a new row when the value actually
+  // changed — a label-only edit shouldn't clutter the trail with a duplicate-value row.
+  const { data: before } = await supabase.from("balance_sheet_items").select("value").eq("id", id).eq("user_id", user.id).maybeSingle();
+
   const patch: Record<string, unknown> = { label, category, value, is_liability, updated_at: new Date().toISOString() };
   if (formData.has("tax_treatment")) {
     patch.tax_treatment = is_liability ? null : parseTaxTreatment(formData, category);
@@ -359,6 +379,9 @@ export async function updateBalanceSheetItem(formData: FormData): Promise<{ erro
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
+  if (before && before.value !== value) {
+    await supabase.from("balance_sheet_item_history").insert({ user_id: user.id, item_id: id, value });
+  }
 
   // Keep the 401(k) planner in sync: editing the managed "401(k)" balance-sheet item here
   // writes the new value straight back to the profile, so both views stay linked.

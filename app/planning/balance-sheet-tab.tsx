@@ -25,13 +25,14 @@ const LIAB_CAT_LABELS: Record<string, string> = {
 };
 
 export default function BalanceSheetOS({
-  balanceItems, portfolioTotalValue, portfolioAccounts = [], effectiveExpenses, netWorthHistory, isPrivate,
+  balanceItems, portfolioTotalValue, portfolioAccounts = [], effectiveExpenses, netWorthHistory, historicalValues = {}, isPrivate,
 }: {
   balanceItems: BalanceSheetItem[];
   portfolioTotalValue: number;
   portfolioAccounts?: PortfolioAccount[];
   effectiveExpenses: number;
   netWorthHistory: NetWorthSnapshot[];
+  historicalValues?: Record<string, number>; // item/portfolio id -> value ~1 month ago
   isPrivate: boolean;
 }) {
   const ph = (v: string) => isPrivate ? "••••" : v;
@@ -258,6 +259,15 @@ export default function BalanceSheetOS({
           {portfolioAccounts.filter((pa) => pa.value > 0).map((pa) => {
             const bucket = accountTypeTaxBucket(pa.account_type);
             const meta = TAX_BUCKET_META[bucket];
+            const histVal = historicalValues[pa.id];
+            // Portfolios are never liabilities — up is always good here, unlike LineItemRow's
+            // is_liability-aware version of this same badge.
+            const delta = histVal != null && histVal !== pa.value ? pa.value - histVal : null;
+            const badge = delta === null ? null : {
+              good: delta > 0,
+              text: histVal! > 0 ? `${delta > 0 ? "▲" : "▼"} ${Math.abs((delta / histVal!) * 100).toFixed(0)}%` : `${delta > 0 ? "▲" : "▼"} ${fmt(Math.abs(delta))}`,
+              title: `${fmtFull(histVal!)} 1 month ago → ${fmtFull(pa.value)} now`,
+            };
             return (
               <div key={pa.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
@@ -267,10 +277,15 @@ export default function BalanceSheetOS({
                   <span title={meta.note} style={{ fontSize: "10px", fontWeight: 600, color: meta.color, background: `color-mix(in oklch, ${meta.color} 14%, transparent)`, border: `1px solid color-mix(in oklch, ${meta.color} 35%, transparent)`, padding: "1px 6px", borderRadius: "999px", flexShrink: 0, whiteSpace: "nowrap" }}>{meta.label}</span>
                 </span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--green)", fontWeight: 500 }}>{ph(fmtFull(pa.value))}</span>
+                {badge && !isPrivate && (
+                  <span title={badge.title} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, color: badge.good ? "var(--green)" : "var(--red)", whiteSpace: "nowrap", cursor: "help" }}>
+                    {badge.text}
+                  </span>
+                )}
               </div>
             );
           })}
-          {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />)}
+          {assets.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} />)}
           <div style={{ marginTop: "10px" }}><AddItemRow type="balance" placeholder="e.g. Checking account" onAdd={addBalanceSheetItem} /></div>
         </div>
         <div style={{ marginBottom: "20px", paddingTop: "4px", borderTop: "1px solid var(--border-subtle)" }}>
@@ -278,7 +293,7 @@ export default function BalanceSheetOS({
             <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>Liabilities</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: totalLiabilities > 0 ? "oklch(0.65 0.18 25)" : "var(--text-muted)", fontWeight: 600 }}>{ph(fmt(totalLiabilities))}</span>
           </div>
-          {liabilities.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} />)}
+          {liabilities.map(item => <LineItemRow key={item.id} item={item} type="balance" onDelete={deleteBalanceSheetItem} isPrivate={isPrivate} historicalValue={historicalValues[item.id]} />)}
           <div style={{ marginTop: "10px" }}><AddItemRow type="balance" sectionType="liability" placeholder="e.g. Student loan" onAdd={addBalanceSheetItem} /></div>
         </div>
         <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>

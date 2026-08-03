@@ -3073,6 +3073,7 @@ type Props = {
   balanceItems: BalanceSheetItem[];
   cashFlowItems: CashFlowItem[];
   netWorthHistory: NetWorthSnapshot[];
+  historicalValues?: Record<string, number>; // item/portfolio id -> value ~1 month ago, see page.tsx
   portfolioTotalValue: number;
   portfolioAccounts?: PortfolioAccount[];
   assumptions: PlanningAssumptions | null;
@@ -3106,7 +3107,7 @@ const ATLAS_THINKING = [
 ];
 
 export default function PlanningClient({
-  profile, balanceItems, cashFlowItems, netWorthHistory, portfolioTotalValue, portfolioAccounts = [],
+  profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
   sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, budgetHistory, estateProfile, initialTab,
 }: Props) {
@@ -6171,6 +6172,7 @@ export default function PlanningClient({
           portfolioAccounts={portfolioAccounts}
           effectiveExpenses={effectiveExpenses}
           netWorthHistory={netWorthHistory}
+          historicalValues={historicalValues}
           isPrivate={isPrivate}
         />
       )}

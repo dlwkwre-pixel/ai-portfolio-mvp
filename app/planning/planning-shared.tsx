@@ -383,7 +383,7 @@ export function AddItemRow({
 
 export function LineItemRow({
   item, type, onDelete, isPrivate = false, editTitle,
-  paidStatus, onMarkPaid, onClearPaid,
+  paidStatus, onMarkPaid, onClearPaid, historicalValue,
 }: {
   item: BalanceSheetItem | CashFlowItem;
   type: "balance" | "cashflow";
@@ -396,6 +396,9 @@ export function LineItemRow({
   paidStatus?: { owed: boolean; dueLabel: string } | null;
   onMarkPaid?: (id: string) => void;
   onClearPaid?: (id: string) => void;
+  // Balance-sheet-only — this item's value ~1 month ago, if known. See
+  // balance_sheet_item_history / portfolio_snapshots in page.tsx.
+  historicalValue?: number | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -417,6 +420,20 @@ export function LineItemRow({
   const accentColor = isBalance
     ? (bal.is_liability ? "var(--red)" : "var(--green)")
     : (cf.type === "income" ? "var(--green)" : "var(--red)");
+
+  // "vs. 1 month ago" — a liability increasing is bad (more owed) even though the
+  // number went up, and decreasing is good even though the number went down: the
+  // opposite of an asset, so color branches on is_liability, not the raw delta sign.
+  const historyDelta = isBalance && historicalValue != null && historicalValue !== bal.value
+    ? bal.value - historicalValue
+    : null;
+  const historyBadge = historyDelta === null ? null : {
+    good: bal.is_liability ? historyDelta < 0 : historyDelta > 0,
+    text: historicalValue! > 0
+      ? `${historyDelta > 0 ? "▲" : "▼"} ${Math.abs((historyDelta / historicalValue!) * 100).toFixed(0)}%`
+      : `${historyDelta > 0 ? "▲" : "▼"} ${fmt(Math.abs(historyDelta))}`,
+    title: `${fmtFull(historicalValue!)} 1 month ago → ${fmtFull(bal.value)} now`,
+  };
 
   function handleDelete() {
     if (!confirm(`Remove "${item.label}"?`)) return;
@@ -511,6 +528,11 @@ export function LineItemRow({
         })()}
       </span>
       <span style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: accentColor, fontWeight: 500 }}>{displayValue}</span>
+      {historyBadge && !isPrivate && (
+        <span title={historyBadge.title} style={{ fontSize: "10px", fontFamily: "var(--font-mono)", fontWeight: 600, color: historyBadge.good ? "var(--green)" : "var(--red)", whiteSpace: "nowrap", cursor: "help" }}>
+          {historyBadge.text}
+        </span>
+      )}
       {paidStatus && (
         paidStatus.owed ? (
           <button type="button" onClick={() => onMarkPaid?.(item.id)} disabled={pending}

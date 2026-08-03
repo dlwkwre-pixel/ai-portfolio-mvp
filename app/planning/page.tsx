@@ -166,6 +166,33 @@ export default async function PlanningPage({
   const linkedBalanceItems = await getLinkedBalanceItems(user.id);
   const mergedBalanceItems: BalanceSheetItem[] = [...typedBalanceItems, ...linkedBalanceItems];
 
+  // "vs. 1 month ago" delta for the Balance Sheet page — one query per item/portfolio
+  // (not one global query ordered by date) so a portfolio with dense recent daily
+  // snapshots can't crowd out an older row belonging to a quieter portfolio before a
+  // shared row cap reaches it. "linked:" items are excluded — they have no real row
+  // in balance_sheet_items, so addBalanceSheetItem/updateBalanceSheetItem never run
+  // for them and they'll never have history; simply showing no badge is correct.
+  const historyCutoff = new Date();
+  historyCutoff.setMonth(historyCutoff.getMonth() - 1);
+  const historyCutoffIso = historyCutoff.toISOString();
+  const [itemHistoryPairs, portfolioHistoryPairs] = await Promise.all([
+    Promise.all(typedBalanceItems.map(async (item) => {
+      const { data } = await supabase.from("balance_sheet_item_history")
+        .select("value").eq("item_id", item.id).lte("recorded_at", historyCutoffIso)
+        .order("recorded_at", { ascending: false }).limit(1).maybeSingle();
+      return data ? [item.id, Number(data.value)] as const : null;
+    })),
+    Promise.all(portfolioAccounts.map(async (pa) => {
+      const { data } = await supabase.from("portfolio_snapshots")
+        .select("total_value").eq("portfolio_id", pa.id).lte("snapshot_date", historyCutoffIso)
+        .order("snapshot_date", { ascending: false }).limit(1).maybeSingle();
+      return data ? [pa.id, Number(data.total_value)] as const : null;
+    })),
+  ]);
+  const historicalValues: Record<string, number> = Object.fromEntries(
+    [...itemHistoryPairs, ...portfolioHistoryPairs].filter((x): x is readonly [string, number] => x !== null)
+  );
+
   const typedCashFlowItems: CashFlowItem[] = (cashFlowItems ?? []).map((item) => ({
     id: item.id,
     user_id: item.user_id,
@@ -293,6 +320,7 @@ export default async function PlanningPage({
           balanceItems={mergedBalanceItems}
           cashFlowItems={typedCashFlowItems}
           netWorthHistory={typedNetWorthHistory}
+          historicalValues={historicalValues}
           portfolioTotalValue={portfolioTotalValue}
           portfolioAccounts={portfolioAccounts}
           assumptions={assumptions}
