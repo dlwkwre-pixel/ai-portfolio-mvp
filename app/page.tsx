@@ -195,7 +195,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Link href="/login" style={{ textDecoration: "none", fontSize: "13.5px", fontWeight: 600, color: "oklch(0.35 0.03 150)", padding: "9px 6px", whiteSpace: "nowrap" }}>Sign in</Link>
-          <Link href="/signup" style={{ padding: "9px 18px", borderRadius: "8px", fontSize: "13.5px", fontWeight: 700, color: "#fff", background: GRAD, textDecoration: "none", whiteSpace: "nowrap" }}>Get started free</Link>
+          <Link href="/signup" style={{ padding: "9px 18px", borderRadius: "8px", fontSize: "13.5px", fontWeight: 700, color: "#fff", background: GRAD, textDecoration: "none", whiteSpace: "nowrap" }}>Request access</Link>
         </div>
       </nav>
 
@@ -219,10 +219,13 @@ export default function LandingPage() {
           <p style={{ fontSize: "16.5px", lineHeight: 1.6, color: INK2, maxWidth: "460px", margin: "0 0 28px" }}>
             {HERO_SUB} You review. You decide. <strong>No auto-trading, ever.</strong>
           </p>
-          <div className="bt-lp-hero-cta" style={{ display: "flex", gap: "12px", marginBottom: "30px", flexWrap: "wrap" }}>
-            <Link href="/signup" style={{ padding: "14px 24px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(14,165,160,0.3)", textDecoration: "none" }}>Get started free →</Link>
+          <div className="bt-lp-hero-cta" style={{ display: "flex", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+            <Link href="/signup" style={{ padding: "14px 24px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 8px 24px rgba(14,165,160,0.3)", textDecoration: "none" }}>Request access →</Link>
             <a href="#demo" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "8px", padding: "14px 20px", borderRadius: "10px", fontSize: "14.5px", fontWeight: 700, color: "oklch(0.3 0.03 150)", border: "1px solid rgba(20,30,20,0.14)" }}>Try the live demo ↓</a>
           </div>
+          <p style={{ fontSize: "12.5px", color: INK3, margin: "0 0 26px" }}>
+            BuyTune is approval-only — we review every request by hand before granting access.
+          </p>
           <div className="bt-lp-hero-stats" style={{ display: "flex", gap: "28px", flexWrap: "wrap", width: "100%" }}>
             <div className="bt-lp-stat"><div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500, color: GREEN }}>$0</div><div className="bt-lp-stat-lbl" style={{ fontSize: "11.5px", color: INK3, marginTop: "2px" }}>advisor fees</div></div>
             <div className="bt-lp-stat-div" style={{ width: "1px", background: "rgba(20,30,20,0.12)" }} />
@@ -458,7 +461,7 @@ export default function LandingPage() {
       <section className="bt-lp-pad" style={{ padding: "64px 40px", background: DARK, textAlign: "center" }}>
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: "34px", fontWeight: 800, color: "#fff", letterSpacing: "-0.7px", margin: "0 0 14px" }}>Your portfolio deserves better than guesswork.</h2>
         <p style={{ fontSize: "15px", color: "oklch(0.68 0.02 150)", margin: "0 0 28px" }}>Free forever. No brokerage connection required. No auto-trading, ever.</p>
-        <Link href="/signup" style={{ display: "inline-block", padding: "15px 28px", borderRadius: "10px", fontSize: "15px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 10px 28px rgba(14,165,160,0.35)", textDecoration: "none" }}>Get started free →</Link>
+        <Link href="/signup" style={{ display: "inline-block", padding: "15px 28px", borderRadius: "10px", fontSize: "15px", fontWeight: 700, color: "#fff", background: GRAD, boxShadow: "0 10px 28px rgba(14,165,160,0.35)", textDecoration: "none" }}>Request access →</Link>
       </section>
 
       <footer style={{ padding: "28px 40px", textAlign: "center", fontSize: "12px", color: INK3, background: DARK, borderTop: "1px solid rgba(255,255,255,0.06)" }}>© 2026 BuyTune.io — Not registered investment advice.</footer>

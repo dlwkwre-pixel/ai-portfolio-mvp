@@ -34,8 +34,8 @@ export default function SignupPage() {
       options: { data: { full_name: fullName } },
     });
     if (error) { setError(error.message); setLoading(false); return; }
-    if (data.session) { router.push("/setup-username"); router.refresh(); return; }
-    setSuccess("Account created! Check your email to confirm, then sign in.");
+    if (data.session) { router.push("/pending-approval"); router.refresh(); return; }
+    setSuccess("Account created! Check your email to confirm, then sign in — you'll need to be approved before you can start using BuyTune.");
     setLoading(false);
   }
 
@@ -106,8 +106,8 @@ export default function SignupPage() {
           </Link>
 
           <div className="fu0" style={{ marginBottom: "32px" }}>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: INK, letterSpacing: "-0.5px", marginBottom: "6px" }}>Create your account</h1>
-            <p style={{ fontSize: "14px", color: INK2 }}>Free to start — no credit card required</p>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 700, color: INK, letterSpacing: "-0.5px", marginBottom: "6px" }}>Request an account</h1>
+            <p style={{ fontSize: "14px", color: INK2 }}>Free — every account is reviewed before it gets access</p>
           </div>
 
           {success ? (
@@ -140,7 +140,7 @@ export default function SignupPage() {
               )}
               <div className="fu4">
                 <button type="submit" disabled={loading} className="sbtn">
-                  {loading ? "Creating account..." : "Create free account"}
+                  {loading ? "Submitting..." : "Request access"}
                 </button>
               </div>
               <p style={{ fontSize: "11px", color: "oklch(0.5 0.02 150)", textAlign: "center", lineHeight: 1.5 }}>
