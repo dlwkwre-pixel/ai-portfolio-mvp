@@ -2,12 +2,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { BLOCKABLE_PAGES } from "@/lib/access/page-blocks";
 import AccessAdminClient, { type AccessUser } from "./access-admin-client";
 
-export const metadata = { title: "Page Access — BuyTune Admin" };
+export const metadata = { title: "Access — BuyTune Admin" };
 export const dynamic = "force-dynamic";
 
-// Per-account page access. Every account starts with everything; toggling a
-// page OFF here hides it from that user's nav and shows an under-construction
-// wall if they reach it anyway. Admin gate lives in app/admin/layout.tsx.
+// Per-account access control, in one place: whether the account can use the
+// app at all (approval gate, enforced in proxy.ts) and which pages it can
+// reach once in (page_blocks). Admin gate lives in app/admin/layout.tsx.
 export default async function AccessAdminPage() {
   const admin = createAdminClient();
 
@@ -23,6 +23,12 @@ export default async function AccessAdminPage() {
     }
   } catch { tableMissing = true; }
 
+  const approvalByUser = new Map<string, boolean>();
+  try {
+    const { data: profiles } = await admin.from("user_profiles").select("id, approved");
+    for (const p of profiles ?? []) approvalByUser.set(p.id as string, !!p.approved);
+  } catch { /* non-fatal */ }
+
   const users: AccessUser[] = [];
   try {
     const { data: userList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -31,21 +37,23 @@ export default async function AccessAdminPage() {
         id: u.id,
         email: u.email ?? "(no email)",
         blocked: [...(blocksByUser.get(u.id) ?? [])],
+        approved: approvalByUser.get(u.id) ?? false,
       });
     }
   } catch { /* non-fatal */ }
 
-  // Restricted users first, then by email.
-  users.sort((a, b) => (b.blocked.length - a.blocked.length) || a.email.localeCompare(b.email));
+  // Pending approval first (most actionable), then restricted users, then by email.
+  users.sort((a, b) => (Number(a.approved) - Number(b.approved)) || (b.blocked.length - a.blocked.length) || a.email.localeCompare(b.email));
 
   return (
     <div>
       <div style={{ marginBottom: "16px" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-display)", color: "var(--text-primary)", margin: "0 0 4px" }}>Page access</h1>
+        <h1 style={{ fontSize: "22px", fontWeight: 800, fontFamily: "var(--font-display)", color: "var(--text-primary)", margin: "0 0 4px" }}>Access</h1>
         <p style={{ fontSize: "13px", color: "var(--text-tertiary)", maxWidth: "72ch" }}>
-          Everyone starts with every page. Toggle a section <strong>off</strong> for an account and it
-          disappears from their navigation; if they reach it by link anyway they see an
-          &ldquo;under construction&rdquo; notice — never your name on it.
+          New accounts can&apos;t use BuyTune at all until approved. Once approved, everyone
+          starts with every page; toggle a section <strong>off</strong> for an account and it
+          disappears from their navigation, showing an &ldquo;under construction&rdquo; notice
+          if they reach it by link anyway.
         </p>
       </div>
       {tableMissing && (

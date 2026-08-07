@@ -28,14 +28,10 @@ const ICONS: Record<string, React.ReactNode> = {
   access: (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" /></svg>
   ),
-  approvals: (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6 3.75A2.75 2.75 0 018.75 1h2.5A2.75 2.75 0 0114 3.75v.443c.572.055 1.14.122 1.706.2C16.996 4.582 18 5.75 18 7.07v9.18A2.75 2.75 0 0115.25 19H4.75A2.75 2.75 0 012 16.25V7.07c0-1.32 1.004-2.489 2.294-2.676A41.03 41.03 0 016 4.192V3.75zm6.5 0v.325a41.05 41.05 0 00-5 0V3.75c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25zm-4.03 6.22a.75.75 0 00-1.06 1.06l1.5 1.5a.75.75 0 001.137-.089l3-4a.75.75 0 00-1.194-.902l-2.482 3.31-.9-.899z" clipRule="evenodd" /></svg>
-  ),
 };
 
 const TABS = [
   { href: "/admin", label: "Overview", icon: "overview", exact: true },
-  { href: "/admin/approvals", label: "Approvals", icon: "approvals" },
   { href: "/admin/metrics", label: "Metrics", icon: "metrics" },
   { href: "/admin/compliance", label: "Compliance", icon: "compliance" },
   { href: "/admin/agreements", label: "Agreements", icon: "agreements" },

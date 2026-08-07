@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
         <p style="margin-top:20px;">
-          <a href="${appUrl}/admin/approvals" style="display:inline-block;padding:10px 18px;background:#159f6f;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">Review in Approvals &rarr;</a>
+          <a href="${appUrl}/admin/access" style="display:inline-block;padding:10px 18px;background:#159f6f;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">Review in Access &rarr;</a>
         </p>
       </div>
     `,

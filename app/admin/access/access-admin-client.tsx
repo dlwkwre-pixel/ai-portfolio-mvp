@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setPageBlock } from "./actions";
+import { setPageBlock, setApproval } from "./actions";
 
-export type AccessUser = { id: string; email: string; blocked: string[] };
+export type AccessUser = { id: string; email: string; blocked: string[]; approved: boolean };
 type PageDef = { id: string; label: string };
 
-// Toggle grid: one row per account, one chip per page. Green chip = has access
-// (default); dim struck chip = blocked. Optimistic updates, server-verified.
+// Toggle grid: one row per account, approval status + a chip per page. Green
+// chip = has access (default); dim struck chip = blocked. Optimistic
+// updates, server-verified.
 export default function AccessAdminClient({ users, pages }: { users: AccessUser[]; pages: PageDef[] }) {
   const [blockedMap, setBlockedMap] = useState<Map<string, Set<string>>>(
     () => new Map(users.map((u) => [u.id, new Set(u.blocked)])),
+  );
+  const [approvedMap, setApprovedMap] = useState<Map<string, boolean>>(
+    () => new Map(users.map((u) => [u.id, u.approved])),
   );
   const [err, setErr] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -44,6 +48,18 @@ export default function AccessAdminClient({ users, pages }: { users: AccessUser[
     });
   }
 
+  function toggleApproval(userId: string, nextApproved: boolean) {
+    setErr(null);
+    setApprovedMap((prev) => new Map(prev).set(userId, nextApproved));
+    startTransition(async () => {
+      const res = await setApproval(userId, nextApproved);
+      if (res.error) {
+        setErr(res.error);
+        setApprovedMap((prev) => new Map(prev).set(userId, !nextApproved));
+      }
+    });
+  }
+
   const shown = filter
     ? users.filter((u) => u.email.toLowerCase().includes(filter.toLowerCase()))
     : users;
@@ -67,18 +83,41 @@ export default function AccessAdminClient({ users, pages }: { users: AccessUser[
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         {shown.map((u) => {
           const blocked = blockedMap.get(u.id) ?? new Set<string>();
+          const approved = approvedMap.get(u.id) ?? u.approved;
           return (
             <div key={u.id} style={{
               background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
               borderRadius: "12px", padding: "12px 16px",
             }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "9px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{u.email}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "9px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginRight: "auto" }}>{u.email}</span>
                 {blocked.size > 0 && (
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#f59e0b" }}>
                     {blocked.size} page{blocked.size !== 1 ? "s" : ""} blocked
                   </span>
                 )}
+                <span style={{
+                  fontSize: "11px", fontWeight: 600, padding: "4px 10px", borderRadius: "999px",
+                  color: approved ? "var(--green)" : "#f59e0b",
+                  background: approved ? "var(--green-bg)" : "rgba(245,158,11,0.1)",
+                  border: `1px solid ${approved ? "var(--green-border)" : "rgba(245,158,11,0.3)"}`,
+                }}>
+                  {approved ? "Approved" : "Pending"}
+                </span>
+                <button
+                  onClick={() => toggleApproval(u.id, !approved)}
+                  disabled={isPending}
+                  style={{
+                    padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 600,
+                    cursor: "pointer", border: "1px solid",
+                    borderColor: approved ? "var(--border-subtle)" : "var(--green-border)",
+                    background: approved ? "transparent" : "var(--green-bg)",
+                    color: approved ? "var(--text-muted)" : "var(--green)",
+                    opacity: isPending ? 0.7 : 1,
+                  }}
+                >
+                  {approved ? "Revoke" : "Approve"}
+                </button>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {pages.map((p) => {
