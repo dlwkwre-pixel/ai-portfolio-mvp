@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/", "/login", "/signup", "/forgot-password", "/reset-password",
   "/auth/callback", "/pending-approval", "/offline",
+  "/api/notify-signup", // fired right after signUp(), while the caller is still unapproved
 ];
 const PUBLIC_PREFIXES = ["/legal", "/terms", "/privacy", "/accessibility"];
 

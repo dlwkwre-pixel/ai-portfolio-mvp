@@ -34,7 +34,12 @@ export default function SignupPage() {
       options: { data: { full_name: fullName } },
     });
     if (error) { setError(error.message); setLoading(false); return; }
-    if (data.session) { router.push("/pending-approval"); router.refresh(); return; }
+    if (data.session) {
+      fetch("/api/notify-signup", { method: "POST", keepalive: true }).catch(() => {});
+      router.push("/pending-approval");
+      router.refresh();
+      return;
+    }
     setSuccess("Account created! Check your email to confirm, then sign in — you'll need to be approved before you can start using BuyTune.");
     setLoading(false);
   }
