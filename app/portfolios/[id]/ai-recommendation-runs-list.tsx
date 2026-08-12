@@ -308,7 +308,11 @@ type QuickAction = {
 };
 
 function getQuickActions(actionType: string | null): QuickAction[] {
-  const isHold = HOLD_LIKE.has((actionType ?? "").toLowerCase());
+  const type = (actionType ?? "").toLowerCase();
+  // "watch" (AI Radar) items are never a trade to execute — there's nothing
+  // proposed yet, just a candidate the AI is monitoring — so they get the
+  // same Acknowledge/Watch/Reject set as hold-like cards instead of Execute.
+  const isHold = HOLD_LIKE.has(type) || type === "watch";
   if (isHold) {
     return [
       { value: "acknowledged", inactiveLabel: "Acknowledge", activeLabel: "Acknowledged",
