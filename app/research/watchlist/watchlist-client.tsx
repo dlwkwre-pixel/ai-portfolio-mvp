@@ -3,11 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import InfoTooltip from "@/app/components/info-tooltip";
 import { addWatchlistItem, removeWatchlistItem, type WatchlistItem } from "./watchlist-actions";
 
 type WatchQuote = { price: number; changePct: number };
 type ScanResult = { signal: string; headline: string; points: string[] };
+type ForecastPoint = { timestamp: string; close: number };
+type ForecastResult = { forecast: ForecastPoint[]; generatedAt: string; cached: boolean };
 
 const fmt = (n: number) => "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -33,6 +36,10 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
   const [scans, setScans] = useState<Record<string, ScanResult>>({});
   const [scanning, setScanning] = useState<string | null>(null);
   const [scanErr, setScanErr] = useState<Record<string, string>>({});
+
+  const [forecasts, setForecasts] = useState<Record<string, ForecastResult>>({});
+  const [forecasting, setForecasting] = useState<string | null>(null);
+  const [forecastErr, setForecastErr] = useState<Record<string, string>>({});
 
   function add() {
     if (!ticker.trim()) { setError("Enter a ticker."); return; }
@@ -64,6 +71,19 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
     } catch {
       setScanErr((p) => ({ ...p, [tkr]: "Network error." }));
     } finally { setScanning(null); }
+  }
+  async function runForecast(tkr: string, refresh?: boolean) {
+    if (forecasting) return;
+    setForecastErr((p) => ({ ...p, [tkr]: "" }));
+    setForecasting(tkr);
+    try {
+      const res = await fetch(`/api/forecast/${tkr}${refresh ? "?refresh=true" : ""}`, { method: "POST" });
+      const d = await res.json();
+      if (!res.ok) { setForecastErr((p) => ({ ...p, [tkr]: d?.error ?? "Forecast failed." })); return; }
+      setForecasts((p) => ({ ...p, [tkr]: { forecast: d.forecast, generatedAt: d.generatedAt, cached: d.cached } }));
+    } catch {
+      setForecastErr((p) => ({ ...p, [tkr]: "Network error." }));
+    } finally { setForecasting(null); }
   }
 
   return (
@@ -121,6 +141,13 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
               const distPct = price != null && it.target_price != null && price > 0 ? ((it.target_price - price) / price) * 100 : null;
               const scanResult = scans[it.ticker];
               const sigMeta = scanResult ? (SIGNAL_META[scanResult.signal] ?? SIGNAL_META.no_change) : null;
+              const forecastResult = forecasts[it.ticker];
+              const lastForecast = forecastResult?.forecast[forecastResult.forecast.length - 1] ?? null;
+              const forecastPct = price != null && lastForecast != null && price > 0 ? ((lastForecast.close - price) / price) * 100 : null;
+              const forecastUp = forecastPct != null && forecastPct >= 0;
+              const forecastChartData = forecastResult
+                ? [{ close: price ?? forecastResult.forecast[0]?.close ?? 0 }, ...forecastResult.forecast.map((f) => ({ close: f.close }))]
+                : [];
               return (
                 <div key={it.id} style={{ background: "var(--card-bg)", border: `1px solid ${hit ? "rgba(34,197,94,0.3)" : "var(--card-border)"}`, borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -160,6 +187,50 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
                     </div>
                   )}
 
+                  {/* Kronos price forecast */}
+                  {forecastResult && lastForecast && (
+                    <div style={{ marginTop: "10px", padding: "11px 12px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "var(--radius-md)" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)" }}>
+                          AI price forecast · {forecastResult.forecast.length}d
+                        </span>
+                        {forecastResult.cached && (
+                          <button type="button" onClick={() => runForecast(it.ticker, true)} disabled={forecasting === it.ticker} style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: forecasting === it.ticker ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+                            Refresh
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div>
+                          <div style={{ fontSize: "16px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(lastForecast.close)}</div>
+                          {forecastPct != null && (
+                            <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: forecastUp ? "var(--green)" : "var(--red)" }}>
+                              {forecastUp ? "+" : ""}{forecastPct.toFixed(1)}%
+                            </div>
+                          )}
+                        </div>
+                        {forecastChartData.length > 1 && (
+                          <div style={{ flex: 1, height: "36px", minWidth: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart data={forecastChartData}>
+                                <defs>
+                                  <linearGradient id={`forecast-grad-${it.ticker}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={forecastUp ? "var(--green)" : "var(--red)"} stopOpacity={0.35} />
+                                    <stop offset="100%" stopColor={forecastUp ? "var(--green)" : "var(--red)"} stopOpacity={0} />
+                                  </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="close" stroke={forecastUp ? "var(--green)" : "var(--red)"} strokeWidth={1.5} fill={`url(#forecast-grad-${it.ticker})`} isAnimationActive={false} />
+                              </AreaChart>
+                            </ResponsiveContainer>
+                          </div>
+                        )}
+                      </div>
+                      <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>
+                        AI-generated forecast (Kronos model) — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "First run after a while can take up to a minute."}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
                     <button type="button" onClick={() => scan(it.ticker)} disabled={scanning === it.ticker} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: scanning === it.ticker ? "var(--text-muted)" : "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: scanning === it.ticker ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
@@ -167,6 +238,11 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
                       {scanning === it.ticker ? "Scanning news…" : scanResult ? "Re-scan news" : "AI news scan"}
                     </button>
                     {scanErr[it.ticker] && <span style={{ fontSize: "11px", color: "var(--red)" }}>{scanErr[it.ticker]}</span>}
+                    <button type="button" onClick={() => runForecast(it.ticker)} disabled={forecasting === it.ticker} style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "11.5px", fontWeight: 600, color: forecasting === it.ticker ? "var(--text-muted)" : "var(--accent, #5fbf9a)", background: "none", border: "none", cursor: forecasting === it.ticker ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18.7 8 12 14.7l-3.5-3.5L3 16.5" /></svg>
+                      {forecasting === it.ticker ? "Forecasting…" : forecasts[it.ticker] ? "Re-run forecast" : "AI price forecast"}
+                    </button>
+                    {forecastErr[it.ticker] && <span style={{ fontSize: "11px", color: "var(--red)" }}>{forecastErr[it.ticker]}</span>}
                     <button type="button" onClick={() => remove(it.id)} disabled={pending} style={{ marginLeft: "auto", fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)" }}>Remove</button>
                   </div>
                 </div>

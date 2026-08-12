@@ -5,6 +5,9 @@
     },
     "app/api/portfolio/[id]/backfill/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/forecast/[ticker]/route.ts": {
+      "maxDuration": 90
     }
   },
   "crons": [

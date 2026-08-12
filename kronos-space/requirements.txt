@@ -1,0 +1,11 @@
+# torch is installed separately in the Dockerfile from the CPU-only wheel
+# index (avoids pulling multi-GB CUDA libraries onto a CPU-only Space).
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+numpy
+pandas==2.2.2
+einops==0.8.1
+huggingface_hub==0.33.1
+tqdm==4.67.1
+safetensors==0.6.2

@@ -49,3 +49,7 @@ next-env.d.ts
 
 # Playwright MCP local output (screenshots, console logs)
 .playwright-mcp/
+
+# Python bytecode cache (kronos-space/)
+__pycache__/
+*.pyc
