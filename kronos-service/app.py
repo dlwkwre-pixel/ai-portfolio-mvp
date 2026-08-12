@@ -1,11 +1,18 @@
 """
-Kronos forecast service — FastAPI wrapper around the Kronos-small foundation
+Kronos forecast service — FastAPI wrapper around the Kronos-mini foundation
 model (https://github.com/shiyu-coder/Kronos, MIT) for BuyTune's Watchlist
 "AI price forecast" panel.
 
+Deployed as a Docker web service on Render's free tier (512MB RAM / 0.1 CPU
+cap) — Kronos-mini (4.1M params) was measured at ~333MB peak RSS end-to-end
+(torch + pandas + tokenizer + model + one inference call), leaving real
+headroom under that cap; Kronos-small (24.7M params) measured ~422MB, too
+close to the limit to risk an OOM kill in production. See
+docs/roadmap/kronos-forecast-into-ai-recommendations.md for the tradeoff.
+
 The tokenizer + model are loaded once at import time (container startup), so
-only the first request after the Space wakes from sleep pays the container
-boot cost — not per-request model loading.
+only the first request after the free-tier service wakes from a 15-minute
+idle sleep pays the container boot cost — not per-request model loading.
 """
 
 import os
@@ -17,12 +24,12 @@ from pydantic import BaseModel, Field
 
 from model import Kronos, KronosPredictor, KronosTokenizer
 
-MODEL_ID = os.environ.get("KRONOS_MODEL_ID", "NeoQuasar/Kronos-small")
-TOKENIZER_ID = os.environ.get("KRONOS_TOKENIZER_ID", "NeoQuasar/Kronos-Tokenizer-base")
-MAX_CONTEXT = int(os.environ.get("KRONOS_MAX_CONTEXT", "512"))
-# Shared secret checked against the `X-Api-Key` header. Set this as a Space
-# secret. If left unset the endpoint is open to anyone with the URL — fine
-# for a first smoke test, not recommended once wired into the live app.
+MODEL_ID = os.environ.get("KRONOS_MODEL_ID", "NeoQuasar/Kronos-mini")
+TOKENIZER_ID = os.environ.get("KRONOS_TOKENIZER_ID", "NeoQuasar/Kronos-Tokenizer-2k")
+MAX_CONTEXT = int(os.environ.get("KRONOS_MAX_CONTEXT", "2048"))
+# Shared secret checked against the `X-Api-Key` header. Set this as a Render
+# environment variable. If left unset the endpoint is open to anyone with the
+# URL — fine for a first smoke test, not recommended once wired into the live app.
 API_KEY = os.environ.get("KRONOS_API_KEY")
 
 PRICE_COLS = ["open", "high", "low", "close"]

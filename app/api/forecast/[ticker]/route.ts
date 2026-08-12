@@ -5,10 +5,12 @@ import { getFinnhubDailyCandles } from "@/lib/market-data/finnhub";
 import { candlesToHistory, getKronosForecast, type KronosForecastPoint } from "@/lib/market-data/kronos";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 90; // cold Space start + inference — see vercel.json for the matching functions override
+export const maxDuration = 90; // cold Render free-tier start + inference — see vercel.json for the matching functions override
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const HISTORY_DAYS = 550; // ≈370-380 trading days, comfortably within Kronos-small's 512-candle context
+// Kept well within the range actually measured against the service's 512MB
+// memory cap, not maxed out to Kronos-mini's full 2048-candle context.
+const HISTORY_DAYS = 550; // ≈370-380 trading days
 const PRED_LEN = 10;
 
 type CachedForecastRow = {
