@@ -79,7 +79,7 @@ type DigestResult = {
   profile: CompanyProfile | null;
 };
 
-type ForecastPoint = { timestamp: string; close: number };
+type ForecastPoint = { timestamp: string; close: number; close_low?: number; close_high?: number };
 type ForecastResult = { forecast: ForecastPoint[]; generatedAt: string; cached: boolean };
 
 type AiAnalysis = {
@@ -1503,10 +1503,18 @@ function DetailView({
       {/* Kronos AI price forecast */}
       {(() => {
         const accent = "oklch(0.65 0.18 195)"; // teal — same accent as the offline model take
+        const nextForecast = forecastResult?.forecast[0] ?? null;
         const lastForecast = forecastResult?.forecast[forecastResult.forecast.length - 1] ?? null;
-        const forecastPct = lastForecast != null && result.quote.c > 0 ? ((lastForecast.close - result.quote.c) / result.quote.c) * 100 : null;
+        const pctVs = (close: number) => (result.quote.c > 0 ? ((close - result.quote.c) / result.quote.c) * 100 : null);
+        const nextPct = nextForecast != null ? pctVs(nextForecast.close) : null;
+        const forecastPct = lastForecast != null ? pctVs(lastForecast.close) : null;
         const forecastUp = forecastPct != null && forecastPct >= 0;
+        const rangeText = (f: { close_low?: number; close_high?: number } | null) =>
+          f?.close_low != null && f?.close_high != null ? `${formatPrice(f.close_low)}–${formatPrice(f.close_high)}` : null;
         const forecastSparkPoints = forecastResult ? [result.quote.c, ...forecastResult.forecast.map((f) => f.close)] : [];
+        const hasBand = !!forecastResult?.forecast.every((f) => f.close_low != null && f.close_high != null);
+        const bandLow = hasBand && forecastResult ? [result.quote.c, ...forecastResult.forecast.map((f) => f.close_low!)] : undefined;
+        const bandHigh = hasBand && forecastResult ? [result.quote.c, ...forecastResult.forecast.map((f) => f.close_high!)] : undefined;
         return (
           <div style={{ padding: "10px 18px 16px" }}>
             <div style={{ border: `1px solid ${forecastResult ? `color-mix(in oklch, ${accent} 25%, transparent)` : "var(--card-border)"}`, borderRadius: "var(--radius-lg)", background: forecastResult ? `color-mix(in oklch, ${accent} 6%, transparent)` : "var(--bg-surface)", padding: "12px 16px" }}>
@@ -1537,23 +1545,38 @@ function DetailView({
 
               {forecastResult && lastForecast && (
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                    {nextForecast && (
+                      <div>
+                        <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>Next session</div>
+                        <div className="num" style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>{formatPrice(nextForecast.close)}</div>
+                        {nextPct != null && (
+                          <div className="num" style={{ fontSize: "10.5px", color: nextPct >= 0 ? "var(--green)" : "var(--red)" }}>
+                            {nextPct >= 0 ? "+" : ""}{nextPct.toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>In {forecastResult.forecast.length} sessions</div>
                       <div className="num" style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary)" }}>{formatPrice(lastForecast.close)}</div>
                       {forecastPct != null && (
                         <div className="num" style={{ fontSize: "11px", color: forecastUp ? "var(--green)" : "var(--red)" }}>
-                          {forecastUp ? "+" : ""}{forecastPct.toFixed(1)}% · {forecastResult.forecast.length}d
+                          {forecastUp ? "+" : ""}{forecastPct.toFixed(1)}%
                         </div>
+                      )}
+                      {rangeText(lastForecast) && (
+                        <div className="num" style={{ fontSize: "9.5px", color: "var(--text-muted)", marginTop: "1px" }}>{rangeText(lastForecast)}</div>
                       )}
                     </div>
                     {forecastSparkPoints.length > 1 && (
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <Sparkline points={forecastSparkPoints} positive={forecastUp} height={32} />
+                      <div style={{ flex: 1, minWidth: "80px" }}>
+                        <Sparkline points={forecastSparkPoints} positive={forecastUp} height={32} bandLow={bandLow} bandHigh={bandHigh} />
                       </div>
                     )}
                   </div>
                   <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", lineHeight: 1.5 }}>
-                    Model-based technical projection — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "Runs fresh each trading day."}
+                    Model-based technical projection{hasBand ? ", shaded band = spread across independent model samples" : ""} — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "Runs fresh each trading day."}
                   </p>
                 </div>
               )}

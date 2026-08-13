@@ -18,6 +18,7 @@ idle sleep pays the container boot cost — not per-request model loading.
 import os
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -57,6 +58,11 @@ class ForecastRequest(BaseModel):
     ticker: str
     history: list[Candle] = Field(min_length=30)
     pred_len: int = Field(default=10, ge=1, le=60)
+    # KronosPredictor.predict()'s own `sample_count` parameter runs multiple
+    # samples internally but averages them into one path *before* returning —
+    # it never exposes the spread. To get an actual confidence range we call
+    # predict() this many times independently instead and compare the results.
+    sample_count: int = Field(default=3, ge=1, le=5)
 
 
 class ForecastPoint(BaseModel):
@@ -66,6 +72,8 @@ class ForecastPoint(BaseModel):
     low: float
     close: float
     volume: float
+    close_low: float   # min close across the independent samples
+    close_high: float  # max close across the independent samples
 
 
 class ForecastResponse(BaseModel):
@@ -111,20 +119,31 @@ def forecast(req: ForecastRequest, x_api_key: Optional[str] = Header(default=Non
     y_timestamp = pd.Series(pd.bdate_range(start=x_timestamp.iloc[-1], periods=req.pred_len + 1, freq="B")[1:])
 
     try:
-        pred_df = _predictor.predict(
-            df=df[PRICE_COLS + ["volume"]],
-            x_timestamp=x_timestamp,
-            y_timestamp=y_timestamp,
-            pred_len=req.pred_len,
-            T=1.0,
-            top_p=0.9,
-            sample_count=1,
-            verbose=False,
-        )
+        # sample_count independent runs (each sample_count=1 — see the field
+        # comment on ForecastRequest for why) rather than one call with
+        # sample_count=N.
+        pred_dfs = [
+            _predictor.predict(
+                df=df[PRICE_COLS + ["volume"]],
+                x_timestamp=x_timestamp,
+                y_timestamp=y_timestamp,
+                pred_len=req.pred_len,
+                T=1.0,
+                top_p=0.9,
+                sample_count=1,
+                verbose=False,
+            )
+            for _ in range(req.sample_count)
+        ]
     except Exception as exc:
         # Surfaced as 502 so the Next.js client treats it as "service
         # unavailable" rather than a hard client-side error.
         raise HTTPException(status_code=502, detail=f"Forecast failed: {exc}") from exc
+
+    closes = np.stack([d["close"].to_numpy() for d in pred_dfs], axis=0)  # (sample_count, pred_len)
+    close_low = closes.min(axis=0)
+    close_high = closes.max(axis=0)
+    mean_df = sum(pred_dfs) / len(pred_dfs)  # elementwise mean across runs — same y_timestamp index for all
 
     points = [
         ForecastPoint(
@@ -134,8 +153,10 @@ def forecast(req: ForecastRequest, x_api_key: Optional[str] = Header(default=Non
             low=float(row.low),
             close=float(row.close),
             volume=max(0.0, float(row.volume)),
+            close_low=float(close_low[i]),
+            close_high=float(close_high[i]),
         )
-        for ts, row in zip(y_timestamp, pred_df.itertuples(index=False))
+        for i, (ts, row) in enumerate(zip(y_timestamp, mean_df.itertuples(index=False)))
     ]
 
     return ForecastResponse(ticker=req.ticker.upper(), forecast=points)

@@ -3,13 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import InfoTooltip from "@/app/components/info-tooltip";
+import Sparkline from "@/app/components/sparkline";
 import { addWatchlistItem, removeWatchlistItem, type WatchlistItem } from "./watchlist-actions";
 
 type WatchQuote = { price: number; changePct: number };
 type ScanResult = { signal: string; headline: string; points: string[] };
-type ForecastPoint = { timestamp: string; close: number };
+type ForecastPoint = { timestamp: string; close: number; close_low?: number; close_high?: number };
 type ForecastResult = { forecast: ForecastPoint[]; generatedAt: string; cached: boolean };
 
 const fmt = (n: number) => "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -142,12 +142,18 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
               const scanResult = scans[it.ticker];
               const sigMeta = scanResult ? (SIGNAL_META[scanResult.signal] ?? SIGNAL_META.no_change) : null;
               const forecastResult = forecasts[it.ticker];
+              const nextForecast = forecastResult?.forecast[0] ?? null;
               const lastForecast = forecastResult?.forecast[forecastResult.forecast.length - 1] ?? null;
+              const nextPct = price != null && nextForecast != null && price > 0 ? ((nextForecast.close - price) / price) * 100 : null;
               const forecastPct = price != null && lastForecast != null && price > 0 ? ((lastForecast.close - price) / price) * 100 : null;
               const forecastUp = forecastPct != null && forecastPct >= 0;
-              const forecastChartData = forecastResult
-                ? [{ close: price ?? forecastResult.forecast[0]?.close ?? 0 }, ...forecastResult.forecast.map((f) => ({ close: f.close }))]
+              const forecastSparkPoints = forecastResult
+                ? [price ?? forecastResult.forecast[0]?.close ?? 0, ...forecastResult.forecast.map((f) => f.close)]
                 : [];
+              const hasBand = !!forecastResult?.forecast.every((f) => f.close_low != null && f.close_high != null);
+              const bandLow = hasBand && forecastResult ? [price ?? forecastResult.forecast[0]?.close ?? 0, ...forecastResult.forecast.map((f) => f.close_low!)] : undefined;
+              const bandHigh = hasBand && forecastResult ? [price ?? forecastResult.forecast[0]?.close ?? 0, ...forecastResult.forecast.map((f) => f.close_high!)] : undefined;
+              const rangeText = lastForecast?.close_low != null && lastForecast?.close_high != null ? `${fmt(lastForecast.close_low)}–${fmt(lastForecast.close_high)}` : null;
               return (
                 <div key={it.id} style={{ background: "var(--card-bg)", border: `1px solid ${hit ? "rgba(34,197,94,0.3)" : "var(--card-border)"}`, borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -200,33 +206,36 @@ export default function WatchlistClient({ items, prices }: { items: WatchlistIte
                           </button>
                         )}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+                        {nextForecast && (
+                          <div>
+                            <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Next</div>
+                            <div style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(nextForecast.close)}</div>
+                            {nextPct != null && (
+                              <div style={{ fontSize: "10px", fontFamily: "var(--font-mono)", color: nextPct >= 0 ? "var(--green)" : "var(--red)" }}>
+                                {nextPct >= 0 ? "+" : ""}{nextPct.toFixed(1)}%
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div>
+                          <div style={{ fontSize: "9px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>In {forecastResult.forecast.length}d</div>
                           <div style={{ fontSize: "16px", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{fmt(lastForecast.close)}</div>
                           {forecastPct != null && (
                             <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: forecastUp ? "var(--green)" : "var(--red)" }}>
                               {forecastUp ? "+" : ""}{forecastPct.toFixed(1)}%
                             </div>
                           )}
+                          {rangeText && <div style={{ fontSize: "9.5px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>{rangeText}</div>}
                         </div>
-                        {forecastChartData.length > 1 && (
-                          <div style={{ flex: 1, height: "36px", minWidth: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={forecastChartData}>
-                                <defs>
-                                  <linearGradient id={`forecast-grad-${it.ticker}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={forecastUp ? "var(--green)" : "var(--red)"} stopOpacity={0.35} />
-                                    <stop offset="100%" stopColor={forecastUp ? "var(--green)" : "var(--red)"} stopOpacity={0} />
-                                  </linearGradient>
-                                </defs>
-                                <Area type="monotone" dataKey="close" stroke={forecastUp ? "var(--green)" : "var(--red)"} strokeWidth={1.5} fill={`url(#forecast-grad-${it.ticker})`} isAnimationActive={false} />
-                              </AreaChart>
-                            </ResponsiveContainer>
+                        {forecastSparkPoints.length > 1 && (
+                          <div style={{ flex: 1, minWidth: "80px" }}>
+                            <Sparkline points={forecastSparkPoints} positive={forecastUp} height={36} bandLow={bandLow} bandHigh={bandHigh} />
                           </div>
                         )}
                       </div>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px" }}>
-                        AI-generated forecast (Kronos model) — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "First run after a while can take up to a minute."}
+                        AI-generated forecast (Kronos model){hasBand ? ", shaded band = spread across independent model samples" : ""} — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "First run after a while can take up to a minute."}
                       </p>
                     </div>
                   )}

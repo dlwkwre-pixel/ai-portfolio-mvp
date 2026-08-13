@@ -7,6 +7,10 @@ export type KronosForecastPoint = {
   low: number;
   close: number;
   volume: number;
+  // Min/max close across the service's independently-sampled runs — a
+  // confidence range, not present if talking to an older deployed service.
+  close_low?: number;
+  close_high?: number;
 };
 
 export type KronosForecast = {
