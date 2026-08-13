@@ -10,6 +10,7 @@ import ScenariosPanel from "./scenarios-panel";
 import CongressSection, { CongressTickerCard } from "./congress-section";
 import StockLogo from "@/app/components/stock-logo";
 import PageTutorial from "@/app/components/page-tutorial";
+import MarketNewsChannel from "./market-news-channel";
 import { addWatchlistItem } from "./watchlist/watchlist-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2199,6 +2200,8 @@ export default function ResearchClient({ portfolios }: { portfolios: Portfolio[]
   return (
     <div ref={topRef} style={{ maxWidth: "900px" }}>
       <PageTutorial tutorialId="research" />
+
+      <MarketNewsChannel />
 
       {/* Market hours notice */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", padding: "7px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
