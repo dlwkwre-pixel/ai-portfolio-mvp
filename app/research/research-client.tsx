@@ -10,6 +10,7 @@ import ScenariosPanel from "./scenarios-panel";
 import CongressSection, { CongressTickerCard } from "./congress-section";
 import StockLogo from "@/app/components/stock-logo";
 import PageTutorial from "@/app/components/page-tutorial";
+import { addWatchlistItem } from "./watchlist/watchlist-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,9 @@ type DigestResult = {
   raw_recommendation: RawRecommendation | null;
   profile: CompanyProfile | null;
 };
+
+type ForecastPoint = { timestamp: string; close: number };
+type ForecastResult = { forecast: ForecastPoint[]; generatedAt: string; cached: boolean };
 
 type AiAnalysis = {
   verdict: "BUY" | "HOLD" | "SELL";
@@ -957,6 +961,11 @@ function DetailView({
   const [insiderLoading, setInsiderLoading]   = useState(false);
   const [insiderTicker, setInsiderTicker]     = useState<string | null>(null);
   const [myPosition, setMyPosition]           = useState<MyPosition | null>(null);
+  const [forecastResult, setForecastResult]   = useState<ForecastResult | null>(null);
+  const [forecasting, setForecasting]         = useState(false);
+  const [forecastErr, setForecastErr]         = useState<string | null>(null);
+  const [onWatchlist, setOnWatchlist]         = useState<boolean | null>(null);
+  const [watchlistBusy, setWatchlistBusy]     = useState(false);
 
 
   const rating = analystLabel(result.recommendation);
@@ -1065,6 +1074,46 @@ function DetailView({
       .then((d: MyPosition) => setMyPosition(d))
       .catch(() => {});
   }, [result.ticker]);
+
+  // Kronos AI price forecast — on-demand (button-triggered), reset when the ticker changes
+  useEffect(() => {
+    setForecastResult(null);
+    setForecastErr(null);
+    setForecasting(false);
+  }, [result.ticker]);
+
+  function runForecast(refresh?: boolean) {
+    if (forecasting) return;
+    setForecastErr(null);
+    setForecasting(true);
+    fetch(`/api/forecast/${result.ticker}${refresh ? "?refresh=true" : ""}`, { method: "POST" })
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) { setForecastErr(d?.error ?? "Forecast failed."); return; }
+        setForecastResult({ forecast: d.forecast, generatedAt: d.generatedAt, cached: d.cached });
+      })
+      .catch(() => setForecastErr("Network error."))
+      .finally(() => setForecasting(false));
+  }
+
+  // Whether this ticker is already on the user's watchlist
+  useEffect(() => {
+    setOnWatchlist(null);
+    const supabase = createClient();
+    supabase.from("watchlist").select("id").eq("ticker", result.ticker).maybeSingle()
+      .then(({ data, error }) => setOnWatchlist(error ? false : !!data));
+  }, [result.ticker]);
+
+  function addToWatchlist() {
+    if (watchlistBusy || onWatchlist !== false) return;
+    setWatchlistBusy(true);
+    const fd = new FormData();
+    fd.set("ticker", result.ticker);
+    fd.set("alert_direction", "below");
+    addWatchlistItem(fd)
+      .then((res) => { if (!res?.error) setOnWatchlist(true); })
+      .finally(() => setWatchlistBusy(false));
+  }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -1444,6 +1493,68 @@ function DetailView({
                     </div>
                   )}
                   {shown && !grokLoading && <AdviceDisclaimer context="analysis" />}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Kronos AI price forecast */}
+      {(() => {
+        const accent = "oklch(0.65 0.18 195)"; // teal — same accent as the offline model take
+        const lastForecast = forecastResult?.forecast[forecastResult.forecast.length - 1] ?? null;
+        const forecastPct = lastForecast != null && result.quote.c > 0 ? ((lastForecast.close - result.quote.c) / result.quote.c) * 100 : null;
+        const forecastUp = forecastPct != null && forecastPct >= 0;
+        const forecastSparkPoints = forecastResult ? [result.quote.c, ...forecastResult.forecast.map((f) => f.close)] : [];
+        return (
+          <div style={{ padding: "10px 18px 16px" }}>
+            <div style={{ border: `1px solid ${forecastResult ? `color-mix(in oklch, ${accent} 25%, transparent)` : "var(--card-border)"}`, borderRadius: "var(--radius-lg)", background: forecastResult ? `color-mix(in oklch, ${accent} 6%, transparent)` : "var(--bg-surface)", padding: "12px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, fontFamily: "var(--font-body)" }}>AI price forecast · Kronos</span>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button type="button" onClick={addToWatchlist} disabled={watchlistBusy || onWatchlist !== false}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "var(--radius-full)", border: "1px solid rgba(14,165,160,0.28)", background: onWatchlist === true ? "rgba(14,165,160,0.1)" : "transparent", color: "var(--brand-blue)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", cursor: watchlistBusy || onWatchlist !== false ? "default" : "pointer", fontFamily: "var(--font-body)", opacity: onWatchlist === null ? 0.6 : 1 }}>
+                    {onWatchlist === true ? "✓ On watchlist" : watchlistBusy ? "Adding…" : "+ Add to watchlist"}
+                  </button>
+                  {forecastResult && (
+                    <button type="button" onClick={() => runForecast(true)} disabled={forecasting}
+                      style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", cursor: forecasting ? "wait" : "pointer", fontFamily: "var(--font-body)", padding: 0 }}>
+                      Refresh
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!forecastResult && (
+                <button type="button" onClick={() => runForecast()} disabled={forecasting}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "5px 12px", borderRadius: "var(--radius-full)", border: `1px solid color-mix(in oklch, ${accent} 35%, transparent)`, background: `color-mix(in oklch, ${accent} 14%, transparent)`, color: accent, fontSize: "11px", fontWeight: 700, cursor: forecasting ? "wait" : "pointer", fontFamily: "var(--font-body)" }}>
+                  {forecasting ? "Forecasting…" : "Run 10-day forecast"}
+                </button>
+              )}
+
+              {forecastErr && <div style={{ fontSize: "11px", color: "var(--red)", marginTop: "8px" }}>{forecastErr}</div>}
+
+              {forecastResult && lastForecast && (
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div>
+                      <div className="num" style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary)" }}>{formatPrice(lastForecast.close)}</div>
+                      {forecastPct != null && (
+                        <div className="num" style={{ fontSize: "11px", color: forecastUp ? "var(--green)" : "var(--red)" }}>
+                          {forecastUp ? "+" : ""}{forecastPct.toFixed(1)}% · {forecastResult.forecast.length}d
+                        </div>
+                      )}
+                    </div>
+                    {forecastSparkPoints.length > 1 && (
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Sparkline points={forecastSparkPoints} positive={forecastUp} height={32} />
+                      </div>
+                    )}
+                  </div>
+                  <p style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "8px", lineHeight: 1.5 }}>
+                    Model-based technical projection — not investment advice. {forecastResult.cached ? `Cached ${new Date(forecastResult.generatedAt).toLocaleString()}.` : "Runs fresh each trading day."}
+                  </p>
                 </div>
               )}
             </div>
