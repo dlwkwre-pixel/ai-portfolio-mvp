@@ -22,6 +22,9 @@ const SERIES_CONFIG: Record<string, RangeCfg> = {
   "1M": { fn: "TIME_SERIES_DAILY",                        size: "compact", seriesKey: "Time Series (Daily)", limit: 23 },
   "3M": { fn: "TIME_SERIES_DAILY",                        size: "full",    seriesKey: "Time Series (Daily)", limit: 68 },
   "1Y": { fn: "TIME_SERIES_WEEKLY",                                         seriesKey: "Weekly Time Series",  limit: 53 },
+  // Daily-resolution ~1.5yr history for the Kronos forecast model — the "1Y" chart
+  // range above is weekly, too coarse for the model's expected input.
+  "KRONOS_1Y": { fn: "TIME_SERIES_DAILY", size: "full", seriesKey: "Time Series (Daily)", limit: 400 },
 };
 
 export type AVNewsItem = {

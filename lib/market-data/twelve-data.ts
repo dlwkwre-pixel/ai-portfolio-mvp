@@ -22,6 +22,9 @@ const TWELVE_CONFIG: Record<string, { interval: string; outputsize: number }> = 
   "1M": { interval: "1day",  outputsize: 23 },
   "3M": { interval: "1day",  outputsize: 68 },
   "1Y": { interval: "1week", outputsize: 53 },
+  // Daily-resolution ~1.5yr history for the Kronos forecast model — the "1Y" chart
+  // range above is weekly-downsampled, too coarse for the model's expected input.
+  "KRONOS_1Y": { interval: "1day", outputsize: 400 },
 };
 
 export async function getTwelveDataCandles(ticker: string, range: string): Promise<CandlePoint[] | null> {

@@ -16,7 +16,7 @@ export type KronosForecast = {
   generatedAt: string;
 };
 
-type KronosHistoryRow = {
+export type KronosHistoryRow = {
   timestamp: string;
   open: number;
   high: number;
