@@ -12,7 +12,7 @@ Run them manually in the Supabase dashboard SQL editor.
 
 ## Pending — run these in the SQL editor
 
-- `kronos-forecast-cache.sql` — `kronos_forecasts` table for the Watchlist AI price forecast panel.
+*Nothing pending.*
 
 When a new file lands here, run it in the Supabase SQL editor, then move it to `applied/`.
 
