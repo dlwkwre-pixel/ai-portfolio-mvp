@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
@@ -22,7 +23,8 @@
     "resend": "^6.12.3",
     "snaptrade-typescript-sdk": "^10.0.18",
     "xlsx": "^0.18.5",
-    "xlsx-js-style": "^1.2.0"
+    "xlsx-js-style": "^1.2.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

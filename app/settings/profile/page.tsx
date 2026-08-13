@@ -8,6 +8,8 @@ import EmailSettingsClient from "@/app/settings/emails/email-settings-client";
 import DeleteAccount from "./delete-account";
 import Link from "next/link";
 import { checkAndAwardBadges } from "@/lib/badges/check";
+import ApiTokensClient from "@/app/settings/api-tokens-client";
+import type { ApiTokenRow } from "@/app/settings/api-tokens-actions";
 
 const LEGAL_LINKS = [
   { href: "/legal/terms", label: "Terms of Service" },
@@ -27,11 +29,14 @@ export default async function ProfileSettingsPage() {
     { data: allPortfolios },
     { count: followersCount },
     { count: followingCount },
+    { data: apiTokens },
   ] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true),
     supabase.from("user_follows").select("*", { count: "exact", head: true }).eq("following_id", user.id),
     supabase.from("user_follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
+    supabase.from("api_tokens").select("id, name, token_prefix, last_used_at, created_at").eq("user_id", user.id).is("revoked_at", null).order("created_at", { ascending: false })
+      .then((r) => r, () => ({ data: [] as ApiTokenRow[] })),
   ]);
 
   // Retroactively award any badges earned before tracking was implemented
@@ -104,7 +109,12 @@ export default async function ProfileSettingsPage() {
                 <EmailSettingsClient portfolios={portfolioRows} />
               </div>
 
-              {/* 4. Platform / Legal */}
+              {/* 4. Connected AI agents (MCP) */}
+              <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "32px" }}>
+                <ApiTokensClient tokens={(apiTokens ?? []) as ApiTokenRow[]} />
+              </div>
+
+              {/* 5. Platform / Legal */}
               <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px", paddingBottom: "16px", display: "flex", flexDirection: "column", gap: "6px" }}>
                 <style>{`.bt-legal-link:hover { background: var(--bg-elevated) !important; border-color: var(--border-subtle) !important; }`}</style>
                 <p style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Platform</p>
