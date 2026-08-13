@@ -24,6 +24,10 @@
       "schedule": "0 6 * * *"
     },
     {
+      "path": "/api/cron/refresh-gdelt-signals",
+      "schedule": "0 */3 * * *"
+    },
+    {
       "path": "/api/cron/contribution-reminders",
       "schedule": "0 14 * * *"
     },

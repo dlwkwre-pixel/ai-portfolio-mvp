@@ -399,7 +399,8 @@ function ScenarioCard({
                 fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
                 letterSpacing: "0.1em", color: cfg.color, marginBottom: "8px",
               }}>
-                Current Signals ({signal!.count} headline{signal!.count !== 1 ? "s" : ""})
+                Current Signals ({signal!.headlines.length} headline{signal!.headlines.length !== 1 ? "s" : ""}
+                {signal!.gdeltArticleCount != null ? ` · ${signal!.gdeltArticleCount} GDELT articles` : ""})
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {signal!.headlines.map((h, i) => (
