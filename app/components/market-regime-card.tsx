@@ -27,11 +27,11 @@ const LEVEL_CONFIG: Record<RegimeLevel, {
 
 const DIMENSION_LABELS: Record<string, string> = {
   macro: "Macro", growth: "Growth", volatility: "Stability",
-  liquidity: "Liquidity", inflation: "Inflation",
+  liquidity: "Liquidity", inflation: "Inflation", geopolitical: "Geopolitical",
 };
 
 const DIM_WEIGHTS: Record<string, number> = {
-  macro: 0.30, growth: 0.25, volatility: 0.20, liquidity: 0.15, inflation: 0.10,
+  macro: 0.28, growth: 0.22, volatility: 0.18, liquidity: 0.14, inflation: 0.08, geopolitical: 0.10,
 };
 
 type DimComponent = { label: string; weight: number; signalKey?: string };
@@ -74,6 +74,12 @@ const DIM_INFO: Record<string, { desc: string; components: DimComponent[] }> = {
       { label: "Employment", weight: 40, signalKey: "employment" },
     ],
   },
+  geopolitical: {
+    desc: "Global conflict/crisis news volume — elevated tension raises tail risk and can spill into energy, supply chains, and risk appetite broadly.",
+    components: [
+      { label: "GDELT conflict/crisis article volume (48h)", weight: 100, signalKey: "geopolitical" },
+    ],
+  },
 };
 
 type LearnEntry = { title: string; desc: string; why: string };
@@ -114,6 +120,11 @@ const SIGNAL_LEARN: Record<string, LearnEntry> = {
     desc: "Daily return spread between the Technology ETF (XLK) and Utilities ETF (XLU). Positive = tech outperforming.",
     why: "Tech leading defensives signals risk-on appetite — investors are paying for growth expectations. Defensives outperforming is often early capital rotation toward safety ahead of broader weakness.",
   },
+  geopolitical: {
+    title: "Geopolitical Conflict/Crisis Volume",
+    desc: "Count of recent GDELT-indexed news articles matching a broad war/invasion/sanctions/coup query over the last 48 hours — free, public, no calibrated historical baseline yet.",
+    why: "Spikes in conflict coverage often precede volatility in energy prices, defense/aerospace names, and broad risk appetite. This is a noisy proxy, not a precise index — treat directionally, not as a precise threshold.",
+  },
 };
 
 const SIGNAL_LABEL_MAP: Record<string, string> = {
@@ -124,6 +135,7 @@ const SIGNAL_LABEL_MAP: Record<string, string> = {
   creditConditions: "Credit",
   marketBreadth: "Breadth",
   sectorLeadership: "Sector rotation",
+  geopolitical: "Geopolitical",
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────

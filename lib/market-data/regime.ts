@@ -14,6 +14,7 @@ export type DimensionScores = {
   volatility: number;   // 0-100: market stability (100 = calm, 0 = extreme stress)
   liquidity: number;    // 0-100: funding + credit conditions
   inflation: number;    // 0-100: inflation regime (100 = benign, 0 = extreme)
+  geopolitical: number; // 0-100: global conflict/instability news volume (100 = quiet, 0 = high tension)
 };
 
 export type RegimeModifiers = {
@@ -39,6 +40,13 @@ export type MarketSignals = {
   impliedVolProxy: number | null;
   // NYSE+NASDAQ breadth: advancing / (advancing + declining), 0–1
   marketBreadthRatio: number | null;
+  // GDELT article count for a broad global conflict/crisis query over a short
+  // recent window — a rough, unvalidated proxy for how much real-world
+  // geopolitical tension is in the news right now, not a calibrated index.
+  // Optional: only app/api/market/regime/route.ts currently fetches this: other
+  // callers of computeRegime() just fall back to the neutral score, same as any
+  // other unavailable signal.
+  geoConflictArticleCount?: number | null;
 };
 
 export type RegimeSnapshot = {
@@ -56,6 +64,7 @@ export type RegimeSnapshot = {
     creditConditions: string;
     marketBreadth: string;         // "64% advancing — healthy" or "Unavailable"
     sectorLeadership: string;      // "Tech +0.8% vs Defensives — leading" or "Unavailable"
+    geopolitical: string;          // "12 conflict/crisis articles (48h) — quiet" or "Unavailable"
   };
   dataQuality: "full" | "partial" | "market-only";  // what data was available
   calculatedAt: string;
@@ -195,6 +204,19 @@ function scoreBreadth(ratio: number | null): number {
   return clamp(ratio * 60, 5, 22);
 }
 
+// GDELT article count for a broad conflict/crisis query, over a short window
+// (see route.ts) → 0-100. Thresholds are a first-pass heuristic, not
+// empirically calibrated against a historical baseline — same caveat as the
+// scenario-signal GDELT scaling in app/api/scenarios/signals/route.ts.
+function scoreGeopolitical(articleCount: number | null): number {
+  if (articleCount === null) return 50; // neutral fallback, consistent with every other dimension
+  if (articleCount < 15) return 85;
+  if (articleCount < 30) return 70;
+  if (articleCount < 50) return 55;
+  if (articleCount < 75) return 35;
+  return 15;
+}
+
 function scoreTechLeadership(dpDiff: number | null): number {
   // dpDiff = XLK daily % change minus XLU daily % change
   // Positive = tech outperforming defensives = risk-on signal
@@ -219,6 +241,7 @@ function computeDimensions(macro: MacroSignals, market: MarketSignals): Dimensio
   const volScore = scoreVolatility(market.impliedVolProxy);
   const breadthScore = scoreBreadth(market.marketBreadthRatio);
   const techLeadScore = scoreTechLeadership(market.techVsDefensiveRatio);
+  const geoScore = scoreGeopolitical(market.geoConflictArticleCount ?? null);
 
   // Macro: yield curve (40%), fed policy (35%), credit (25%)
   const macroScore = yieldScore * 0.4 + fedScore * 0.35 + creditScore * 0.25;
@@ -242,19 +265,24 @@ function computeDimensions(macro: MacroSignals, market: MarketSignals): Dimensio
     volatility: Math.round(volatilityScore),
     liquidity: Math.round(liquidityScore),
     inflation: Math.round(inflationScore),
+    geopolitical: Math.round(geoScore),
   };
 }
 
 // ─── Composite score → regime level ───────────────────────────────────────────
 
 function computeCompositeScore(dims: DimensionScores): number {
-  // Weights: macro (30%), growth (25%), volatility (20%), liquidity (15%), inflation (10%)
+  // Weights: macro (28%), growth (22%), volatility (18%), liquidity (14%),
+  // inflation (8%), geopolitical (10%) — the original 5 (30/25/20/15/10) scaled
+  // down ~10% each to make room for the new dimension without re-deriving the
+  // whole weighting scheme from scratch.
   return Math.round(
-    dims.macro * 0.30 +
-    dims.growth * 0.25 +
-    dims.volatility * 0.20 +
-    dims.liquidity * 0.15 +
-    dims.inflation * 0.10
+    dims.macro * 0.28 +
+    dims.growth * 0.22 +
+    dims.volatility * 0.18 +
+    dims.liquidity * 0.14 +
+    dims.inflation * 0.08 +
+    dims.geopolitical * 0.10
   );
 }
 
@@ -376,6 +404,15 @@ function breadthLabel(ratio: number | null): string {
   return `${pct}% advancing — narrow / deteriorating`;
 }
 
+function geopoliticalLabel(articleCount: number | null): string {
+  if (articleCount === null) return "Unavailable";
+  if (articleCount < 15) return `${articleCount} conflict/crisis articles (48h) — quiet`;
+  if (articleCount < 30) return `${articleCount} conflict/crisis articles (48h) — normal`;
+  if (articleCount < 50) return `${articleCount} conflict/crisis articles (48h) — elevated`;
+  if (articleCount < 75) return `${articleCount} conflict/crisis articles (48h) — high`;
+  return `${articleCount} conflict/crisis articles (48h) — very high`;
+}
+
 function sectorLeadershipLabel(dpDiff: number | null): string {
   if (dpDiff === null) return "Unavailable";
   const sign = dpDiff >= 0 ? "+" : "";
@@ -454,6 +491,7 @@ export function computeRegime(macro: MacroSignals, market: MarketSignals): Regim
       creditConditions: creditLabel(macro.creditSpread),
       marketBreadth: breadthLabel(market.marketBreadthRatio),
       sectorLeadership: sectorLeadershipLabel(market.techVsDefensiveRatio),
+      geopolitical: geopoliticalLabel(market.geoConflictArticleCount ?? null),
     },
     dataQuality,
     calculatedAt: new Date().toISOString(),
@@ -509,6 +547,7 @@ export function regimePromptContext(regime: RegimeSnapshot): string {
     breadth:            dimLabel(regime.dimensions.growth),
     volatility:         volLabel(regime.dimensions.volatility),
     inflation:          dimLabel(regime.dimensions.inflation),
+    geopolitical:       dimLabel(regime.dimensions.geopolitical),
     participation_bias: participationBias[regime.level],
     sizing_modifier:    sizingModifier[regime.level],
     speculative_penalty: speculativePenalty[regime.level],
@@ -516,6 +555,7 @@ export function regimePromptContext(regime: RegimeSnapshot): string {
       yield_curve: regime.signals.yieldCurve,
       fed_policy:  regime.signals.fedPolicy,
       inflation:   regime.signals.inflation,
+      geopolitical: regime.signals.geopolitical,
     },
   };
 

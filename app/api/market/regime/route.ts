@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import { getFinnhubQuote, getFinnhubMetrics } from "@/lib/market-data/finnhub";
 import { getFredMacroSignals } from "@/lib/market-data/fred";
 import { getFmpMarketBreadth } from "@/lib/market-data/fmp-breadth";
+import { getGdeltArticleCount } from "@/lib/market-data/gdelt";
 import { computeRegime } from "@/lib/market-data/regime";
 import type { MarketSignals } from "@/lib/market-data/regime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const revalidate = 14400; // 4-hour server-side cache
+export const revalidate = 14400; // 4-hour server-side cache — also the reason a
+// live GDELT call is safe to make directly in this route (below) rather than
+// needing its own cron+cache table: this route body itself only runs once
+// per 4h, nowhere near GDELT's ~1-request/5s courtesy limit.
+
+const GEO_CONFLICT_QUERY = ["war", "invasion", "military strike", "sanctions", "coup", "conflict escalation"];
 
 export async function GET() {
   try {
     // Fetch macro + market data in parallel
-    const [macroSignals, spyQuote, spyMetrics, qqqQuote, xlkQuote, xluQuote, xlvQuote, xleQuote, xlfQuote, xliQuote, breadth] =
+    const [macroSignals, spyQuote, spyMetrics, qqqQuote, xlkQuote, xluQuote, xlvQuote, xleQuote, xlfQuote, xliQuote, breadth, geoConflict] =
       await Promise.allSettled([
         getFredMacroSignals(),
         getFinnhubQuote("SPY"),
@@ -24,6 +30,7 @@ export async function GET() {
         getFinnhubQuote("XLF"),
         getFinnhubQuote("XLI"),
         getFmpMarketBreadth(),
+        getGdeltArticleCount(GEO_CONFLICT_QUERY, 2),
       ]);
 
     const macro = macroSignals.status === "fulfilled"
@@ -44,6 +51,7 @@ export async function GET() {
     const xlf = xlfQuote.status === "fulfilled" ? xlfQuote.value : null;
     const xli = xliQuote.status === "fulfilled" ? xliQuote.value : null;
     const breadthData = breadth.status === "fulfilled" ? breadth.value : null;
+    const geoConflictArticleCount = geoConflict.status === "fulfilled" ? geoConflict.value : null;
 
     // Sector ETF breadth fallback: count sectors with positive daily % change
     const sectorBreadthFallback = (() => {
@@ -77,6 +85,7 @@ export async function GET() {
       techVsDefensiveRatio,
       impliedVolProxy,
       marketBreadthRatio: breadthData?.ratio ?? sectorBreadthFallback?.ratio ?? null,
+      geoConflictArticleCount,
     };
 
     const regime = computeRegime(macro, market);
