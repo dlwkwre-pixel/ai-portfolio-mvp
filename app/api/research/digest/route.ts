@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { getFinnhubNews } from "@/lib/market-data/finnhub";
 import { callGemini, extractJsonObject } from "@/lib/ai/gemini";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type RawEarning = { quarter: string; actual: number | null; estimate: number | null; beat: boolean | null };
 
@@ -158,6 +159,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cached.data);
     }
 
+    // Persistent cache miss on this in-memory instance doesn't necessarily mean
+    // no recent digest exists — check Supabase before spending a Gemini call.
+    try {
+      const admin = createAdminClient();
+      const { data: row } = await admin.from("research_digests").select("data, generated_at").eq("ticker", ticker).maybeSingle();
+      if (row && Date.now() - new Date(row.generated_at).getTime() < CACHE_TTL) {
+        const data = row.data as DigestResult;
+        cache.set(ticker, { data, ts: Date.now() });
+        return NextResponse.json(data);
+      }
+    } catch { /* table may not exist yet — fall through to regenerate */ }
+
     const [news, earningsResult, metricsResult, recommendation, profile] = await Promise.all([
       getFinnhubNews(ticker, 3),
       fetchEarnings(ticker),
@@ -215,6 +228,11 @@ Return this exact JSON:
       profile,
     };
     cache.set(ticker, { data: result, ts: Date.now() });
+    try {
+      const admin = createAdminClient();
+      admin.from("research_digests").upsert({ ticker, data: result, generated_at: result.generated_at })
+        .then(() => {}, () => {}); // best-effort — table may not exist yet, never fail the response over it
+    } catch { /* createAdminClient itself can throw if unconfigured */ }
     return NextResponse.json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Digest failed.";

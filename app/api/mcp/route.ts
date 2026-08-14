@@ -5,6 +5,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { verifyApiToken } from "@/lib/auth/api-tokens";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,12 @@ export const dynamic = "force-dynamic";
 // this is a data source for someone else's agent, not a place BuyTune places
 // trades from. See lib/auth/api-tokens.ts for the token model.
 //
-// Every tool here is a cache/DB read (or a watchlist write, which touches only
-// BuyTune's own tracking data, never a brokerage) — nothing here triggers a
-// fresh, costly AI call on an agent's behalf yet. Live-generating tools
-// (fresh Grok deep-dive, fresh Kronos inference) need their own cost/rate-limit
-// design first — see docs/roadmap/buytune-mcp-agent-access.md for what's next.
+// Every tool here is a cache/DB read, a watchlist write (touches only
+// BuyTune's own tracking data, never a brokerage), or — run_ai_analysis only —
+// a cheap free-tier-model call with its own 12h cache. The expensive
+// live-search Grok deep-dive and fresh Kronos inference (up to a minute,
+// costs real tokens) are deliberately NOT exposed here yet — see
+// docs/roadmap/buytune-mcp-agent-access.md for why.
 
 const DISCLAIMER =
   "BuyTune is a software tool, not a registered investment adviser. This data is informational only, not investment advice or a recommendation to buy or sell any security.";
@@ -28,7 +30,7 @@ const AI_ANALYSIS_DISCLAIMER =
 const FORECAST_DISCLAIMER =
   DISCLAIMER + " This forecast is a small model-based technical projection (Kronos-mini), not a fundamentals- or news-aware analysis. A backtest run 2026-08-13 found it did not beat a naive no-change baseline — treat it as low-confidence.";
 
-function buildServer(userId: string): McpServer {
+function buildServer(userId: string, origin: string): McpServer {
   const server = new McpServer({ name: "buytune", version: "0.1.0" });
 
   server.registerTool(
@@ -105,6 +107,38 @@ function buildServer(userId: string): McpServer {
   );
 
   server.registerTool(
+    "run_ai_analysis",
+    {
+      title: "Run AI analysis",
+      description: "Returns BuyTune's AI verdict for a ticker, regenerating it if the cache is stale (>12h). This is the cheap, free-tier-model 'quick take' — the same one shown on the Research page by default — not the paid live-search Grok deep-dive. Shared across all users, not personalized.",
+      inputSchema: {
+        ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL"),
+        company_name: z.string().optional().describe("Optional, improves prompt quality"),
+      },
+    },
+    async ({ ticker, company_name }) => {
+      const t = ticker.trim().toUpperCase();
+      let quote;
+      try { quote = await getFinnhubQuote(t); } catch { quote = null; }
+      if (!quote || !quote.c) {
+        return { content: [{ type: "text", text: `Couldn't find a live price for ${t}.` }], isError: true };
+      }
+      try {
+        const res = await fetch(`${origin}/api/research/ai-analysis`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker: t, company_name: company_name ?? t, price: quote.c, change_pct: quote.dp }),
+        });
+        const data = await res.json();
+        if (!res.ok) return { content: [{ type: "text", text: data?.error ?? "Analysis failed." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify({ ticker: t, disclaimer: AI_ANALYSIS_DISCLAIMER, ...data }, null, 2) }] };
+      } catch {
+        return { content: [{ type: "text", text: "Analysis request failed." }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
     "get_kronos_forecast",
     {
       title: "Get Kronos price forecast",
@@ -119,6 +153,24 @@ function buildServer(userId: string): McpServer {
         return { content: [{ type: "text", text: JSON.stringify({ ticker: t, available: false, note: "No cached forecast for this ticker yet — ask the user to run one from BuyTune Research or Watchlist first." }) }] };
       }
       return { content: [{ type: "text", text: JSON.stringify({ ticker: t, disclaimer: FORECAST_DISCLAIMER, generated_at: data.generated_at, forecast: data.forecast }, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_research",
+    {
+      title: "Get research digest",
+      description: "Returns BuyTune's cached AI research digest for a ticker — company overview, recent-news summary, earnings snapshot, financial snapshot, market outlook. Shared across all users, not personalized. Read-only, no fresh AI call triggered (a fresh digest costs a Gemini call and is generated on-demand when a user opens the ticker in the app).",
+      inputSchema: { ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL") },
+    },
+    async ({ ticker }) => {
+      const t = ticker.trim().toUpperCase();
+      const admin = createAdminClient();
+      const { data } = await admin.from("research_digests").select("data, generated_at").eq("ticker", t).maybeSingle();
+      if (!data) {
+        return { content: [{ type: "text", text: JSON.stringify({ ticker: t, available: false, note: "No cached research digest for this ticker yet — ask the user to open it in BuyTune Research first." }) }] };
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ ticker: t, disclaimer: AI_ANALYSIS_DISCLAIMER, generated_at: data.generated_at, ...(data.data as Record<string, unknown>) }, null, 2) }] };
     }
   );
 
@@ -189,7 +241,19 @@ async function handle(req: NextRequest): Promise<Response> {
     );
   }
 
-  const server = buildServer(auth.userId);
+  // Keyed by user, not IP — an agent's requests may all come from the same
+  // provider infrastructure IP regardless of which user it's acting for.
+  // Generous ceiling: this is a read-mostly tool surface, the point is
+  // catching a runaway/looping agent, not throttling normal interactive use.
+  const { limited, retryAfter } = checkRateLimit(`mcp:${auth.userId}`, 60, 60_000);
+  if (limited) {
+    return NextResponse.json(
+      { error: "Rate limited — too many requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
+  }
+
+  const server = buildServer(auth.userId, req.nextUrl.origin);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless — each request is independent, matches serverless
     enableJsonResponse: true,
