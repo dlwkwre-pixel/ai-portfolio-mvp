@@ -1541,6 +1541,67 @@ ${JSON.stringify(context)}${contextNote ? `\n\n## Investor Note (one-time contex
   return { summary: finalSummary, recommendations, thesis_updates: thesisUpdates };
 }
 
+// Bounded follow-up for holdings the main call left uncovered. Deliberately
+// small in scope compared to callGrokForRecommendations — no discovery search,
+// no two-engine architecture, just a verdict on the specific tickers named.
+// Only worth calling when the miss count is small (see MAX_FOLLOWUP_TICKERS
+// at the call site) — for a large miss count this would cost nearly as much
+// as a second full run, at which point the placeholder backstop is the
+// better tradeoff than silently doubling the Grok bill on every run.
+async function callGrokForMissingHoldings(context: unknown, missingTickers: string[]): Promise<AiRecommendation[]> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey || missingTickers.length === 0) return [];
+
+  const client = new OpenAI({ apiKey, baseURL: "https://api.x.ai/v1", timeout: 120000 });
+
+  const systemPrompt = `You are an institutional portfolio manager doing a narrow follow-up review. A prior analysis pass on this portfolio addressed most holdings but missed a few. Your ONLY job is to evaluate the specific tickers listed below against the given portfolio context — do NOT search for new candidates, do NOT address any ticker not listed.
+
+For each ticker, decide action_type (hold/trim/sell/add/scale_in) using the same reasoning standard as a full review: thesis continuity, sizing appropriateness, current catalyst health. Run at most one targeted search per ticker for current price/recent news — this is a narrow check, not a discovery scan.
+
+Return only valid JSON, no markdown fences:
+{ "recommendations": [ { "action_type": "hold|trim|sell|add|scale_in", "ticker": "string", "company_name": "string|null", "thesis": "string", "rationale": "string", "risks": "string|null", "conviction": "Low|Medium|High|null", "confidence_score": "number|null", "target_price_1": "number|null" } ] }
+
+You MUST include exactly one entry per ticker listed below — no more, no fewer.
+Tickers to address: ${missingTickers.join(", ")}`;
+
+  const userPrompt = `Portfolio context:\n${JSON.stringify(context)}\n\nAddress only these tickers: ${missingTickers.join(", ")}`;
+
+  try {
+    const response = await client.responses.create({
+      model: "grok-4.20-0309-reasoning",
+      input: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      tools: [
+        { type: "web_search" },
+        { type: "x_search" },
+      ],
+    } as any);
+
+    const usage = (response as any).usage ?? null;
+    await logAiUsage({
+      provider: "grok",
+      model: "grok-4.20-0309-reasoning",
+      route: "recommendations-followup",
+      promptTokens: usage?.input_tokens ?? usage?.prompt_tokens ?? null,
+      completionTokens: usage?.output_tokens ?? usage?.completion_tokens ?? null,
+    });
+
+    const outputText = response.output_text?.trim();
+    if (!outputText) return [];
+
+    const parsed = JSON.parse(extractJsonText(outputText)) as { recommendations?: unknown };
+    const recommendationsRaw = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+    return recommendationsRaw
+      .map((item) => item && typeof item === "object" ? normalizeRecommendation(item as Record<string, unknown>) : null)
+      .filter((item): item is AiRecommendation => Boolean(item));
+  } catch (err) {
+    console.error("[recommendations-followup] error:", err);
+    return []; // non-fatal — caller falls back to placeholder items for anything still missing
+  }
+}
+
 // --- Gemini Flash: Portfolio Health Report (free, cross-check) ---
 async function callGeminiForHealthReport(context: unknown): Promise<HealthReport> {
   // Derive a few concrete numbers so the model anchors to real data instead of
@@ -1962,9 +2023,37 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       }
     }
 
+    // Coverage backstop for the "COVERAGE REQUIREMENT" prompt instruction above —
+    // the model is asked to address every holding but sometimes doesn't, especially
+    // on larger portfolios (reported: a 16-holding portfolio returning only 5-6
+    // items per run). Two layers, cost-bounded: a narrow, no-discovery follow-up
+    // call for a SMALL number of misses (cheap top-up — still a live Grok call
+    // with search, so not free, just far cheaper than a full second run), and a
+    // clearly-labeled placeholder for anything still missing after that (or when
+    // the miss count is too large for a follow-up call to be worth its cost).
+    const MAX_FOLLOWUP_TICKERS = 5;
+    const round1CoveredTickers = new Set(validatedRecs.map((item) => String(item.ticker ?? "").toUpperCase()));
+    const round1MissingTickers = (currentHoldings ?? [])
+      .map((h) => h.ticker.toUpperCase())
+      .filter((t) => !round1CoveredTickers.has(t));
+
+    let followupRecs: AiRecommendation[] = [];
+    if (round1MissingTickers.length > 0 && round1MissingTickers.length <= MAX_FOLLOWUP_TICKERS) {
+      const raw = await callGrokForMissingHoldings(context, round1MissingTickers);
+      // The cash-cap (buyAddTotal vs. available cash) and owned-shares cap for
+      // trim/sell only ran against round 1's output, above — round 2 never passes
+      // through them. Rather than duplicate that validation for a handful of
+      // items, just disallow round 2 from sizing a trade at all: dollar/share
+      // amounts get dropped regardless of what the model returned, so a round-2
+      // item can never bypass those safety checks.
+      followupRecs = raw.map((item) => ({ ...item, sizing_dollars: null, share_quantity: null, sizing_pct: null }));
+    }
+
+    const allRecs = [...validatedRecs, ...followupRecs];
+
     // Drop pure-churn repeats: an unchanged "hold" on a ticker that already has an
     // open "hold" sitting there with the same rationale doesn't need a second row.
-    const dedupedRecs = validatedRecs.filter((item) => {
+    const dedupedRecs = allRecs.filter((item) => {
       const action = (item.action_type ?? "").toLowerCase();
       if (action !== "hold") return true;
       const existing = existingOpenByTicker.get(String(item.ticker ?? "").toUpperCase());
@@ -1972,16 +2061,7 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
       return existing.rationale !== item.rationale;
     });
 
-    // Structural backstop for the "COVERAGE REQUIREMENT" prompt instruction above —
-    // the model is asked to address every holding but sometimes doesn't, especially
-    // on larger portfolios (reported: a 16-holding portfolio returning only 5-6
-    // items per run). Rather than trust the model, any current holding missing from
-    // its response entirely gets an explicit, clearly-labeled placeholder appended
-    // to recsToInsert instead of silently vanishing from the run's results with no
-    // sign it was ever looked at. Appended (not prepended) so every downstream
-    // index-aligned step (supersede, companion linking, auto-journal) still lines
-    // up 1:1 with insertedItemIds for the real recommendations.
-    const coveredTickers = new Set(validatedRecs.map((item) => String(item.ticker ?? "").toUpperCase()));
+    const coveredTickers = new Set(allRecs.map((item) => String(item.ticker ?? "").toUpperCase()));
     const backfillTickers = new Set<string>();
     const backfillRecs: AiRecommendation[] = (currentHoldings ?? [])
       .filter((h) => !coveredTickers.has(h.ticker.toUpperCase()))
