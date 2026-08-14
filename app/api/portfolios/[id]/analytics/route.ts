@@ -9,6 +9,17 @@ import { buildOpenLots, accountIsTaxable, type RawLot } from "@/lib/portfolio/ta
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+// Finnhub's profile2 "country" field is the company's HQ country as a 2-letter
+// code — not exhaustive, common ones for a US-brokerage holdings list. Unmapped
+// codes just render as-is (still informative, e.g. "IE", "KY").
+const COUNTRY_NAMES: Record<string, string> = {
+  US: "United States", CN: "China", TW: "Taiwan", JP: "Japan", KR: "South Korea",
+  GB: "United Kingdom", DE: "Germany", FR: "France", NL: "Netherlands", CH: "Switzerland",
+  CA: "Canada", IN: "India", IE: "Ireland", IL: "Israel", SG: "Singapore",
+  HK: "Hong Kong", AU: "Australia", BR: "Brazil", SE: "Sweden", DK: "Denmark",
+  ES: "Spain", IT: "Italy", BM: "Bermuda", KY: "Cayman Islands", LU: "Luxembourg",
+};
+
 // Pearson correlation of two equal-length series.
 function pearson(a: number[], b: number[]): number {
   const n = Math.min(a.length, b.length);
@@ -40,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const rows = holdings ?? [];
   if (rows.length === 0) {
-    return NextResponse.json({ sectors: [], correlation: null, totalValue: 0 });
+    return NextResponse.json({ sectors: [], countries: [], correlation: null, totalValue: 0 });
   }
 
   // Value to get per-holding market values (weights the exposure + picks top holdings).
@@ -55,24 +66,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .map((h) => ({ ticker: h.ticker, market_value: h.market_value ?? 0, asset_type: h.asset_type ?? null }));
   } catch { /* fall through with empty */ }
 
-  if (valued.length === 0) return NextResponse.json({ sectors: [], correlation: null, totalValue: 0 });
+  if (valued.length === 0) return NextResponse.json({ sectors: [], countries: [], correlation: null, totalValue: 0 });
   const totalValue = valued.reduce((s, h) => s + h.market_value, 0);
 
-  // ── Sector exposure (top 20 positions by value) ──
+  // ── Sector + country exposure (top 20 positions by value) ──
+  // Same per-ticker Finnhub profile call powers both breakdowns — no extra
+  // API cost for country exposure, the field was already in the response.
   const topForSector = [...valued].sort((a, b) => b.market_value - a.market_value).slice(0, 20);
   const sectorMap = new Map<string, number>();
   const sectorByTicker = new Map<string, string>();
+  const countryMap = new Map<string, number>();
   await Promise.all(topForSector.map(async (h) => {
-    let label = "Other / Fund";
-    if (h.asset_type === "crypto") label = "Crypto";
-    else if (h.asset_type === "manual") label = "Non-tradeable";
+    let sectorLabel = "Other / Fund";
+    let countryLabel = "Unknown";
+    if (h.asset_type === "crypto") { sectorLabel = "Crypto"; countryLabel = "Crypto (no HQ)"; }
+    else if (h.asset_type === "manual") { sectorLabel = "Non-tradeable"; countryLabel = "N/A"; }
     else {
-      try { const p = await getFinnhubProfile(h.ticker); if (p?.industry) label = p.industry; } catch { /* keep default */ }
+      try {
+        const p = await getFinnhubProfile(h.ticker);
+        if (p?.industry) sectorLabel = p.industry;
+        if (p?.country) countryLabel = COUNTRY_NAMES[p.country] ?? p.country;
+      } catch { /* keep defaults */ }
     }
-    sectorByTicker.set(h.ticker, label);
-    sectorMap.set(label, (sectorMap.get(label) ?? 0) + h.market_value);
+    sectorByTicker.set(h.ticker, sectorLabel);
+    sectorMap.set(sectorLabel, (sectorMap.get(sectorLabel) ?? 0) + h.market_value);
+    countryMap.set(countryLabel, (countryMap.get(countryLabel) ?? 0) + h.market_value);
   }));
   const sectors = [...sectorMap.entries()]
+    .map(([label, value]) => ({ label, value: Math.round(value), pct: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0 }))
+    .sort((a, b) => b.value - a.value);
+  const countries = [...countryMap.entries()]
     .map(([label, value]) => ({ label, value: Math.round(value), pct: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0 }))
     .sort((a, b) => b.value - a.value);
 
@@ -218,5 +241,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   } catch { /* lots table missing → no harvest section */ }
 
-  return NextResponse.json({ sectors, correlation, factors, holdings: simHoldings, totalValue: Math.round(totalValue), harvest });
+  return NextResponse.json({ sectors, countries, correlation, factors, holdings: simHoldings, totalValue: Math.round(totalValue), harvest });
 }

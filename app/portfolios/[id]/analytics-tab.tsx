@@ -21,7 +21,7 @@ type FactorTilt = {
 };
 type HarvestCandidate = { ticker: string; purchasedAt: string; shares: number; costPerShare: number; price: number; loss: number; longTerm: boolean; washSaleRisk: boolean };
 type Harvest = { taxable: boolean; totalLoss: number; stLoss: number; ltLoss: number; candidates: HarvestCandidate[] };
-type Data = { sectors: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; holdings?: SimHolding[]; totalValue: number; harvest?: Harvest | null };
+type Data = { sectors: Sector[]; countries: Sector[]; correlation: Correlation | null; factors: FactorTilt | null; holdings?: SimHolding[]; totalValue: number; harvest?: Harvest | null };
 
 const PALETTE = ["#2563eb", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#64748b", "#84cc16", "#a855f7"];
 const fmt = (n: number) => "$" + Math.round(n).toLocaleString();
@@ -148,6 +148,35 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           </div>
         )}
       </div>
+
+      {/* Country / geographic exposure */}
+      {data.countries.length > 0 && (
+        <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 18px" }}>
+          <h2 style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 14px", display: "flex", alignItems: "center" }}>
+            Geographic exposure <Hint text="Where your holdings are headquartered, by value. A single-country portfolio carries that country's regulatory, currency, and geopolitical risk — even if the underlying business itself operates globally." />
+          </h2>
+          <div style={{ display: "flex", height: "16px", borderRadius: "8px", overflow: "hidden", marginBottom: "14px", background: "rgba(148,163,184,0.12)" }}>
+            {data.countries.map((c, i) => (
+              <div key={c.label} className="bt-an-seg" style={{ width: `${c.pct}%`, background: PALETTE[i % PALETTE.length], animationDelay: `${i * 60}ms` }} />
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "7px" }}>
+            {data.countries.map((c, i) => (
+              <div key={c.label} style={{ display: "flex", alignItems: "center", gap: "9px", fontSize: "12.5px" }}>
+                <span style={{ width: "9px", height: "9px", borderRadius: "3px", background: PALETTE[i % PALETTE.length], flexShrink: 0 }} />
+                <span style={{ color: "var(--text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</span>
+                <span style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>{fmt(c.value)}</span>
+                <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", width: "34px", textAlign: "right" }}>{c.pct}%</span>
+              </div>
+            ))}
+          </div>
+          {data.countries[0] && data.countries[0].label !== "United States" && data.countries[0].pct >= 40 && (
+            <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              <strong style={{ color: "#f59e0b" }}>{data.countries[0].pct}% headquartered in {data.countries[0].label}.</strong> Worth knowing what regulatory and geopolitical risk rides along with that.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Factor / style tilt */}
       {data.factors && (data.factors.styleCoveragePct > 0 || data.factors.sizeCoveragePct > 0) && (

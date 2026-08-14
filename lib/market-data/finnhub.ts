@@ -479,7 +479,7 @@ export async function getFinnhubMarketNews(category = "general", limit = 50): Pr
   }
 }
 
-export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null } | null> {
+export async function getFinnhubProfile(symbol: string): Promise<{ name: string; logo: string; weburl: string; marketCap: number | null; industry: string | null; country: string | null } | null> {
   const apiKey = getApiKey();
   const normalizedSymbol = symbol.trim().toUpperCase();
   if (!normalizedSymbol) return null;
@@ -504,6 +504,7 @@ export async function getFinnhubProfile(symbol: string): Promise<{ name: string;
       weburl: data.weburl ?? "",
       marketCap: typeof data.marketCapitalization === "number" ? data.marketCapitalization : null,
       industry: data.finnhubIndustry ?? null,
+      country: typeof data.country === "string" && data.country.trim() ? data.country.trim() : null,
     };
   } catch {
     return null;
