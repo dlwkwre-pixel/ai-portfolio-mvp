@@ -1246,6 +1246,7 @@ async function callGrokForRecommendations(context: unknown, contextNote?: string
 
     // ── Two-Engine Architecture
     "TWO-ENGINE ARCHITECTURE: Your analysis ALWAYS runs two parallel evaluations. ENGINE 1 — PORTFOLIO MANAGEMENT: Evaluate every existing holding — thesis continuity, sizing appropriateness, macro overlay, factor drift, catalyst health. ENGINE 2 — OPPORTUNITY DISCOVERY: Independently scan for external candidates that deserve capital. Ask: 'What outside this portfolio deserves consideration right now?' These engines run simultaneously and compete for capital in the final output. Existing holdings carry NO automatic incumbency advantage — they must justify their capital allocation against the best available alternatives. A real PM constantly asks: 'If I had fresh capital today, would I still allocate here — or is there something better?'",
+    "COVERAGE REQUIREMENT (Engine 1, hard constraint): recommendations MUST include exactly one entry for every single ticker in the portfolio's holdings list — no exceptions, regardless of portfolio size. A holding with nothing new to say still gets a HOLD entry with a brief one-sentence rationale ('thesis intact, no material change'). Do NOT silently omit a holding because it seems routine or boring — an omitted holding reads to the user as 'not reviewed,' which is worse than a short, low-effort HOLD entry. Count the holdings list before finalizing your response and verify every ticker in it has a matching entry in recommendations.",
 
     // ── Exploration Pressure
     "EXPLORATION PRESSURE: Recommendation breadth scales with portfolio conditions, NOT with holding count. Exploration pressure is HIGH when: (a) cash is idle (>10% of portfolio); (b) portfolio is concentrated (few holdings, high HHI); (c) strategy is aggressive, growth, or momentum-oriented; (d) environment is constructive or mixed; (e) conviction gaps exist. A 2-stock portfolio with 35% cash and an aggressive growth strategy should generate MORE external opportunity exploration than a fully-deployed 15-stock balanced portfolio. Small or concentrated portfolios increase discovery obligation — fewer holdings means more undiscovered opportunity. NEVER let holding count constrain idea generation.",
@@ -1963,13 +1964,45 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
 
     // Drop pure-churn repeats: an unchanged "hold" on a ticker that already has an
     // open "hold" sitting there with the same rationale doesn't need a second row.
-    const recsToInsert = validatedRecs.filter((item) => {
+    const dedupedRecs = validatedRecs.filter((item) => {
       const action = (item.action_type ?? "").toLowerCase();
       if (action !== "hold") return true;
       const existing = existingOpenByTicker.get(String(item.ticker ?? "").toUpperCase());
       if (!existing || (existing.action_type ?? "").toLowerCase() !== "hold") return true;
       return existing.rationale !== item.rationale;
     });
+
+    // Structural backstop for the "COVERAGE REQUIREMENT" prompt instruction above —
+    // the model is asked to address every holding but sometimes doesn't, especially
+    // on larger portfolios (reported: a 16-holding portfolio returning only 5-6
+    // items per run). Rather than trust the model, any current holding missing from
+    // its response entirely gets an explicit, clearly-labeled placeholder appended
+    // to recsToInsert instead of silently vanishing from the run's results with no
+    // sign it was ever looked at. Appended (not prepended) so every downstream
+    // index-aligned step (supersede, companion linking, auto-journal) still lines
+    // up 1:1 with insertedItemIds for the real recommendations.
+    const coveredTickers = new Set(validatedRecs.map((item) => String(item.ticker ?? "").toUpperCase()));
+    const backfillTickers = new Set<string>();
+    const backfillRecs: AiRecommendation[] = (currentHoldings ?? [])
+      .filter((h) => !coveredTickers.has(h.ticker.toUpperCase()))
+      .map((h) => {
+        const ticker = h.ticker.toUpperCase();
+        backfillTickers.add(ticker);
+        return {
+          action_type: "hold", ticker, company_name: null,
+          thesis: "No material change identified this run.",
+          rationale: "Not individually re-addressed by this run's analysis — no new information surfaced that would change the prior read. Position carries forward unchanged.",
+          risks: null, conviction: null, confidence_score: null, priority_rank: null,
+          sizing_pct: null, sizing_dollars: null, share_quantity: null,
+          target_price_1: null, target_price_2: null, stop_price: null, bear_price: null, bull_price: null,
+          base_return_pct: null, bear_return_pct: null, bull_return_pct: null,
+          catalysts: null, target_change_reason: null, time_horizon: null, target_horizon: null,
+          probability_bear: null, probability_base: null, probability_bull: null,
+          expected_value: null, expected_return_pct: null, low_conviction_flag: null,
+          radar_type: null, radar_condition: null, companion_of_index: null,
+        };
+      });
+    const recsToInsert = [...dedupedRecs, ...backfillRecs];
 
     let insertedItemIds: string[] = [];
     if (recsToInsert.length > 0) {
@@ -2011,9 +2044,13 @@ For each new position, state: (a) specific sizing in dollars and percentage of t
             target_horizon: item.target_horizon,
             // AI Radar items are never shown as actionable recommendations — force
             // them straight into the existing watchlist bucket instead of "proposed".
-            recommendation_status: item.action_type === "watch" && item.radar_type ? "watchlist" : "proposed",
+            // Backfilled "not addressed this run" placeholders don't need a user
+            // decision either — they're informational, not a fresh AI call.
+            recommendation_status: item.action_type === "watch" && item.radar_type ? "watchlist"
+              : backfillTickers.has(String(item.ticker).toUpperCase()) ? "acknowledged"
+              : "proposed",
             user_decision: null,
-            decision_notes: null,
+            decision_notes: backfillTickers.has(String(item.ticker).toUpperCase()) ? "Auto-generated: not individually addressed by this run's AI analysis." : null,
           }))
         )
         .select("id");
