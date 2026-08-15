@@ -57,11 +57,19 @@ function buildServer(userId: string, origin: string): McpServer {
       }
 
       const portfolioIds = (portfolios ?? []).map((p) => p.id);
-      const { data: holdings } = portfolioIds.length > 0
+      // holdings has no user_id column — ownership comes entirely through
+      // portfolio_id, which portfolioIds is already scoped to above. An
+      // earlier .eq("user_id", userId) filter here referenced a column that
+      // doesn't exist, so every call silently errored to an empty array —
+      // this tool returned zero holdings for every user, always.
+      const { data: holdings, error: holdingsErr } = portfolioIds.length > 0
         ? await admin.from("holdings")
             .select("portfolio_id, ticker, company_name, asset_type, shares, average_cost_basis")
-            .in("portfolio_id", portfolioIds).eq("user_id", userId)
-        : { data: [] };
+            .in("portfolio_id", portfolioIds)
+        : { data: [], error: null };
+      if (holdingsErr) {
+        return { content: [{ type: "text", text: `Error loading holdings: ${holdingsErr.message}` }], isError: true };
+      }
 
       const result = {
         disclaimer: DISCLAIMER,
