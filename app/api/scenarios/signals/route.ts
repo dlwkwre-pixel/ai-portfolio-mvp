@@ -19,7 +19,10 @@ type AIScenarioRow = {
 // respect GDELT's ~1 request/5s courtesy limit) — this route only ever reads
 // the cache, so a live user request is never stuck waiting on a third party.
 // A stale/missing cache row just means the field is omitted, not an error.
-const GDELT_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6h — 2x the cron's own refresh interval
+// The cron runs once daily (Vercel Hobby plan caps crons at once/day), so
+// this needs real headroom past 24h or the cache goes cold for hours before
+// the next run — 30h covers a same-day run plus reasonable slack.
+const GDELT_CACHE_MAX_AGE_MS = 30 * 60 * 60 * 1000;
 
 async function getCachedGdeltCount(supabase: Awaited<ReturnType<typeof createClient>>, scenarioKey: string): Promise<number | undefined> {
   const { data } = await supabase

@@ -25,7 +25,7 @@
     },
     {
       "path": "/api/cron/refresh-gdelt-signals",
-      "schedule": "0 */3 * * *"
+      "schedule": "0 8 * * *"
     },
     {
       "path": "/api/cron/contribution-reminders",
