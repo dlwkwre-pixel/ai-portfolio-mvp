@@ -10,6 +10,8 @@ import Link from "next/link";
 import { checkAndAwardBadges } from "@/lib/badges/check";
 import ApiTokensClient from "@/app/settings/api-tokens-client";
 import type { ApiTokenRow } from "@/app/settings/api-tokens-actions";
+import OAuthGrantsClient from "@/app/settings/oauth-grants-client";
+import { listActiveGrants } from "@/lib/oauth/tokens";
 
 const LEGAL_LINKS = [
   { href: "/legal/terms", label: "Terms of Service" },
@@ -30,6 +32,7 @@ export default async function ProfileSettingsPage() {
     { count: followersCount },
     { count: followingCount },
     { data: apiTokens },
+    oauthGrants,
   ] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("is_active", true),
@@ -37,6 +40,7 @@ export default async function ProfileSettingsPage() {
     supabase.from("user_follows").select("*", { count: "exact", head: true }).eq("follower_id", user.id),
     supabase.from("api_tokens").select("id, name, token_prefix, last_used_at, created_at").eq("user_id", user.id).is("revoked_at", null).order("created_at", { ascending: false })
       .then((r) => r, () => ({ data: [] as ApiTokenRow[] })),
+    listActiveGrants(user.id).catch(() => []),
   ]);
 
   // Retroactively award any badges earned before tracking was implemented
@@ -112,6 +116,7 @@ export default async function ProfileSettingsPage() {
               {/* 4. Connected AI agents (MCP) */}
               <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "32px" }}>
                 <ApiTokensClient tokens={(apiTokens ?? []) as ApiTokenRow[]} />
+                <OAuthGrantsClient grants={oauthGrants} />
               </div>
 
               {/* 5. Platform / Legal */}

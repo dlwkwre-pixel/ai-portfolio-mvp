@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateOpaqueToken, sha256Hex } from "./crypto";
 import { AUTH_CODE_TTL_MS, ACCESS_TOKEN_TTL_MS, REFRESH_TOKEN_TTL_MS } from "./config";
@@ -94,7 +95,10 @@ export async function issueTokenPair(clientId: string, userId: string, familyId?
   return { accessToken: access.raw, refreshToken: refresh.raw, expiresIn: ACCESS_TOKEN_TTL_MS / 1000 };
 }
 
-export async function verifyOAuthAccessToken(raw: string | null): Promise<ApiTokenAuth | null> {
+export async function verifyOAuthAccessToken(
+  raw: string | null,
+  usage?: { ip?: string; userAgent?: string | null }
+): Promise<ApiTokenAuth | null> {
   if (!raw || !raw.startsWith("bt_at_")) return null;
   const hash = sha256Hex(raw);
   const admin = createAdminClient();
@@ -102,6 +106,23 @@ export async function verifyOAuthAccessToken(raw: string | null): Promise<ApiTok
     .select("id, user_id, access_expires_at, revoked_at").eq("access_token_hash", hash).maybeSingle();
   if (!data || data.revoked_at) return null;
   if (new Date(data.access_expires_at).getTime() < Date.now()) return null;
+
+  // Doesn't block the response (runs after it's sent), but unlike a plain
+  // `void` fire-and-forget, Next's after() keeps the serverless function
+  // alive until this actually completes — a bare `void` here measurably
+  // dropped the write under test (same failure mode found earlier with the
+  // Grok cache), which defeats the point of a "notice an unfamiliar
+  // location/device" security feature.
+  if (usage) {
+    after(async () => {
+      await admin.from("oauth_tokens").update({
+        last_used_at: new Date().toISOString(),
+        last_used_ip: usage.ip ?? null,
+        last_used_user_agent: usage.userAgent ?? null,
+      }).eq("id", data.id);
+    });
+  }
+
   return { userId: data.user_id, tokenId: data.id };
 }
 
@@ -128,4 +149,69 @@ export async function rotateRefreshToken(raw: string, clientId: string): Promise
 
   await admin.from("oauth_tokens").update({ rotated_at: new Date().toISOString() }).eq("id", data.id);
   return issueTokenPair(data.client_id, data.user_id, data.family_id);
+}
+
+// --- Grant visibility / revocation (Settings > Connected AI Agents) --------
+
+export type OAuthGrant = {
+  familyId: string;
+  clientName: string;
+  connectedAt: string;
+  lastUsedAt: string | null;
+  lastUsedIp: string | null;
+};
+
+type GrantRow = {
+  family_id: string;
+  created_at: string;
+  last_used_at: string | null;
+  last_used_ip: string | null;
+  revoked_at: string | null;
+  oauth_clients: { client_name: string } | { client_name: string }[] | null;
+};
+
+// One row per family, not per token — a family can have several rows from
+// refresh rotation, all sharing one family_id. Families whose most recent
+// row is revoked are dropped entirely (revocation always applies to the
+// whole family at once, so partial-revoke isn't a real state).
+export async function listActiveGrants(userId: string): Promise<OAuthGrant[]> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("oauth_tokens")
+    .select("family_id, created_at, last_used_at, last_used_ip, revoked_at, oauth_clients(client_name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  const byFamily = new Map<string, GrantRow[]>();
+  for (const row of (data ?? []) as GrantRow[]) {
+    const list = byFamily.get(row.family_id) ?? [];
+    list.push(row);
+    byFamily.set(row.family_id, list);
+  }
+
+  const grants: OAuthGrant[] = [];
+  for (const [familyId, rows] of byFamily) {
+    const latest = rows[rows.length - 1];
+    if (latest.revoked_at) continue;
+    const clientRel = latest.oauth_clients;
+    const clientName = (Array.isArray(clientRel) ? clientRel[0]?.client_name : clientRel?.client_name) ?? "Unknown client";
+    let lastUsedAt: string | null = null;
+    let lastUsedIp: string | null = null;
+    for (const r of rows) {
+      if (r.last_used_at && (!lastUsedAt || r.last_used_at > lastUsedAt)) { lastUsedAt = r.last_used_at; lastUsedIp = r.last_used_ip; }
+    }
+    grants.push({ familyId, clientName, connectedAt: rows[0].created_at, lastUsedAt, lastUsedIp });
+  }
+
+  return grants.sort((a, b) => b.connectedAt.localeCompare(a.connectedAt));
+}
+
+// Revokes an entire token family — writes stay centralized here (rather than
+// a direct RLS update policy) because partial/malformed updates to this
+// table's rotation bookkeeping are easy to get wrong from a client.
+export async function revokeGrantFamily(userId: string, familyId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("oauth_tokens").select("id").eq("family_id", familyId).eq("user_id", userId).limit(1);
+  if (!data || data.length === 0) return false;
+  await admin.from("oauth_tokens").update({ revoked_at: new Date().toISOString() }).eq("family_id", familyId);
+  return true;
 }

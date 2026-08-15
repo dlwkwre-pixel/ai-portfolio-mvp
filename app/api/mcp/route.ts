@@ -7,7 +7,7 @@ import { verifyOAuthAccessToken } from "@/lib/oauth/tokens";
 import { PROTECTED_RESOURCE_METADATA_URL } from "@/lib/oauth/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { runGrokDeepDive } from "@/lib/ai/grok-deep-dive";
 
 export const dynamic = "force-dynamic";
@@ -454,7 +454,9 @@ async function handle(req: NextRequest): Promise<Response> {
   // Settings > Connected AI Agents) and OAuth-issued access tokens
   // (bt_at_..., from the /oauth/authorize consent flow). Prefix picks which
   // table to check — see lib/auth/api-tokens.ts and lib/oauth/tokens.ts.
-  const auth = token?.startsWith("bt_at_") ? await verifyOAuthAccessToken(token) : await verifyApiToken(token);
+  const auth = token?.startsWith("bt_at_")
+    ? await verifyOAuthAccessToken(token, { ip: getIp(req), userAgent: req.headers.get("user-agent") })
+    : await verifyApiToken(token);
   if (!auth) {
     return NextResponse.json(
       { error: "Unauthorized. Create a token in BuyTune Settings > Connected AI Agents, or connect via OAuth, and send it as a Bearer token." },
