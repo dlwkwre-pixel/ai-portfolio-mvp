@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import { Chip } from "@/app/components/ui-primitives";
+import AgenticQuickstart from "./quickstart";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +57,16 @@ export default async function AgenticTradingGuidePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { data: portfolios } = await supabase
-    .from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active");
+  const [{ data: portfolios }, { data: strategies }] = await Promise.all([
+    supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
+    supabase.from("strategies").select("id, name").eq("user_id", user.id).eq("is_active", true),
+  ]);
+
+  const portfolioIds = (portfolios ?? []).map((p) => p.id);
+  const { data: assignments } = portfolioIds.length > 0
+    ? await supabase.from("portfolio_strategy_assignments")
+        .select("portfolio_id, strategy_id").eq("is_active", true).is("ended_at", null).in("portfolio_id", portfolioIds)
+    : { data: [] };
 
   const sidebarPortfolios = (portfolios ?? []).map((p) => ({
     id: p.id, name: p.name, cash_balance: Number(p.cash_balance ?? 0), account_type: p.account_type,
@@ -82,6 +91,12 @@ export default async function AgenticTradingGuidePage() {
             <div style={{ background: "rgba(14,148,136,0.06)", border: "1px solid rgba(14,148,136,0.15)", borderRadius: "var(--radius-lg)", padding: "12px 16px", marginBottom: "32px", fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
               Everything BuyTune exposes to your agent is read-only except two narrow, auditable writes (a watchlist add and a trade-record entry — see below). It cannot execute a trade, move money, or touch a brokerage account. Read the <Link href="/legal/ai-disclaimer" style={{ color: "var(--brand-blue)" }}>AI Disclaimer</Link> before connecting a live account — this is a tool, not a registered investment adviser, and you&apos;re responsible for what your agent does.
             </div>
+
+            <AgenticQuickstart
+              portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
+              strategies={(strategies ?? []).map((s) => ({ id: s.id, name: s.name }))}
+              assignedPairs={(assignments ?? []).map((a) => ({ portfolioId: a.portfolio_id, strategyId: a.strategy_id }))}
+            />
 
             <Step n={1} title="Build (or copy) a strategy">
               Define the rules your agent should follow — position sizing, risk level, what counts as a buy/sell signal, style. Build one from scratch in <Link href="/strategies" style={{ color: "var(--brand-blue)" }}>Strategies</Link>, or browse public strategies in <Link href="/community" style={{ color: "var(--brand-blue)" }}>Community</Link> and use &quot;copy as template&quot; to start from someone else&apos;s. Assign the finished strategy to the portfolio you want the agent managing.
