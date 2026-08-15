@@ -14,6 +14,7 @@ import { getCongressActivity, getCongressTradesForTicker } from "@/lib/market-da
 import { searchRedditPosts, searchRedditPostsPublic } from "@/lib/market-data/reddit";
 import { buildRedditPulse } from "@/lib/market-data/reddit-pulse";
 import { fetchApeWisdomData } from "@/lib/market-data/apewisdom";
+import { recordPortfolioTransaction } from "@/lib/portfolio/record-transaction";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,30 @@ const ANALYSIS_FRAMEWORK = {
     takeaway: "One sentence, stated plainly, no hedging",
   },
   discipline: "Cite the specific data point behind every claim (a strategy rule, a recommendation verdict, a scan signal, a sentiment read) — no vague justifications. This is the same standard log_trading_decision's reasoning field should meet.",
+};
+
+// Deliberately generic — no reference to any one user's specific strategy.
+// Works for whatever strategy is assigned to whatever portfolio is being
+// traded; the agent is expected to fetch get_strategies() fresh each run for
+// the actual rules (position sizing, style, sell criteria), not assume them.
+// This is what makes an unattended scheduled task's own instructions stay
+// short and durable — the process lives here and updates for everyone the
+// moment this changes, instead of being copy-pasted into every user's own
+// task config and going stale.
+const TRADING_ROUTINE = {
+  applies_to: "Any portfolio with a strategy assigned via BuyTune's Strategy Builder, traded through a connected brokerage's own execution tools (e.g. Robinhood's Agentic Trading MCP).",
+  per_run: [
+    "Identify which BuyTune portfolio this account corresponds to (get_portfolio) and fetch get_strategies() FRESH — never rely on a cached or remembered copy of the rules, since they can change between runs.",
+    "Find the strategy assigned to that portfolio and treat its rules, stop-loss, and any routine guidance in its own text as authoritative for this run — this generic routine covers workflow, the strategy covers what/when specifically.",
+    "For candidate generation (typically the first run of the trading day): use whatever scanner tools are available (e.g. a connected brokerage's own screening tools) to find candidates matching the strategy's stated style/criteria.",
+    "Check cheap/free BuyTune data first (get_recommendation, get_research, get_kronos_forecast) before spending on paid tools (run_deep_analysis, get_x_sentiment) — narrow to the strongest 1-2 candidates before going deeper.",
+    "Weigh findings against get_financial_profile (risk tolerance, suitability) in addition to the strategy's own rules.",
+    "For follow-up runs the same day (e.g. an afternoon check): re-evaluate existing positions under this strategy against its sell/stop-loss rules using current price/volume, rather than re-scanning for new candidates.",
+    "Execute via the connected brokerage's own trading tools if warranted (respect that tool's own confirmation/review behavior).",
+    "After any executed trade, call record_trade so BuyTune's own portfolio stays current without needing a separate paid sync service — this is in addition to, not instead of, whatever the brokerage itself reports.",
+    "Always call log_trading_decision — for every candidate considered, not just executed trades — citing the specific data behind the call. Include the portfolio_id so it lands in the right digest.",
+  ],
+  note: "This routine describes workflow only. It never authorizes a specific trade by itself — the strategy's rules and the user's own standing instructions to the agent (e.g. approval requirements) govern that.",
 };
 
 // Real-money cost per call (Grok live search) with no fine-grained spend
@@ -163,6 +188,18 @@ function buildServer(userId: string, origin: string): McpServer {
     },
     async () => {
       return { content: [{ type: "text", text: JSON.stringify(ANALYSIS_FRAMEWORK, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_trading_routine",
+    {
+      title: "Get trading routine",
+      description: "Returns the generic workflow for running an unattended/scheduled trading routine against a BuyTune-strategy-managed portfolio — what order to check things in, when to use cheap vs. paid tools, and to always fetch get_strategies() fresh rather than relying on remembered rules. Strategy-agnostic: works for any user's own strategy, not any one specific one. Meant to keep a scheduled task's own instructions short and self-updating — call this instead of hardcoding the process into the task config. Static reference data, no cost.",
+      inputSchema: {},
+    },
+    async () => {
+      return { content: [{ type: "text", text: JSON.stringify(TRADING_ROUTINE, null, 2) }] };
     }
   );
 
@@ -589,6 +626,46 @@ function buildServer(userId: string, origin: string): McpServer {
         return { content: [{ type: "text", text: JSON.stringify({ ticker: t, available: false, note: "No Reddit discussion/trend data found for this ticker." }) }] };
       } catch (e) {
         return { content: [{ type: "text", text: `Error loading Reddit sentiment: ${e instanceof Error ? e.message : "unknown error"}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "record_trade",
+    {
+      title: "Record a trade",
+      description: "Records a buy or sell you actually executed (e.g. via a connected brokerage's own trading tools) into a BuyTune portfolio, so its holdings/cash balance stay current without a paid brokerage-sync service. This derives the holding update (shares, weighted-average cost basis) and cash impact from this one trade event and inserts an auditable transaction record — it never overwrites holdings directly, so a bad report shows up as a reviewable/deletable transaction rather than silently corrupting portfolio state. This only updates BuyTune's own records — it never places a trade or touches a brokerage account itself.",
+      inputSchema: {
+        portfolio_id: z.string().uuid().describe("Which BuyTune portfolio this trade belongs to"),
+        action: z.enum(["buy", "sell"]).describe("Whether shares were bought or sold"),
+        ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL"),
+        shares: z.number().positive().describe("Number of shares traded"),
+        price_per_share: z.number().positive().describe("Execution price per share"),
+        fees: z.number().min(0).optional().describe("Commission/fees, if any — defaults to 0"),
+        company_name: z.string().optional().describe("Optional, improves display if this is a new holding"),
+        traded_at: z.string().optional().describe("ISO date/time of execution; defaults to now"),
+        notes: z.string().max(500).optional().describe("Optional note on why this trade was made"),
+      },
+    },
+    async ({ portfolio_id, action, ticker, shares, price_per_share, fees, company_name, traded_at, notes }) => {
+      const admin = createAdminClient();
+      const t = ticker.trim().toUpperCase();
+      try {
+        const result = await recordPortfolioTransaction(admin, {
+          portfolioId: portfolio_id,
+          userId,
+          transactionType: action,
+          ticker: t,
+          companyName: company_name,
+          quantity: shares,
+          pricePerShare: price_per_share,
+          fees: fees ?? 0,
+          notes,
+          tradedAt: traded_at ?? new Date().toISOString(),
+        });
+        return { content: [{ type: "text", text: `Recorded ${action} of ${shares} ${t} @ $${price_per_share} in BuyTune (transaction ${result.transactionId}).` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: e instanceof Error ? e.message : "Failed to record trade." }], isError: true };
       }
     }
   );
