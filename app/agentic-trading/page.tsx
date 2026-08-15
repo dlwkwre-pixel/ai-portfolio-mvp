@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/sidebar";
 import MobileNav from "@/app/components/mobile-nav";
 import { Chip } from "@/app/components/ui-primitives";
 import AgenticQuickstart from "./quickstart";
+import PromptGenerator from "./prompt-generator";
 
 export const dynamic = "force-dynamic";
 
@@ -129,19 +130,11 @@ export default async function AgenticTradingGuidePage() {
             </Step>
 
             <Step n={5} title="Set up your scheduled task">
-              In Claude, create a recurring scheduled task (e.g. Claude Desktop&apos;s Cowork) with a short prompt — the workflow itself lives in BuyTune and updates automatically, so you don&apos;t need to spell it out here:
-              <Card>
-                <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-primary)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>
-{`Weekdays [your times]: connect to BuyTune's MCP tools and [your brokerage]'s agentic trading tools for account [your account].
-
-Call get_trading_routine() and follow it. Use get_strategies() to find "[your strategy name]" and apply it to the portfolio named "[your portfolio name]".
-
-First run only: message me with the candidate, reasoning, and proposed size before executing, and wait for approval. After that, proceed autonomously.`}
-                </p>
-              </Card>
-              <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--text-tertiary)" }}>
-                Fill in your own strategy name, portfolio name, account, schedule, and how much autonomy you want it to have from the start — that last part is entirely your call.
-              </p>
+              In Claude, create a recurring scheduled task (e.g. Claude Desktop&apos;s Cowork) with a short prompt — the workflow itself lives in BuyTune and updates automatically, so you don&apos;t need to spell it out yourself. Fill in the details below and copy the result:
+              <PromptGenerator
+                portfolios={(portfolios ?? []).map((p) => ({ id: p.id, name: p.name }))}
+                strategies={(strategies ?? []).map((s) => ({ id: s.id, name: s.name }))}
+              />
             </Step>
 
             <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "24px", marginTop: "8px" }}>

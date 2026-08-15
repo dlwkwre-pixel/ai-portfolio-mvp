@@ -117,6 +117,20 @@ const DEEP_ANALYSIS_DAILY_CAP = 10;
 // candidate, not just the one that clears a first pass.
 const X_SENTIMENT_DAILY_CAP = 30;
 
+// Real-time-ish alerting for anything that actually touched a portfolio,
+// e.g. a scheduled/unattended agent run — otherwise the only record is the
+// next evening's email digest, hours after the fact. Same per-user
+// app_notifications insert already used by the watchlist/dividend/radar
+// crons, just triggered from an MCP write instead of a cron tick. Awaited
+// (not fire-and-forget): a silently-dropped alert defeats the entire point.
+async function notifyUser(admin: ReturnType<typeof createAdminClient>, userId: string, title: string, body: string): Promise<void> {
+  try {
+    await admin.from("app_notifications").insert({ title, body, target_user_id: userId });
+  } catch {
+    // non-fatal — the daily digest is still the backstop
+  }
+}
+
 function buildServer(userId: string, origin: string): McpServer {
   const server = new McpServer({ name: "buytune", version: "0.1.0" });
 
@@ -663,6 +677,7 @@ function buildServer(userId: string, origin: string): McpServer {
           notes,
           tradedAt: traded_at ?? new Date().toISOString(),
         });
+        await notifyUser(admin, userId, `${action === "buy" ? "Bought" : "Sold"} ${t}`, `Your agent recorded a ${action} of ${shares} shares of ${t} @ $${price_per_share.toFixed(2)}.${notes ? ` ${notes}` : ""}`);
         return { content: [{ type: "text", text: `Recorded ${action} of ${shares} ${t} @ $${price_per_share} in BuyTune (transaction ${result.transactionId}).` }] };
       } catch (e) {
         return { content: [{ type: "text", text: e instanceof Error ? e.message : "Failed to record trade." }], isError: true };
@@ -697,6 +712,11 @@ function buildServer(userId: string, origin: string): McpServer {
         source: "mcp",
       });
       if (error) return { content: [{ type: "text", text: `Error logging decision: ${error.message}` }], isError: true };
+      // Only for outcomes that actually did something — a skip/hold/note
+      // notifying in real time would just be noise ahead of the digest.
+      if (action === "executed" || action === "sold") {
+        await notifyUser(admin, userId, `Trading decision: ${action}${ticker ? ` ${ticker.trim().toUpperCase()}` : ""}`, reasoning.trim().slice(0, 300));
+      }
       return { content: [{ type: "text", text: `Logged: ${action}${ticker ? ` ${ticker.trim().toUpperCase()}` : ""} — will appear in the next daily digest.` }] };
     }
   );
