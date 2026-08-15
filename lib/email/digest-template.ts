@@ -85,6 +85,17 @@ export type DigestTemplateData = {
     cashValue: number;
   } | null;
 
+  // An AI agent's logged trading decisions from today (see
+  // trading_decision_log / the log_trading_decision MCP tool) — e.g. a
+  // scheduled Claude Cowork run deciding what to do with a linked brokerage
+  // account. Not gated by a "design your email" preference — it only ever
+  // has content if the user is actually using that workflow.
+  tradingLog: {
+    ticker: string | null;
+    action: string;
+    reasoning: string;
+  }[] | null;
+
   sentAt: string;
 };
 
@@ -452,6 +463,31 @@ export function buildDigestHtml(data: DigestTemplateData): string {
     </td></tr>`;
   }
 
+  // ── AI trading activity (logged by an agent, e.g. a scheduled Cowork run) ───
+  function tradingLogSection(): string {
+    if (!data.tradingLog || data.tradingLog.length === 0) return "";
+    const actionColor = (a: string) => {
+      const u = a.toUpperCase();
+      return u === "EXECUTED" || u === "SOLD" ? "#b91c1c" : u === "HELD" ? "#b45309" : NAV;
+    };
+    const rows = data.tradingLog.slice(0, 8).map((r, i) => {
+      const rowBg = i % 2 === 0 ? WHITE : RULE2;
+      return `
+        <tr style="background-color:${rowBg};">
+          <td style="padding:9px 16px 9px 0;width:76px;vertical-align:top;"><span style="font-size:11px;font-weight:700;color:${actionColor(r.action)};font-family:Helvetica Neue,Arial,sans-serif;text-transform:uppercase;">${r.action}</span></td>
+          <td style="padding:9px 0;">
+            ${r.ticker ? `<span style="font-size:12px;font-weight:600;color:${TEXT};font-family:Helvetica Neue,Arial,sans-serif;">${r.ticker}</span><br/>` : ""}
+            <span style="font-size:11.5px;color:${MUTED};font-family:Helvetica Neue,Arial,sans-serif;line-height:1.5;">${r.reasoning}</span>
+          </td>
+        </tr>`;
+    }).join("");
+    return `
+    <tr><td style="padding:0 40px 32px;" class="mobile-pad">
+      ${sectionHead("AI Trading Activity", "today")}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>
+    </td></tr>`;
+  }
+
   // ── Week Ahead ──────────────────────────────────────────────────────────────
   function weekAheadSection(): string {
     if (!data.weekAhead) return "";
@@ -540,7 +576,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
 
   const hasContent = data.performance || data.holdings || data.earnings || data.aiScore
     || data.topMovers || data.benchmark || data.aiRecs || data.radarReady || data.weekAhead || data.news
-    || data.transactions || data.cash;
+    || data.transactions || data.cash || data.tradingLog;
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
@@ -627,6 +663,7 @@ export function buildDigestHtml(data: DigestTemplateData): string {
                     transactionsSection(),
                     aiRecsSection(),
                     radarReadySection(),
+                    tradingLogSection(),
                     aiScoreSection(),
                     earningsSection(),
                     weekAheadSection(),

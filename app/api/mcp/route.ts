@@ -401,6 +401,37 @@ function buildServer(userId: string, origin: string): McpServer {
     }
   );
 
+  server.registerTool(
+    "log_trading_decision",
+    {
+      title: "Log a trading decision",
+      description: "Records a trading decision (executed/skipped/sold/held/note) and the reasoning behind it. Shows up in the user's next daily BuyTune email digest under 'AI Trading Activity', so they have a record to review even for unattended/scheduled runs. This only writes a log entry — it never places a trade or touches a brokerage account itself.",
+      inputSchema: {
+        action: z.enum(["executed", "skipped", "sold", "held", "note"]).describe("What happened with this ticker (or 'note' for general commentary not tied to an action)"),
+        reasoning: z.string().min(1).max(2000).describe("Why — cite the actual data that drove the decision (e.g. the strategy rule, the recommendation/deep-analysis verdict, the scan signal)"),
+        ticker: z.string().max(12).optional().describe("Ticker this concerns, if any"),
+        portfolio_id: z.string().uuid().optional().describe("Scope this entry to one BuyTune portfolio's digest; omit to show it in all of the user's portfolio digests for that day"),
+      },
+    },
+    async ({ action, reasoning, ticker, portfolio_id }) => {
+      const admin = createAdminClient();
+      if (portfolio_id) {
+        const { data: owned } = await admin.from("portfolios").select("id").eq("id", portfolio_id).eq("user_id", userId).maybeSingle();
+        if (!owned) return { content: [{ type: "text", text: "That portfolio_id doesn't belong to this account." }], isError: true };
+      }
+      const { error } = await admin.from("trading_decision_log").insert({
+        user_id: userId,
+        portfolio_id: portfolio_id ?? null,
+        ticker: ticker ? ticker.trim().toUpperCase() : null,
+        action,
+        reasoning: reasoning.trim().slice(0, 2000),
+        source: "mcp",
+      });
+      if (error) return { content: [{ type: "text", text: `Error logging decision: ${error.message}` }], isError: true };
+      return { content: [{ type: "text", text: `Logged: ${action}${ticker ? ` ${ticker.trim().toUpperCase()}` : ""} — will appear in the next daily digest.` }] };
+    }
+  );
+
   return server;
 }
 

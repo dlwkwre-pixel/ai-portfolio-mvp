@@ -253,6 +253,7 @@ export async function POST(request: Request) {
     },
     portfolio,
     now,
+    user.id,
   );
 
   const token = makeUnsubToken(user.id, portfolioId);

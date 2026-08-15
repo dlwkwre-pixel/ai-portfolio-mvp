@@ -19,7 +19,7 @@ export type ExtraSectionPrefs = {
 
 export type ExtraSections = Pick<
   DigestTemplateData,
-  "topMovers" | "benchmark" | "aiRecs" | "radarReady" | "weekAhead" | "news" | "transactions" | "cash"
+  "topMovers" | "benchmark" | "aiRecs" | "radarReady" | "weekAhead" | "news" | "transactions" | "cash" | "tradingLog"
 >;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +30,7 @@ export async function buildExtraDigestSections(
   pref: ExtraSectionPrefs,
   portfolio: { id: string; cash_balance: number | string | null; benchmark_symbol?: string | null },
   now: Date,
+  userId?: string,
 ): Promise<ExtraSections> {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -41,6 +42,7 @@ export async function buildExtraDigestSections(
   let weekAhead: ExtraSections["weekAhead"] = null;
   let news: ExtraSections["news"] = null;
   let transactions: ExtraSections["transactions"] = null;
+  let tradingLog: ExtraSections["tradingLog"] = null;
 
   // ── Top movers + cash (shared holdings + quote fetch with day change) ──
   if (pref.include_top_movers || pref.include_cash) {
@@ -222,5 +224,29 @@ export async function buildExtraDigestSections(
     }
   }
 
-  return { topMovers, benchmark, aiRecs, radarReady, weekAhead, news, transactions, cash };
+  // ── AI trading activity today (e.g. a scheduled Cowork run) ──────────────
+  // Not gated by a pref flag — no toggle needed, it's only ever non-empty for
+  // someone actually using the log_trading_decision MCP tool. Scoped to
+  // entries for this portfolio specifically, or general (portfolio_id null)
+  // entries that show in every one of the user's portfolio digests.
+  if (userId) {
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const { data: logRows } = await db
+      .from("trading_decision_log")
+      .select("ticker, action, reasoning, portfolio_id")
+      .eq("user_id", userId)
+      .gte("created_at", todayStart.toISOString())
+      .or(`portfolio_id.is.null,portfolio_id.eq.${portfolio.id}`)
+      .order("created_at", { ascending: true })
+      .limit(20);
+    if (logRows && logRows.length > 0) {
+      tradingLog = logRows.map((r) => ({
+        ticker: (r.ticker as string | null) ?? null,
+        action: String(r.action ?? "note"),
+        reasoning: String(r.reasoning ?? ""),
+      }));
+    }
+  }
+
+  return { topMovers, benchmark, aiRecs, radarReady, weekAhead, news, transactions, cash, tradingLog };
 }

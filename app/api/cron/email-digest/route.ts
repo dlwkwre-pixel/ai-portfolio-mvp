@@ -344,7 +344,7 @@ export async function GET(request: Request) {
       }
 
       // ── Optional "design your email" sections (shared with test-digest) ───────
-      const extra = await buildExtraDigestSections(adminSupabase, pref, portfolio, now);
+      const extra = await buildExtraDigestSections(adminSupabase, pref, portfolio, now, pref.user_id);
 
 
       // ── Build + send ──────────────────────────────────────────────────────────
