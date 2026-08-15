@@ -24,13 +24,29 @@ User wants to connect their own Claude/ChatGPT (with Robinhood's official "Agent
 
 All seven verified live end-to-end (real token, real `tools/list` + `tools/call` round trips, including a real digest generate → `get_research` read-back).
 
-## Connecting your own agent (Claude Desktop / Claude Code)
+## Connecting your own agent (Claude Desktop / Claude Code — static token)
 
 1. Settings → Connected AI Agents → name it, create a token, copy it (shown once).
-2. Add an MCP server pointing at `https://buytuneio.vercel.app/api/mcp` (or `http://localhost:3000/api/mcp` locally) with `Authorization: Bearer <token>`.
+2. Add an MCP server pointing at `https://buytune.io/api/mcp` (or `http://localhost:3000/api/mcp` locally) with `Authorization: Bearer <token>`.
 3. Ask the agent to check your BuyTune portfolio — it should call `get_portfolio` and get back JSON including holdings and an embedded `disclaimer` field.
 
 User has this set up but hasn't connected an agent yet (2026-08-14) — deliberate, wanted the surface ready before actually wiring in Robinhood's MCP alongside it.
+
+## OAuth 2.1 (claude.ai web Connectors — 2026-08-15)
+
+Claude Desktop's config file can hold a static bearer token directly, but claude.ai's web "Connectors" screen expects real OAuth (it shows Client ID / Client Secret fields, has no static-token option). Built a full spec-compliant authorization server alongside the static-token flow above — both issue tokens `/api/mcp` accepts, neither depends on the other.
+
+**Spec surface implemented** (MCP Authorization, 2025-11-25 revision — OAuth 2.1 + PKCE S256 mandatory + RFC 7591/8414/9728):
+- `GET /.well-known/oauth-protected-resource` — RFC 9728. Points a client at `authorization_servers: ["https://buytune.io"]` after it gets a 401 from `/api/mcp`.
+- `GET /.well-known/oauth-authorization-server` — RFC 8414. Advertises the three endpoints below, `code_challenge_methods_supported: ["S256"]`, `token_endpoint_auth_methods_supported: ["none"]` (public client, no secret — see below).
+- `POST /api/oauth/register` — RFC 7591 Dynamic Client Registration, unauthenticated. Validates `redirect_uris` (must be `https://`, or `http://localhost` for local dev), returns a `client_id` with **no `client_secret`** — this is a public client per RFC 8252 (a native/hosted client can't keep a secret safe anyway), so security is PKCE + exact redirect_uri match + single-use codes instead.
+- `GET /oauth/authorize` + `app/oauth/authorize/consent-actions.ts` — the human consent screen. Validates `client_id`/`redirect_uri` against the DB *before* trusting the redirect (unknown client → dead-end error page, not a redirect); once trusted, every further failure (bad `response_type`, missing/wrong PKCE method, `resource` not matching `https://buytune.io/api/mcp`) bounces back to the client as a standard OAuth error instead of dead-ending. No session → redirects to `/login?next=...` (mirrors `app/login/page.tsx`'s existing pattern) and returns here after sign-in. Approve mints a single-use authorization code; Deny bounces back with `error=access_denied`. Both server actions re-validate client_id/redirect_uri independently of the GET page, since a `<form action>` is its own reachable POST endpoint.
+- `POST /api/oauth/token` — `authorization_code` grant (verifies PKCE via `lib/oauth/crypto.ts`'s `verifyPkce`, single-use code enforced by deleting the row on first read in `consumeAuthorizationCode`) and `refresh_token` grant (rotates on every use — old refresh token marked `rotated_at`, new pair shares the same `family_id`). Presenting an already-rotated refresh token is treated as theft: the entire token family gets revoked in one query (`lib/oauth/tokens.ts`'s `rotateRefreshToken`).
+- `app/api/mcp/route.ts` — now accepts both token flavors by prefix (`bt_live_...` → `api_tokens` table via `verifyApiToken`; `bt_at_...` → `oauth_tokens` table via `verifyOAuthAccessToken`), and its 401 response carries `WWW-Authenticate: Bearer resource_metadata="..."` per spec so a client can discover the authorization server automatically.
+
+**Schema**: `supabase/oauth-server.sql` — `oauth_clients`, `oauth_authorization_codes`, `oauth_tokens`. All three RLS-enabled with zero policies (service-role-only, same posture as `oauth_authorization_codes` holding pre-auth secrets and `oauth_tokens` holding live credentials — no authenticated user should ever SELECT these directly, not even their own rows). **Not yet applied — needs to be run in the Supabase SQL editor before this goes live**, then moved to `supabase/applied/` per the repo convention.
+
+**Deliberately identical constraints to the static-token flow**: same `read`-only scope, same `/api/mcp` tool surface, same rate limit. This is a different front door onto the exact same permission model, not a bigger one.
 
 ## Deliberately not built
 

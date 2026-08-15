@@ -3,6 +3,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { verifyApiToken } from "@/lib/auth/api-tokens";
+import { verifyOAuthAccessToken } from "@/lib/oauth/tokens";
+import { PROTECTED_RESOURCE_METADATA_URL } from "@/lib/oauth/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -233,11 +235,18 @@ async function handle(req: NextRequest): Promise<Response> {
   const authHeader = req.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
 
-  const auth = await verifyApiToken(token);
+  // Two token flavors share this surface: static PATs (bt_live_..., from
+  // Settings > Connected AI Agents) and OAuth-issued access tokens
+  // (bt_at_..., from the /oauth/authorize consent flow). Prefix picks which
+  // table to check — see lib/auth/api-tokens.ts and lib/oauth/tokens.ts.
+  const auth = token?.startsWith("bt_at_") ? await verifyOAuthAccessToken(token) : await verifyApiToken(token);
   if (!auth) {
     return NextResponse.json(
-      { error: "Unauthorized. Create a token in BuyTune Settings > Connected AI Agents and send it as a Bearer token." },
-      { status: 401 }
+      { error: "Unauthorized. Create a token in BuyTune Settings > Connected AI Agents, or connect via OAuth, and send it as a Bearer token." },
+      {
+        status: 401,
+        headers: { "WWW-Authenticate": `Bearer resource_metadata="${PROTECTED_RESOURCE_METADATA_URL}"` },
+      }
     );
   }
 

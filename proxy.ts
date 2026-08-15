@@ -8,8 +8,10 @@ const PUBLIC_PATHS = [
   "/", "/login", "/signup", "/forgot-password", "/reset-password",
   "/auth/callback", "/pending-approval", "/offline",
   "/api/notify-signup", // fired right after signUp(), while the caller is still unapproved
+  "/api/oauth/register", // RFC 7591 Dynamic Client Registration — called before any user is involved
+  "/api/oauth/token",    // token exchange is a server-to-server call, never carries a Supabase session cookie
 ];
-const PUBLIC_PREFIXES = ["/legal", "/terms", "/privacy", "/accessibility"];
+const PUBLIC_PREFIXES = ["/legal", "/terms", "/privacy", "/accessibility", "/.well-known"];
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
