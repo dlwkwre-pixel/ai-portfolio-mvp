@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ConnectionStatus } from "@/lib/connections/snaptrade";
+import { createPortfolio } from "@/app/portfolios/actions";
 
 type Account = { id: string; label: string };
 type Portfolio = { id: string; name: string };
@@ -13,6 +14,7 @@ type PreviewPos = {
 type Row = PreviewPos & { target: string }; // target = portfolioId or "" (skip)
 
 const SKIP = "";
+const NEW_PORTFOLIO = "__new__";
 
 function fmtShares(n: number): string {
   if (Number.isInteger(n)) return n.toLocaleString();
@@ -24,7 +26,7 @@ function fmtUsd(n: number): string {
 
 export default function SnaptradeConnect({ status }: { status: ConnectionStatus }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply" | "refresh">(null);
+  const [busy, setBusy] = useState<null | "link" | "load" | "preview" | "apply" | "refresh" | "create">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ updated: number; added: number; skipped: number; activities: number; portfolios: Portfolio[] } | null>(null);
@@ -41,6 +43,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
   const [rows, setRows] = useState<Row[]>([]);
   const [cashAmount, setCashAmount] = useState(0);
   const [cashTarget, setCashTarget] = useState<string>(""); // portfolioId or SKIP
+  const [newPortfolioName, setNewPortfolioName] = useState<string | null>(null); // non-null while the inline "create new" input is open
 
   useEffect(() => { void loadAccounts(true); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -105,8 +108,33 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
 
   // Changing the default reassigns rows that are "new" (not already held) and weren't hand-set to skip.
   function changeDefault(pid: string) {
+    if (pid === NEW_PORTFOLIO) { setNewPortfolioName(""); return; }
     setDefaultPortfolio(pid);
     setRows((prev) => prev.map((r) => (r.currentPortfolioId == null && r.target !== SKIP ? { ...r, target: pid } : r)));
+  }
+
+  // Quick-create for the case that motivated this: a freshly-connected account
+  // with zero existing portfolios to import into. Reuses the same server
+  // action as the full "New Portfolio" page, just with sensible defaults
+  // (taxable, no starting cash/holdings) — nothing here duplicates that logic.
+  async function createNewPortfolio() {
+    const name = (newPortfolioName ?? "").trim();
+    if (!name) return;
+    setBusy("create"); setErr(null);
+    try {
+      const formData = new FormData();
+      formData.set("name", name);
+      formData.set("account_type", "taxable");
+      const result = await createPortfolio(formData);
+      const created = { id: result.id, name };
+      setPortfolios((prev) => [...prev, created]);
+      setNewPortfolioName(null);
+      changeDefault(created.id);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not create portfolio.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function apply() {
@@ -250,9 +278,33 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
             {/* Default portfolio */}
             <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
               <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)" }}>Default portfolio for new holdings</span>
-              <select value={defaultPortfolio} onChange={(e) => changeDefault(e.target.value)} style={{ ...sel, flex: "1 1 180px" }}>
-                {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              {newPortfolioName === null ? (
+                <select value={defaultPortfolio} onChange={(e) => changeDefault(e.target.value)} style={{ ...sel, flex: "1 1 180px" }}>
+                  {portfolios.length === 0 && <option value="" disabled>No portfolios yet</option>}
+                  {portfolios.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  <option value={NEW_PORTFOLIO}>+ Create new portfolio…</option>
+                </select>
+              ) : (
+                <div style={{ display: "flex", gap: "6px", flex: "1 1 240px" }}>
+                  <input
+                    autoFocus
+                    value={newPortfolioName}
+                    onChange={(e) => setNewPortfolioName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") createNewPortfolio(); if (e.key === "Escape") setNewPortfolioName(null); }}
+                    placeholder="Portfolio name"
+                    disabled={busy === "create"}
+                    style={{ ...sel, flex: 1 }}
+                  />
+                  <button type="button" onClick={createNewPortfolio} disabled={busy === "create" || !newPortfolioName.trim()}
+                    style={{ ...btn, padding: "6px 12px", border: "none", background: "var(--brand-gradient)", color: "#fff", opacity: busy === "create" || !newPortfolioName.trim() ? 0.6 : 1 }}>
+                    {busy === "create" ? "…" : "Create"}
+                  </button>
+                  <button type="button" onClick={() => setNewPortfolioName(null)} disabled={busy === "create"}
+                    style={{ ...btn, padding: "6px 10px", border: "1px solid var(--card-border)", background: "none", color: "var(--text-secondary)" }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
             {/* Body */}
             <div style={{ padding: "12px 18px", overflowY: "auto", flex: 1 }}>
