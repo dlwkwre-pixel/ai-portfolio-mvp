@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createApiTokenAction, revokeApiTokenAction, type ApiTokenRow } from "./api-tokens-actions";
 
 export default function ApiTokensClient({ tokens }: { tokens: ApiTokenRow[] }) {
@@ -46,6 +47,8 @@ export default function ApiTokensClient({ tokens }: { tokens: ApiTokenRow[] }) {
         </h2>
         <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
           Let your own Claude or ChatGPT read your BuyTune portfolio and research directly. Read-only — this never places trades or touches a brokerage.
+          {" "}
+          <Link href="/agentic-trading" style={{ color: "var(--brand-blue)", textDecoration: "none" }}>Set up autonomous trading →</Link>
         </p>
       </div>
 
