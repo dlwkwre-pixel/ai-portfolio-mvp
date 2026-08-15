@@ -30,7 +30,6 @@ export default async function PlanningPage({
     { data: profileData },
     { data: balanceItems },
     { data: cashFlowItems },
-    { data: netWorthHistory },
     { data: portfolios },
     { data: assumptionsData },
     { data: futureEventsData },
@@ -48,7 +47,6 @@ export default async function PlanningPage({
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
     supabase.from("cash_flow_items").select("*").eq("user_id", user.id).order("sort_order"),
-    supabase.from("net_worth_history").select("*").eq("user_id", user.id).order("snapshot_date", { ascending: true }).limit(24),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
     supabase.from("planning_assumptions").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("planning_future_events").select("*").eq("user_id", user.id).order("sort_order"),
@@ -166,6 +164,39 @@ export default async function PlanningPage({
   const linkedBalanceItems = await getLinkedBalanceItems(user.id);
   const mergedBalanceItems: BalanceSheetItem[] = [...typedBalanceItems, ...linkedBalanceItems];
 
+  // Auto-snapshot net worth once per page load, server-side — mirrors the
+  // portfolio chart's auto-snapshot in app/dashboard/combined-chart.tsx.
+  // The old approach (a client useEffect calling a server action after
+  // hydration) depended on the browser tab staying open through that extra
+  // round trip and silently swallowed any failure, so it missed most visits
+  // — this runs unconditionally during SSR instead, same as the portfolio
+  // snapshot already does reliably.
+  const snapshotManualAssets = mergedBalanceItems.filter((i) => !i.is_liability).reduce((s, i) => s + i.value, 0);
+  const snapshotTotalLiabilities = mergedBalanceItems.filter((i) => i.is_liability).reduce((s, i) => s + i.value, 0);
+  const snapshotTotalAssets = snapshotManualAssets + portfolioTotalValue;
+  if (snapshotTotalAssets > 0 || snapshotTotalLiabilities > 0) {
+    await supabase.from("net_worth_history").upsert(
+      {
+        user_id: user.id,
+        snapshot_date: new Date().toISOString().split("T")[0],
+        total_assets: snapshotTotalAssets,
+        total_liabilities: snapshotTotalLiabilities,
+        net_worth: snapshotTotalAssets - snapshotTotalLiabilities,
+        portfolio_value: portfolioTotalValue,
+      },
+      { onConflict: "user_id,snapshot_date" }
+    );
+  }
+
+  // Fetched after the upsert above (not in the earlier Promise.all) so
+  // today's just-written snapshot is included in the chart on this same load.
+  const { data: netWorthHistory } = await supabase
+    .from("net_worth_history")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("snapshot_date", { ascending: false })
+    .limit(180);
+
   // "vs. 1 month ago" delta for the Balance Sheet page — one query per item/portfolio
   // (not one global query ordered by date) so a portfolio with dense recent daily
   // snapshots can't crowd out an older row belonging to a quieter portfolio before a
@@ -207,7 +238,7 @@ export default async function PlanningPage({
     last_paid_for_date: item.last_paid_for_date ?? null,
   }));
 
-  const typedNetWorthHistory: NetWorthSnapshot[] = (netWorthHistory ?? []).map((s) => ({
+  const typedNetWorthHistory: NetWorthSnapshot[] = (netWorthHistory ?? []).slice().reverse().map((s) => ({
     id: s.id,
     snapshot_date: s.snapshot_date,
     total_assets: Number(s.total_assets),

@@ -24,7 +24,6 @@ import {
   addCashFlowItem,
   updateCashFlowItem,
   deleteCashFlowItem,
-  saveNetWorthSnapshot,
   trimNetWorthHistoryBefore,
   upsertPlanningAssumptions,
   addFutureEvent,
@@ -3183,7 +3182,6 @@ export default function PlanningClient({
 
   const [finnCommentary, setFinnCommentary] = useState<string | null>(null);
   const [finnLoading, setFinnLoading] = useState(false);
-  const snapshotSaved = useRef(false);
   const [showWizard, setShowWizard] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     () => new Set(EXPENSE_CATEGORIES.map((c) => c.label))
@@ -3320,16 +3318,6 @@ export default function PlanningClient({
   const yearsToRetire = (profile?.current_age != null && profile?.target_retirement_age != null)
     ? Math.max(0, profile.target_retirement_age - profile.current_age)
     : null;
-
-  // ── Auto-save snapshot once per session ───────────────────────────────────
-
-  useEffect(() => {
-    if (snapshotSaved.current) return;
-    if (totalAssets > 0 || totalLiabilities > 0) {
-      snapshotSaved.current = true;
-      saveNetWorthSnapshot(totalAssets, totalLiabilities, portfolioTotalValue).catch(() => {});
-    }
-  }, [totalAssets, totalLiabilities, portfolioTotalValue]);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("buytune_planning_wizard_dismissed");

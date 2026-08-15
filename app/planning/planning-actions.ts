@@ -1104,34 +1104,9 @@ export async function upsertFamilyInstructions(
 }
 
 // ── Net Worth Snapshot ────────────────────────────────────────────────────────
-
-export async function saveNetWorthSnapshot(
-  totalAssets: number,
-  totalLiabilities: number,
-  portfolioValue: number | null
-): Promise<{ error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated." };
-
-  const netWorth = totalAssets - totalLiabilities;
-  const today = new Date().toISOString().split("T")[0];
-
-  const { error } = await supabase.from("net_worth_history").upsert(
-    {
-      user_id: user.id,
-      snapshot_date: today,
-      total_assets: totalAssets,
-      total_liabilities: totalLiabilities,
-      net_worth: netWorth,
-      portfolio_value: portfolioValue,
-    },
-    { onConflict: "user_id,snapshot_date" }
-  );
-
-  if (error) return { error: error.message };
-  return {};
-}
+// The snapshot itself is now written server-side in app/planning/page.tsx on
+// every page load (reliable, matches the portfolio chart's auto-snapshot) —
+// this file only keeps the trim/cleanup action.
 
 export async function trimNetWorthHistoryBefore(
   beforeDate: string
