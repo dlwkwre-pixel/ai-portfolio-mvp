@@ -233,7 +233,7 @@ function buildServer(userId: string, origin: string): McpServer {
     "get_strategies",
     {
       title: "Get strategies",
-      description: "Returns the user's saved BuyTune investment strategies — free-text guidance, position-sizing limits, cash range, turnover/holding-period preferences — plus which portfolio each is currently assigned to and that portfolio's current holdings. This is the personalized layer on top of the generic per-ticker tools (get_recommendation, get_research, etc). Read-only.",
+      description: "Returns the user's saved BuyTune investment strategies — free-text guidance, position-sizing limits, cash range, turnover/holding-period preferences — plus every portfolio each is currently assigned to (a strategy can be assigned to more than one) and each of those portfolios' current holdings. This is the personalized layer on top of the generic per-ticker tools (get_recommendation, get_research, etc). Read-only.",
       inputSchema: {},
     },
     async () => {
@@ -253,10 +253,19 @@ function buildServer(userId: string, origin: string): McpServer {
       const latestVersionByStrategy = new Map<string, NonNullable<typeof versions>[number]>();
       for (const v of versions ?? []) if (!latestVersionByStrategy.has(v.strategy_id)) latestVersionByStrategy.set(v.strategy_id, v);
 
+      // A strategy can be assigned to more than one portfolio at once — group
+      // by strategy_id instead of taking one arbitrary row per strategy
+      // (a Map keyed by strategy_id would silently drop every assignment but
+      // the last one returned, with no guaranteed order from the DB).
       const { data: assignments } = await admin.from("portfolio_strategy_assignments")
         .select("portfolio_id, strategy_id, portfolios(id, name)")
         .in("strategy_id", strategyIds).eq("is_active", true).is("ended_at", null);
-      const assignmentByStrategy = new Map((assignments ?? []).map((a) => [a.strategy_id, a]));
+      const assignmentsByStrategy = new Map<string, typeof assignments>();
+      for (const a of assignments ?? []) {
+        const list = assignmentsByStrategy.get(a.strategy_id) ?? [];
+        list.push(a);
+        assignmentsByStrategy.set(a.strategy_id, list);
+      }
 
       const assignedPortfolioIds = [...new Set((assignments ?? []).map((a) => a.portfolio_id))];
       const { data: holdings } = assignedPortfolioIds.length > 0
@@ -267,8 +276,7 @@ function buildServer(userId: string, origin: string): McpServer {
 
       const result = strategies.map((s) => {
         const v = latestVersionByStrategy.get(s.id);
-        const assignment = assignmentByStrategy.get(s.id);
-        const portfolio = assignment?.portfolios as { id: string; name: string } | null | undefined;
+        const strategyAssignments = assignmentsByStrategy.get(s.id) ?? [];
         return {
           id: s.id,
           name: s.name,
@@ -285,19 +293,22 @@ function buildServer(userId: string, origin: string): McpServer {
             cash_min_pct: v.cash_min_pct,
             cash_max_pct: v.cash_max_pct,
           } : null,
-          assigned_portfolio: portfolio ? {
-            id: portfolio.id,
-            name: portfolio.name,
-            holdings: (holdings ?? [])
-              .filter((h) => h.portfolio_id === portfolio.id)
-              .map((h) => ({
-                ticker: h.ticker,
-                company_name: h.company_name,
-                asset_type: h.asset_type,
-                shares: Number(h.shares ?? 0),
-                average_cost_basis: h.average_cost_basis != null ? Number(h.average_cost_basis) : null,
-              })),
-          } : null,
+          assigned_portfolios: strategyAssignments.map((a) => {
+            const portfolio = a.portfolios as unknown as { id: string; name: string };
+            return {
+              id: portfolio.id,
+              name: portfolio.name,
+              holdings: (holdings ?? [])
+                .filter((h) => h.portfolio_id === portfolio.id)
+                .map((h) => ({
+                  ticker: h.ticker,
+                  company_name: h.company_name,
+                  asset_type: h.asset_type,
+                  shares: Number(h.shares ?? 0),
+                  average_cost_basis: h.average_cost_basis != null ? Number(h.average_cost_basis) : null,
+                })),
+            };
+          }),
         };
       });
 
