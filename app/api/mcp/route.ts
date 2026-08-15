@@ -9,6 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getFinnhubQuote } from "@/lib/market-data/finnhub";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { runGrokDeepDive } from "@/lib/ai/grok-deep-dive";
+import { runXSentimentCheck } from "@/lib/ai/x-sentiment";
+import { getCongressActivity, getCongressTradesForTicker } from "@/lib/market-data/congress";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +45,24 @@ const FORECAST_DISCLAIMER =
 const FINANCIAL_DISCLAIMER =
   DISCLAIMER + " Personal financial data — income, tax situation, and net worth — shared here to give context for investing decisions, not a complete financial plan.";
 
+const X_SENTIMENT_DISCLAIMER =
+  DISCLAIMER + " Reflects current X/Twitter chatter only — social sentiment is not a fundamental or technical signal and can be wrong, manipulated, or hype-driven.";
+
+const CONGRESS_DISCLAIMER =
+  DISCLAIMER + " Congressional trades are disclosed up to 45 days after the fact — this reflects a position taken in the past, not a live signal, and disclosure timing/amount ranges are approximate.";
+
+const REGIME_DISCLAIMER =
+  DISCLAIMER + " A macro/market-wide read (breadth, volatility, yield curve, geopolitical signal) — says nothing about any specific ticker.";
+
 // Real-money cost per call (Grok live search) with no fine-grained spend
 // controls beyond this — best-effort, in-memory, resets on cold start, same
 // tradeoff as every other rate limit in this file. The point is bounding
 // worst-case surprise cost from a looping agent, not precision metering.
 const DEEP_ANALYSIS_DAILY_CAP = 10;
+// Cheaper per call than the full deep-dive (X search only, no general web
+// search, much shorter output) — headroom to check sentiment on every scan
+// candidate, not just the one that clears a first pass.
+const X_SENTIMENT_DAILY_CAP = 30;
 
 function buildServer(userId: string, origin: string): McpServer {
   const server = new McpServer({ name: "buytune", version: "0.1.0" });
@@ -190,6 +205,32 @@ function buildServer(userId: string, origin: string): McpServer {
       const result = await runGrokDeepDive(t, company_name ?? t, quote?.c, quote?.dp, userId);
       if (result.kind === "error") return { content: [{ type: "text", text: result.error }], isError: true };
       return { content: [{ type: "text", text: JSON.stringify({ ticker: t, disclaimer: DEEP_ANALYSIS_DISCLAIMER, ...result.payload }, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_x_sentiment",
+    {
+      title: "Get X (Twitter) sentiment",
+      description: `Live X/Twitter-only search for a ticker — current sentiment, notable mentions, and hype/pump red flags. Deliberately narrow: no general web search, no bull/bear verdict (an agent with its own web search, like Claude's native search, already covers that — this fills the one gap generic web search doesn't: real, current X content). Cheaper than run_deep_analysis, with its own 6h shared cache and a ${X_SENTIMENT_DAILY_CAP}/day cap for this connection.`,
+      inputSchema: {
+        ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL"),
+        company_name: z.string().optional().describe("Optional, improves search quality"),
+      },
+    },
+    async ({ ticker, company_name }) => {
+      const t = ticker.trim().toUpperCase();
+      const { limited, retryAfter } = checkRateLimit(`mcp-xsentiment:${userId}`, X_SENTIMENT_DAILY_CAP, 24 * 60 * 60 * 1000);
+      if (limited) {
+        const hours = Math.max(1, Math.ceil(retryAfter / 3600));
+        return {
+          content: [{ type: "text", text: `Daily X-sentiment budget (${X_SENTIMENT_DAILY_CAP}/day) reached for this connection — resets in about ${hours}h.` }],
+          isError: true,
+        };
+      }
+      const result = await runXSentimentCheck(t, company_name ?? t, userId);
+      if (result.kind === "error") return { content: [{ type: "text", text: result.error }], isError: true };
+      return { content: [{ type: "text", text: JSON.stringify({ ticker: t, disclaimer: X_SENTIMENT_DISCLAIMER, ...result.payload }, null, 2) }] };
     }
   );
 
@@ -409,6 +450,49 @@ function buildServer(userId: string, origin: string): McpServer {
       }
       const history = data.slice().reverse();
       return { content: [{ type: "text", text: JSON.stringify({ disclaimer: FINANCIAL_DISCLAIMER, current: history[history.length - 1], history }, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_congress_trades",
+    {
+      title: "Get congressional trading activity",
+      description: "Returns recent U.S. House/Senate member stock trades from public STOCK Act disclosures (free, no live cost). Omit ticker for overall recent activity + most-traded tickers; pass a ticker for that specific stock's congressional activity. Read-only.",
+      inputSchema: {
+        ticker: z.string().min(1).max(12).optional().describe("Limit to one ticker's congressional trades; omit for general recent activity"),
+      },
+    },
+    async ({ ticker }) => {
+      try {
+        if (ticker) {
+          const data = await getCongressTradesForTicker(ticker);
+          return { content: [{ type: "text", text: JSON.stringify({ disclaimer: CONGRESS_DISCLAIMER, ...data }, null, 2) }] };
+        }
+        const activity = await getCongressActivity();
+        return { content: [{ type: "text", text: JSON.stringify({ disclaimer: CONGRESS_DISCLAIMER, ...activity }, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error loading congressional trades: ${e instanceof Error ? e.message : "unknown error"}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_market_regime",
+    {
+      title: "Get market regime",
+      description: "Returns BuyTune's current macro/market-wide regime read — risk-on/constructive/cautious/defensive/risk-off, a 0-100 score, and the underlying dimensions (breadth, volatility, yield curve, geopolitical signal). Ticker-agnostic context, not a per-stock signal. Read-only, cached (updates every few hours).",
+      inputSchema: {},
+    },
+    async () => {
+      const admin = createAdminClient();
+      const { data, error } = await admin.from("market_regime_snapshots")
+        .select("date, level, score, label, dimensions, narrative, data_quality, calculated_at")
+        .order("date", { ascending: false }).limit(1).maybeSingle();
+      if (error) return { content: [{ type: "text", text: `Error loading market regime: ${error.message}` }], isError: true };
+      if (!data) {
+        return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REGIME_DISCLAIMER, available: false, note: "No market regime snapshot yet." }) }] };
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REGIME_DISCLAIMER, ...data }, null, 2) }] };
     }
   );
 
