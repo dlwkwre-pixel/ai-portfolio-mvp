@@ -11,6 +11,9 @@ import { checkRateLimit, getIp } from "@/lib/rate-limit";
 import { runGrokDeepDive } from "@/lib/ai/grok-deep-dive";
 import { runXSentimentCheck } from "@/lib/ai/x-sentiment";
 import { getCongressActivity, getCongressTradesForTicker } from "@/lib/market-data/congress";
+import { searchRedditPosts, searchRedditPostsPublic } from "@/lib/market-data/reddit";
+import { buildRedditPulse } from "@/lib/market-data/reddit-pulse";
+import { fetchApeWisdomData } from "@/lib/market-data/apewisdom";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +56,31 @@ const CONGRESS_DISCLAIMER =
 
 const REGIME_DISCLAIMER =
   DISCLAIMER + " A macro/market-wide read (breadth, volatility, yield curve, geopolitical signal) — says nothing about any specific ticker.";
+
+const REDDIT_DISCLAIMER =
+  DISCLAIMER + " Retail sentiment from Reddit/social discussion — prone to hype, meme-driven moves, and coordinated posting. A crowd signal, not a fundamental or technical one.";
+
+// The same discipline BuyTune's own Grok-based tools (run_deep_analysis,
+// get_recommendation) are instructed to follow — offered as data so an
+// agent synthesizing across multiple BuyTune tools + its own research
+// produces a comparably-structured verdict, instead of freelancing a
+// different format every time. Keep in sync with lib/ai/grok-deep-dive.ts's
+// SYSTEM_PROMPT by hand if that ever changes materially.
+const ANALYSIS_FRAMEWORK = {
+  role: "Act as a sharp institutional equity analyst. Use current information — recent news, earnings, price action, analyst moves, real-time sentiment — never rely on stale training data for prices or events.",
+  method: "Before forming a view: check BuyTune's cached/fresh data (get_recommendation, get_research, get_kronos_forecast), check real-time signal (get_x_sentiment, get_reddit_sentiment), check context (get_congress_trades, get_market_regime), and weigh all of it against the user's actual strategy rules (get_strategies) and risk tolerance (get_financial_profile) — not just the ticker in isolation.",
+  verdict_schema: {
+    verdict: "BUY, HOLD, or SELL",
+    conviction: "Low, Medium, or High",
+    price_target: "12-month price target as a number, or null if not estimable",
+    bull_case: "2-3 specific bullish arguments citing actual fundamentals/catalysts, not generic optimism",
+    bear_case: "2-3 specific bearish arguments citing actual risks/headwinds, not generic caution",
+    key_catalysts: "Near-term events/trends that could move the position, with dates if known",
+    key_risks: "Main downside risks, specific to this position",
+    takeaway: "One sentence, stated plainly, no hedging",
+  },
+  discipline: "Cite the specific data point behind every claim (a strategy rule, a recommendation verdict, a scan signal, a sentiment read) — no vague justifications. This is the same standard log_trading_decision's reasoning field should meet.",
+};
 
 // Real-money cost per call (Grok live search) with no fine-grained spend
 // controls beyond this — best-effort, in-memory, resets on cold start, same
@@ -123,6 +151,18 @@ function buildServer(userId: string, origin: string): McpServer {
       };
 
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_analysis_framework",
+    {
+      title: "Get analysis framework",
+      description: "Returns the same analytical discipline BuyTune's own Grok-based tools (run_deep_analysis, get_recommendation) are instructed to follow — role framing, which tools to check before forming a view, the structured verdict schema (verdict/conviction/price_target/bull_case/bear_case/catalysts/risks/takeaway), and the citation discipline expected in log_trading_decision. Worth calling once at the start of a reasoning session so any synthesis across multiple BuyTune tools comes out consistently structured. Static reference data, no cost.",
+      inputSchema: {},
+    },
+    async () => {
+      return { content: [{ type: "text", text: JSON.stringify(ANALYSIS_FRAMEWORK, null, 2) }] };
     }
   );
 
@@ -493,6 +533,63 @@ function buildServer(userId: string, origin: string): McpServer {
         return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REGIME_DISCLAIMER, available: false, note: "No market regime snapshot yet." }) }] };
       }
       return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REGIME_DISCLAIMER, ...data }, null, 2) }] };
+    }
+  );
+
+  server.registerTool(
+    "get_reddit_sentiment",
+    {
+      title: "Get Reddit sentiment",
+      description: "Returns retail Reddit sentiment for a ticker — mention volume/trend, bullish/bearish %, hype and conviction scores, top themes/catalysts/risks discussed, when available. Falls back to an aggregate mention-trend provider when full Reddit analysis isn't enabled. Read-only, cached.",
+      inputSchema: {
+        ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL"),
+        company_name: z.string().optional().describe("Optional, improves matching"),
+      },
+    },
+    async ({ ticker, company_name }) => {
+      const t = ticker.trim().toUpperCase();
+      try {
+        if (process.env.ENABLE_REDDIT_SOCIAL_PULSE === "true") {
+          const admin = createAdminClient();
+          const { data: cached } = await admin.from("reddit_social_snapshots")
+            .select("*").eq("ticker", t).eq("time_window", "week")
+            .gt("expires_at", new Date().toISOString()).maybeSingle();
+          if (cached) {
+            return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REDDIT_DISCLAIMER, source: "reddit", ...cached }, null, 2) }] };
+          }
+          const posts = process.env.REDDIT_CLIENT_ID
+            ? await searchRedditPosts(t, company_name ?? t, { timeWindow: "week" })
+            : await searchRedditPostsPublic(t, company_name ?? t, { timeWindow: "week" });
+          if (posts.length > 0) {
+            const pulse = await buildRedditPulse(t, company_name ?? t, posts, "week", 120);
+            void admin.from("reddit_social_snapshots").upsert(
+              { ticker: t, company_name: company_name ?? t, time_window: "week", fetched_at: pulse.fetched_at, expires_at: pulse.expires_at,
+                post_count: pulse.post_count, mention_count: pulse.mention_count, bullish_pct: pulse.bullish_pct, bearish_pct: pulse.bearish_pct,
+                neutral_pct: pulse.neutral_pct, sentiment_score: pulse.sentiment_score, hype_score: pulse.hype_score, conviction_score: pulse.conviction_score,
+                reddit_pulse_score: pulse.reddit_pulse_score, top_themes_json: JSON.stringify(pulse.top_themes),
+                top_bullish_themes_json: JSON.stringify(pulse.top_bullish_themes), top_bearish_themes_json: JSON.stringify(pulse.top_bearish_themes),
+                top_risks_json: JSON.stringify(pulse.top_risks), top_catalysts_json: JSON.stringify(pulse.top_catalysts),
+                subreddit_breakdown_json: JSON.stringify(pulse.subreddit_breakdown), source_post_links_json: JSON.stringify(pulse.source_post_links),
+                summary: pulse.summary, ai_analysis_json: JSON.stringify({ ai_powered: pulse.ai_powered, sentiment_label: pulse.sentiment_label }),
+                updated_at: new Date().toISOString() },
+              { onConflict: "ticker,time_window" }
+            );
+            return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REDDIT_DISCLAIMER, source: "reddit", ...pulse }, null, 2) }] };
+          }
+        }
+
+        if (process.env.ENABLE_APEWISDOM_REDDIT_TRENDS === "true") {
+          const apeMap = await fetchApeWisdomData();
+          const entry = apeMap?.[t];
+          if (entry) {
+            return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REDDIT_DISCLAIMER, source: "apewisdom", ...entry }, null, 2) }] };
+          }
+        }
+
+        return { content: [{ type: "text", text: JSON.stringify({ ticker: t, available: false, note: "No Reddit discussion/trend data found for this ticker." }) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Error loading Reddit sentiment: ${e instanceof Error ? e.message : "unknown error"}` }], isError: true };
+      }
     }
   );
 
