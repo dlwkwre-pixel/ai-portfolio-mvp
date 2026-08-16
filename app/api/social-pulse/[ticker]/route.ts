@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { searchRedditPosts, searchRedditPostsPublic } from "@/lib/market-data/reddit";
 import { buildRedditPulse, type RedditPulseData } from "@/lib/market-data/reddit-pulse";
 import { fetchApeWisdomData, type ApeWisdomTicker } from "@/lib/market-data/apewisdom";
+import { fetchTradestieData, type TradestieTicker } from "@/lib/market-data/tradestie";
+import { getStockGeistSentiment, type StockGeistSentiment } from "@/lib/market-data/stockgeist";
 import { checkRateLimit, getIp } from "@/lib/rate-limit";
 
 const CACHE_TTL_MINUTES = 120;
@@ -31,9 +33,11 @@ export async function GET(
 
   const redditEnabled = process.env.ENABLE_REDDIT_SOCIAL_PULSE === "true";
   const apeWisdomEnabled = process.env.ENABLE_APEWISDOM_REDDIT_TRENDS === "true";
+  const stockGeistEnabled = process.env.ENABLE_STOCKGEIST_SENTIMENT === "true" && !!process.env.STOCKGEIST_API_KEY;
+  const tradestieEnabled = process.env.ENABLE_TRADESTIE_TRENDING === "true";
 
-  // Both providers disabled — return early
-  if (!redditEnabled && !apeWisdomEnabled) {
+  // All providers disabled — return early
+  if (!redditEnabled && !apeWisdomEnabled && !stockGeistEnabled && !tradestieEnabled) {
     return NextResponse.json(
       { status: "disabled", message: "Reddit Pulse is not enabled in this environment." },
       { status: 503 }
@@ -45,6 +49,29 @@ export async function GET(
   const force = req.nextUrl.searchParams.get("force") === "1";
 
   const supabase = await createClient();
+
+  // ── 0. StockGeist — broad per-ticker coverage (social + news), primary source ─
+  if (stockGeistEnabled) {
+    const sentiment = await getStockGeistSentiment(t, "1d");
+    if (sentiment && sentiment.total_count > 0) {
+      return NextResponse.json(stockGeistToResponse(sentiment), {
+        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=900" },
+      });
+    }
+    // No StockGeist data for this ticker — fall through to WSB-specific/aggregate sources
+  }
+
+  // ── 0.5 Tradestie — WSB-specific "is this trending on WallStreetBets" signal ──
+  if (tradestieEnabled) {
+    const tradestieMap = await fetchTradestieData();
+    const entry = tradestieMap?.[t];
+    if (entry) {
+      return NextResponse.json(tradestieToResponse(entry), {
+        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=900" },
+      });
+    }
+    // Not in WSB's top 50 — fall through
+  }
 
   // ── 1. Official Reddit path ────────────────────────────────────────────────
   if (redditEnabled) {
@@ -215,6 +242,32 @@ function apeWisdomToResponse(entry: ApeWisdomTicker): ApeWisdomResponse {
   return {
     ...entry,
     source: "apewisdom",
+    fetched_at: new Date().toISOString(),
+  };
+}
+
+type TradestieResponse = TradestieTicker & {
+  source: "tradestie";
+  fetched_at: string;
+};
+
+function tradestieToResponse(entry: TradestieTicker): TradestieResponse {
+  return {
+    ...entry,
+    source: "tradestie",
+    fetched_at: new Date().toISOString(),
+  };
+}
+
+type StockGeistResponse = StockGeistSentiment & {
+  source: "stockgeist";
+  fetched_at: string;
+};
+
+function stockGeistToResponse(entry: StockGeistSentiment): StockGeistResponse {
+  return {
+    ...entry,
+    source: "stockgeist",
     fetched_at: new Date().toISOString(),
   };
 }

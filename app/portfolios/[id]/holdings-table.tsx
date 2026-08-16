@@ -109,7 +109,7 @@ type DigestResult = {
 };
 
 type RedditPulse = {
-  source?: "reddit" | "apewisdom";
+  source?: "reddit" | "apewisdom" | "stockgeist" | "tradestie";
   ticker: string; company_name: string; time_window: string;
   fetched_at: string; expires_at: string;
   post_count: number; mention_count: number;
@@ -124,6 +124,10 @@ type RedditPulse = {
   mentions?: number; mentions_24h_ago?: number; mention_change_pct?: number;
   upvotes?: number; rank?: number; rank_24h_ago?: number; rank_change?: number;
   reddit_trend_score?: number;
+  // StockGeist fields (source === "stockgeist")
+  total_count?: number; positive_count?: number; negative_count?: number; pos_index?: number | null;
+  // Tradestie fields (source === "tradestie") — reuses sentiment_score above with a different scale
+  no_of_comments?: number; sentiment?: string;
   status?: string; message?: string;
 };
 
@@ -844,6 +848,55 @@ export default function HoldingsTable({ portfolioId, holdings, lots = [] }: Hold
                           )}
                           {socialData[holding.ticker] && (() => {
                             const sp = socialData[holding.ticker]!;
+
+                            if (sp.source === "stockgeist") {
+                              const posIndex = sp.pos_index ?? null;
+                              const sgColor = posIndex === null ? "var(--text-secondary)" : posIndex >= 0.58 ? "var(--green)" : posIndex <= 0.42 ? "var(--red)" : "var(--text-secondary)";
+                              return (
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                                    <div style={{ padding: "5px 12px", borderRadius: "6px", border: `1px solid ${sgColor}`, background: `color-mix(in srgb, ${sgColor} 10%, transparent)`, fontSize: "12px", fontWeight: 700, color: sgColor, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                                      {sp.sentiment_label}
+                                    </div>
+                                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{sp.total_count ?? 0} messages tracked</div>
+                                  </div>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+                                    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Positive</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--green)" }}>{sp.positive_count ?? 0}</div>
+                                    </div>
+                                    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px" }}>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>Negative</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--red)" }}>{sp.negative_count ?? 0}</div>
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Social + news sentiment via StockGeist</div>
+                                </div>
+                              );
+                            }
+
+                            if (sp.source === "tradestie") {
+                              const isBullish = (sp.sentiment ?? "").toLowerCase().includes("bull");
+                              const isBearish = (sp.sentiment ?? "").toLowerCase().includes("bear");
+                              const tsColor = isBullish ? "var(--green)" : isBearish ? "var(--red)" : "var(--text-secondary)";
+                              return (
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                                    <div style={{ padding: "5px 12px", borderRadius: "6px", border: `1px solid ${tsColor}`, background: `color-mix(in srgb, ${tsColor} 10%, transparent)`, fontSize: "12px", fontWeight: 700, color: tsColor, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                                      {sp.sentiment ?? "Neutral"}
+                                    </div>
+                                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{sp.no_of_comments ?? 0} WSB comments</div>
+                                  </div>
+                                  {sp.rank != null && (
+                                    <div style={{ background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "8px 10px", marginBottom: "12px", display: "inline-block" }}>
+                                      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "3px" }}>WSB Rank</div>
+                                      <div className="num" style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>#{sp.rank}</div>
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Trending on r/WallStreetBets · via Tradestie</div>
+                                </div>
+                              );
+                            }
 
                             if (sp.source === "apewisdom") {
                               const changeColor = (sp.mention_change_pct ?? 0) >= 0 ? "var(--green)" : "var(--red)";

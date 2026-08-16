@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import RecommendationStatusButtons from "./recommendation-status-buttons";
 
 type RedditPulse = {
-  source?: "reddit" | "apewisdom";
+  source?: "reddit" | "apewisdom" | "stockgeist" | "tradestie";
   ticker: string; fetched_at: string; stale?: boolean;
   // Reddit-only fields
   post_count: number; bullish_pct: number; bearish_pct: number;
@@ -19,6 +19,10 @@ type RedditPulse = {
   mentions?: number; mentions_24h_ago?: number; mention_change_pct?: number;
   upvotes?: number; rank?: number; rank_24h_ago?: number; rank_change?: number;
   reddit_trend_score?: number;
+  // StockGeist fields (source === "stockgeist")
+  total_count?: number; positive_count?: number; negative_count?: number; pos_index?: number | null;
+  // Tradestie fields (source === "tradestie") — reuses sentiment_score above with a different scale
+  no_of_comments?: number; sentiment?: string;
   status?: string; message?: string;
 };
 
@@ -477,6 +481,49 @@ export default function AIRecommendationsList({
                               )}
                             </div>
                             <p className="text-xs text-slate-600">Sentiment analysis requires Reddit API approval · Trend via ApeWisdom</p>
+                          </div>
+                        );
+                      }
+
+                      // ── StockGeist compact view ─────────────────────────────
+                      if (sp.source === "stockgeist") {
+                        const posIndex = sp.pos_index ?? null;
+                        const sgBorder = posIndex === null ? "border-slate-500 text-slate-400" : posIndex >= 0.58 ? "border-emerald-500 text-emerald-400" : posIndex <= 0.42 ? "border-red-500 text-red-400" : "border-slate-500 text-slate-400";
+                        return (
+                          <div>
+                            <div className="mb-3 flex items-center gap-3">
+                              <span className={`rounded-md border px-3 py-1 text-xs font-bold uppercase tracking-wide ${sgBorder}`}>{sp.sentiment_label}</span>
+                              <span className="text-xs text-slate-500">{sp.total_count ?? 0} messages tracked</span>
+                            </div>
+                            <div className="mb-3 grid grid-cols-2 gap-2">
+                              <div className="rounded-xl border border-slate-700 p-2">
+                                <p className="text-xs text-slate-500">Positive</p>
+                                <p className="text-base font-semibold tabular-nums text-emerald-400">{sp.positive_count ?? 0}</p>
+                              </div>
+                              <div className="rounded-xl border border-slate-700 p-2">
+                                <p className="text-xs text-slate-500">Negative</p>
+                                <p className="text-base font-semibold tabular-nums text-red-400">{sp.negative_count ?? 0}</p>
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-600">Social + news sentiment via StockGeist</p>
+                          </div>
+                        );
+                      }
+
+                      // ── Tradestie compact view ──────────────────────────────
+                      if (sp.source === "tradestie") {
+                        const isBullish = (sp.sentiment ?? "").toLowerCase().includes("bull");
+                        const isBearish = (sp.sentiment ?? "").toLowerCase().includes("bear");
+                        const tsBorder = isBullish ? "border-emerald-500 text-emerald-400" : isBearish ? "border-red-500 text-red-400" : "border-slate-500 text-slate-400";
+                        return (
+                          <div>
+                            <div className="mb-3 flex items-center gap-3">
+                              <span className={`rounded-md border px-3 py-1 text-xs font-bold uppercase tracking-wide ${tsBorder}`}>{sp.sentiment ?? "Neutral"}</span>
+                              <span className="text-xs text-slate-500">
+                                {sp.no_of_comments ?? 0} WSB comments{sp.rank != null ? ` · #${sp.rank} most discussed` : ""}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600">Trending on r/WallStreetBets · via Tradestie</p>
                           </div>
                         );
                       }

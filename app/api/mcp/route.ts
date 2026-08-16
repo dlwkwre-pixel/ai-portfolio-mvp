@@ -14,6 +14,8 @@ import { getCongressActivity, getCongressTradesForTicker } from "@/lib/market-da
 import { searchRedditPosts, searchRedditPostsPublic } from "@/lib/market-data/reddit";
 import { buildRedditPulse } from "@/lib/market-data/reddit-pulse";
 import { fetchApeWisdomData } from "@/lib/market-data/apewisdom";
+import { fetchTradestieData } from "@/lib/market-data/tradestie";
+import { getStockGeistSentiment } from "@/lib/market-data/stockgeist";
 import { recordPortfolioTransaction } from "@/lib/portfolio/record-transaction";
 
 export const dynamic = "force-dynamic";
@@ -592,7 +594,7 @@ function buildServer(userId: string, origin: string): McpServer {
     "get_reddit_sentiment",
     {
       title: "Get Reddit sentiment",
-      description: "Returns retail Reddit sentiment for a ticker — mention volume/trend, bullish/bearish %, hype and conviction scores, top themes/catalysts/risks discussed, when available. Falls back to an aggregate mention-trend provider when full Reddit analysis isn't enabled. Read-only, cached.",
+      description: "Returns retail social sentiment for a ticker — StockGeist (broad social + news sentiment, ~2,200 tickers) is primary, Tradestie flags WallStreetBets-specific hype for tickers in its top 50, with ApeWisdom mention/rank data and full Reddit analysis as further fallbacks depending on what's enabled. Read-only, cached.",
       inputSchema: {
         ticker: z.string().min(1).max(12).describe("Stock ticker, e.g. AAPL"),
         company_name: z.string().optional().describe("Optional, improves matching"),
@@ -601,6 +603,21 @@ function buildServer(userId: string, origin: string): McpServer {
     async ({ ticker, company_name }) => {
       const t = ticker.trim().toUpperCase();
       try {
+        if (process.env.ENABLE_STOCKGEIST_SENTIMENT === "true" && process.env.STOCKGEIST_API_KEY) {
+          const sentiment = await getStockGeistSentiment(t, "1d");
+          if (sentiment && sentiment.total_count > 0) {
+            return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REDDIT_DISCLAIMER, source: "stockgeist", ...sentiment }, null, 2) }] };
+          }
+        }
+
+        if (process.env.ENABLE_TRADESTIE_TRENDING === "true") {
+          const tradestieMap = await fetchTradestieData();
+          const entry = tradestieMap?.[t];
+          if (entry) {
+            return { content: [{ type: "text", text: JSON.stringify({ disclaimer: REDDIT_DISCLAIMER, source: "tradestie", ...entry }, null, 2) }] };
+          }
+        }
+
         if (process.env.ENABLE_REDDIT_SOCIAL_PULSE === "true") {
           const admin = createAdminClient();
           const { data: cached } = await admin.from("reddit_social_snapshots")

@@ -10,7 +10,7 @@ import {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RedditPulse = {
-  source?: "reddit" | "apewisdom";
+  source?: "reddit" | "apewisdom" | "stockgeist" | "tradestie";
   ticker: string; fetched_at: string; stale?: boolean;
   post_count: number; bullish_pct: number; bearish_pct: number;
   neutral_pct: number; sentiment_score: number; hype_score: number;
@@ -21,6 +21,10 @@ type RedditPulse = {
   summary: string; ai_powered: boolean;
   mentions?: number; mention_change_pct?: number; upvotes?: number;
   rank?: number; rank_change?: number; reddit_trend_score?: number;
+  // StockGeist fields (source === "stockgeist")
+  total_count?: number; positive_count?: number; negative_count?: number; pos_index?: number | null;
+  // Tradestie fields (source === "tradestie") — reuses sentiment_score above with a different scale
+  no_of_comments?: number; sentiment?: string;
   status?: string; message?: string;
 };
 
@@ -381,6 +385,49 @@ function ApeWisdomPanel({ sp }: { sp: RedditPulse }) {
         </div>
       </div>
       <p className="mt-2 text-[10px] text-slate-600">Data from ApeWisdom · Cached 30 min</p>
+    </div>
+  );
+}
+
+function StockGeistPanel({ sp }: { sp: RedditPulse }) {
+  const posIndex = sp.pos_index ?? null;
+  const sc = posIndex === null ? "text-slate-300" : posIndex >= 0.58 ? "text-emerald-400" : posIndex <= 0.42 ? "text-red-400" : "text-slate-300";
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-4">
+        <div>
+          <p className={`text-sm font-semibold ${sc}`}>{sp.sentiment_label}</p>
+          <p className="text-xs text-slate-500">{sp.total_count ?? 0} messages tracked</p>
+        </div>
+      </div>
+      <div className="mb-2 grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Positive</p>
+          <p className="text-sm font-semibold tabular-nums text-emerald-400">{sp.positive_count ?? 0}</p>
+        </div>
+        <div className="rounded-lg border border-white/5 bg-white/2 p-2">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500">Negative</p>
+          <p className="text-sm font-semibold tabular-nums text-red-400">{sp.negative_count ?? 0}</p>
+        </div>
+      </div>
+      <p className="mt-2 text-[10px] text-slate-600">Social + news sentiment via StockGeist</p>
+    </div>
+  );
+}
+
+function TradestiePanel({ sp }: { sp: RedditPulse }) {
+  const isBullish = (sp.sentiment ?? "").toLowerCase().includes("bull");
+  const isBearish = (sp.sentiment ?? "").toLowerCase().includes("bear");
+  const tc = isBullish ? "text-emerald-400" : isBearish ? "text-red-400" : "text-slate-300";
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-4">
+        <div>
+          <p className={`text-sm font-semibold ${tc}`}>{sp.sentiment ?? "Neutral"}</p>
+          <p className="text-xs text-slate-500">{sp.no_of_comments ?? 0} WSB comments{sp.rank != null ? ` · #${sp.rank} most discussed` : ""}</p>
+        </div>
+      </div>
+      <p className="mt-2 text-[10px] text-slate-600">Trending on r/WallStreetBets · via Tradestie</p>
     </div>
   );
 }
@@ -1415,8 +1462,9 @@ export default function AIRecommendationRunsList({ portfolioId, latestRunId, isL
                             </div>
                           )}
                           {pulse && !pulseLoading.has(item.ticker) && (
-                            pulse.source === "apewisdom"
-                              ? <ApeWisdomPanel sp={pulse} />
+                            pulse.source === "apewisdom" ? <ApeWisdomPanel sp={pulse} />
+                              : pulse.source === "stockgeist" ? <StockGeistPanel sp={pulse} />
+                              : pulse.source === "tradestie" ? <TradestiePanel sp={pulse} />
                               : <RedditPulsePanel sp={pulse} />
                           )}
                         </div>
