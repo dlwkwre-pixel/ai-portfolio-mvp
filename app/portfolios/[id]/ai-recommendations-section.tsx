@@ -180,14 +180,8 @@ export default async function AIRecommendationsSection({
           healthScore === null ? null :
           healthScore >= 75 ? "#22c55e" :
           healthScore >= 55 ? "#f59e0b" : "#ef4444";
-        const scoreBg =
-          healthScore === null ? null :
-          healthScore >= 75 ? "rgba(34,197,94,0.08)" :
-          healthScore >= 55 ? "rgba(245,158,11,0.08)" : "rgba(239,68,68,0.08)";
-        const scoreBorder =
-          healthScore === null ? null :
-          healthScore >= 75 ? "rgba(34,197,94,0.15)" :
-          healthScore >= 55 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)";
+        const scoreBg = healthScore === null ? null : "var(--card-bg)";
+        const scoreBorder = healthScore === null ? null : "var(--card-border)";
 
         return (
           <div className="mt-4 rounded-xl border border-white/8 bg-white/2 p-4">

@@ -722,8 +722,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
 
   const cardStyle: React.CSSProperties = {
     flexShrink: 0, width: "190px",
-    background: isFirst ? "rgba(14,165,160,0.06)" : "var(--card-bg)",
-    border: `1px solid ${isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"}`,
+    background: "var(--card-bg)",
+    border: `1px solid ${isFirst ? "rgba(14,165,160,0.4)" : "var(--card-border)"}`,
     borderRadius: "var(--radius-lg)",
     padding: "12px 14px",
     display: "flex", flexDirection: "column", gap: "8px",
@@ -787,8 +787,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
         href={item.href}
         aria-label={item.ariaLabel}
         style={cardStyle}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.35)" : "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"; (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.55)" : "rgba(255,255,255,0.1)";(e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = isFirst ? "rgba(14,165,160,0.4)" : "var(--card-border)";(e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
       >
         {inner}
       </Link>
@@ -801,8 +801,8 @@ function SpotlightCard({ item, rank }: { item: SpotlightItem; rank: number }) {
       aria-label={item.ariaLabel}
       onClick={item.onClick}
       style={cardStyle}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.35)" : "rgba(255,255,255,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.18)" : "var(--card-border)"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.55)" : "rgba(255,255,255,0.1)";e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.35)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isFirst ? "rgba(14,165,160,0.4)" : "var(--card-border)";e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
       onPointerDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
       onPointerUp={(e) => { e.currentTarget.style.transform = ""; }}
       onPointerCancel={(e) => { e.currentTarget.style.transform = ""; }}
@@ -1149,8 +1149,8 @@ function MarketPulseCard() {
   return (
     <div style={{
       padding: "14px 16px", marginBottom: "24px",
-      background: "rgba(14,165,160,0.04)",
-      border: "1px solid rgba(14,165,160,0.14)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--card-border)",
       borderRadius: "var(--radius-lg)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
@@ -1211,8 +1211,8 @@ function LeaderboardRow({ rank, name, sub, pct, author, onClick, href }: {
     <div style={{
       display: "flex", alignItems: "center", gap: "10px",
       padding: "9px 12px",
-      background: isGold ? "rgba(251,191,36,0.04)" : "var(--card-bg)",
-      border: `1px solid ${isGold ? "rgba(251,191,36,0.15)" : "var(--card-border)"}`,
+      background: "var(--card-bg)",
+      border: `1px solid ${isGold ? "rgba(251,191,36,0.4)" : "var(--card-border)"}`,
       borderRadius: "var(--radius-md)", marginBottom: "6px",
       transition: "border-color 120ms ease, background 120ms ease",
     }}>
@@ -1246,11 +1246,11 @@ function LeaderboardRow({ rank, name, sub, pct, author, onClick, href }: {
 
   const hoverIn = (el: HTMLElement) => {
     const row = el.tagName === "A" || el.tagName === "BUTTON" ? (el.firstChild as HTMLElement) : el;
-    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.3)" : "rgba(255,255,255,0.1)";
+    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.55)" : "rgba(255,255,255,0.1)";
   };
   const hoverOut = (el: HTMLElement) => {
     const row = el.tagName === "A" || el.tagName === "BUTTON" ? (el.firstChild as HTMLElement) : el;
-    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.15)" : "var(--card-border)";
+    if (row) row.style.borderColor = isGold ? "rgba(251,191,36,0.4)" : "var(--card-border)";
   };
 
   if (href) return (

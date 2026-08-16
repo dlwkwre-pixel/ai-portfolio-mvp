@@ -136,7 +136,7 @@ export default function BalanceSheetOS({
       </div>
 
       {/* Atlas strip */}
-      <div className="bso-z" style={{ background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
+      <div className="bso-z" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px", animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start" }}>
         <div style={{ flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "rgba(63,174,74,0.12)", border: "1px solid rgba(63,174,74,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1px" }}>
           <svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M10 2a7 7 0 014.83 12.01L14 17H6l-.83-2.99A7 7 0 0110 2z" fill="rgba(14,165,160,0.2)" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5"/><path d="M8 17h4" stroke="oklch(0.65 0.18 195)" strokeWidth="1.5" strokeLinecap="round"/></svg>
         </div>
@@ -243,7 +243,7 @@ export default function BalanceSheetOS({
 
       {/* Portfolio auto-include notice */}
       {portfolioTotalValue > 0 && (
-        <div className="bso-z" style={{ padding: "9px 14px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginBottom: "10px", animationDelay: "140ms" }}>
+        <div className="bso-z" style={{ padding: "9px 14px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", marginBottom: "10px", animationDelay: "140ms" }}>
           <strong style={{ color: "oklch(0.72 0.19 145)" }}>BuyTune portfolios sync automatically</strong> — each is listed in Assets below and classified by its account type (a Roth IRA counts as tax-free).
         </div>
       )}

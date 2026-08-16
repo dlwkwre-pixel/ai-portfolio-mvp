@@ -276,8 +276,8 @@ function EstatePlanningTab({
       {firstMissingLabel && (
         <div style={{
           display: "flex", alignItems: "center", gap: "14px", padding: "14px 18px",
-          borderRadius: "var(--radius-lg)", background: "rgba(14,165,160,0.07)",
-          border: "1px solid rgba(14,165,160,0.2)",
+          borderRadius: "var(--radius-lg)", background: "var(--card-bg)",
+          border: "1px solid var(--card-border)",
         }}>
           <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(14,165,160,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
@@ -295,7 +295,7 @@ function EstatePlanningTab({
       {/* Legal disclaimer */}
       <div style={{
         padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: "11px",
-        background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)",
+        background: "var(--card-bg)", border: "1px solid var(--card-border)",
         color: "var(--text-muted)", lineHeight: 1.6,
       }}>
         This is an organizational tool only. BuyTune is not a law firm and this is not legal advice.
@@ -552,7 +552,7 @@ function EstatePlanningTab({
         </div>
 
         {/* Security notice */}
-        <div style={{ margin: "12px 18px 0", padding: "9px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+        <div style={{ margin: "12px 18px 0", padding: "9px 12px", borderRadius: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "flex-start", gap: "8px" }}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
             <path d="M8 1.5L1.5 13h13L8 1.5z" stroke="rgba(245,158,11,0.9)" strokeWidth="1.4" strokeLinejoin="round"/>
             <path d="M8 6v4M8 11.5v.5" stroke="rgba(245,158,11,0.9)" strokeWidth="1.4" strokeLinecap="round"/>

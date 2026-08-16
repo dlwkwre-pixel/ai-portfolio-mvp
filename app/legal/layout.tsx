@@ -18,20 +18,25 @@ export default async function LegalLayout({ children }: { children: ReactNode })
   const backLabel = user ? "Back to app" : "Back to BuyTune";
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)", color: "#e2e8f0", fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .legal-nav-link { font-size: 12px; color: #475569; text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
-        .legal-nav-link:hover { color: #e2e8f0; background: rgba(255,255,255,0.05); }
-        .legal-nav-link.active { color: #7fd9d4; background: rgba(14,165,160,0.1); }
+        /* Top nav sits on its own permanent dark band — kept dark intentionally, same convention as the app sidebar/footer */
+        .legal-nav-link { font-size: 12px; color: #94a3b8; text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
+        .legal-nav-link:hover { color: #f1f5f9; background: rgba(255,255,255,0.08); }
+        .legal-nav-link.active { color: #7fd9d4; background: rgba(14,165,160,0.18); }
+        /* Sidebar sits on the light page body — needs light-theme tokens, not the dark-band colors above */
+        .legal-sidebar-link { font-size: 12px; color: var(--text-secondary); text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: color 0.15s, background 0.15s; white-space: nowrap; }
+        .legal-sidebar-link:hover { color: var(--text-primary); background: var(--bg-elevated); }
+        .legal-sidebar-link.active { color: var(--brand-blue); background: rgba(14,165,160,0.12); }
         .legal-section { margin-bottom: 36px; }
-        .legal-h2 { font-size: 14px; font-weight: 700; color: #7fd9d4; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-        .legal-h3 { font-size: 13px; font-weight: 600; color: #cbd5e1; margin: 16px 0 6px; }
-        .legal-p { font-size: 13px; color: #94a3b8; line-height: 1.75; margin-bottom: 10px; }
-        .legal-ul { font-size: 13px; color: #94a3b8; line-height: 1.75; margin: 6px 0 10px 20px; }
+        .legal-h2 { font-size: 14px; font-weight: 700; color: var(--brand-blue); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle); }
+        .legal-h3 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 16px 0 6px; }
+        .legal-p { font-size: 13px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 10px; }
+        .legal-ul { font-size: 13px; color: var(--text-secondary); line-height: 1.75; margin: 6px 0 10px 20px; }
         .legal-ul li { margin-bottom: 4px; }
-        .legal-link { color: #3fc9c3; text-decoration: none; }
+        .legal-link { color: var(--brand-blue); text-decoration: none; }
         .legal-link:hover { text-decoration: underline; }
         .legal-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
         @media (max-width: 768px) {
@@ -66,7 +71,7 @@ export default async function LegalLayout({ children }: { children: ReactNode })
           <div style={{ position: "sticky", top: "64px", display: "flex", flexDirection: "column", gap: "4px" }}>
             <div style={{ fontSize: "10px", fontWeight: 700, color: "#334155", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
             {LEGAL_PAGES.map((p) => (
-              <Link key={p.href} href={p.href} className="legal-nav-link" style={{ display: "block", padding: "5px 8px" }}>{p.label}</Link>
+              <Link key={p.href} href={p.href} className="legal-sidebar-link" style={{ display: "block", padding: "5px 8px" }}>{p.label}</Link>
             ))}
           </div>
         </div>

@@ -554,7 +554,7 @@ export default function OnboardingModal({
           {error && (
             <div style={{
               marginBottom: "14px", padding: "9px 12px",
-              background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)",
+              background: "var(--card-bg)", border: "1px solid var(--card-border)",
               borderRadius: "8px", fontSize: "12px", color: "var(--red)",
             }}>
               {error}
@@ -961,7 +961,7 @@ export default function OnboardingModal({
                   )}
 
                   {finnError && (
-                    <div style={{ padding: "8px 12px", background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)", borderRadius: "8px", fontSize: "11px", color: "var(--red)", marginBottom: "10px" }}>
+                    <div style={{ padding: "8px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "8px", fontSize: "11px", color: "var(--red)", marginBottom: "10px" }}>
                       {finnError}
                     </div>
                   )}
@@ -1132,7 +1132,7 @@ export default function OnboardingModal({
                 </p>
               </div>
 
-              <div style={{ padding: "8px 12px", borderRadius: "8px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "10px" }}>
+              <div style={{ padding: "8px 12px", borderRadius: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5, marginTop: "10px" }}>
                 BuyTune&apos;s recommendations are informational only and not financial advice. Always apply your own judgement before making investment decisions.
               </div>
             </div>
@@ -1166,7 +1166,7 @@ export default function OnboardingModal({
               </div>
 
               {draftHoldings.length === 0 && parseFloat(cash) === 0 && (
-                <div style={{ padding: "9px 12px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "8px", fontSize: "11px", color: "var(--amber)", marginBottom: "14px", lineHeight: 1.5 }}>
+                <div style={{ padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "8px", fontSize: "11px", color: "var(--amber)", marginBottom: "14px", lineHeight: 1.5 }}>
                   Your portfolio has no holdings or cash yet. The AI scan will still run but recommendations may be limited. You can add holdings after setup.
                 </div>
               )}
@@ -1208,7 +1208,7 @@ export default function OnboardingModal({
               )}
 
               {scanStatus === "error" && (
-                <div style={{ padding: "12px 14px", background: "rgba(255,92,92,0.08)", border: "1px solid rgba(255,92,92,0.2)", borderRadius: "8px", fontSize: "12px", color: "var(--red)", lineHeight: 1.5 }}>
+                <div style={{ padding: "12px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "8px", fontSize: "12px", color: "var(--red)", lineHeight: 1.5 }}>
                   {scanError || "The AI scan failed. You can run it later from your portfolio page."}
                 </div>
               )}

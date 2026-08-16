@@ -106,24 +106,11 @@ export default async function PortfolioAlertsBanner({ tickers }: Props) {
       {visible.map((alert, i) => {
         const isEarnings = alert.type === "earnings";
         const isHigh = alert.urgency === "high";
-        const isMedium = alert.urgency === "medium";
 
         // Earnings = violet, News = teal
-        const bg = isEarnings
-          ? isHigh
-            ? "rgba(63,174,74,0.12)"
-            : isMedium
-            ? "rgba(63,174,74,0.08)"
-            : "rgba(63,174,74,0.06)"
-          : "rgba(0,211,149,0.05)";
+        const bg = "var(--card-bg)";
 
-        const border = isEarnings
-          ? isHigh
-            ? "rgba(63,174,74,0.35)"
-            : isMedium
-            ? "rgba(63,174,74,0.22)"
-            : "rgba(63,174,74,0.15)"
-          : "rgba(0,211,149,0.18)";
+        const border = "var(--card-border)";
 
         const iconColor = isEarnings ? "var(--violet)" : "var(--green)";
 

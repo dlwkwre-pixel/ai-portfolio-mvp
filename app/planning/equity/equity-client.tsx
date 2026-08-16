@@ -167,7 +167,7 @@ export default function EquityClient({
       {grants.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
           {concentration != null && (
-            <div style={{ flex: "1 1 240px", background: concentration >= 20 ? "rgba(245,158,11,0.06)" : "var(--card-bg)", border: `1px solid ${concentration >= 20 ? "rgba(245,158,11,0.3)" : "var(--card-border)"}`, borderRadius: "12px", padding: "12px 14px" }}>
+            <div style={{ flex: "1 1 240px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "12px 14px" }}>
               <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
                 <strong style={{ fontFamily: "var(--font-mono)", color: concentration >= 20 ? "#f59e0b" : "var(--text-primary)", fontSize: "15px" }}>{concentration.toFixed(0)}%</strong> of your net worth is in company equity
                 {concentration >= 20 && <span style={{ color: "#f59e0b" }}> — heavy concentration. Vested shares are the easiest to diversify.</span>}

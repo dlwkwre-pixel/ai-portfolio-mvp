@@ -282,8 +282,8 @@ export default async function AchievementsPage() {
                   <div key={c.id} style={{
                     display: "flex", alignItems: "center", gap: "12px",
                     padding: "14px 15px", borderRadius: "14px",
-                    border: `1px solid ${c.done ? "rgba(16,185,129,0.28)" : "var(--card-border)"}`,
-                    background: c.done ? "rgba(16,185,129,0.06)" : "var(--card-bg)",
+                    border: `1px solid ${c.done ? "rgba(16,185,129,0.4)" : "var(--card-border)"}`,
+                    background: "var(--card-bg)",
                   }}>
                     <div style={{
                       width: "38px", height: "38px", borderRadius: "11px", flexShrink: 0,

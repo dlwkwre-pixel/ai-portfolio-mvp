@@ -164,12 +164,8 @@ export default function EarningsCalendarClient({ rows }: Props) {
                         alignItems: "center",
                         gap: "10px",
                         padding: "8px 10px",
-                        background: isExpanded
-                          ? "rgba(63,174,74,0.1)"
-                          : isUrgent
-                          ? "rgba(63,174,74,0.06)"
-                          : "var(--bg-elevated)",
-                        border: `1px solid ${isExpanded ? "rgba(63,174,74,0.35)" : isUrgent ? "rgba(63,174,74,0.2)" : "var(--border-subtle)"}`,
+                        background: isExpanded || isUrgent ? "var(--card-bg)" : "var(--bg-elevated)",
+                        border: `1px solid ${isExpanded || isUrgent ? "var(--card-border)" : "var(--border-subtle)"}`,
                         borderRadius: isExpanded ? "var(--radius-md) var(--radius-md) 0 0" : "var(--radius-md)",
                         cursor: "pointer",
                         textAlign: "left",
@@ -213,8 +209,8 @@ export default function EarningsCalendarClient({ rows }: Props) {
                     {/* Expanded detail panel */}
                     {isExpanded && (
                       <div style={{
-                        background: "rgba(63,174,74,0.04)",
-                        border: "1px solid rgba(63,174,74,0.25)",
+                        background: "var(--card-bg)",
+                        border: "1px solid var(--card-border)",
                         borderTop: "none",
                         borderRadius: "0 0 var(--radius-md) var(--radius-md)",
                         padding: "12px",

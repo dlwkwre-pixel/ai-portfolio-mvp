@@ -438,7 +438,7 @@ export default function ApartmentClient({ listings: initialListings, profile, ef
               </button>
             </div>
             {draft.concession_explanation && draft.concession_monthly_savings > 0 && (
-              <div style={{ padding: "8px 12px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ padding: "8px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>{draft.concession_explanation}</span>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--green)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap", marginLeft: "10px" }}>
                   −{fmtD(draft.concession_monthly_savings)}/mo

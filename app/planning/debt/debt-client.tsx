@@ -327,7 +327,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
               </div>
 
               {extra > 0 && monthsSaved > 0 && (
-                <div style={{ marginTop: "14px", padding: "10px 12px", borderRadius: "10px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                <div style={{ marginTop: "14px", padding: "10px 12px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   Paying <strong style={{ color: "var(--text-primary)" }}>{fmt(extra)}/mo</strong> extra clears your debt <strong style={{ color: "var(--green)" }}>{monthsToLabel(monthsSaved)}</strong> sooner and saves <strong style={{ color: "var(--green)" }}>{fmt(Math.max(0, interestSaved))}</strong> in interest.
                 </div>
               )}
@@ -394,7 +394,7 @@ export default function DebtClient({ scenarios, prefillDebts }: { scenarios: Deb
                   <Metric label="Consolidated interest" value={fmt(Math.round(consol.totalInterest))} sub="over the term" />
                   <Metric label="vs your plan" value={consolSaves >= 0 ? `Save ${fmt(Math.round(Math.abs(consolSaves)))}` : `Cost ${fmt(Math.round(Math.abs(consolSaves)))}`} sub={consolSaves >= 0 ? "less interest" : "more interest"} accent={consolSaves >= 0 ? "var(--green)" : "var(--red)"} />
                 </div>
-                <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: consolSaves >= 0 ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", border: `1px solid ${consolSaves >= 0 ? "rgba(34,197,94,0.18)" : "rgba(245,158,11,0.18)"}`, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+                <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
                   {consolApr < avgApr
                     ? `At ${consolApr}% the new loan beats your ${avgApr.toFixed(1)}% blended APR. ${consolSaves >= 0 ? `Consolidating saves ~${fmt(Math.round(consolSaves))} in interest and simplifies to one payment.` : `But the ${consolTermYears}-year term stretches it out enough that you'd pay ~${fmt(Math.round(Math.abs(consolSaves)))} more interest overall — shorten the term to come out ahead.`}`
                     : `At ${consolApr}% the new loan is higher than your ${avgApr.toFixed(1)}% blended APR — consolidating wouldn't help here unless it's the only way to get a single manageable payment.`}

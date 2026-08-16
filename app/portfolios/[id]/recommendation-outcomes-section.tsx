@@ -57,7 +57,7 @@ export default async function RecommendationOutcomesSection({ portfolioId }: Pro
   };
 
   return (
-    <div style={{ background: "rgba(0,211,149,0.02)", border: "1px solid rgba(0,211,149,0.1)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

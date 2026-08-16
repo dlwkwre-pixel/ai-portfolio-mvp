@@ -405,7 +405,7 @@ export default function RentalClient({ liquidAssets }: { liquidAssets: number })
               <div style={{ fontSize: "10.5px", color: "var(--text-tertiary)", marginTop: "3px" }}>same cash invested · {fmtSigned(Math.round(calc.marketGain))} gain</div>
             </div>
           </div>
-          <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: calc.propertyTotal >= calc.marketFV ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)", border: `1px solid ${calc.propertyTotal >= calc.marketFV ? "rgba(34,197,94,0.18)" : "rgba(245,158,11,0.18)"}`, fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+          <div style={{ marginTop: "12px", padding: "10px 12px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
             {calc.propertyTotal >= calc.marketFV
               ? `The rental comes out ahead by ${fmt(Math.round(calc.propertyTotal - calc.marketFV))} over ${holdYears} years — and that's before the leverage and tax advantages compound further. The trade-off is effort, illiquidity, and concentration in one asset.`
               : `The market wins this one by ${fmt(Math.round(calc.marketFV - calc.propertyTotal))} over ${holdYears} years, with zero tenants, repairs, or illiquidity. The rental needs higher rent, a better price, or more appreciation to justify the work.`}
@@ -485,7 +485,7 @@ function ReturnStack({ parts, total, roi, cashInvested }: { parts: { label: stri
 function StressRow({ label, value }: { label: string; value: number }) {
   const ok = value >= 0;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: ok ? "rgba(34,197,94,0.05)" : "rgba(239,68,68,0.06)", border: `1px solid ${ok ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.18)"}` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
       <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: ok ? "var(--green)" : "var(--red)", flexShrink: 0 }} />
       <span style={{ fontSize: "12.5px", color: "var(--text-secondary)", flex: 1 }}>{label}</span>
       <span style={{ fontSize: "13px", fontWeight: 700, fontFamily: "var(--font-mono)", color: ok ? "var(--green)" : "var(--red)" }}>{fmtSigned(Math.round(value))}/yr</span>

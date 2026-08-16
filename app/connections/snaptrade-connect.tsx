@@ -197,7 +197,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
 
       {/* Success panel — what changed + what's next */}
       {success && (
-        <div style={{ padding: "14px 15px", borderRadius: "14px", border: "1px solid rgba(0,211,149,0.35)", background: "rgba(0,211,149,0.08)" }}>
+        <div style={{ padding: "14px 15px", borderRadius: "14px", border: "1px solid var(--card-border)", background: "var(--card-bg)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "8px" }}>
             <span style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", background: "rgba(0,211,149,0.2)", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>✓</span>
             <span style={{ fontSize: "13.5px", fontWeight: 700, color: "var(--text-primary)" }}>Import complete</span>
@@ -311,7 +311,7 @@ export default function SnaptradeConnect({ status }: { status: ConnectionStatus 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   {/* Cash — assignable like a holding */}
                   {cashAmount > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.2)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
                       <span style={{ fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "62px" }}>Cash</span>
                       <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)", flex: 1, minWidth: 0 }}>{fmtUsd(cashAmount)}</span>
                       <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--green)", flexShrink: 0, minWidth: "44px" }}>cash</span>

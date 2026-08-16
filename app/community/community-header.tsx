@@ -303,7 +303,7 @@ function PickerCard({ icon, iconBg, iconBorder, title, description, disabled, on
 
 function AlreadySharedNotice({ text }: { text: string }) {
   return (
-    <div style={{ padding: "11px 14px", background: "rgba(0,211,149,0.05)", border: "1px solid rgba(0,211,149,0.15)", borderRadius: "var(--radius-md)" }}>
+    <div style={{ padding: "11px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
       <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--green)", marginBottom: "3px" }}>Already live in Community</p>
       <p style={{ fontSize: "11px", color: "var(--text-tertiary)", lineHeight: 1.5 }}>{text}</p>
     </div>

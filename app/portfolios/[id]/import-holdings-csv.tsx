@@ -320,7 +320,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
                 </p>
               )}
               {/* PDF tip */}
-              <div style={{ marginTop: "10px", padding: "10px 14px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: "var(--radius-sm)", display: "flex", gap: "8px" }}>
+              <div style={{ marginTop: "10px", padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", display: "flex", gap: "8px" }}>
                 <span style={{ fontSize: "12px", flexShrink: 0 }}>💡</span>
                 <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   <strong style={{ color: "var(--text-primary)" }}>Got a PDF?</strong> Paste it into ChatGPT and ask:{" "}
@@ -333,7 +333,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
 
           {/* PDF tip for file mode */}
           {mode === "file" && rows.length === 0 && (
-            <div style={{ marginBottom: "16px", padding: "10px 14px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: "var(--radius-sm)", display: "flex", gap: "8px" }}>
+            <div style={{ marginBottom: "16px", padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)", display: "flex", gap: "8px" }}>
               <span style={{ fontSize: "12px", flexShrink: 0 }}>💡</span>
               <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                 <strong style={{ color: "var(--text-primary)" }}>Got a PDF from Edward Jones or another broker?</strong> Paste it into ChatGPT and ask:{" "}
@@ -437,7 +437,7 @@ export default function ImportHoldingsCSV({ portfolioId }: { portfolioId: string
 
           {/* Result banner */}
           {result && (
-            <div style={{ marginTop: "12px", padding: "12px 14px", borderRadius: "var(--radius-sm)", background: result.errors.length > 0 ? "rgba(245,158,11,0.06)" : "rgba(0,211,149,0.06)", border: `1px solid ${result.errors.length > 0 ? "rgba(245,158,11,0.2)" : "rgba(0,211,149,0.2)"}` }}>
+            <div style={{ marginTop: "12px", padding: "12px 14px", borderRadius: "var(--radius-sm)", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
               <div style={{ fontSize: "13px", fontWeight: 500, color: result.errors.length > 0 ? "var(--amber)" : "var(--green)", marginBottom: result.errors.length > 0 ? "6px" : 0 }}>
                 {result.imported > 0 && `${result.imported} holding${result.imported !== 1 ? "s" : ""} added`}
                 {result.imported > 0 && result.updated > 0 && ", "}

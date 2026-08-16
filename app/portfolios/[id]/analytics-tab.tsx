@@ -143,7 +143,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
           ))}
         </div>
         {data.sectors[0] && data.sectors[0].pct >= 40 && (
-          <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          <div style={{ marginTop: "12px", padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
             <strong style={{ color: "#f59e0b" }}>{data.sectors[0].pct}% in {data.sectors[0].label}.</strong> That&apos;s heavy concentration — consider whether you want that much riding on one sector.
           </div>
         )}
@@ -171,7 +171,7 @@ export default function AnalyticsTab({ portfolioId }: { portfolioId: string }) {
             ))}
           </div>
           {data.countries[0] && data.countries[0].label !== "United States" && data.countries[0].pct >= 40 && (
-            <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <div style={{ marginTop: "12px", padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               <strong style={{ color: "#f59e0b" }}>{data.countries[0].pct}% headquartered in {data.countries[0].label}.</strong> Worth knowing what regulatory and geopolitical risk rides along with that.
             </div>
           )}

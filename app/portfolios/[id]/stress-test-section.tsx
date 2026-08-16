@@ -89,7 +89,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
   }
 
   return (
-    <div style={{ background: "rgba(248,113,113,0.03)", border: "1px solid rgba(248,113,113,0.1)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
+    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "20px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <svg width="13" height="13" viewBox="0 0 20 20" fill="#f87171">
@@ -139,7 +139,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
       </p>
 
       {error && (
-        <div style={{ marginTop: "12px", padding: "10px 14px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--red)" }}>
+        <div style={{ marginTop: "12px", padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--red)" }}>
           {error}
         </div>
       )}
@@ -147,7 +147,7 @@ export default function StressTestSection({ holdings, totalValue, cashBalance }:
       {result && (
         <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "10px" }}>
           {result.overallRisk && (
-            <div style={{ padding: "10px 14px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: "var(--radius-md)" }}>
+            <div style={{ padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--red)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Biggest vulnerability</span>
               <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px", lineHeight: 1.5 }}>{result.overallRisk}</p>
             </div>

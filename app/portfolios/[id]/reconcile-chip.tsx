@@ -55,8 +55,8 @@ export default function ReconcileChip({
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap",
       padding: "9px 12px", borderRadius: "12px",
-      border: `1px solid ${stale ? "rgba(245,158,11,0.28)" : "var(--card-border)"}`,
-      background: stale ? "rgba(245,158,11,0.06)" : "var(--surface-004, rgba(255,255,255,0.02))",
+      border: "1px solid var(--card-border)",
+      background: "var(--surface-004, rgba(255,255,255,0.02))",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
         <span aria-hidden style={{

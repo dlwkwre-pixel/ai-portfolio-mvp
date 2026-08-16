@@ -175,7 +175,7 @@ export default function ProfileSettingsClient({
       {editing && (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {isNew && (
-            <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", padding: "12px 16px", fontSize: "13px", color: "var(--amber)" }}>
+            <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", padding: "12px 16px", fontSize: "13px", color: "var(--amber)" }}>
               Set up your profile to appear in the Community and on public strategy pages.
             </div>
           )}

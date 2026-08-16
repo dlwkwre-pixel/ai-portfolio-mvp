@@ -160,17 +160,17 @@ export default function RebalancingCalculator({
   };
 
   const statusBg = {
-    over: "rgba(245,158,11,0.06)",
-    under: "rgba(14,165,160,0.06)",
-    ok: "rgba(0,211,149,0.04)",
-    "no-price": "rgba(255,255,255,0.02)",
+    over: "var(--card-bg)",
+    under: "var(--card-bg)",
+    ok: "var(--card-bg)",
+    "no-price": "var(--card-bg)",
   };
 
   const statusBorder = {
-    over: "rgba(245,158,11,0.2)",
-    under: "rgba(14,165,160,0.2)",
-    ok: "rgba(0,211,149,0.12)",
-    "no-price": "var(--border-subtle)",
+    over: "var(--card-border)",
+    under: "var(--card-border)",
+    ok: "var(--card-border)",
+    "no-price": "var(--card-border)",
   };
 
   return (
@@ -362,7 +362,7 @@ export default function RebalancingCalculator({
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px",
               marginTop: "10px", padding: "9px 11px", borderRadius: "var(--radius-md)",
-              background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.15)",
+              background: "var(--card-bg)", border: "1px solid var(--card-border)",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
                 <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>

@@ -52,9 +52,9 @@ const CONTACTS = [
 ];
 
 const STATUS_STYLE: Record<CheckStatus, { bg: string; color: string; border: string; label: string }> = {
-  pass:   { bg: "rgba(16,185,129,0.1)",  color: "#6ee7b7", border: "rgba(16,185,129,0.22)", label: "Pass" },
-  review: { bg: "rgba(251,191,36,0.1)",  color: "#fde68a", border: "rgba(251,191,36,0.22)", label: "Review" },
-  fail:   { bg: "rgba(239,68,68,0.1)",   color: "#fca5a5", border: "rgba(239,68,68,0.22)",  label: "Fail" },
+  pass:   { bg: "var(--green-bg)", color: "var(--green)", border: "var(--green-border)", label: "Pass" },
+  review: { bg: "var(--amber-bg)", color: "var(--amber)", border: "var(--amber-border)",  label: "Review" },
+  fail:   { bg: "var(--red-bg)",   color: "var(--red)",   border: "var(--red-border)",    label: "Fail" },
 };
 
 function Pill({ status }: { status: CheckStatus }) {
@@ -101,8 +101,8 @@ export default async function ComplianceDashboard() {
           { v: `${reviewCount}`, l: "Items needing review", ok: reviewCount === 0 },
         ].map((s) => (
           <div key={s.l} style={{
-            background: s.ok ? "rgba(16,185,129,0.07)" : "rgba(251,191,36,0.07)",
-            border: `1px solid ${s.ok ? "rgba(16,185,129,0.18)" : "rgba(251,191,36,0.2)"}`,
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
             borderRadius: "12px", padding: "16px 18px",
           }}>
             <div style={{ fontSize: "24px", fontWeight: 700, fontFamily: "var(--font-mono)", color: s.ok ? "#6ee7b7" : "#fde68a" }}>{s.v}</div>

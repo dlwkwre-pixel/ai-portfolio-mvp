@@ -7,12 +7,12 @@ export default function FinancialPlanningDisclaimerPage() {
     <article>
       <div style={{ marginBottom: "32px" }}>
         <div style={{ fontSize: "10px", fontWeight: 700, color: "#0ea5a0", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Legal</div>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "28px", fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px", marginBottom: "8px" }}>Financial Planning Disclaimer</h1>
+        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: "8px" }}>Financial Planning Disclaimer</h1>
         <p style={{ fontSize: "13px", color: "var(--text-tertiary)" }}>Effective date: {EFFECTIVE} &nbsp;·&nbsp; Governing law: Texas, United States</p>
       </div>
 
-      <div style={{ padding: "14px 18px", background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: "10px", marginBottom: "32px" }}>
-        <p style={{ fontSize: "13px", color: "#6ee7b7", lineHeight: 1.7 }}>
+      <div style={{ padding: "14px 18px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "10px", marginBottom: "32px" }}>
+        <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.7 }}>
           BuyTune&apos;s financial planning tools are illustrative calculators, not professional financial plans. All projections are based on user-provided assumptions and simplified models. They are not a substitute for advice from a licensed financial planner or CFP.
         </p>
       </div>

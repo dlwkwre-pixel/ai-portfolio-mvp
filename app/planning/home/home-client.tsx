@@ -2844,7 +2844,7 @@ export default function HomeClient({
                 )}
               </div>
               {finnCommentary && (
-                <div style={{ marginTop: "12px", padding: "12px 14px", background: "rgba(109,40,217,0.04)", border: "1px solid rgba(109,40,217,0.15)", borderRadius: "10px" }}>
+                <div style={{ marginTop: "12px", padding: "12px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "10px" }}>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{finnCommentary}</p>
                 </div>
               )}
@@ -4718,7 +4718,7 @@ export default function HomeClient({
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>need {fmtK(goalMetrics.totalNeeded)}</div>
                     </div>
                     {/* Surplus / deficit */}
-                    <div style={{ background: cashOk ? "rgba(0,211,149,0.06)" : "rgba(239,68,68,0.06)", borderRadius: "10px", padding: "10px 12px", border: `1px solid ${cashOk ? "rgba(0,211,149,0.15)" : "rgba(239,68,68,0.15)"}` }}>
+                    <div style={{ background: "var(--bg-subtle, rgba(255,255,255,0.03))", borderRadius: "10px", padding: "10px 12px", border: "1px solid var(--card-border)" }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-body)", marginBottom: "4px" }}>{cashOk ? "Surplus" : "Deficit"}</div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 600, color: cashOk ? "oklch(0.70 0.18 155)" : "oklch(0.68 0.18 25)" }}>
                         {cashOk ? "+" : ""}{fmtK(goalMetrics.cashSurplus)}

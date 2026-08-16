@@ -182,7 +182,7 @@ function BudgetReviewTable({ rows, onUpdateRow, onSubmit, submitting, submitLabe
   return (
     <>
       {existingCount > 0 && existingBannerText && (
-        <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(63,174,74,0.06)", border: "1px solid rgba(63,174,74,0.18)", fontSize: "11px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
+        <div style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "11px", color: "oklch(0.65 0.18 195)", fontFamily: "var(--font-body)" }}>
           {existingBannerText(existingCount)}
         </div>
       )}
@@ -427,7 +427,7 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
       {step === "paste" && (
         <>
           {allParsed.length > 0 && (
-            <div style={{ padding: "6px 10px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
+            <div style={{ padding: "6px 10px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "11px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
               {allParsed.length} transactions already loaded — paste another statement to add to the mix.
             </div>
           )}
@@ -1511,7 +1511,7 @@ export default function CashFlowOS({
           silently reverting to a pure-budget figure. */}
       {kpiSavings > 50 && viewMode === "monthly" && (
         <div className="cfo-zone" style={{
-          background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.2)",
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
           borderRadius: "var(--radius-lg)", padding: "11px 16px", marginBottom: "10px",
           animationDelay: "30ms", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
         }}>
@@ -1541,7 +1541,7 @@ export default function CashFlowOS({
       {/* Atlas Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
         <div className="cfo-zone" style={{
-          background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.22)",
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
           borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
           animationDelay: "60ms", display: "flex", gap: "11px", alignItems: "flex-start",
         }}>
@@ -1573,7 +1573,7 @@ export default function CashFlowOS({
       {/* Pacing Alert Strip — only for current month when tracking over budget */}
       {pacingAlerts.length > 0 && (
         <div className="cfo-zone" style={{
-          background: "rgba(251,146,60,0.04)", border: "1px solid rgba(251,146,60,0.22)",
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
           borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
           animationDelay: "80ms", display: "flex", gap: "10px", alignItems: "flex-start",
         }}>
@@ -1678,7 +1678,7 @@ export default function CashFlowOS({
                 const col = under ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
                 const utilPct = totBudget > 0 ? Math.round((totActual / totBudget) * 100) : 0;
                 return (
-                  <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: under ? "rgba(34,197,94,0.07)" : "rgba(239,68,68,0.07)", border: `1px solid ${under ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
+                  <div style={{ marginBottom: "14px", padding: "12px 14px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "13px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
                         Spent <strong style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{ph(fmt(totActual))}</strong> of <span style={{ fontFamily: "var(--font-mono)" }}>{ph(fmt(totBudget))}</span> budgeted
@@ -1807,7 +1807,7 @@ export default function CashFlowOS({
           </div>
         )}
         {importSuccess !== null && !showImport && (
-          <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
             <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--green)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>

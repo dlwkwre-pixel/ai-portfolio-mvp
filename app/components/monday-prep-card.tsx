@@ -103,8 +103,8 @@ export default function MondayPrepCard() {
   const allDone = totalCount > 0 && doneCount === totalCount;
 
   const accentColor = allDone ? "rgba(74,222,128,0.85)" : "rgba(14,165,160,0.85)";
-  const borderColor = allDone ? "rgba(34,197,94,0.2)" : "rgba(14,165,160,0.12)";
-  const bgColor = allDone ? "rgba(34,197,94,0.03)" : "rgba(14,165,160,0.03)";
+  const borderColor = "var(--card-border)";
+  const bgColor = "var(--card-bg)";
 
   return (
     <div style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "var(--radius-lg)", padding: "14px 16px", transition: "all 0.3s ease" }}>
@@ -210,8 +210,8 @@ export default function MondayPrepCard() {
                   className="bt-prep-row"
                   style={{
                     borderRadius: "var(--radius-md)",
-                    background: done ? "rgba(34,197,94,0.04)" : "var(--surface-004)",
-                    border: `1px solid ${done ? "rgba(34,197,94,0.1)" : "var(--card-border)"}`,
+                    background: done ? "var(--card-bg)" : "var(--surface-004)",
+                    border: "1px solid var(--card-border)",
                     overflow: "hidden",
                   }}
                 >

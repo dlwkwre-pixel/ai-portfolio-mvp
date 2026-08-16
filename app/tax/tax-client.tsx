@@ -93,7 +93,7 @@ function LearnPanel({ title, label, children }: { title: string; label?: string;
         {open ? "✕ Hide" : (label ?? "? What is this")}
       </button>
       <div style={{ maxHeight: open ? "400px" : "0", overflow: "hidden", transition: "max-height 0.3s ease" }}>
-        <div style={{ padding: "10px 14px", marginTop: "8px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.12)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
+        <div style={{ padding: "10px 14px", marginTop: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
           <p style={{ margin: "0 0 4px", fontWeight: 600, color: "var(--text-primary)", fontSize: "11px" }}>{title}</p>
           {children}
         </div>
@@ -112,9 +112,9 @@ function ActionItem({ type, text, detail, cta, onCta }: {
   onCta?: () => void;
 }) {
   const styles = {
-    save: { dot: "var(--green)", bg: "rgba(22,163,74,0.04)", border: "rgba(22,163,74,0.15)" },
-    warn: { dot: "#f59e0b", bg: "rgba(245,158,11,0.04)", border: "rgba(245,158,11,0.18)" },
-    info: { dot: "oklch(0.62 0.15 195)", bg: "rgba(63,174,74,0.04)", border: "rgba(63,174,74,0.15)" },
+    save: { dot: "var(--green)", bg: "var(--card-bg)", border: "var(--card-border)" },
+    warn: { dot: "#f59e0b", bg: "var(--card-bg)", border: "var(--card-border)" },
+    info: { dot: "oklch(0.62 0.15 195)", bg: "var(--card-bg)", border: "var(--card-border)" },
   };
   const s = styles[type];
   return (
@@ -343,7 +343,7 @@ function AssetLocationCard({ buckets }: { buckets: { taxable: AssetBucket; defer
       </div>
 
       {/* Guidance */}
-      <div style={{ marginTop: "14px", padding: "10px 13px", background: "rgba(63,174,74,0.05)", border: "1px solid rgba(63,174,74,0.18)", borderRadius: "var(--radius-md)" }}>
+      <div style={{ marginTop: "14px", padding: "10px 13px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
         <p style={{ fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0 }}>{guidance}</p>
         <p style={{ fontSize: "10.5px", color: "var(--text-muted)", lineHeight: 1.5, margin: "6px 0 0" }}>
           Rule of thumb: highest-growth assets → Roth, income / tax-inefficient (bonds, REITs) → tax-deferred, tax-efficient index funds → taxable.
@@ -444,7 +444,7 @@ function RothConversionModeler({ traditionalEstimate, h }: { traditionalEstimate
         ))}
       </div>
 
-      <div style={{ marginTop: "12px", padding: "10px 13px", background: spillsBracket ? "rgba(245,158,11,0.06)" : "rgba(52,211,153,0.05)", border: `1px solid ${spillsBracket ? "rgba(245,158,11,0.2)" : "rgba(52,211,153,0.18)"}`, borderRadius: "var(--radius-md)" }}>
+      <div style={{ marginTop: "12px", padding: "10px 13px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
         <p style={{ fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.55, margin: 0 }}>
           {spillsBracket
             ? `Converting ${fmt(annual)} pushes past your ${ratePct}% bracket — the portion above ${fmt(Math.round(h.roomToNext))} is taxed at ${nextPct}%. To stay at ${ratePct}%, convert about ${fmt(Math.round(h.roomToNext))}/year.`
@@ -844,7 +844,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               </div>
             )}
             {taxProfile && !taxProfile.grossMonthly && (
-              <div className="tax-card" style={{ padding: "14px 16px", background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div className="tax-card" style={{ padding: "14px 16px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "180px" }}>
                   <p style={{ fontSize: "12px", fontWeight: 600, color: "#f59e0b", margin: "0 0 3px" }}>Add your gross salary to unlock income tax estimates</p>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", margin: 0 }}>In Planning → <strong style={{ color: "var(--text-secondary)" }}>Profile Settings</strong>, enter your <strong style={{ color: "var(--text-secondary)" }}>Gross Monthly Income</strong> (pre-tax, before deductions). Your net override is for cash flow only.</p>
@@ -873,7 +873,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {quickTaxEstimate && (
-                    <div style={{ padding: "9px 12px", background: "rgba(14,165,160,0.06)", border: "1px solid rgba(14,165,160,0.18)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
                         Federal-only estimate based on your income entry below. No state tax included. <Link href="/planning" style={{ color: "var(--brand-blue)", textDecoration: "none", fontWeight: 600 }}>Save your profile in Planning →</Link> for a full estimate with state tax, deductions, and income type.
                       </p>
@@ -894,13 +894,13 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   </div>
 
                   {(taxProfile?.incomeType ?? "w2") === "w2" ? (
-                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         <strong style={{ color: "var(--green)" }}>Already handled.</strong> Your employer automatically withholds all of this from your paychecks and sends it to the IRS on your behalf. You don&apos;t need to make any additional payments for this portion.
                       </p>
                     </div>
                   ) : (
-                    <div style={{ padding: "12px 14px", background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.18)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "12px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", fontWeight: 600, color: "#f59e0b", margin: "0 0 6px" }}>Quarterly estimated payments required</p>
                       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" as const }}>
                         <div>
@@ -969,14 +969,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     )}
                   </div>
 
-                  <div style={{ padding: "10px 14px", background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: "var(--radius-md)" }}>
+                  <div style={{ padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                     <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                       <strong style={{ color: "#f59e0b" }}>Not withheld.</strong> Property taxes are billed separately by your county — usually twice a year or through your mortgage escrow account. If you have an escrow account, your lender already collects this monthly.
                     </p>
                   </div>
 
                   {estimatedItemized > stdDeduction && (
-                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         <strong style={{ color: "var(--green)" }}>Potential deduction.</strong> Your mortgage interest and property taxes may let you &quot;itemize&quot; deductions on your federal return, which could save you {fmt(itemizingSaves)} compared to taking the standard deduction. See the Deductions section below.
                       </p>
@@ -1049,7 +1049,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                       </p>
                     )}
                     {taxProfile?.incomeType === "w2" && investTaxTotal > 1000 && (
-                      <div style={{ padding: "10px 14px", background: "rgba(245,158,11,0.04)", border: "1px solid rgba(245,158,11,0.18)", borderRadius: "var(--radius-md)" }}>
+                      <div style={{ padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                         <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                           <strong style={{ color: "#f59e0b" }}>Action may be needed.</strong> This investment tax won&apos;t be automatically withheld from your W-2 paycheck. If this exceeds $1,000, the IRS may charge an underpayment penalty unless you make an estimated payment or adjust your W-4 withholding.
                         </p>
@@ -1205,13 +1205,13 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
               >
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div style={{ padding: "12px 14px", background: estimatedItemized <= stdDeduction ? "rgba(22,163,74,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized <= stdDeduction ? "rgba(22,163,74,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "12px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Standard deduction</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(stdDeduction)}</p>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Automatic — everyone gets this</p>
                       {estimatedItemized <= stdDeduction && <p style={{ fontSize: "10px", color: "var(--green)", margin: "4px 0 0", fontWeight: 600 }}>✓ Best for you</p>}
                     </div>
-                    <div style={{ padding: "12px 14px", background: estimatedItemized > stdDeduction ? "rgba(22,163,74,0.06)" : "var(--bg-elevated)", border: `1px solid ${estimatedItemized > stdDeduction ? "rgba(22,163,74,0.2)" : "var(--border-subtle)"}`, borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "12px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-muted)", margin: "0 0 4px" }}>Estimated itemized</p>
                       <p style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 3px" }}>{fmt(estimatedItemized)}</p>
                       <p style={{ fontSize: "10px", color: "var(--text-muted)", margin: 0 }}>Mortgage interest + SALT cap</p>
@@ -1242,7 +1242,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                   )}
 
                   {itemizingSaves > 0 && (
-                    <div style={{ padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.15)", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                         Based on your numbers, itemizing could reduce your federal taxes by approximately <strong style={{ color: "var(--green)" }}>{fmt(itemizingSaves)}</strong>. Talk to a CPA or use tax software — they can confirm with your actual numbers and find additional deductions we can&apos;t see (charitable donations, medical expenses, etc.).
                       </p>
@@ -1304,7 +1304,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                     const potentialSaving = Math.round(totalRemaining * activeEstimate.federalMarginalRate);
                     const mRate = Math.round(activeEstimate.federalMarginalRate * 100);
                     return (
-                      <div style={{ padding: "12px 14px", background: "rgba(63,174,74,0.04)", border: "1px solid rgba(63,174,74,0.15)", borderRadius: "var(--radius-md)" }}>
+                      <div style={{ padding: "12px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                           <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "oklch(0.62 0.15 195)", flexShrink: 0, marginTop: "5px" }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1344,14 +1344,14 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                             </div>
                             {totalRemaining > 0 && (
                               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" as const }}>
-                                <div style={{ padding: "7px 10px", background: "rgba(63,174,74,0.08)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                <div style={{ padding: "7px 10px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Remaining room</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "oklch(0.72 0.18 195)" }}>{fmt(totalRemaining)}</div>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
                                     {remaining401k > 0 && `401k ${fmt(remaining401k)}`}{remaining401k > 0 && remainingHSA > 0 && " · "}{remainingHSA > 0 && `HSA ${fmt(remainingHSA)}`}
                                   </div>
                                 </div>
-                                <div style={{ padding: "7px 10px", background: "rgba(22,163,74,0.06)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
+                                <div style={{ padding: "7px 10px", background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", flex: 1, minWidth: "120px" }}>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: "2px" }}>Potential tax savings</div>
                                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "15px", fontWeight: 700, color: "var(--green)" }}>{fmt(potentialSaving)}</div>
                                   <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>if you max out remaining</div>
@@ -1394,7 +1394,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
                 </div>
                 <div style={{ padding: "10px 18px 16px", display: "flex", flexDirection: "column", gap: "8px" }}>
                   {tlhOpportunities.map((opp) => (
-                    <div key={`${opp.portfolioId}-${opp.ticker}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 14px", background: "rgba(22,163,74,0.04)", border: "1px solid rgba(22,163,74,0.12)", borderRadius: "var(--radius-md)" }}>
+                    <div key={`${opp.portfolioId}-${opp.ticker}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text-primary)", fontSize: "13px" }}>{opp.ticker}</span>
@@ -1445,7 +1445,7 @@ export default function TaxClient({ data }: { data: TaxPageData }) {
             )}
 
             {unknownLots.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-sm)" }}>
                 <p style={{ fontSize: "11px", color: "#f59e0b", margin: 0 }}>
                   ⚠ {unknownLots.length} sale{unknownLots.length !== 1 ? "s are" : " is"} missing an acquisition date — use the &quot;yr?&quot; dropdown per row, or set them all at once below.
                 </p>

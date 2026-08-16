@@ -47,8 +47,8 @@ export default function ChallengesWidget() {
         {data.challenges.map((c) => (
           <div key={c.id} style={{
             display: "flex", alignItems: "center", gap: "10px", padding: "9px 11px", borderRadius: "11px",
-            border: `1px solid ${c.done ? "rgba(16,185,129,0.28)" : "var(--card-border)"}`,
-            background: c.done ? "rgba(16,185,129,0.06)" : "var(--bg-elevated, rgba(255,255,255,0.02))",
+            border: `1px solid ${c.done ? "rgba(16,185,129,0.4)" : "var(--card-border)"}`,
+            background: "var(--card-bg)",
           }}>
             <div style={{
               width: "30px", height: "30px", borderRadius: "9px", flexShrink: 0,

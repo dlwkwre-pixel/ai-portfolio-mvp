@@ -482,15 +482,15 @@ function ScenarioCard({
                       gap: "10px",
                       padding: "8px 10px",
                       borderRadius: "var(--radius-md)",
-                      background: "rgba(16,185,129,0.05)",
-                      border: "1px solid rgba(16,185,129,0.12)",
+                      background: "var(--card-bg)",
+                      border: "1px solid var(--card-border)",
                       width: "100%",
                       textAlign: "left",
                       cursor: clickable ? "pointer" : "default",
                       transition: clickable ? "background 0.12s, border-color 0.12s" : undefined,
                     }}
-                    onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(16,185,129,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(16,185,129,0.25)"; } : undefined}
-                    onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(16,185,129,0.05)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(16,185,129,0.12)"; } : undefined}
+                    onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--card-hover)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(16,185,129,0.25)"; } : undefined}
+                    onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--card-bg)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--card-border)"; } : undefined}
                   >
                     <div style={{
                       width: "36px", flexShrink: 0,
@@ -585,15 +585,15 @@ function ScenarioCard({
                         gap: "10px",
                         padding: "8px 10px",
                         borderRadius: "var(--radius-md)",
-                        background: "rgba(239,68,68,0.05)",
-                        border: "1px solid rgba(239,68,68,0.12)",
+                        background: "var(--card-bg)",
+                        border: "1px solid var(--card-border)",
                         width: "100%",
                         textAlign: "left",
                         cursor: clickable ? "pointer" : "default",
                         transition: clickable ? "background 0.12s, border-color 0.12s" : undefined,
                       }}
-                      onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.25)"; } : undefined}
-                      onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.05)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.12)"; } : undefined}
+                      onMouseEnter={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--card-hover)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,0.25)"; } : undefined}
+                      onMouseLeave={clickable ? (e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--card-bg)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--card-border)"; } : undefined}
                     >
                       <div style={{
                         width: "36px", flexShrink: 0,

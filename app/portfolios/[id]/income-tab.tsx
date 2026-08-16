@@ -131,7 +131,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
       <style>{`@keyframes bt-inc-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}} .bt-inc-bar{transform-origin:bottom;animation:bt-inc-grow .6s cubic-bezier(0.16,1,0.3,1) both}`}</style>
 
       {/* Hero */}
-      <div style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(14,165,160,0.05))", border: "1px solid rgba(16,185,129,0.22)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
+      <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "18px 20px" }}>
         {noPayers ? (
           <div>
             <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>No dividend payers detected</div>
@@ -168,7 +168,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
               <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-tertiary)", marginBottom: "6px" }}>Upcoming</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {events.upcoming.map((ev) => (
-                  <div key={`u-${ev.ticker}-${ev.exDate}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "rgba(14,165,160,0.05)", border: "1px solid rgba(14,165,160,0.16)" }}>
+                  <div key={`u-${ev.ticker}-${ev.exDate}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "52px" }}>{ev.ticker}</span>
                     <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)", flex: 1 }}>{ev.payDate ? `pays ${fmtDate(ev.payDate)}` : `ex-date ${fmtDate(ev.exDate)}`}</span>
                     <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>~{fmt(ev.estAmount)}</span>
@@ -196,7 +196,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
                   const key = `${ev.ticker}-${ev.payDate ?? ev.exDate}`;
                   const isLogged = logged[key];
                   return (
-                    <div key={`r-${key}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: isLogged ? "rgba(16,185,129,0.06)" : "var(--bg-base)", border: `1px solid ${isLogged ? "rgba(16,185,129,0.2)" : "var(--border-subtle)"}` }}>
+                    <div key={`r-${key}`} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: isLogged ? "var(--card-bg)" : "var(--bg-base)", border: `1px solid ${isLogged ? "var(--card-border)" : "var(--border-subtle)"}` }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "12.5px", color: "var(--text-primary)", minWidth: "52px" }}>{ev.ticker}</span>
                       <span style={{ fontSize: "11.5px", color: "var(--text-tertiary)", flex: 1 }}>{ev.payDate ? `paid ${fmtDate(ev.payDate)}` : `ex-date ${fmtDate(ev.exDate)}`}</span>
                       <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-secondary)" }}>~{fmt(ev.estAmount)}</span>
@@ -249,7 +249,7 @@ export default function IncomeTab({ portfolioId }: { portfolioId: string }) {
             </table>
           </div>
           {(data.topPayerPct ?? 0) >= 50 && holdings[0] && (
-            <div style={{ marginTop: "12px", padding: "9px 12px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            <div style={{ marginTop: "12px", padding: "9px 12px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               <strong style={{ color: "#f59e0b" }}>{data.topPayerPct}% of your income comes from {holdings[0].ticker}.</strong> A cut there would hit your cash flow hard — worth diversifying your income sources.
             </div>
           )}

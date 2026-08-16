@@ -2490,8 +2490,8 @@ function CashFlowHealthCard({
                       </div>
                       <div style={{
                         padding: "8px 10px",
-                        background: f.direction === "strength" ? "rgba(0,211,149,0.06)" : f.direction === "neutral" ? "rgba(245,158,11,0.06)" : "rgba(239,68,68,0.06)",
-                        borderRadius: "6px", border: `1px solid ${fColor}22`,
+                        background: "var(--card-bg)",
+                        borderRadius: "6px", border: "1px solid var(--card-border)",
                       }}>
                         <p style={{ fontSize: "11px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.55 }}>
                           <span style={{ fontWeight: 600, color: fColor }}>
@@ -2665,7 +2665,7 @@ function BudgetTrackerTab({
       {statementSuccess !== null && !showStatementImport && (
         <div style={{
           padding: "10px 14px", borderRadius: "var(--radius-md)",
-          background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)",
+          background: "var(--card-bg)", border: "1px solid var(--card-border)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
           <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>
@@ -5509,7 +5509,7 @@ export default function PlanningClient({
                 </div>
 
                 {profileSaveError && (
-                  <div style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: "12px", color: "var(--red)", marginBottom: "8px" }}>
+                  <div style={{ padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "12px", color: "var(--red)", marginBottom: "8px" }}>
                     {profileSaveError}
                   </div>
                 )}
@@ -5619,7 +5619,7 @@ export default function PlanningClient({
                 {(showBoth ? risk : (risk ?? null)) && (() => {
                   const r = risk!;
                   return (
-                    <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.14)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
                       <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
                         Biggest Risk
@@ -5637,7 +5637,7 @@ export default function PlanningClient({
                 {(showBoth ? opportunity : (!risk ? opportunity : null)) && (() => {
                   const o = opportunity!;
                   return (
-                    <div style={{ background: "rgba(14,165,160,0.04)", border: "1px solid rgba(14,165,160,0.12)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
+                    <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "14px 16px" }}>
                       <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "oklch(0.5 0.14 195)", fontFamily: "var(--font-body)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                         <svg width="9" height="9" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd"/></svg>
                         Biggest Opportunity
@@ -6196,8 +6196,8 @@ export default function PlanningClient({
           {/* Confidence Narrative */}
           {retirementPoint && profile?.current_age != null && (
             <div style={{
-              background: "rgba(63,174,74,0.04)",
-              border: "1px solid rgba(63,174,74,0.22)",
+              background: "var(--card-bg)",
+              border: "1px solid var(--card-border)",
               borderRadius: "var(--radius-lg)", padding: "11px 15px",
             }}>
               <div style={{ display: "flex", gap: "11px", alignItems: "flex-start" }}>
@@ -6340,7 +6340,7 @@ export default function PlanningClient({
                 const impactColor = s.impact == null ? "var(--text-muted)" : positive ? "var(--green)" : "var(--red)";
                 const labels: Record<string, string> = { home: "Buy a Home", child: "Have a Child", career: "Career Move +20%" };
                 return (
-                  <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b", flexShrink: 0 }} />
                     <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", flex: 1 }}>
                       Scenario: <strong style={{ color: "var(--text-primary)" }}>{labels[whatIfScenario]}</strong> — chart shows the scenario baseline in amber.

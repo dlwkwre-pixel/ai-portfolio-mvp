@@ -146,7 +146,7 @@ export default function EmergencyFundClient({ monthlyExpenses, liquidAssets }: {
           <span style={sectionTitle}>Funding plan</span>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {calc.tierETA.map((t) => (
-              <div key={t.months} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: t.funded ? "rgba(34,197,94,0.06)" : "var(--bg-base)", border: `1px solid ${t.funded ? "rgba(34,197,94,0.18)" : "var(--border-subtle)"}` }}>
+              <div key={t.months} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 11px", borderRadius: "8px", background: t.funded ? "var(--card-bg)" : "var(--bg-base)", border: `1px solid ${t.funded ? "var(--card-border)" : "var(--border-subtle)"}` }}>
                 <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: t.funded ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }} />
                 <span style={{ fontSize: "12.5px", color: "var(--text-secondary)", flex: 1 }}>{t.months}-month fund · {fmt(essentials * t.months)}</span>
                 <span style={{ fontSize: "12.5px", fontFamily: "var(--font-mono)", fontWeight: 600, color: t.funded ? "var(--green)" : t.eta != null ? "var(--text-primary)" : "var(--text-muted)" }}>
@@ -168,7 +168,7 @@ export default function EmergencyFundClient({ monthlyExpenses, liquidAssets }: {
           <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", alignItems: "flex-end", marginBottom: "12px" }}>
             <div style={{ flex: "0 1 160px" }}><label style={labelStyle}>Credit card APR (%)</label><input style={inputStyle} type="number" min="0" step="0.5" value={cardApr || ""} onChange={(e) => setCardApr(Number(e.target.value) || 0)} /></div>
           </div>
-          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
+          <div style={{ padding: "10px 12px", borderRadius: "10px", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.55 }}>
             A {fmt(Math.round(calc.shock))} surprise (one month of essentials) financed on a {cardApr}% card over 18 months costs <strong style={{ color: "var(--red)" }}>{fmt(Math.round(calc.cardInterest))}</strong> in interest. With a funded cushion that&apos;s {fmt(0)} — the fund quietly pays for itself the first time life happens.
           </div>
         </div>

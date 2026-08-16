@@ -244,7 +244,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
 
                 {/* AI second opinion (devil's advocate) */}
                 {opinions[e.id] && (
-                  <div style={{ marginTop: "10px", padding: "12px 14px", background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.22)", borderRadius: "var(--radius-md)", animation: "bt-jrnl-in 0.3s ease both" }}>
+                  <div style={{ marginTop: "10px", padding: "12px 14px", background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)", animation: "bt-jrnl-in 0.3s ease both" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "8px" }}>
                       <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#f59e0b" }}>Devil&apos;s advocate</span>
                       {!opinions[e.id].hadThesis && <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>· no thesis on file, general bear case</span>}
@@ -269,7 +269,7 @@ export default function JournalTab({ entries, quotes, portfolioId }: {
                       </div>
                     )}
                     {opinions[e.id].opinion.thesisGap && (
-                      <div style={{ marginTop: "10px", padding: "8px 11px", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      <div style={{ marginTop: "10px", padding: "8px 11px", background: "var(--bg-elevated, rgba(255,255,255,0.02))", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-md)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                         <span style={{ fontWeight: 700, color: "var(--red)" }}>Blind spot: </span>{opinions[e.id].opinion.thesisGap}
                       </div>
                     )}

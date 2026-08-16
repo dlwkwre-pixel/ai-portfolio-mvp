@@ -158,7 +158,7 @@ export default function BacktestCard({ portfolioId }: { portfolioId: string }) {
               </div>
 
               {beat != null && (
-                <div style={{ padding: "9px 12px", borderRadius: "var(--radius-md)", background: beat >= 0 ? "rgba(0,211,149,0.06)" : "rgba(245,158,11,0.06)", border: `1px solid ${beat >= 0 ? "rgba(0,211,149,0.2)" : "rgba(245,158,11,0.2)"}`, fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                <div style={{ padding: "9px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", fontSize: "11.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                   <strong style={{ color: beat >= 0 ? "var(--green)" : "#f59e0b" }}>
                     {beat >= 0 ? "Beat" : "Trailed"} {b?.symbol} by {pct(Math.abs(beat)).replace("+", "")}
                   </strong>{" "}

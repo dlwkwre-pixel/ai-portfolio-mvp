@@ -408,14 +408,14 @@ export default function Plan401kSection({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             {matchLimitPct > 0 && (
               result.capturesFullMatch ? (
-                <div style={{ ...card, borderColor: "rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.06)" }}>
+                <div style={{ ...card, borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
                   <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--green)", marginBottom: "4px" }}>✓ Full match captured</div>
                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                     Your employer adds <strong style={{ color: "var(--text-primary)" }}>{fmt(result.employerAnnual)}/yr</strong> — none left on the table.
                   </div>
                 </div>
               ) : (
-                <div style={{ ...card, borderColor: "rgba(245,158,11,0.35)", background: "rgba(245,158,11,0.08)" }}>
+                <div style={{ ...card, borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
                   <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--amber)", marginBottom: "4px" }}>⚠ Free money on the table</div>
                   <div style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                     Bump to <strong style={{ color: "var(--text-primary)" }}>{fmtPct(result.fullMatchPct)}</strong> to capture
@@ -454,7 +454,7 @@ export default function Plan401kSection({
           </div>
 
           {/* Atlas recommendation — what rate to pick, given match + taxes + budget */}
-          <div style={{ ...card, borderColor: "rgba(14,165,160,0.35)", background: "linear-gradient(135deg, rgba(14,165,160,0.08), rgba(63,174,74,0.05))" }}>
+          <div style={{ ...card, borderColor: "var(--card-border)", background: "var(--card-bg)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
               <div style={{ flex: 1, minWidth: "220px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginBottom: "6px" }}>Atlas suggests</div>
