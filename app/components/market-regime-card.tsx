@@ -12,15 +12,13 @@ type HistoryPoint = {
 
 const LEVEL_CONFIG: Record<RegimeLevel, {
   color: string;
-  bgColor: string;
-  borderColor: string;
   dotGlow: string;
 }> = {
-  "risk-on":      { color: "var(--green)", bgColor: "rgba(0,211,149,0.12)",   borderColor: "rgba(0,211,149,0.4)",   dotGlow: "0 0 8px rgba(0,211,149,0.6)" },
-  "constructive": { color: "var(--green)", bgColor: "rgba(52,211,153,0.12)",  borderColor: "rgba(52,211,153,0.4)",  dotGlow: "0 0 6px rgba(52,211,153,0.5)" },
-  "cautious":     { color: "#f59e0b", bgColor: "rgba(245,158,11,0.12)",  borderColor: "rgba(245,158,11,0.4)",  dotGlow: "0 0 6px rgba(245,158,11,0.5)" },
-  "defensive":    { color: "#fb923c", bgColor: "rgba(251,146,60,0.12)",  borderColor: "rgba(251,146,60,0.4)",  dotGlow: "0 0 6px rgba(251,146,60,0.5)" },
-  "risk-off":     { color: "var(--red)", bgColor: "rgba(248,113,113,0.12)", borderColor: "rgba(248,113,113,0.4)", dotGlow: "0 0 8px rgba(248,113,113,0.6)" },
+  "risk-on":      { color: "var(--green)", dotGlow: "0 0 8px rgba(0,211,149,0.6)" },
+  "constructive": { color: "var(--green)", dotGlow: "0 0 6px rgba(52,211,153,0.5)" },
+  "cautious":     { color: "#f59e0b", dotGlow: "0 0 6px rgba(245,158,11,0.5)" },
+  "defensive":    { color: "#fb923c", dotGlow: "0 0 6px rgba(251,146,60,0.5)" },
+  "risk-off":     { color: "var(--red)", dotGlow: "0 0 8px rgba(248,113,113,0.6)" },
 };
 
 // ─── Static educational data ───────────────────────────────────────────────────
@@ -332,8 +330,8 @@ export default function MarketRegimeCard({ compact = false }: Props) {
     return (
       <div style={{
         display: "flex", alignItems: "center", gap: "8px",
-        padding: "8px 12px", background: cfg.bgColor,
-        border: `1px solid ${cfg.borderColor}`, borderRadius: "var(--radius-md)",
+        padding: "8px 12px", background: "var(--card-bg)",
+        border: "1px solid var(--card-border)", borderRadius: "var(--radius-md)",
       }}>
         <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: cfg.color, boxShadow: cfg.dotGlow, flexShrink: 0 }} />
         <span style={{ fontSize: "11px", fontWeight: 600, color: cfg.color }}>{regime.label}</span>
@@ -359,8 +357,8 @@ export default function MarketRegimeCard({ compact = false }: Props) {
       onMouseEnter={() => setCardHovered(true)}
       onMouseLeave={() => setCardHovered(false)}
       style={{
-        background: cfg.bgColor,
-        border: `1px solid ${cardHovered ? cfg.color + "55" : cfg.borderColor}`,
+        background: "var(--card-bg)",
+        border: `1px solid ${cardHovered ? cfg.color + "55" : "var(--card-border)"}`,
         borderRadius: "var(--radius-lg)",
         padding: "16px 20px",
         boxShadow: cardHovered

@@ -9,12 +9,12 @@ type RegimeData = {
   narrative: string;
 };
 
-const LEVEL_CFG: Record<string, { color: string; bg: string; border: string }> = {
-  "risk-on":      { color: "var(--green)", bg: "rgba(0,211,149,0.12)",   border: "rgba(0,211,149,0.4)"  },
-  "constructive": { color: "#0ea5a0", bg: "rgba(14,165,160,0.12)",  border: "rgba(14,165,160,0.4)" },
-  "cautious":     { color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  border: "rgba(245,158,11,0.4)" },
-  "defensive":    { color: "#f97316", bg: "rgba(249,115,22,0.12)",  border: "rgba(249,115,22,0.4)" },
-  "risk-off":     { color: "var(--red)", bg: "rgba(239,68,68,0.12)",   border: "rgba(239,68,68,0.4)"  },
+const LEVEL_CFG: Record<string, { color: string }> = {
+  "risk-on":      { color: "var(--green)" },
+  "constructive": { color: "#0ea5a0" },
+  "cautious":     { color: "#f59e0b" },
+  "defensive":    { color: "#f97316" },
+  "risk-off":     { color: "var(--red)" },
 };
 
 export default function RegimeCompactBanner() {
@@ -40,8 +40,8 @@ export default function RegimeCompactBanner() {
       style={{
         display: "flex", alignItems: expanded ? "flex-start" : "center", gap: "10px",
         padding: "9px 14px", width: "100%", textAlign: "left", cursor: "pointer",
-        background: cfg.bg,
-        border: `1px solid ${cfg.border}`,
+        background: "var(--card-bg)",
+        border: "1px solid var(--card-border)",
         borderRadius: "var(--radius-lg)",
         fontFamily: "var(--font-body)",
       }}
