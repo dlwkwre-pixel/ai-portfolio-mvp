@@ -81,6 +81,11 @@ export default async function AgenticTradingGuidePage() {
         <div style={{ flex: 1, overflowY: "auto", padding: "24px" }} className="bt-mobile-nav-pad">
           <div style={{ maxWidth: "720px", margin: "0 auto" }}>
 
+            <Link href="/connections" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 600, color: "var(--text-tertiary)", textDecoration: "none", marginBottom: "14px" }}>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+              Back to Connections
+            </Link>
+
             <Chip tone="brand">Guide</Chip>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: "26px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.5px", margin: "10px 0 8px" }}>
               Set up an AI agent to trade for you
