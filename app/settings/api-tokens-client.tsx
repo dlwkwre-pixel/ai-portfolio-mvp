@@ -47,8 +47,15 @@ export default function ApiTokensClient({ tokens }: { tokens: ApiTokenRow[] }) {
         </h2>
         <p style={{ fontSize: "12px", color: "var(--text-tertiary)" }}>
           Let your own Claude or ChatGPT read your BuyTune portfolio and research directly. Read-only — this never places trades or touches a brokerage.
-          {" "}
-          <Link href="/agentic-trading" style={{ color: "var(--brand-blue)", textDecoration: "none" }}>Set up autonomous trading →</Link>
+        </p>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderRadius: "10px", background: "rgba(14,148,136,0.06)", border: "1px solid rgba(14,148,136,0.18)", marginBottom: "14px" }}>
+        <span style={{ fontSize: "16px", flexShrink: 0 }}>🤖</span>
+        <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+          <strong style={{ color: "var(--text-primary)" }}>Setting this up to trade autonomously?</strong>{" "}
+          Read the full setup guide before creating a token below — it covers strategy setup, risk, and how much autonomy to grant.{" "}
+          <Link href="/agentic-trading" style={{ color: "var(--brand-blue)", textDecoration: "none", fontWeight: 600 }}>Open the guide →</Link>
         </p>
       </div>
 

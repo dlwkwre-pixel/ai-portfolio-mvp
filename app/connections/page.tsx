@@ -8,6 +8,10 @@ import { getBankStatus } from "@/lib/connections/plaid";
 import SnaptradeConnect from "./snaptrade-connect";
 import PlaidConnect from "./plaid-connect";
 import ManualAccounts from "./manual-accounts";
+import ApiTokensClient from "@/app/settings/api-tokens-client";
+import type { ApiTokenRow } from "@/app/settings/api-tokens-actions";
+import OAuthGrantsClient from "@/app/settings/oauth-grants-client";
+import { listActiveGrants } from "@/lib/oauth/tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +20,14 @@ export default async function ConnectionsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const [features, { data: portfolios }, brokerageStatus, bankStatus] = await Promise.all([
+  const [features, { data: portfolios }, brokerageStatus, bankStatus, { data: apiTokens }, oauthGrants] = await Promise.all([
     getUserFeatures(user.id),
     supabase.from("portfolios").select("id, name, cash_balance, account_type").eq("user_id", user.id).eq("status", "active"),
     getBrokerageStatus(user.id),
     getBankStatus(user.id),
+    supabase.from("api_tokens").select("id, name, token_prefix, last_used_at, created_at").eq("user_id", user.id).is("revoked_at", null).order("created_at", { ascending: false })
+      .then((r) => r, () => ({ data: [] as ApiTokenRow[] })),
+    listActiveGrants(user.id).catch(() => []),
   ]);
 
   const hasBrokerage = features.has("brokerage_connect");
@@ -35,6 +42,7 @@ export default async function ConnectionsPage() {
     { kind: "brokerage", on: hasBrokerage, emoji: "📈", title: "Brokerage", sub: "Robinhood & other brokerages", body: "Auto-import your holdings read-only, so your portfolio stays in sync without manual entry. Trades still happen in your brokerage app.", color: "var(--green)" },
     { kind: "bank", on: hasBank, emoji: "🏦", title: "Bank accounts", sub: "Checking, savings & cards", body: "Bring in balances and spending to complete your net worth and cash flow automatically.", color: "#5fbf9a" },
     { kind: "manual", on: true, emoji: "📝", title: "Other accounts", sub: "Anything you track by hand", body: "Balances no aggregator can reach — Robinhood spending, HSAs, cash. Quick manual updates that count toward your net worth.", color: "#fbbf24" },
+    { kind: "ai_agents", on: true, emoji: "🤖", title: "AI Agents", sub: "Claude, ChatGPT & other MCP agents", body: "Let your own AI read your portfolio and research directly, or set up full autonomous trading. Read-only by default — never places a trade itself.", color: "var(--brand-blue)" },
   ];
 
   // Manual rows live in the same table as Plaid accounts (item_id "manual") so net worth
@@ -57,7 +65,7 @@ export default async function ConnectionsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
             {cards.map((c) => {
-              const live = c.on && (c.kind === "manual" ? true : c.kind === "brokerage" ? brokerageStatus.configured : bankStatus.configured);
+              const live = c.on && (c.kind === "manual" || c.kind === "ai_agents" ? true : c.kind === "brokerage" ? brokerageStatus.configured : bankStatus.configured);
               return (
                 <div key={c.title} style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "14px", padding: "18px", opacity: live ? 1 : 0.92 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
@@ -79,6 +87,11 @@ export default async function ConnectionsPage() {
                     <PlaidConnect status={{ ...bankStatus, accounts: plaidAccounts }} />
                   ) : live && c.kind === "manual" ? (
                     <ManualAccounts accounts={manualAccounts} />
+                  ) : live && c.kind === "ai_agents" ? (
+                    <div>
+                      <ApiTokensClient tokens={(apiTokens ?? []) as ApiTokenRow[]} />
+                      <OAuthGrantsClient grants={oauthGrants} />
+                    </div>
                   ) : (
                     <button type="button" disabled title="Coming soon"
                       style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--card-border)", background: "var(--bg-elevated)", color: "var(--text-tertiary)", fontSize: "13px", fontWeight: 600, cursor: "not-allowed", fontFamily: "var(--font-body)" }}>

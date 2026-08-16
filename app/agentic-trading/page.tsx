@@ -113,7 +113,7 @@ export default async function AgenticTradingGuidePage() {
             </Step>
 
             <Step n={3} title="Connect your AI agent to BuyTune">
-              In <Link href="/settings/profile" style={{ color: "var(--brand-blue)" }}>Settings → Connected AI Agents</Link>:
+              In <Link href="/connections" style={{ color: "var(--brand-blue)" }}>Connections → AI Agents</Link>:
               <Card>
                 <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>claude.ai / ChatGPT (Connectors)</div>
                 <p style={{ marginBottom: "10px" }}>Add a custom connector with the URL below. It&apos;ll prompt you to log into BuyTune and approve — no client ID/secret to paste anywhere.</p>
@@ -155,7 +155,7 @@ export default async function AgenticTradingGuidePage() {
                 ))}
               </div>
               <p style={{ fontSize: "12px", color: "var(--text-tertiary)", marginTop: "14px", lineHeight: 1.6 }}>
-                Paid tools (<ToolName>run_deep_analysis</ToolName>, <ToolName>get_x_sentiment</ToolName>) are capped per day and cached — everything else is free. Revoke any connection anytime from <Link href="/settings/profile" style={{ color: "var(--brand-blue)" }}>Settings → Connected AI Agents</Link>.
+                Paid tools (<ToolName>run_deep_analysis</ToolName>, <ToolName>get_x_sentiment</ToolName>) are capped per day and cached — everything else is free. Revoke any connection anytime from <Link href="/connections" style={{ color: "var(--brand-blue)" }}>Connections → AI Agents</Link>.
               </p>
             </div>
 
