@@ -189,8 +189,8 @@ export function PortfolioStatCards({
           <div
             key={stat.label}
             style={{
-              background: stat.highlight ? "rgba(14,165,160,0.08)" : "var(--card-bg)",
-              border: `1px solid ${stat.highlight ? "rgba(14,165,160,0.2)" : "var(--card-border)"}`,
+              background: stat.highlight ? "rgba(14,165,160,0.12)" : "var(--card-bg)",
+              border: `1px solid ${stat.highlight ? "rgba(14,165,160,0.35)" : "var(--card-border)"}`,
               borderRadius: "var(--radius-md)",
               padding: "10px 14px",
             }}
@@ -236,7 +236,7 @@ export function PortfolioStatCards({
                 fontSize: "16px",
                 fontWeight: 500,
                 letterSpacing: "-0.3px",
-                color: stat.highlight ? "#7fd9d4" : "var(--text-primary)",
+                color: stat.highlight ? "var(--brand-blue)" : "var(--text-primary)",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",

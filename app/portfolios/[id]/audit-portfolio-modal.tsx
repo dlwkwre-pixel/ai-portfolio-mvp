@@ -387,9 +387,9 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
         fontSize: "12px",
         fontFamily: "var(--font-body)",
         fontWeight: 500,
-        color: "#6fd08a",
-        background: "rgba(63,174,74,0.1)",
-        border: "1px solid rgba(63,174,74,0.22)",
+        color: "#2f7a3d",
+        background: "rgba(63,174,74,0.14)",
+        border: "1px solid rgba(63,174,74,0.4)",
         borderRadius: "var(--radius-md)",
         cursor: "pointer",
         transition: "color 0.15s ease, background 0.15s ease, border-color 0.15s ease",
@@ -397,15 +397,13 @@ export default function AuditPortfolioModal({ portfolioId, currentHoldings }: Pr
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLButtonElement;
-        el.style.background = "rgba(63,174,74,0.18)";
-        el.style.borderColor = "rgba(63,174,74,0.4)";
-        el.style.color = "#c4b5fd";
+        el.style.background = "rgba(63,174,74,0.22)";
+        el.style.borderColor = "rgba(63,174,74,0.55)";
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLButtonElement;
-        el.style.background = "rgba(63,174,74,0.1)";
-        el.style.borderColor = "rgba(63,174,74,0.22)";
-        el.style.color = "#6fd08a";
+        el.style.background = "rgba(63,174,74,0.14)";
+        el.style.borderColor = "rgba(63,174,74,0.4)";
       }}
     >
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
