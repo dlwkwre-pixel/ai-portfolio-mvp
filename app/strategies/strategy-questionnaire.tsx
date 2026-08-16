@@ -53,10 +53,10 @@ const HOLDING_PERIOD_BIASES = [
 // ── Section 18: Atlas visual identity tokens ───────────────────────────────────
 
 const FV = {
-  bg:          "rgba(109,40,217,0.05)",
-  bgMed:       "rgba(109,40,217,0.09)",
-  border:      "rgba(109,40,217,0.18)",
-  borderFaint: "rgba(109,40,217,0.11)",
+  bg:          "rgba(109,40,217,0.10)",
+  bgMed:       "rgba(109,40,217,0.14)",
+  border:      "rgba(109,40,217,0.35)",
+  borderFaint: "rgba(109,40,217,0.22)",
   glowRing:    "rgba(109,40,217,0.22)",
   glowOuter:   "rgba(109,40,217,0.08)",
   accent:      "#3fae4a",
@@ -621,7 +621,7 @@ function InsightCard({ title, body }: { title: string; body: string }) {
         <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 10" fill="currentColor" style={{ color: FV.accentBright }}>
           <path d="M5 0l.58 3.42L9 5l-3.42.58L5 10l-.58-3.42L1 5l3.42-.58L5 0z" />
         </svg>
-        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Insight</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentDim }}>Atlas Insight</span>
       </div>
       <p className="text-[12px] font-semibold leading-snug text-slate-200">{title}</p>
       <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{body}</p>
@@ -793,7 +793,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
               style={{
                 background: isActive ? FV.bgMed      : "rgba(255,255,255,0.04)",
                 border:     `1px solid ${isActive ? FV.border : isCurrent ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)"}`,
-                color:      isActive ? FV.accentBright : isCurrent ? "#e2e8f0" : "#64748b",
+                color:      isActive ? FV.accentDim : isCurrent ? "#e2e8f0" : "#64748b",
                 fontFamily: "var(--font-mono)",
               }}
             >
@@ -806,7 +806,7 @@ function ScenarioSandbox({ strategy }: { strategy: GeneratedStrategy }) {
 
       {scenarioDNA && (
         <div className="mt-3 space-y-2 border-t border-white/5 pt-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentDim }}>
             DNA under {active} scenario
           </p>
           {DNA_DIMENSIONS.map(d => {
@@ -901,7 +901,7 @@ function FinnEvolutionLog({ original, current }: { original: GeneratedStrategy; 
     >
       <div className="mb-2.5 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: FV.accentBright, animation: "finnPulse 2.5s ease-in-out infinite" }} />
-        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentBright }}>Atlas Adjustments</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: FV.accentDim }}>Atlas Adjustments</span>
       </div>
       <div className="relative pl-3.5">
         <div className="absolute inset-y-0 left-0 w-px" style={{ background: FV.border }} />
@@ -1355,8 +1355,8 @@ export default function StrategyQuestionnaire({
                 className="max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-6"
                 style={
                   msg.role === "assistant"
-                    ? { background: FV.bg, border: `1px solid ${FV.borderFaint}`, color: "#cbd5e1" }
-                    : { background: "rgba(14,165,160,0.25)", border: "1px solid rgba(14,165,160,0.25)", color: "#fff" }
+                    ? { background: FV.bg, border: `1px solid ${FV.borderFaint}`, color: FV.accentDim }
+                    : { background: "var(--brand-gradient)", border: "none", color: "#fff" }
                 }
               >
                 {animatingIdx === i ? (
@@ -1395,7 +1395,7 @@ export default function StrategyQuestionnaire({
               <span
                 key={chatThinkingIdx}
                 className="truncate text-[13px]"
-                style={{ fontFamily: "var(--font-mono)", color: FV.accentBright, opacity: 0.9, animation: "finnFadeIn 0.3s ease-out both" }}
+                style={{ fontFamily: "var(--font-mono)", color: FV.accentDim, opacity: 0.9, animation: "finnFadeIn 0.3s ease-out both" }}
               >
                 {CHAT_THINKING[chatThinkingIdx]}
               </span>
@@ -1423,7 +1423,7 @@ export default function StrategyQuestionnaire({
               <span
                 key={genThinkingIdx}
                 className="text-[13px]"
-                style={{ fontFamily: "var(--font-mono)", color: FV.accentBright, animation: "finnFadeIn 0.35s ease-out both" }}
+                style={{ fontFamily: "var(--font-mono)", color: FV.accentDim, animation: "finnFadeIn 0.35s ease-out both" }}
               >
                 {GEN_THINKING[genThinkingIdx]}
               </span>
@@ -1464,7 +1464,7 @@ export default function StrategyQuestionnaire({
           {/* Section 15: Evolution log — only when form diverges from generated */}
           <FinnEvolutionLog original={generatedStrategy} current={editedStrategy} />
 
-          <p className="text-xs font-semibold uppercase tracking-widest pt-1" style={{ color: FV.accentBright }}>
+          <p className="text-xs font-semibold uppercase tracking-widest pt-1" style={{ color: FV.accentDim }}>
             Review &amp; Edit Strategy
           </p>
 
@@ -1475,7 +1475,7 @@ export default function StrategyQuestionnaire({
                 {isBrandedName && (
                   <span
                     className="rounded px-1 py-px text-[10px] font-semibold uppercase tracking-widest"
-                    style={{ background: FV.bgMed, color: FV.accentBright, animation: "bt-fade-in 0.4s ease both" }}
+                    style={{ background: FV.bgMed, color: FV.accentDim, animation: "bt-fade-in 0.4s ease both" }}
                   >
                     Atlas
                   </span>

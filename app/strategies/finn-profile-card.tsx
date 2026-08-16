@@ -36,11 +36,12 @@ const SIGNAL_ICONS: Record<InsightSignal, React.ReactNode> = {
 import React from "react";
 
 const FV = {
-  bg:          "rgba(109,40,217,0.05)",
-  bgMed:       "rgba(109,40,217,0.10)",
-  border:      "rgba(109,40,217,0.18)",
+  bg:          "rgba(109,40,217,0.10)",
+  bgMed:       "rgba(109,40,217,0.15)",
+  border:      "rgba(109,40,217,0.35)",
   accent:      "#3fae4a",
   accentBright:"#8b5cf6",
+  accentDim:   "#6d28d9",
 } as const;
 
 function InsightRow({ insight }: { insight: MemoryInsight }) {
@@ -111,7 +112,7 @@ export default function FinnProfileCard({
           background: FV.bgMed, border: `1px solid ${FV.border}`,
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-          color: FV.accentBright,
+          color: FV.accentDim,
         }}>
           {meta.initial}
         </div>
@@ -131,7 +132,7 @@ export default function FinnProfileCard({
           {profile.traits.map(trait => (
             <span key={trait} style={{
               fontSize: "10px", fontWeight: 500,
-              color: FV.accentBright, background: FV.bgMed,
+              color: FV.accentDim, background: FV.bgMed,
               border: `1px solid ${FV.border}`, borderRadius: "6px", padding: "2px 8px",
             }}>
               {trait}
