@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning-actions";
 import {
   addCashFlowItem, updateCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
-  logExpenseActual, moveMerchantActual, syncForecastToActuals,
+  logExpenseActual, deleteExpenseActual, moveMerchantActual, syncForecastToActuals,
   markCashFlowItemPaid, clearCashFlowItemPaid, updateSurplusAllocation,
 } from "./planning-actions";
 import type { ImportedItem } from "@/app/api/planning/import/route";
@@ -1960,6 +1960,18 @@ export default function CashFlowOS({
                                     Log
                                   </button>
                                 </form>
+                                {actual && (
+                                  <button type="button" disabled={pending}
+                                    onClick={() => {
+                                      if (!confirm(`Remove the logged ${MONTH_NAMES[selMonth - 1]} actual for "${item.label}"?`)) return;
+                                      startTransition(async () => { await deleteExpenseActual(actual.id); router.refresh(); });
+                                    }}
+                                    title="Delete this logged actual"
+                                    style={{ padding: "4px 6px", borderRadius: "6px", fontSize: "10px", background: "var(--red-bg)", color: "var(--red)", border: "1px solid var(--red-border)", cursor: "pointer", display: "flex", alignItems: "center" }}>
+                                    <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                                    <span className="bt-sr-only">Delete logged actual</span>
+                                  </button>
+                                )}
                                 {variance !== null && (
                                   <span style={{ padding: "2px 7px", borderRadius: "3px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
                                     {variance > 0 ? "+" : ""}{ph(fmt(variance))} {variance > 0 ? "over" : "under"}
