@@ -5160,9 +5160,9 @@ export default function PlanningClient({
                   <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
                   <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>State of your plan</span>
                   <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "12px" }}>
-                    {hasP && retirementProb != null && (
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: dotColor }}>{retirementProb}% on track</span>
-                    )}
+                    {/* Retirement % lives in the KPI strip right below — no need to
+                        restate it here too, unlike the chart/tile which each serve a
+                        different purpose (trend vs. story vs. scan). */}
                     {hasP && (
                       <button type="button" onClick={() => setShowWizard(true)} title="Replay the guided setup and see where you stand"
                         style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "none", border: "none", padding: 0, color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
