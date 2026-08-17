@@ -173,7 +173,14 @@ function checkRateLimit(userId: string, skipIntervalCheck = false): string | nul
 
 // ── Provider resolution ───────────────────────────────────────────────────────
 
-type ProviderConfig = { provider: string; client: OpenAI; model: string };
+type ProviderConfig = { provider: string; client: OpenAI; model: string; extraBody?: Record<string, unknown> };
+
+// Groq retired the entire llama-3.x chat lineup (confirmed live 2026-08-17 — the old
+// default 404s with model_not_found). gpt-oss-120b is Groq's current closest match in
+// capability; it's a reasoning model, so reasoning_format: "hidden" is required or it
+// burns the token budget on hidden chain-of-thought and returns empty content.
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
+const GROQ_EXTRA_BODY = { reasoning_format: "hidden" };
 
 function getEnabledProviders(): ProviderConfig[] {
   const providers: ProviderConfig[] = [];
@@ -187,7 +194,8 @@ function getEnabledProviders(): ProviderConfig[] {
         baseURL: "https://api.groq.com/openai/v1",
         timeout: 45000,
       }),
-      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || GROQ_DEFAULT_MODEL,
+      extraBody: GROQ_EXTRA_BODY,
     });
   }
 
@@ -200,7 +208,8 @@ function getEnabledProviders(): ProviderConfig[] {
         baseURL: "https://api.groq.com/openai/v1",
         timeout: 45000,
       }),
-      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_STRATEGY_BUILDER_MODEL || GROQ_DEFAULT_MODEL,
+      extraBody: GROQ_EXTRA_BODY,
     });
   }
 
@@ -297,6 +306,7 @@ export async function POST(req: NextRequest) {
           ],
           max_tokens: isGeneration ? 1800 : 450,
           temperature: isGeneration ? 0.1 : 0.72,
+          ...config.extraBody,
         });
 
         const text = completion.choices[0]?.message?.content ?? "";

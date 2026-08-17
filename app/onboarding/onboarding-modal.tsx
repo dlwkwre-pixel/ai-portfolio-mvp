@@ -27,11 +27,12 @@ type FinnGenerated = {
 };
 
 const FV = {
-  bg: "rgba(109,40,217,0.05)",
-  bgMed: "rgba(109,40,217,0.09)",
-  border: "rgba(109,40,217,0.18)",
+  bg: "rgba(109,40,217,0.10)",
+  bgMed: "rgba(109,40,217,0.15)",
+  border: "rgba(109,40,217,0.35)",
   accent: "#3fae4a",
   accentBright: "#8b5cf6",
+  accentDim: "#6d28d9",
 } as const;
 
 const TOTAL_STEPS = 7;
@@ -807,7 +808,7 @@ export default function OnboardingModal({
                     key={tab}
                     onClick={() => { setStrategyTab(tab); if (tab === "finn") startFinn(); }}
                     className={strategyTab === tab ? "bt-btn bt-btn-primary bt-btn-sm" : "bt-btn bt-btn-ghost bt-btn-sm"}
-                    style={tab === "finn" && strategyTab !== "finn" ? { borderColor: FV.border, color: FV.accentBright } : {}}
+                    style={tab === "finn" && strategyTab !== "finn" ? { borderColor: FV.border, color: FV.accentDim } : {}}
                   >
                     {tab === "starter" ? "Starter templates" : tab === "custom" ? "Build custom" : tab === "existing" ? "My strategies" : "✦ Build with Atlas"}
                   </button>
@@ -916,17 +917,17 @@ export default function OnboardingModal({
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px", padding: "9px 12px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
                     <div style={{ width: "22px", height: "22px", flexShrink: 0, background: "linear-gradient(135deg, #6d28d9, #8b5cf6)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "#fff" }}>A</div>
                     <div>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentBright }}>Atlas Strategy Builder</div>
-                      <div style={{ fontSize: "10px", color: "rgba(111,208,138,0.55)" }}>Personalized strategy through conversation — 5 to 7 exchanges</div>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: FV.accentDim }}>Atlas Strategy Builder</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-secondary)" }}>Personalized strategy through conversation — 5 to 7 exchanges</div>
                     </div>
                   </div>
 
                   {!finnStarted && !finnThinking && finnMessages.length === 0 && (
                     <div style={{ textAlign: "center", padding: "20px 12px", background: FV.bg, border: `1px dashed ${FV.border}`, borderRadius: "10px", marginBottom: "12px" }}>
-                      <p style={{ fontSize: "11px", color: "rgba(111,208,138,0.65)", marginBottom: "12px", lineHeight: 1.5 }}>
+                      <p style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>
                         Atlas will ask you a few questions to build a strategy tailored specifically to how you invest.
                       </p>
-                      <button onClick={startFinn} style={{ background: FV.bgMed, color: FV.accentBright, border: `1px solid ${FV.border}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                      <button onClick={startFinn} style={{ background: FV.bgMed, color: FV.accentDim, border: `1px solid ${FV.border}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
                         Start conversation ✦
                       </button>
                     </div>
@@ -939,10 +940,10 @@ export default function OnboardingModal({
                           <div style={{
                             maxWidth: "86%", padding: "6px 10px",
                             borderRadius: msg.role === "user" ? "10px 10px 2px 10px" : "10px 10px 10px 2px",
-                            background: msg.role === "user" ? "rgba(14,165,160,0.18)" : FV.bgMed,
-                            border: `1px solid ${msg.role === "user" ? "rgba(14,165,160,0.28)" : FV.border}`,
+                            background: msg.role === "user" ? "var(--brand-gradient)" : FV.bgMed,
+                            border: msg.role === "user" ? "none" : `1px solid ${FV.border}`,
                             fontSize: "11px", lineHeight: 1.5, whiteSpace: "pre-wrap",
-                            color: msg.role === "user" ? "rgba(191,219,254,0.9)" : "rgba(221,214,254,0.88)",
+                            color: msg.role === "user" ? "#fff" : FV.accentDim,
                           }}>
                             {msg.content.replace(/READY_TO_GENERATE/g, "").trim()}
                           </div>
@@ -991,10 +992,10 @@ export default function OnboardingModal({
                   {finnGenerated && (
                     <div style={{ padding: "12px 14px", background: FV.bgMed, border: `1px solid ${FV.border}`, borderRadius: "10px" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                        <div style={{ fontSize: "13px", fontWeight: 700, color: FV.accentBright }}>{finnGenerated.name}</div>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: FV.accentDim }}>{finnGenerated.name}</div>
                         <RiskBadge level={finnGenerated.risk_level.toLowerCase()} />
                       </div>
-                      <div style={{ fontSize: "11px", color: "rgba(221,214,254,0.72)", lineHeight: 1.5, marginBottom: "8px" }}>
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "8px" }}>
                         {finnGenerated.description}
                       </div>
                       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -1004,12 +1005,12 @@ export default function OnboardingModal({
                           { label: "Horizon", value: finnGenerated.holding_period_bias },
                         ].map((item) => (
                           <div key={item.label} style={{ padding: "3px 8px", background: FV.bg, border: `1px solid ${FV.border}`, borderRadius: "6px" }}>
-                            <span style={{ fontSize: "10px", color: "rgba(111,208,138,0.45)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}: </span>
-                            <span style={{ fontSize: "10px", color: "rgba(196,181,253,0.85)" }}>{item.value}</span>
+                            <span style={{ fontSize: "10px", color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{item.label}: </span>
+                            <span style={{ fontSize: "10px", color: FV.accentDim }}>{item.value}</span>
                           </div>
                         ))}
                       </div>
-                      <p style={{ fontSize: "10px", color: "rgba(111,208,138,0.45)", marginTop: "8px", marginBottom: 0 }}>
+                      <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "8px", marginBottom: 0 }}>
                         ✦ Strategy built by Atlas — click Continue to save it.
                       </p>
                     </div>
@@ -1021,11 +1022,11 @@ export default function OnboardingModal({
               {strategyTab !== "finn" && (
               <div style={{
                 marginTop: "14px", padding: "9px 12px",
-                background: "rgba(109,40,217,0.06)", border: "1px solid rgba(109,40,217,0.18)",
+                background: "rgba(109,40,217,0.10)", border: "1px solid rgba(109,40,217,0.35)",
                 borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "8px",
               }}>
                 <span style={{ fontSize: "12px", flexShrink: 0, marginTop: "1px" }}>✦</span>
-                <p style={{ fontSize: "11px", color: "rgba(111,208,138,0.9)", lineHeight: 1.5, margin: 0 }}>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>
                   Once saved, Atlas will score your strategy, explain its thesis, surface weaknesses, and build your investor profile as you add more strategies.
                 </p>
               </div>
@@ -1087,8 +1088,8 @@ export default function OnboardingModal({
               {/* Section: Atlas Strategy Intelligence */}
               <div style={{
                 padding: "12px 14px",
-                background: "rgba(109,40,217,0.05)",
-                border: "1px solid rgba(109,40,217,0.18)",
+                background: "rgba(109,40,217,0.10)",
+                border: "1px solid rgba(109,40,217,0.35)",
                 borderRadius: "10px",
               }}>
                 <div style={{
@@ -1102,7 +1103,7 @@ export default function OnboardingModal({
                     fontSize: "10px", fontWeight: 700, color: "#fff",
                     letterSpacing: "-0.3px",
                   }}>A</div>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: "rgba(111,208,138,1)", letterSpacing: "-0.1px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#6d28d9", letterSpacing: "-0.1px" }}>
                     Atlas Strategy Intelligence
                   </span>
                 </div>
@@ -1120,14 +1121,14 @@ export default function OnboardingModal({
                         background: "#3fae4a", flexShrink: 0, marginTop: "6px",
                       }} />
                       <div>
-                        <span style={{ fontSize: "11px", fontWeight: 600, color: "rgba(196,181,253,0.95)" }}>{item.label}:</span>
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)" }}>{item.label}:</span>
                         {" "}
-                        <span style={{ fontSize: "11px", color: "rgba(196,181,253,0.65)", lineHeight: 1.45 }}>{item.detail}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.45 }}>{item.detail}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: "10px", color: "rgba(111,208,138,0.5)", marginTop: "10px", marginBottom: 0, lineHeight: 1.4 }}>
+                <p style={{ fontSize: "10px", color: "var(--text-tertiary)", marginTop: "10px", marginBottom: 0, lineHeight: 1.4 }}>
                   Find Atlas on every strategy card in the Strategies tab.
                 </p>
               </div>
