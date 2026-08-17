@@ -6784,12 +6784,15 @@ export default function PlanningClient({
                   {([
                     { label: "Investments at retirement", val: pHide(fmt(drawdown.startTotal)), color: "var(--text-primary)" },
                     { label: "Lifetime taxes (est.)", val: pHide(fmt(drawdown.totalTaxes)), color: "var(--amber)" },
-                    { label: "Lifetime RMDs", val: drawdown.totalRmds > 0 ? pHide(fmt(drawdown.totalRmds)) : "—", color: "var(--text-secondary)" },
+                    { label: "Lifetime RMDs", val: drawdown.totalRmds > 0 ? pHide(fmt(drawdown.totalRmds)) : "—", color: "var(--text-secondary)",
+                      tooltip: "Required Minimum Distributions — the IRS forces you to start withdrawing from tax-deferred accounts (Traditional 401k/IRA) starting at age 73, whether you need the income or not. This is the total forced over your plan's lifetime." },
                     ...(drawdown.totalConversions > 0 ? [{ label: "Roth converted", val: pHide(fmt(drawdown.totalConversions)), color: "var(--violet)" }] : []),
                     { label: `Left at ${drawdown.endAge}`, val: pHide(fmt(drawdown.years[drawdown.years.length - 1].total)), color: drawdown.success ? "var(--green)" : "var(--red)" },
                   ]).map((s) => (
                     <div key={s.label} style={{ background: "var(--bg-elevated)", borderRadius: "var(--radius-md)", padding: "9px 11px" }}>
-                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>{s.label}</div>
+                      <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.label}{s.tooltip && <InfoTooltip align="start" text={s.tooltip} />}
+                      </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: s.color }}>{s.val}</div>
                     </div>
                   ))}
