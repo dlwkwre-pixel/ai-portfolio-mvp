@@ -3142,9 +3142,6 @@ export default function PlanningClient({
   // profile exists — new users still see the full setup path).
   const [overviewExpanded, setOverviewExpanded] = useState(false);
   const overviewAdvanced = !guided || !hasPlanProfile || overviewExpanded;
-  // Guided shows a curated subset of the 18 planners (the universal ones); the rest are
-  // hidden via CSS behind "Show all" so the hub isn't an 18-card wall on first look.
-  const [hubExpanded, setHubExpanded] = useState(false);
   // Guided Forecast keeps the readiness + chart + drawdown, collapses the deep analytics
   // (biggest drivers, year-by-year table, scenario A/B) behind one expander.
   const [forecastExpanded, setForecastExpanded] = useState(false);
@@ -7065,6 +7062,7 @@ export default function PlanningClient({
             currentYear={currentYear}
             retirementYear={retirementYear}
             trajectory={trajectoryEl}
+            guided={guided}
           />
         </div>
       )}

@@ -75,7 +75,7 @@ function hueFor(category: string | null | undefined): string {
 
 export default function LifePlanTab({
   readinessScore, projectedNWAtRetirement, retirementProb, biggestDecision,
-  conflictAlerts, events, currentYear, retirementYear, trajectory,
+  conflictAlerts, events, currentYear, retirementYear, trajectory, guided = false,
 }: {
   readinessScore: number;
   projectedNWAtRetirement: number | null;
@@ -86,9 +86,14 @@ export default function LifePlanTab({
   currentYear: number;
   retirementYear: number | null;
   trajectory?: React.ReactNode; // the interactive wealth-trajectory chart (preferred over the flat timeline)
+  guided?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // Guided mode leads with the personalized "Suggested" cards and hides the full
+  // 22-planner catalog (6 categories) behind one expander, instead of a wall of
+  // identical-looking buttons a first-time user has to read every one of.
+  const [exploreExpanded, setExploreExpanded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -154,6 +159,8 @@ export default function LifePlanTab({
     .filter((s) => !usedHues.has(s.hue))
     .slice(0, 3)
     .map((s) => ({ stage: s, planner: s.planners[0] }));
+  // Nothing to hide the full catalog behind if there's no suggestion to lead with.
+  const exploreAdvanced = !guided || exploreExpanded || recommended.length === 0;
 
   const probColor = retirementProb == null ? "var(--text-tertiary)"
     : retirementProb >= 80 ? "oklch(0.72 0.19 145)" : retirementProb >= 60 ? "oklch(0.78 0.17 70)" : "oklch(0.68 0.2 25)";
@@ -318,7 +325,7 @@ export default function LifePlanTab({
           </div>
         )}
 
-        {STAGES.map((stage) => (
+        {exploreAdvanced ? STAGES.map((stage) => (
           <div key={stage.key}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
               <span style={{ width: "8px", height: "8px", borderRadius: "3px", background: `oklch(0.68 0.16 ${stage.hue})`, flexShrink: 0 }} />
@@ -336,7 +343,20 @@ export default function LifePlanTab({
               ))}
             </div>
           </div>
-        ))}
+        )) : (
+          <button type="button" onClick={() => setExploreExpanded(true)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg, 14px)", border: "1px dashed var(--card-border)", background: "var(--bg-card)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+            Browse all 22 planners across 6 categories
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        )}
+        {guided && exploreExpanded && recommended.length > 0 && (
+          <button type="button" onClick={() => setExploreExpanded(false)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "9px 0", borderRadius: "var(--radius-lg, 14px)", border: "1px dashed var(--card-border)", background: "transparent", color: "var(--text-tertiary)", fontSize: "11px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+            Show less
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 10l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        )}
       </div>
     </div>
   );
