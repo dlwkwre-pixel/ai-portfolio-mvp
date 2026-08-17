@@ -355,25 +355,30 @@ function AiImportPanel({ existingItems, onAdd }: AiImportPanelProps) {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => { setOpen(true); setStep("paste"); setAddedCount(null); }}
-        style={{
-          display: "flex", alignItems: "center", gap: "6px",
-          padding: "7px 14px", borderRadius: "var(--radius-md)",
-          border: "1px dashed var(--border-subtle)", background: "transparent",
-          color: "var(--text-tertiary)", fontFamily: "var(--font-body)",
-          fontSize: "12px", cursor: "pointer", width: "100%", justifyContent: "center",
-          transition: "border-color 0.15s, color 0.15s",
-        }}
-        onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = "var(--text-secondary)"; b.style.borderColor = "var(--text-tertiary)"; }}
-        onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = "var(--text-tertiary)"; b.style.borderColor = "var(--border-subtle)"; }}
-      >
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2v8M5 7l3 3 3-3M2 11v1.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Build budget from last month&apos;s statement
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <button
+          type="button"
+          onClick={() => { setOpen(true); setStep("paste"); setAddedCount(null); }}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "7px 14px", borderRadius: "var(--radius-md)",
+            border: "1px dashed var(--border-subtle)", background: "transparent",
+            color: "var(--text-tertiary)", fontFamily: "var(--font-body)",
+            fontSize: "12px", cursor: "pointer", width: "100%", justifyContent: "center",
+            transition: "border-color 0.15s, color 0.15s",
+          }}
+          onMouseEnter={(e) => { const b = e.currentTarget; b.style.color = "var(--text-secondary)"; b.style.borderColor = "var(--text-tertiary)"; }}
+          onMouseLeave={(e) => { const b = e.currentTarget; b.style.color = "var(--text-tertiary)"; b.style.borderColor = "var(--border-subtle)"; }}
+        >
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2v8M5 7l3 3 3-3M2 11v1.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Import new statement to set budget
+        </button>
+        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
+          Paste a statement Atlas hasn&apos;t seen yet — creates or updates budget items from scratch.
+        </p>
+      </div>
     );
   }
 
@@ -506,7 +511,7 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
 
   if (preview === null) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         <button
           type="button"
           onClick={open}
@@ -524,8 +529,11 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
             <path d="M2 8a6 6 0 0110.5-4M14 8a6 6 0 01-10.5 4M12 2v3h-3M4 14v-3h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Refresh budget from your logged actuals
+          Recalculate budget from what I&apos;ve logged
         </button>
+        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
+          No new statement needed — averages actuals you&apos;ve already logged into updated targets.
+        </p>
         {emptyNote && (
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
             No logged actuals yet — log some via &ldquo;Log Actuals from Statement&rdquo; first, or build from a pasted statement instead.
@@ -787,10 +795,12 @@ function FiftyThirtyTwenty({
 const SANKEY_BUCKET_COLOR: Record<string, string> = {
   needs: "oklch(0.62 0.15 250)", wants: "oklch(0.66 0.16 300)", savings: "oklch(0.72 0.18 150)",
 };
-function CashFlowSankey({ income, leaves, isPrivate }: {
+function CashFlowSankey({ income, leaves, isPrivate, highlightedCat, onToggleCat }: {
   income: number;
   leaves: { label: string; amount: number; bucket: "needs" | "wants" | "savings"; color?: string }[];
   isPrivate: boolean;
+  highlightedCat: string | null;
+  onToggleCat: (label: string) => void;
 }) {
   const ph = (v: string) => (isPrivate ? "••••" : v);
   const fmtMo = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -843,20 +853,24 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
         <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ph(fmtMo(income))}/mo in</span>
       </div>
       <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "12px" }}>
-        A quick-glance overview — for budget-vs-actual detail, see the breakdown below; to edit amounts, see the list further down.
+        A quick-glance overview — for budget-vs-actual detail, see the breakdown below; to edit amounts, see the list further down. Click a category to highlight it (shared with the breakdown below).
       </div>
       <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block", overflow: "visible" }} preserveAspectRatio="xMidYMid meet">
         {/* Income node */}
         <rect x={sxRight - nodeW} y={incTop} width={nodeW} height={Math.max(1, incBot - incTop)} rx="3" fill="var(--text-secondary)" opacity="0.85" />
         <text x={sxRight - nodeW - 8} y={(incTop + incBot) / 2} textAnchor="end" dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontWeight: 700, fontSize: "13px", fill: "var(--text-primary)" }}>Income</text>
-        {/* Links + leaf nodes + labels */}
+        {/* Links + leaf nodes + labels — clickable, sharing highlight state with the donut/list below */}
         {labeled.map((s, i) => {
           const color = s.color ?? SANKEY_BUCKET_COLOR[s.bucket];
           const path = `M${sxRight},${s.sy0.toFixed(1)} C${midx},${s.sy0.toFixed(1)} ${midx},${s.ty0.toFixed(1)} ${txLeft},${s.ty0.toFixed(1)} L${txLeft},${s.ty1.toFixed(1)} C${midx},${s.ty1.toFixed(1)} ${midx},${s.sy1.toFixed(1)} ${sxRight},${s.sy1.toFixed(1)} Z`;
+          const isHl = highlightedCat === s.label;
           return (
-            <g key={i}>
+            <g key={i}
+              onClick={() => onToggleCat(s.label)}
+              style={{ cursor: "pointer", opacity: highlightedCat && !isHl ? 0.35 : 1, transition: "opacity 0.2s" }}
+            >
               <path d={path} fill={color} opacity="0.26" />
-              <rect x={txLeft} y={s.ty0} width={nodeW} height={Math.max(1, s.h)} rx="3" fill={color} />
+              <rect x={txLeft} y={s.ty0} width={nodeW} height={Math.max(1, s.h)} rx="3" fill={color} style={isHl ? { filter: `drop-shadow(0 0 5px ${color})` } : undefined} />
               <text x={txLeft + nodeW + 8} y={s.labelY} dominantBaseline="middle" style={{ fontFamily: "var(--font-body)", fontSize: "12px", fill: "var(--text-secondary)" }}>
                 {s.label}
                 <tspan style={{ fontFamily: "var(--font-mono)", fill: "var(--text-tertiary)", fontSize: "11px" }}> · {ph(fmtMo(s.amount))} ({Math.round((s.amount / total) * 100)}%)</tspan>
@@ -1315,6 +1329,9 @@ export default function CashFlowOS({
             ))}
           </div>
         </div>
+        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "0 0 12px" }}>
+          Showing: {MONTH_NAMES[selMonth - 1]} {selYear} · {viewMode[0].toUpperCase() + viewMode.slice(1)} — scopes everything below (KPIs, Available to Invest, flow chart, budget breakdown). The 50/30/20 balance above always reflects your current budget, not this period.
+        </p>
         {viewMode === "average" && !avgMonthly ? (
           <p style={{ fontSize: "12px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center", padding: "8px 0" }}>
             Log actuals for at least one completed month to see an average.
@@ -1585,6 +1602,8 @@ export default function CashFlowOS({
             ...(monthlySavings > 0 ? [{ label: "Savings", amount: monthlySavings, bucket: "savings" as const, color: "oklch(0.72 0.18 150)" }] : []),
           ]}
           isPrivate={isPrivate}
+          highlightedCat={highlightedCat}
+          onToggleCat={(label) => setHighlightedCat((cur) => (cur === label ? null : label))}
         />
       )}
 
@@ -1679,7 +1698,7 @@ export default function CashFlowOS({
                 {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
               </div>
               <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
-                How each category tracked — to edit amounts, see the list further down.
+                How each category tracked — to edit amounts, see the list further down. Click a slice or category to highlight it (shared with the flow chart above).
               </div>
 
               {/* Headline verdict — the one-glance "how did I do" */}
