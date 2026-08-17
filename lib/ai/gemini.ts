@@ -11,8 +11,13 @@ import { logAiUsage, tokensFromChars } from "@/lib/ai/usage";
 const GEMINI_ENDPOINT = (key: string, model = "gemini-2.0-flash") =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
 
-// 70B for quality, 8B-instant as a high-throughput fallback when 70B is rate-limited.
-const GROQ_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+// Groq retired the entire llama-3.x lineup (confirmed live 2026-08-17 — both models
+// below 404'd with model_not_found). Replaced with Groq's current closest equivalents:
+// gpt-oss-120b for quality first, gpt-oss-20b as the high-throughput fallback when
+// 120b's tighter free-tier daily cap (1,000 req/day) is hit — same two-tier intent as
+// the original 70B/8B pairing. Both are reasoning models — tryGroqModel sends
+// reasoning_format: "hidden" or they burn the token budget on hidden chain-of-thought.
+const GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
 
 export type GeminiOptions = {
   temperature?: number;
@@ -72,6 +77,7 @@ async function tryGroqModel(model: string, prompt: string, opts: GeminiOptions):
         messages: [{ role: "user", content: prompt }],
         temperature: opts.temperature ?? 0.4,
         max_tokens: opts.maxOutputTokens ?? 800,
+        reasoning_format: "hidden",
       }),
     });
     if (!res.ok) {
