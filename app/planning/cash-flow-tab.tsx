@@ -528,7 +528,7 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
         </button>
         {emptyNote && (
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
-            No logged actuals yet — log some via &ldquo;Log from Statement&rdquo; first, or build from a pasted statement instead.
+            No logged actuals yet — log some via &ldquo;Log Actuals from Statement&rdquo; first, or build from a pasted statement instead.
           </p>
         )}
         {addedCount !== null && (
@@ -546,7 +546,7 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
         <div>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Refresh Budget from Logged Actuals</span>
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
-            Averaged from what you&apos;ve already logged via &ldquo;Log from Statement.&rdquo; This only updates items you already have — it can&apos;t discover categories you haven&apos;t budgeted for yet.
+            Averaged from what you&apos;ve already logged via &ldquo;Log Actuals from Statement.&rdquo; This only updates items you already have — it can&apos;t discover categories you haven&apos;t budgeted for yet.
           </p>
         </div>
         <button type="button" onClick={() => setPreview(null)}
@@ -838,9 +838,12 @@ function CashFlowSankey({ income, leaves, isPrivate }: {
 
   return (
     <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 18px", marginBottom: "10px", animationDelay: "70ms" }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "2px" }}>
         <span style={{ fontFamily: "var(--font-display)", fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Where your money flows</span>
         <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>{ph(fmtMo(income))}/mo in</span>
+      </div>
+      <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "12px" }}>
+        A quick-glance overview — for budget-vs-actual detail, see the breakdown below; to edit amounts, see the list further down.
       </div>
       <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block", overflow: "visible" }} preserveAspectRatio="xMidYMid meet">
         {/* Income node */}
@@ -1358,26 +1361,37 @@ export default function CashFlowOS({
         )}
       </div>
 
-      {/* Available to Invest — this month's income minus actual-or-budgeted spend,
-          split against the emergency fund policy below. Cash on hand and unpaid
-          bills stay visible as supporting context (right column + guard-rail
-          callout) but no longer cap the headline number — see cash-flow-forecast.ts. */}
+      {/* Available to Invest — merged with what used to be a separate "Surplus this
+          month" callout below; both showed the same number under a different name.
+          They're not strictly identical (this one subtracts the emergency-fund
+          reserve, see reservedForEmergencyFund), but they coincide whenever nothing's
+          being reserved, which is most of the time — so one card, not two. Cash on
+          hand and unpaid bills stay visible as supporting context (right column +
+          guard-rail callout) but no longer cap the headline number — see
+          cash-flow-forecast.ts. */}
+      {(() => {
+        const nothingLogged = monthlyPerf.totalCount > 0 && monthlyPerf.loggedCount === 0;
+        const headlineColor = nothingLogged
+          ? "var(--text-secondary)"
+          : forecast.availableToInvest >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)";
+        return (
       <div className="cfo-zone" style={{
-        background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+        background: "var(--bg-surface)", border: `1px ${nothingLogged ? "dashed" : "solid"} var(--border-subtle)`,
         borderRadius: "var(--radius-lg)", padding: "16px 20px", marginBottom: "10px",
+        opacity: nothingLogged ? 0.85 : 1, transition: "opacity 0.2s, border-style 0.2s",
       }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "5px", display: "flex", alignItems: "center", gap: "7px" }}>
               Available to Invest · {MONTH_NAMES[selMonth - 1]} {selYear}
-              {monthlyPerf.totalCount > 0 && monthlyPerf.loggedCount === 0 && (
+              {nothingLogged && (
                 <span style={{ fontSize: "9px", fontWeight: 700, padding: "1px 7px", borderRadius: "999px", background: "var(--surface-008)", color: "var(--text-tertiary)", letterSpacing: "0.05em" }}>PROJECTED</span>
               )}
               {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (
                 <span style={{ fontSize: "9px", fontWeight: 700, padding: "1px 7px", borderRadius: "999px", background: "var(--surface-008)", color: "var(--text-tertiary)", letterSpacing: "0.05em" }}>PARTIAL</span>
               )}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: forecast.availableToInvest >= 0 ? "oklch(0.72 0.19 145)" : "oklch(0.65 0.18 25)", lineHeight: 1 }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: headlineColor, lineHeight: 1 }}>
               {ph(fmt(forecast.availableToInvest))}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
@@ -1389,25 +1403,59 @@ export default function CashFlowOS({
                   : `${fmt(monthlyPerf.actualPortion)} logged − ${fmt(monthlyPerf.budgetedPortion)} still budgeted`}
               {forecast.reservedForEmergencyFund > 0 ? ` − ${fmt(forecast.reservedForEmergencyFund)} reserved for emergency fund` : ""}
             </div>
-            {monthlyPerf.loggedCount < monthlyPerf.totalCount && (
+            {monthlyPerf.loggedCount > 0 && monthlyPerf.loggedCount < monthlyPerf.totalCount && (
               <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
-                This assumes you'll spend the rest of your budget — log actuals below for a real number.
+                This assumes you&apos;ll spend the rest of your budget — log actuals below for a real number.
+              </div>
+            )}
+            {nothingLogged && (
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px", fontStyle: "italic" }}>
+                Nothing&apos;s logged for {MONTH_NAMES[selMonth - 1]} yet — this is a projection off your budget, not a real number. Log actuals below to confirm it.
+              </div>
+            )}
+            {forecast.reservedForEmergencyFund === 0 && !nothingLogged && monthlyPerf.surplus > 0 && (
+              <div style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginTop: "4px" }}>
+                Matches the Savings row in your 50/30/20 balance above.
               </div>
             )}
             {monthlyPerf.surplus > 0 && forecast.freeCash < 0 && (
               <div style={{ fontSize: "11px", color: "oklch(0.65 0.18 25)", fontFamily: "var(--font-body)", marginTop: "6px" }}>
-                ⚠ Your bills right now exceed your cash on hand — this figure reflects {MONTH_NAMES[selMonth - 1]}'s performance, not your current liquidity.
+                ⚠ Your bills right now exceed your cash on hand — this figure reflects {MONTH_NAMES[selMonth - 1]}&apos;s performance, not your current liquidity.
+              </div>
+            )}
+            {/* "Where should it go" — only once there's at least some real logged data
+                behind the number, not a pure budget guess (was a separate callout
+                elsewhere on the page; folded in here since it's the same figure). */}
+            {!nothingLogged && forecast.availableToInvest > 50 && viewMode === "monthly" && (
+              <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: "0 0 7px", lineHeight: 1.5 }}>
+                  You&apos;re {ph(fmt(forecast.availableToInvest))} ahead — where should it go?
+                </p>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {[
+                    { label: "Invest it",         href: "/portfolios" },
+                    { label: "Emergency fund",    href: "/planning?tab=balance" },
+                    { label: "Toward a goal",     href: "/planning?tab=events" },
+                  ].map(({ label, href }) => (
+                    <a key={label} href={href} style={{
+                      padding: "5px 12px", borderRadius: "6px", border: "1px solid rgba(34,197,94,0.25)",
+                      background: "rgba(34,197,94,0.07)", color: "oklch(0.72 0.19 145)",
+                      fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)",
+                      textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap",
+                    }}>{label}</a>
+                  ))}
+                </div>
               </div>
             )}
           </div>
           <div style={{ minWidth: "200px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>
-              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Cash on hand{!isCurrentMonth ? " (right now)" : ""}</span>
+              <span style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Cash on hand (as of today)</span>
               <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{ph(fmt(liquidAssets))}</span>
             </div>
             {forecast.owedItems.length > 0 && (
               <>
-                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed{!isCurrentMonth ? " (right now)" : ""}</div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "6px" }}>Still owed (as of today)</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                   {forecast.owedItems.map(({ item, dueDate }) => (
                     <div key={item.id} style={{ display: "flex", justifyContent: "space-between", gap: "10px", fontSize: "12px", fontFamily: "var(--font-body)" }}>
@@ -1456,12 +1504,12 @@ export default function CashFlowOS({
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {forecast.emergencyFundFunded ? (
                   <p style={{ fontSize: "12px", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", margin: 0 }}>
-                    ✓ Emergency fund fully funded — 100% of this month's surplus is available to invest.
+                    ✓ Emergency fund fully funded — 100% of this month&apos;s surplus is available to invest.
                   </p>
                 ) : (
                   <div>
                     <label style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", display: "block", marginBottom: "4px" }}>
-                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of this month's surplus while building the fund, save the rest
+                      Invest <strong style={{ color: "var(--text-primary)" }}>{investPctEdit}%</strong> of this month&apos;s surplus while building the fund, save the rest
                     </label>
                     <input
                       type="range" min={0} max={100} step={5} value={investPctEdit}
@@ -1505,38 +1553,8 @@ export default function CashFlowOS({
           );
         })()}
       </div>
-
-      {/* Surplus routing callout — kpiSavings, not the monthlySavings prop, so this
-          matches the actuals-blended "Monthly Savings" tile right above it instead of
-          silently reverting to a pure-budget figure. */}
-      {kpiSavings > 50 && viewMode === "monthly" && (
-        <div className="cfo-zone" style={{
-          background: "var(--card-bg)", border: "1px solid var(--card-border)",
-          borderRadius: "var(--radius-lg)", padding: "11px 16px", marginBottom: "10px",
-          animationDelay: "30ms", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
-        }}>
-          <div style={{ flex: 1, minWidth: "160px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.19 145)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Surplus this month</div>
-            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.5 }}>
-              You&apos;re {ph(fmt(kpiSavings))} ahead — where should it go?
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {[
-              { label: "Invest it",         href: "/portfolios" },
-              { label: "Emergency fund",    href: "/planning?tab=balance" },
-              { label: "Toward a goal",     href: "/planning?tab=events" },
-            ].map(({ label, href }) => (
-              <a key={label} href={href} style={{
-                padding: "5px 12px", borderRadius: "6px", border: "1px solid rgba(34,197,94,0.25)",
-                background: "rgba(34,197,94,0.07)", color: "oklch(0.72 0.19 145)",
-                fontSize: "11px", fontWeight: 600, fontFamily: "var(--font-body)",
-                textDecoration: "none", cursor: "pointer", whiteSpace: "nowrap",
-              }}>{label}</a>
-            ))}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Atlas Insight Strip */}
       {(effectiveIncome > 0 || monthlyExpenses > 0) && (
@@ -1657,8 +1675,11 @@ export default function CashFlowOS({
 
             {/* Category bars */}
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>
                 {viewMode === "annual" ? `${selYear} Annual Projection` : viewMode === "ytd" ? `${selYear} YTD (${ytdMonths}mo)` : `${MONTH_NAMES[selMonth - 1]} ${selYear}`} — Budget vs. Actual
+              </div>
+              <div style={{ fontSize: "10.5px", color: "var(--text-muted)", fontFamily: "var(--font-body)", marginBottom: "10px" }}>
+                How each category tracked — to edit amounts, see the list further down.
               </div>
 
               {/* Headline verdict — the one-glance "how did I do" */}
@@ -1785,6 +1806,12 @@ export default function CashFlowOS({
         borderRadius: "var(--radius-lg)", padding: "20px",
         animationDelay: "170ms",
       }}>
+        {/* Edit budget items and log actuals per category — the source-of-truth list,
+            distinct from the Sankey (flow overview) and donut (budget-vs-actual summary)
+            above, which both read off the same categories in different formats. */}
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
+          Edit Budget &amp; Log Spending
+        </div>
         {/* Statement import — period itself is set at the top of the tab now, next to
             the view-mode toggle; this just reflects it so it's clear what you're logging for. */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
@@ -1792,9 +1819,10 @@ export default function CashFlowOS({
             Logging for <strong style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{MONTH_NAMES[selMonth - 1]} {selYear}</strong>
           </span>
           <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
-            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.1)" : "var(--card-bg)", color: showImport ? "#7fd9d4" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
+            title="Logs what you actually spent this month — separate from the budget-building import above"
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.14)" : "var(--card-bg)", color: showImport ? "var(--brand-blue)" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
             <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            Log from Statement
+            Log Actuals from Statement
           </button>
         </div>
 
