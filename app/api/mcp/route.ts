@@ -98,10 +98,11 @@ const TRADING_ROUTINE = {
   per_run: [
     "Identify which BuyTune portfolio this account corresponds to (get_portfolio) and fetch get_strategies() FRESH — never rely on a cached or remembered copy of the rules, since they can change between runs.",
     "Find the strategy assigned to that portfolio and treat its rules, stop-loss, and any routine guidance in its own text as authoritative for this run — this generic routine covers workflow, the strategy covers what/when specifically.",
-    "For candidate generation (typically the first run of the trading day): use whatever scanner tools are available (e.g. a connected brokerage's own screening tools) to find candidates matching the strategy's stated style/criteria.",
+    "Before deciding whether to scan for new candidates or just re-check existing positions, call get_recent_trading_activity — don't assume based on how many scheduled triggers you think exist today (that's configured entirely outside BuyTune, e.g. in Claude Cowork's own scheduler, and isn't something this tool or that one can see into each other). If it shows a candidate-scan/entry-decision already logged for this portfolio within roughly the last several hours, treat this as a follow-up run. If not, treat it as the first run of the day.",
+    "For candidate generation (on a first run of the day): use whatever scanner tools are available (e.g. a connected brokerage's own screening tools) to find candidates matching the strategy's stated style/criteria.",
     "Check cheap/free BuyTune data first (get_recommendation, get_research, get_kronos_forecast) before spending on paid tools (run_deep_analysis, get_x_sentiment) — narrow to the strongest 1-2 candidates before going deeper.",
     "Weigh findings against get_financial_profile (risk tolerance, suitability) in addition to the strategy's own rules.",
-    "For follow-up runs the same day (e.g. an afternoon check): re-evaluate existing positions under this strategy against its sell/stop-loss rules using current price/volume, rather than re-scanning for new candidates.",
+    "On a follow-up run (per the check above): re-evaluate existing positions under this strategy against its sell/stop-loss rules using current price/volume, rather than re-scanning for new candidates.",
     "Size the position in dollars first — the strategy's max/min position % times the portfolio's CURRENT total value (not a cached figure) — then convert to a share count using a live quote from the brokerage's own tools at the moment of execution. Never size a position off a price cached in any BuyTune tool's output (a Kronos forecast, a research digest, a quote from earlier in this run) — by execution time it may be stale.",
     "Execute via the connected brokerage's own trading tools if warranted (respect that tool's own confirmation/review behavior).",
     "After any executed trade, call record_trade so BuyTune's own portfolio stays current without needing a separate paid sync service — this is in addition to, not instead of, whatever the brokerage itself reports.",
@@ -700,6 +701,32 @@ function buildServer(userId: string, origin: string): McpServer {
       } catch (e) {
         return { content: [{ type: "text", text: e instanceof Error ? e.message : "Failed to record trade." }], isError: true };
       }
+    }
+  );
+
+  server.registerTool(
+    "get_recent_trading_activity",
+    {
+      title: "Get recent trading activity",
+      description: "Returns this account's own logged decisions (from log_trading_decision) over a recent window, most recent first. Call this at the start of an unattended/scheduled run to determine whether an earlier run already happened today (e.g. a morning candidate scan) before deciding whether this run should scan for new candidates or just re-check existing positions — don't assume how many times you're scheduled to run today, since that's set outside BuyTune (e.g. in Claude Cowork's own scheduler) and this tool has no visibility into it either. Checking here is the reliable way to tell. Read-only.",
+      inputSchema: {
+        portfolio_id: z.string().uuid().optional().describe("Limit to one portfolio; omit to see activity across all of the user's portfolios"),
+        hours: z.number().min(1).max(72).optional().describe("How far back to look, in hours. Defaults to 24."),
+      },
+    },
+    async ({ portfolio_id, hours }) => {
+      const admin = createAdminClient();
+      const sinceIso = new Date(Date.now() - (hours ?? 24) * 60 * 60 * 1000).toISOString();
+      let q = admin.from("trading_decision_log")
+        .select("action, ticker, reasoning, portfolio_id, created_at")
+        .eq("user_id", userId)
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (portfolio_id) q = q.eq("portfolio_id", portfolio_id);
+      const { data, error } = await q;
+      if (error) return { content: [{ type: "text", text: `Error loading trading activity: ${error.message}` }], isError: true };
+      return { content: [{ type: "text", text: JSON.stringify({ since: sinceIso, count: (data ?? []).length, decisions: data ?? [] }, null, 2) }] };
     }
   );
 
