@@ -1831,12 +1831,20 @@ export default function CashFlowOS({
         <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)", marginBottom: "4px" }}>
           Edit Budget &amp; Log Spending
         </div>
-        {/* Statement import — period itself is set at the top of the tab now, next to
-            the view-mode toggle; this just reflects it so it's clear what you're logging for. */}
+        {/* Same selMonth/selYear state as the top-of-tab selector — changing it here
+            moves the whole page's scoped content too, not just this section. */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "18px" }}>
           <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-            Logging for <strong style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{MONTH_NAMES[selMonth - 1]} {selYear}</strong>
+            Logging for
           </span>
+          <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+            {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+          </select>
+          <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+            style={{ padding: "4px 8px", borderRadius: "7px", background: "var(--bg-elevated)", border: "1px solid var(--border-subtle)", color: "var(--text-primary)", fontSize: "11px", fontFamily: "var(--font-body)" }}>
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
             title="Logs what you actually spent this month — separate from the budget-building import above"
             style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.14)" : "var(--card-bg)", color: showImport ? "var(--brand-blue)" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
