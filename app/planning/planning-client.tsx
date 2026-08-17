@@ -6233,8 +6233,10 @@ export default function PlanningClient({
             </div>
           )}
 
-          {/* What-If Library */}
-          {profile?.current_age != null && (
+          {/* What-If Library — gated in guided mode along with the scenario/assumption
+              controls below; only the narrative, trajectory chart, and on-track % stay
+              in the basic view. */}
+          {forecastAdvanced && profile?.current_age != null && (
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <div>
@@ -6356,7 +6358,9 @@ export default function PlanningClient({
             </div>
           )}
 
-          {/* Scenario + chart mode controls */}
+          {/* Scenario + chart mode controls — gated; the trajectory chart below keeps
+              rendering off whatever showMonteCarlo/scenarioRetirementAge already are. */}
+          {forecastAdvanced && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
             {profile?.current_age != null && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -6425,11 +6429,16 @@ export default function PlanningClient({
               Export .xlsx
             </button>
           </div>
+          )}
 
-          {/* Assumptions + Retirement Probability row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "start", flexWrap: "wrap" }}>
+          {/* Assumptions + Retirement Probability row — Assumptions card is gated
+              (sliders are exactly the kind of control guided mode should hide), the
+              probability badge stays visible per the basic-view spec. Grid collapses
+              to a single "auto" column so the badge doesn't stretch when it's alone. */}
+          <div style={{ display: "grid", gridTemplateColumns: forecastAdvanced ? "1fr auto" : "auto", gap: "12px", alignItems: "start", flexWrap: "wrap" }}>
 
             {/* Assumptions card — sliders with preset chips */}
+            {forecastAdvanced && (
             <div style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderRadius: "var(--radius-lg)", padding: "16px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <span style={sectionHeadStyle}>Forecast Assumptions</span>
@@ -6540,8 +6549,9 @@ export default function PlanningClient({
                 style={{ ...btnPrimaryStyle, fontSize: "11px", padding: "6px 14px", marginTop: "2px" }}
               >{assumptionsPending ? "Saving…" : "Save Assumptions"}</button>
             </div>
+            )}
 
-            {/* Retirement probability badge */}
+            {/* Retirement probability badge — stays visible in guided mode */}
             {(() => {
               const prob = mcResult?.mcRetirementProbability ?? retirementProb;
               if (prob == null) return null;
@@ -6702,8 +6712,16 @@ export default function PlanningClient({
             </div>
           </div>
 
+          {guided && !forecastExpanded && (
+            <button type="button" onClick={() => setForecastExpanded(true)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
+              Show advanced forecast tools — sliders, drawdown, biggest drivers, scenario comparison
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
+
           {/* Summary at retirement */}
-          {retirementPoint && (
+          {forecastAdvanced && retirementPoint && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
               <MetricCard label={`Baseline at ${activeRetirementAge ?? "Retirement"}`} value={pHide(fmt(retirementPoint.baseline))} color="var(--violet)" />
               <MetricCard label="Optimistic scenario" value={pHide(fmt(retirementPoint.optimistic))} color="var(--green)" />
@@ -6712,7 +6730,7 @@ export default function PlanningClient({
           )}
 
           {/* Retirement Drawdown — the spending phase */}
-          {drawdown && activeRetirementAge != null && (() => {
+          {forecastAdvanced && drawdown && activeRetirementAge != null && (() => {
             const retAge = activeRetirementAge;
             const span = Math.max(1, drawdown.endAge - retAge);
             const lastsPct = Math.max(0, Math.min(100, ((drawdown.lastsToAge - retAge) / span) * 100));
@@ -6881,13 +6899,6 @@ export default function PlanningClient({
             );
           })()}
 
-          {guided && !forecastExpanded && (
-            <button type="button" onClick={() => setForecastExpanded(true)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "11px 0", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-subtle)", background: "var(--bg-surface)", color: "var(--text-secondary)", fontSize: "12px", fontFamily: "var(--font-body)", cursor: "pointer" }}>
-              Show full forecast detail
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-          )}
           {forecastAdvanced && (<>
           {/* Biggest Drivers */}
           {biggestDrivers.length > 0 && (
