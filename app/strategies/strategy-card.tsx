@@ -9,6 +9,7 @@ import StrategyPublicToggle from "./strategy-public-toggle";
 import type { StrategyAnalysis } from "@/app/api/strategies/analyze/route";
 import type { ImprovementResult } from "@/app/api/strategies/improve/route";
 import type { ScannerBoundsSuggestion } from "@/app/api/strategies/suggest-scanner-bounds/route";
+import BacktestPanel from "./backtest-panel";
 
 const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Options / Derivatives","Custom"];
 const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
@@ -1314,6 +1315,7 @@ export default function StrategyCardItem({
                     onApplied={() => setSharedAnalysis(null)}
                   />
                   <ScannerBoundsPanel card={card} onSaved={() => router.refresh()} />
+                  <BacktestPanel card={card} />
                 </div>
 
                 {/* Destructive / archive actions */}
