@@ -3,7 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validateLength } from "@/lib/validation";
-import type { StrategyRow, StrategyVersion } from "./types";
+import type { StrategyRow, StrategyVersion, ScannerBounds } from "./types";
+
+function parseScannerBounds(raw: string): ScannerBounds | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ScannerBounds>;
+    const hasAnyValue =
+      parsed.min_avg_dollar_volume != null ||
+      parsed.max_daily_move_pct != null ||
+      parsed.market_cap_floor != null ||
+      (parsed.notes && parsed.notes.trim());
+    if (!hasAnyValue) return null;
+    return {
+      min_avg_dollar_volume: parsed.min_avg_dollar_volume ?? null,
+      max_daily_move_pct: parsed.max_daily_move_pct ?? null,
+      market_cap_floor: parsed.market_cap_floor ?? null,
+      notes: parsed.notes ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function createStrategy(formData: FormData) {
   const supabase = await createClient();
@@ -76,6 +97,7 @@ export async function createStrategy(formData: FormData) {
     sell_rules_json: null,
     risk_rules_json: null,
     exit_rules_json: null,
+    scanner_bounds_json: null,
   });
 
   if (versionError) {
@@ -137,7 +159,7 @@ export async function updateStrategy(formData: FormData) {
 
   const { data: latestVersion, error: latestVersionError } = await supabase
     .from("strategy_versions")
-    .select("version_number")
+    .select("version_number, scanner_bounds_json")
     .eq("strategy_id", strategyId)
     .order("version_number", { ascending: false })
     .limit(1)
@@ -148,6 +170,13 @@ export async function updateStrategy(formData: FormData) {
   }
 
   const nextVersionNumber = Number(latestVersion.version_number) + 1;
+
+  // Only touched when the caller explicitly includes the field (the Numeric
+  // Screening Bounds panel); ordinary edits and Improve Strategy applies omit
+  // it entirely, so the existing bounds carry forward unchanged.
+  const scannerBounds = formData.has("scanner_bounds_json")
+    ? parseScannerBounds(String(formData.get("scanner_bounds_json") || "").trim())
+    : (latestVersion.scanner_bounds_json ?? null);
 
   const maxPositionPct = maxPositionPctRaw ? Number(maxPositionPctRaw) : null;
   const minPositionPct = minPositionPctRaw ? Number(minPositionPctRaw) : null;
@@ -188,6 +217,7 @@ export async function updateStrategy(formData: FormData) {
       sell_rules_json: null,
       risk_rules_json: null,
       exit_rules_json: null,
+      scanner_bounds_json: scannerBounds,
     });
 
   if (versionInsertError) {
@@ -232,6 +262,7 @@ export async function duplicateStrategy(strategyId: string) {
     cash_max_pct: version?.cash_max_pct ?? null,
     sector_constraints: null, diversification_rules: null, allow_fractional_shares: false,
     buy_rules_json: null, sell_rules_json: null, risk_rules_json: null, exit_rules_json: null,
+    scanner_bounds_json: version?.scanner_bounds_json ?? null,
   });
 
   revalidatePath("/strategies");

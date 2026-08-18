@@ -351,7 +351,7 @@ KEY BENCHMARKS (use these in calculations):
       apiKey,
       baseURL: "https://api.groq.com/openai/v1",
     });
-    const model = process.env.GROQ_FINN_CHAT_MODEL ?? "llama-3.3-70b-versatile";
+    const model = process.env.GROQ_FINN_CHAT_MODEL ?? "openai/gpt-oss-120b";
     const completion = await client.chat.completions.create({
       model,
       messages: [
@@ -360,6 +360,7 @@ KEY BENCHMARKS (use these in calculations):
       ],
       max_tokens: 650,
       temperature: 0.5,
+      ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
     const text = completion.choices[0]?.message?.content ?? "";
     return NextResponse.json({ response: text.trim() });

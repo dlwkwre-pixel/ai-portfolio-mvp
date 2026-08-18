@@ -59,7 +59,7 @@ Keep the response practical, not overly long. Use clear section headers. End wit
 
   if (groqKey) {
     client = new OpenAI({ apiKey: groqKey, baseURL: "https://api.groq.com/openai/v1" });
-    model = "llama-3.3-70b-versatile";
+    model = "openai/gpt-oss-120b";
   } else if (grokKey) {
     client = new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" });
     model = "grok-3-fast";
@@ -73,6 +73,7 @@ Keep the response practical, not overly long. Use clear section headers. End wit
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 1200,
+      ...(groqKey ? ({ reasoning_format: "hidden" } as Record<string, unknown>) : {}),
     });
 
     const analysis = completion.choices[0]?.message?.content ?? "No analysis generated.";

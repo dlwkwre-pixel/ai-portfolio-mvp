@@ -245,6 +245,11 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
 
   const featuredTemplates = TEMPLATES.filter(t => FEATURED_TEMPLATE_IDS.includes(t.id));
 
+  function scrollToStrategyCard(id: string) {
+    if (typeof window === "undefined") return;
+    document.getElementById(`strategy-card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   function onStrategyCreated(id: string | undefined, name: string) {
     setAssignedTo(null);
     setAssignError("");
@@ -328,6 +333,9 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
               <a href={`/portfolios/${assignedTo.id}`} style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Open portfolio →
               </a>
+              <button type="button" onClick={() => scrollToStrategyCard(created.id)} style={{ fontSize: "12px", fontWeight: 600, color: "rgba(14,165,160,0.95)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                Fine-tune with Atlas →
+              </button>
               <button type="button" onClick={() => setCreated(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Done</button>
             </div>
           ) : portfolios.length > 0 ? (
@@ -361,6 +369,9 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
                 >
                   {isAssignPending ? "Applying…" : "Apply to portfolio"}
                 </button>
+                <button type="button" onClick={() => scrollToStrategyCard(created.id)} style={{ fontSize: "12px", fontWeight: 600, color: "rgba(14,165,160,0.95)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  Fine-tune with Atlas →
+                </button>
                 <button type="button" onClick={() => setCreated(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap" }}>Not now</button>
               </div>
               {assignError && (
@@ -380,6 +391,9 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
               <a href="/portfolios" style={{ fontSize: "12px", fontWeight: 600, color: "#fff", background: "var(--brand-gradient)", borderRadius: "var(--radius-xl)", padding: "7px 14px", textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
                 Create a portfolio →
               </a>
+              <button type="button" onClick={() => scrollToStrategyCard(created.id)} style={{ fontSize: "12px", fontWeight: 600, color: "rgba(14,165,160,0.95)", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                Fine-tune with Atlas →
+              </button>
               <button type="button" onClick={() => setCreated(null)} style={{ fontSize: "12px", color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}>Done</button>
             </div>
           )}

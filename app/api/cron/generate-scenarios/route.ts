@@ -148,7 +148,7 @@ export async function GET(request: Request) {
   const grokKey  = process.env.GROK_API_KEY ?? process.env.XAI_API_KEY;
 
   const GROQ_URL = "https://api.groq.com/openai/v1";
-  const GROQ_MODEL = "llama-3.3-70b-versatile";
+  const GROQ_MODEL = "openai/gpt-oss-120b";
 
   if (!groqKey && !groq2Key && !grokKey) {
     return NextResponse.json({ error: "No AI key configured." }, { status: 500 });
@@ -159,14 +159,14 @@ export async function GET(request: Request) {
   const prompt = buildPrompt(headlines);
 
   // Build parallel calls: up to two Groq keys, or one Grok call as fallback
-  type CallSpec = { client: OpenAI; model: string; temperature: number };
+  type CallSpec = { client: OpenAI; model: string; temperature: number; isGroq?: boolean };
   const calls: CallSpec[] = [];
 
   if (groqKey) {
-    calls.push({ client: new OpenAI({ apiKey: groqKey, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.7 });
+    calls.push({ client: new OpenAI({ apiKey: groqKey, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.7, isGroq: true });
   }
   if (groq2Key) {
-    calls.push({ client: new OpenAI({ apiKey: groq2Key, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.8 });
+    calls.push({ client: new OpenAI({ apiKey: groq2Key, baseURL: GROQ_URL }), model: GROQ_MODEL, temperature: 0.8, isGroq: true });
   }
   if (calls.length === 0 && grokKey) {
     calls.push({ client: new OpenAI({ apiKey: grokKey, baseURL: "https://api.x.ai/v1" }), model: "grok-3-fast", temperature: 0.7 });
@@ -176,12 +176,13 @@ export async function GET(request: Request) {
 
   try {
     const results = await Promise.allSettled(
-      calls.map(({ client, model, temperature }) =>
+      calls.map(({ client, model, temperature, isGroq }) =>
         client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
           temperature,
           max_tokens: 4000,
+          ...(isGroq ? ({ reasoning_format: "hidden" } as Record<string, unknown>) : {}),
         })
       )
     );

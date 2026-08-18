@@ -8,6 +8,7 @@ import { saveFinnScore } from "./finn-profile-actions";
 import StrategyPublicToggle from "./strategy-public-toggle";
 import type { StrategyAnalysis } from "@/app/api/strategies/analyze/route";
 import type { ImprovementResult } from "@/app/api/strategies/improve/route";
+import type { ScannerBoundsSuggestion } from "@/app/api/strategies/suggest-scanner-bounds/route";
 
 const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Options / Derivatives","Custom"];
 const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
@@ -730,6 +731,199 @@ function ImproveStrategyPanel({
   );
 }
 
+function fmtCompactDollars(n: number | null): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+}
+
+function ScannerBoundsPanel({ card, onSaved }: { card: StrategyCard; onSaved: () => void }) {
+  const router = useRouter();
+  const v = card.latest_version;
+  const existing = v?.scanner_bounds_json ?? null;
+
+  const [open, setOpen] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [minVol, setMinVol] = useState(existing?.min_avg_dollar_volume?.toString() ?? "");
+  const [maxMove, setMaxMove] = useState(existing?.max_daily_move_pct?.toString() ?? "");
+  const [capFloor, setCapFloor] = useState(existing?.market_cap_floor?.toString() ?? "");
+
+  async function askAtlas() {
+    setSuggesting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/strategies/suggest-scanner-bounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: card.name,
+          style: card.style,
+          risk_level: card.risk_level,
+          prompt_text: v?.prompt_text ?? null,
+        }),
+      });
+      const data = await res.json() as { result?: ScannerBoundsSuggestion; error?: string };
+      if (!res.ok || data.error) { setError(data.error ?? "Suggestion failed."); return; }
+      if (data.result) {
+        setMinVol(data.result.min_avg_dollar_volume?.toString() ?? "");
+        setMaxMove(data.result.max_daily_move_pct?.toString() ?? "");
+        setCapFloor(data.result.market_cap_floor?.toString() ?? "");
+        setNotes(data.result.notes ?? "");
+      }
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function save(clear = false) {
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.set("strategy_id", card.id);
+      fd.set("name", card.name);
+      fd.set("description", card.description ?? "");
+      fd.set("style", card.style ?? "Growth");
+      fd.set("risk_level", card.risk_level ?? "Moderate");
+      fd.set("turnover_preference", v?.turnover_preference ?? "Moderate");
+      fd.set("holding_period_bias", v?.holding_period_bias ?? "Long-term");
+      fd.set("max_position_pct", String(v?.max_position_pct ?? ""));
+      fd.set("min_position_pct", String(v?.min_position_pct ?? ""));
+      fd.set("cash_min_pct", String(v?.cash_min_pct ?? ""));
+      fd.set("cash_max_pct", String(v?.cash_max_pct ?? ""));
+      fd.set("prompt_text", v?.prompt_text ?? "");
+      fd.set("scanner_bounds_json", clear ? "" : JSON.stringify({
+        min_avg_dollar_volume: minVol ? Number(minVol) : null,
+        max_daily_move_pct: maxMove ? Number(maxMove) : null,
+        market_cap_floor: capFloor ? Number(capFloor) : null,
+        notes: notes || null,
+      }));
+      await updateStrategy(fd);
+      setSaved(true);
+      onSaved();
+      router.refresh();
+      if (clear) { setMinVol(""); setMaxMove(""); setCapFloor(""); setNotes(""); }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        style={{
+          display: "flex", alignItems: "center", gap: "6px",
+          padding: "7px 14px", borderRadius: "var(--radius-xl)",
+          border: "1px solid rgba(14,165,160,0.22)", background: "rgba(14,165,160,0.06)",
+          color: "rgba(14,165,160,0.95)", fontFamily: "var(--font-body)",
+          fontSize: "12px", fontWeight: 600, cursor: "pointer",
+          transition: "background 0.15s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(14,165,160,0.12)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(14,165,160,0.06)"; }}
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+          <path d="M2 13V3M2 13h12M5 10V6M8 10V4M11 10V7" stroke="rgba(14,165,160,0.95)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Numeric Screening Bounds{existing ? "" : " (not set)"}
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ background: "rgba(14,165,160,0.04)", border: "1px solid rgba(14,165,160,0.15)", borderRadius: "var(--radius-lg)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(14,165,160,0.95)", boxShadow: "0 0 6px rgba(14,165,160,0.5)" }} />
+          <span style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(14,165,160,0.95)", fontFamily: "var(--font-body)" }}>Numeric Screening Bounds</span>
+        </div>
+        <button type="button" onClick={() => setOpen(false)}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", lineHeight: 1, padding: "2px" }}>
+          ×
+        </button>
+      </div>
+
+      <p style={{ fontSize: "12px", color: "var(--text-tertiary)", lineHeight: 1.6, margin: 0, fontFamily: "var(--font-body)" }}>
+        Optional. Most strategies don&apos;t need this — it only matters if this strategy is used by an automated/unattended scanner, which can&apos;t take qualitative language as input and otherwise has to invent numbers on its own. Set real bounds here instead so they&apos;re visible and editable, not guessed.
+      </p>
+
+      <button type="button" onClick={askAtlas} disabled={suggesting}
+        style={{
+          alignSelf: "flex-start", display: "flex", alignItems: "center", gap: "6px",
+          padding: "6px 13px", borderRadius: "var(--radius-xl)", border: "1px solid rgba(14,165,160,0.28)",
+          background: "rgba(14,165,160,0.1)", color: "rgba(14,165,160,0.95)",
+          fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 700,
+          cursor: suggesting ? "default" : "pointer", opacity: suggesting ? 0.6 : 1,
+        }}>
+        {suggesting ? "Atlas is thinking…" : "Ask Atlas to suggest →"}
+      </button>
+
+      {error && (
+        <p style={{ fontSize: "12px", color: "var(--red)", fontFamily: "var(--font-body)", margin: 0 }}>{error}</p>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" }}>
+        <div>
+          <label className={lbl}>Min avg $ volume</label>
+          <input type="number" className={inp} value={minVol} onChange={e => setMinVol(e.target.value)} placeholder="e.g. 4000000" />
+        </div>
+        <div>
+          <label className={lbl}>Max daily move %</label>
+          <input type="number" className={inp} value={maxMove} onChange={e => setMaxMove(e.target.value)} placeholder="e.g. 50" />
+        </div>
+        <div>
+          <label className={lbl}>Market cap floor (optional)</label>
+          <input type="number" className={inp} value={capFloor} onChange={e => setCapFloor(e.target.value)} placeholder="usually leave blank" />
+        </div>
+      </div>
+
+      {(minVol || maxMove || capFloor) && (
+        <div style={{ display: "flex", gap: "12px", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>
+          <span>Liquidity floor: {fmtCompactDollars(minVol ? Number(minVol) : null)}</span>
+          <span>Move cap: {maxMove ? `${maxMove}%` : "—"}</span>
+          <span>Cap floor: {fmtCompactDollars(capFloor ? Number(capFloor) : null)}</span>
+        </div>
+      )}
+
+      <div>
+        <label className={lbl}>Notes / rationale</label>
+        <textarea className={inp} rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why these numbers — optional but helpful for future you (and any agent reading this)." />
+      </div>
+
+      {saved ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)", fontWeight: 600 }}>✓ Saved</span>
+          <button type="button" onClick={() => setSaved(false)}
+            style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-body)", padding: 0, marginLeft: "4px" }}>
+            Edit again
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button type="button" onClick={() => save(false)} disabled={saving}
+            style={{ padding: "7px 18px", borderRadius: "var(--radius-xl)", border: "none", background: "var(--brand-gradient)", color: "#fff", fontFamily: "var(--font-body)", fontSize: "12px", fontWeight: 700, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
+            {saving ? "Saving…" : "Save bounds"}
+          </button>
+          {existing && (
+            <button type="button" onClick={() => save(true)} disabled={saving}
+              style={{ padding: "7px 13px", borderRadius: "var(--radius-xl)", border: "1px solid var(--line-008)", background: "transparent", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", fontSize: "12px", cursor: "pointer" }}>
+              Clear bounds
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type CardMode = "collapsed" | "expanded" | "editing";
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -750,7 +944,7 @@ export default function StrategyCardItem({
   const chips = deriveChips(card.latest_version);
   const health = deriveHealthLabel(card.latest_version, card.risk_level);
   const regimeFit = regimeFitBadge(card.style, card.risk_level, regimeLevel);
-  const [mode, setMode] = useState<CardMode>("collapsed");
+  const [mode, setMode] = useState<CardMode>(isNew ? "expanded" : "collapsed");
   const [isEditPending, startEdit] = useTransition();
   const [isDupPending, startDup] = useTransition();
   const [isDeletePending, startDelete] = useTransition();
@@ -808,6 +1002,7 @@ export default function StrategyCardItem({
         }
       `}</style>
       <div
+        id={`strategy-card-${card.id}`}
         className="bt-card"
         style={{
           overflow: "hidden",
@@ -1118,6 +1313,7 @@ export default function StrategyCardItem({
                     currentConfidence={sharedAnalysis?.finn_confidence ?? null}
                     onApplied={() => setSharedAnalysis(null)}
                   />
+                  <ScannerBoundsPanel card={card} onSaved={() => router.refresh()} />
                 </div>
 
                 {/* Destructive / archive actions */}

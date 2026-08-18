@@ -172,13 +172,14 @@ Rules:
     });
 
     const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       max_tokens: 1800,
       temperature: 0.2,
+      ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() ?? "{}";

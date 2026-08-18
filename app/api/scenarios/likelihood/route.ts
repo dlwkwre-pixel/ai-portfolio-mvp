@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const isGrok  = !groqKey && Boolean(grokKey);
     const baseURL = isGrok ? "https://api.x.ai/v1" : "https://api.groq.com/openai/v1";
-    const model   = isGrok ? "grok-3-fast" : "llama-3.3-70b-versatile";
+    const model   = isGrok ? "grok-3-fast" : "openai/gpt-oss-120b";
 
     const headlineBlock = headlines.length > 0
       ? headlines.map((h) => `- [${h.source}] ${h.headline}`).join("\n")
@@ -77,6 +77,7 @@ Respond ONLY as valid JSON (no markdown):
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 500,
+      ...(isGrok ? {} : ({ reasoning_format: "hidden" } as Record<string, unknown>)),
     });
 
     const raw = completion.choices[0]?.message?.content ?? "";

@@ -54,7 +54,7 @@ Return ONLY valid JSON:
   try {
     const client = new OpenAI({ apiKey, baseURL: "https://api.groq.com/openai/v1" });
     const completion = await client.chat.completions.create({
-      model: process.env.GROQ_FINN_COMMENTARY_MODEL ?? "llama-3.3-70b-versatile",
+      model: process.env.GROQ_FINN_COMMENTARY_MODEL ?? "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: "You are a precise calculator. Return only valid JSON. No text outside the JSON object." },
         { role: "user", content: prompt },
@@ -62,6 +62,7 @@ Return ONLY valid JSON:
       max_tokens: 150,
       temperature: 0,
       response_format: { type: "json_object" },
+      ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
     const text = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(text) as Partial<ConcessionParseResponse>;

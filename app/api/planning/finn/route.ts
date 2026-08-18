@@ -161,7 +161,7 @@ Respond in 2-4 plain sentences. No bullet points. No headers. If tax-bucket conc
       apiKey,
       baseURL: "https://api.groq.com/openai/v1",
     });
-    const model = process.env.GROQ_FINN_COMMENTARY_MODEL ?? "llama-3.3-70b-versatile";
+    const model = process.env.GROQ_FINN_COMMENTARY_MODEL ?? "openai/gpt-oss-120b";
     const completion = await client.chat.completions.create({
       model,
       messages: [
@@ -170,6 +170,7 @@ Respond in 2-4 plain sentences. No bullet points. No headers. If tax-bucket conc
       ],
       max_tokens: 300,
       temperature: 0.4,
+      ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
     const text = completion.choices[0]?.message?.content ?? "";
     return NextResponse.json({ commentary: text.trim() });

@@ -91,13 +91,14 @@ End with: "For informational purposes only — not financial advice."`;
   try {
     const client = new OpenAI({ apiKey, baseURL: "https://api.groq.com/openai/v1" });
     const completion = await client.chat.completions.create({
-      model: process.env.GROQ_FINN_COMMENTARY_MODEL ?? "llama-3.3-70b-versatile",
+      model: process.env.GROQ_FINN_COMMENTARY_MODEL ?? "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       max_tokens: 400,
       temperature: 0.4,
+      ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
     const text = completion.choices[0]?.message?.content ?? "";
     return NextResponse.json({ commentary: text.trim() });

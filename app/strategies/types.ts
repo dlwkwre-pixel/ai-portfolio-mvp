@@ -12,6 +12,13 @@ export type StrategyRow = {
   updated_at: string;
 };
 
+export type ScannerBounds = {
+  min_avg_dollar_volume: number | null;
+  max_daily_move_pct: number | null;
+  market_cap_floor: number | null;
+  notes: string | null;
+};
+
 export type StrategyVersion = {
   id: string;
   strategy_id: string;
@@ -23,6 +30,7 @@ export type StrategyVersion = {
   holding_period_bias: string | null;
   cash_min_pct: number | null;
   cash_max_pct: number | null;
+  scanner_bounds_json: ScannerBounds | null;
   created_at: string;
 };
 

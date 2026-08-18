@@ -384,7 +384,7 @@ function buildServer(userId: string, origin: string): McpServer {
 
       const strategyIds = strategies.map((s) => s.id);
       const { data: versions } = await admin.from("strategy_versions")
-        .select("id, strategy_id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct")
+        .select("id, strategy_id, version_number, prompt_text, max_position_pct, min_position_pct, turnover_preference, holding_period_bias, cash_min_pct, cash_max_pct, scanner_bounds_json")
         .in("strategy_id", strategyIds).order("version_number", { ascending: false });
       const latestVersionByStrategy = new Map<string, NonNullable<typeof versions>[number]>();
       for (const v of versions ?? []) if (!latestVersionByStrategy.has(v.strategy_id)) latestVersionByStrategy.set(v.strategy_id, v);
@@ -428,6 +428,12 @@ function buildServer(userId: string, origin: string): McpServer {
             holding_period_bias: v.holding_period_bias,
             cash_min_pct: v.cash_min_pct,
             cash_max_pct: v.cash_max_pct,
+            // Explicit numeric bounds the user set/approved for automated scanning
+            // (liquidity floor, move cap, etc). When present, use these EXACT
+            // numbers for any scanner/screener step instead of deriving your own
+            // from "guidance" above — they exist specifically so a scanner doesn't
+            // have to invent or interpret numbers from prose.
+            scanner_bounds: v.scanner_bounds_json ?? null,
           } : null,
           assigned_portfolios: strategyAssignments.map((a) => {
             const portfolio = a.portfolios as unknown as { id: string; name: string };
