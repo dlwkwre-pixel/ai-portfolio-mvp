@@ -11,6 +11,7 @@ import FinnProfileCard from "./finn-profile-card";
 import { deriveMemoryInsights } from "./finn-profile-utils";
 import RegimeCompactBanner from "@/app/components/regime-compact-banner";
 import RegimeShiftAlert from "@/app/components/regime-shift-alert";
+import BacktestComparePanel from "./backtest-compare";
 
 export default async function StrategiesPage() {
   const supabase = await createClient();
@@ -122,6 +123,9 @@ export default async function StrategiesPage() {
             {activeCards.length > 0 && (
               <StrategyList cards={activeCards} newestIsNew={newestIsNew} />
             )}
+
+            {/* Multi-strategy backtest comparison */}
+            <BacktestComparePanel strategies={activeCards.map((c) => ({ id: c.id, name: c.name }))} />
 
             {/* Archived strategies — collapsed toggle */}
             <ArchivedSection cards={archivedCards} />

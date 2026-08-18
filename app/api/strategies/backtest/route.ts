@@ -15,6 +15,10 @@ const WINNER_THRESHOLD_PCT = 15; // once up this much from entry, treat as a "wi
 const TRAILING_STOP_PCT = 10; // winners exit on a pullback this large from their peak, not from entry
 const MAX_HOLD_MULTIPLIER = 3; // even winners force-close after holdWindow * this, so the sim stays bounded
 const FETCH_BATCH_SIZE = 20;
+const REGIME_TREND_WINDOW = 50; // days of lead-in needed before a day can be classified
+const REGIME_VOL_WINDOW = 20;
+const REGIME_HIGH_VOL_ANNUALIZED_PCT = 25;
+const SWEEP_STOP_LOSS_VALUES = [6, 8, 10, 12, 15, 20, 25];
 
 export const DISCLAIMER =
   `This tests the strategy's numeric risk parameters (position sizing, stop-loss %, cash range, trade pacing) using a fixed, generic momentum/volume trigger as a stand-in for 'the AI found a candidate' — it does NOT replay what Atlas would have actually picked, since that judgment can't be tested historically. Universe is today's ~${BACKTEST_UNIVERSE.length} most liquid large/mid-caps, not the historical constituent list at the time, so results carry survivorship bias. A ${TRANSACTION_COST_PCT}% per-trade cost is applied each way to keep results realistic. Winners are allowed to run past the normal hold window (trailing stop from peak instead of a fixed exit) once up ${WINNER_THRESHOLD_PCT}%+; losers are still cut fast via the hard stop-loss. Treat this as a check on the risk framework, not a performance guarantee.`;
@@ -35,7 +39,72 @@ type Trade = { entryDate: string; exitDate: string; pnlPct: number };
 type BacktestRequest = {
   strategy_id: string;
   lookback: RangeKey;
+  save?: boolean;
+  sweep?: boolean;
 };
+
+type RegimeBucket = "Uptrend" | "Downtrend" | "Choppy / High-Vol";
+
+function classifyRegimes(spyBars: BenchmarkBar[]): Map<string, RegimeBucket> {
+  const byDate = new Map<string, RegimeBucket>();
+  for (let i = 0; i < spyBars.length; i++) {
+    if (i < REGIME_TREND_WINDOW) continue;
+    const trendWindow = spyBars.slice(i - REGIME_TREND_WINDOW, i);
+    const sma = trendWindow.reduce((s, b) => s + b.adjClose, 0) / trendWindow.length;
+
+    const volWindow = spyBars.slice(Math.max(0, i - REGIME_VOL_WINDOW), i);
+    const dailyReturns: number[] = [];
+    for (let j = 1; j < volWindow.length; j++) {
+      if (volWindow[j - 1].adjClose > 0) dailyReturns.push(volWindow[j].adjClose / volWindow[j - 1].adjClose - 1);
+    }
+    const mean = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0;
+    const variance = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + (b - mean) ** 2, 0) / dailyReturns.length : 0;
+    const annualizedVolPct = Math.sqrt(variance) * Math.sqrt(252) * 100;
+
+    const bucket: RegimeBucket = annualizedVolPct >= REGIME_HIGH_VOL_ANNUALIZED_PCT
+      ? "Choppy / High-Vol"
+      : spyBars[i].adjClose >= sma ? "Uptrend" : "Downtrend";
+    byDate.set(spyBars[i].date, bucket);
+  }
+  return byDate;
+}
+
+function summarizeByRegime(
+  curve: { date: string; value: number }[],
+  closedTrades: Trade[],
+  regimeByDate: Map<string, RegimeBucket>
+) {
+  const buckets: Record<RegimeBucket, { days: number; product: number; wins: number; trades: number }> = {
+    "Uptrend": { days: 0, product: 1, wins: 0, trades: 0 },
+    "Downtrend": { days: 0, product: 1, wins: 0, trades: 0 },
+    "Choppy / High-Vol": { days: 0, product: 1, wins: 0, trades: 0 },
+  };
+
+  for (let i = 1; i < curve.length; i++) {
+    const bucket = regimeByDate.get(curve[i].date);
+    if (!bucket || curve[i - 1].value <= 0) continue;
+    const dailyReturn = curve[i].value / curve[i - 1].value - 1;
+    buckets[bucket].days += 1;
+    buckets[bucket].product *= (1 + dailyReturn);
+  }
+
+  for (const trade of closedTrades) {
+    const bucket = regimeByDate.get(trade.entryDate);
+    if (!bucket) continue;
+    buckets[bucket].trades += 1;
+    if (trade.pnlPct > 0) buckets[bucket].wins += 1;
+  }
+
+  const totalClassifiedDays = buckets["Uptrend"].days + buckets["Downtrend"].days + buckets["Choppy / High-Vol"].days;
+
+  return (Object.keys(buckets) as RegimeBucket[]).map((bucket) => ({
+    regime: bucket,
+    days_pct: totalClassifiedDays > 0 ? (buckets[bucket].days / totalClassifiedDays) * 100 : 0,
+    strategy_return_pct: (buckets[bucket].product - 1) * 100,
+    trade_count: buckets[bucket].trades,
+    win_rate_pct: buckets[bucket].trades > 0 ? (buckets[bucket].wins / buckets[bucket].trades) * 100 : 0,
+  }));
+}
 
 function parseStopLossPct(promptText: string | null): number {
   if (!promptText) return DEFAULT_STOP_LOSS_PCT;
@@ -221,6 +290,38 @@ function runSimulation(
   return { equityCurve, closedTrades };
 }
 
+function buildCurveAndStats(
+  spyBars: BenchmarkBar[],
+  equityCurve: { date: string; value: number }[],
+  closedTrades: Trade[]
+) {
+  const spyBase = spyBars[0].adjClose;
+  const equityByDate = new Map(equityCurve.map((e) => [e.date, e.value]));
+  const curve = spyBars.map((b) => ({
+    date: b.date,
+    value: equityByDate.get(b.date) ?? STARTING_EQUITY,
+    benchmark: spyBase > 0 ? (b.adjClose / spyBase) * STARTING_EQUITY : STARTING_EQUITY,
+  }));
+
+  const finalValue = curve[curve.length - 1]?.value ?? STARTING_EQUITY;
+  const finalBenchmark = curve[curve.length - 1]?.benchmark ?? STARTING_EQUITY;
+  const wins = closedTrades.filter((t) => t.pnlPct > 0);
+  const losses = closedTrades.filter((t) => t.pnlPct <= 0);
+
+  const stats = {
+    total_return_pct: finalValue - STARTING_EQUITY,
+    benchmark_return_pct: finalBenchmark - STARTING_EQUITY,
+    max_drawdown_pct: maxDrawdown(curve.map((c) => c.value)),
+    win_rate_pct: closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0,
+    avg_win_pct: wins.length > 0 ? wins.reduce((s, t) => s + t.pnlPct, 0) / wins.length : 0,
+    avg_loss_pct: losses.length > 0 ? losses.reduce((s, t) => s + t.pnlPct, 0) / losses.length : 0,
+    trade_count: closedTrades.length,
+    sharpe_approx: sharpeApprox(curve.map((c) => c.value)),
+  };
+
+  return { curve, stats };
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -236,12 +337,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { strategy_id, lookback } = body;
+  const { strategy_id, lookback, save, sweep } = body;
   const validLookbacks: RangeKey[] = ["1Y", "3Y", "5Y"];
   const range: RangeKey = validLookbacks.includes(lookback) ? lookback : "1Y";
 
   const { data: strategy, error: strategyErr } = await supabase
-    .from("strategies").select("id").eq("id", strategy_id).eq("user_id", user.id).single();
+    .from("strategies").select("id, name").eq("id", strategy_id).eq("user_id", user.id).single();
   if (strategyErr || !strategy) return NextResponse.json({ error: "Strategy not found." }, { status: 404 });
 
   const { data: version, error: versionErr } = await supabase
@@ -283,6 +384,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not enough market data available across the universe right now — try again shortly." }, { status: 502 });
     }
 
+    // ── Parameter sweep: same fetched data, several stop-loss values ──
+    if (sweep) {
+      const sweepResults = SWEEP_STOP_LOSS_VALUES.map((sweepStopLoss) => {
+        const { equityCurve, closedTrades } = runSimulation(tickerBars, tradingDates, {
+          stopLossPct: sweepStopLoss,
+          positionSizePct,
+          maxConcurrentPositions,
+          holdWindow,
+          scannerBounds,
+        });
+        const { stats } = buildCurveAndStats(spyBars, equityCurve, closedTrades);
+        return {
+          stop_loss_pct: sweepStopLoss,
+          is_current: sweepStopLoss === stopLossPct,
+          total_return_pct: stats.total_return_pct,
+          max_drawdown_pct: stats.max_drawdown_pct,
+          sharpe_approx: stats.sharpe_approx,
+          trade_count: stats.trade_count,
+        };
+      });
+
+      return NextResponse.json({ sweep_result: { values: sweepResults, lookback: range, current_stop_loss_pct: stopLossPct } });
+    }
+
+    // ── Single run ──
     const { equityCurve, closedTrades } = runSimulation(tickerBars, tradingDates, {
       stopLossPct,
       positionSizePct,
@@ -291,34 +417,41 @@ export async function POST(req: NextRequest) {
       scannerBounds,
     });
 
-    const spyBase = spyBars[0].adjClose;
-    const equityByDate = new Map(equityCurve.map((e) => [e.date, e.value]));
-    const curve = spyBars.map((b) => ({
-      date: b.date,
-      value: equityByDate.get(b.date) ?? STARTING_EQUITY,
-      benchmark: spyBase > 0 ? (b.adjClose / spyBase) * STARTING_EQUITY : STARTING_EQUITY,
-    }));
+    const { curve, stats } = buildCurveAndStats(spyBars, equityCurve, closedTrades);
+    const regimeByDate = classifyRegimes(spyBars);
+    const regimeBreakdown = summarizeByRegime(curve, closedTrades, regimeByDate);
 
-    const finalValue = curve[curve.length - 1]?.value ?? STARTING_EQUITY;
-    const finalBenchmark = curve[curve.length - 1]?.benchmark ?? STARTING_EQUITY;
-    const wins = closedTrades.filter((t) => t.pnlPct > 0);
-    const losses = closedTrades.filter((t) => t.pnlPct <= 0);
-
-    const stats = {
-      total_return_pct: finalValue - STARTING_EQUITY,
-      benchmark_return_pct: finalBenchmark - STARTING_EQUITY,
-      max_drawdown_pct: maxDrawdown(curve.map((c) => c.value)),
-      win_rate_pct: closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0,
-      avg_win_pct: wins.length > 0 ? wins.reduce((s, t) => s + t.pnlPct, 0) / wins.length : 0,
-      avg_loss_pct: losses.length > 0 ? losses.reduce((s, t) => s + t.pnlPct, 0) / losses.length : 0,
-      trade_count: closedTrades.length,
-      sharpe_approx: sharpeApprox(curve.map((c) => c.value)),
+    const params = {
+      stop_loss_pct: stopLossPct,
+      position_size_pct: positionSizePct,
+      max_concurrent_positions: maxConcurrentPositions,
+      hold_window_days: holdWindow,
+      universe_size: tickerBars.size,
     };
+
+    let savedRunId: string | null = null;
+    if (save) {
+      const { data: inserted, error: insertErr } = await supabase
+        .from("strategy_backtests")
+        .insert({
+          user_id: user.id,
+          strategy_id,
+          strategy_name: strategy.name,
+          lookback: range,
+          params_json: params,
+          stats_json: stats,
+          equity_curve_json: curve,
+        })
+        .select("id")
+        .single();
+      if (!insertErr && inserted) savedRunId = inserted.id as string;
+    }
 
     return NextResponse.json({
       result: {
         equity_curve: curve,
         stats,
+        regime_breakdown: regimeBreakdown,
         universe_size: tickerBars.size,
         lookback: range,
         stop_loss_pct: stopLossPct,
@@ -326,10 +459,58 @@ export async function POST(req: NextRequest) {
         max_concurrent_positions: maxConcurrentPositions,
         hold_window_days: holdWindow,
         disclaimer: DISCLAIMER,
+        saved_run_id: savedRunId,
       },
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const strategyId = req.nextUrl.searchParams.get("strategy_id");
+  const runId = req.nextUrl.searchParams.get("run_id");
+
+  if (runId) {
+    const { data, error } = await supabase
+      .from("strategy_backtests")
+      .select("id, strategy_id, strategy_name, lookback, params_json, stats_json, equity_curve_json, created_at")
+      .eq("id", runId).eq("user_id", user.id).single();
+    if (error || !data) return NextResponse.json({ error: "Run not found." }, { status: 404 });
+    return NextResponse.json({ run: data });
+  }
+
+  if (!strategyId) return NextResponse.json({ error: "strategy_id is required." }, { status: 400 });
+
+  const { data, error } = await supabase
+    .from("strategy_backtests")
+    .select("id, lookback, params_json, stats_json, created_at")
+    .eq("strategy_id", strategyId).eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ runs: data ?? [] });
+}
+
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const runId = req.nextUrl.searchParams.get("run_id");
+  if (!runId) return NextResponse.json({ error: "run_id is required." }, { status: 400 });
+
+  const { error } = await supabase
+    .from("strategy_backtests")
+    .delete()
+    .eq("id", runId).eq("user_id", user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
 }
