@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createStrategy } from "./actions";
 import { assignStrategyToPortfolio } from "@/app/portfolios/[id]/assign-strategy-actions";
 import StrategyQuestionnaire from "./strategy-questionnaire";
+import BringYourOwnAiPanel from "./byo-ai-panel";
 
 type HubPortfolio = { id: string; name: string; account_type: string | null };
 
@@ -164,10 +165,10 @@ const FAQ = [
 
 // ── Form helpers ───────────────────────────────────────────────────────────────
 
-const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Custom"];
-const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
-const TURNOVER_PREFS = ["Low", "Moderate", "High"];
-const HOLDING_BIASES = ["Short-term","Swing","Medium-term","Long-term","Very Long-term","Flexible"];
+export const STRATEGY_STYLES = ["Growth","Value","Blend","Dividend / Income","Quality","Index / Passive","Sector / Thematic","Momentum","Swing","Mean Reversion","Defensive","Balanced","Speculative","Custom"];
+export const RISK_LEVELS = ["Conservative", "Moderate", "Aggressive"];
+export const TURNOVER_PREFS = ["Low", "Moderate", "High"];
+export const HOLDING_BIASES = ["Short-term","Swing","Medium-term","Long-term","Very Long-term","Flexible"];
 
 const inp = "bt-input";
 const sel = "bt-input";
@@ -226,7 +227,7 @@ const KEYFRAMES = `
 export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPortfolio[] }) {
   const router = useRouter();
   // One builder, three methods. Default to Atlas (the recommended path).
-  const [method, setMethod] = useState<"ai-builder" | "templates" | "custom">("ai-builder");
+  const [method, setMethod] = useState<"ai-builder" | "templates" | "custom" | "byo-ai">("ai-builder");
   const [showAllTemplates, setShowAllTemplates] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
@@ -415,6 +416,7 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             { id: "ai-builder", label: "Let Atlas build it", badge: "Recommended" },
             { id: "templates", label: "Start from a template", badge: null },
             { id: "custom", label: "Build it myself", badge: null },
+            { id: "byo-ai", label: "Use your own AI", badge: null },
           ] as const).map((m) => {
             const active = method === m.id;
             return (
@@ -550,6 +552,11 @@ export default function StrategiesHub({ portfolios = [] }: { portfolios?: HubPor
             </div>
           </div>
         </div>
+
+        {/* ── Bring your own AI ── */}
+        {method === "byo-ai" && (
+          <BringYourOwnAiPanel onCreated={onStrategyCreated} />
+        )}
 
         {/* ── Templates body: popular row + view-all ── */}
         {method === "templates" && (
