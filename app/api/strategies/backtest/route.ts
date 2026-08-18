@@ -6,13 +6,27 @@ import { BACKTEST_UNIVERSE } from "@/lib/backtest/universe";
 import type { RangeKey, BenchmarkBar } from "@/lib/market-data/type";
 import type { ScannerBounds } from "@/app/strategies/types";
 
-export const DISCLAIMER =
-  "This tests the strategy's numeric risk parameters (position sizing, stop-loss %, cash range, trade pacing) using a fixed, generic momentum/volume trigger as a stand-in for 'the AI found a candidate' — it does NOT replay what Atlas would have actually picked, since that judgment can't be tested historically. Universe is today's ~70 most liquid large/mid-caps, not the historical constituent list at the time, so results carry survivorship bias. Treat this as a check on the risk framework, not a performance guarantee.";
-
 const SIGNAL_5D_RETURN_PCT = 6; // fixed generic momentum trigger, not strategy-specific
 const VOLUME_MULTIPLE = 1.5;
 const DEFAULT_STOP_LOSS_PCT = 15;
 const STARTING_EQUITY = 100;
+const TRANSACTION_COST_PCT = 0.05; // 5bps each way — entry and exit
+const WINNER_THRESHOLD_PCT = 15; // once up this much from entry, treat as a "winner" and let it run
+const TRAILING_STOP_PCT = 10; // winners exit on a pullback this large from their peak, not from entry
+const MAX_HOLD_MULTIPLIER = 3; // even winners force-close after holdWindow * this, so the sim stays bounded
+const FETCH_BATCH_SIZE = 20;
+
+export const DISCLAIMER =
+  `This tests the strategy's numeric risk parameters (position sizing, stop-loss %, cash range, trade pacing) using a fixed, generic momentum/volume trigger as a stand-in for 'the AI found a candidate' — it does NOT replay what Atlas would have actually picked, since that judgment can't be tested historically. Universe is today's ~${BACKTEST_UNIVERSE.length} most liquid large/mid-caps, not the historical constituent list at the time, so results carry survivorship bias. A ${TRANSACTION_COST_PCT}% per-trade cost is applied each way to keep results realistic. Winners are allowed to run past the normal hold window (trailing stop from peak instead of a fixed exit) once up ${WINNER_THRESHOLD_PCT}%+; losers are still cut fast via the hard stop-loss. Treat this as a check on the risk framework, not a performance guarantee.`;
+
+async function fetchInBatches<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    results.push(...await Promise.all(batch.map(fn)));
+  }
+  return results;
+}
 
 type SimBar = { date: string; close: number; volume: number | null };
 
@@ -76,7 +90,7 @@ function sharpeApprox(equity: number[]): number {
   return (mean / stddev) * Math.sqrt(252);
 }
 
-type OpenPosition = { ticker: string; entryDate: string; entryPrice: number; costBasis: number; daysHeld: number };
+type OpenPosition = { ticker: string; entryDate: string; entryPrice: number; costBasis: number; daysHeld: number; peakPrice: number };
 
 function runSimulation(
   tickerBars: Map<string, SimBar[]>,
@@ -113,27 +127,43 @@ function runSimulation(
   }
 
   for (const date of tradingDates) {
-    // 1. Mark-to-market check exits first (stop-loss / hold window)
+    // 1. Mark-to-market check exits first: hard stop-loss always applies (cut
+    // losers fast); winners are allowed to run past the normal hold window and
+    // instead exit on a trailing stop from their peak (protects gains without
+    // capping upside at a fixed day count).
     for (let i = openPositions.length - 1; i >= 0; i--) {
       const pos = openPositions[i];
       const bar = barAt(pos.ticker, date);
       if (!bar) continue;
       pos.daysHeld += 1;
+      pos.peakPrice = Math.max(pos.peakPrice, bar.close);
       const pnlPct = ((bar.close - pos.entryPrice) / pos.entryPrice) * 100;
-      const shouldStop = pnlPct <= -params.stopLossPct;
-      const shouldTimeExit = pos.daysHeld >= params.holdWindow;
-      if (shouldStop || shouldTimeExit) {
-        cash += pos.costBasis * (1 + pnlPct / 100);
-        closedTrades.push({ entryDate: pos.entryDate, exitDate: date, pnlPct });
+      const drawdownFromPeakPct = pos.peakPrice > 0 ? ((pos.peakPrice - bar.close) / pos.peakPrice) * 100 : 0;
+      const isWinner = pnlPct >= WINNER_THRESHOLD_PCT;
+
+      const shouldHardStop = pnlPct <= -params.stopLossPct;
+      const shouldTrailingStop = isWinner && drawdownFromPeakPct >= TRAILING_STOP_PCT;
+      const shouldTimeExit = !isWinner && pos.daysHeld >= params.holdWindow;
+      const shouldMaxHoldExit = pos.daysHeld >= params.holdWindow * MAX_HOLD_MULTIPLIER;
+
+      if (shouldHardStop || shouldTrailingStop || shouldTimeExit || shouldMaxHoldExit) {
+        const grossProceeds = pos.costBasis * (1 + pnlPct / 100);
+        const exitFee = grossProceeds * (TRANSACTION_COST_PCT / 100);
+        cash += grossProceeds - exitFee;
+        const netPnlPct = pnlPct - 2 * TRANSACTION_COST_PCT; // entry + exit fee, approximated on notional
+        closedTrades.push({ entryDate: pos.entryDate, exitDate: date, pnlPct: netPnlPct });
         openPositions.splice(i, 1);
       }
     }
 
-    // 2. Look for new entries if slots are open
+    // 2. Look for new entries if slots are open — rank same-day candidates by
+    // signal strength (5-day return) so limited slots go to the strongest
+    // setups first, rather than whichever ticker happens to iterate first.
     if (openPositions.length < params.maxConcurrentPositions) {
       const held = new Set(openPositions.map((p) => p.ticker));
+      const candidates: { ticker: string; bar: SimBar; fiveDayReturn: number }[] = [];
+
       for (const ticker of tickerBars.keys()) {
-        if (openPositions.length >= params.maxConcurrentPositions) break;
         if (held.has(ticker)) continue;
         const bar = barAt(ticker, date);
         const past = barsBack(ticker, date, 20);
@@ -157,6 +187,14 @@ function runSimulation(
           if (todayMovePct > params.scannerBounds.max_daily_move_pct) continue;
         }
 
+        candidates.push({ ticker, bar, fiveDayReturn });
+      }
+
+      candidates.sort((a, b) => b.fiveDayReturn - a.fiveDayReturn);
+
+      for (const candidate of candidates) {
+        if (openPositions.length >= params.maxConcurrentPositions) break;
+
         const currentEquity = cash + openPositions.reduce((s, p) => {
           const b = barAt(p.ticker, date);
           const pnl = b ? ((b.close - p.entryPrice) / p.entryPrice) : 0;
@@ -165,8 +203,9 @@ function runSimulation(
         const allocation = Math.min(cash, currentEquity * (params.positionSizePct / 100));
         if (allocation <= 0) continue;
 
-        cash -= allocation;
-        openPositions.push({ ticker, entryDate: date, entryPrice: bar.close, costBasis: allocation, daysHeld: 0 });
+        const entryFee = allocation * (TRANSACTION_COST_PCT / 100);
+        cash -= allocation + entryFee;
+        openPositions.push({ ticker: candidate.ticker, entryDate: date, entryPrice: candidate.bar.close, costBasis: allocation, daysHeld: 0, peakPrice: candidate.bar.close });
       }
     }
 
@@ -222,10 +261,12 @@ export async function POST(req: NextRequest) {
   const scannerBounds = (version.scanner_bounds_json as ScannerBounds | null) ?? null;
 
   try {
-    const [spyBars, ...universeBars] = await Promise.all([
-      getBenchmarkHistory("SPY", range, false, false),
-      ...BACKTEST_UNIVERSE.map((t) => getBenchmarkHistory(t, range, false, false)),
-    ]);
+    const spyBars = await getBenchmarkHistory("SPY", range, false, false);
+    const universeBars = await fetchInBatches(
+      [...BACKTEST_UNIVERSE],
+      FETCH_BATCH_SIZE,
+      (t) => getBenchmarkHistory(t, range, false, false)
+    );
 
     if (spyBars.length < 30) {
       return NextResponse.json({ error: "Not enough benchmark data to run a backtest right now." }, { status: 502 });
