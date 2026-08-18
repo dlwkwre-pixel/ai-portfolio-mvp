@@ -177,12 +177,17 @@ Rules:
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 1800,
+      max_tokens: 2600,
       temperature: 0.2,
       ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+    let raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+    // Reasoning models sometimes wrap valid JSON in markdown fences despite
+    // being told not to — strip them defensively before parsing rather than
+    // failing outright on an otherwise-valid response.
+    const fenceMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenceMatch) raw = fenceMatch[1].trim();
 
     let result: ImprovementResult;
     try {

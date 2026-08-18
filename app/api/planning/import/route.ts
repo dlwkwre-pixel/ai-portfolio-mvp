@@ -100,7 +100,9 @@ Rules:
       ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "[]";
+    let raw = completion.choices[0]?.message?.content?.trim() ?? "[]";
+    const fenceMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenceMatch) raw = fenceMatch[1].trim();
 
     let items: ImportedItem[];
     try {

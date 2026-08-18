@@ -786,6 +786,7 @@ function ScannerBoundsPanel({ card, onSaved }: { card: StrategyCard; onSaved: ()
 
   async function save(clear = false) {
     setSaving(true);
+    setError(null);
     try {
       const fd = new FormData();
       fd.set("strategy_id", card.id);
@@ -811,6 +812,8 @@ function ScannerBoundsPanel({ card, onSaved }: { card: StrategyCard; onSaved: ()
       onSaved();
       router.refresh();
       if (clear) { setMinVol(""); setMaxMove(""); setCapFloor(""); setNotes(""); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save — please try again.");
     } finally {
       setSaving(false);
     }

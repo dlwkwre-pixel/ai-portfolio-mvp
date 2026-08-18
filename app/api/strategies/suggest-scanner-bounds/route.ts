@@ -87,7 +87,12 @@ Return this exact JSON shape:
       ...({ reasoning_format: "hidden" } as Record<string, unknown>),
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+    let raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+    // Reasoning models sometimes wrap valid JSON in markdown fences despite
+    // being told not to — strip them defensively before parsing rather than
+    // failing outright on an otherwise-valid response.
+    const fenceMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenceMatch) raw = fenceMatch[1].trim();
 
     let result: ScannerBoundsSuggestion;
     try {
