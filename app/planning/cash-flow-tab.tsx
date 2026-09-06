@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning-actions";
 import {
   addCashFlowItem, updateCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
@@ -879,6 +880,122 @@ function CashFlowSankey({ income, leaves, isPrivate, highlightedCat, onToggleCat
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+// ── Monthly Spend Trend ─────────────────────────────────────────────────────
+// A net-worth-style history chart for total monthly spending, so month-to-month
+// swings are visible at a glance. Each month blends real logged actuals with the
+// budgeted amount for anything not yet logged that month — the same basis as the
+// KPI strip, so a number here means what it means up top. The in-progress current
+// month is excluded (it would always read as a dip); months with nothing logged
+// are skipped; the window is capped to the most recent 18 months.
+function MonthlySpendChart({
+  expenseActuals, cashFlowItems, budgetHistory, isPrivate,
+}: {
+  expenseActuals: ExpenseActual[];
+  cashFlowItems: CashFlowItem[];
+  budgetHistory: BudgetHistoryEntry[];
+  isPrivate: boolean;
+}) {
+  const expenseItems = useMemo(() => cashFlowItems.filter((i) => i.type === "expense"), [cashFlowItems]);
+
+  const { rows, avg, delta, firstLabel } = useMemo(() => {
+    const logged = expenseActuals.filter((a) => a.cash_flow_item_id != null);
+    if (logged.length === 0) return { rows: [] as { label: string; spend: number }[], avg: 0, delta: null as number | null, firstLabel: "" };
+
+    const idx = new Map<string, number>();
+    for (const a of logged) idx.set(`${a.cash_flow_item_id}|${a.period_year}|${a.period_month}`, a.actual_amount);
+
+    const periods = logged.map((a) => a.period_year * 12 + (a.period_month - 1));
+    const now = new Date();
+    const nowPeriod = now.getFullYear() * 12 + now.getMonth();
+    let from = Math.min(...periods);
+    const to = Math.min(Math.max(...periods), nowPeriod - 1); // drop the in-progress month
+    if (to < from) return { rows: [] as { label: string; spend: number }[], avg: 0, delta: null as number | null, firstLabel: "" };
+    if (to - from > 17) from = to - 17;
+
+    const out: { label: string; spend: number }[] = [];
+    for (let p = from; p <= to; p++) {
+      const y = Math.floor(p / 12);
+      const m = (p % 12) + 1;
+      let spend = 0, loggedCount = 0;
+      for (const item of expenseItems) {
+        const budgeted = toMonthly(getEffectiveBudget(budgetHistory, item.id, y, m) ?? item.amount, item.frequency);
+        const actual = idx.get(`${item.id}|${y}|${m}`);
+        if (actual !== undefined) { spend += actual; loggedCount++; }
+        else spend += budgeted;
+      }
+      if (loggedCount === 0) continue; // nothing logged this month — skip rather than show a pure projection
+      out.push({ label: `${MONTH_NAMES[m - 1].slice(0, 3)} ’${String(y).slice(2)}`, spend: Math.round(spend) });
+    }
+
+    const average = out.length > 0 ? out.reduce((s, r) => s + r.spend, 0) / out.length : 0;
+    const change = out.length >= 2 ? out[out.length - 1].spend - out[0].spend : null;
+    return { rows: out, avg: average, delta: change, firstLabel: out[0]?.label ?? "" };
+  }, [expenseActuals, expenseItems, budgetHistory]);
+
+  if (rows.length < 2) return null;
+
+  const ph = (v: string) => (isPrivate ? "••••" : v);
+  const latest = rows[rows.length - 1];
+  const up = (delta ?? 0) > 0;
+  const accent = "oklch(0.65 0.18 25)"; // spend — same red family as the Expenses KPI
+  const tickInterval = rows.length > 8 ? Math.floor(rows.length / 6) : 0;
+
+  return (
+    <div className="cfo-zone" style={{
+      background: "var(--bg-surface)", border: "1px solid var(--border-subtle)",
+      borderRadius: "var(--radius-lg)", padding: "20px", marginTop: "10px", animationDelay: "140ms",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Spend</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px", color: "var(--text-primary)", lineHeight: 1.1 }}>
+            {ph(fmt(latest.spend))}
+            <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 500, marginLeft: "7px", fontFamily: "var(--font-body)" }}>{latest.label}</span>
+          </div>
+          {delta != null && (
+            <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: up ? "var(--red)" : "var(--green)", marginTop: "4px" }}>
+              {up ? "▲" : "▼"} {ph((up ? "+" : "") + fmt(delta))} {ph(`since ${firstLabel}`)}
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "3px" }}>Avg / mo</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "15px", color: "var(--text-secondary)" }}>{ph(fmt(Math.round(avg)))}</div>
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height={160}>
+        <AreaChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="cfoSpendGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={accent} stopOpacity={0.18} />
+              <stop offset="95%" stopColor={accent} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+          <XAxis dataKey="label" interval={tickInterval} tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={(v) => isPrivate ? "•••" : "$" + (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v))}
+            tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--text-tertiary)" }}
+            axisLine={false} tickLine={false} width={isPrivate ? 28 : 46}
+          />
+          <Tooltip
+            contentStyle={{ background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+            labelStyle={{ color: "var(--text-secondary)" }}
+            formatter={(value) => [isPrivate ? "••••" : fmt(typeof value === "number" ? value : 0), "Spent"]}
+          />
+          <ReferenceLine y={avg} stroke="var(--text-tertiary)" strokeDasharray="4 4" strokeOpacity={0.5} />
+          <Area type="monotone" dataKey="spend" stroke={accent} strokeWidth={2} fill="url(#cfoSpendGrad)" dot={{ r: 2, fill: accent }} />
+        </AreaChart>
+      </ResponsiveContainer>
+
+      <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "8px 0 0", lineHeight: 1.5 }}>
+        Logged actuals blended with budgeted amounts for anything not yet logged that month — same basis as the KPIs above. Dashed line is your {ph(fmt(Math.round(avg)))}/mo average. The current month appears once it&apos;s complete.
+      </p>
     </div>
   );
 }
@@ -2162,6 +2279,14 @@ export default function CashFlowOS({
         </button>
       )}
       </>)}
+
+      {/* Monthly spend history — always visible, like the net-worth chart */}
+      <MonthlySpendChart
+        expenseActuals={expenseActuals}
+        cashFlowItems={cashFlowItems}
+        budgetHistory={budgetHistory}
+        isPrivate={isPrivate}
+      />
     </div>
   );
 }
