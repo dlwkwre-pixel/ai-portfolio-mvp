@@ -12,6 +12,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/brokerage-sync",
+      "schedule": "0 19 * * *"
+    },
+    {
       "path": "/api/cron/daily-snapshot",
       "schedule": "0 20 * * *"
     },
@@ -42,10 +46,6 @@
     {
       "path": "/api/cron/radar-monitor",
       "schedule": "0 13 * * 1-5"
-    },
-    {
-      "path": "/api/cron/brokerage-sync",
-      "schedule": "0 22 * * *"
     },
     {
       "path": "/api/cron/snapshot-health-check",
