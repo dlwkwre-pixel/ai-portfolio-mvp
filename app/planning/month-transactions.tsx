@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CashFlowItem, ExpenseActual } from "./planning-actions";
 import { updateTransactionBucket, deleteTransaction, deleteExpenseActual, bulkSetTransactionBuckets, markTransactionsReviewed } from "./planning-actions";
@@ -50,14 +50,6 @@ export default function MonthTransactions({
   const [adding, setAdding] = useState(false);
   const [scope, setScope] = useState<"month" | "all">("month");
   const [showList, setShowList] = useState(false);
-
-  // Esc closes the full-list popup.
-  useEffect(() => {
-    if (!showList) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowList(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showList]);
 
   const month = useMemo(
     () => transactions.filter((t) => t.period_year === selYear && t.period_month === selMonth)
@@ -358,9 +350,9 @@ export default function MonthTransactions({
             {`Mark ${reviewableIds.length === toReview.length ? "all" : reviewableIds.length} reviewed`}
           </button>
         )}
-        <button type="button" onClick={() => { setShowList(true); setShowAll(false); }}
-          style={{ minHeight: "34px", padding: "0 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
-          {`View all ${month.length} transactions`}
+        <button type="button" onClick={() => { setShowList((v) => !v); setShowAll(false); }} aria-expanded={showList}
+          style={{ minHeight: "34px", padding: "0 12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: showList ? "var(--surface-005)" : "transparent", color: "var(--text-secondary)", fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: "var(--font-body)", cursor: "pointer" }}>
+          {showList ? "Hide transactions ▲" : `View all ${month.length} transactions ▼`}
         </button>
       </div>
 
@@ -368,18 +360,12 @@ export default function MonthTransactions({
       {addControl}
 
       {showList && (
-        <div role="dialog" aria-modal="true" aria-label={`${MONTH_NAMES[selMonth - 1]} transactions`}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowList(false); }}
-          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "5vh 12px", overflowY: "auto" }}>
-          <div style={{ width: "100%", maxWidth: "760px", background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 20px 50px rgba(0,0,0,0.25)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-                {`${MONTH_NAMES[selMonth - 1]} ${selYear} transactions`}
-                <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` (${month.length})`}</span>
-              </span>
-              <button type="button" onClick={() => setShowList(false)} aria-label="Close"
-                style={{ minWidth: "40px", minHeight: "40px", background: "none", border: "none", color: "var(--text-tertiary)", fontSize: "20px", cursor: "pointer" }}>×</button>
-            </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+              {`${MONTH_NAMES[selMonth - 1]} transactions`}
+              <span style={{ color: "var(--text-tertiary)", fontWeight: 400 }}>{` (${month.length})`}</span>
+            </span>
 
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
               {([

@@ -21,13 +21,13 @@ export default function RecurringChargesCard({
   return (
     <div className="cfo-zone" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "16px 20px", marginBottom: "10px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Recurring charges</span>
+        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Bills &amp; subscriptions</span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
           about <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{money(total)}</span> a month
         </span>
       </div>
       <p style={{ margin: "0 0 10px", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
-        Charged in 3 or more months at a steady amount.
+        Charged about once a month at nearly the same price, 3 months or more.
         {increased.length > 0 && ` ${increased.length} went up recently.`}
       </p>
       <div style={{ display: "flex", flexDirection: "column" }}>

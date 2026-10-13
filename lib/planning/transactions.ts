@@ -586,8 +586,11 @@ export type RecurringCharge = {
   lastDate: string;
 };
 
-// Same merchant charged in 3+ different months at a steady amount (every charge within 25%
-// of the median) — subscriptions, phone bill, insurance. Groceries fail the steadiness test.
+// Bills and subscriptions: the same merchant charged about once a month, in 3+ different
+// months, at nearly the same price (within 5% of the usual charge). That rules out the
+// regular coffee shop or gas station — visited often, at a different amount each time.
+// Restaurants/groceries never count; transportation only when the charge is exact (a
+// membership fee, not a fill-up).
 export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): RecurringCharge[] {
   const cutoff = new Date(today.getFullYear(), today.getMonth() - 6, 1).toISOString().slice(0, 10);
   const groups = new Map<string, CashFlowTransaction[]>();
@@ -601,6 +604,8 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
   }
   const out: RecurringCharge[] = [];
   for (const [key, list] of groups) {
+    const category = getCategoryForExpense(list[0].merchant);
+    if (category === "Food & Dining") continue;
     // one charge per month: the month's largest (a refund-and-recharge shouldn't double up)
     const byMonth = new Map<string, CashFlowTransaction>();
     for (const t of list) {
@@ -609,11 +614,13 @@ export function findRecurringCharges(txns: CashFlowTransaction[], today: Date): 
       if (!cur || t.amount > cur.amount) byMonth.set(ym, t);
     }
     if (byMonth.size < 3) continue;
+    if (list.length / byMonth.size > 1.34) continue; // several times a month → a habit, not a bill
     const monthly = Array.from(byMonth.values()).sort((a, b) => a.txn_date.localeCompare(b.txn_date));
     const amounts = monthly.map((t) => t.amount).sort((a, b) => a - b);
     const mid = Math.floor(amounts.length / 2);
     const typical = amounts.length % 2 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2;
-    if (monthly.some((t) => Math.abs(t.amount - typical) > typical * 0.25)) continue;
+    const tolerance = category === "Transportation" ? 0.01 : 0.05;
+    if (monthly.some((t) => Math.abs(t.amount - typical) > typical * tolerance)) continue;
     const latest = monthly[monthly.length - 1];
     // Compare against the last charge at a different price, so "$15.49, $15.49, $17.99,
     // $17.99" still reports the increase instead of comparing the two $17.99s.

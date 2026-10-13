@@ -6176,6 +6176,7 @@ export default function PlanningClient({
             transactions={transactions}
             monthCloses={monthCloses}
             bankLink={bankLink}
+            netWorthHistory={netWorthHistory}
             budgetHistory={budgetHistory}
             effectiveIncome={effectiveIncome}
             monthlyExpenses={monthlyExpenses}

@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
-import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry } from "./planning-actions";
+import type { CashFlowItem, ExpenseActual, BudgetHistoryEntry, NetWorthSnapshot } from "./planning-actions";
 import {
   addCashFlowItem, updateCashFlowItem, deleteCashFlowItem, setCashFlowItemCategory,
   syncForecastToActuals,
@@ -23,6 +23,8 @@ import RecurringChargesCard from "./recurring-charges-card";
 import StickyMonthBar from "./sticky-month-bar";
 import { billPlanForMonth } from "@/lib/planning/frequency";
 import BillScheduleEditor from "./bill-schedule-editor";
+import PaceGuide, { type PaceData } from "./pace-guide";
+import MoneyStory from "./money-story";
 import BankSyncNote, { type BankLinkInfo } from "./bank-sync-note";
 import AddTransactionForm from "./add-transaction-form";
 import { deleteImportBatch } from "./planning-actions";
@@ -915,9 +917,11 @@ function MonthlySpendChart({
 }) {
   const expenseItems = useMemo(() => cashFlowItems.filter((i) => i.type === "expense"), [cashFlowItems]);
 
-  const { rows, avg, delta, firstLabel } = useMemo(() => {
+  type Row = { label: string; spend: number | null; soFar?: number | null };
+  const { rows, avg, delta, firstLabel, current } = useMemo(() => {
+    const empty = { rows: [] as Row[], avg: 0, delta: null as number | null, firstLabel: "", current: null as null | { label: string; spent: number; dayFrac: number } };
     const logged = expenseActuals.filter((a) => a.cash_flow_item_id != null);
-    if (logged.length === 0) return { rows: [] as { label: string; spend: number }[], avg: 0, delta: null as number | null, firstLabel: "" };
+    if (logged.length === 0) return empty;
 
     const idx = new Map<string, number>();
     for (const a of logged) idx.set(`${a.cash_flow_item_id}|${a.period_year}|${a.period_month}`, a.actual_amount);
@@ -927,10 +931,10 @@ function MonthlySpendChart({
     const nowPeriod = now.getFullYear() * 12 + now.getMonth();
     let from = Math.min(...periods);
     const to = Math.min(Math.max(...periods), nowPeriod - 1); // drop the in-progress month
-    if (to < from) return { rows: [] as { label: string; spend: number }[], avg: 0, delta: null as number | null, firstLabel: "" };
+    if (to < from) return empty;
     if (to - from > 17) from = to - 17;
 
-    const out: { label: string; spend: number }[] = [];
+    const out: Row[] = [];
     for (let p = from; p <= to; p++) {
       const y = Math.floor(p / 12);
       const m = (p % 12) + 1;
@@ -945,15 +949,34 @@ function MonthlySpendChart({
       out.push({ label: `${MONTH_NAMES[m - 1].slice(0, 3)} ’${String(y).slice(2)}`, spend: Math.round(spend) });
     }
 
-    const average = out.length > 0 ? out.reduce((s, r) => s + r.spend, 0) / out.length : 0;
-    const change = out.length >= 2 ? out[out.length - 1].spend - out[0].spend : null;
-    return { rows: out, avg: average, delta: change, firstLabel: out[0]?.label ?? "" };
+    const average = out.length > 0 ? out.reduce((s, r) => s + (r.spend ?? 0), 0) / out.length : 0;
+    const change = out.length >= 2 ? (out[out.length - 1].spend ?? 0) - (out[0].spend ?? 0) : null;
+
+    // The month in progress, as what's actually been recorded so far (no assumed amounts):
+    // drawn as a dashed "so far" segment off the last full month, never as a finished month.
+    const cy = now.getFullYear(), cm = now.getMonth() + 1;
+    let spentSoFar = 0, anyCurrent = false;
+    for (const item of expenseItems) {
+      const actual = idx.get(`${item.id}|${cy}|${cm}`);
+      if (actual === undefined) continue;
+      anyCurrent = true;
+      spentSoFar += billPlanForMonth(item, getEffectiveBudgetEntry(budgetHistory, item.id, cy, cm), cy, cm).countActual(actual);
+    }
+    let currentInfo: { label: string; spent: number; dayFrac: number } | null = null;
+    if (anyCurrent && out.length > 0) {
+      const label = `${MONTH_NAMES[cm - 1].slice(0, 3)} so far`;
+      out[out.length - 1].soFar = out[out.length - 1].spend;
+      out.push({ label, spend: null, soFar: Math.round(spentSoFar) });
+      currentInfo = { label: MONTH_NAMES[cm - 1], spent: spentSoFar, dayFrac: now.getDate() / new Date(cy, cm, 0).getDate() };
+    }
+    return { rows: out, avg: average, delta: change, firstLabel: out[0]?.label ?? "", current: currentInfo };
   }, [expenseActuals, expenseItems, budgetHistory]);
 
-  if (rows.length < 2) return null;
+  const complete = rows.filter((r) => r.spend !== null);
+  if (complete.length < 2) return null;
 
   const ph = (v: string) => (isPrivate ? "••••" : v);
-  const latest = rows[rows.length - 1];
+  const latest = complete[complete.length - 1];
   const up = (delta ?? 0) > 0;
   const accent = "oklch(0.65 0.18 25)"; // spend — same red family as the Expenses KPI
   const tickInterval = rows.length > 8 ? Math.floor(rows.length / 6) : 0;
@@ -967,7 +990,7 @@ function MonthlySpendChart({
         <div>
           <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", marginBottom: "4px" }}>Monthly Spend</div>
           <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "26px", color: "var(--text-primary)", lineHeight: 1.1 }}>
-            {ph(fmt(latest.spend))}
+            {ph(fmt(latest.spend ?? 0))}
             <span style={{ fontSize: "11px", color: "var(--text-tertiary)", fontWeight: 500, marginLeft: "7px", fontFamily: "var(--font-body)" }}>{latest.label}</span>
           </div>
           {delta != null && (
@@ -981,6 +1004,13 @@ function MonthlySpendChart({
           <div style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: "15px", color: "var(--text-secondary)" }}>{ph(fmt(Math.round(avg)))}</div>
         </div>
       </div>
+      {current && avg > 0 && (
+        <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-body)", lineHeight: 1.5 }}>
+          {`${current.label} so far: `}
+          <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{ph(fmt(Math.round(current.spent)))}</span>
+          {`, ${Math.round((current.spent / avg) * 100)}% of a typical month, with ${Math.round(current.dayFrac * 100)}% of the month gone. Fixed bills like rent land early, so a high number mid-month isn't always a problem — the Pace check above splits that out.`}
+        </p>
+      )}
 
       <ResponsiveContainer width="100%" height={160}>
         <AreaChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -1000,15 +1030,16 @@ function MonthlySpendChart({
           <Tooltip
             contentStyle={{ background: "var(--bg-overlay, #0d1829)", border: "1px solid var(--border)", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
             labelStyle={{ color: "var(--text-secondary)" }}
-            formatter={(value) => [isPrivate ? "••••" : fmt(typeof value === "number" ? value : 0), "Spent"]}
+            formatter={(value, name) => [isPrivate ? "••••" : fmt(typeof value === "number" ? value : 0), name === "soFar" ? "Spent so far" : "Spent"]}
           />
           <ReferenceLine y={avg} stroke="var(--text-tertiary)" strokeDasharray="4 4" strokeOpacity={0.5} />
-          <Area type="monotone" dataKey="spend" stroke={accent} strokeWidth={2} fill="url(#cfoSpendGrad)" dot={{ r: 2, fill: accent }} />
+          <Area type="monotone" dataKey="spend" stroke={accent} strokeWidth={2} fill="url(#cfoSpendGrad)" dot={{ r: 2, fill: accent }} connectNulls={false} />
+          <Area type="monotone" dataKey="soFar" stroke={accent} strokeWidth={2} strokeDasharray="5 4" fill="none" dot={{ r: 3, fill: "var(--bg-surface)", stroke: accent, strokeWidth: 2 }} connectNulls={false} />
         </AreaChart>
       </ResponsiveContainer>
 
       <p style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)", margin: "8px 0 0", lineHeight: 1.5 }}>
-        Logged actuals blended with budgeted amounts for anything not yet logged that month — same basis as the KPIs above. Dashed line is your {ph(fmt(Math.round(avg)))}/mo average. The current month appears once it&apos;s complete.
+        {`Logged actuals blended with budgeted amounts for anything not yet logged that month, the same basis as the KPIs above. Dashed line is your ${ph(fmt(Math.round(avg)))}/mo average; the dashed end point is this month so far (recorded spending only).`}
       </p>
     </div>
   );
@@ -1034,7 +1065,7 @@ function CfSectionTitle({ step, title, hint }: { step?: string; title: string; h
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], monthCloses = [], bankLink = null, netWorthHistory = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis, k401EmployeeMonthly = 0,
 }: {
@@ -1042,6 +1073,7 @@ export default function CashFlowOS({
   transactions?: CashFlowTransaction[];
   monthCloses?: MonthCloseRow[];
   bankLink?: BankLinkInfo | null;
+  netWorthHistory?: NetWorthSnapshot[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
@@ -1092,7 +1124,6 @@ export default function CashFlowOS({
 
   const isCurrentMonth = selYear === now.getFullYear() && selMonth === (now.getMonth() + 1);
   const daysInSelMonth = new Date(selYear, selMonth, 0).getDate();
-  const pacingRatio = isCurrentMonth ? Math.max(0.01, now.getDate() / daysInSelMonth) : 1;
 
   // Pre-indexed actual lookups by item+period — used by both the single-period actuals
   // blend below and the (intentionally uncapped) multi-month Average view, which would
@@ -1341,18 +1372,39 @@ export default function CashFlowOS({
     : "var(--text-muted)";
   const srBarPct = Math.min(100, Math.max(0, (displaySavingsRate / 30) * 100));
 
-  const pacingAlerts = isCurrentMonth ? catData
-    .filter(cat => cat.actual > 0 && cat.budgeted > 0)
-    .map(cat => {
-      const projected = cat.actual / pacingRatio;
-      const overage = projected - cat.budgeted;
-      return { label: cat.label, overage, pct: overage / cat.budgeted };
-    })
-    .filter(c => c.overage > 30 && c.pct > 0.08)
-    .sort((a, b) => b.pct - a.pct)
-    .slice(0, 2) : [];
+  // Pace check (current month only): fixed bills judged paid-vs-planned, flexible spending
+  // judged against how much of the month has gone — so prepaid rent never reads as "88%
+  // of the budget gone on the 13th".
+  const paceData: PaceData | null = (() => {
+    if (!isCurrentMonth) return null;
+    const day = now.getDate();
+    const dayFrac = Math.max(0.03, day / daysInSelMonth);
+    let fixedBudget = 0, fixedActual = 0, flexBudget = 0, flexActual = 0;
+    const flex: PaceData["slowDown"] = [];
+    for (const cat of catData) {
+      const isFixed = cat.items.length > 0 && cat.items.every(i =>
+        lineFor(i, selYear, selMonth).periodic || i.due_day != null || FIXED_BILL_CATEGORIES.has(categoryOf(i)));
+      if (isFixed) { fixedBudget += cat.budgeted; fixedActual += cat.actual; continue; }
+      flexBudget += cat.budgeted;
+      flexActual += cat.actual;
+      flex.push({ label: cat.label, actual: cat.actual, budget: cat.budgeted, expected: cat.budgeted * dayFrac, projected: cat.actual / dayFrac });
+    }
+    if (fixedBudget + flexBudget <= 0) return null;
+    const daysLeftIncl = daysInSelMonth - day + 1;
+    const slowDown = flex
+      .filter(c => c.actual - c.expected >= 10 && c.actual > c.expected * 1.15)
+      .sort((a, b) => (b.projected - b.budget) - (a.projected - a.budget))
+      .slice(0, 3);
+    return {
+      day, daysInMonth: daysInSelMonth, month: selMonth,
+      fixedBudget, fixedActual, flexBudget, flexActual,
+      flexProjected: flexActual / dayFrac,
+      perDayLeft: (flexBudget - flexActual) / daysLeftIncl,
+      daysLeft: daysLeftIncl,
+      slowDown,
+    };
+  })();
 
-  const daysLeft = isCurrentMonth ? daysInSelMonth - now.getDate() : 0;
 
   // Deposits arrive AFTER the 401(k) deferral, but income items are stored before it
   // (planning-client subtracts k401EmployeeMonthly from their sum). Add this source's share
@@ -1809,28 +1861,8 @@ export default function CashFlowOS({
 
       </div>
 
-      {/* Pacing Alert Strip — only for current month when tracking over budget */}
-      {pacingAlerts.length > 0 && (
-        <div className="cfo-zone" style={{
-          background: "var(--card-bg)", border: "1px solid var(--card-border)",
-          borderRadius: "var(--radius-lg)", padding: "11px 15px", marginBottom: "10px",
-          animationDelay: "80ms", display: "flex", gap: "10px", alignItems: "flex-start",
-        }}>
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ flexShrink: 0, marginTop: "1px" }}>
-            <path d="M10 3L18 17H2L10 3z" fill="rgba(251,146,60,0.15)" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinejoin="round"/>
-            <line x1="10" y1="9" x2="10" y2="13" stroke="oklch(0.72 0.18 55)" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="10" cy="15.5" r="0.8" fill="oklch(0.72 0.18 55)"/>
-          </svg>
-          <div>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "oklch(0.72 0.18 55)", fontFamily: "var(--font-body)", marginBottom: "2px" }}>Pacing alert — {daysLeft} day{daysLeft !== 1 ? "s" : ""} left</div>
-            <p style={{ fontSize: "12px", color: "var(--text-secondary)", fontFamily: "var(--font-body)", margin: 0, lineHeight: 1.6 }}>
-              {pacingAlerts.map((a, i) => (
-                <span key={a.label}>{i > 0 ? " " : ""}<strong style={{ color: "var(--text-primary)" }}>{a.label}</strong> is on track to exceed budget by {ph(fmt(a.overage))}.{i < pacingAlerts.length - 1 ? "" : ""}</span>
-              ))}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Pace check — current month: fixed bills vs flexible spending, with what to slow down */}
+      {paceData && <PaceGuide data={paceData} isPrivate={isPrivate} />}
 
       {/* Zone 2 — Donut + Category Bars */}
       {catData.length > 0 && (
@@ -2012,6 +2044,8 @@ export default function CashFlowOS({
       )}
 
       <CfSectionTitle step="3" title="Left over" hint="Income minus spending, and where it should go." />
+      <MoneyStory income={selIncome.total} spent={selBlend.recordedTotal + selBlend.setAsideTotal} pendingPlanned={selBlend.assumedTotal}
+        saved={selSaved} year={selYear} month={selMonth} netWorthHistory={netWorthHistory} isPrivate={isPrivate} />
       {/* Available to Invest — merged with what used to be a separate "Surplus this
           month" callout below; both showed the same number under a different name.
           They're not strictly identical (this one subtracts the emergency-fund
