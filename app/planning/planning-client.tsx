@@ -33,6 +33,7 @@ import {
 } from "./planning-actions";
 import type { FinancialProfile, ProfileKid, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { logExpenseActual, moveMerchantActual, syncForecastToActuals, upsertEstateProfile, upsertEstateBeneficiaries, upsertEstateAccounts, upsertFamilyInstructions, setCashFlowItemCategory } from "./planning-actions";
+import type { CashFlowTransaction } from "@/lib/planning/transactions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -3086,6 +3087,7 @@ type Props = {
   carScenarios: CarScenario[];
   apartmentListings: ApartmentListing[];
   expenseActuals: ExpenseActual[];
+  transactions: CashFlowTransaction[];
   budgetHistory: BudgetHistoryEntry[];
   estateProfile: EstateProfile | null;
   initialTab?: string;
@@ -3108,7 +3110,7 @@ const ATLAS_THINKING = [
 export default function PlanningClient({
   profile, balanceItems, cashFlowItems, netWorthHistory, historicalValues = {}, portfolioTotalValue, portfolioAccounts = [],
   assumptions, futureEvents, allFutureEvents, homeScenarios, careerScenarios, educationScenarios, familyScenarios,
-  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, budgetHistory, estateProfile, initialTab,
+  sabbaticalScenarios, carScenarios, apartmentListings, expenseActuals, transactions, budgetHistory, estateProfile, initialTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? "overview");
   const [isPrivate, setIsPrivateRaw] = useState(false);
@@ -6168,6 +6170,7 @@ export default function PlanningClient({
           <CashFlowTab
             cashFlowItems={cashFlowItems}
             expenseActuals={expenseActuals}
+            transactions={transactions}
             budgetHistory={budgetHistory}
             effectiveIncome={effectiveIncome}
             monthlyExpenses={monthlyExpenses}

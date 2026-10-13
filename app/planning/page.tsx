@@ -7,6 +7,7 @@ import PlanningClient from "./planning-client";
 import type { FinancialProfile, BalanceSheetItem, CashFlowItem, NetWorthSnapshot, PlanningAssumptions, FutureEvent, ExpenseActual, EstateProfile, EstateBeneficiary, EstateAccount, BudgetHistoryEntry } from "./planning-actions";
 import { ageFromDob } from "./planning-utils";
 import { getLinkedBalanceItems } from "@/lib/planning/linked-balance-items";
+import { rollupTransactionActuals, type CashFlowTransaction } from "@/lib/planning/transactions";
 import type { HomeScenario } from "./home/home-actions";
 import type { CareerScenario } from "./career/career-actions";
 import type { EducationScenario } from "./education/education-actions";
@@ -14,6 +15,13 @@ import type { FamilyScenario } from "./family/family-actions";
 import type { SabbaticalScenario } from "./sabbatical/sabbatical-actions";
 import type { CarScenario } from "./car/car-actions";
 import type { ApartmentListing } from "./apartment/apartment-actions";
+
+// ~18 months back — enough history for the Cash Flow Average view and month-by-month review.
+function transactionWindowStart(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 18);
+  return d.toISOString().slice(0, 10);
+}
 
 export default async function PlanningPage({
   searchParams,
@@ -43,6 +51,7 @@ export default async function PlanningPage({
     { data: expenseActualsData },
     { data: estateProfileData },
     { data: budgetHistoryData },
+    { data: transactionsData },
   ] = await Promise.all([
     supabase.from("financial_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("balance_sheet_items").select("*").eq("user_id", user.id).order("sort_order"),
@@ -60,6 +69,12 @@ export default async function PlanningPage({
     supabase.from("expense_actuals").select("*").eq("user_id", user.id).order("period_year", { ascending: false }).order("period_month", { ascending: false }).limit(120),
     supabase.from("estate_profiles").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("cash_flow_budget_history").select("*").eq("user_id", user.id).order("effective_year").order("effective_month"),
+    supabase.from("cash_flow_transactions")
+      .select("id, txn_date, period_year, period_month, description, merchant, amount, direction, cash_flow_item_id, source, import_batch_id, note")
+      .eq("user_id", user.id)
+      .gte("txn_date", transactionWindowStart())
+      .order("txn_date", { ascending: false })
+      .limit(8000),
   ]);
 
   // Value each portfolio on its own so the balance sheet can classify it by account type
@@ -307,7 +322,12 @@ export default async function PlanningPage({
       }
     : null;
 
-  const typedExpenseActuals: ExpenseActual[] = (expenseActualsData ?? []).map((r) => ({
+  const typedTransactions: CashFlowTransaction[] = (transactionsData ?? []).map((r) => ({
+    ...r,
+    amount: Number(r.amount),
+  }) as CashFlowTransaction);
+
+  const loggedExpenseActuals: ExpenseActual[] = (expenseActualsData ?? []).map((r) => ({
     id: r.id,
     user_id: r.user_id,
     cash_flow_item_id: r.cash_flow_item_id ?? null,
@@ -319,6 +339,32 @@ export default async function PlanningPage({
     breakdown: Array.isArray(r.breakdown) ? r.breakdown : null,
     created_at: r.created_at,
   }));
+
+  // A budget item's actual for a month = the sum of its transactions when it has any;
+  // otherwise the legacy/manual expense_actuals total (logged before transactions existed,
+  // or typed in by hand). Per item-month, so a manually tracked bill (rent) keeps working
+  // alongside statement-imported categories. Every consumer downstream reads this one list.
+  const txnRollups = rollupTransactionActuals(typedTransactions);
+  const txnKeys = new Set(txnRollups.map((r) => `${r.cash_flow_item_id}|${r.period_year}|${r.period_month}`));
+  const typedExpenseActuals: ExpenseActual[] = [
+    ...loggedExpenseActuals
+      .filter((a) => !txnKeys.has(`${a.cash_flow_item_id}|${a.period_year}|${a.period_month}`))
+      .map((a) => ({ ...a, source: "logged" as const })),
+    ...txnRollups.map((r): ExpenseActual => ({
+      id: `txn:${r.cash_flow_item_id}:${r.period_year}:${r.period_month}`,
+      user_id: user.id,
+      cash_flow_item_id: r.cash_flow_item_id,
+      label: (cashFlowItems ?? []).find((i) => i.id === r.cash_flow_item_id)?.label ?? "Transactions",
+      period_year: r.period_year,
+      period_month: r.period_month,
+      actual_amount: r.total,
+      notes: null,
+      breakdown: r.breakdown,
+      created_at: new Date().toISOString(),
+      source: "transactions",
+      txn_count: r.count,
+    })),
+  ];
 
   const typedBudgetHistory: BudgetHistoryEntry[] = (budgetHistoryData ?? []).map((r) => ({
     id: r.id,
@@ -365,6 +411,7 @@ export default async function PlanningPage({
           carScenarios={typedCarScenarios}
           apartmentListings={typedApartmentListings}
           expenseActuals={typedExpenseActuals}
+          transactions={typedTransactions}
           budgetHistory={typedBudgetHistory}
           estateProfile={typedEstateProfile}
           initialTab={initialTab}

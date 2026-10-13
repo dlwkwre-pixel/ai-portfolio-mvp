@@ -32,6 +32,7 @@ const USER_TABLES = [
   "planning_goals", "planning_assumptions", "planning_future_events",
   "estate_profiles", "finn_profiles",
   "equity_grants", "contribution_schedules", "expense_actuals", "cash_flow_budget_history",
+  "cash_flow_transactions", "cash_flow_merchant_rules",
   "car_scenarios", "career_scenarios", "education_scenarios", "family_scenarios",
   "wedding_scenarios", "relocation_scenarios", "debt_payoff_scenarios",
   "sabbatical_scenarios", "home_planning_scenarios",

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { awardXp, dailyKey } from "@/lib/gamification/xp";
 import { closestOccurrenceTo, fromDateOnly, toDateOnly } from "@/lib/planning/cash-flow-forecast";
+import { merchantKey, type TxnKind } from "@/lib/planning/transactions";
+import { EXPENSE_CATEGORIES } from "@/lib/planning/expense-categories";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -823,6 +825,11 @@ export type ExpenseActual = {
   notes: string | null;
   breakdown: ActualBreakdownItem[] | null;
   created_at: string;
+  // "transactions" = synthesized in page.tsx by summing cash_flow_transactions for this
+  // item-month (id is "txn:…", not a real expense_actuals row — can't be deleted/moved as
+  // a whole; edit the transactions instead). Absent/"logged" = a real expense_actuals row.
+  source?: "transactions" | "logged";
+  txn_count?: number;
 };
 
 export async function logExpenseActual(formData: FormData): Promise<{ error?: string }> {
@@ -947,18 +954,37 @@ export async function syncForecastToActuals(cash_flow_item_id: string): Promise<
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
-  const { data: actuals } = await supabase
-    .from("expense_actuals")
-    .select("actual_amount, period_year, period_month")
-    .eq("user_id", user.id)
-    .eq("cash_flow_item_id", cash_flow_item_id)
-    .order("period_year", { ascending: false })
-    .order("period_month", { ascending: false })
-    .limit(6);
+  const [{ data: logged }, { data: txns }] = await Promise.all([
+    supabase
+      .from("expense_actuals")
+      .select("actual_amount, period_year, period_month")
+      .eq("user_id", user.id)
+      .eq("cash_flow_item_id", cash_flow_item_id)
+      .order("period_year", { ascending: false })
+      .order("period_month", { ascending: false })
+      .limit(12),
+    supabase
+      .from("cash_flow_transactions")
+      .select("amount, period_year, period_month")
+      .eq("user_id", user.id)
+      .eq("cash_flow_item_id", cash_flow_item_id)
+      .eq("direction", "out"),
+  ]);
 
-  if (!actuals || actuals.length < 3) return { error: "Need at least 3 months of actuals to sync." };
+  // Same rule as page.tsx: a month's transactions win over a legacy logged total.
+  const byMonth = new Map<number, number>();
+  for (const r of logged ?? []) byMonth.set(r.period_year * 12 + r.period_month, Number(r.actual_amount));
+  const txnMonths = new Map<number, number>();
+  for (const t of txns ?? []) {
+    const k = t.period_year * 12 + t.period_month;
+    txnMonths.set(k, (txnMonths.get(k) ?? 0) + Number(t.amount));
+  }
+  for (const [k, v] of txnMonths) byMonth.set(k, v);
+  const actuals = Array.from(byMonth.entries()).sort((a, b) => b[0] - a[0]).map(([, v]) => v);
 
-  const avg = actuals.slice(0, 3).reduce((sum, r) => sum + Number(r.actual_amount), 0) / 3;
+  if (actuals.length < 3) return { error: "Need at least 3 months of actuals to sync." };
+
+  const avg = actuals.slice(0, 3).reduce((sum, v) => sum + v, 0) / 3;
   const rounded = Math.round(avg * 100) / 100;
 
   const { error } = await supabase
@@ -1125,6 +1151,182 @@ export async function trimNetWorthHistoryBefore(
     .select("id");
 
   if (error) return { deleted: 0, error: error.message };
+  revalidatePath("/planning");
+  return { deleted: (data ?? []).length };
+}
+
+// ── Cash flow transactions ────────────────────────────────────────────────────
+// Transaction-level actuals (cash_flow_transactions). Each imported statement line is
+// its own row, so re-importing adds rather than overwrites, and duplicates are flagged
+// in review (see app/api/planning/transactions/parse) instead of silently merged.
+
+type SaveTxnRow = {
+  date: string;          // YYYY-MM-DD
+  description: string;
+  merchant: string;
+  amount: number;        // positive
+  kind: Exclude<TxnKind, "transfer">;
+  bucket: string | null; // cash_flow_items.id, "new:<Expense Category>", or null = unsorted
+};
+
+const NEW_BUCKET_PREFIX = "new:";
+
+// Turns review-table bucket values into real cash_flow_items ids the user owns. Unknown or
+// foreign ids resolve to null (unsorted) rather than failing the whole import. "new:<Cat>"
+// reuses an existing item literally named after the category, else creates a $0 budget
+// line so the spending has somewhere to land (it shows as over budget until a target is set).
+async function resolveBuckets(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  buckets: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const ids = buckets.filter((b) => !b.startsWith(NEW_BUCKET_PREFIX));
+  const newCats = Array.from(new Set(buckets.filter((b) => b.startsWith(NEW_BUCKET_PREFIX)).map((b) => b.slice(NEW_BUCKET_PREFIX.length))))
+    .filter((c) => EXPENSE_CATEGORIES.some((e) => e.label === c));
+
+  const { data: items } = await supabase
+    .from("cash_flow_items").select("id, label, type, sort_order").eq("user_id", userId);
+  const owned = new Set((items ?? []).map((i) => i.id));
+  for (const id of ids) out.set(id, owned.has(id) ? id : null);
+
+  let sortOrder = Math.max(-1, ...(items ?? []).map((i) => i.sort_order ?? 0));
+  for (const cat of newCats) {
+    const existing = (items ?? []).find((i) => i.type === "expense" && i.label.toLowerCase() === cat.toLowerCase());
+    if (existing) { out.set(NEW_BUCKET_PREFIX + cat, existing.id); continue; }
+    const { data: created } = await supabase.from("cash_flow_items").insert({
+      user_id: userId, label: cat, type: "expense", frequency: "monthly", amount: 0,
+      sort_order: ++sortOrder, category: cat,
+    }).select("id").single();
+    if (created) {
+      await supabase.from("cash_flow_budget_history").insert({
+        user_id: userId, item_id: created.id, amount: 0, frequency: "monthly", effective_year: 2000, effective_month: 1,
+      });
+    }
+    out.set(NEW_BUCKET_PREFIX + cat, created?.id ?? null);
+  }
+  return out;
+}
+
+export async function saveImportedTransactions(input: {
+  rows: SaveTxnRow[];
+  remember: { merchant: string; bucket: string }[];
+}): Promise<{ error?: string; inserted?: number; batchId?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const rows = (Array.isArray(input?.rows) ? input.rows : []).slice(0, 2000).filter((r) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(String(r.date)) && Number.isFinite(Number(r.amount)) && Number(r.amount) > 0 &&
+    ["spend", "refund", "income"].includes(r.kind));
+  if (rows.length === 0) return { error: "Nothing to save." };
+
+  const bucketValues = Array.from(new Set([
+    ...rows.map((r) => r.bucket).filter((b): b is string => typeof b === "string" && b.length > 0),
+    ...(input.remember ?? []).map((r) => r.bucket).filter((b): b is string => typeof b === "string" && b.length > 0),
+  ]));
+  const resolved = await resolveBuckets(supabase, user.id, bucketValues);
+
+  const batchId = crypto.randomUUID();
+  const records = rows.map((r) => {
+    const amount = Math.round(Number(r.amount) * 100) / 100;
+    return {
+      user_id: user.id,
+      txn_date: r.date,
+      period_year: Number(r.date.slice(0, 4)),
+      period_month: Number(r.date.slice(5, 7)),
+      description: String(r.description ?? "").slice(0, 200) || String(r.merchant ?? "").slice(0, 200) || "Transaction",
+      merchant: String(r.merchant ?? "").trim().slice(0, 60) || "Unknown",
+      amount: r.kind === "refund" ? -amount : amount,
+      direction: r.kind === "income" ? "in" : "out",
+      cash_flow_item_id: r.bucket ? resolved.get(r.bucket) ?? null : null,
+      source: "statement",
+      import_batch_id: batchId,
+    };
+  });
+
+  const { error } = await supabase.from("cash_flow_transactions").insert(records);
+  if (error) return { error: error.message };
+
+  const ruleRows = (input.remember ?? [])
+    .map((r) => ({ key: merchantKey(String(r.merchant ?? "")), itemId: resolved.get(r.bucket) ?? null }))
+    .filter((r): r is { key: string; itemId: string } => !!r.key && !!r.itemId);
+  if (ruleRows.length > 0) {
+    await supabase.from("cash_flow_merchant_rules").upsert(
+      ruleRows.map((r) => ({ user_id: user.id, merchant_key: r.key, cash_flow_item_id: r.itemId, updated_at: new Date().toISOString() })),
+      { onConflict: "user_id,merchant_key" },
+    );
+  }
+
+  void awardXp(user.id, "budget_logged", dailyKey("budget_logged"));
+  revalidatePath("/planning");
+  return { inserted: records.length, batchId };
+}
+
+// Re-buckets one transaction. With remember=true it also saves a merchant rule and moves
+// every other transaction from the same merchant in the same month, so fixing "Costco"
+// once fixes it for the month and on every future import.
+export async function updateTransactionBucket(
+  id: string,
+  bucket: string | null,
+  remember: boolean,
+): Promise<{ error?: string; moved?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: txn } = await supabase
+    .from("cash_flow_transactions").select("id, merchant, period_year, period_month, direction")
+    .eq("id", id).eq("user_id", user.id).maybeSingle();
+  if (!txn) return { error: "Transaction not found." };
+
+  const itemId = bucket ? (await resolveBuckets(supabase, user.id, [bucket])).get(bucket) ?? null : null;
+  if (bucket && !itemId) return { error: "That budget item no longer exists." };
+
+  let ids = [txn.id];
+  if (remember) {
+    const key = merchantKey(txn.merchant);
+    const { data: sameMonth } = await supabase
+      .from("cash_flow_transactions").select("id, merchant")
+      .eq("user_id", user.id).eq("period_year", txn.period_year).eq("period_month", txn.period_month)
+      .eq("direction", txn.direction);
+    ids = Array.from(new Set([txn.id, ...(sameMonth ?? []).filter((t) => merchantKey(t.merchant) === key).map((t) => t.id)]));
+    if (itemId && key) {
+      await supabase.from("cash_flow_merchant_rules").upsert(
+        { user_id: user.id, merchant_key: key, cash_flow_item_id: itemId, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,merchant_key" },
+      );
+    }
+  }
+
+  const { error } = await supabase
+    .from("cash_flow_transactions")
+    .update({ cash_flow_item_id: itemId, updated_at: new Date().toISOString() })
+    .in("id", ids).eq("user_id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return { moved: ids.length };
+}
+
+export async function deleteTransaction(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const { error } = await supabase.from("cash_flow_transactions").delete().eq("id", id).eq("user_id", user.id);
+  if (error) return { error: error.message };
+  revalidatePath("/planning");
+  return {};
+}
+
+// Undo for a whole import — every row saved by one saveImportedTransactions call.
+export async function deleteImportBatch(batchId: string): Promise<{ error?: string; deleted?: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+  const { data, error } = await supabase
+    .from("cash_flow_transactions").delete()
+    .eq("import_batch_id", batchId).eq("user_id", user.id).select("id");
+  if (error) return { error: error.message };
   revalidatePath("/planning");
   return { deleted: (data ?? []).length };
 }

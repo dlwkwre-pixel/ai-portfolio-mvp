@@ -14,9 +14,12 @@ import {
   fmt, fmtFull, toMonthly, getEffectiveBudget,
   LineItemRow, AddItemRow, sectionHeadStyle,
   MONTH_NAMES, normLabel, categoryOf, EXPENSE_CATEGORIES, getCategoryForExpense,
-  StatementImportPanel,
 } from "./planning-shared";
 import { computeAvailableToInvest, nextOccurrenceOnOrAfter, toDateOnly } from "@/lib/planning/cash-flow-forecast";
+import type { CashFlowTransaction } from "@/lib/planning/transactions";
+import { deleteImportBatch } from "./planning-actions";
+import TransactionImportPanel, { type ImportSavedSummary } from "./transaction-import-panel";
+import MonthTransactions from "./month-transactions";
 
 // ── Budget grouping (statement → budget-line preview) ──────────────────────
 
@@ -537,7 +540,7 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
         </p>
         {emptyNote && (
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: 0, textAlign: "center" }}>
-            No logged actuals yet — log some via &ldquo;Log Actuals from Statement&rdquo; first, or build from a pasted statement instead.
+            No logged actuals yet. Import some transactions first, or build from a pasted statement instead.
           </p>
         )}
         {addedCount !== null && (
@@ -555,7 +558,7 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
         <div>
           <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>Refresh Budget from Logged Actuals</span>
           <p style={{ fontSize: "11px", color: "var(--text-tertiary)", fontFamily: "var(--font-body)", margin: "2px 0 0" }}>
-            Averaged from what you&apos;ve already logged via &ldquo;Log Actuals from Statement.&rdquo; This only updates items you already have — it can&apos;t discover categories you haven&apos;t budgeted for yet.
+            Averaged from the actuals you&apos;ve already imported or logged. This only updates items you already have — it can&apos;t discover categories you haven&apos;t budgeted for yet.
           </p>
         </div>
         <button type="button" onClick={() => setPreview(null)}
@@ -1001,11 +1004,12 @@ function MonthlySpendChart({
 }
 
 export default function CashFlowOS({
-  cashFlowItems, expenseActuals, budgetHistory, effectiveIncome, monthlyExpenses,
+  cashFlowItems, expenseActuals, transactions = [], budgetHistory, effectiveIncome, monthlyExpenses,
   monthlySavings, savingsRate, cashFlowFinnInsight, isPrivate, guided = false,
   liquidAssets, emergencyFundMonths, surplusToInvestPct, emergencyFundExpenseBasis,
 }: {
   cashFlowItems: CashFlowItem[]; expenseActuals: ExpenseActual[];
+  transactions?: CashFlowTransaction[];
   budgetHistory: BudgetHistoryEntry[];
   effectiveIncome: number; monthlyExpenses: number; monthlySavings: number;
   savingsRate: number; cashFlowFinnInsight: string; isPrivate: boolean; guided?: boolean;
@@ -1023,7 +1027,7 @@ export default function CashFlowOS({
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [highlightedCat, setHighlightedCat] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [importSuccess, setImportSuccess] = useState<number | null>(null);
+  const [importSuccess, setImportSuccess] = useState<(ImportSavedSummary & { undone?: boolean }) | null>(null);
   const [expandedBreakdown, setExpandedBreakdown] = useState<Set<string>>(new Set());
   const [movingKey, setMovingKey] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -1963,27 +1967,45 @@ export default function CashFlowOS({
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <button type="button" onClick={() => { setShowImport(p => !p); setImportSuccess(null); }}
-            title="Logs what you actually spent this month — separate from the budget-building import above"
+            title="Records what actually happened, transaction by transaction. Doesn't change your budget."
             style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "7px", border: "1px solid var(--card-border)", background: showImport ? "rgba(14,165,160,0.14)" : "var(--card-bg)", color: showImport ? "var(--brand-blue)" : "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "11px", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
             <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            Log Actuals from Statement
+            Import transactions
           </button>
         </div>
 
         {showImport && (
           <div style={{ marginBottom: "14px" }}>
-            <StatementImportPanel expenseItems={expenseItems} selYear={selYear} selMonth={selMonth}
+            <TransactionImportPanel expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate}
               onClose={() => setShowImport(false)}
-              onDone={count => { setShowImport(false); setImportSuccess(count); router.refresh(); }}
+              onSaved={summary => { setShowImport(false); setImportSuccess(summary); router.refresh(); }}
             />
           </div>
         )}
         {importSuccess !== null && !showImport && (
-          <div style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "12px", color: "var(--green)", fontFamily: "var(--font-body)" }}>{importSuccess} actual{importSuccess !== 1 ? "s" : ""} logged for {MONTH_NAMES[selMonth - 1]} {selYear}.</span>
-            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--green)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
+          <div role="status" style={{ marginBottom: "12px", padding: "8px 12px", borderRadius: "var(--radius-md)", background: "var(--card-bg)", border: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "12px", color: importSuccess.undone ? "var(--text-secondary)" : "var(--green)", fontFamily: "var(--font-body)", flex: 1, minWidth: 0 }}>
+              {importSuccess.undone
+                ? "Import undone. Those transactions were removed."
+                : `Saved ${importSuccess.inserted} transaction${importSuccess.inserted !== 1 ? "s" : ""} to ${importSuccess.months.join(", ")}.`}
+            </span>
+            {!importSuccess.undone && (
+              <button type="button" disabled={pending}
+                onClick={() => startTransition(async () => {
+                  await deleteImportBatch(importSuccess.batchId);
+                  setImportSuccess({ ...importSuccess, undone: true });
+                  router.refresh();
+                })}
+                style={{ background: "none", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)", color: "var(--text-secondary)", cursor: "pointer", fontSize: "11px", padding: "4px 10px", minHeight: "32px", fontFamily: "var(--font-body)" }}>
+                Undo import
+              </button>
+            )}
+            <button type="button" onClick={() => setImportSuccess(null)} style={{ background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: "14px", lineHeight: 1, padding: "0 2px", minWidth: "32px", minHeight: "32px" }}><span aria-hidden="true">×</span><span className="bt-sr-only">Dismiss</span></button>
           </div>
         )}
+
+        <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
+          expenseItems={expenseItems} incomeItems={incomeItems} isPrivate={isPrivate} />
 
         {/* Income */}
         <div style={{ marginBottom: "20px" }}>
@@ -2110,6 +2132,14 @@ export default function CashFlowOS({
                               <div style={{ display: "flex", alignItems: "flex-start", gap: "4px", marginTop: "2px" }}>
                                 <span style={{ ...rowLabel, color: "oklch(0.68 0.18 163)", paddingTop: "6px" }}>Actual</span>
                                 <div className="cfo-actual" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", paddingTop: "4px" }}>
+                                {actual?.source === "transactions" ? (
+                                  // Summed from imported transactions — edited by re-bucketing or
+                                  // deleting those transactions, never overwritten by a typed number.
+                                  <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+                                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)", fontWeight: 600 }}>{ph(fmt(actual.actual_amount))}</span>
+                                    {" "}from {actual.txn_count} transaction{actual.txn_count !== 1 ? "s" : ""}
+                                  </span>
+                                ) : (<>
                                 <form
                                   action={fd => {
                                     fd.set("cash_flow_item_id", item.id);
@@ -2144,6 +2174,7 @@ export default function CashFlowOS({
                                     <span className="bt-sr-only">Delete logged actual</span>
                                   </button>
                                 )}
+                                </>)}
                                 {variance !== null && (
                                   <span style={{ padding: "2px 7px", borderRadius: "3px", fontSize: "10px", fontWeight: 600, fontFamily: "var(--font-mono)", background: variance > 0 ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: variance > 0 ? "oklch(0.65 0.18 25)" : "oklch(0.72 0.19 145)" }}>
                                     {variance > 0 ? "+" : ""}{ph(fmt(variance))} {variance > 0 ? "over" : "under"}
@@ -2216,6 +2247,11 @@ export default function CashFlowOS({
                                   </button>
                                   {expandedBreakdown.has(item.id) && (
                                     <div style={{ marginTop: "4px", paddingLeft: "8px", display: "flex", flexDirection: "column", gap: "3px" }}>
+                                      {actual.source === "transactions" && (
+                                        <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                                          To move a merchant, change its bucket in the transaction list above.
+                                        </span>
+                                      )}
                                       {actual.breakdown.map((m, mi) => {
                                         const mKeyBreak = `${item.id}:${mi}`;
                                         const isMov = movingKey === mKeyBreak;
@@ -2226,7 +2262,7 @@ export default function CashFlowOS({
                                               <span style={{ fontSize: "10px", color: "var(--text-secondary)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>↳ {m.label}</span>
                                               <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
                                                 <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>${m.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                {others.length > 0 && (
+                                                {others.length > 0 && actual.source !== "transactions" && (
                                                   <button type="button" onClick={() => setMovingKey(isMov ? null : mKeyBreak)} style={{ background: isMov ? "var(--bg-elevated)" : "none", border: isMov ? "1px solid var(--border-subtle)" : "none", borderRadius: "3px", cursor: "pointer", color: isMov ? "var(--accent)" : "var(--text-tertiary)", fontSize: "10px", padding: "1px 4px", lineHeight: 1 }}>→</button>
                                                 )}
                                               </div>
