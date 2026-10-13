@@ -110,7 +110,10 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     admin.from("cash_flow_items").select("id, label, type, category, amount").eq("user_id", userId),
     admin.from("cash_flow_merchant_rules").select("merchant_key, cash_flow_item_id").eq("user_id", userId),
   ]);
-  if (exErr) return 0; // e.g. external_id column not added yet — try again next sync
+  if (exErr) { // e.g. external_id column not added yet — try again next sync
+    console.error("[plaid-cash-flow] reading existing transactions failed:", exErr.code, exErr.message);
+    return 0;
+  }
 
   type Row = CashFlowTransaction & { external_id: string | null };
   const existing = (existingRows ?? []).map((r) => ({ ...r, amount: Number(r.amount) }) as Row);
@@ -173,12 +176,19 @@ export async function syncPlaidIntoCashFlow(userId: string, store: BankTransacti
     });
   });
 
+  // Plain inserts — rows already present were filtered out above (byExternal), so this
+  // doesn't depend on ON CONFLICT matching a particular index shape. If a concurrent sync
+  // got there first, the unique index rejects the chunk; retry row by row and skip those.
   let inserted = 0;
-  for (let i = 0; i < records.length; i += 500) {
-    const chunk = records.slice(i, i + 500);
-    const { error } = await admin.from("cash_flow_transactions")
-      .upsert(chunk, { onConflict: "user_id,external_id", ignoreDuplicates: true });
-    if (!error) inserted += chunk.length;
+  for (let i = 0; i < records.length; i += 200) {
+    const chunk = records.slice(i, i + 200);
+    const { error } = await admin.from("cash_flow_transactions").insert(chunk);
+    if (!error) { inserted += chunk.length; continue; }
+    for (const row of chunk) {
+      const { error: rowErr } = await admin.from("cash_flow_transactions").insert(row);
+      if (!rowErr) inserted++;
+      else if (rowErr.code !== "23505") console.error("[plaid-cash-flow] insert failed:", rowErr.code, rowErr.message);
+    }
   }
   return inserted;
 }

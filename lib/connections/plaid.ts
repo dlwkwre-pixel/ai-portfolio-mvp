@@ -70,8 +70,12 @@ export type PlaidAccount = {
   balances: { current: number | null; available: number | null; iso_currency_code: string | null };
 };
 
+// /accounts/get returns the balances Plaid already has (refreshed with each transactions
+// update) — fast and part of the base product. /accounts/balance/get forces a live call
+// to the bank on every request: slow (seconds per Item) and billed separately, which a
+// 10-Item refresh can't afford inside one request.
 export async function getAccountBalances(accessToken: string): Promise<PlaidAccount[]> {
-  const data = await plaidRequest<{ accounts: PlaidAccount[] }>("/accounts/balance/get", {
+  const data = await plaidRequest<{ accounts: PlaidAccount[] }>("/accounts/get", {
     access_token: accessToken,
   });
   return data.accounts ?? [];
@@ -126,28 +130,38 @@ async function kvSet(key: string, result: unknown): Promise<void> {
   } catch { /* non-fatal */ }
 }
 
-// Incrementally sync one Item's transactions into the user's rolling store.
+// Plaid's /transactions/sync status: NOT_READY right after linking (history still being
+// pulled from the bank — can take minutes), then INITIAL_UPDATE_COMPLETE (~30 days),
+// then HISTORICAL_UPDATE_COMPLETE (everything requested).
+export type TxnUpdateStatus = "NOT_READY" | "INITIAL_UPDATE_COMPLETE" | "HISTORICAL_UPDATE_COMPLETE" | "UNKNOWN";
+
+export type ItemTxnSync = { changed: number; removed: string[]; status: TxnUpdateStatus };
+
+// Incrementally sync one Item's transactions into ITS OWN rolling store (one KV key per
+// Item, so several Items can sync in parallel without overwriting each other).
 // Best-effort by design: throws only on unexpected shapes, and callers swallow.
-export async function syncBankTransactions(userId: string, itemId: string, accessToken: string): Promise<number> {
+export async function syncBankTransactions(userId: string, itemId: string, accessToken: string): Promise<ItemTxnSync> {
   let cursor = (await kvGet<{ cursor?: string }>(`plaidcursor:${itemId}`))?.cursor ?? undefined;
   const added: PlaidTxn[] = [];
   const modified: PlaidTxn[] = [];
   const removed: string[] = [];
+  let status: TxnUpdateStatus = "UNKNOWN";
 
   for (let page = 0; page < 20; page++) {
     const res = await plaidRequest<{
       added: PlaidTxn[]; modified: PlaidTxn[]; removed: { transaction_id: string }[];
-      next_cursor: string; has_more: boolean;
+      next_cursor: string; has_more: boolean; transactions_update_status?: TxnUpdateStatus;
     }>("/transactions/sync", { access_token: accessToken, count: 250, ...(cursor ? { cursor } : {}) });
     added.push(...(res.added ?? []));
     modified.push(...(res.modified ?? []));
     removed.push(...(res.removed ?? []).map((r) => r.transaction_id));
+    if (res.transactions_update_status) status = res.transactions_update_status;
     cursor = res.next_cursor;
     if (!res.has_more) break;
   }
   await kvSet(`plaidcursor:${itemId}`, { cursor });
 
-  const storeKey = `plaidtxns:${userId}`;
+  const storeKey = `plaidtxns:${userId}:${itemId}`;
   const store = (await kvGet<{ txns?: BankTransaction[] }>(storeKey))?.txns ?? [];
   const byId = new Map(store.map((t) => [t.id, t]));
   const normalize = (t: PlaidTxn): BankTransaction => ({
@@ -172,11 +186,18 @@ export async function syncBankTransactions(userId: string, itemId: string, acces
     .slice(0, 800);
   await kvSet(storeKey, { txns });
 
-  // Feed posted transactions into Cash Flow (dedupes against statement imports; never
-  // fails the sync — the bank card and balances matter more than this).
-  try { await syncPlaidIntoCashFlow(userId, txns, removed); } catch { /* best-effort */ }
+  return { changed: added.length + modified.length, removed, status };
+}
 
-  return added.length + modified.length;
+// Feed every linked Item's posted transactions into Cash Flow — once per user, after
+// their Items have synced (dedupes against statement imports and duplicate accounts).
+// Never throws: the bank card and balances matter more than this.
+export async function syncUserCashFlow(userId: string, removedIds: string[]): Promise<number> {
+  try {
+    return await syncPlaidIntoCashFlow(userId, await getBankTransactions(userId), removedIds);
+  } catch {
+    return 0;
+  }
 }
 
 // Transactions the user deleted from Cash Flow — remembered so the next sync doesn't
@@ -191,15 +212,38 @@ export async function getDismissedPlaidIds(userId: string): Promise<Set<string>>
   return new Set((await kvGet<{ ids?: string[] }>(`plaiddismissed:${userId}`))?.ids ?? []);
 }
 
+// All of a user's linked transactions: one store per Item, plus the older single per-user
+// store (written before stores were split) so nothing synced earlier is lost.
 export async function getBankTransactions(userId: string): Promise<BankTransaction[]> {
-  return (await kvGet<{ txns?: BankTransaction[] }>(`plaidtxns:${userId}`))?.txns ?? [];
+  let itemIds: string[] = [];
+  try {
+    const { data } = await createAdminClient().from("bank_connections").select("item_id").eq("user_id", userId);
+    itemIds = (data ?? []).map((c) => c.item_id as string);
+  } catch { /* table missing */ }
+  const stores = await Promise.all([
+    kvGet<{ txns?: BankTransaction[] }>(`plaidtxns:${userId}`),
+    ...itemIds.map((id) => kvGet<{ txns?: BankTransaction[] }>(`plaidtxns:${userId}:${id}`)),
+  ]);
+  const live = new Set(itemIds);
+  const byId = new Map<string, BankTransaction>();
+  stores.forEach((s, i) => {
+    for (const t of s?.txns ?? []) {
+      // legacy store (i === 0): drop rows from Items that were unlinked since
+      if (i === 0 && !live.has(t.itemId)) continue;
+      byId.set(t.id, t);
+    }
+  });
+  return [...byId.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// Pull fresh balances for one connection and upsert them into bank_accounts.
-// Returns the number of accounts updated. Throws on Plaid errors (caller records them).
+export type ConnectionSyncResult = { accounts: number; txn: ItemTxnSync | null };
+
+// Pull balances for one connection into bank_accounts, then its transactions into the
+// Item's store. Cash Flow is fed separately (syncUserCashFlow) once all Items are done.
+// Throws on Plaid balance errors (caller records them).
 export async function syncBankConnection(
   userId: string, itemId: string, accessToken: string,
-): Promise<number> {
+): Promise<ConnectionSyncResult> {
   const admin = createAdminClient();
   const accounts = await getAccountBalances(accessToken);
   for (const a of accounts) {
@@ -224,9 +268,40 @@ export async function syncBankConnection(
 
   // Transactions ride along with every balance sync (exchange, manual refresh, daily
   // cron) — incremental via cursor, so repeat syncs are cheap. Never fails the sync.
-  try { await syncBankTransactions(userId, itemId, accessToken); } catch { /* best-effort */ }
+  let txn: ItemTxnSync | null = null;
+  try { txn = await syncBankTransactions(userId, itemId, accessToken); } catch { /* best-effort */ }
 
-  return accounts.length;
+  return { accounts: accounts.length, txn };
+}
+
+// Sync several of one user's connections at a time (each is a few Plaid round-trips),
+// then feed Cash Flow once. Used by the manual refresh and the daily cron.
+export async function syncUserConnections(
+  userId: string,
+  conns: { item_id: string; access_token: string }[],
+  onError: (itemId: string, message: string) => Promise<void>,
+): Promise<{ synced: number; accounts: number; newTransactions: number; loading: number }> {
+  let synced = 0, accounts = 0, loading = 0;
+  const removed: string[] = [];
+  const queue = [...conns];
+  async function worker() {
+    for (let c = queue.shift(); c; c = queue.shift()) {
+      try {
+        const r = await syncBankConnection(userId, c.item_id, c.access_token);
+        synced++;
+        accounts += r.accounts;
+        if (r.txn) {
+          removed.push(...r.txn.removed);
+          if (r.txn.status === "NOT_READY") loading++;
+        }
+      } catch (e) {
+        await onError(c.item_id, e instanceof Error ? e.message.slice(0, 300) : "sync failed");
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, conns.length) }, worker));
+  const newTransactions = await syncUserCashFlow(userId, removed);
+  return { synced, accounts, newTransactions, loading };
 }
 
 // Revoke a Plaid Item (used by account deletion — removes our access at Plaid's side,

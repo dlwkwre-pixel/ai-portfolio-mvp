@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { plaidConfigured, exchangePublicToken, syncBankConnection } from "@/lib/connections/plaid";
+import { plaidConfigured, exchangePublicToken, syncBankConnection, syncUserCashFlow } from "@/lib/connections/plaid";
 
 export const maxDuration = 60;
 
@@ -34,8 +34,9 @@ export async function POST(req: Request) {
     if (insErr) {
       return NextResponse.json({ error: "Could not save the connection. Run supabase/bank-connections.sql first." }, { status: 500 });
     }
-    const accounts = await syncBankConnection(user.id, itemId, accessToken);
-    return NextResponse.json({ ok: true, accounts });
+    const { accounts, txn } = await syncBankConnection(user.id, itemId, accessToken);
+    await syncUserCashFlow(user.id, txn?.removed ?? []);
+    return NextResponse.json({ ok: true, accounts, loading: txn?.status === "NOT_READY" });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Bank link failed." }, { status: 502 });
   }

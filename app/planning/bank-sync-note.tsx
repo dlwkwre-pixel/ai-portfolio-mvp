@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-// Money out: linked banks feed Cash Flow automatically. Shows when it last synced and a
-// manual "Sync now"; for people with bank access but nothing linked, a pointer to connect.
+// Money out: linked banks feed Cash Flow automatically. Opening the page syncs when the
+// last sync is stale; right after linking, Plaid can still be pulling history from the
+// bank, so it re-checks a few times and says what's happening instead of a bare "Synced".
 
 export type BankLinkInfo = { linked: boolean; lastSyncedAt: string | null; institutions: string[] };
+
+type SyncResult = { synced?: number; total?: number; newTransactions?: number; loading?: number; error?: string };
+
+const STALE_MS = 3 * 60 * 60 * 1000;
+const RECHECK_MS = 45_000;
+const MAX_RECHECKS = 6;
 
 function ago(iso: string | null): string {
   if (!iso) return "not synced yet";
@@ -19,10 +26,52 @@ function ago(iso: string | null): string {
   return `${Math.round(hrs / 24)} days ago`;
 }
 
+function describe(r: SyncResult): { text: string; tone: "ok" | "info" | "err" } {
+  if (r.error) return { text: r.error, tone: "err" };
+  const added = r.newTransactions ?? 0;
+  const failed = (r.total ?? 0) - (r.synced ?? 0);
+  const parts: string[] = [added > 0 ? `${added} new transaction${added !== 1 ? "s" : ""} added` : "Up to date, nothing new"];
+  if ((r.loading ?? 0) > 0) parts.push(`${r.loading} bank${r.loading !== 1 ? "s are" : " is"} still sending history (normal for a few minutes after linking). Checking again shortly`);
+  if (failed > 0) parts.push(`${failed} connection${failed !== 1 ? "s" : ""} couldn't sync. See Connections`);
+  return { text: parts.join(". ") + ".", tone: failed > 0 ? "err" : (r.loading ?? 0) > 0 ? "info" : "ok" };
+}
+
 export default function BankSyncNote({ info }: { info: BankLinkInfo }) {
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; tone: "ok" | "info" | "err" } | null>(null);
+  const rechecks = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sync = useCallback(async (auto: boolean) => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/connections/plaid/refresh", { method: "POST" });
+      const data = await res.json().catch(() => ({})) as SyncResult;
+      const result = res.ok ? data : { error: data.error ?? "Couldn't sync right now." };
+      const d = describe(result);
+      // A quiet automatic sync with nothing new doesn't need a message.
+      if (!(auto && d.tone === "ok" && !(result.newTransactions ?? 0))) setMsg(d);
+      if ((result.newTransactions ?? 0) > 0 || !auto) router.refresh();
+      if ((result.loading ?? 0) > 0 && rechecks.current < MAX_RECHECKS) {
+        rechecks.current++;
+        timer.current = setTimeout(() => { void sync(true); }, RECHECK_MS);
+      }
+    } catch {
+      if (!auto) setMsg({ text: "Network error. Try again.", tone: "err" });
+    } finally {
+      setSyncing(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!info.linked) return;
+    const stale = !info.lastSyncedAt || Date.now() - new Date(info.lastSyncedAt).getTime() > STALE_MS;
+    if (stale) void sync(true);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+    // run once on mount — later syncs are user- or recheck-driven
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!info.linked) {
     return (
@@ -34,33 +83,20 @@ export default function BankSyncNote({ info }: { info: BankLinkInfo }) {
     );
   }
 
-  async function sync() {
-    setSyncing(true);
-    setMsg(null);
-    try {
-      const res = await fetch("/api/connections/plaid/refresh", { method: "POST" });
-      const data = await res.json().catch(() => ({})) as { error?: string };
-      if (!res.ok) { setMsg(data.error ?? "Couldn't sync right now."); return; }
-      setMsg("Synced.");
-      router.refresh();
-    } catch {
-      setMsg("Network error. Try again.");
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   const names = info.institutions.filter(Boolean);
+  const color = msg?.tone === "ok" ? "var(--green)" : msg?.tone === "err" ? "var(--red)" : "var(--text-secondary)";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", margin: "0 0 12px", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
-      <span>
-        {`Linked ${names.length > 0 ? names.join(", ") : "accounts"} sync automatically · last ${ago(info.lastSyncedAt)}. Anything you already imported from a statement isn't added twice.`}
-      </span>
-      <button type="button" onClick={sync} disabled={syncing}
-        style={{ minHeight: "32px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer" }}>
-        {syncing ? "Syncing…" : "Sync now"}
-      </button>
-      {msg && <span role="status" style={{ color: msg === "Synced." ? "var(--green)" : "var(--red)" }}>{msg}</span>}
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px", margin: "0 0 12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "var(--text-xs)", color: "var(--text-tertiary)", fontFamily: "var(--font-body)" }}>
+        <span>
+          {`${names.length > 0 ? Array.from(new Set(names)).join(", ") : "Linked accounts"} sync automatically · last ${syncing ? "syncing now…" : ago(info.lastSyncedAt)}`}
+        </span>
+        <button type="button" onClick={() => { rechecks.current = 0; void sync(false); }} disabled={syncing}
+          style={{ minHeight: "32px", padding: "0 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", background: "transparent", color: "var(--text-secondary)", fontFamily: "var(--font-body)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer" }}>
+          {syncing ? "Syncing…" : "Sync now"}
+        </button>
+      </div>
+      {msg && <span role="status" style={{ fontSize: "var(--text-xs)", color, fontFamily: "var(--font-body)", lineHeight: 1.5 }}>{msg.text}</span>}
     </div>
   );
 }

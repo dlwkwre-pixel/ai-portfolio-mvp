@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasFeatureAccess } from "@/lib/access/feature-access";
-import { plaidConfigured, syncBankConnection } from "@/lib/connections/plaid";
+import { plaidConfigured, syncUserConnections } from "@/lib/connections/plaid";
 
 export const maxDuration = 60;
 
@@ -22,16 +22,12 @@ export async function POST() {
     .then((r) => r, () => ({ data: null }));
   if (!conns || conns.length === 0) return NextResponse.json({ error: "Connect a bank first." }, { status: 400 });
 
-  let synced = 0, accounts = 0;
-  for (const c of conns) {
-    try {
-      accounts += await syncBankConnection(user.id, c.item_id, c.access_token);
-      synced++;
-    } catch (e) {
-      await admin.from("bank_connections")
-        .update({ last_error: e instanceof Error ? e.message.slice(0, 300) : "sync failed", updated_at: new Date().toISOString() })
-        .eq("user_id", user.id).eq("item_id", c.item_id).then((r) => r, () => ({}));
-    }
-  }
-  return NextResponse.json({ synced, accounts });
+  // newTransactions = rows added to Cash Flow; loading = connections whose history Plaid
+  // is still pulling (right after linking) — the client re-checks while that's > 0.
+  const result = await syncUserConnections(user.id, conns, async (itemId, message) => {
+    await admin.from("bank_connections")
+      .update({ last_error: message, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id).eq("item_id", itemId).then((r) => r, () => ({}));
+  });
+  return NextResponse.json({ ...result, total: conns.length });
 }

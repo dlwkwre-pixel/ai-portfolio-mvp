@@ -583,6 +583,9 @@ function ActualsRefreshPanel({ existingItems, expenseActuals, onAdd }: ActualsRe
   );
 }
 
+// Categories whose budget lines are bills: the same amount each month, paid once.
+const FIXED_BILL_CATEGORIES = new Set(["Housing", "Utilities", "Insurance", "Subscriptions", "Childcare"]);
+
 // ── 50/30/20 framework ──────────────────────────────────────────────────────
 // Maps each expense category into Needs vs Wants. Savings is the residual
 // (income − needs − wants). Heuristic by design — Food & Dining leans grocery
@@ -1181,7 +1184,11 @@ export default function CashFlowOS({
       .map(item => ({ item, planned: toMonthly(getEffectiveBudget(budgetHistory, item.id, y, m) ?? item.amount, item.frequency) }))
       .filter(({ item, planned }) => planned > 0 && actualsIndex.get(`${item.id}|${y}|${m}`) === undefined)
       .sort((a, b) => (a.item.due_day ?? 99) - (b.item.due_day ?? 99) || b.planned - a.planned)
-      .map(({ item, planned }) => ({ id: item.id, label: item.label, planned, dueDay: item.due_day }));
+      .map(({ item, planned }) => ({
+        id: item.id, label: item.label, planned, dueDay: item.due_day,
+        // Same amount every month → one-tap "Paid". Everything else fills in from transactions.
+        fixed: item.due_day != null || FIXED_BILL_CATEGORIES.has(categoryOf(item)),
+      }));
   }
   function savedFor(y: number, m: number) {
     return transactions.filter(t => t.direction === "save" && t.period_year === y && t.period_month === m).reduce((sum, t) => sum + t.amount, 0);
@@ -1774,7 +1781,7 @@ export default function CashFlowOS({
           </div>
         )}
 
-        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} />
+        <UnrecordedBills lines={selUnrecorded} selYear={selYear} selMonth={selMonth} isPrivate={isPrivate} bankLinked={!!bankLink?.linked} />
 
         <MonthTransactions transactions={transactions} selYear={selYear} selMonth={selMonth}
           loggedTotals={expenseActuals.filter(a => a.source !== "transactions" && a.period_year === selYear && a.period_month === selMonth)}

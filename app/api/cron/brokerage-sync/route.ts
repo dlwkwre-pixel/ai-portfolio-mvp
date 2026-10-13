@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSnaptrade } from "@/lib/connections/snaptrade";
 import { resyncBrokerageAccount } from "@/lib/connections/sync";
-import { plaidConfigured, syncBankConnection } from "@/lib/connections/plaid";
+import { plaidConfigured, syncUserConnections } from "@/lib/connections/plaid";
 
 export const maxDuration = 300;
 
@@ -21,14 +21,17 @@ export async function GET(request: Request) {
   if (plaidConfigured()) {
     const { data: bankConns } = await admin.from("bank_connections").select("user_id, item_id, access_token")
       .then((r) => r, () => ({ data: null }));
-    for (const b of bankConns ?? []) {
-      try { await syncBankConnection(b.user_id, b.item_id, b.access_token); banksSynced++; }
-      catch (e) {
+    // Per user, so each user's Cash Flow is fed once after all their Items sync.
+    const byUser = new Map<string, { item_id: string; access_token: string }[]>();
+    for (const b of bankConns ?? []) byUser.set(b.user_id, [...(byUser.get(b.user_id) ?? []), b]);
+    for (const [userId, conns] of byUser) {
+      const r = await syncUserConnections(userId, conns, async (itemId, message) => {
         banksFailed++;
         await admin.from("bank_connections")
-          .update({ last_error: e instanceof Error ? e.message.slice(0, 300) : "sync failed", updated_at: new Date().toISOString() })
-          .eq("user_id", b.user_id).eq("item_id", b.item_id).then((r) => r, () => ({}));
-      }
+          .update({ last_error: message, updated_at: new Date().toISOString() })
+          .eq("user_id", userId).eq("item_id", itemId).then((res) => res, () => ({}));
+      });
+      banksSynced += r.synced;
     }
   }
 
